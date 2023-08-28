@@ -1,5 +1,3 @@
-use dep::std;
-
 fn len_plus_1<T, N>(array: [T; N]) -> Field {
     array.len() + 1
 }

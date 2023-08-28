@@ -3,10 +3,10 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
-use crate::token::Attribute;
+use crate::token::{Attribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::FileDiagnostic;
+use noirc_errors::{FileDiagnostic, Location};
 use std::collections::HashMap;
 
 mod module_def;
@@ -87,8 +87,8 @@ impl CrateDefMap {
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
-        let origin = ModuleOrigin::CrateRoot(root_file_id);
-        let root = modules.insert(ModuleData::new(None, origin, false));
+        let location = Location::new(Default::default(), root_file_id);
+        let root = modules.insert(ModuleData::new(None, location, false));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -120,13 +120,8 @@ impl CrateDefMap {
         root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
-    pub fn root_file_id(&self) -> FileId {
-        let root_module = &self.modules()[self.root.0];
-        root_module.origin.into()
-    }
-
-    pub fn module_file_id(&self, module_id: LocalModuleId) -> FileId {
-        self.modules[module_id.0].origin.file_id()
+    pub fn file_id(&self, module_id: LocalModuleId) -> FileId {
+        self.modules[module_id.0].location.file
     }
 
     /// Go through all modules in this crate, and find all functions in
@@ -134,12 +129,18 @@ impl CrateDefMap {
     pub fn get_all_test_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,
-    ) -> impl Iterator<Item = FuncId> + 'a {
+    ) -> impl Iterator<Item = TestFunction> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
-            module
-                .value_definitions()
-                .filter_map(|id| id.as_function())
-                .filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+            module.value_definitions().filter_map(|id| {
+                if let Some(func_id) = id.as_function() {
+                    match interner.function_meta(&func_id).attributes {
+                        Some(Attribute::Test(scope)) => Some(TestFunction::new(func_id, scope)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            })
         })
     }
 
@@ -153,7 +154,7 @@ impl CrateDefMap {
                     let functions =
                         module.value_definitions().filter_map(|id| id.as_function()).collect();
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, functions })
+                    Some(Contract { name, location: module.location, functions })
                 } else {
                     None
                 }
@@ -199,6 +200,7 @@ impl CrateDefMap {
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
+    pub location: Location,
     pub functions: Vec<FuncId>,
 }
 
@@ -223,5 +225,30 @@ impl std::ops::Index<LocalModuleId> for CrateDefMap {
 impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
         &mut self.modules[local_module_id.0]
+    }
+}
+
+pub struct TestFunction {
+    id: FuncId,
+    scope: TestScope,
+}
+
+impl TestFunction {
+    fn new(id: FuncId, scope: TestScope) -> Self {
+        TestFunction { id, scope }
+    }
+
+    /// Returns the function id of the test function
+    pub fn get_id(&self) -> FuncId {
+        self.id
+    }
+
+    /// Returns true if the test function has been specified to fail
+    /// This is done by annotating the function with `#[test(should_fail)]`
+    pub fn should_fail(&self) -> bool {
+        match self.scope {
+            TestScope::ShouldFail => true,
+            TestScope::None => false,
+        }
     }
 }

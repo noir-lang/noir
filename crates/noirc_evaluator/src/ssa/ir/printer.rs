@@ -100,7 +100,7 @@ pub(crate) fn display_terminator(
     f: &mut Formatter,
 ) -> Result {
     match terminator {
-        Some(TerminatorInstruction::Jmp { destination, arguments, location: _ }) => {
+        Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
             writeln!(f, "    jmp {}({})", destination, value_list(function, arguments))
         }
         Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) => {

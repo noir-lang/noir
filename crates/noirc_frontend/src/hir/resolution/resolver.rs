@@ -26,7 +26,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -34,9 +34,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
-    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
+    Path, Pattern, Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -46,7 +46,7 @@ use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
 };
 use crate::hir_def::{
-    function::{FuncMeta, HirFunction, Param},
+    function::{FuncMeta, HirFunction},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
@@ -361,10 +361,10 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
-            UnresolvedType::Function(args, ret) => {
+            UnresolvedType::Function(args, ret, env) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
-                let env = Box::new(Type::Unit);
+                let env = Box::new(self.resolve_type_inner(*env, new_variables));
                 Type::Function(args, ret, env)
             }
             UnresolvedType::MutableReference(element) => {
@@ -661,7 +661,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
+            if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
                     position: PubPosition::Parameter,
@@ -671,7 +671,7 @@ impl<'a> Resolver<'a> {
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
 
-            parameters.push(Param(pattern, typ.clone(), visibility));
+            parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
 
@@ -679,8 +679,7 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
-        {
+        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
@@ -690,18 +689,18 @@ impl<'a> Resolver<'a> {
         // 'pub_allowed' also implies 'pub' is required on return types
         if self.pub_allowed(func)
             && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility != noirc_abi::AbiVisibility::Public
+            && func.def.return_visibility != Visibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
 
         if !self.distinct_allowed(func)
-            && func.def.return_distinctness != noirc_abi::AbiDistinctness::DuplicationAllowed
+            && func.def.return_distinctness != Distinctness::DuplicationAllowed
         {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if attributes == Some(Attribute::Test) && !parameters.is_empty() {
+        if matches!(attributes, Some(Attribute::Test { .. })) && !parameters.is_empty() {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
             });
@@ -726,6 +725,7 @@ impl<'a> Resolver<'a> {
             location,
             typ,
             parameters: parameters.into(),
+            return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
@@ -1296,6 +1296,10 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
+    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
+        self.interner.get_trait(type_id)
+    }
+
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1485,8 +1489,9 @@ mod test {
 
     use fm::FileId;
     use iter_extended::vecmap;
+    use noirc_errors::Location;
 
-    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
+    use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::resolution::resolver::StmtId;
@@ -1520,7 +1525,8 @@ mod test {
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
-        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+        let location = Location::new(Default::default(), file);
+        modules.insert(ModuleData::new(None, location, false));
 
         let path_resolver = TestPathResolver(HashMap::new());
 
@@ -1924,7 +1930,7 @@ mod test {
             fn main() {
                 let string = f"this is i: {i}";
                 println(string);
-                
+
                 println(f"I want to print {0}");
 
                 let new_val = 10;

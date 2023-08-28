@@ -38,9 +38,14 @@ pub enum ManifestError {
     )]
     MissingDefaultEntryFile { toml: PathBuf, entry: PathBuf, package_type: PackageType },
 
-    /// Invalid character `-` in package name
-    #[error("invalid character `-` in package name")]
-    InvalidPackageName,
+    #[error("{} found in {toml}", if name.is_empty() { "Empty package name".into() } else { format!("Invalid package name `{name}`") })]
+    InvalidPackageName { toml: PathBuf, name: String },
+
+    #[error("{} found in {toml}", if name.is_empty() { "Empty dependency name".into() } else { format!("Invalid dependency name `{name}`") })]
+    InvalidDependencyName { toml: PathBuf, name: String },
+
+    #[error("Invalid directory path {directory} in {toml}: It must point to a subdirectory")]
+    InvalidDirectory { toml: PathBuf, directory: PathBuf },
 
     /// Encountered error while downloading git repository.
     #[error("{0}")]
@@ -57,4 +62,7 @@ pub enum ManifestError {
 
     #[error("Missing `name` field in {toml}")]
     MissingNameField { toml: PathBuf },
+
+    #[error("No common ancestor between {root} and {current}")]
+    NoCommonAncestor { root: PathBuf, current: PathBuf },
 }

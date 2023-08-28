@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
-use crate::{Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType};
+use crate::{
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
+    Visibility,
+};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -360,19 +363,26 @@ pub struct FunctionDefinition {
     pub is_unconstrained: bool,
 
     pub generics: UnresolvedGenerics,
-    pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
+    pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,
     pub span: Span,
     pub where_clause: Vec<TraitConstraint>,
-    pub return_type: UnresolvedType,
-    pub return_visibility: noirc_abi::AbiVisibility,
-    pub return_distinctness: noirc_abi::AbiDistinctness,
+    pub return_type: FunctionReturnType,
+    pub return_visibility: Visibility,
+    pub return_distinctness: Distinctness,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FunctionReturnType {
+    /// Returns type is not specified.
+    Default(Span),
+    /// Everything else.
+    Ty(UnresolvedType, Span),
 }
 
 /// Describes the types of smart contract functions that are allowed.
 /// - All Noir programs in the non-contract context can be seen as `Secret`.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ContractFunctionType {
     /// This function will be executed in a private
     /// context.
@@ -634,5 +644,14 @@ impl Display for FunctionDefinition {
             self.return_type,
             self.body
         )
+    }
+}
+
+impl Display for FunctionReturnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionReturnType::Default(_) => f.write_str(""),
+            FunctionReturnType::Ty(ty, _) => write!(f, "{ty}"),
+        }
     }
 }

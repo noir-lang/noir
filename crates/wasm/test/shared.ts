@@ -1,13 +1,14 @@
 import { initialiseResolver } from "@noir-lang/noir-source-resolver";
-import { compile } from "../dist/";
+import { compile } from "../result/";
 
 export const noirSourcePath = "../../noir-script/src/main.nr";
-export const nargoArtifactPath = "../../noir-script/target/noir_wasm_testing.json";
+export const nargoArtifactPath =
+  "../../noir-script/target/noir_wasm_testing.json";
 
 export async function compileNoirSource(noir_source: string): Promise<any> {
   console.log("Compiling Noir source...");
 
-  initialiseResolver((id: string) => {
+  initialiseResolver((id: String) => {
     console.log(`Resolving source ${id}`);
 
     const source = noir_source;

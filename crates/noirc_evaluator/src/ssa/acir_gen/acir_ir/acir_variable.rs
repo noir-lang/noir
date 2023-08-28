@@ -1,7 +1,9 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
+use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
@@ -21,7 +23,6 @@ use acvm::{
 };
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
 use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
@@ -153,12 +154,85 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
-    pub(crate) fn get_location(&self) -> Option<Location> {
-        self.acir_ir.current_location
+    fn mark_variables_equivalent(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<(), InternalError> {
+        if lhs == rhs {
+            return Ok(());
+        }
+
+        let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
+            call_stack: self.get_call_stack(),
+        })?;
+        let rhs_data = self.vars.remove(&rhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
+            call_stack: self.get_call_stack(),
+        })?;
+
+        let (new_lhs_data, new_rhs_data) = match (lhs_data, rhs_data) {
+            // Always prefer a constant variable.
+            (constant @ AcirVarData::Const(_), _) | (_, constant @ AcirVarData::Const(_)) => {
+                (constant.clone(), constant)
+            }
+
+            // Replace any expressions with witnesses.
+            (witness @ AcirVarData::Witness(_), AcirVarData::Expr(_))
+            | (AcirVarData::Expr(_), witness @ AcirVarData::Witness(_)) => {
+                (witness.clone(), witness)
+            }
+
+            // If both variables are witnesses then use the smaller of the two in future.
+            (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
+                let witness = AcirVarData::Witness(std::cmp::min(lhs_witness, rhs_witness));
+                (witness.clone(), witness)
+            }
+
+            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
+                if lhs_expr.is_linear() && rhs_expr.is_linear() {
+                    // If both expressions are linear, choose the one with the fewest terms.
+                    let expr = if lhs_expr.linear_combinations.len()
+                        <= rhs_expr.linear_combinations.len()
+                    {
+                        lhs_expr
+                    } else {
+                        rhs_expr
+                    };
+
+                    let expr = AcirVarData::Expr(expr);
+                    (expr.clone(), expr)
+                } else {
+                    (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr))
+                }
+            }
+        };
+
+        self.vars.insert(lhs, new_lhs_data);
+        self.vars.insert(rhs, new_rhs_data);
+
+        Ok(())
     }
 
-    pub(crate) fn set_location(&mut self, location: Option<Location>) {
-        self.acir_ir.current_location = location;
+    pub(crate) fn get_call_stack(&self) -> CallStack {
+        self.acir_ir.call_stack.clone()
+    }
+
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.acir_ir.call_stack = call_stack;
+    }
+
+    fn get_or_create_witness_var(&mut self, var: AcirVar) -> Result<AcirVar, InternalError> {
+        if self.var_to_expression(var)?.to_witness().is_some() {
+            // If called with a variable which is already a witness then return the same variable.
+            return Ok(var);
+        }
+
+        let var_as_witness = self.var_to_witness(var)?;
+
+        let witness_var = self.add_data(AcirVarData::Witness(var_as_witness));
+        self.mark_variables_equivalent(var, witness_var)?;
+
+        Ok(witness_var)
     }
 
     /// Converts an [`AcirVar`] to a [`Witness`]
@@ -171,7 +245,9 @@ impl AcirContext {
     fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
-            None => return Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
+            None => {
+                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() })
+            }
         };
         Ok(var_data.to_expression().into_owned())
     }
@@ -266,6 +342,14 @@ impl AcirContext {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
+        // `lhs == rhs` => `lhs - rhs == 0`
+        let diff_expr = &lhs_expr - &rhs_expr;
+
+        // Check to see if equality can be determined at compile-time.
+        if diff_expr.is_const() {
+            return Ok(self.add_constant(diff_expr.is_zero().into()));
+        }
+
         let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
         let result_var = self.add_data(AcirVarData::Witness(is_equal_witness));
         Ok(result_var)
@@ -325,28 +409,32 @@ impl AcirContext {
 
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<(), RuntimeError> {
-        // TODO: could use sub_var and then assert_eq_zero
-        let lhs_data = &self.vars[&lhs];
-        let rhs_data = &self.vars[&rhs];
-        if let (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) = (lhs_data, rhs_data)
-        {
-            if lhs_const == rhs_const {
-                // Constraint is always true and need not be added
-                Ok(())
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        // `lhs == rhs` => `lhs - rhs == 0`
+        let diff_expr = &lhs_expr - &rhs_expr;
+
+        // Check to see if equality can be determined at compile-time.
+        if diff_expr.is_const() {
+            if diff_expr.is_zero() {
+                // Constraint is always true - assertion is unnecessary.
+                self.mark_variables_equivalent(lhs, rhs)?;
+                return Ok(());
             } else {
-                // Constraint is always false - this program is unprovable
-                Err(RuntimeError::FailedConstraint {
-                    lhs: *lhs_const,
-                    rhs: *rhs_const,
-                    location: self.get_location(),
-                })
-            }
-        } else {
-            self.acir_ir.assert_is_zero(
-                lhs_data.to_expression().as_ref() - rhs_data.to_expression().as_ref(),
-            );
-            Ok(())
+                // Constraint is always false - this program is unprovable.
+                return Err(RuntimeError::FailedConstraint {
+                    lhs: Box::new(lhs_expr),
+                    rhs: Box::new(rhs_expr),
+                    call_stack: self.get_call_stack(),
+                });
+            };
         }
+
+        self.acir_ir.assert_is_zero(diff_expr);
+        self.mark_variables_equivalent(lhs, rhs)?;
+
+        Ok(())
     }
 
     /// Adds a new Variable to context whose value will
@@ -385,45 +473,35 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
     pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let lhs_data = &self.vars[&lhs];
-        let rhs_data = &self.vars[&rhs];
+        let lhs_data = self.vars[&lhs].clone();
+        let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
-            (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
-            | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                let expr_as_witness = self.acir_ir.get_or_create_witness(expr);
-                let mut expr = Expression::default();
-                expr.push_multiplication_term(FieldElement::one(), *witness, expr_as_witness);
-
-                self.add_data(AcirVarData::Expr(expr))
+            (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
+                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
             }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
-                expr.push_addition_term(*constant, *witness);
+                expr.push_addition_term(constant, witness);
                 self.add_data(AcirVarData::Expr(expr))
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::Expr(expr * *constant))
+                self.add_data(AcirVarData::Expr(&expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
-                expr.push_multiplication_term(FieldElement::one(), *lhs_witness, *rhs_witness);
+                expr.push_multiplication_term(FieldElement::one(), lhs_witness, rhs_witness);
                 self.add_data(AcirVarData::Expr(expr))
             }
-            (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                self.add_data(AcirVarData::Const(*lhs_constant * *rhs_constant))
-            }
-            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(lhs_expr);
-                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(rhs_expr);
-                let mut expr = Expression::default();
-                expr.push_multiplication_term(
-                    FieldElement::one(),
-                    lhs_expr_as_witness,
-                    rhs_expr_as_witness,
-                );
-                self.add_data(AcirVarData::Expr(expr))
+            (
+                AcirVarData::Expr(_) | AcirVarData::Witness(_),
+                AcirVarData::Expr(_) | AcirVarData::Witness(_),
+            ) => {
+                let lhs = self.get_or_create_witness_var(lhs)?;
+                let rhs = self.get_or_create_witness_var(rhs)?;
+
+                self.mul_var(lhs, rhs)?
             }
         };
         Ok(result)
@@ -439,17 +517,11 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the addition of `lhs` and `rhs`
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let lhs_data = &self.vars[&lhs];
-        let rhs_data = &self.vars[&rhs];
-        let result_data = if let (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) =
-            (lhs_data, rhs_data)
-        {
-            AcirVarData::Const(*lhs_const + *rhs_const)
-        } else {
-            let sum = lhs_data.to_expression().as_ref() + rhs_data.to_expression().as_ref();
-            AcirVarData::Expr(sum)
-        };
-        Ok(self.add_data(result_data))
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        let sum_expr = &lhs_expr + &rhs_expr;
+
+        Ok(self.add_data(AcirVarData::from(sum_expr)))
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
@@ -523,9 +595,7 @@ impl AcirContext {
         let (q, r) =
             self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
 
-        let q_vd = AcirVarData::Expr(q);
-        let r_vd = AcirVarData::Expr(r);
-        Ok((self.add_data(q_vd), self.add_data(r_vd)))
+        Ok((self.add_data(q.into()), self.add_data(r.into())))
     }
 
     /// Returns a variable which is constrained to be `lhs mod rhs`
@@ -616,7 +686,7 @@ impl AcirContext {
             &Expression::one(),
         )?;
 
-        Ok(self.add_data(AcirVarData::Expr(Expression::from(remainder))))
+        Ok(self.add_data(AcirVarData::from(remainder)))
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
@@ -673,7 +743,7 @@ impl AcirContext {
                         return Err(RuntimeError::InternalError(InternalError::MissingArg {
                             name: "pedersen call".to_string(),
                             arg: "domain separator".to_string(),
-                            location: self.get_location(),
+                            call_stack: self.get_call_stack(),
                         }))
                     }
                 };
@@ -683,7 +753,7 @@ impl AcirContext {
                     None => {
                         return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                             name: "domain separator".to_string(),
-                            location: self.get_location(),
+                            call_stack: self.get_call_stack(),
                         }))
                     }
                 };
@@ -749,7 +819,7 @@ impl AcirContext {
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
-                    location: self.get_location(),
+                    call_stack: self.get_call_stack(),
                 }));
             }
         };
@@ -759,7 +829,7 @@ impl AcirContext {
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "limb_size".to_string(),
-                    location: self.get_location(),
+                    call_stack: self.get_call_stack(),
                 }));
             }
         };
@@ -778,17 +848,15 @@ impl AcirContext {
             limb_vars.reverse();
         }
 
-        // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
-        // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
-        // become zero padding.
-        let max_decomposable_bits: u32 = 256;
-        let limb_count_with_padding = max_decomposable_bits / bit_size;
-        let zero = self.add_constant(FieldElement::zero());
-        while limb_vars.len() < limb_count_with_padding as usize {
-            limb_vars.push(AcirValue::Var(zero, result_element_type.clone()));
-        }
-
-        Ok(vec![AcirValue::Array(limb_vars.into())])
+        // `Intrinsic::ToRadix` returns slices which are represented
+        // by tuples with the structure (length, slice contents)
+        Ok(vec![
+            AcirValue::Var(
+                self.add_constant(FieldElement::from(limb_vars.len() as u128)),
+                AcirType::field(),
+            ),
+            AcirValue::Array(limb_vars.into()),
+        ])
     }
 
     /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input
@@ -847,7 +915,7 @@ impl AcirContext {
     pub(crate) fn brillig(
         &mut self,
         predicate: AcirVar,
-        code: Vec<BrilligOpcode>,
+        generated_brillig: GeneratedBrillig,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, InternalError> {
@@ -869,7 +937,9 @@ impl AcirContext {
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
-        if let Some(brillig_outputs) = self.execute_brillig(code.clone(), &b_inputs, &outputs) {
+        if let Some(brillig_outputs) =
+            self.execute_brillig(generated_brillig.byte_code.clone(), &b_inputs, &outputs)
+        {
             return Ok(brillig_outputs);
         }
 
@@ -890,7 +960,7 @@ impl AcirContext {
             }
         });
         let predicate = self.var_to_expression(predicate)?;
-        self.acir_ir.brillig(Some(predicate), code, b_inputs, b_outputs);
+        self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
 
         Ok(outputs_var)
     }
@@ -1081,7 +1151,7 @@ impl AcirContext {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
     }
@@ -1102,7 +1172,8 @@ impl AcirContext {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+
         Ok(())
     }
 
@@ -1128,7 +1199,7 @@ impl AcirContext {
             })?,
         };
 
-        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
         Ok(())
     }
 }
@@ -1175,6 +1246,31 @@ impl AcirVarData {
             AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
             AcirVarData::Expr(expr) => Cow::Borrowed(expr),
             AcirVarData::Const(constant) => Cow::Owned(Expression::from(*constant)),
+        }
+    }
+}
+
+impl From<FieldElement> for AcirVarData {
+    fn from(constant: FieldElement) -> Self {
+        AcirVarData::Const(constant)
+    }
+}
+
+impl From<Witness> for AcirVarData {
+    fn from(witness: Witness) -> Self {
+        AcirVarData::Witness(witness)
+    }
+}
+
+impl From<Expression> for AcirVarData {
+    fn from(expr: Expression) -> Self {
+        // Prefer simpler variants if possible.
+        if let Some(constant) = expr.to_const() {
+            AcirVarData::from(constant)
+        } else if let Some(witness) = expr.to_witness() {
+            AcirVarData::from(witness)
+        } else {
+            AcirVarData::Expr(expr)
         }
     }
 }

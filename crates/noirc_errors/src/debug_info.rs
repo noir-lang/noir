@@ -1,39 +1,47 @@
-use std::collections::HashMap;
+use acvm::acir::circuit::OpcodeLocation;
+use acvm::compiler::AcirTransformationMap;
+
+use serde_with::serde_as;
+use serde_with::DisplayFromStr;
+use std::collections::BTreeMap;
 
 use crate::Location;
 use serde::{Deserialize, Serialize};
 
+#[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
-    pub locations: HashMap<usize, Location>,
+    /// Serde does not support mapping keys being enums for json, so we indicate
+    /// that they should be serialized to/from strings.
+    #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
+    pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
 }
 
 impl DebugInfo {
-    pub fn new(locations: HashMap<usize, Location>) -> Self {
+    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
         DebugInfo { locations }
     }
 
-    /// Updates the locations map when the circuit is modified
+    /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
     ///
-    /// When the circuit is generated, the indices are 0,1,..,n
-    /// When the circuit is modified, the opcodes are eventually
-    /// mixed, removed, or with new ones. For instance 5,2,6,n+1,0,12,..
-    /// Since new opcodes (n+1 in the ex) don't have a location
-    /// we use the index of the old opcode that they replace.
-    /// This is the case during fallback or width 'optimization'
-    /// opcode_indices is this list of mixed indices
-    pub fn update_acir(&mut self, opcode_indices: Vec<usize>) {
-        let mut new_locations = HashMap::new();
-        for (i, idx) in opcode_indices.iter().enumerate() {
-            if self.locations.contains_key(idx) {
-                new_locations.insert(i, self.locations[idx]);
+    /// The [`OpcodeLocation`]s are generated with the ACIR, but passing the ACIR through a transformation step
+    /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
+    /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
+    pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
+        let mut new_locations_map = BTreeMap::new();
+
+        for (old_opcode_location, source_locations) in &self.locations {
+            let new_opcode_locations = update_map.new_locations(*old_opcode_location);
+            for new_opcode_location in new_opcode_locations {
+                new_locations_map.insert(new_opcode_location, source_locations.clone());
             }
         }
-        self.locations = new_locations;
+
+        self.locations = new_locations_map;
     }
 
-    pub fn opcode_location(&self, idx: usize) -> Option<&Location> {
-        self.locations.get(&idx)
+    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
+        self.locations.get(loc).cloned()
     }
 }

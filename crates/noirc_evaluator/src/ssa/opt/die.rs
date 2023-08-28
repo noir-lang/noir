@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::InstructionId,
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -88,20 +88,15 @@ impl Context {
     /// An instruction can be removed as long as it has no side-effects, and none of its result
     /// values have been referenced.
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
-        use Instruction::*;
-
         let instruction = &function.dfg[instruction_id];
 
-        // These instruction types cannot be removed
-        if matches!(
-            instruction,
-            Constrain(_) | Call { .. } | Store { .. } | EnableSideEffects { .. }
-        ) {
-            return false;
+        if instruction.has_side_effects(&function.dfg) {
+            // If the instruction has side effects we should never remove it.
+            false
+        } else {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
         }
-
-        let results = function.dfg.instruction_results(instruction_id);
-        results.iter().all(|result| !self.used_values.contains(result))
     }
 
     /// Adds values referenced by the terminator to the set of used values.
@@ -134,7 +129,12 @@ impl Context {
 #[cfg(test)]
 mod test {
     use crate::ssa::{
-        ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
+        ir::{
+            function::RuntimeType,
+            instruction::{BinaryOp, Intrinsic},
+            map::Id,
+            types::Type,
+        },
         ssa_builder::FunctionBuilder,
     };
 
@@ -155,11 +155,10 @@ mod test {
         //     v9 = add v7, Field 2
         //     v10 = add v7, Field 3
         //     v11 = add v10, v10
-        //     call println(v8)
+        //     call assert_constant(v8)
         //     return v9
         // }
         let main_id = Id::test_new(0);
-        let println_id = Id::test_new(1);
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
@@ -187,7 +186,9 @@ mod test {
         let v9 = builder.insert_binary(v7, BinaryOp::Add, two);
         let v10 = builder.insert_binary(v7, BinaryOp::Add, three);
         let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10);
-        builder.insert_call(println_id, vec![v8], vec![]);
+
+        let assert_constant_id = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        builder.insert_call(assert_constant_id, vec![v8], vec![]);
         builder.terminate_with_return(vec![v9]);
 
         let ssa = builder.finish();
@@ -209,7 +210,7 @@ mod test {
         //     v7 = load v6
         //     v8 = add v7, Field 1
         //     v9 = add v7, Field 2
-        //     call println(v8)
+        //     call assert_constant(v8)
         //     return v9
         // }
         let ssa = ssa.dead_instruction_elimination();

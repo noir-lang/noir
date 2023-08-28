@@ -40,7 +40,7 @@ struct NargoCli {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(short, long, hide=true, global=true, default_value_os_t = std::env::current_dir().unwrap())]
+    #[arg(long, hide = true, global = true, default_value = "./")]
     program_dir: PathBuf,
 }
 
@@ -63,6 +63,11 @@ enum NargoCommand {
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
+
+    // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
+    if !config.program_dir.is_absolute() {
+        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
+    }
 
     // Search through parent directories to find package root if necessary.
     if !matches!(command, NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_)) {
