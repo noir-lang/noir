@@ -392,7 +392,7 @@ impl<'function> PerFunctionContext<'function> {
             self.context.call_stack.pop_back();
         }
 
-        let new_results = InsertInstructionResult::Results(&new_results);
+        let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 
@@ -435,7 +435,7 @@ impl<'function> PerFunctionContext<'function> {
                     values.insert(*old_result, new_result);
                 }
             }
-            InsertInstructionResult::Results(new_results) => {
+            InsertInstructionResult::Results(_, new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
                     values.insert(*old_result, *new_result);
                 }
