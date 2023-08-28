@@ -94,7 +94,9 @@ const config = {
         indexName: "aztec",
       },
       colorMode: {
-        respectPrefersColorScheme: true,
+        defaultMode: "light",
+        disableSwitch: false,
+        respectPrefersColorScheme: false,
       },
       docs: {
         sidebar: {
