@@ -350,15 +350,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs) => {
-                if let (Some(lhs), Some(rhs)) =
-                    (dfg.get_numeric_constant(*lhs), dfg.get_numeric_constant(*rhs))
-                {
-                    if lhs == rhs {
-                        SimplifyResult::Remove
-                    } else {
-                        SimplifyResult::None
-                    }
-                } else if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
+                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
                     // Remove trivial case `assert_eq(x, x)`
                     SimplifyResult::Remove
                 } else {
