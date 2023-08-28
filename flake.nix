@@ -250,8 +250,6 @@
 
           cargoArtifacts = native-cargo-artifacts;
         });
-
-
       };
 
       packages = {
