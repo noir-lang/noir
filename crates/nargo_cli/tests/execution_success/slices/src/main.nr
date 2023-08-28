@@ -1,9 +1,6 @@
 use dep::std::slice;
 use dep::std;
 fn main(x : Field, y : pub Field) {
-    /// TODO(#1889): Using slices in if statements where the condition is a witness
-    /// is not yet supported
-
     let mut slice = [0; 2];
     assert(slice[0] == 0);
     assert(slice[0] != 1);
@@ -49,6 +46,8 @@ fn main(x : Field, y : pub Field) {
     assert(append[4] == 5);
 
     regression_2083();
+    // The parameters to this function must come from witness values (inputs to main)
+    regression_merge_slices(x, y);
 }
 
 // Ensure that slices of struct/tuple values work.
@@ -82,4 +81,78 @@ fn regression_2083() {
     assert(y.len() == 3);
     assert(x.0 == 5);
     assert(x.1 == 6);
+}
+
+// The parameters to this function must come from witness values (inputs to main)
+fn regression_merge_slices(x: Field, y: Field) {
+    merge_slices_if(x, y);
+    merge_slices_else(x);
+}
+
+fn merge_slices_if(x: Field, y: Field) {
+    let slice = merge_slices_return(x, y);
+    assert(slice[2] == 10);
+    assert(slice.len() == 3);
+
+    let slice = merge_slices_mutate(x, y);
+    assert(slice[3] == 5);
+    assert(slice.len() == 4);
+
+    let slice = merge_slices_mutate_in_loop(x, y);
+    assert(slice[6] == 4);
+    assert(slice.len() == 7);
+}
+
+fn merge_slices_else(x: Field) {
+    let slice = merge_slices_return(x, 5);
+    assert(slice[0] == 0);
+    assert(slice[1] == 0);
+    assert(slice.len() == 2);
+
+    let slice = merge_slices_mutate(x, 5);
+    assert(slice[2] == 5);
+    assert(slice.len() == 3);
+
+    let slice = merge_slices_mutate_in_loop(x, 5);
+    assert(slice[2] == 5);
+    assert(slice.len() == 3);
+}
+
+// Test returning a merged slice without a mutation
+fn merge_slices_return(x: Field, y: Field) -> [Field] {
+    let slice = [0; 2];
+    if x != y {
+        if x != 20 {
+            slice.push_back(y)
+        } else {
+            slice
+        }
+    } else {
+        slice
+    }
+}
+
+// Test mutating a slice inside of an if statement
+fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+    slice
+}
+
+// Test mutating a slice inside of a loop in an if statement
+fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        for i in 0..5 {
+            slice = slice.push_back(i);
+        }
+    } else {
+        slice = slice.push_back(x);
+    }
+    slice
 }

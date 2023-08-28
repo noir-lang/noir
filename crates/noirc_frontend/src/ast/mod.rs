@@ -50,7 +50,11 @@ pub enum UnresolvedType {
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
-    Function(/*args:*/ Vec<UnresolvedType>, /*ret:*/ Box<UnresolvedType>),
+    Function(
+        /*args:*/ Vec<UnresolvedType>,
+        /*ret:*/ Box<UnresolvedType>,
+        /*env:*/ Box<UnresolvedType>,
+    ),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -109,9 +113,19 @@ impl std::fmt::Display for UnresolvedType {
                 Some(len) => write!(f, "str<{len}>"),
             },
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {ret}", args.join(", "))
+
+                match &**env {
+                    UnresolvedType::Unit => {
+                        write!(f, "fn({}) -> {ret}", args.join(", "))
+                    }
+                    UnresolvedType::Tuple(env_types) => {
+                        let env_types = vecmap(env_types, ToString::to_string);
+                        write!(f, "fn[{}]({}) -> {ret}", env_types.join(", "), args.join(", "))
+                    }
+                    _ => unreachable!(),
+                }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
@@ -212,5 +226,46 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Divide
                 | BinaryOpKind::Modulo
         )
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Represents whether the parameter is public or known only to the prover.
+pub enum Visibility {
+    Public,
+    // Constants are not allowed in the ABI for main at the moment.
+    // Constant,
+    Private,
+}
+
+impl std::fmt::Display for Visibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Public => write!(f, "pub"),
+            Self::Private => write!(f, "priv"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Represents whether the return value should compromise of unique witness indices such that no
+/// index occurs within the program's abi more than once.
+///
+/// This is useful for application stacks that require an uniform abi across across multiple
+/// circuits. When index duplication is allowed, the compiler may identify that a public input
+/// reaches the output unaltered and is thus referenced directly, causing the input and output
+/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
+/// optimized away.
+pub enum Distinctness {
+    Distinct,
+    DuplicationAllowed,
+}
+
+impl std::fmt::Display for Distinctness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Distinct => write!(f, "distinct"),
+            Self::DuplicationAllowed => write!(f, "duplication-allowed"),
+        }
     }
 }
