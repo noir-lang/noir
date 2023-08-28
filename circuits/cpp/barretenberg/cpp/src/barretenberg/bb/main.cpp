@@ -1,6 +1,7 @@
-#include "barretenberg/bb/get_crs.hpp"
 #include "get_bytecode.hpp"
+#include "get_crs.hpp"
 #include "get_witness.hpp"
+#include "log.hpp"
 #include <barretenberg/common/container.hpp>
 #include <barretenberg/dsl/acir_format/acir_to_constraint_buf.hpp>
 #include <barretenberg/dsl/acir_proofs/acir_composer.hpp>
@@ -11,9 +12,9 @@
 #include <vector>
 
 using namespace barretenberg;
-// The maximum size that we can do in the browser is 2^19
+// The maximum size that we can do in the browser and node is 2^19
 // based on memory constraints for UltraPlonk.
-// However, since this will be ran natively, we can increase the
+// However, since this CLI does not use WASM, we can increase the
 // size.
 uint32_t MAX_CIRCUIT_SIZE = 1 << 23;
 std::string CRS_PATH = "./crs";
@@ -43,7 +44,8 @@ acir_format::acir_format get_constraint_system(std::string const& bytecode_path)
  * @brief Proves and Verifies an ACIR circuit
  *
  * Communication:
- * - stdout: A boolean value is printed to stdout indicating whether the proof is valid
+ * - proc_exit: A boolean value is returned indicating whether the proof is valid.
+ *   an exit code of 0 will be returned for success and 1 for failure.
  *
  * @param bytecodePath Path to the file containing the serialized circuit
  * @param witnessPath Path to the file containing the serialized witness
@@ -59,9 +61,10 @@ bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessP
     auto proof = acir_composer->create_proof(srs::get_crs_factory(), constraint_system, witness, recursive);
     auto verified = acir_composer->verify_proof(proof, recursive);
 
-    std::cout << verified << std::endl;
+    vinfo("verified: ", verified);
     return verified;
 }
+
 /**
  * @brief Creates a proof for an ACIR circuit
  *
@@ -84,11 +87,15 @@ void prove(const std::string& bytecodePath,
     auto witness = get_witness(witnessPath);
     auto proof = acir_composer->create_proof(srs::get_crs_factory(), constraint_system, witness, recursive);
 
-    std::cout << proof << std::endl;
-    write_file(outputPath, proof);
-
-    info("proof written to: ", outputPath);
+    if (outputPath == "-") {
+        writeRawBytesToStdout(proof);
+        vinfo("proof written to stdout");
+    } else {
+        write_file(outputPath, proof);
+        vinfo("proof written to: ", outputPath);
+    }
 }
+
 /**
  * @brief Computes the number of Barretenberg specific gates needed to create a proof for the specific ACIR circuit
  *
@@ -103,8 +110,11 @@ void gateCount(const std::string& bytecodePath)
     auto constraint_system = get_constraint_system(bytecodePath);
     acir_composer->create_circuit(constraint_system);
     auto gate_count = acir_composer->get_total_circuit_size();
-    std::cout << gate_count << std::endl;
+
+    writeUint64AsRawBytesToStdout(static_cast<uint64_t>(gate_count));
+    vinfo("gate count: ", gate_count);
 }
+
 /**
  * @brief Verifies a proof for an ACIR circuit
  *
@@ -112,7 +122,8 @@ void gateCount(const std::string& bytecodePath)
  * because this method uses the verification key to verify the proof.
  *
  * Communication:
- * - stdout: A boolean value is printed to stdout indicating whether the proof is valid
+ * - proc_exit: A boolean value is returned indicating whether the proof is valid.
+ *   an exit code of 0 will be returned for success and 1 for failure.
  *
  * @param proof_path Path to the file containing the serialized proof
  * @param recursive Whether to use recursive proof generation of non-recursive
@@ -127,7 +138,8 @@ bool verify(const std::string& proof_path, bool recursive, const std::string& vk
     acir_composer->load_verification_key(barretenberg::srs::get_crs_factory(), std::move(vk_data));
     auto verified = acir_composer->verify_proof(read_file(proof_path), recursive);
 
-    std::cout << verified << std::endl;
+    vinfo("verified: ", verified);
+
     return verified;
 }
 
@@ -148,11 +160,13 @@ void writeVk(const std::string& bytecodePath, const std::string& outputPath)
     acir_composer->init_proving_key(srs::get_crs_factory(), constraint_system);
     auto vk = acir_composer->init_verification_key();
     auto serialized_vk = to_buffer(*vk);
-
-    std::cout << serialized_vk << std::endl;
-    write_file(outputPath, serialized_vk);
-
-    info("vk written to: ", outputPath);
+    if (outputPath == "-") {
+        writeRawBytesToStdout(serialized_vk);
+        vinfo("vk written to stdout");
+    } else {
+        write_file(outputPath, serialized_vk);
+        vinfo("vk written to: ", outputPath);
+    }
 }
 
 /**
@@ -175,11 +189,15 @@ void contract(const std::string& output_path, const std::string& vk_path)
     acir_composer->load_verification_key(barretenberg::srs::get_crs_factory(), std::move(vk_data));
     auto contract = acir_composer->get_solidity_verifier();
 
-    std::cout << contract << std::endl;
-    write_file(output_path, { contract.begin(), contract.end() });
-
-    info("contract written to: ", output_path);
+    if (output_path == "-") {
+        writeStringToStdout(contract);
+        vinfo("contract written to stdout");
+    } else {
+        write_file(output_path, { contract.begin(), contract.end() });
+        vinfo("contract written to: ", output_path);
+    }
 }
+
 /**
  * @brief Converts a proof from a byte array into a list of field elements
  *
@@ -212,10 +230,13 @@ void proofAsFields(const std::string& proof_path, std::string const& vk_path, co
     auto data = acir_composer->serialize_proof_into_fields(read_file(proof_path), vk_data.num_public_inputs);
     auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
 
-    std::cout << json << std::endl;
-    write_file(output_path, { json.begin(), json.end() });
-
-    info("proof as fields written to: ", output_path);
+    if (output_path == "-") {
+        writeStringToStdout(json);
+        vinfo("proof as fields written to stdout");
+    } else {
+        write_file(output_path, { json.begin(), json.end() });
+        vinfo("proof as fields written to: ", output_path);
+    }
 }
 
 /**
@@ -242,11 +263,13 @@ void vkAsFields(const std::string& vk_path, const std::string& output_path)
     std::rotate(data.begin(), data.end() - 1, data.end());
 
     auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
-
-    std::cout << json << std::endl;
-    write_file(output_path, { json.begin(), json.end() });
-
-    info("vk as fields written to: ", output_path);
+    if (output_path == "-") {
+        writeStringToStdout(json);
+        vinfo("vk as fields written to stdout");
+    } else {
+        write_file(output_path, { json.begin(), json.end() });
+        vinfo("vk as fields written to: ", output_path);
+    }
 }
 
 bool flagPresent(std::vector<std::string>& args, const std::string& flag)
