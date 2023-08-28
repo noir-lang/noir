@@ -1126,7 +1126,7 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         let location = None; // TODO: This should match the location of the lambda expression
-        let mutable = false;
+        let mutable = true;
         let definition = Definition::Local(env_local_id);
 
         let env_ident = ast::Ident {
