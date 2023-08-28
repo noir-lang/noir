@@ -651,8 +651,8 @@ impl Context {
             Type::Slice(_) => {
                 let length = length
                     .expect("ICE: array set on slice must have a length associated with the call");
-                let length_acir_value = self.convert_value(length, dfg);
-                let len = self.acir_context.get_constant(&length_acir_value.into_var()?);
+                let length_acir_var = self.convert_value(length, dfg).into_var()?;
+                let len = self.acir_context.var_to_expression(length_acir_var)?.to_const();
                 let len = len
                     .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
                 len.to_u128() as usize

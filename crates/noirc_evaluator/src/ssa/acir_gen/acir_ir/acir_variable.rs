@@ -242,7 +242,7 @@ impl AcirContext {
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
-    fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
+    pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {
@@ -257,15 +257,6 @@ impl AcirContext {
         match self.vars[var] {
             AcirVarData::Const(field) => field.is_one(),
             _ => false,
-        }
-    }
-
-    // Return Some(constant) if the given AcirVar refers to a constant value,
-    // otherwise return None
-    pub(crate) fn get_constant(&self, var: &AcirVar) -> Option<FieldElement> {
-        match self.vars[var] {
-            AcirVarData::Const(field) => Some(field),
-            _ => None,
         }
     }
 
