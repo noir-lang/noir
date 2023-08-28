@@ -68,10 +68,21 @@ pub struct TraitImpl {
     pub items: Vec<TraitImplItem>,
 }
 
-/// Represents a trait constraint such as `where Foo: Display`
+/// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
+/// Complex trait constraints such as `where Foo: Display + TraitX + TraitY<U, V>` are converted
+/// in the parser to a series of simple constraints:
+///   `Foo: Display`
+///   `Foo: TraitX`
+///   `Foo: TraitY<U, V>`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: UnresolvedType,
+    pub trait_bound: TraitBound,
+}
+
+/// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TraitBound {
     pub trait_name: Ident,
     pub trait_generics: Vec<UnresolvedType>,
 }
@@ -159,8 +170,18 @@ impl Display for TraitItem {
 
 impl Display for TraitConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.typ, self.trait_bound)
+    }
+}
+
+impl Display for TraitBound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
-        write!(f, "{}: {}<{}>", self.typ, self.trait_name, generics.join(", "))
+        if !generics.is_empty() {
+            write!(f, "{}<{}>", self.trait_name, generics.join(", "))
+        } else {
+            write!(f, "{}", self.trait_name)
+        }
     }
 }
 
