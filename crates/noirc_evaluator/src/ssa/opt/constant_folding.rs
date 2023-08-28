@@ -1,11 +1,14 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
-        instruction::InstructionId,
+        basic_block::BasicBlockId,
+        dfg::InsertInstructionResult,
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -52,8 +55,11 @@ impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
-        for instruction in instructions {
-            self.push_instruction(function, block, instruction);
+        // Cache of instructions without any side-effects along with their outputs.
+        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::new();
+
+        for instruction_id in instructions {
+            self.push_instruction(function, block, instruction_id, &mut cached_instruction_results);
         }
         self.block_queue.extend(function.dfg[block].successors());
     }
@@ -63,9 +69,18 @@ impl Context {
         function: &mut Function,
         block: BasicBlockId,
         id: InstructionId,
+        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
     ) {
         let instruction = function.dfg[id].clone();
         let old_results = function.dfg.instruction_results(id).to_vec();
+
+        // If a copy of this instruction exists earlier in the block then reuse the previous results.
+        if let Some(cached_results) = instruction_result_cache.get(&instruction) {
+            for (old_result, new_result) in old_results.iter().zip(cached_results) {
+                function.dfg.set_value_from_id(*old_result, *new_result);
+            }
+            return;
+        }
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -73,7 +88,7 @@ impl Context {
 
         let call_stack = function.dfg.get_call_stack(id);
         let new_results = match function.dfg.insert_instruction_and_results(
-            instruction,
+            instruction.clone(),
             block,
             ctrl_typevars,
             call_stack,
@@ -84,6 +99,12 @@ impl Context {
             InsertInstructionResult::InstructionRemoved => vec![],
         };
         assert_eq!(old_results.len(), new_results.len());
+
+        // If the instruction doesn't have side-effects, cache the results so we can reuse them if
+        // the same instruction appears again later in the block.
+        if !instruction.has_side_effects(&function.dfg) {
+            instruction_result_cache.insert(instruction, new_results.clone());
+        }
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             function.dfg.set_value_from_id(*old_result, new_result);
         }

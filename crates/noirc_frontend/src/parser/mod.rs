@@ -403,7 +403,7 @@ impl ForRange {
                 // let fresh1 = array;
                 let let_array = Statement::Let(LetStatement {
                     pattern: Pattern::Identifier(array_ident.clone()),
-                    r#type: UnresolvedType::Unspecified,
+                    r#type: UnresolvedType::unspecified(),
                     expression: array,
                 });
 
@@ -436,7 +436,7 @@ impl ForRange {
                 // let elem = array[i];
                 let let_elem = Statement::Let(LetStatement {
                     pattern: Pattern::Identifier(identifier),
-                    r#type: UnresolvedType::Unspecified,
+                    r#type: UnresolvedType::unspecified(),
                     expression: Expression::new(loop_element, array_span),
                 });
 

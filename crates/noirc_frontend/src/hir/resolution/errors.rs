@@ -74,6 +74,8 @@ pub enum ResolverError {
     ContractFunctionInternalInNormalFunction { span: Span },
     #[error("Numeric constants should be printed without formatting braces")]
     NumericConstantInFormatString { name: String, span: Span },
+    #[error("Closure environment must be a tuple or unit type")]
+    InvalidClosureEnvironment { typ: Type, span: Span },
 }
 
 impl ResolverError {
@@ -283,6 +285,9 @@ impl From<ResolverError> for Diagnostic {
                 "Numeric constants should be printed without formatting braces".to_string(),
                 span,
             ),
+            ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
+                format!("{typ} is not a valid closure environment type"),
+                "Closure environment must be a tuple or unit type".to_string(), span),
         }
     }
 }
