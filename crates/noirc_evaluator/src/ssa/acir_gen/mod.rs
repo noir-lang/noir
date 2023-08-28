@@ -415,27 +415,8 @@ impl Context {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
                 self.current_side_effects_enabled_var = acir_var;
             }
-            Instruction::ArrayGet { array, index } => {
-                self.handle_array_operation(
-                    instruction_id,
-                    *array,
-                    *index,
-                    None,
-                    dfg,
-                    last_array_uses,
-                    None,
-                )?;
-            }
-            Instruction::ArraySet { array, index, value, length } => {
-                self.handle_array_operation(
-                    instruction_id,
-                    *array,
-                    *index,
-                    Some(*value),
-                    dfg,
-                    last_array_uses,
-                    *length,
-                )?;
+            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
             }
             Instruction::Allocate => {
                 unreachable!("Expected all allocate instructions to be removed before acir_gen")
@@ -483,17 +464,26 @@ impl Context {
     /// Handles an ArrayGet or ArraySet instruction.
     /// To set an index of the array (and create a new array in doing so), pass Some(value) for
     /// store_value. To just retrieve an index of the array, pass None for store_value.
-    #[allow(clippy::too_many_arguments)]
     fn handle_array_operation(
         &mut self,
         instruction: InstructionId,
-        array: ValueId,
-        index: ValueId,
-        store_value: Option<ValueId>,
         dfg: &DataFlowGraph,
         last_array_uses: &HashMap<ValueId, InstructionId>,
-        length: Option<ValueId>,
     ) -> Result<(), RuntimeError> {
+        // Pass the instruction between array methods rather than the internal fields themselves
+        let (array, index, store_value) = match dfg[instruction] {
+            Instruction::ArrayGet { array, index } => (array, index, None),
+            Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
+            _ => {
+                return Err(InternalError::UnExpected {
+                    expected: format!("Instruction should be ArrayGet or ArraySet"),
+                    found: format!("Instead got {:?}", dfg[instruction]),
+                    call_stack: self.acir_context.get_call_stack(),
+                }
+                .into())
+            }
+        };
+
         let index_const = dfg.get_numeric_constant(index);
 
         match dfg.type_of_value(array) {
@@ -563,8 +553,8 @@ impl Context {
 
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
-        if let Some(store) = store_value {
-            self.array_set(instruction, array, index, store, dfg, map_array, length)?;
+        if let Some(_) = store_value {
+            self.array_set(instruction, dfg, map_array)?;
         } else {
             self.array_get(instruction, array, index, dfg)?;
         }
@@ -629,17 +619,24 @@ impl Context {
     /// Copy the array and generates a write opcode on the new array
     ///
     /// Note: Copying the array is inefficient and is not the way we want to do it in the end.
-    #[allow(clippy::too_many_arguments)]
     fn array_set(
         &mut self,
         instruction: InstructionId,
-        array: ValueId,
-        index: ValueId,
-        store_value: ValueId,
         dfg: &DataFlowGraph,
         map_array: bool,
-        length: Option<ValueId>,
     ) -> Result<(), InternalError> {
+        // Pass the instruction between array methods rather than the internal fields themselves
+        let (array, index, store_value, length) = match dfg[instruction] {
+            Instruction::ArraySet { array, index, value, length } => (array, index, value, length),
+            _ => {
+                return Err(InternalError::UnExpected {
+                    expected: format!("Instruction should be ArraySet"),
+                    found: format!("Instead got {:?}", dfg[instruction]),
+                    call_stack: self.acir_context.get_call_stack(),
+                })
+            }
+        };
+
         // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
 
