@@ -476,7 +476,7 @@ impl Context {
             Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
             _ => {
                 return Err(InternalError::UnExpected {
-                    expected: format!("Instruction should be ArrayGet or ArraySet"),
+                    expected: "Instruction should be an ArrayGet or ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
                 }
@@ -553,7 +553,7 @@ impl Context {
 
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
-        if let Some(_) = store_value {
+        if store_value.is_some() {
             self.array_set(instruction, dfg, map_array)?;
         } else {
             self.array_get(instruction, array, index, dfg)?;
@@ -630,7 +630,7 @@ impl Context {
             Instruction::ArraySet { array, index, value, length } => (array, index, value, length),
             _ => {
                 return Err(InternalError::UnExpected {
-                    expected: format!("Instruction should be ArraySet"),
+                    expected: "Instruction should be an ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
                 })
