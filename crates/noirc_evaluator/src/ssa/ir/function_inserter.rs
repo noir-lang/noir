@@ -47,12 +47,16 @@ impl<'f> FunctionInserter<'f> {
 
     /// Insert a key, value pair if the key isn't already present in the map
     pub(crate) fn try_map_value(&mut self, key: ValueId, value: ValueId) {
-        self.values.entry(key).or_insert(value);
+        if key != value {
+            self.values.entry(key).or_insert(value);
+        }
     }
 
     /// Insert a key, value pair in the map
     pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
-        self.values.insert(key, value);
+        if key != value {
+            self.values.insert(key, value);
+        }
     }
 
     pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
