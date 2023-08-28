@@ -158,7 +158,8 @@ export class ClassConverter {
    * @returns If it is a registered class.
    */
   isRegisteredClass(obj: any) {
-    return this.toName.has(obj);
+    const name = obj.prototype.constructor.name;
+    return this.toName.has(obj) || this.isRegisteredClassName(name);
   }
   /**
    * Convert a JSON-like object to a class object.
@@ -182,10 +183,23 @@ export class ClassConverter {
    * @returns The class object.
    */
   toJsonObj(classObj: any): JsonEncodedClass | StringEncodedClass {
-    const result = this.toName.get(classObj.constructor);
-    assert(result, `Could not find class in lookup.`);
-    const [type, encoding] = result;
+    const { type, encoding } = this.lookupObject(classObj);
     const data = encoding === 'string' ? classObj.toString() : classObj.toJSON();
     return { type: type!, data };
+  }
+
+  /**
+   * Loads the corresponding type for this class based on constructor first and constructor name if not found.
+   * Constructor match works in the event of a minifier changing function names, and constructor name match
+   * works in the event of duplicated instances of node modules being loaded (see #1826).
+   * @param classObj - Object to lookup in the registered types.
+   * @returns Registered type name and encoding.
+   */
+  private lookupObject(classObj: any) {
+    const nameResult = this.toName.get(classObj.constructor);
+    if (nameResult) return { type: nameResult[0], encoding: nameResult[1] };
+    const classResult = this.toClass.get(classObj.constructor.name);
+    if (classResult) return { type: classObj.constructor.name, encoding: classResult[1] };
+    throw new Error(`Could not find class ${classObj.constructor.name} in lookup.`);
   }
 }

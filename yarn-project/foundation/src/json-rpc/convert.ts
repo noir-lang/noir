@@ -4,6 +4,31 @@ import cloneDeepWith from 'lodash.clonedeepwith';
 import { ClassConverter } from './class_converter.js';
 
 /**
+ * Check prototype chain to determine if an object is 'plain' (not a class instance).
+ * @param obj - The object to check.
+ * @returns True if the object is 'plain'.
+ */
+function isPlainObject(obj: any) {
+  if (obj === null) {
+    return false;
+  }
+
+  let proto = obj;
+  let counter = 0;
+  const MAX_PROTOTYPE_CHAIN_LENGTH = 1000; // Adjust as needed
+  while (Object.getPrototypeOf(proto) !== null) {
+    if (counter >= MAX_PROTOTYPE_CHAIN_LENGTH) {
+      // This is a failsafe in case circular prototype chain has been created. It should not be hit
+      return false;
+    }
+    proto = Object.getPrototypeOf(proto);
+    counter++;
+  }
+
+  return Object.getPrototypeOf(obj) === proto;
+}
+
+/**
  * Recursively looks through an object for bigints and converts them to object format.
  * @param obj - The object to convert.
  * @returns The converted object with stringified bigints.
@@ -59,8 +84,12 @@ export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
   }
 
   // Is this a convertible type?
-  if (typeof obj.type === 'string' && cc.isRegisteredClassName(obj.type)) {
-    return cc.toClassObj(obj);
+  if (typeof obj.type === 'string') {
+    if (cc.isRegisteredClassName(obj.type)) {
+      return cc.toClassObj(obj);
+    } else {
+      throw new Error(`Object ${obj.type} not registered for serialisation`);
+    }
   }
 
   // Is this an array?
@@ -118,7 +147,10 @@ export function convertToJsonObj(cc: ClassConverter, obj: any): any {
     }
     return newObj;
   }
-
+  // Throw if this is a non-primitive class that was not registered
+  if (typeof obj === 'object' && !isPlainObject(obj)) {
+    throw new Error(`Object ${obj.constructor.name} not registered for serialisation`);
+  }
   // Leave alone, assume JSON primitive
   return obj;
 }
