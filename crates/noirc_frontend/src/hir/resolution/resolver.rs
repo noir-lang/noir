@@ -371,7 +371,7 @@ impl<'a> Resolver<'a> {
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
                 // To get an invalid env type, the user must explicitly specify the type, which will have a span
-                let env_span = env.span.expect("Invalid closure environment type");
+                let env_span = env.span.expect("Unexpected missing span for closure environment type");
 
                 let env = Box::new(self.resolve_type_inner(*env, new_variables));
 
