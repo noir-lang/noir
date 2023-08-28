@@ -116,21 +116,6 @@ add_library(
     $<TARGET_OBJECTS:transcript_objects>
 )
 
-# Small library to provide necessary primitives for rust crate.
-add_library(
-    acvm_backend
-    $<TARGET_OBJECTS:env_objects>
-    $<TARGET_OBJECTS:common_objects>
-    $<TARGET_OBJECTS:numeric_objects>
-    $<TARGET_OBJECTS:ecc_objects>
-    $<TARGET_OBJECTS:crypto_blake2s_objects>
-    $<TARGET_OBJECTS:crypto_keccak_objects>
-    $<TARGET_OBJECTS:crypto_generators_objects>
-    $<TARGET_OBJECTS:crypto_schnorr_objects>
-    $<TARGET_OBJECTS:crypto_pedersen_hash_objects>
-    $<TARGET_OBJECTS:crypto_pedersen_commitment_objects>
-)
-
 if(WASM)
     # With binaryen installed, it seems its wasm backend optimiser gets invoked automatically.
     # Due to either a bug in the optimiser, or non-standards compliant c++ in crypto/aes, tests start failing with
@@ -178,26 +163,52 @@ if(WASM)
         $<TARGET_OBJECTS:transcript_objects>
     )
 
+    add_executable(
+        acvm_backend.wasm
+        $<TARGET_OBJECTS:wasi_objects>
+        $<TARGET_OBJECTS:env_objects>
+        $<TARGET_OBJECTS:common_objects>
+        $<TARGET_OBJECTS:numeric_objects>
+        $<TARGET_OBJECTS:ecc_objects>
+        $<TARGET_OBJECTS:crypto_blake2s_objects>
+        $<TARGET_OBJECTS:crypto_keccak_objects>
+        $<TARGET_OBJECTS:crypto_generators_objects>
+        $<TARGET_OBJECTS:crypto_schnorr_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_hash_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_commitment_objects>
+    )
+
     target_link_options(
         barretenberg.wasm
+        PRIVATE
+        -nostartfiles -Wl,--no-entry,--export-dynamic,--allow-undefined
+    )
+    target_link_options(
+        acvm_backend.wasm
         PRIVATE
         -nostartfiles -Wl,--no-entry,--export-dynamic,--allow-undefined
     )
 
     if(INSTALL_BARRETENBERG)
         install(TARGETS barretenberg.wasm DESTINATION ${CMAKE_INSTALL_BINDIR})
+        install(TARGETS acvm_backend.wasm DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif()
+
 else()
     if(INSTALL_BARRETENBERG)
         # The `install` function takes targets to install in different destinations on the system.
         install(
+
             # TODO(dbanks12): should only need to install API headers
             TARGETS barretenberg barretenberg_headers
+
             # We also give it an optional export name in case something wants to target the install.
             EXPORT barretenbergTargets
+
             # The ARCHIVE output signifies static libraries that should be installed
             # and we use the GNUInstallDirs location to install into the standard system library location
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+
             # The FILE_SET output is used instead of PUBLIC_HEADER & PRIVATE_HEADER outputs because
             # our headers don't have a clear delineation between public & private, but we still use
             # the GNUInstallDirs location to install into the standard system header location
