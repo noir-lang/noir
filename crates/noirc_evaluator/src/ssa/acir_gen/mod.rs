@@ -603,6 +603,7 @@ impl Context {
         let typ = match dfg.type_of_value(array) {
             Type::Array(typ, _) => {
                 if typ.len() != 1 {
+                    // TODO(#2461)
                     unimplemented!(
                         "Non-const array indices is not implemented for non-homogenous array"
                     );
@@ -611,6 +612,7 @@ impl Context {
             }
             Type::Slice(typ) => {
                 if typ.len() != 1 {
+                    // TODO(#2461)
                     unimplemented!(
                         "Non-const array indices is not implemented for non-homogenous array"
                     );
@@ -1094,7 +1096,7 @@ impl Context {
             Intrinsic::SlicePushBack => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice = self.convert_value(arguments[1], dfg);
-                // TODO: make sure that we have handled nested struct inputs
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1112,7 +1114,7 @@ impl Context {
             Intrinsic::SlicePushFront => {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice = self.convert_value(arguments[1], dfg);
-                // TODO: make sure that we have handled nested struct inputs
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 let element = self.convert_value(arguments[2], dfg);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1136,6 +1138,7 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 let elem = new_slice
                     .pop_back()
                     .expect("There are no elements in this slice to be removed");
@@ -1155,6 +1158,7 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 let elem = new_slice
                     .pop_front()
                     .expect("There are no elements in this slice to be removed");
@@ -1175,7 +1179,7 @@ impl Context {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                // TODO: Slice insert is a little less obvious on how to implement due to the case
+                // TODO(#2462): Slice insert is a little less obvious on how to implement due to the case
                 // of having a dynamic index
                 // The slice insert logic will need a more involved codegen
                 let index = self.acir_context.var_to_expression(index)?.to_const();
@@ -1185,8 +1189,9 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
-
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 new_slice.insert(index, element);
+
                 Ok(vec![
                     AcirValue::Var(new_slice_length, AcirType::field()),
                     AcirValue::Array(new_slice),
@@ -1201,7 +1206,7 @@ impl Context {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
-                // TODO: allow slice remove with a constant index
+                // TODO(#2462): allow slice remove with a constant index
                 // Slice remove is a little less obvious on how to implement due to the case
                 // of having a dynamic index
                 // The slice remove logic will need a more involved codegen
@@ -1212,6 +1217,7 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
                 let removed_elem = new_slice.remove(index);
 
                 Ok(vec![

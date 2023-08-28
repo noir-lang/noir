@@ -116,14 +116,16 @@ fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
         assert(first_elem == 12);
         assert(rest_of_slice.len() == 6);
 
-        // TODO: SliceInsert and SliceRemove with a dynamic index are not yet implemented in ACIR gen
+        // TODO(#2462): SliceInsert and SliceRemove with a dynamic index are not yet implemented in ACIR gen
         slice = rest_of_slice.insert(2, 20);
         assert(slice[2] == 20);
         assert(slice[6] == 30);
         assert(slice.len() == 7);
 
+        // TODO(#2462): SliceInsert and SliceRemove with a dynamic index are not yet implemented in ACIR gen
         let (removed_slice, removed_elem) = slice.remove(3);
-        // TODO: The deconstructed tuple assigns to the slice but is not seen outside of the if statement
+        // The deconstructed tuple assigns to the slice but is not seen outside of the if statement
+        // without a direct assignment
         slice = removed_slice;
 
         assert(removed_elem == 1);
