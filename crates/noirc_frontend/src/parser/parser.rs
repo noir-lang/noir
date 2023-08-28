@@ -40,8 +40,8 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
     NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
-    TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility, TraitBound,
+    TraitBound, TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -527,19 +527,17 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
 }
 
 fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
-
     struct MultiTraitConstraint {
         typ: UnresolvedType,
         trait_bounds: Vec<TraitBound>,
     }
 
-    let constraints = parse_type()
-        .then_ignore(just(Token::Colon))
-        .then(trait_bounds())
-        .validate(|(typ, trait_bounds), span, emit| {
+    let constraints = parse_type().then_ignore(just(Token::Colon)).then(trait_bounds()).validate(
+        |(typ, trait_bounds), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             MultiTraitConstraint { typ, trait_bounds }
-        });
+        },
+    );
 
     keyword(Keyword::Where)
         .ignore_then(constraints.separated_by(just(Token::Comma)))
@@ -549,7 +547,8 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
             let mut result: Vec<TraitConstraint> = Vec::new();
             for constraint in x {
                 for bound in constraint.trait_bounds {
-                    result.push(TraitConstraint { typ:constraint.typ.clone(), trait_bound:bound } );
+                    result
+                        .push(TraitConstraint { typ: constraint.typ.clone(), trait_bound: bound });
                 }
             }
             result
@@ -557,10 +556,7 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
 }
 
 fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
-    trait_bound()
-        .separated_by(just(Token::Plus))
-        .at_least(1)
-        .allow_trailing()
+    trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
 }
 
 fn trait_bound() -> impl NoirParser<TraitBound> {
