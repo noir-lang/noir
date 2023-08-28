@@ -262,7 +262,9 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        if let TerminatorInstruction::JmpIf { .. } = self.inserter.function.dfg[block].unwrap_terminator() {
+        if let TerminatorInstruction::JmpIf { .. } =
+            self.inserter.function.dfg[block].unwrap_terminator()
+        {
             // Find stores in the outer block and insert into the `outer_block_stores` map.
             // Not using this map can lead to issues when attempting to merge slices.
             // When inlining a branch end, only the then branch and the else branch are checked for stores.
