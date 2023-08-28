@@ -359,7 +359,7 @@ impl PerFunctionContext {
             Type::Function => false,
             Type::Reference => true,
             Type::Array(elements, _) | Type::Slice(elements) => {
-                elements.iter().any(|element| Self::contains_references(element))
+                elements.iter().any(Self::contains_references)
             }
         }
     }

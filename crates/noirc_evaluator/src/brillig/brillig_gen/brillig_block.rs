@@ -1106,7 +1106,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same"
             );
-            Type::Numeric(lhs_type.clone())
+            Type::Numeric(*lhs_type)
         }
     }
 }
