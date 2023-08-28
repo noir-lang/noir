@@ -171,7 +171,7 @@ impl DataFlowGraph {
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
                 self.locations.insert(id, call_stack);
-                InsertInstructionResult::Results(self.instruction_results(id))
+                InsertInstructionResult::Results(id, self.instruction_results(id))
             }
         }
     }
@@ -478,7 +478,8 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
 pub(crate) enum InsertInstructionResult<'dfg> {
-    Results(&'dfg [ValueId]),
+    /// Results is the standard case containing the instruction id and the results of that instruction.
+    Results(InstructionId, &'dfg [ValueId]),
     SimplifiedTo(ValueId),
     SimplifiedToMultiple(Vec<ValueId>),
     InstructionRemoved,
@@ -490,7 +491,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
-            InsertInstructionResult::Results(results) => results[0],
+            InsertInstructionResult::Results(_, results) => results[0],
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
             }
@@ -501,7 +502,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     /// This is used for instructions returning multiple results like function calls.
     pub(crate) fn results(self) -> Cow<'dfg, [ValueId]> {
         match self {
-            InsertInstructionResult::Results(results) => Cow::Borrowed(results),
+            InsertInstructionResult::Results(_, results) => Cow::Borrowed(results),
             InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![result]),
             InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results),
             InsertInstructionResult::InstructionRemoved => Cow::Owned(vec![]),
@@ -513,7 +514,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,
             InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
-            InsertInstructionResult::Results(results) => results.len(),
+            InsertInstructionResult::Results(_, results) => results.len(),
             InsertInstructionResult::InstructionRemoved => 0,
         }
     }

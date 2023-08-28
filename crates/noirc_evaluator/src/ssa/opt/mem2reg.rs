@@ -69,6 +69,7 @@ use crate::ssa::{
         cfg::ControlFlowGraph,
         dom::DominatorTree,
         function::Function,
+        function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
@@ -83,19 +84,21 @@ impl Ssa {
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut context = PerFunctionContext::new(function);
-            context.mem2reg(function);
-            context.remove_instructions(function);
+            context.mem2reg();
+            context.remove_instructions();
         }
         self
     }
 }
 
-struct PerFunctionContext {
+struct PerFunctionContext<'f> {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
     dom_tree: DominatorTree,
 
     blocks: BTreeMap<BasicBlockId, Block>,
+
+    inserter: FunctionInserter<'f>,
 
     /// Load and Store instructions that should be removed at the end of the pass.
     ///
@@ -143,8 +146,8 @@ enum ReferenceValue {
     Known(ValueId),
 }
 
-impl PerFunctionContext {
-    fn new(function: &Function) -> Self {
+impl<'f> PerFunctionContext<'f> {
+    fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -153,6 +156,7 @@ impl PerFunctionContext {
             cfg,
             post_order,
             dom_tree,
+            inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
         }
@@ -162,14 +166,14 @@ impl PerFunctionContext {
     ///
     /// This function is expected to be the same one that the internal cfg, post_order, and
     /// dom_tree were created from.
-    fn mem2reg(&mut self, function: &mut Function) {
+    fn mem2reg(&mut self) {
         // Iterate each block in reverse post order = forward order
-        let mut block_order = PostOrder::with_function(function).into_vec();
+        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
         block_order.reverse();
 
         for block in block_order {
             let references = self.find_starting_references(block);
-            self.analyze_block(function, block, references);
+            self.analyze_block(block, references);
         }
     }
 
@@ -199,25 +203,20 @@ impl PerFunctionContext {
     /// This will remove any known loads in the block and track the value of references
     /// as they are stored to. When this function is finished, the value of each reference
     /// at the end of this block will be remembered in `self.blocks`.
-    fn analyze_block(
-        &mut self,
-        function: &mut Function,
-        block: BasicBlockId,
-        mut references: Block,
-    ) {
-        let instructions = function.dfg[block].instructions().to_vec();
+    fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
+        let instructions = self.inserter.function.dfg[block].take_instructions();
 
         for instruction in instructions {
-            self.analyze_instruction(function, &mut references, instruction);
+            self.analyze_instruction(block, &mut references, instruction);
         }
 
-        self.handle_terminator(function, block, &mut references);
+        self.handle_terminator(block, &mut references);
 
         // If there's only 1 block in the function total, we can remove any remaining last stores
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         if self.post_order.as_slice().len() == 1 {
-            self.remove_stores_that_do_not_alias_parameters(function, &references);
+            self.remove_stores_that_do_not_alias_parameters(&references);
         }
 
         self.blocks.insert(block, references);
@@ -225,15 +224,13 @@ impl PerFunctionContext {
 
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
-    fn remove_stores_that_do_not_alias_parameters(
-        &mut self,
-        function: &Function,
-        references: &Block,
-    ) {
-        let reference_parameters = function
+    fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
+        let reference_parameters = self
+            .inserter
+            .function
             .parameters()
             .iter()
-            .filter(|param| function.dfg.value_is_reference(**param))
+            .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .collect::<BTreeSet<_>>();
 
         for (allocation, instruction) in &references.last_stores {
@@ -252,32 +249,40 @@ impl PerFunctionContext {
 
     fn analyze_instruction(
         &mut self,
-        function: &mut Function,
+        block_id: BasicBlockId,
         references: &mut Block,
-        instruction: InstructionId,
+        mut instruction: InstructionId,
     ) {
-        match &function.dfg[instruction] {
-            Instruction::Load { address } => {
-                let address = function.dfg.resolve(*address);
+        // If the instruction was simplified and optimized out of the program we shouldn't analyze
+        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
+        // call that used to hold references but has since been optimized out to a known result.
+        if let Some(new_id) = self.inserter.push_instruction(instruction, block_id) {
+            instruction = new_id;
+        } else {
+            return;
+        }
 
-                let result = function.dfg.instruction_results(instruction)[0];
-                references.remember_dereference(function, address, result);
+        match &self.inserter.function.dfg[instruction] {
+            Instruction::Load { address } => {
+                let address = self.inserter.function.dfg.resolve(*address);
+
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load
                 if let Some(value) = references.get_known_value(address) {
-                    let result = function.dfg.instruction_results(instruction)[0];
-                    function.dfg.set_value_from_id(result, value);
-
+                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    references.mark_value_used(address, function);
+                    references.mark_value_used(address, self.inserter.function);
                 }
             }
             Instruction::Store { address, value } => {
-                let address = function.dfg.resolve(*address);
-                let value = function.dfg.resolve(*value);
+                let address = self.inserter.function.dfg.resolve(*address);
+                let value = self.inserter.function.dfg.resolve(*value);
 
-                self.check_array_aliasing(function, references, value);
+                self.check_array_aliasing(references, value);
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
@@ -289,11 +294,11 @@ impl PerFunctionContext {
                 references.last_stores.insert(address, instruction);
             }
             Instruction::Call { arguments, .. } => {
-                self.mark_all_unknown(arguments, function, references);
+                self.mark_all_unknown(arguments, references);
             }
             Instruction::Allocate => {
                 // Register the new reference
-                let result = function.dfg.instruction_results(instruction)[0];
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.expressions.insert(result, Expression::Other(result));
 
                 let mut aliases = BTreeSet::new();
@@ -301,11 +306,11 @@ impl PerFunctionContext {
                 references.aliases.insert(Expression::Other(result), aliases);
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = function.dfg.instruction_results(instruction)[0];
-                references.mark_value_used(*array, function);
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                references.mark_value_used(*array, self.inserter.function);
 
-                if function.dfg.value_is_reference(result) {
-                    let array = function.dfg.resolve(*array);
+                if self.inserter.function.dfg.value_is_reference(result) {
+                    let array = self.inserter.function.dfg.resolve(*array);
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -314,17 +319,19 @@ impl PerFunctionContext {
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                references.mark_value_used(*array, function);
+                references.mark_value_used(*array, self.inserter.function);
 
-                if function.dfg.value_is_reference(*value) {
-                    let result = function.dfg.instruction_results(instruction)[0];
-                    let array = function.dfg.resolve(*array);
+                if self.inserter.function.dfg.value_is_reference(*value) {
+                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let array = self.inserter.function.dfg.resolve(*array);
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
-                    } else if let Some((elements, _)) = function.dfg.get_array_constant(array) {
+                    } else if let Some((elements, _)) =
+                        self.inserter.function.dfg.get_array_constant(array)
+                    {
                         // TODO: This should be a unification of each alias set
                         // If any are empty, the whole should be as well.
                         for reference in elements {
@@ -339,8 +346,8 @@ impl PerFunctionContext {
         }
     }
 
-    fn check_array_aliasing(&self, function: &Function, references: &mut Block, array: ValueId) {
-        if let Some((elements, typ)) = function.dfg.get_array_constant(array) {
+    fn check_array_aliasing(&self, references: &mut Block, array: ValueId) {
+        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
             if Self::contains_references(&typ) {
                 // TODO: Check if type directly holds references or holds arrays that hold references
                 let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
@@ -373,12 +380,12 @@ impl PerFunctionContext {
         }
     }
 
-    fn mark_all_unknown(&self, values: &[ValueId], function: &Function, references: &mut Block) {
+    fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
-            if function.dfg.value_is_reference(*value) {
-                let value = function.dfg.resolve(*value);
+            if self.inserter.function.dfg.value_is_reference(*value) {
+                let value = self.inserter.function.dfg.resolve(*value);
                 references.set_unknown(value);
-                references.mark_value_used(value, function);
+                references.mark_value_used(value, self.inserter.function);
             }
         }
     }
@@ -386,31 +393,28 @@ impl PerFunctionContext {
     /// Remove any instructions in `self.instructions_to_remove` from the current function.
     /// This is expected to contain any loads which were replaced and any stores which are
     /// no longer needed.
-    fn remove_instructions(&self, function: &mut Function) {
+    fn remove_instructions(&mut self) {
         // The order we iterate blocks in is not important
         for block in self.post_order.as_slice() {
-            function.dfg[*block]
+            self.inserter.function.dfg[*block]
                 .instructions_mut()
                 .retain(|instruction| !self.instructions_to_remove.contains(instruction));
         }
     }
 
-    fn handle_terminator(
-        &self,
-        function: &mut Function,
-        block: BasicBlockId,
-        references: &mut Block,
-    ) {
-        match function.dfg[block].unwrap_terminator() {
+    fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
+        self.inserter.map_terminator_in_place(block);
+
+        match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                let destination_parameters = function.dfg[*destination].parameters();
+                let destination_parameters = self.inserter.function.dfg[*destination].parameters();
                 assert_eq!(destination_parameters.len(), arguments.len());
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if function.dfg.value_is_reference(*parameter) {
-                        let argument = function.dfg.resolve(*argument);
+                    if self.inserter.function.dfg.value_is_reference(*parameter) {
+                        let argument = self.inserter.function.dfg.resolve(*argument);
 
                         if let Some(expression) = references.expressions.get(&argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
@@ -425,7 +429,7 @@ impl PerFunctionContext {
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
-                self.mark_all_unknown(return_values, function, references);
+                self.mark_all_unknown(return_values, references);
             }
         }
     }
