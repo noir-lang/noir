@@ -237,7 +237,7 @@ impl PerFunctionContext {
             .collect::<BTreeSet<_>>();
 
         for (allocation, instruction) in &references.last_stores {
-            if let Some(expression) = references.expressions.get(&allocation) {
+            if let Some(expression) = references.expressions.get(allocation) {
                 if let Some(aliases) = references.aliases.get(expression) {
                     let allocation_aliases_parameter =
                         aliases.iter().any(|alias| reference_parameters.contains(alias));
