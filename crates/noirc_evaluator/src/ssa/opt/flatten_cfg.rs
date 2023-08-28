@@ -262,19 +262,21 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        // Find stores in the outer block and insert into the `outer_block_stores` map.
-        // Not using this map can lead to issues when attempting to merge slices.
-        // When inlining a branch end, only the then branch and the else branch are checked for stores.
-        // However, there are cases where we want to load a value that comes from the outer block
-        // that we are handling the terminator for here.
-        let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-        for instruction in instructions {
-            let (instruction, _) = self.inserter.map_instruction(instruction);
-            if let Instruction::Store { address, value } = instruction {
-                let load = Instruction::Load { address };
-                let load_type = Some(vec![self.inserter.function.dfg.type_of_value(value)]);
-                let old_value = self.insert_instruction_with_typevars(load, load_type).first();
-                self.outer_block_stores.insert(address, Store { old_value, new_value: value });
+        if let TerminatorInstruction::JmpIf { .. } = self.inserter.function.dfg[block].unwrap_terminator() {
+            // Find stores in the outer block and insert into the `outer_block_stores` map.
+            // Not using this map can lead to issues when attempting to merge slices.
+            // When inlining a branch end, only the then branch and the else branch are checked for stores.
+            // However, there are cases where we want to load a value that comes from the outer block
+            // that we are handling the terminator for here.
+            let instructions = self.inserter.function.dfg[block].instructions().to_vec();
+            for instruction in instructions {
+                let (instruction, _) = self.inserter.map_instruction(instruction);
+                if let Instruction::Store { address, value } = instruction {
+                    let load = Instruction::Load { address };
+                    let load_type = Some(vec![self.inserter.function.dfg.type_of_value(value)]);
+                    let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+                    self.outer_block_stores.insert(address, Store { old_value, new_value: value });
+                }
             }
         }
 
@@ -469,7 +471,7 @@ impl<'f> Context<'f> {
                     }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone(), len);
+                let then_element = get_element(then_value_id, typevars.clone(), then_len);
                 let else_element = get_element(else_value_id, typevars, else_len);
 
                 merged.push_back(self.merge_values(
@@ -489,8 +491,8 @@ impl<'f> Context<'f> {
         match value {
             Value::Array { array, .. } => array.len(),
             Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
-            Value::Instruction { instruction, .. } => {
-                let instruction = &self.inserter.function.dfg[*instruction];
+            Value::Instruction { instruction: instruction_id, .. } => {
+                let instruction = &self.inserter.function.dfg[*instruction_id];
                 match instruction {
                     Instruction::ArraySet { length, .. } => {
                         let length = length.expect("ICE: array set on a slice must have a length");
