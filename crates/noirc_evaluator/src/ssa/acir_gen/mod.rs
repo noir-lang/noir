@@ -1166,27 +1166,59 @@ impl Context {
                 ])
             }
             Intrinsic::SliceInsert => {
-                // TODO: allow slice insert with a constant index
-                // let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
-                // let slice = self.convert_value(arguments[1], dfg);
-                // let index = self.convert_value(arguments[2], dfg).into_var()?;
-                // let element = self.convert_value(arguments[3], dfg);
+                // Slice insert with a constant index
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                let index = self.convert_value(arguments[2], dfg).into_var()?;
+                let element = self.convert_value(arguments[3], dfg);
 
-                // let index = self.acir_context.get_constant(&index);
-                // let mut new_slice = Vector::new();
-                // self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                // Slice insert is a little less obvious on how to implement due to the case
+                // TODO: Slice insert is a little less obvious on how to implement due to the case
                 // of having a dynamic index
                 // The slice insert logic will need a more involved codegen
-                todo!("need to write acir gen for SliceInsert")
+                let index = self.acir_context.var_to_expression(index)?.to_const();
+                let index = index
+                    .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                let index = index.to_u128() as usize;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+
+                new_slice.insert(index, element);
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                ])
             }
             Intrinsic::SliceRemove => {
+                // Slice insert with a constant index
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                let index = self.convert_value(arguments[2], dfg).into_var()?;
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+
                 // TODO: allow slice remove with a constant index
                 // Slice remove is a little less obvious on how to implement due to the case
                 // of having a dynamic index
                 // The slice remove logic will need a more involved codegen
-                todo!("need to write acir gen for SliceInsert")
+                let index = self.acir_context.var_to_expression(index)?.to_const();
+                let index = index
+                    .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                let index = index.to_u128() as usize;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let removed_elem = new_slice.remove(index);
+
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                    removed_elem,
+                ])
             }
             _ => todo!("expected a black box function"),
         }
