@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.4.3...barretenberg-v0.4.4) (2023-08-28)
+
+
+### Features
+
+* Add ARM build for Mac + cleanup artifacts ([#1837](https://github.com/AztecProtocol/barretenberg/issues/1837)) ([2d2d5ea](https://github.com/AztecProtocol/barretenberg/commit/2d2d5ea33c512ab36c1214fb5bb90f80d8247469))
+
 ## [0.4.3](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.4.2...barretenberg-v0.4.3) (2023-08-23)
 
 
