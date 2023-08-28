@@ -63,6 +63,8 @@ pub(crate) fn optimize_into_acir(
             // and this pass is missed, slice merging will fail inside of flattening.
             .mem2reg()
             .print(print_ssa_passes, "After Mem2Reg:")
+            .fold_constants()
+            .print(print_ssa_passes, "After Constant Folding:")
             .flatten_cfg()
             .print(print_ssa_passes, "After Flattening:")
             // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
