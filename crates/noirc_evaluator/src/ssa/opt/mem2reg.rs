@@ -454,26 +454,15 @@ impl Block {
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    fn set_known_value(
-        &mut self,
-        address: ValueId,
-        value: ValueId,
-    ) {
+    fn set_known_value(&mut self, address: ValueId, value: ValueId) {
         self.set_value(address, ReferenceValue::Known(value));
     }
 
-    fn set_unknown(
-        &mut self,
-        address: ValueId,
-    ) {
+    fn set_unknown(&mut self, address: ValueId) {
         self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(
-        &mut self,
-        address: ValueId,
-        value: ReferenceValue,
-    ) {
+    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();
 
@@ -554,7 +543,11 @@ impl Block {
     }
 
     /// Iterate through each known alias of the given address and apply the function `f` to each.
-    fn for_each_alias_of<T>(&mut self, address: ValueId, mut f: impl FnMut(&mut Self, ValueId) -> T) {
+    fn for_each_alias_of<T>(
+        &mut self,
+        address: ValueId,
+        mut f: impl FnMut(&mut Self, ValueId) -> T,
+    ) {
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
                 for alias in aliases {
@@ -564,11 +557,7 @@ impl Block {
         }
     }
 
-    fn keep_last_stores_for(
-        &mut self,
-        address: ValueId,
-        function: &Function,
-    ) {
+    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         let address = function.dfg.resolve(address);
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
@@ -583,17 +572,15 @@ impl Block {
             match &function.dfg[instruction] {
                 Instruction::Store { value, .. } => {
                     self.mark_value_used(*value, function);
-                },
-                other => unreachable!("last_store held an id of a non-store instruction: {other:?}"),
+                }
+                other => {
+                    unreachable!("last_store held an id of a non-store instruction: {other:?}")
+                }
             }
         }
     }
 
-    fn mark_value_used(
-        &mut self,
-        value: ValueId,
-        function: &Function,
-    ) {
+    fn mark_value_used(&mut self, value: ValueId, function: &Function) {
         self.keep_last_stores_for(value, function);
 
         // We must do a recursive check for arrays since they're the only Values which may contain
