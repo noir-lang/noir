@@ -238,11 +238,20 @@
           cargoArtifacts = native-cargo-artifacts;
         });
 
+        cargo-fmt = craneLib.cargoFmt (nativeArgs // {
+          inherit GIT_COMMIT GIT_DIRTY;
+
+          cargoArtifacts = native-cargo-artifacts;
+          doCheck = true;
+        });
+
         cargo-test = craneLib.cargoTest (nativeArgs // (testArgs 8000) // {
           inherit GIT_COMMIT GIT_DIRTY;
 
           cargoArtifacts = native-cargo-artifacts;
         });
+
+
       };
 
       packages = {
