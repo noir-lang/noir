@@ -343,7 +343,11 @@ impl<'interner> TypeChecker<'interner> {
                                 rhs: method_call.object,
                             }));
                         self.interner.push_expr_type(&method_call.object, new_type);
-                        self.interner.push_expr_location(method_call.object, location.span, location.file);
+                        self.interner.push_expr_location(
+                            method_call.object,
+                            location.span,
+                            location.file,
+                        );
                     }
                 }
             }
