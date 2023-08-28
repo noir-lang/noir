@@ -1,8 +1,9 @@
 use clap::{Args, Parser, Subcommand};
-use color_eyre::eyre;
 use const_format::formatcp;
 use nargo_toml::find_package_root;
 use std::path::PathBuf;
+
+use color_eyre::eyre;
 
 mod fs;
 
