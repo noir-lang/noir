@@ -8,8 +8,13 @@ import { Command } from 'commander';
 createDebug.log = console.error.bind(console);
 const debug = createDebug('bb.js');
 
-// Maximum we support natively. It is 2^19 for browser.
-const MAX_CIRCUIT_SIZE = 2 ** 23;
+// Maximum we support in node and the browser is 2^19.
+// This is because both node and browser use barretenberg.wasm.
+//
+// This is not a restriction in the bb binary and one should be
+// aware of this discrepancy, when creating proofs in bb versus
+// creating the same proofs in the node CLI.
+const MAX_CIRCUIT_SIZE = 2 ** 19;
 
 function getBytecode(bytecodePath: string) {
   const encodedCircuit = readFileSync(bytecodePath, 'utf-8');
