@@ -30,7 +30,9 @@ use super::{
     ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
     TopLevelStatement,
 };
-use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
+use crate::ast::{
+    Expression, ExpressionKind, LetStatement, Statement, UnresolvedType, UnresolvedTypeData,
+};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -256,7 +258,7 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
     just(Token::Arrow)
         .ignore_then(parse_type())
         .or_not()
-        .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
+        .map(|ret| ret.unwrap_or_else(UnresolvedType::unspecified))
 }
 
 fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
@@ -295,7 +297,7 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
 
     let parameter = pattern()
         .recover_via(parameter_name_recovery())
-        .then(typ.or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
+        .then(typ.or_not().map(|typ| typ.unwrap_or_else(UnresolvedType::unspecified)));
 
     parameter
         .separated_by(just(Token::Comma))
@@ -345,12 +347,13 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
         .map(|(pattern_keyword, span)| {
             let ident = Ident::new("self".to_string(), span);
             let path = Path::from_single("Self".to_owned(), span);
-            let mut self_type = UnresolvedType::Named(path, vec![]);
+            let mut self_type = UnresolvedTypeData::Named(path, vec![]).with_span(span);
             let mut pattern = Pattern::Identifier(ident);
 
             match pattern_keyword {
                 Some((Token::Ampersand, _)) => {
-                    self_type = UnresolvedType::MutableReference(Box::new(self_type));
+                    self_type =
+                        UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(span);
                 }
                 Some((Token::Keyword(_), span)) => {
                     pattern = Pattern::Mutable(Box::new(pattern), span);
@@ -609,7 +612,7 @@ fn check_statements_require_semicolon(
 fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()
-        .map(|r#type| r#type.unwrap_or(UnresolvedType::Unspecified))
+        .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
@@ -886,11 +889,15 @@ fn maybe_comp_time() -> impl NoirParser<()> {
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time().then_ignore(keyword(Keyword::Field)).map(|_| UnresolvedType::FieldElement)
+    maybe_comp_time()
+        .then_ignore(keyword(Keyword::Field))
+        .map_with_span(|_, span| UnresolvedTypeData::FieldElement.with_span(span))
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time().then_ignore(keyword(Keyword::Bool)).map(|_| UnresolvedType::Bool)
+    maybe_comp_time()
+        .then_ignore(keyword(Keyword::Bool))
+        .map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
 }
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
@@ -898,7 +905,7 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
         .ignore_then(
             type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
         )
-        .map(UnresolvedType::String)
+        .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
 }
 
 fn format_string_type(
@@ -911,7 +918,9 @@ fn format_string_type(
                 .then(type_parser)
                 .delimited_by(just(Token::Less), just(Token::Greater)),
         )
-        .map(|(size, fields)| UnresolvedType::FormatString(size, Box::new(fields)))
+        .map_with_span(|(size, fields), span| {
+            UnresolvedTypeData::FormatString(size, Box::new(fields)).with_span(span)
+        })
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
@@ -923,8 +932,8 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
             }
         }))
         .validate(|(_, token), span, emit| {
-            let typ = UnresolvedType::from_int_token(token);
-            if let UnresolvedType::Integer(crate::Signedness::Signed, _) = &typ {
+            let typ = UnresolvedTypeData::from_int_token(token).with_span(span);
+            if let UnresolvedTypeData::Integer(crate::Signedness::Signed, _) = &typ.typ {
                 let reason = ParserErrorReason::ExperimentalFeature("Signed integer types");
                 emit(ParserError::with_reason(reason, span));
             }
@@ -935,7 +944,7 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
     path()
         .then(generic_type_args(type_parser))
-        .map(|(path, args)| UnresolvedType::Named(path, args))
+        .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
 }
 
 fn generic_type_args(
@@ -947,7 +956,8 @@ fn generic_type_args(
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression().map(UnresolvedType::Expression))
+        .or(type_expression()
+            .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
@@ -961,7 +971,9 @@ fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
         .ignore_then(type_parser)
         .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
+        .map_with_span(|(element_type, size), span| {
+            UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
+        })
 }
 
 fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
@@ -983,11 +995,11 @@ where
     T: NoirParser<UnresolvedType>,
 {
     let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
-    parenthesized(fields).map(|fields| {
+    parenthesized(fields).map_with_span(|fields, span| {
         if fields.is_empty() {
-            UnresolvedType::Unit
+            UnresolvedTypeData::Unit.with_span(span)
         } else {
-            UnresolvedType::Tuple(fields)
+            UnresolvedTypeData::Tuple(fields).with_span(span)
         }
     })
 }
@@ -996,30 +1008,22 @@ fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
-    let types = type_parser.clone().separated_by(just(Token::Comma)).allow_trailing();
-    let args = parenthesized(types.clone());
+    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
 
     let env = just(Token::LeftBracket)
-        .ignore_then(types)
+        .ignore_then(type_parser.clone())
         .then_ignore(just(Token::RightBracket))
         .or_not()
-        .map(|args| match args {
-            Some(args) => {
-                if args.is_empty() {
-                    UnresolvedType::Unit
-                } else {
-                    UnresolvedType::Tuple(args)
-                }
-            }
-            None => UnresolvedType::Unit,
-        });
+        .map_with_span(|t, span| t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(span)));
 
     keyword(Keyword::Fn)
         .ignore_then(env)
         .then(args)
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
-        .map(|((env, args), ret)| UnresolvedType::Function(args, Box::new(ret), Box::new(env)))
+        .map_with_span(|((env, args), ret), span| {
+            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env)).with_span(span)
+        })
 }
 
 fn mutable_reference_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -1029,7 +1033,9 @@ where
     just(Token::Ampersand)
         .ignore_then(keyword(Keyword::Mut))
         .ignore_then(type_parser)
-        .map(|element| UnresolvedType::MutableReference(Box::new(element)))
+        .map_with_span(|element, span| {
+            UnresolvedTypeData::MutableReference(Box::new(element)).with_span(span)
+        })
 }
 
 fn expression() -> impl ExprParser {

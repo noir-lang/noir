@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
+use noirc_errors::Span;
+
 use crate::{token::Attribute, FunctionReturnType, Ident, Pattern, Visibility};
 
-use super::{FunctionDefinition, UnresolvedType};
+use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
 
 // A NoirFunction can be either a foreign low level function or a function definition
 // A closure / function definition will be stored under a name, so we do not differentiate between their variants
@@ -42,7 +44,9 @@ impl NoirFunction {
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
-            FunctionReturnType::Default(_) => UnresolvedType::Unit,
+            FunctionReturnType::Default(_) => {
+                UnresolvedType::without_span(UnresolvedTypeData::Unit)
+            }
             FunctionReturnType::Ty(ty, _) => ty.clone(),
         }
     }
@@ -66,6 +70,9 @@ impl NoirFunction {
     }
     pub fn number_of_statements(&self) -> usize {
         self.def.body.0.len()
+    }
+    pub fn span(&self) -> Span {
+        self.def.span
     }
 
     pub fn foreign(&self) -> Option<&FunctionDefinition> {
