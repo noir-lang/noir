@@ -301,6 +301,15 @@ impl<'a> FunctionContext<'a> {
             {
                 return self.insert_array_equality(lhs, operator, rhs, location)
             }
+            BinaryOpKind::Divide => {
+                let zero = self.builder.numeric_constant(FieldElement::zero(), Type::field());
+                let divisor_is_zero = self.builder.insert_binary(zero, BinaryOp::Eq, rhs);
+                let divisor_is_not_zero = self.builder.insert_not(divisor_is_zero);
+                self.builder.set_location(location).insert_constrain(divisor_is_not_zero);
+
+                let op = convert_operator(operator);
+                self.builder.set_location(location).insert_binary(lhs, op, rhs)
+            }
             _ => {
                 let op = convert_operator(operator);
                 if operator_requires_swapped_operands(operator) {
