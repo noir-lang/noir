@@ -638,11 +638,7 @@ impl FunctionDefinition {
         let p = parameters
             .iter()
             .map(|(ident, unresolved_type)| {
-                (
-                    Pattern::Identifier(ident.clone()),
-                    unresolved_type.clone(),
-                    Visibility::Private,
-                )
+                (Pattern::Identifier(ident.clone()), unresolved_type.clone(), Visibility::Private)
             })
             .collect();
         FunctionDefinition {
@@ -689,6 +685,15 @@ impl Display for FunctionDefinition {
             where_clause_str,
             self.body
         )
+    }
+}
+
+impl FunctionReturnType {
+    pub fn get_type(&self) -> &UnresolvedType {
+        match self {
+            FunctionReturnType::Default(_span) => &UnresolvedType::Unit,
+            FunctionReturnType::Ty(typ, _span) => typ,
+        }
     }
 }
 

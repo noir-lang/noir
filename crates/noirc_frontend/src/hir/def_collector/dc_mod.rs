@@ -105,9 +105,7 @@ fn check_trait_method_implementation_return_type(
     impl_method: &NoirFunction,
     trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
-    if UnresolvedType::from_func_return_type(expected_return_type)
-        == UnresolvedType::from_func_return_type(&impl_method.def.return_type)
-    {
+    if expected_return_type.get_type() == impl_method.def.return_type.get_type() {
         Ok(())
     } else {
         Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {

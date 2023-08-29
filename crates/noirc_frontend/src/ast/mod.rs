@@ -187,16 +187,6 @@ impl UnresolvedTypeData {
     }
 }
 
-impl FunctionReturnType {
-    pub fn get_type(&self) -> &UnresolvedType {
-        match item {
-            FunctionReturnType::Default(_span) => &UnresolvedType::Unit,
-            FunctionReturnType::Ty(typ, _span) => typ,
-        }
-    }
-}
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Signedness {
     Unsigned,
