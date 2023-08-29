@@ -4,6 +4,7 @@ use acvm::compiler::AcirTransformationMap;
 use serde_with::serde_as;
 use serde_with::DisplayFromStr;
 use std::collections::BTreeMap;
+use std::mem;
 
 use crate::Location;
 use serde::{Deserialize, Serialize};
@@ -29,8 +30,7 @@ impl DebugInfo {
     /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
-        let old_locations = self.locations.clone();
-        self.locations.clear();
+        let old_locations = mem::take(&mut self.locations);
 
         for (old_opcode_location, source_locations) in old_locations {
             let _ = update_map.new_locations(old_opcode_location).map(|new_opcode_location| {
