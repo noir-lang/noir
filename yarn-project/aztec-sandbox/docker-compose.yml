@@ -11,7 +11,8 @@ services:
     ports:
       - '8080:8080'
     environment:
-      DEBUG: # DEBUG is loaded from the user shell running compose
+      DEBUG: # Loaded from the user shell if explicitly set
+      HOST_WORKDIR: '${PWD}' # Loaded from the user shell to show log files absolute path in host
       ETHEREUM_HOST: http://ethereum:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
@@ -20,3 +21,5 @@ services:
       WS_BLOCK_CHECK_INTERVAL_MS: 50
       RPC_SERVER_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
+    volumes:
+      - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw

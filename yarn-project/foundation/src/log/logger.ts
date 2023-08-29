@@ -4,7 +4,8 @@ import { isatty } from 'tty';
 
 import { LogFn } from './index.js';
 
-const LogLevels = ['silent', 'fatal', 'error', 'warn', 'info', 'debug'] as const;
+// Matches a subset of Winston log levels
+const LogLevels = ['silent', 'error', 'warn', 'info', 'verbose', 'debug'] as const;
 const DefaultLogLevel = 'info' as const;
 
 /**
@@ -39,13 +40,26 @@ export function createDebugLogger(name: string): DebugLogger {
 
   const logger = {
     silent: () => {},
-    fatal: (...args: any[]) => logWithDebug(debugLogger, 'fatal', args),
     error: (...args: any[]) => logWithDebug(debugLogger, 'error', args),
     warn: (...args: any[]) => logWithDebug(debugLogger, 'warn', args),
     info: (...args: any[]) => logWithDebug(debugLogger, 'info', args),
+    verbose: (...args: any[]) => logWithDebug(debugLogger, 'verbose', args),
     debug: (...args: any[]) => logWithDebug(debugLogger, 'debug', args),
   };
-  return Object.assign(debugLogger, logger);
+  return Object.assign((...args: any[]) => logWithDebug(debugLogger, 'debug', args), logger);
+}
+
+/** A callback to capture all logs. */
+export type LogHandler = (level: LogLevel, namespace: string, args: any[]) => void;
+
+const logHandlers: LogHandler[] = [];
+
+/**
+ * Registers a callback for all logs, whether they are emitted in the current log level or not.
+ * @param handler - Callback to be called on every log.
+ */
+export function onLog(handler: LogHandler) {
+  logHandlers.push(handler);
 }
 
 /**
@@ -55,6 +69,9 @@ export function createDebugLogger(name: string): DebugLogger {
  * @param args - Args to log.
  */
 function logWithDebug(debug: debug.Debugger, level: LogLevel, args: any[]) {
+  for (const handler of logHandlers) {
+    handler(level, debug.namespace, args);
+  }
   if (debug.enabled) {
     debug(args[0], ...args.slice(1));
   } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel) && process.env.NODE_ENV !== 'test') {

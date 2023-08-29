@@ -43,7 +43,9 @@
     "abitype": "^0.8.11",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",
-    "viem": "^1.2.5"
+    "viem": "^1.2.5",
+    "winston": "^3.10.0",
+    "winston-daily-rotate-file": "^4.7.1"
   },
   "files": [
     "dest",

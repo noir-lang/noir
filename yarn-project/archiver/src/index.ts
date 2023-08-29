@@ -47,7 +47,7 @@ async function main() {
 if (process.argv[1] === fileURLToPath(import.meta.url).replace(/\/index\.js$/, '')) {
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
   main().catch(err => {
-    log.fatal(err);
+    log.error(err);
     process.exit(1);
   });
 }
