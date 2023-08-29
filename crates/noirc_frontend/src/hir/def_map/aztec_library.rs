@@ -131,7 +131,7 @@ pub(crate) fn transform(mut ast: ParsedModule) -> ParsedModule {
 
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
-fn transform_module(functions: &mut Vec<NoirFunction>) {
+fn transform_module(functions: &mut [NoirFunction]) {
     for func in functions.iter_mut() {
         if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
             match custom_attribute.as_str() {
@@ -154,7 +154,7 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
 
     // Insert the context creation as the first action
     let create_context = create_context(&context_name, &func.def.parameters);
-    func.def.body.0.splice(0..0, (&create_context).iter().cloned());
+    func.def.body.0.splice(0..0, (create_context).iter().cloned());
 
     // Add the inputs to the params
     let input = create_inputs(&inputs_name);
@@ -223,7 +223,7 @@ pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
 ///     let mut context = PrivateContext::new(inputs, hasher.hash());
 /// }
 /// ```
-fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> Vec<Statement> {
+fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) -> Vec<Statement> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
     // `let mut hasher = Hasher::new();`
@@ -282,7 +282,7 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
     injected_expressions.push(let_context);
 
     // Return all expressions that will be injected by the hasher
-    return injected_expressions;
+    injected_expressions
 }
 
 /// Create Return Type
