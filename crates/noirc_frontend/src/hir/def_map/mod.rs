@@ -19,9 +19,7 @@ mod namespace;
 pub use namespace::*;
 
 #[cfg(feature = "aztec")]
-mod aztec_helper;
-#[cfg(feature = "aztec")]
-use aztec_helper::aztec_contracts_macros;
+mod aztec_library;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -88,11 +86,10 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-
         let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
         #[cfg(feature = "aztec")]
-        let ast = aztec_contracts_macros(ast);
+        let ast = aztec_library::transform(ast);
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();

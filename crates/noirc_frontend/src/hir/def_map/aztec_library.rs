@@ -89,8 +89,8 @@ macro_rules! chained_path {
 }
 
 macro_rules! cast {
-    ( $lhs:expr, $rhs:expr ) => {
-        expression!(ExpressionKind::Cast(Box::new(CastExpression { lhs: $lhs, r#type: $rhs })))
+    ( $lhs:expr, $ty:expr ) => {
+        expression!(ExpressionKind::Cast(Box::new(CastExpression { lhs: $lhs, r#type: $ty })))
     };
 }
 
@@ -109,29 +109,27 @@ macro_rules! index_array {
 
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
-pub(crate) fn aztec_contracts_macros(mut ast: ParsedModule) -> ParsedModule {
-    // Usage -> mut ast -> AztecLib.transform(&mut ast)
+pub(crate) fn transform(mut ast: ParsedModule) -> ParsedModule {
+    // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
-    for func in ast.functions.iter_mut() {
-        transform_function(func);
-    }
+    transform_module(&mut ast.functions);
     for submodule in ast.submodules.iter_mut() {
-        for func in submodule.contents.functions.iter_mut() {
-            transform_function(func);
-        }
+        transform_module(&mut submodule.contents.functions);
     }
     ast
 }
 
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
-fn transform_function(func: &mut NoirFunction) {
-    if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
-        match custom_attribute.as_str() {
-            "aztec(private)" => transform("Private", func),
-            "aztec(public)" => transform("Public", func),
-            _ => return,
+fn transform_module(functions: &mut Vec<NoirFunction>) {
+    for func in functions.iter_mut() {
+        if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
+            match custom_attribute.as_str() {
+                "aztec(private)" => transform_function("Private", func),
+                "aztec(public)" => transform_function("Public", func),
+                _ => return,
+            }
         }
     }
 }
@@ -140,7 +138,7 @@ fn transform_function(func: &mut NoirFunction) {
 /// - A new Input that is provided for a kernel app circuit, named: {Public/Private}ContextInputs
 /// - Hashes all of the function input variables
 ///     - This instantiates a helper function  
-fn transform(ty: &str, func: &mut NoirFunction) {
+fn transform_function(ty: &str, func: &mut NoirFunction) {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
@@ -219,9 +217,6 @@ pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
 fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> Vec<Statement> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
-    // Hasher object for each variable to call
-    let hasher_variable = variable!("hasher");
-
     // `let mut hasher = Hasher::new();`
     let let_hasher = mutable_assignment!(
         "hasher", // Assigned to
@@ -239,97 +234,19 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
         match pattern {
             Pattern::Identifier(ident) => {
                 // Match the type to determine the padding to do
-                match ty {
+                let expression = match ty {
                     // `hasher.add_multiple({ident}.serialize())`
-                    UnresolvedType::Named(..) => {
-                        // If this is a struct, we call serialize and add the array to the hasher
-                        let serialised_call = method_call!(
-                            variable_path!(ident_path!(ident.clone())), // variable
-                            "serialize",                                // method name
-                            vec![]                                      // args
-                        );
-
-                        let add_multiple = Statement::Semi(method_call!(
-                            hasher_variable.clone(), // variable
-                            "add_multiple",          // method name
-                            vec![serialised_call]    // args
-                        ));
-
-                        // Add this to the return expressions.
-                        injected_expressions.push(add_multiple);
-                    }
-                    UnresolvedType::Array(..) => {
-                        // TODO: if this is an array of structs, we should call serialise on each of them (no methods currently do this yet)
-                        // If this is an array of primitive types (integers / fields) we can add them each to the hasher
-                        // casted to a field
-
-                        // `array.len()`
-                        let end_range_expression = method_call!(
-                            variable_path!(ident_path!(ident.clone())), // variable
-                            "len",                                      // method name
-                            vec![]                                      // args
-                        );
-
-                        // Wrap in the semi thing - does that mean ended with semi colon?
-                        // `hasher.add({ident}[i] as Field)`
-                        let cast_expression = cast!(
-                            index_array!(ident.clone(), "i"), // lhs - `ident[i]`
-                            UnresolvedType::FieldElement      // cast to - `as Field`
-                        );
-                        // What will be looped over
-                        // - `hasher.add({ident}[i] as Field)`
-                        let for_loop_block =
-                            expression!(ExpressionKind::Block(BlockExpression(vec![
-                                Statement::Semi(method_call!(
-                                    hasher_variable.clone(), // variable
-                                    "add",                   // method name
-                                    vec![cast_expression]
-                                ),)
-                            ])));
-
-                        // `for i in 0..{ident}.len()`
-                        let for_loop = Statement::Expression(expression!(ExpressionKind::For(
-                            Box::new(ForExpression {
-                                identifier: ident!("i"),
-                                start_range: expression!(ExpressionKind::Literal(
-                                    Literal::Integer(FieldElement::from(i128::from(0)))
-                                )),
-                                end_range: end_range_expression,
-                                block: for_loop_block,
-                            })
-                        )));
-
-                        // Add the for loop to our list of return expressions
-                        injected_expressions.push(for_loop);
-                    }
+                    UnresolvedType::Named(..) => add_struct_to_hasher(ident),
+                    // TODO: if this is an array of structs, we should call serialise on each of them (no methods currently do this yet)
+                    UnresolvedType::Array(..) => add_array_to_hasher(ident),
                     // `hasher.add({ident})`
-                    UnresolvedType::FieldElement => {
-                        let add_field = Statement::Semi(method_call!(
-                            hasher_variable.clone(),                          // variable
-                            "add",                                            // method name
-                            vec![variable_path!(ident_path!(ident.clone()))]  // args
-                        ));
-                        injected_expressions.push(add_field);
-                    }
+                    UnresolvedType::FieldElement => add_field_to_hasher(ident),
                     // Add the integer to the hasher, casted to a field
                     // `hasher.add({ident} as Field)`
-                    UnresolvedType::Integer(..) => {
-                        // `{ident} as Field`
-                        let cast_operation = cast!(
-                            variable_path!(ident_path!(ident.clone())), // lhs
-                            UnresolvedType::FieldElement                // rhs
-                        );
-
-                        // `hasher.add({ident} as Field)`
-                        let add_casted_integer = Statement::Semi(method_call!(
-                            hasher_variable.clone(), // variable
-                            "add",                   // method name
-                            vec![cast_operation]     // args
-                        ));
-                        injected_expressions.push(add_casted_integer);
-                    }
-                    _ => println!("todo"), // Maybe unreachable?
-                }
+                    UnresolvedType::Integer(..) => add_int_to_hasher(ident),
+                    _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
+                };
+                injected_expressions.push(expression);
             }
             _ => todo!(), // Maybe unreachable?
         }
@@ -412,4 +329,86 @@ pub(crate) fn create_context_finish() -> Statement {
         vec![]                // args
     );
     Statement::Expression(method_call)
+}
+
+/////////////////////////////////////////////////////////////////////////
+///                 Methods to create hasher inputs                   ///
+/////////////////////////////////////////////////////////////////////////
+
+fn add_struct_to_hasher(ident: &Ident) -> Statement {
+    // If this is a struct, we call serialize and add the array to the hasher
+    let serialised_call = method_call!(
+        variable_path!(ident_path!(ident.clone())), // variable
+        "serialize",                                // method name
+        vec![]                                      // args
+    );
+
+    Statement::Semi(method_call!(
+        variable!("hasher"),   // variable
+        "add_multiple",        // method name
+        vec![serialised_call]  // args
+    ))
+}
+
+fn add_array_to_hasher(ident: &Ident) -> Statement {
+    // If this is an array of primitive types (integers / fields) we can add them each to the hasher
+    // casted to a field
+
+    // `array.len()`
+    let end_range_expression = method_call!(
+        variable_path!(ident_path!(ident.clone())), // variable
+        "len",                                      // method name
+        vec![]                                      // args
+    );
+
+    // Wrap in the semi thing - does that mean ended with semi colon?
+    // `hasher.add({ident}[i] as Field)`
+    let cast_expression = cast!(
+        index_array!(ident.clone(), "i"), // lhs - `ident[i]`
+        UnresolvedType::FieldElement      // cast to - `as Field`
+    );
+    // What will be looped over
+    // - `hasher.add({ident}[i] as Field)`
+    let for_loop_block =
+        expression!(ExpressionKind::Block(BlockExpression(vec![Statement::Semi(method_call!(
+            variable!("hasher"), // variable
+            "add",               // method name
+            vec![cast_expression]
+        ),)])));
+
+    // `for i in 0..{ident}.len()`
+    Statement::Expression(expression!(ExpressionKind::For(Box::new(ForExpression {
+        identifier: ident!("i"),
+        start_range: expression!(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
+            i128::from(0)
+        )))),
+        end_range: end_range_expression,
+        block: for_loop_block,
+    }))))
+}
+
+fn add_field_to_hasher(ident: &Ident) -> Statement {
+    // `hasher.add({ident})`
+    let iden = variable_path!(ident_path!(ident.clone()));
+    Statement::Semi(method_call!(
+        variable!("hasher"), // variable
+        "add",               // method name
+        vec![iden]           // args
+    ))
+}
+
+fn add_int_to_hasher(ident: &Ident) -> Statement {
+    // `hasher.add({ident} as Field)`
+    // `{ident} as Field`
+    let cast_operation = cast!(
+        variable_path!(ident_path!(ident.clone())), // lhs
+        UnresolvedType::FieldElement                // rhs
+    );
+
+    // `hasher.add({ident} as Field)`
+    Statement::Semi(method_call!(
+        variable!("hasher"),  // variable
+        "add",                // method name
+        vec![cast_operation]  // args
+    ))
 }
