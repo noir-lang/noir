@@ -8,9 +8,9 @@ use crate::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 
-/////////////////////////////////////////////////////////////////////////
-///             Helper macros for creating noir ast nodes             ///
-/////////////////////////////////////////////////////////////////////////
+//
+//             Helper macros for creating noir ast nodes
+//
 macro_rules! ident {
     ($name:expr) => {
         Ident::new($name.to_string(), Span::default())
@@ -112,9 +112,9 @@ macro_rules! index_array {
     };
 }
 
-/////////////////////////////////////////////////////////////////////////
-///                    Create AST Nodes for Aztec                     ///
-/////////////////////////////////////////////////////////////////////////
+//
+//                    Create AST Nodes for Aztec
+//
 
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
@@ -341,9 +341,9 @@ pub(crate) fn create_context_finish() -> Statement {
     Statement::Expression(method_call)
 }
 
-/////////////////////////////////////////////////////////////////////////
-///                 Methods to create hasher inputs                   ///
-/////////////////////////////////////////////////////////////////////////
+//
+//                 Methods to create hasher inputs
+//
 
 fn add_struct_to_hasher(ident: &Ident) -> Statement {
     // If this is a struct, we call serialize and add the array to the hasher
