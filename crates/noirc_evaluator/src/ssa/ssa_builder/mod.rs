@@ -113,11 +113,6 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
-    /// Insert an array constant into the current function with the given element values.
-    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
-        self.current_function.dfg.make_array(elements, typ)
-    }
-
     /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)
@@ -251,6 +246,12 @@ impl FunctionBuilder {
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert an instruction to create a new array of the given type
+    pub(crate) fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
+        let array_type = Some(vec![typ]);
+        self.insert_instruction(Instruction::MakeArray { elements }, array_type).first()
     }
 
     /// Insert an instruction to extract an element from an array
@@ -406,10 +407,8 @@ mod tests {
         };
         assert_eq!(slice_len, FieldElement::from(256u128));
 
-        let slice = match &builder.current_function.dfg[call_results[1]] {
-            Value::Array { array, .. } => array,
-            _ => panic!(),
-        };
+        let slice = builder.current_function.dfg.get_array_constant(call_results[1]).unwrap().0;
+
         assert_eq!(slice[0], one);
         assert_eq!(slice[1], one);
         assert_eq!(slice[2], one);

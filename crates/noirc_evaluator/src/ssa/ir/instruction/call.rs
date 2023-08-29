@@ -90,8 +90,8 @@ pub(super) fn simplify_call(
 
                 let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add);
 
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+                let new_slice = Instruction::MakeArray { elements: slice };
+                SimplifyResult::SimplifiedSlice { new_slice_length, new_slice }
             } else {
                 SimplifyResult::None
             }

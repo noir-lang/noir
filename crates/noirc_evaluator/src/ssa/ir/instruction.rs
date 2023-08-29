@@ -165,6 +165,15 @@ pub(crate) enum Instruction {
     /// if-branching structure.
     EnableSideEffects { condition: ValueId },
 
+    /// Creates an immutable array value.
+    ///
+    /// The result of this instruction is treated as a constant for optimization purposes so that any
+    /// other instruction directly referring to it - such as ArrayGet or ArraySet - can be optimized out.
+    ///
+    /// Note that struct or tuple values may be stored in a single array. In this case, they are
+    /// flattened such that a tuple of (a, (b, c), d) is stored in the array as [a0, b0, c0, d0, a1, b1, ...].
+    MakeArray { elements: im::Vector<ValueId> },
+
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
 
@@ -192,7 +201,7 @@ impl Instruction {
             Instruction::Constrain(_, _)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
+            Instruction::Load { .. } | Instruction::MakeArray { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
                 InstructionResultType::Unknown
             }
         }
@@ -214,6 +223,7 @@ impl Instruction {
             | Truncate { .. }
             | Allocate
             | Load { .. }
+            | MakeArray { .. }
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
@@ -266,6 +276,9 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 Instruction::EnableSideEffects { condition: f(*condition) }
             }
+            Instruction::MakeArray { elements } => {
+                Instruction::MakeArray { elements: elements.iter().map(|elem| f(*elem)).collect() }
+            }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
@@ -304,6 +317,11 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate { .. } => (),
+            Instruction::MakeArray { elements } => {
+                for element in elements {
+                    f(*element);
+                }
+            }
             Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);
@@ -377,8 +395,8 @@ impl Instruction {
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
 
                     if index < array.len() {
-                        let new_array = dfg.make_array(array.update(index, *value), element_type);
-                        return SimplifiedTo(new_array);
+                        let elements = array.update(index, *value);
+                        return SimplifiedToInstruction(Instruction::MakeArray { elements });
                     }
                 }
                 None
@@ -406,6 +424,7 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::MakeArray { .. } => None,
         }
     }
 }
@@ -863,6 +882,11 @@ pub(crate) enum SimplifyResult {
 
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
+
+    /// Slice values are represented as the tuple of (length, array). Since arrays
+    /// are simplified to Instruction::MakeArray, it is often the case that slices
+    /// are themselves simplified to (length: ValueId, new_contents: Instruction::MakeArray).
+    SimplifiedSlice { length: ValueId, elements: im::Vector<ValueId> },
 
     /// Remove the instruction, it is unnecessary
     Remove,

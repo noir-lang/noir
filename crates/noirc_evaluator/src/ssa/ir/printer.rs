@@ -89,7 +89,7 @@ fn value_list_with_types(function: &Function, values: &[ValueId]) -> String {
 }
 
 /// Display each value separated by a comma
-fn value_list(function: &Function, values: &[ValueId]) -> String {
+fn value_list<'a>(function: &Function, values: impl IntoIterator<Item = &'a ValueId>) -> String {
     vecmap(values, |id| value(function, *id)).join(", ")
 }
 
@@ -158,6 +158,9 @@ pub(crate) fn display_instruction(
         }
         Instruction::EnableSideEffects { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
+        }
+        Instruction::MakeArray { elements } => {
+            writeln!(f, "make_array [{}]", value_list(function, elements))
         }
         Instruction::ArrayGet { array, index } => {
             writeln!(f, "array_get {}, index {}", show(*array), show(*index))

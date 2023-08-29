@@ -453,6 +453,11 @@ impl Context {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
                 self.current_side_effects_enabled_var = acir_var;
             }
+            Instruction::MakeArray { elements } => {
+                let elements = elements.iter().map(|element| self.convert_value(*element, dfg));
+                let array = AcirValue::Array(elements.collect());
+                self.define_result(dfg, instruction_id, array);
+            },
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(
                     instruction_id,

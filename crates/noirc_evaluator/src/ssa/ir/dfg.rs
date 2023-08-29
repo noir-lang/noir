@@ -167,12 +167,21 @@ impl DataFlowGraph {
             }
             SimplifyResult::Remove => InstructionRemoved,
             result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
+                // TODO handle type when array set simplified to make_array which reqs typevars
                 let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
                 self.locations.insert(id, call_stack);
                 InsertInstructionResult::Results(id, self.instruction_results(id))
             }
+            SimplifyResult::SimplifiedSlice { length, elements } => {
+                let instruction = Instruction::MakeArray { elements };
+                let id = self.make_instruction(instruction, ctrl_typevars);
+                self.blocks[block].insert_instruction(id);
+                self.locations.insert(id, call_stack);
+                let array = self.instruction_results(id)[0];
+                InsertInstructionResult::SimplifiedToMultiple(vec![length, array])
+            },
         }
     }
 
@@ -230,12 +239,6 @@ impl DataFlowGraph {
         let id = self.values.insert(Value::NumericConstant { constant, typ: typ.clone() });
         self.constants.insert((constant, typ), id);
         id
-    }
-
-    /// Create a new constant array value from the given elements
-    pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
-        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-        self.make_value(Value::Array { array, typ })
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -377,12 +380,17 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
-    /// Otherwise, this returns None.
+    /// Returns the array associated with this ValueId if it refers to the result of a make_array
+    /// instruction. Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.values[self.resolve(value)] {
-            // Arrays are shared, so cloning them is cheap
-            Value::Array { array, typ } => Some((array.clone(), typ.clone())),
+            Value::Instruction { instruction, typ, position: _ } => {
+                match &self.instructions[*instruction] {
+                    // Arrays are shared, so cloning them is cheap
+                    Instruction::MakeArray { elements } => Some((elements.clone(), typ.clone())),
+                    _ => None,
+                }
+            },
             _ => None,
         }
     }
