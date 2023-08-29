@@ -6,9 +6,8 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
     parser::SubModule,
-    FunctionDefinition, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
-    UnresolvedType,
+    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
+    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -69,87 +68,6 @@ pub fn collect_defs(
     collector.collect_trait_impls(context, ast.trait_impls, errors);
 
     collector.collect_impls(context, ast.impls);
-}
-
-fn check_trait_method_implementation_parameters(
-    expected_parameters: &Vec<(Ident, UnresolvedType)>,
-    impl_method: &NoirFunction,
-    trait_name: &str,
-) -> Result<(), DefCollectorErrorKind> {
-    let expected_num_parameters = expected_parameters.len();
-    let actual_num_parameters = impl_method.def.parameters.len();
-    if actual_num_parameters != expected_num_parameters {
-        return Err(DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-            actual_num_parameters,
-            expected_num_parameters,
-            trait_name: trait_name.to_owned(),
-            impl_ident: impl_method.name_ident().clone(),
-        });
-    }
-    for (count, (parameter, typ, _abi_vis)) in impl_method.def.parameters.iter().enumerate() {
-        let (_expected_name, expected_type) = &expected_parameters[count];
-        if typ.typ != expected_type.typ {
-            return Err(DefCollectorErrorKind::MismatchTraitImlementationParameter {
-                trait_name: trait_name.to_owned(),
-                expected_type: expected_type.clone(),
-                impl_method: impl_method.name().to_string(),
-                parameter: parameter.name_ident().clone(),
-            });
-        }
-    }
-    Ok(())
-}
-
-fn check_trait_method_implementation_return_type(
-    expected_return_type: &FunctionReturnType,
-    impl_method: &NoirFunction,
-    trait_name: &str,
-) -> Result<(), DefCollectorErrorKind> {
-    if expected_return_type.get_type() == impl_method.def.return_type.get_type() {
-        Ok(())
-    } else {
-        Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
-            trait_name: trait_name.to_owned(),
-            impl_ident: impl_method.name_ident().clone(),
-        })
-    }
-}
-
-fn check_trait_method_implementation(
-    r#trait: &NoirTrait,
-    impl_method: &NoirFunction,
-) -> Result<(), DefCollectorErrorKind> {
-    for item in &r#trait.items {
-        if let TraitItem::Function {
-            name,
-            generics: _,
-            parameters,
-            return_type,
-            where_clause: _,
-            body: _,
-        } = item
-        {
-            if name.0.contents == impl_method.def.name.0.contents {
-                // name matches, check for parameters - count and type, return type
-                check_trait_method_implementation_parameters(
-                    parameters,
-                    impl_method,
-                    &r#trait.name.0.contents,
-                )?;
-                check_trait_method_implementation_return_type(
-                    return_type,
-                    impl_method,
-                    &r#trait.name.0.contents,
-                )?;
-                return Ok(());
-            }
-        }
-    }
-
-    Err(DefCollectorErrorKind::MethodNotInTrait {
-        trait_name: r#trait.name.clone(),
-        impl_method: impl_method.def.name.clone(),
-    })
 }
 
 impl<'a> ModCollector<'a> {
@@ -271,18 +189,11 @@ impl<'a> ModCollector<'a> {
 
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
-                match check_trait_method_implementation(trait_def, impl_method) {
-                    Ok(()) => {
-                        let func_id = context.def_interner.push_empty_fn();
-                        context
-                            .def_interner
-                            .push_function_definition(impl_method.name().to_owned(), func_id);
-                        unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
-                    }
-                    Err(error) => {
-                        errors.push(error.into_file_diagnostic(self.file_id));
-                    }
-                }
+                let func_id = context.def_interner.push_empty_fn();
+                context
+                    .def_interner
+                    .push_function_definition(impl_method.name().to_owned(), func_id);
+                unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
         }
 
