@@ -169,7 +169,7 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
     func.def.return_visibility = Visibility::Public;
 
     // Distinct return types are only required for private functions
-    if ty.eq("Private") {
+    if ty == "Private" {
         func.def.return_distinctness = Distinctness::Distinct;
     }
 }
