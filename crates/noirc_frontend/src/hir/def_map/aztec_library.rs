@@ -5,7 +5,7 @@ use crate::{
     token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
     ExpressionKind, ForExpression, FunctionReturnType, Ident, IndexExpression, LetStatement,
     Literal, MethodCallExpression, NoirFunction, ParsedModule, Path, Pattern, Statement,
-    UnresolvedType, Visibility,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
 
 /////////////////////////////////////////////////////////////////////////
@@ -70,7 +70,7 @@ macro_rules! mutable_assignment {
     ( $name:expr, $assigned_to:expr ) => {
         Statement::Let(LetStatement {
             pattern: mutable!($name),
-            r#type: UnresolvedType::Unspecified,
+            r#type: make_type!(UnresolvedTypeData::Unspecified),
             expression: $assigned_to,
         })
     };
@@ -90,7 +90,16 @@ macro_rules! chained_path {
 
 macro_rules! cast {
     ( $lhs:expr, $ty:expr ) => {
-        expression!(ExpressionKind::Cast(Box::new(CastExpression { lhs: $lhs, r#type: $ty })))
+        expression!(ExpressionKind::Cast(Box::new(CastExpression {
+            lhs: $lhs,
+            r#type: make_type!($ty)
+        })))
+    };
+}
+
+macro_rules! make_type {
+    ( $ty:expr ) => {
+        UnresolvedType { typ: $ty, span: None }
     };
 }
 
@@ -183,7 +192,7 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
 pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
     let context_ident = ident!("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
-    let context_type = UnresolvedType::Named(ident_path!(ty), vec![]);
+    let context_type = make_type!(UnresolvedTypeData::Named(ident_path!(ty), vec![]));
     let visibility = Visibility::Private;
 
     (context_pattern, context_type, visibility)
@@ -234,16 +243,17 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
         match pattern {
             Pattern::Identifier(ident) => {
                 // Match the type to determine the padding to do
-                let expression = match ty {
+                let unresolved_type = &ty.typ;
+                let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
-                    UnresolvedType::Named(..) => add_struct_to_hasher(ident),
+                    UnresolvedTypeData::Named(..) => add_struct_to_hasher(ident),
                     // TODO: if this is an array of structs, we should call serialise on each of them (no methods currently do this yet)
-                    UnresolvedType::Array(..) => add_array_to_hasher(ident),
+                    UnresolvedTypeData::Array(..) => add_array_to_hasher(ident),
                     // `hasher.add({ident})`
-                    UnresolvedType::FieldElement => add_field_to_hasher(ident),
+                    UnresolvedTypeData::FieldElement => add_field_to_hasher(ident),
                     // Add the integer to the hasher, casted to a field
                     // `hasher.add({ident} as Field)`
-                    UnresolvedType::Integer(..) => add_int_to_hasher(ident),
+                    UnresolvedTypeData::Integer(..) => add_int_to_hasher(ident),
                     _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
                 };
                 injected_expressions.push(expression);
@@ -300,7 +310,7 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
 pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
     let return_path = chained_path!("abi", ty);
 
-    let ty = UnresolvedType::Named(return_path, vec![]);
+    let ty = make_type!(UnresolvedTypeData::Named(return_path, vec![]));
     FunctionReturnType::Ty(ty, Span::default())
 }
 
@@ -365,7 +375,7 @@ fn add_array_to_hasher(ident: &Ident) -> Statement {
     // `hasher.add({ident}[i] as Field)`
     let cast_expression = cast!(
         index_array!(ident.clone(), "i"), // lhs - `ident[i]`
-        UnresolvedType::FieldElement      // cast to - `as Field`
+        UnresolvedTypeData::FieldElement  // cast to - `as Field`
     );
     // What will be looped over
     // - `hasher.add({ident}[i] as Field)`
@@ -402,7 +412,7 @@ fn add_int_to_hasher(ident: &Ident) -> Statement {
     // `{ident} as Field`
     let cast_operation = cast!(
         variable_path!(ident_path!(ident.clone())), // lhs
-        UnresolvedType::FieldElement                // rhs
+        UnresolvedTypeData::FieldElement            // rhs
     );
 
     // `hasher.add({ident} as Field)`

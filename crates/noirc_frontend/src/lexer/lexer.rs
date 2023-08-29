@@ -464,54 +464,58 @@ mod tests {
         let input = "#";
         let mut lexer = Lexer::new(input);
 
-    let token = lexer.next().unwrap();
-    assert!(token.is_err());
-}
+        let token = lexer.next().unwrap();
+        assert!(token.is_err());
+    }
 
-#[test]
-fn deprecated_attribute() {
-    let input = r#"#[deprecated]"#;
-    let mut lexer = Lexer::new(input);
+    #[test]
+    fn deprecated_attribute() {
+        let input = r#"#[deprecated]"#;
+        let mut lexer = Lexer::new(input);
 
-    let token = lexer.next().unwrap().unwrap();
-    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
-}
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
+    }
 
-#[test]
-fn deprecated_attribute_with_note() {
-    let input = r#"#[deprecated("hello")]"#;
-    let mut lexer = Lexer::new(input);
+    #[test]
+    fn deprecated_attribute_with_note() {
+        let input = r#"#[deprecated("hello")]"#;
+        let mut lexer = Lexer::new(input);
 
-    let token = lexer.next().unwrap().unwrap();
-    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated("hello".to_string().into())));
-}
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Deprecated("hello".to_string().into()))
+        );
+    }
 
-#[test]
-fn custom_attribute() {
-    let input = r#"#[custom(hello)]"#;
-    let mut lexer = Lexer::new(input);
+    #[test]
+    fn custom_attribute() {
+        let input = r#"#[custom(hello)]"#;
+        let mut lexer = Lexer::new(input);
 
-    let token = lexer.next().unwrap().unwrap();
-    assert_eq!(
-        token.token(),
-        &Token::Attribute(Attribute::Custom("custom(hello)".to_string().into()))
-    );
-}
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Custom("custom(hello)".to_string().into()))
+        );
+    }
 
-#[test]
-fn test_custom_gate_syntax() {
-    let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
+    #[test]
+    fn test_custom_gate_syntax() {
+        let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
-    let expected = vec![
-        Token::Attribute(Attribute::Foreign("sha256".to_string())),
-        Token::Attribute(Attribute::Foreign("blake2s".to_string())),
-        Token::Attribute(Attribute::Builtin("sum".to_string())),
-    ];
+        let expected = vec![
+            Token::Attribute(Attribute::Foreign("sha256".to_string())),
+            Token::Attribute(Attribute::Foreign("blake2s".to_string())),
+            Token::Attribute(Attribute::Builtin("sum".to_string())),
+        ];
 
-    let mut lexer = Lexer::new(input);
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
     }
 
     #[test]
