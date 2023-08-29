@@ -204,6 +204,31 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
+    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
+    /// i.e. there are no interactions with memory.
+    ///
+    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
+    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+
+            // Unclear why this instruction causes problems.
+            Truncate { .. } => false,
+
+            // These either have side-effects or interact with memory
+            Constrain(_, _) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
+                false
+            }
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+        }
+    }
+
     pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
