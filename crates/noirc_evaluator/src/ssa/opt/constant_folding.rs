@@ -74,6 +74,9 @@ impl Context {
         let instruction = function.dfg[id].clone();
         let old_results = function.dfg.instruction_results(id).to_vec();
 
+        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
+        let instruction = instruction.map_values(|value_id| function.dfg.resolve(value_id));
+
         // If a copy of this instruction exists earlier in the block then reuse the previous results.
         if let Some(cached_results) = instruction_result_cache.get(&instruction) {
             for (old_result, new_result) in old_results.iter().zip(cached_results) {
