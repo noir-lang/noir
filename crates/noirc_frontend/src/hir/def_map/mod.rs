@@ -18,7 +18,7 @@ pub use module_data::*;
 mod namespace;
 pub use namespace::*;
 
-// #[cfg(feature = "aztec")]
+#[cfg(feature = "aztec")]
 mod aztec_library;
 
 /// The name that is used for a non-contract program's entry-point function.
@@ -88,7 +88,7 @@ impl CrateDefMap {
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
-        // #[cfg(feature = "aztec")]
+        #[cfg(feature = "aztec")]
         let ast = aztec_library::transform(ast);
 
         // Allocate a default Module for the root, giving it a ModuleId
