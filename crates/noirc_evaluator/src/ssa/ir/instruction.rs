@@ -610,8 +610,8 @@ impl Binary {
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
-            // Thus, we do not evaluate this divison as we want to avoid triggering a panic and a division by zero
-            // should fail to satisfy constraints laid down during ACIR generation.
+            // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
+            // and division by zero should be handled by laying down constraints during ACIR generation.
             if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
                 return SimplifyResult::None;
             }
@@ -756,8 +756,18 @@ impl Binary {
 
                 let lhs = truncate(lhs.try_into_u128()?, *bit_size);
                 let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-                let result = function(lhs, rhs);
-                truncate(result, *bit_size).into()
+
+                // The divisor is being truncated into the type of the operand, which can potentially
+                // lead to the rhs being zero.
+                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                // and the operation should be handled by ACIR generation.
+                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
+                    return None;
+                } else {
+                    let result = function(lhs, rhs);
+                    truncate(result, *bit_size).into()
+                }
             }
             _ => return None,
         };
