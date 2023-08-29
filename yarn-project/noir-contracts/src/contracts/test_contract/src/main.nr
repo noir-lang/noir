@@ -5,7 +5,8 @@ contract Test {
         types::vec::BoundedVec,
         abi::{
             PublicContextInputs,
-            PrivateContextInputs
+            PrivateContextInputs,
+            Hasher
         }
     };
     use dep::aztec::context::{
@@ -19,52 +20,38 @@ contract Test {
         rand::rand,
     };
 
-    fn constructor(
-        inputs: PrivateContextInputs,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        PrivateContext::new(inputs, 0).finish()
-    }
+    #[aztec(private)]
+    fn constructor() {}
 
+    #[aztec(private)]
     fn getPublicKey(
-        inputs: PrivateContextInputs,
         address: Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([address]));
+    )  {
         let pub_key = get_public_key(address);
         context.return_values.push_array([pub_key.x, pub_key.y]);
-        context.finish()
     }
 
     // Get the portal contract address through an oracle call
+    #[aztec(private)]
     fn getPortalContractAddress(
-        inputs: PrivateContextInputs,
         aztec_address: Field
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([]));
+    )  {
         let portal_address = get_portal_address(aztec_address);
         context.return_values.push_array([portal_address]);
-        context.finish()
     }
 
     // Get the address of the l1 portal for this contract (taken from the input context)
-    fn getThisPortalAddress(
-        inputs: PrivateContextInputs,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([]));
+    #[aztec(private)]
+    fn getThisPortalAddress()  {
         let this_portal_address = context.this_portal_address();
         context.return_values.push_array([this_portal_address]);
-        context.finish()
     }
 
     // Get the address of this contract (taken from the input context)
-    fn getThisAddress(
-        inputs: PrivateContextInputs,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([]));
+    #[aztec(private)]
+    fn getThisAddress()  {
         let this_address = context.this_address();
         context.return_values.push_array([this_address]);
-        context.finish()
     }
 
     // Test codegen for noir interfaces
@@ -100,48 +87,39 @@ contract Test {
     }
 
     // Purely exists for testing
+    #[aztec(public)]
     open fn createL2ToL1MessagePublic(
-        inputs: PublicContextInputs,
         amount: Field,
         secretHash: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([amount, secretHash]));
+    ) {
         // Create a commitment to the amount
         let note = DummyNote::new(amount, secretHash);
         
         // Public oracle call to emit new commitment.
         context.message_portal(note.get_commitment());
-
-        context.finish()
+        
     }
 
     // Purely exists for testing
+    #[aztec(public)]
     open fn createNullifierPublic(
-        inputs: PublicContextInputs,
         amount: Field,
         secretHash: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([amount, secretHash]));
-    
+    ) {
         // Create a commitment to the amount
         let note = DummyNote::new(amount, secretHash);
         
         // Public oracle call to emit new commitment.
         context.push_new_nullifier(note.get_commitment(), 0);
-        
-        context.finish()
     }
 
+    #[aztec(public)]
     open fn isTimeEqual(
-        input: PublicContextInputs,
         time: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(input, abi::hash_args([time]));
-
+    ) {
         assert(context.timestamp() == time);
 
         context.return_values.push(time);
-        context.finish()
     }
 
     // Purely exists for testing

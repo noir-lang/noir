@@ -8,6 +8,7 @@ contract SchnorrAccount {
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;
     use dep::aztec::abi;
+    use dep::aztec::abi::Hasher;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::CallContext;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
@@ -29,19 +30,11 @@ contract SchnorrAccount {
     use crate::public_key_note::PUBLIC_KEY_NOTE_LEN;
 
     // docs:start:entrypoint
-
+    #[aztec(private)]
     fn entrypoint(
-        inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
         signature: pub [u8;64], // schnorr signature of the payload hash
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        // Initialize context
-        // ENTRYPOINT_PAYLOAD_SIZE(13) + 64
-        let mut args: BoundedVec<Field, 77> = BoundedVec::new(0);
-        args.push_array(payload.serialize());
-        for byte in signature { args.push(byte as Field); }
-        let mut context = PrivateContext::new(inputs, abi::hash_args(args.storage));
-
+    ) {
         // Load public key from storage
         let storage = Storage::init();
         let public_key = storage.signing_public_key.get_note(&mut context);
@@ -64,19 +57,15 @@ contract SchnorrAccount {
 
         // Execute calls
         payload.execute_calls(&mut context);
-
-        context.finish()
     }
 
     // Constructs the contract
+    #[aztec(private)]
     fn constructor(
-        inputs: pub PrivateContextInputs,
         signing_pub_key_x: pub Field,
         signing_pub_key_y: pub Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+    ) {
         let storage = Storage::init();
-        
-        let mut context = PrivateContext::new(inputs, abi::hash_args([signing_pub_key_x, signing_pub_key_y]));
         
         let this = context.this_address();
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
@@ -89,8 +78,6 @@ contract SchnorrAccount {
             get_public_key(this),
             pub_key_note.serialise(),
         );
-
-        context.finish()
     }
 
     // Computes notes hash and nullifier.

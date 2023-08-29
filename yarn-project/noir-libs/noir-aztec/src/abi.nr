@@ -354,6 +354,30 @@ impl PublicCircuitPublicInputs {
     }
 }
 
+struct Hasher {
+    fields: [Field],
+}
+
+impl Hasher {
+    fn new()-> Self {
+        Self { fields: [] }
+    }
+
+    fn add(&mut self, field: Field) {
+        self.fields = self.fields.push_back(field);
+    }
+
+    fn add_multiple<N>(&mut self, fields: [Field; N]) {
+        for i in 0..N {
+            self.fields = self.fields.push_back(fields[i]);
+        }
+    }
+
+    fn hash(self) -> Field {
+        hash_args(self.fields)
+    }
+}
+
 global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
 global ARGS_HASH_CHUNK_COUNT: u32 = 16;
 

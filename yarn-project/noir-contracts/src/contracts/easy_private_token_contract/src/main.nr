@@ -2,6 +2,7 @@
 mod storage;
 
 contract EasyPrivateToken {
+    use dep::aztec::abi::Hasher;
     use dep::value_note::{
             balance_utils,
             value_note::{
@@ -25,62 +26,41 @@ contract EasyPrivateToken {
     /**
      * Initialise the contract's initial state variables.
      */ 
+    #[aztec(private)]
     fn constructor(
-        /*********************************/
-        inputs: PrivateContextInputs,
-        /*********************************/
         initial_supply: u120, 
         owner: Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([initial_supply as Field, owner]));
+    ) {
         let storage = Storage::init();
         let balances = storage.balances;
 
         balances.at(owner).add(&mut context, initial_supply, owner);
-
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish()
     }
 
     // Mints `amount` of tokens to `owner`.
+    #[aztec(private)]
     fn mint(
-        //*********************************/
-        // Should eventually be hidden:
-        inputs: PrivateContextInputs,
-        //*********************************/
         amount: u120, 
         owner: Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([amount as Field, owner]));
+    )  {
         let storage = Storage::init();
         let balances = storage.balances;
 
         balances.at(owner).add(&mut context, amount, owner);
-
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
-        context.finish()
     }
 
     // Transfers `amount` of tokens from `sender` to a `recipient`.
+    #[aztec(private)]
     fn transfer(
-        //*********************************/
-        // Should eventually be hidden:
-        inputs: PrivateContextInputs,
-        //*********************************/
         amount: u120, 
         sender: Field, 
         recipient: Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([amount as Field, sender, recipient]));
+    ) {
         let storage = Storage::init();
         let balances = storage.balances;
 
         balances.at(sender).sub(&mut context, amount, sender);
-
         balances.at(recipient).add(&mut context, amount, recipient);
-
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
-        context.finish()
     }
 
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).

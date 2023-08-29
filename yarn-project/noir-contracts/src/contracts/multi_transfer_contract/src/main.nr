@@ -1,6 +1,7 @@
 // Demonstrates how to perform 4 x 4 = 16 transfers in one transaction. Uses the private airdrop contract in the backend.
 contract MultiTransfer {
     use dep::aztec::abi;
+    use dep::aztec::abi::Hasher;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::PublicContextInputs;
     use dep::aztec::context::PrivateContext;
@@ -18,60 +19,23 @@ contract MultiTransfer {
         utils as note_utils,
     };
 
-    fn constructor(
-        inputs: PrivateContextInputs
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        PrivateContext::new(inputs, 0).finish()
-    }
+    #[aztec(private)]
+    fn constructor() {}
 
     // Transfers 12 amounts to 12 recipients.
     // multiTransfer() => 4 calls to batchTransfer() on the private airdrop contract.
     // Each batchTransfer() call allows sending new notes to 3 recipients, so 3 x 4 = 12 recipients in total.
     // Note that all the notes stay on the airdrop contract, the multi transfer contract must interact with 
     // methods in the private airdrop contract to initiate multiple transfers in one transaction. 
+    #[aztec(private)]
     fn multiTransfer(
-        inputs: PrivateContextInputs,
         asset: Field, // Asset to distribute
         addresses: [Field; 12], // Addresses to distribute to
         amounts: [Field; 12], // Amounts to distribute
         owner: Field, // Owner of the asset
         batch_transfer_selector: Field, // Function selector for transfer
         note_offsets: [Field; 4], // Offsets from which 4 notes of the owner would be read.
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            asset, 
-            addresses[0], 
-            addresses[1], 
-            addresses[2], 
-            addresses[3],
-            addresses[4],
-            addresses[5],
-            addresses[6], 
-            addresses[7], 
-            addresses[8], 
-            addresses[9],
-            addresses[10],
-            addresses[11],
-            amounts[0], 
-            amounts[1], 
-            amounts[2], 
-            amounts[3],
-            amounts[4],
-            amounts[5],
-            amounts[6], 
-            amounts[7], 
-            amounts[8], 
-            amounts[9],
-            amounts[10],
-            amounts[11],
-            owner,
-            batch_transfer_selector,
-            note_offsets[0],
-            note_offsets[1],
-            note_offsets[2],
-            note_offsets[3],
-        ]));
-
+    ) {
         // First batch transfer call
         let return_values_1 = context.call_private_function(asset, batch_transfer_selector, [
             owner, 
@@ -127,7 +91,5 @@ contract MultiTransfer {
         ]);
         let result4 = return_values_4[0];
         context.return_values.push(result4);
-
-        context.finish()
     }
 }

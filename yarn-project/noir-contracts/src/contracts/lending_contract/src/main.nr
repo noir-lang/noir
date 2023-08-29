@@ -13,8 +13,11 @@ mod interfaces;
 contract Lending {
     use dep::aztec::{
         abi,
-        abi::PrivateContextInputs,
-        abi::PublicContextInputs
+        abi::{
+            PrivateContextInputs,
+            PublicContextInputs,
+            Hasher
+        }
     };
     use dep::aztec::context::{
         PrivateContext,
@@ -33,18 +36,18 @@ contract Lending {
         debt: Field,
     }
 
-    fn constructor(inputs: PrivateContextInputs) -> distinct pub abi::PrivateCircuitPublicInputs {
-        PrivateContext::new(inputs, 0).finish()
-    }
+    // Constructs the contract.
+    #[aztec(private)]
+    fn constructor(
+    ) {}
 
+    #[aztec(public)]
     open fn init(
-        inputs: PublicContextInputs,
         oracle_address: Field,
         loan_to_value: Field,
         collateral_asset: Field,
         stable_coin: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([oracle_address, loan_to_value, collateral_asset, stable_coin]));
+    ) {
         let storage = Storage::init();
         let asset_loc = storage.assets.at(0);
         let asset = asset_loc.read();
@@ -64,11 +67,12 @@ contract Lending {
         storage.stable_coin.write(stable_coin);
 
         context.return_values.push(1);
-        context.finish()
     }
+
+    // Create a position.
     // keccak256("update_accumulator()") >> 224 -> 0x1873b536
-    open fn update_accumulator(inputs: PublicContextInputs) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([]));
+    #[aztec(public)]
+    open fn update_accumulator() {
         let storage = Storage::init();
 
         let asset_loc = storage.assets.at(0);
@@ -91,55 +95,42 @@ contract Lending {
         }
 
         context.return_values.push_array(asset.serialise());
-        context.finish()        
     }
 
+    // This don't need to be on behalf of self. We should be able to repay on behalf of someone else.
+    #[aztec(private)]
     fn deposit_private(
-        inputs: PrivateContextInputs,
         secret: Field,
         asset_owner: Field,
         on_behalf_of: Field,
         amount: Field,
         collateral_asset: Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            secret,
-            asset_owner,
-            on_behalf_of,
-            amount,
-            collateral_asset,
-        ]));
-
+    ) {
         let on_behalf_of = compute_identifier(secret, on_behalf_of, context.msg_sender());
         let _res = Token::at(collateral_asset).unshield(&mut context, asset_owner, context.this_address(), amount);
         // _deposit(on_behalf_of, amount, collateral_asset)
         let _callStackItem2 = context.call_public_function(context.this_address(), 0x08506e50,[on_behalf_of, amount, collateral_asset]);
-        context.finish()
     }
 
+    #[aztec(public)]
     open fn deposit_public(
-        inputs: PublicContextInputs,
         owner: Field,
         amount: Field,
         collateral_asset: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount, collateral_asset]));
+    ) {
         Token::at(collateral_asset).transfer_from_pub(context, context.msg_sender(), context.this_address(), amount);
         let return_values = context.call_public_function(context.this_address(), 0x08506e50, [owner, amount, collateral_asset]);
         context.return_values.push(return_values[0]);
-        context.finish()
     }
 
+    #[aztec(public)]
     // keccak256("_deposit(field,field,field)") >> 224 -> 0x08506e50
     open internal fn _deposit(
-        inputs: PublicContextInputs,
         owner: Field,
         amount: Field,
         collateral_asset: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount, collateral_asset]));
+    ) {
         let _asset = Lending::at(context.this_address()).update_accumulator(context);
-
         let storage = Storage::init();
 
         let coll_asset = storage.collateral_asset.read();
@@ -150,45 +141,35 @@ contract Lending {
         coll_loc.write(collateral + amount);
 
         context.return_values.push(1);
-        context.finish()
     }
 
+    #[aztec(private)]
     fn withdraw_private(
-        inputs: PrivateContextInputs,
         secret: Field,
         to: Field,
         amount: Field
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            secret,
-            to,
-            amount
-        ]));
+    ) {
         let on_behalf_of = compute_identifier(secret, 0, context.msg_sender());
         let _callStackItem = context.call_public_function(context.this_address(), 0x5af6f634, [on_behalf_of, to, amount]);
-        context.finish()
     }
 
+    #[aztec(public)]
     open fn withdraw_public(
-        inputs: PublicContextInputs,
         to: Field,
         amount: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([to, amount]));
+    ) {
         // _withdraw(msg.sender, to, amount);
         let return_values = context.call_public_function(context.this_address(), 0x5af6f634, [context.msg_sender(), to, amount]);
         context.return_values.push(return_values[0]);
-        context.finish()
     }
 
     // keccak256("_withdraw(field,field,field)") >> 224 -> 0x5af6f634
+    #[aztec(public)]
     open internal fn _withdraw(
-        inputs: PublicContextInputs,
         owner: Field,
         recipient: Field,
         amount: Field
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([owner, recipient, amount]));
+    ) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle_address).get_price(context);
         
@@ -214,46 +195,36 @@ contract Lending {
         Token::at(collateral_asset).transfer_pub(context, recipient, amount);
 
         context.return_values.push(1);
-        context.finish()
     }
 
+    #[aztec(private)]
     fn borrow_private(
-        inputs: PrivateContextInputs,
         secret: Field,
         to: Field,
         amount: Field
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            secret,
-            to,
-            amount
-        ]));
+    ) {
         let on_behalf_of = compute_identifier(secret, 0, context.msg_sender());
         // _borrow(msg.sender, to, amount)
         let _callStackItem = context.call_public_function(context.this_address(), 0xceffa31a, [on_behalf_of, to, amount]);
-        context.finish()
     }
 
+    #[aztec(public)]
     open fn borrow_public(
-        inputs: PublicContextInputs,
         to: Field,
         amount: Field
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([to, amount]));
+    ) {
         // _borrow(msg.sender, to, amount)
         let return_values = context.call_public_function(context.this_address(), 0xceffa31a, [context.msg_sender(), to, amount]);
         context.return_values.push(return_values[0]);
-        context.finish()
     }
 
     // keccak256("_borrow(field,field,field)") >> 224 -> 0xceffa31a
+    #[aztec(public)]
     open internal fn _borrow(
-        inputs: PublicContextInputs,
         owner: Field,
         to: Field,
         amount: Field
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([owner, to, amount]));
+    ) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle_address).get_price(context);
         
@@ -275,52 +246,40 @@ contract Lending {
         Token::at(stable_coin).owner_mint_pub(context, to, amount);
 
         context.return_values.push(1);
-        context.finish()
     }
 
+    #[aztec(private)]
     fn repay_private(
-        inputs: PrivateContextInputs,
         secret: Field,
         asset_owner: Field,
         on_behalf_of: Field,
         amount: Field,
         stable_coin: Field,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            secret,
-            asset_owner,
-            on_behalf_of,
-            amount,
-            stable_coin,
-        ]));
+    ) {
         let on_behalf_of = compute_identifier(secret, on_behalf_of, context.msg_sender());
         let _res = Token::at(stable_coin).unshield(&mut context, asset_owner, context.this_address(), amount);
         let _callStackItem = context.call_public_function(context.this_address(), 0xfa94ab54, [on_behalf_of, amount, stable_coin]);
-        context.finish()
     }
 
+    #[aztec(public)]
     open fn repay_public(
-        inputs: PublicContextInputs,
         owner: Field,
         amount: Field,
         stable_coin: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount, stable_coin]));
+    ) {
         // Should probably just burn the tokens actually :thinking:
         Token::at(stable_coin).transfer_from_pub(context, context.msg_sender(), context.this_address(), amount);
         let return_values = context.call_public_function(context.this_address(), 0xfa94ab54, [owner, amount, stable_coin]);
         context.return_values.push(return_values[0]);
-        context.finish()
     }
 
     // keccak256("_repay(field,field,field)") >> 224 -> 0xfa94ab54
+    #[aztec(public)]
     open internal fn _repay(
-        inputs: PublicContextInputs,
         owner: Field,
         amount: Field,
         stable_coin: Field,
-    ) -> pub abi::PublicCircuitPublicInputs {
-        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount, stable_coin]));
+    ) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let storage = Storage::init();
 
@@ -333,7 +292,6 @@ contract Lending {
         storage.static_debt.at(owner).write(debt_returns.static_debt as Field);
         
         context.return_values.push(1);
-        context.finish()
     }
 
     unconstrained fn get_asset(

@@ -7,26 +7,19 @@ contract SchnorrHardcodedAccount {
     use dep::std;
     use dep::aztec::{
         entrypoint::{ EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE },
-        abi::{ PrivateCircuitPublicInputs, PrivateContextInputs, hash_args },
+        abi,
+        abi::{ PrivateCircuitPublicInputs, PrivateContextInputs, Hasher },
         types::{ vec::BoundedVec, point::Point },
         constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
         context::PrivateContext,
     };
 
     // Entrypoint for authenticating and executing calls from this account
+    #[aztec(private)]
     fn entrypoint(
-        inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
         signature: pub [u8;64], // schnorr signature of the payload hash
-    ) -> distinct pub PrivateCircuitPublicInputs {
-        // docs:start:entrypoint-init
-        // Initialize context (args len is ENTRYPOINT_PAYLOAD_SIZE + 64)
-        let mut args: BoundedVec<Field, 77> = BoundedVec::new(0);
-        args.push_array(payload.serialize());
-        for byte in signature { args.push(byte as Field); }
-        let mut context = PrivateContext::new(inputs, hash_args(args.storage));
-        // docs:end:entrypoint-init
-
+    ) {
         // docs:start:entrypoint-auth
         // Verify payload signature
         let serialised_payload: [Field; ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
@@ -44,13 +37,11 @@ contract SchnorrHardcodedAccount {
         // docs:start:entrypoint-exec
         // Execute calls
         payload.execute_calls(&mut context);
-        context.finish()
         // docs:end:entrypoint-exec
     }
 
     // Constructs the contract
-    fn constructor(inputs: pub PrivateContextInputs) -> distinct pub PrivateCircuitPublicInputs {
-        PrivateContext::new(inputs, 0).finish()
-    }
+    #[aztec(private)]
+    fn constructor() {}
 }
 // docs:end:contract

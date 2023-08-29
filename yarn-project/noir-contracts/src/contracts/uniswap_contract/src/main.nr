@@ -1,6 +1,7 @@
 // Demonstrates how to send a message to a portal contract on L1. We use Uniswap here as it's the most typical example.
 contract Uniswap {
     use dep::aztec::abi;
+    use dep::aztec::abi::Hasher;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::PublicContextInputs;
     use dep::aztec::context::PrivateContext;
@@ -12,12 +13,8 @@ contract Uniswap {
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use dep::aztec::types::point::Point;
     
-    fn constructor(
-        inputs: PrivateContextInputs,
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        PrivateContext::new(inputs, 0).finish()
-    }
+    #[aztec(private)]
+    fn constructor() {}
 
     // What we need to make this nicer:
     // 1. A way to access other (and my own) contract's portal addresses (we need many additional args for no good reason now)
@@ -27,8 +24,8 @@ contract Uniswap {
     // 5. account abstraction using its own "custom" constants instead of using shared constants...
     // 6. currently have to manually set the args array for calling other contracts which is inconvenient when using structs etc.
 
+    #[aztec(private)]
     fn swap(
-        inputs: PrivateContextInputs,
         withdrawFnSelector: Field, // withdraw method on inputAsset (l2 contract) that would withdraw to L1
         inputAsset: Field, 
         inputAmount: Field,
@@ -41,22 +38,7 @@ contract Uniswap {
         deadlineForL1ToL2Message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         cancellerForL1ToL2Message: Field, // L1 address of who can cancel the message to consume assets on L2.
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            withdrawFnSelector,
-            inputAsset,
-            inputAmount,
-            uniswapFeeTier,
-            outputAsset,
-            minimumOutputAmount,
-            sender,
-            recipient,
-            secretHash,
-            deadlineForL1ToL2Message,
-            cancellerForL1ToL2Message,
-            callerOnL1,
-        ]));
-
+    ) {
         // Get portal addresses
         let l1UniswapPortal = context.this_portal_address();
         let inputAssetPortalAddress = get_portal_address(inputAsset);
@@ -89,9 +71,6 @@ contract Uniswap {
            callerOnL1,
         );
         context.message_portal(content_hash);
-
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish()
     }
 
     // refer `l1-contracts/test/portals/UniswapPortal.sol` on how L2 to L1 message is expected
