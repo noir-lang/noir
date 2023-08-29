@@ -304,8 +304,8 @@ impl<'a> FunctionContext<'a> {
             BinaryOpKind::Divide => {
                 let zero = self.builder.numeric_constant(FieldElement::zero(), Type::field());
                 let divisor_is_zero = self.builder.insert_binary(zero, BinaryOp::Eq, rhs);
-                let divisor_is_not_zero = self.builder.insert_not(divisor_is_zero);
-                self.builder.set_location(location).insert_constrain(divisor_is_not_zero);
+                let false_const = self.builder.numeric_constant(false, Type::bool());
+                self.builder.set_location(location).insert_constrain(divisor_is_zero, false_const);
 
                 let op = convert_operator(operator);
                 self.builder.set_location(location).insert_binary(lhs, op, rhs)
