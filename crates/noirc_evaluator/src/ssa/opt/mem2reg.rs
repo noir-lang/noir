@@ -225,11 +225,8 @@ impl<'f> PerFunctionContext<'f> {
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
     fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
-        let reference_parameters = self
-            .inserter
-            .function
-            .parameters()
-            .iter()
+        let parameters = self.inserter.function.parameters().iter();
+        let reference_parameters = parameters
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .collect::<BTreeSet<_>>();
 
