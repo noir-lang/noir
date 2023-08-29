@@ -1,19 +1,20 @@
 use std::io::Write;
 
-use acvm::{acir::native_types::WitnessMap, Backend};
+use acvm::Backend;
 use clap::Args;
-use nargo::{ops::execute_circuit, package::Package, prepare_package};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_frontend::{
-    graph::CrateName,
-    hir::{def_map::TestFunction, Context, FunctionNameMatch},
+use nargo::{
+    ops::{run_test, TestStatus},
+    package::Package,
+    prepare_package,
 };
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_driver::CompileOptions;
+use noirc_frontend::{graph::CrateName, hir::FunctionNameMatch};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
-use super::{compile_cmd::optimize_circuit, NargoConfig};
+use super::NargoConfig;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -64,6 +65,8 @@ pub(crate) fn run<B: Backend>(
     };
 
     for package in &workspace {
+        // By unwrapping here with `?`, we stop the test runner upon a package failing
+        // TODO: We should run the whole suite even if there are failures in a package
         run_tests(backend, package, pattern, args.show_output, &args.compile_options)?;
     }
 
@@ -93,15 +96,31 @@ fn run_tests<B: Backend>(
             .expect("Failed to write to stdout");
         writer.flush().expect("Failed to flush writer");
 
-        match run_test(backend, &test_name, test_function, &context, show_output, compile_options) {
-            Ok(_) => {
+        match run_test(backend, &context, test_function, show_output, compile_options) {
+            TestStatus::Pass { .. } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stdout");
             }
-            // Assume an error was already printed to stdout
-            Err(_) => failing += 1,
+            TestStatus::Fail { message } => {
+                let writer = StandardStream::stderr(ColorChoice::Always);
+                let mut writer = writer.lock();
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                    .expect("Failed to set color");
+                writeln!(writer, "{message}").expect("Failed to write to stdout");
+                writer.reset().expect("Failed to reset writer");
+                failing += 1;
+            }
+            TestStatus::CompileError(err) => {
+                noirc_errors::reporter::report_all(
+                    &context.file_manager,
+                    &[err],
+                    compile_options.deny_warnings,
+                );
+                failing += 1;
+            }
         }
         writer.reset().expect("Failed to reset writer");
     }
@@ -117,75 +136,4 @@ fn run_tests<B: Backend>(
 
     writer.reset().expect("Failed to reset writer");
     Ok(())
-}
-
-fn run_test<B: Backend>(
-    backend: &B,
-    test_name: &str,
-    test_function: TestFunction,
-    context: &Context,
-    show_output: bool,
-    config: &CompileOptions,
-) -> Result<(), CliError<B>> {
-    let report_error = |err| {
-        noirc_errors::reporter::report_all(&context.file_manager, &[err], config.deny_warnings);
-        Err(CliError::Generic(format!("Test '{test_name}' failed to compile")))
-    };
-    let write_error = |err| {
-        let writer = StandardStream::stderr(ColorChoice::Always);
-        let mut writer = writer.lock();
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
-        writeln!(writer, "failed").ok();
-        writer.reset().ok();
-        Err(err)
-    };
-
-    let program = compile_no_check(context, config, test_function.get_id());
-    match program {
-        Ok(mut program) => {
-            // Note: We don't need to use the optimized ACIR here
-            program.circuit = optimize_circuit(backend, program.circuit).unwrap().0;
-
-            // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
-            // otherwise constraints involving these expressions will not error.
-            let circuit_execution =
-                execute_circuit(backend, program.circuit, WitnessMap::new(), show_output);
-
-            if test_function.should_fail() {
-                match circuit_execution {
-                    Ok(_) => {
-                        write_error(CliError::Generic(format!("Test '{test_name}' should fail")))
-                    }
-                    Err(_) => Ok(()),
-                }
-            } else {
-                match circuit_execution {
-                    Ok(_) => Ok(()),
-                    Err(error) => write_error(error.into()),
-                }
-            }
-        }
-        // Test function failed to compile
-        //
-        // Note: This could be because the compiler was able to deduce
-        // that a constraint was never satisfiable.
-        // An example of this is the program `assert(false)`
-        //  In that case, we check if the test function should fail, and if so, we return Ok.
-        Err(err) => {
-            // The test has failed compilation, but it should never fail. Report error.
-            if !test_function.should_fail() {
-                return report_error(err);
-            }
-
-            // The test has failed compilation, check if it is because the program is never satisfiable.
-            // If it is never satisfiable, then this is the expected behavior.
-            let program_is_never_satisfiable = err.diagnostic.message.contains("Failed constraint");
-            if program_is_never_satisfiable {
-                return Ok(());
-            }
-
-            // The test has failed compilation, but its a compilation error. Report error
-            report_error(err)
-        }
-    }
 }
