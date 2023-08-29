@@ -408,57 +408,61 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-#[test]
-fn test_single_double_char() {
-    let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::token::TestScope;
+    #[test]
+    fn test_single_double_char() {
+        let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
 
-    let expected = vec![
-        Token::Bang,
-        Token::NotEqual,
-        Token::Plus,
-        Token::LeftParen,
-        Token::RightParen,
-        Token::LeftBrace,
-        Token::RightBrace,
-        Token::LeftBracket,
-        Token::RightBracket,
-        Token::Pipe,
-        Token::Comma,
-        Token::Semicolon,
-        Token::Colon,
-        Token::DoubleColon,
-        Token::Less,
-        Token::LessEqual,
-        Token::Greater,
-        Token::GreaterEqual,
-        Token::Ampersand,
-        Token::Minus,
-        Token::Arrow,
-        Token::Dot,
-        Token::DoubleDot,
-        Token::Percent,
-        Token::Slash,
-        Token::Star,
-        Token::Assign,
-        Token::Equal,
-        Token::ShiftLeft,
-        Token::Greater,
-        Token::Greater,
-        Token::EOF,
-    ];
+        let expected = vec![
+            Token::Bang,
+            Token::NotEqual,
+            Token::Plus,
+            Token::LeftParen,
+            Token::RightParen,
+            Token::LeftBrace,
+            Token::RightBrace,
+            Token::LeftBracket,
+            Token::RightBracket,
+            Token::Pipe,
+            Token::Comma,
+            Token::Semicolon,
+            Token::Colon,
+            Token::DoubleColon,
+            Token::Less,
+            Token::LessEqual,
+            Token::Greater,
+            Token::GreaterEqual,
+            Token::Ampersand,
+            Token::Minus,
+            Token::Arrow,
+            Token::Dot,
+            Token::DoubleDot,
+            Token::Percent,
+            Token::Slash,
+            Token::Star,
+            Token::Assign,
+            Token::Equal,
+            Token::ShiftLeft,
+            Token::Greater,
+            Token::Greater,
+            Token::EOF,
+        ];
 
-    let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input);
 
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
     }
-}
 
-#[test]
-fn invalid_attribute() {
-    let input = "#";
-    let mut lexer = Lexer::new(input);
+    #[test]
+    fn invalid_attribute() {
+        let input = "#";
+        let mut lexer = Lexer::new(input);
 
     let token = lexer.next().unwrap();
     assert!(token.is_err());
@@ -509,199 +513,285 @@ fn test_custom_gate_syntax() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
     }
-}
 
-#[test]
-fn test_int_type() {
-    let input = "u16 i16 i108 u104.5";
+    #[test]
+    fn deprecated_attribute() {
+        let input = r#"#[deprecated]"#;
+        let mut lexer = Lexer::new(input);
 
-    let expected = vec![
-        Token::IntType(IntType::Unsigned(16)),
-        Token::IntType(IntType::Signed(16)),
-        Token::IntType(IntType::Signed(108)),
-        Token::IntType(IntType::Unsigned(104)),
-        Token::Dot,
-        Token::Int(5_i128.into()),
-    ];
-
-    let mut lexer = Lexer::new(input);
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
     }
-}
 
-#[test]
-fn test_arithmetic_sugar() {
-    let input = "+= -= *= /= %=";
+    #[test]
+    fn deprecated_attribute_with_note() {
+        let input = r#"#[deprecated("hello")]"#;
+        let mut lexer = Lexer::new(input);
 
-    let expected = vec![
-        Token::Plus,
-        Token::Assign,
-        Token::Minus,
-        Token::Assign,
-        Token::Star,
-        Token::Assign,
-        Token::Slash,
-        Token::Assign,
-        Token::Percent,
-        Token::Assign,
-    ];
-
-    let mut lexer = Lexer::new(input);
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Deprecated("hello".to_string().into()))
+        );
     }
-}
 
-#[test]
-fn unterminated_block_comment() {
-    let input = "/*/";
+    #[test]
+    fn custom_attribute() {
+        let input = r#"#[custom(hello)]"#;
+        let mut lexer = Lexer::new(input);
 
-    let mut lexer = Lexer::new(input);
-    let token = lexer.next().unwrap();
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Custom("custom(hello)".to_string()))
+        );
+    }
 
-    assert!(token.is_err());
-}
+    #[test]
+    fn test_attribute() {
+        let input = r#"#[test]"#;
+        let mut lexer = Lexer::new(input);
 
-#[test]
-fn test_comment() {
-    let input = "// hello
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::None)));
+    }
+    #[test]
+    fn test_attribute_with_valid_scope() {
+        let input = r#"#[test(should_fail)]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::ShouldFail)));
+    }
+
+    #[test]
+    fn test_attribute_with_invalid_scope() {
+        let input = r#"#[test(invalid_scope)]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next().unwrap();
+        let err = match token {
+            Ok(_) => panic!("test has an invalid scope, so expected an error"),
+            Err(err) => err,
+        };
+
+        // Check if error is MalformedFuncAttribute and found is "foo"
+        let sub_string = match err {
+            LexerErrorKind::MalformedFuncAttribute { found, .. } => found,
+            _ => panic!("expected malformed func attribute error"),
+        };
+
+        assert_eq!(sub_string, "test(invalid_scope)");
+    }
+
+    #[test]
+    fn test_custom_gate_syntax() {
+        let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
+
+        let expected = vec![
+            Token::Attribute(Attribute::Foreign("sha256".to_string())),
+            Token::Attribute(Attribute::Foreign("blake2s".to_string())),
+            Token::Attribute(Attribute::Builtin("sum".to_string())),
+        ];
+
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_int_type() {
+        let input = "u16 i16 i108 u104.5";
+
+        let expected = vec![
+            Token::IntType(IntType::Unsigned(16)),
+            Token::IntType(IntType::Signed(16)),
+            Token::IntType(IntType::Signed(108)),
+            Token::IntType(IntType::Unsigned(104)),
+            Token::Dot,
+            Token::Int(5_i128.into()),
+        ];
+
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_arithmetic_sugar() {
+        let input = "+= -= *= /= %=";
+
+        let expected = vec![
+            Token::Plus,
+            Token::Assign,
+            Token::Minus,
+            Token::Assign,
+            Token::Star,
+            Token::Assign,
+            Token::Slash,
+            Token::Assign,
+            Token::Percent,
+            Token::Assign,
+        ];
+
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn unterminated_block_comment() {
+        let input = "/*/";
+
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next().unwrap();
+
+        assert!(token.is_err());
+    }
+
+    #[test]
+    fn test_comment() {
+        let input = "// hello
         let x = 5
     ";
 
-    let expected = vec![
-        Token::Keyword(Keyword::Let),
-        Token::Ident("x".to_string()),
-        Token::Assign,
-        Token::Int(FieldElement::from(5_i128)),
-    ];
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("x".to_string()),
+            Token::Assign,
+            Token::Int(FieldElement::from(5_i128)),
+        ];
 
-    let mut lexer = Lexer::new(input);
-    for token in expected.into_iter() {
-        let first_lexer_output = lexer.next_token().unwrap();
-        assert_eq!(first_lexer_output, token);
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let first_lexer_output = lexer.next_token().unwrap();
+            assert_eq!(first_lexer_output, token);
+        }
     }
-}
 
-#[test]
-fn test_block_comment() {
-    let input = "
+    #[test]
+    fn test_block_comment() {
+        let input = "
     /* comment */
     let x = 5
     /* comment */
     ";
 
-    let expected = vec![
-        Token::Keyword(Keyword::Let),
-        Token::Ident("x".to_string()),
-        Token::Assign,
-        Token::Int(FieldElement::from(5_i128)),
-    ];
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("x".to_string()),
+            Token::Assign,
+            Token::Int(FieldElement::from(5_i128)),
+        ];
 
-    let mut lexer = Lexer::new(input);
-    for token in expected.into_iter() {
-        let first_lexer_output = lexer.next_token().unwrap();
-        assert_eq!(first_lexer_output, token);
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let first_lexer_output = lexer.next_token().unwrap();
+            assert_eq!(first_lexer_output, token);
+        }
     }
-}
 
-#[test]
-fn test_nested_block_comments() {
-    let input = "
+    #[test]
+    fn test_nested_block_comments() {
+        let input = "
     /*   /* */  /** */  /*! */  */
     let x = 5
     /*   /* */  /** */  /*! */  */
     ";
 
-    let expected = vec![
-        Token::Keyword(Keyword::Let),
-        Token::Ident("x".to_string()),
-        Token::Assign,
-        Token::Int(FieldElement::from(5_i128)),
-    ];
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("x".to_string()),
+            Token::Assign,
+            Token::Int(FieldElement::from(5_i128)),
+        ];
 
-    let mut lexer = Lexer::new(input);
-    for token in expected.into_iter() {
-        let first_lexer_output = lexer.next_token().unwrap();
-        assert_eq!(first_lexer_output, token);
+        let mut lexer = Lexer::new(input);
+        for token in expected.into_iter() {
+            let first_lexer_output = lexer.next_token().unwrap();
+            assert_eq!(first_lexer_output, token);
+        }
     }
-}
-#[test]
-fn test_eat_string_literal() {
-    let input = "let _word = \"hello\"";
+    #[test]
+    fn test_eat_string_literal() {
+        let input = "let _word = \"hello\"";
 
-    let expected = vec![
-        Token::Keyword(Keyword::Let),
-        Token::Ident("_word".to_string()),
-        Token::Assign,
-        Token::Str("hello".to_string()),
-    ];
-    let mut lexer = Lexer::new(input);
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::Str("hello".to_string()),
+        ];
+        let mut lexer = Lexer::new(input);
 
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
     }
-}
 
-#[test]
-fn test_eat_hex_int() {
-    let input = "0x05";
+    #[test]
+    fn test_eat_hex_int() {
+        let input = "0x05";
 
-    let expected = vec![Token::Int(5_i128.into())];
-    let mut lexer = Lexer::new(input);
+        let expected = vec![Token::Int(5_i128.into())];
+        let mut lexer = Lexer::new(input);
 
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
     }
-}
 
-#[test]
-fn test_span() {
-    let input = "let x = 5";
+    #[test]
+    fn test_span() {
+        let input = "let x = 5";
 
-    // Let
-    let start_position = Position::default();
-    let let_position = start_position + 2;
-    let let_token = Token::Keyword(Keyword::Let).into_span(start_position, let_position);
+        // Let
+        let start_position = Position::default();
+        let let_position = start_position + 2;
+        let let_token = Token::Keyword(Keyword::Let).into_span(start_position, let_position);
 
-    // Skip whitespace
-    let whitespace_position = let_position + 1;
+        // Skip whitespace
+        let whitespace_position = let_position + 1;
 
-    // Identifier position
-    let ident_position = whitespace_position + 1;
-    let ident_token = Token::Ident("x".to_string()).into_single_span(ident_position);
+        // Identifier position
+        let ident_position = whitespace_position + 1;
+        let ident_token = Token::Ident("x".to_string()).into_single_span(ident_position);
 
-    // Skip whitespace
-    let whitespace_position = ident_position + 1;
+        // Skip whitespace
+        let whitespace_position = ident_position + 1;
 
-    // Assign position
-    let assign_position = whitespace_position + 1;
-    let assign_token = Token::Assign.into_single_span(assign_position);
+        // Assign position
+        let assign_position = whitespace_position + 1;
+        let assign_token = Token::Assign.into_single_span(assign_position);
 
-    // Skip whitespace
-    let whitespace_position = assign_position + 1;
+        // Skip whitespace
+        let whitespace_position = assign_position + 1;
 
-    // Int position
-    let int_position = whitespace_position + 1;
-    let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
+        // Int position
+        let int_position = whitespace_position + 1;
+        let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
 
-    let expected = vec![let_token, ident_token, assign_token, int_token];
-    let mut lexer = Lexer::new(input);
+        let expected = vec![let_token, ident_token, assign_token, int_token];
+        let mut lexer = Lexer::new(input);
 
-    for spanned_token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got.to_span(), spanned_token.to_span());
-        assert_eq!(got, spanned_token);
+        for spanned_token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got.to_span(), spanned_token.to_span());
+            assert_eq!(got, spanned_token);
+        }
     }
-}
 
-#[test]
-fn test_basic_language_syntax() {
-    let input = "
+    #[test]
+    fn test_basic_language_syntax() {
+        let input = "
         let five = 5;
         let ten : Field = 10;
         let mul = fn(x, y) {
@@ -711,60 +801,61 @@ fn test_basic_language_syntax() {
         assert(ten + five == 15);
     ";
 
-    let expected = vec![
-        Token::Keyword(Keyword::Let),
-        Token::Ident("five".to_string()),
-        Token::Assign,
-        Token::Int(5_i128.into()),
-        Token::Semicolon,
-        Token::Keyword(Keyword::Let),
-        Token::Ident("ten".to_string()),
-        Token::Colon,
-        Token::Keyword(Keyword::Field),
-        Token::Assign,
-        Token::Int(10_i128.into()),
-        Token::Semicolon,
-        Token::Keyword(Keyword::Let),
-        Token::Ident("mul".to_string()),
-        Token::Assign,
-        Token::Keyword(Keyword::Fn),
-        Token::LeftParen,
-        Token::Ident("x".to_string()),
-        Token::Comma,
-        Token::Ident("y".to_string()),
-        Token::RightParen,
-        Token::LeftBrace,
-        Token::Ident("x".to_string()),
-        Token::Star,
-        Token::Ident("y".to_string()),
-        Token::Semicolon,
-        Token::RightBrace,
-        Token::Semicolon,
-        Token::Keyword(Keyword::Constrain),
-        Token::Ident("mul".to_string()),
-        Token::LeftParen,
-        Token::Ident("five".to_string()),
-        Token::Comma,
-        Token::Ident("ten".to_string()),
-        Token::RightParen,
-        Token::Equal,
-        Token::Int(50_i128.into()),
-        Token::Semicolon,
-        Token::Keyword(Keyword::Assert),
-        Token::LeftParen,
-        Token::Ident("ten".to_string()),
-        Token::Plus,
-        Token::Ident("five".to_string()),
-        Token::Equal,
-        Token::Int(15_i128.into()),
-        Token::RightParen,
-        Token::Semicolon,
-        Token::EOF,
-    ];
-    let mut lexer = Lexer::new(input);
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int(5_i128.into()),
+            Token::Semicolon,
+            Token::Keyword(Keyword::Let),
+            Token::Ident("ten".to_string()),
+            Token::Colon,
+            Token::Keyword(Keyword::Field),
+            Token::Assign,
+            Token::Int(10_i128.into()),
+            Token::Semicolon,
+            Token::Keyword(Keyword::Let),
+            Token::Ident("mul".to_string()),
+            Token::Assign,
+            Token::Keyword(Keyword::Fn),
+            Token::LeftParen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::RightParen,
+            Token::LeftBrace,
+            Token::Ident("x".to_string()),
+            Token::Star,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::RightBrace,
+            Token::Semicolon,
+            Token::Keyword(Keyword::Constrain),
+            Token::Ident("mul".to_string()),
+            Token::LeftParen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::RightParen,
+            Token::Equal,
+            Token::Int(50_i128.into()),
+            Token::Semicolon,
+            Token::Keyword(Keyword::Assert),
+            Token::LeftParen,
+            Token::Ident("ten".to_string()),
+            Token::Plus,
+            Token::Ident("five".to_string()),
+            Token::Equal,
+            Token::Int(15_i128.into()),
+            Token::RightParen,
+            Token::Semicolon,
+            Token::EOF,
+        ];
+        let mut lexer = Lexer::new(input);
 
-    for token in expected.into_iter() {
-        let got = lexer.next_token().unwrap();
-        assert_eq!(got, token);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
     }
 }

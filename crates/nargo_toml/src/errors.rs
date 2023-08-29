@@ -44,6 +44,9 @@ pub enum ManifestError {
     #[error("{} found in {toml}", if name.is_empty() { "Empty dependency name".into() } else { format!("Invalid dependency name `{name}`") })]
     InvalidDependencyName { toml: PathBuf, name: String },
 
+    #[error("Invalid directory path {directory} in {toml}: It must point to a subdirectory")]
+    InvalidDirectory { toml: PathBuf, directory: PathBuf },
+
     /// Encountered error while downloading git repository.
     #[error("{0}")]
     GitError(String),

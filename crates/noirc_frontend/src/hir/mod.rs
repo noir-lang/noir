@@ -11,6 +11,8 @@ use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use std::collections::HashMap;
 
+use self::def_map::TestFunction;
+
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
@@ -111,22 +113,22 @@ impl Context {
         &self,
         crate_id: &CrateId,
         pattern: FunctionNameMatch,
-    ) -> Vec<(String, FuncId)> {
+    ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 
         def_map
             .get_all_test_functions(interner)
-            .filter_map(|id| {
-                let fully_qualified_name = self.fully_qualified_function_name(crate_id, &id);
+            .filter_map(|test_function| {
+                let fully_qualified_name =
+                    self.fully_qualified_function_name(crate_id, &test_function.get_id());
                 match &pattern {
-                    FunctionNameMatch::Anything => Some((fully_qualified_name, id)),
-                    FunctionNameMatch::Exact(pattern) => {
-                        (&fully_qualified_name == pattern).then_some((fully_qualified_name, id))
-                    }
-                    FunctionNameMatch::Contains(pattern) => {
-                        fully_qualified_name.contains(pattern).then_some((fully_qualified_name, id))
-                    }
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
+                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                        .then_some((fully_qualified_name, test_function)),
+                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
+                        .contains(pattern)
+                        .then_some((fully_qualified_name, test_function)),
                 }
             })
             .collect()
