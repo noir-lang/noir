@@ -609,6 +609,12 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+            // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+            // Thus, we do not evaluate this divison as we want to avoid triggering a panic and a division by zero
+            // should fail to satisfy constraints laid down during ACIR generation.
+            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
+                return SimplifyResult::None;
+            }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
                 Some(value) => SimplifyResult::SimplifiedTo(value),
                 None => SimplifyResult::None,
