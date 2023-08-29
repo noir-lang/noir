@@ -584,7 +584,7 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-            if rhs == FieldElement::zero() {
+            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
                 return SimplifyResult::None;
             }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
