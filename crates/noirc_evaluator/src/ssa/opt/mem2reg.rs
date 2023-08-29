@@ -121,6 +121,9 @@ struct Block {
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
     references: BTreeMap<ValueId, ReferenceValue>,
+
+    /// The last instance of a `Store` instruction to each address in this block
+    last_stores: BTreeMap<ValueId, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -129,6 +132,7 @@ struct Block {
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 enum Expression {
     Dereference(Box<Expression>),
+    ArrayElement(Box<Expression>),
     Other(ValueId),
 }
 
@@ -175,7 +179,8 @@ impl PerFunctionContext {
         let mut predecessors = self.cfg.predecessors(block);
 
         if let Some(first_predecessor) = predecessors.next() {
-            let first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+            let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+            first.last_stores.clear();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -201,19 +206,18 @@ impl PerFunctionContext {
         mut references: Block,
     ) {
         let instructions = function.dfg[block].instructions().to_vec();
-        let mut last_stores = BTreeMap::new();
 
         for instruction in instructions {
-            self.analyze_instruction(function, &mut references, instruction, &mut last_stores);
+            self.analyze_instruction(function, &mut references, instruction);
         }
 
-        self.handle_terminator(function, block, &mut references, &mut last_stores);
+        self.handle_terminator(function, block, &mut references);
 
         // If there's only 1 block in the function total, we can remove any remaining last stores
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         if self.post_order.as_slice().len() == 1 {
-            self.remove_stores_that_do_not_alias_parameters(function, &references, last_stores);
+            self.remove_stores_that_do_not_alias_parameters(function, &references);
         }
 
         self.blocks.insert(block, references);
@@ -225,26 +229,23 @@ impl PerFunctionContext {
         &mut self,
         function: &Function,
         references: &Block,
-        last_stores: BTreeMap<ValueId, InstructionId>,
     ) {
         let reference_parameters = function
             .parameters()
             .iter()
-            .filter(|param| function.dfg.type_of_value(**param) == Type::Reference)
+            .filter(|param| function.dfg.value_is_reference(**param))
             .collect::<BTreeSet<_>>();
 
-        for (allocation, instruction) in last_stores {
-            if let Some(expression) = references.expressions.get(&allocation) {
+        for (allocation, instruction) in &references.last_stores {
+            if let Some(expression) = references.expressions.get(allocation) {
                 if let Some(aliases) = references.aliases.get(expression) {
                     let allocation_aliases_parameter =
                         aliases.iter().any(|alias| reference_parameters.contains(alias));
 
                     if !aliases.is_empty() && !allocation_aliases_parameter {
-                        self.instructions_to_remove.insert(instruction);
+                        self.instructions_to_remove.insert(*instruction);
                     }
                 }
-            } else {
-                self.instructions_to_remove.insert(instruction);
             }
         }
     }
@@ -254,7 +255,6 @@ impl PerFunctionContext {
         function: &mut Function,
         references: &mut Block,
         instruction: InstructionId,
-        last_stores: &mut BTreeMap<ValueId, InstructionId>,
     ) {
         match &function.dfg[instruction] {
             Instruction::Load { address } => {
@@ -270,24 +270,26 @@ impl PerFunctionContext {
 
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    last_stores.remove(&address);
+                    references.mark_value_used(address, function);
                 }
             }
             Instruction::Store { address, value } => {
                 let address = function.dfg.resolve(*address);
                 let value = function.dfg.resolve(*value);
 
+                self.check_array_aliasing(function, references, value);
+
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = last_stores.get(&address) {
+                if let Some(last_store) = references.last_stores.get(&address) {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                references.set_known_value(address, value, last_stores);
-                last_stores.insert(address, instruction);
+                references.set_known_value(address, value);
+                references.last_stores.insert(address, instruction);
             }
             Instruction::Call { arguments, .. } => {
-                self.mark_all_unknown(arguments, function, references, last_stores);
+                self.mark_all_unknown(arguments, function, references);
             }
             Instruction::Allocate => {
                 // Register the new reference
@@ -298,22 +300,85 @@ impl PerFunctionContext {
                 aliases.insert(result);
                 references.aliases.insert(Expression::Other(result), aliases);
             }
+            Instruction::ArrayGet { array, .. } => {
+                let result = function.dfg.instruction_results(instruction)[0];
+                references.mark_value_used(*array, function);
+
+                if function.dfg.value_is_reference(result) {
+                    let array = function.dfg.resolve(*array);
+                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+
+                    if let Some(aliases) = references.aliases.get_mut(&expression) {
+                        aliases.insert(result);
+                    }
+                }
+            }
+            Instruction::ArraySet { array, value, .. } => {
+                references.mark_value_used(*array, function);
+
+                if function.dfg.value_is_reference(*value) {
+                    let result = function.dfg.instruction_results(instruction)[0];
+                    let array = function.dfg.resolve(*array);
+
+                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+
+                    if let Some(aliases) = references.aliases.get_mut(&expression) {
+                        aliases.insert(result);
+                    } else if let Some((elements, _)) = function.dfg.get_array_constant(array) {
+                        // TODO: This should be a unification of each alias set
+                        // If any are empty, the whole should be as well.
+                        for reference in elements {
+                            self.try_add_alias(references, reference, array);
+                        }
+                    }
+
+                    references.expressions.insert(result, expression);
+                }
+            }
             _ => (),
         }
     }
 
-    fn mark_all_unknown(
-        &self,
-        values: &[ValueId],
-        function: &Function,
-        references: &mut Block,
-        last_stores: &mut BTreeMap<ValueId, InstructionId>,
-    ) {
+    fn check_array_aliasing(&self, function: &Function, references: &mut Block, array: ValueId) {
+        if let Some((elements, typ)) = function.dfg.get_array_constant(array) {
+            if Self::contains_references(&typ) {
+                // TODO: Check if type directly holds references or holds arrays that hold references
+                let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                references.expressions.insert(array, expr.clone());
+                let aliases = references.aliases.entry(expr).or_default();
+
+                for element in elements {
+                    aliases.insert(element);
+                }
+            }
+        }
+    }
+
+    fn contains_references(typ: &Type) -> bool {
+        match typ {
+            Type::Numeric(_) => false,
+            Type::Function => false,
+            Type::Reference => true,
+            Type::Array(elements, _) | Type::Slice(elements) => {
+                elements.iter().any(Self::contains_references)
+            }
+        }
+    }
+
+    fn try_add_alias(&self, references: &mut Block, reference: ValueId, alias: ValueId) {
+        if let Some(expression) = references.expressions.get(&reference) {
+            if let Some(aliases) = references.aliases.get_mut(expression) {
+                aliases.insert(alias);
+            }
+        }
+    }
+
+    fn mark_all_unknown(&self, values: &[ValueId], function: &Function, references: &mut Block) {
         for value in values {
-            if function.dfg.type_of_value(*value) == Type::Reference {
+            if function.dfg.value_is_reference(*value) {
                 let value = function.dfg.resolve(*value);
-                references.set_unknown(value, last_stores);
-                last_stores.remove(&value);
+                references.set_unknown(value);
+                references.mark_value_used(value, function);
             }
         }
     }
@@ -335,7 +400,6 @@ impl PerFunctionContext {
         function: &mut Function,
         block: BasicBlockId,
         references: &mut Block,
-        last_stores: &mut BTreeMap<ValueId, InstructionId>,
     ) {
         match function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
@@ -345,7 +409,7 @@ impl PerFunctionContext {
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if function.dfg.type_of_value(*parameter) == Type::Reference {
+                    if function.dfg.value_is_reference(*parameter) {
                         let argument = function.dfg.resolve(*argument);
 
                         if let Some(expression) = references.expressions.get(&argument) {
@@ -361,7 +425,7 @@ impl PerFunctionContext {
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
-                self.mark_all_unknown(return_values, function, references, last_stores);
+                self.mark_all_unknown(return_values, function, references);
             }
         }
     }
@@ -387,57 +451,42 @@ impl Block {
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    fn set_known_value(
-        &mut self,
-        address: ValueId,
-        value: ValueId,
-        last_stores: &mut BTreeMap<ValueId, InstructionId>,
-    ) {
-        self.set_value(address, ReferenceValue::Known(value), last_stores);
+    fn set_known_value(&mut self, address: ValueId, value: ValueId) {
+        self.set_value(address, ReferenceValue::Known(value));
     }
 
-    fn set_unknown(
-        &mut self,
-        address: ValueId,
-        last_stores: &mut BTreeMap<ValueId, InstructionId>,
-    ) {
-        self.set_value(address, ReferenceValue::Unknown, last_stores);
+    fn set_unknown(&mut self, address: ValueId) {
+        self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(
-        &mut self,
-        address: ValueId,
-        value: ReferenceValue,
-        last_stores: &mut BTreeMap<ValueId, InstructionId>,
-    ) {
-        if let Some(expression) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                if aliases.is_empty() {
-                    // uh-oh, we don't know at all what this reference refers to, could be anything.
-                    // Now we have to invalidate every reference we know of
-                    self.invalidate_all_references(last_stores);
-                } else if aliases.len() == 1 {
-                    let alias = aliases.first().expect("There should be exactly 1 alias");
-                    self.references.insert(*alias, value);
-                } else {
-                    // More than one alias. We're not sure which it refers to so we have to
-                    // conservatively invalidate all references it may refer to.
-                    for alias in aliases.iter() {
-                        if let Some(reference_value) = self.references.get_mut(alias) {
-                            *reference_value = ReferenceValue::Unknown;
-                        }
-                    }
+    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
+        let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
+        let aliases = self.aliases.entry(expression.clone()).or_default();
+
+        if aliases.is_empty() {
+            // uh-oh, we don't know at all what this reference refers to, could be anything.
+            // Now we have to invalidate every reference we know of
+            self.invalidate_all_references();
+        } else if aliases.len() == 1 {
+            let alias = aliases.first().expect("There should be exactly 1 alias");
+            self.references.insert(*alias, value);
+        } else {
+            // More than one alias. We're not sure which it refers to so we have to
+            // conservatively invalidate all references it may refer to.
+            for alias in aliases.iter() {
+                if let Some(reference_value) = self.references.get_mut(alias) {
+                    *reference_value = ReferenceValue::Unknown;
                 }
             }
         }
     }
 
-    fn invalidate_all_references(&mut self, last_stores: &mut BTreeMap<ValueId, InstructionId>) {
+    fn invalidate_all_references(&mut self) {
         for reference_value in self.references.values_mut() {
             *reference_value = ReferenceValue::Unknown;
         }
 
-        last_stores.clear();
+        self.last_stores.clear();
     }
 
     fn unify(mut self, other: &Self) -> Self {
@@ -477,7 +526,7 @@ impl Block {
     /// Remember that `result` is the result of dereferencing `address`. This is important to
     /// track aliasing when references are stored within other references.
     fn remember_dereference(&mut self, function: &Function, address: ValueId, result: ValueId) {
-        if function.dfg.type_of_value(result) == Type::Reference {
+        if function.dfg.value_is_reference(result) {
             if let Some(known_address) = self.get_known_value(address) {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
@@ -486,6 +535,56 @@ impl Block {
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
                 // known references if this reference is ever stored to.
+            }
+        }
+    }
+
+    /// Iterate through each known alias of the given address and apply the function `f` to each.
+    fn for_each_alias_of<T>(
+        &mut self,
+        address: ValueId,
+        mut f: impl FnMut(&mut Self, ValueId) -> T,
+    ) {
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr).cloned() {
+                for alias in aliases {
+                    f(self, alias);
+                }
+            }
+        }
+    }
+
+    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
+        let address = function.dfg.resolve(address);
+        self.keep_last_store(address, function);
+        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
+    }
+
+    fn keep_last_store(&mut self, address: ValueId, function: &Function) {
+        let address = function.dfg.resolve(address);
+
+        if let Some(instruction) = self.last_stores.remove(&address) {
+            // Whenever we decide we want to keep a store instruction, we also need
+            // to go through its stored value and mark that used as well.
+            match &function.dfg[instruction] {
+                Instruction::Store { value, .. } => {
+                    self.mark_value_used(*value, function);
+                }
+                other => {
+                    unreachable!("last_store held an id of a non-store instruction: {other:?}")
+                }
+            }
+        }
+    }
+
+    fn mark_value_used(&mut self, value: ValueId, function: &Function) {
+        self.keep_last_stores_for(value, function);
+
+        // We must do a recursive check for arrays since they're the only Values which may contain
+        // other ValueIds.
+        if let Some((array, _)) = function.dfg.get_array_constant(value) {
+            for value in array {
+                self.mark_value_used(value, function);
             }
         }
     }
