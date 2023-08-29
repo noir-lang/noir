@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::token::{Attribute, Token};
 use crate::{
     Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
-    Visibility,
+    UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -689,10 +689,10 @@ impl Display for FunctionDefinition {
 }
 
 impl FunctionReturnType {
-    pub fn get_type(&self) -> &UnresolvedType {
+    pub fn get_type(&self) -> &UnresolvedTypeData {
         match self {
-            FunctionReturnType::Default(_span) => &UnresolvedType::Unit,
-            FunctionReturnType::Ty(typ, _span) => typ,
+            FunctionReturnType::Default(_span) => &UnresolvedTypeData::Unit,
+            FunctionReturnType::Ty(typ, _span) => &typ.typ,
         }
     }
 }
