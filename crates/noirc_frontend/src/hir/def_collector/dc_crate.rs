@@ -3,7 +3,6 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-//use crate::hir::resolution::errors::ResolverError::PathResolutionError;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
