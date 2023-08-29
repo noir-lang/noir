@@ -8,6 +8,7 @@ import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 import { encodeArgs } from './encoding.js';
 
+export { createClient } from './client.js';
 /**
  * Helper type to dynamically import contracts.
  */

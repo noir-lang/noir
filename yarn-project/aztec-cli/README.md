@@ -324,7 +324,7 @@ Options:
 - `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
 - `-ca, --contract-address <address>`: Address of the contract.
 - `-k, --private-key <string>`: The sender's private key.
-- `-u, --rpcUrl <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 
 This command calls a function on an Aztec contract. It requires the contract's ABI, address, function name, and optionally, function arguments. The command executes the function call and displays the transaction details.
 
@@ -352,7 +352,7 @@ Options:
 - `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
 - `-ca, --contract-address <address>`: Address of the contract.
 - `-f, --from <string>`: Public key of the transaction viewer. If empty, it will try to find an account in the RPC.
-- `-u, --rpcUrl <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 
 This command simulates the execution of a view function on a deployed contract without modifying the state. It requires the contract's ABI, address, function name, and optionally, function arguments. The command displays the result of the view function.
 
