@@ -19,9 +19,9 @@ for dir in ./*; do
       fi
       nargo compile && nargo execute witness
 
-      # Extract bytecode field from JSON and save it to a target directory
+      # Extract bytecode field from JSON, base64 decode it, and save it to a target directory
       if [ -f ./target/${dir_name}.json ]; then
-          jq -r '.bytecode' ./target/${dir_name}.json > ./target/${dir_name}.bytecode
+          jq -r '.bytecode' ./target/${dir_name}.json | base64 -d > ./target/${dir_name}.bytecode
       fi
 
       # Delete the JSON file after extracting bytecode field
