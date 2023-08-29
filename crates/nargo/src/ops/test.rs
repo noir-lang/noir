@@ -1,4 +1,4 @@
-use acvm::{acir::native_types::WitnessMap, Backend};
+use acvm::{acir::native_types::WitnessMap, BlackBoxFunctionSolver};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::{def_map::TestFunction, Context};
@@ -11,7 +11,7 @@ pub enum TestStatus {
     CompileError(FileDiagnostic),
 }
 
-pub fn run_test<B: BlackBoxFunctionSolver>(
+pub fn run_test<B: BlackBoxFunctionSolver + Default>(
     backend: &B,
     context: &Context,
     test_function: TestFunction,
