@@ -31,17 +31,7 @@ impl<'f> FunctionInserter<'f> {
         value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
-            None => match &self.function.dfg[value] {
-                super::value::Value::Array { array, typ } => {
-                    let array = array.clone();
-                    let typ = typ.clone();
-                    let new_array = array.iter().map(|id| self.resolve(*id)).collect();
-                    let new_id = self.function.dfg.make_array(new_array, typ);
-                    self.values.insert(value, new_id);
-                    new_id
-                }
-                _ => value,
-            },
+            None => value,
         }
     }
 

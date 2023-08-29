@@ -452,6 +452,51 @@ impl<'block> BrilligBlock<'block> {
                     &dfg.type_of_value(*value),
                 );
             }
+            Instruction::MakeArray { elements } => {
+                let result = dfg.instruction_results(instruction_id)[0];
+
+                let new_variable = self.function_context.get_or_create_variable(
+                    self.brillig_context,
+                    result,
+                    dfg,
+                );
+
+                // Initialize the variable
+                let pointer = match new_variable {
+                    RegisterOrMemory::HeapArray(heap_array) => {
+                        self.brillig_context
+                            .allocate_fixed_length_array(heap_array.pointer, elements.len());
+
+                        heap_array.pointer
+                    }
+                    RegisterOrMemory::HeapVector(heap_vector) => {
+                        self.brillig_context
+                            .const_instruction(heap_vector.size, elements.len().into());
+                        self.brillig_context
+                            .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
+
+                        heap_vector.pointer
+                    }
+                    _ => unreachable!(
+                        "ICE: Cannot initialize array value created as {new_variable:?}"
+                    ),
+                };
+
+                // Write the items
+
+                // Allocate a register for the iterator
+                let iterator_register = self.brillig_context.make_constant(0_usize.into());
+
+                for element_id in elements.iter() {
+                    let element_variable = self.convert_ssa_value(*element_id, dfg);
+                    // Store the item in memory
+                    self.store_variable_in_array(pointer, iterator_register, element_variable);
+                    // Increment the iterator
+                    self.brillig_context.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
+                }
+
+                self.brillig_context.deallocate_register(iterator_register);
+            }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_variable =
@@ -487,7 +532,7 @@ impl<'block> BrilligBlock<'block> {
                     value_variable,
                 );
             }
-            _ => todo!("ICE: Instruction not supported {instruction:?}"),
+            Instruction::EnableSideEffects { .. } => todo!("Unsupported instruction: {instruction:?}"),
         };
 
         self.brillig_context.set_call_stack(CallStack::new());
@@ -958,54 +1003,9 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 new_variable
             }
-            Value::Array { array, .. } => {
-                let new_variable = self.function_context.get_or_create_variable(
-                    self.brillig_context,
-                    value_id,
-                    dfg,
-                );
-
-                // Initialize the variable
-                let pointer = match new_variable {
-                    RegisterOrMemory::HeapArray(heap_array) => {
-                        self.brillig_context
-                            .allocate_fixed_length_array(heap_array.pointer, array.len());
-
-                        heap_array.pointer
-                    }
-                    RegisterOrMemory::HeapVector(heap_vector) => {
-                        self.brillig_context
-                            .const_instruction(heap_vector.size, array.len().into());
-                        self.brillig_context
-                            .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
-
-                        heap_vector.pointer
-                    }
-                    _ => unreachable!(
-                        "ICE: Cannot initialize array value created as {new_variable:?}"
-                    ),
-                };
-
-                // Write the items
-
-                // Allocate a register for the iterator
-                let iterator_register = self.brillig_context.make_constant(0_usize.into());
-
-                for element_id in array.iter() {
-                    let element_variable = self.convert_ssa_value(*element_id, dfg);
-                    // Store the item in memory
-                    self.store_variable_in_array(pointer, iterator_register, element_variable);
-                    // Increment the iterator
-                    self.brillig_context.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
-                }
-
-                self.brillig_context.deallocate_register(iterator_register);
-
-                new_variable
-            }
-            _ => {
-                todo!("ICE: Cannot convert value {value:?}")
-            }
+            Value::Function(_)
+            | Value::Intrinsic(_)
+            | Value::ForeignFunction(_) => todo!("ICE: Cannot convert value {value:?}"),
         }
     }
 

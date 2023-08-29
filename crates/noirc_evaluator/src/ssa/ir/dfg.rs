@@ -174,14 +174,6 @@ impl DataFlowGraph {
                 self.locations.insert(id, call_stack);
                 InsertInstructionResult::Results(id, self.instruction_results(id))
             }
-            SimplifyResult::SimplifiedSlice { length, elements } => {
-                let instruction = Instruction::MakeArray { elements };
-                let id = self.make_instruction(instruction, ctrl_typevars);
-                self.blocks[block].insert_instruction(id);
-                self.locations.insert(id, call_stack);
-                let array = self.instruction_results(id)[0];
-                InsertInstructionResult::SimplifiedToMultiple(vec![length, array])
-            },
         }
     }
 
@@ -390,7 +382,7 @@ impl DataFlowGraph {
                     Instruction::MakeArray { elements } => Some((elements.clone(), typ.clone())),
                     _ => None,
                 }
-            },
+            }
             _ => None,
         }
     }

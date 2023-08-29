@@ -457,7 +457,7 @@ impl Context {
                 let elements = elements.iter().map(|element| self.convert_value(*element, dfg));
                 let array = AcirValue::Array(elements.collect());
                 self.define_result(dfg, instruction_id, array);
-            },
+            }
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(
                     instruction_id,

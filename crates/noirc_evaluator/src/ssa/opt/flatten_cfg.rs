@@ -145,7 +145,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -414,20 +414,18 @@ impl<'f> Context<'f> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_value = self.inserter.function.dfg[then_value_id].clone();
-        let else_value = self.inserter.function.dfg[else_value_id].clone();
-
-        let len = match then_value {
-            Value::Array { array, .. } => array.len(),
-            _ => panic!("Expected array value"),
+        let get_array_constant = |id| {
+            self.inserter.function.dfg.get_array_constant(id)
+                .expect("Expected array value")
+                .0
         };
 
-        let else_len = match else_value {
-            Value::Array { array, .. } => array.len(),
-            _ => panic!("Expected array value"),
-        };
+        let then_value = get_array_constant(then_value_id);
+        let else_value = get_array_constant(else_value_id);
 
-        let len = len.max(else_len);
+        let then_len = then_value.len();
+        let else_len = else_value.len();
+        let len = then_len.max(else_len);
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -460,7 +458,9 @@ impl<'f> Context<'f> {
             }
         }
 
-        self.inserter.function.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged };
+        self.insert_instruction_with_typevars(instruction, Some(vec![typ]))
+            .first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -505,7 +505,9 @@ impl<'f> Context<'f> {
             }
         }
 
-        self.inserter.function.dfg.make_array(merged, typ)
+        let instruction = Instruction::MakeArray { elements: merged };
+        self.insert_instruction_with_typevars(instruction, Some(vec![typ]))
+            .first()
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
@@ -1381,7 +1383,8 @@ mod test {
         // Tests that it does not simplify a true constraint an always-false constraint
         // fn main f1 {
         //   b0():
-        //     v4 = call pedersen([Field 0], u32 0)
+        //     v3 = make_array [Field 0]
+        //     v4 = call pedersen(v3, u32 0)
         //     v5 = array_get v4, index Field 0
         //     v6 = cast v5 as u32
         //     v8 = mod v6, u32 2
@@ -1413,13 +1416,13 @@ mod test {
         let array_type = Type::Array(element_type.clone(), 1);
 
         let zero = builder.field_constant(0_u128);
-        let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
+        let v3 = builder.insert_make_array(im::Vector::unit(zero), array_type);
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
         let v4 = builder.insert_call(
             pedersen,
-            vec![zero_array, i_zero],
+            vec![v3, i_zero],
             vec![Type::Array(element_type, 2)],
         )[0];
         let v5 = builder.insert_array_get(v4, zero, Type::field());

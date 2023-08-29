@@ -201,9 +201,10 @@ impl Instruction {
             Instruction::Constrain(_, _)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::MakeArray { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
-                InstructionResultType::Unknown
-            }
+            Instruction::Load { .. }
+            | Instruction::MakeArray { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
 
@@ -410,7 +411,7 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
+            Instruction::Call { func, arguments } => simplify_call(*func, arguments, block, dfg),
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
@@ -882,11 +883,6 @@ pub(crate) enum SimplifyResult {
 
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
-
-    /// Slice values are represented as the tuple of (length, array). Since arrays
-    /// are simplified to Instruction::MakeArray, it is often the case that slices
-    /// are themselves simplified to (length: ValueId, new_contents: Instruction::MakeArray).
-    SimplifiedSlice { length: ValueId, elements: im::Vector<ValueId> },
 
     /// Remove the instruction, it is unnecessary
     Remove,

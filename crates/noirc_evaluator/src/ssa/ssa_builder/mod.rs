@@ -249,7 +249,11 @@ impl FunctionBuilder {
     }
 
     /// Insert an instruction to create a new array of the given type
-    pub(crate) fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
+    pub(crate) fn insert_make_array(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        typ: Type,
+    ) -> ValueId {
         let array_type = Some(vec![typ]);
         self.insert_instruction(Instruction::MakeArray { elements }, array_type).first()
     }
