@@ -139,8 +139,8 @@ pub(crate) enum Instruction {
     /// Truncates `value` to `bit_size`
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
-    /// Constrains a value to be equal to true
-    Constrain(ValueId),
+    /// Constrains two values to be equal to one another.
+    Constrain(ValueId, ValueId),
 
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
@@ -189,7 +189,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_)
+            Instruction::Constrain(_, _)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
@@ -217,7 +217,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(_) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(_, _) | Store { .. } | EnableSideEffects { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -253,7 +253,7 @@ impl Instruction {
                 bit_size: *bit_size,
                 max_bit_size: *max_bit_size,
             },
-            Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            Instruction::Constrain(lhs, rhs) => Instruction::Constrain(f(*lhs), f(*rhs)),
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -291,10 +291,14 @@ impl Instruction {
             Instruction::Cast(value, _)
             | Instruction::Not(value)
             | Instruction::Truncate { value, .. }
-            | Instruction::Constrain(value)
             | Instruction::Load { address: value } => {
                 f(*value);
             }
+            Instruction::Constrain(lhs, rhs) => {
+                f(*lhs);
+                f(*rhs);
+            }
+
             Instruction::Store { address, value } => {
                 f(*address);
                 f(*value);
@@ -345,13 +349,13 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(value) => {
-                if let Some(constant) = dfg.get_numeric_constant(*value) {
-                    if constant.is_one() {
-                        return Remove;
-                    }
+            Instruction::Constrain(lhs, rhs) => {
+                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
+                    // Remove trivial case `assert_eq(x, x)`
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::None
                 }
-                None
             }
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);

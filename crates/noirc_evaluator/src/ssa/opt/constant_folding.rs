@@ -102,7 +102,9 @@ impl Context {
 
         // If the instruction doesn't have side-effects, cache the results so we can reuse them if
         // the same instruction appears again later in the block.
-        if !instruction.has_side_effects(&function.dfg) {
+        if !instruction.has_side_effects(&function.dfg)
+            && !matches!(instruction, Instruction::Allocate)
+        {
             instruction_result_cache.insert(instruction, new_results.clone());
         }
         for (old_result, new_result) in old_results.iter().zip(new_results) {

@@ -695,6 +695,7 @@ where
     choice((
         constrain(expr_parser.clone()),
         assertion(expr_parser.clone()),
+        assertion_eq(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         return_statement(expr_parser.clone()),
@@ -724,6 +725,28 @@ where
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
         .labelled(ParsingRuleLabel::Statement)
         .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+}
+
+fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().exactly(2);
+
+    ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
+        .labelled(ParsingRuleLabel::Statement)
+        .validate(|exprs: Vec<Expression>, span, _| {
+            let predicate = Expression::new(
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
+                    rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
+                    operator: Spanned::from(span, BinaryOpKind::Equal),
+                })),
+                span,
+            );
+
+            Statement::Constrain(ConstrainStatement(predicate))
+        })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -1818,6 +1841,22 @@ mod test {
         );
     }
 
+    /// This is the standard way to assert that two expressions are equivalent
+    #[test]
+    fn parse_assert_eq() {
+        parse_all(
+            assertion_eq(expression()),
+            vec![
+                "assert_eq(x, y)",
+                "assert_eq(((x + y) == k) + z, y)",
+                "assert_eq(x + !y, y)",
+                "assert_eq(x ^ y, y)",
+                "assert_eq(x ^ y, y + m)",
+                "assert_eq(x + x ^ x, y | m)",
+            ],
+        );
+    }
+
     #[test]
     fn parse_let() {
         // Why is it valid to specify a let declaration as having type u8?
@@ -2173,6 +2212,8 @@ mod test {
             ("assert", 1, "constrain Error"),
             ("constrain x ==", 2, "constrain (plain::x == Error)"),
             ("assert(x ==)", 1, "constrain (plain::x == Error)"),
+            ("assert_eq(x,)", 1, "constrain (Error == Error)"),
+            ("assert_eq(x, x, x)", 1, "constrain (Error == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
