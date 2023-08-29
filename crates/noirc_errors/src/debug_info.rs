@@ -29,10 +29,10 @@ impl DebugInfo {
     /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
-        let old = self.locations.clone();
+        let old_locations = self.locations.clone();
         self.locations.clear();
 
-        for (old_opcode_location, source_locations) in old {
+        for (old_opcode_location, source_locations) in old_locations {
             let _ = update_map.new_locations(old_opcode_location).map(|new_opcode_location| {
                 self.locations.insert(new_opcode_location, source_locations.clone());
             });
