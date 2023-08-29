@@ -720,12 +720,18 @@ mod tests {
 
         // Store is needed by the return value, and can't be removed
         assert_eq!(count_stores(block_id, &func.dfg), 1);
+        let instructions = func.dfg[block_id].instructions();
+        assert_eq!(instructions.len(), 2);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[v0]);
+
+        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
+        // is most likely no longer v0. We have to retrieve the new id here.
+        let alloca_id = func.dfg.instruction_results(instructions[0])[0];
+        assert_eq!(ret_val_id, alloca_id);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -900,18 +906,7 @@ mod tests {
 
         let b1_instructions = main.dfg[b1].instructions();
 
-        // The last instruction in b1 should be a binary operation
-        match &main.dfg[*b1_instructions.last().unwrap()] {
-            Instruction::Binary(binary) => {
-                let lhs =
-                    main.dfg.get_numeric_constant(binary.lhs).expect("Expected constant value");
-                let rhs =
-                    main.dfg.get_numeric_constant(binary.rhs).expect("Expected constant value");
-
-                assert_eq!(lhs, rhs);
-                assert_eq!(lhs, FieldElement::from(2u128));
-            }
-            _ => unreachable!(),
-        }
+        // We expect the last eq to be optimized out
+        assert_eq!(b1_instructions.len(), 1);
     }
 }
