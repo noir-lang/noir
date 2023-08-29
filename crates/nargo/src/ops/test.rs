@@ -11,10 +11,10 @@ pub enum TestStatus {
     CompileError(FileDiagnostic),
 }
 
-pub fn run_test<B: Backend>(
+pub fn run_test<B: BlackBoxFunctionSolver>(
     backend: &B,
-    test_function: TestFunction,
     context: &Context,
+    test_function: TestFunction,
     show_output: bool,
     config: &CompileOptions,
 ) -> TestStatus {
@@ -46,7 +46,7 @@ pub fn run_test<B: Backend>(
         // Note: This could be because the compiler was able to deduce
         // that a constraint was never satisfiable.
         // An example of this is the program `assert(false)`
-        //  In that case, we check if the test function should fail, and if so, we return Ok.
+        // In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
         Err(diag) => {
             // The test has failed compilation, but it should never fail. Report error.
             if !test_function.should_fail() {

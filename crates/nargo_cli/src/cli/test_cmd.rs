@@ -96,7 +96,7 @@ fn run_tests<B: Backend>(
             .expect("Failed to write to stdout");
         writer.flush().expect("Failed to flush writer");
 
-        match run_test(backend, test_function, &context, show_output, compile_options) {
+        match run_test(backend, &context, test_function, show_output, compile_options) {
             TestStatus::Pass { .. } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
