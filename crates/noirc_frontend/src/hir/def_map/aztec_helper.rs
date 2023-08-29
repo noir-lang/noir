@@ -60,6 +60,55 @@ macro_rules! call {
     };
 }
 
+macro_rules! mutable {
+    ( $name:expr ) => {
+        Pattern::Mutable(Box::new(Pattern::Identifier(ident!($name))), Span::default())
+    }; // let mut hasher_path = ident_path!("Hasher");
+       // let context_type = UnresolvedType::Named(hasher_path.clone(), vec![]);
+}
+
+macro_rules! mutable_assignment {
+    ( $name:expr, $assigned_to:expr ) => {
+        Statement::Let(LetStatement {
+            pattern: mutable!($name),
+            r#type: UnresolvedType::Unspecified,
+            expression: $assigned_to,
+        })
+    };
+}
+
+macro_rules! chained_path {
+    ( $base:expr $(, $tail:expr)* ) => {
+        {
+            let mut base_path = ident_path!($base);
+            $(
+                base_path.segments.push(ident!($tail));
+            )*
+            base_path
+        }
+    }
+}
+
+macro_rules! cast {
+    ( $lhs:expr, $rhs:expr ) => {
+        expression!(ExpressionKind::Cast(Box::new(CastExpression { lhs: $lhs, r#type: $rhs })))
+    };
+}
+
+macro_rules! index_array {
+    ( $array:expr, $index:expr ) => {
+        expression!(ExpressionKind::Index(Box::new(IndexExpression {
+            collection: variable_path!(ident_path!($array)),
+            index: variable!($index),
+        })))
+    };
+}
+/////////////////////////////////////////////////////////////////////////
+///                    Create AST Nodes for Aztec                     ///
+/////////////////////////////////////////////////////////////////////////
+
+/// Traverses every function in the ast, calling `transform_function` which
+/// determines if further processing is required
 pub(crate) fn aztec_contracts_macros(mut ast: ParsedModule) -> ParsedModule {
     // Usage -> mut ast -> AztecLib.transform(&mut ast)
 
@@ -75,59 +124,46 @@ pub(crate) fn aztec_contracts_macros(mut ast: ParsedModule) -> ParsedModule {
     ast
 }
 
-// TODO: might be worth making this a struct to prevent passing the ast around
+/// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
+/// If it is, it calls the `transform` function which will perform the required transformations.
 fn transform_function(func: &mut NoirFunction) {
     if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
-        // TODO: this can just become the one function!!!
-        // match based on the custom attribute
         match custom_attribute.as_str() {
-            "aztec(private)" => {
-                // temp: if the name = entrypoint then print it out
-
-                // Edit the ast to inject the private context into the function
-                // Create the context using the current params
-                let create_context = create_context("PrivateContext", &func.def.parameters);
-                // Insert the context creation as the first action
-                func.def.body.0.splice(0..0, (&create_context).iter().cloned());
-
-                // Add the inputs to the params
-                let input = create_inputs("PrivateContextInputs");
-                func.def.parameters.insert(0, input);
-
-                // Push the finish method call to the end of the function
-                let finish_def = create_context_finish();
-                func.def.body.0.push(finish_def);
-
-                let return_type = create_return_type("PrivateCircuitPublicInputs");
-                func.def.return_type = return_type;
-                func.def.return_visibility = Visibility::Public;
-                func.def.return_distinctness = Distinctness::Distinct;
-
-                if func.name() == "entrypoint" {
-                    // dbg!(&func);
-                }
-            }
-            "aztec(public)" => {
-                let create_context = create_context("PublicContext", &func.def.parameters);
-                // Insert the context creation as the first action
-                func.def.body.0.splice(0..0, (&create_context).iter().cloned());
-
-                // Add the inputs to the params
-                let input = create_inputs("PublicContextInputs");
-                func.def.parameters.insert(0, input);
-
-                // Push the finish method call to the end of the function
-                let finish_def = create_context_finish();
-                func.def.body.0.push(finish_def);
-
-                let return_type = create_return_type("PublicCircuitPublicInputs");
-                func.def.return_type = return_type;
-                func.def.return_visibility = Visibility::Public;
-                // func.def.return_distinctness = Distinctness::Distinct;
-            }
+            "aztec(private)" => transform("Private", func),
+            "aztec(public)" => transform("Public", func),
             _ => return,
         }
-        // dbg!(&func);
+    }
+}
+
+/// If it does, it will insert the following things:
+/// - A new Input that is provided for a kernel app circuit, named: {Public/Private}ContextInputs
+/// - Hashes all of the function input variables
+///     - This instantiates a helper function  
+fn transform(ty: &str, func: &mut NoirFunction) {
+    let context_name = format!("{}Context", ty);
+    let inputs_name = format!("{}ContextInputs", ty);
+    let return_type_name = format!("{}CircuitPublicInputs", ty);
+
+    let create_context = create_context(&context_name, &func.def.parameters);
+    // Insert the context creation as the first action
+    func.def.body.0.splice(0..0, (&create_context).iter().cloned());
+
+    // Add the inputs to the params
+    let input = create_inputs(&inputs_name);
+    func.def.parameters.insert(0, input);
+
+    // Push the finish method call to the end of the function
+    let finish_def = create_context_finish();
+    func.def.body.0.push(finish_def);
+
+    let return_type = create_return_type(&return_type_name);
+    func.def.return_type = return_type;
+    func.def.return_visibility = Visibility::Public;
+
+    // Distinct return types are only required for private functions
+    if ty.eq("Private") {
+        func.def.return_distinctness = Distinctness::Distinct;
     }
 }
 
@@ -147,37 +183,19 @@ pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
 fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> Vec<Statement> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
-    let mut hash_path = ident_path!("abi");
-    hash_path.segments.push(ident!("hash_args"));
-
-    // Create hasher structure
-    let mut hasher_path = ident_path!("abi");
-    hasher_path.segments.push(ident!("Hasher"));
-
-    // Assign the hasher to a variable
-    let hasher_ident = ident!("hasher");
-    let hasher_pattern = Pattern::Identifier(hasher_ident.clone());
-    let hasher_mut = Pattern::Mutable(Box::new(hasher_pattern.clone()), Span::default());
-    let mut hasher_path = ident_path!("Hasher");
-    let context_type = UnresolvedType::Named(hasher_path.clone(), vec![]);
-
-    // Create the new hasher
-    hasher_path.segments.push(ident!("new"));
-
     // Hasher object for each variable to call
     let hasher_variable = variable!("hasher");
 
-    // Define the hasher with a let expression
-    let let_hasher = Statement::Let(LetStatement {
-        pattern: hasher_mut,
-        r#type: context_type,
-        expression: expression!(ExpressionKind::Call(Box::new(CallExpression {
-            func: Box::new(variable_path!(hasher_path)),
-            arguments: vec![],
-        }))),
-    });
+    // `let mut hasher = Hasher::new();`
+    let let_hasher = mutable_assignment!(
+        "hasher", // Assigned to
+        call!(
+            variable_path!(chained_path!("Hasher", "new")), // Path
+            vec![]                                          // args
+        )
+    );
 
-    // Completes: `let hasher = Hasher::new();`
+    // Completes: `let mut hasher = Hasher::new();`
     injected_expressions.push(let_hasher);
 
     params.iter().for_each(|(pattern, ty, _vis)| {
@@ -185,33 +203,30 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
             Pattern::Identifier(ident) => {
                 // Match the type to determine the padding to do
                 match ty {
-                    // If we get an unresolved type, then we call serialise on it anf add it to our hasher object
+                    // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedType::Named(..) => {
-                        // dbg!("Named");
-                        // Find the type definition in the ast
-
-                        // If the type is unresolved, then call serialise on it
-                        // Create a path calling serialize on ident
+                        // If this is a struct, we call serialize and add the array to the hasher
                         let serialised_call = method_call!(
                             variable_path!(ident_path!(ident.clone())), // variable
                             "serialize",                                // method name
                             vec![]                                      // args
                         );
 
-                        let add_multi = Statement::Semi(method_call!(
+                        let add_multiple = Statement::Semi(method_call!(
                             hasher_variable.clone(), // variable
                             "add_multiple",          // method name
                             vec![serialised_call]    // args
                         ));
 
                         // Add this to the return expressions.
-                        injected_expressions.push(add_multi);
+                        injected_expressions.push(add_multiple);
                     }
                     UnresolvedType::Array(..) => {
-                        // Note if this is an array of structs, call the above method on each of them
-                        // If this is an array of primitives, then cast them to fields
+                        // TODO: if this is an array of structs, we should call serialise on each of them
+                        // If this is an array of primitive types (integers / fields) we can add them each to the hasher
+                        // casted to a field
 
-                        // Create an array pushing the value as fields to the hasher
+                        // `array.len()`
                         let end_range_expression = method_call!(
                             variable_path!(ident_path!(ident.clone())), // variable
                             "len",                                      // method name
@@ -219,27 +234,23 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
                         );
 
                         // Wrap in the semi thing - does that mean ended with semi colon?
+                        // `hasher.add({ident}[i] as Field)`
+                        let cast_expression = cast!(
+                            index_array!(ident.clone(), "i"), // lhs - `ident[i]`
+                            UnresolvedType::FieldElement      // cast to - `as Field`
+                        );
+                        // What will be looped over
+                        // - `hasher.add({ident}[i] as Field)`
                         let for_loop_block =
-                            ExpressionKind::Block(BlockExpression(vec![Statement::Semi(
-                                method_call!(
+                            expression!(ExpressionKind::Block(BlockExpression(vec![
+                                Statement::Semi(method_call!(
                                     hasher_variable.clone(), // variable
                                     "add",                   // method name
-                                    vec![expression!(ExpressionKind::Cast(Box::new(
-                                        CastExpression {
-                                            lhs: expression!(ExpressionKind::Index(Box::new(
-                                                IndexExpression {
-                                                    collection: variable_path!(ident_path!(
-                                                        ident.clone()
-                                                    )),
-                                                    index: variable!("i"),
-                                                }
-                                            ))),
-                                            r#type: UnresolvedType::FieldElement,
-                                        }
-                                    )))]
-                                ),
-                            )]));
+                                    vec![cast_expression]
+                                ),)
+                            ])));
 
+                        // `for i in 0..{ident}.len()`
                         let for_loop = Statement::Expression(expression!(ExpressionKind::For(
                             Box::new(ForExpression {
                                 identifier: ident!("i"),
@@ -247,15 +258,15 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
                                     Literal::Integer(FieldElement::from(i128::from(0)))
                                 )),
                                 end_range: end_range_expression,
-                                block: expression!(for_loop_block),
+                                block: for_loop_block,
                             })
                         )));
 
                         // Add the for loop to our list of return expressions
                         injected_expressions.push(for_loop);
                     }
+                    // `hasher.add({ident})`
                     UnresolvedType::FieldElement => {
-                        // dbg!("Field");
                         let add_field = Statement::Semi(method_call!(
                             hasher_variable.clone(),                          // variable
                             "add",                                            // method name
@@ -263,56 +274,61 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
                         ));
                         injected_expressions.push(add_field);
                     }
-                    UnresolvedType::Integer(_, __) => {
-                        // dbg!("Integer");
-                        // Add the integer to the hasher, casted
+                    // Add the integer to the hasher, casted to a field
+                    // `hasher.add({ident} as Field)`
+                    UnresolvedType::Integer(..) => {
+                        // `{ident} as Field`
+                        let cast_operation = cast!(
+                            variable_path!(ident_path!(ident.clone())), // lhs
+                            UnresolvedType::FieldElement                // rhs
+                        );
+
+                        // `hasher.add({ident} as Field)`
                         let add_casted_integer = Statement::Semi(method_call!(
                             hasher_variable.clone(), // variable
                             "add",                   // method name
-                            vec![expression!(ExpressionKind::Cast(Box::new(CastExpression {
-                                lhs: variable_path!(ident_path!(ident.clone())),
-                                r#type: UnresolvedType::FieldElement,
-                            })))]
+                            vec![cast_operation]     // args
                         ));
                         injected_expressions.push(add_casted_integer);
                     }
                     _ => println!("todo"),
                 }
             }
-            _ => todo!(),
+            _ => todo!(), // Maybe unreachable?
         }
     });
 
-    // Create the context from the hasher
-    let context_ident = ident!("context");
-    let context_pattern = Pattern::Identifier(context_ident);
-    let context_mut = Pattern::Mutable(Box::new(context_pattern.clone()), Span::default());
-    let context_type_ident = ident!(ty);
-    let mut context_path = Path::from_ident(context_type_ident);
-    let context_type = UnresolvedType::Named(context_path.clone(), vec![]);
-
-    // Create the new context
-    context_path.segments.push(ident!("new"));
-
+    // Create the inputs to the context
     let inputs_expression = variable!("inputs");
+    // `hasher.hash()`
     let hash_call = method_call!(
         variable!("hasher"), // variable
         "hash",              // method name
         vec![]               // args
     );
-    let new_context_args = vec![inputs_expression, hash_call];
 
-    // Call the init of the context
-    let expression = call!(variable_path!(context_path), new_context_args);
-
-    let let_expression =
-        Statement::Let(LetStatement { pattern: context_mut, r#type: context_type, expression });
-    injected_expressions.push(let_expression);
+    // let mut context = {ty}::new(inputs, hash);
+    let let_context = mutable_assignment!(
+        "context", // Assigned to
+        call!(
+            variable_path!(chained_path!(ty, "new")), // Path
+            vec![inputs_expression, hash_call]        // args
+        )
+    );
+    injected_expressions.push(let_context);
 
     // Return all expressions that will be injected by the hasher
     return injected_expressions;
 }
 
+/// Create Return Type
+///
+/// Public functions return abi::PublicCircuitPublicInputs while
+/// private functions return abi::PrivateCircuitPublicInputs
+///
+/// This call constructs an ast token referencing the above types
+/// The name is set in the function above `transform`, hence the
+/// whole token name is passed in
 pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
     let return_ident = ident!(ty);
     let mut return_path = ident_path!("abi");
@@ -322,6 +338,10 @@ pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
     FunctionReturnType::Ty(ty, Span::default())
 }
 
+/// Create Context Finish
+///
+/// Each aztec function calls `context.finish()` at the end of a function
+/// to return values required by the kernel.
 pub(crate) fn create_context_finish() -> Statement {
     let method_call = method_call!(
         variable!("context"), // variable
