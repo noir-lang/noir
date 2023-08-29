@@ -63,8 +63,7 @@ macro_rules! call {
 macro_rules! mutable {
     ( $name:expr ) => {
         Pattern::Mutable(Box::new(Pattern::Identifier(ident!($name))), Span::default())
-    }; // let mut hasher_path = ident_path!("Hasher");
-       // let context_type = UnresolvedType::Named(hasher_path.clone(), vec![]);
+    };
 }
 
 macro_rules! mutable_assignment {
@@ -103,6 +102,7 @@ macro_rules! index_array {
         })))
     };
 }
+
 /////////////////////////////////////////////////////////////////////////
 ///                    Create AST Nodes for Aztec                     ///
 /////////////////////////////////////////////////////////////////////////
@@ -145,8 +145,8 @@ fn transform(ty: &str, func: &mut NoirFunction) {
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
 
-    let create_context = create_context(&context_name, &func.def.parameters);
     // Insert the context creation as the first action
+    let create_context = create_context(&context_name, &func.def.parameters);
     func.def.body.0.splice(0..0, (&create_context).iter().cloned());
 
     // Add the inputs to the params
@@ -169,6 +169,19 @@ fn transform(ty: &str, func: &mut NoirFunction) {
 
 /// Helper function that returns what the private context would look like in the ast
 /// This should make it available to be consumed within aztec private annotated functions.
+///
+/// The replaced code:
+/// ```noir
+/// /// Before
+/// fn foo(inputs: PrivateContextInputs) {
+///    // ...
+/// }
+///
+/// /// After
+/// #[aztec(private)]
+/// fn foo() {
+///   // ...
+/// }
 pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
     let context_ident = ident!("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
@@ -179,7 +192,30 @@ pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
 }
 
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
-/// appended into the args hash object
+/// appended into the args hash object.
+///
+/// The replaced code:
+/// ```noir
+/// #[aztec(private)]
+/// fn foo(structInput: SomeStruct, arrayInput: [u8; 10], fieldInput: Field) -> Field {
+///     // Create the hasher object
+///     let mut hasher = Hasher::new();
+///
+///     // struct inputs call serialize on them to add an array of fields
+///     hasher.add_multiple(structInput.serialize());
+///
+///     // Array inputs are iterated over and each element is added to the hasher (as a field)
+///     for i in 0..arrayInput.len() {
+///         hasher.add(arrayInput[i] as Field);
+///     }
+///     // Field inputs are added to the hasher
+///     hasher.add({ident});
+///
+///     // Create the context
+///     // The inputs (injected by this `create_inputs`) and completed hash object are passed to the context
+///     let mut context = PrivateContext::new(inputs, hasher.hash());
+/// }
+/// ```
 fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> Vec<Statement> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
@@ -198,6 +234,7 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
     // Completes: `let mut hasher = Hasher::new();`
     injected_expressions.push(let_hasher);
 
+    // Iterate over each of the function parameters, adding to them to the hasher
     params.iter().for_each(|(pattern, ty, _vis)| {
         match pattern {
             Pattern::Identifier(ident) => {
@@ -222,7 +259,7 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
                         injected_expressions.push(add_multiple);
                     }
                     UnresolvedType::Array(..) => {
-                        // TODO: if this is an array of structs, we should call serialise on each of them
+                        // TODO: if this is an array of structs, we should call serialise on each of them (no methods currently do this yet)
                         // If this is an array of primitive types (integers / fields) we can add them each to the hasher
                         // casted to a field
 
@@ -291,7 +328,7 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
                         ));
                         injected_expressions.push(add_casted_integer);
                     }
-                    _ => println!("todo"),
+                    _ => println!("todo"), // Maybe unreachable?
                 }
             }
             _ => todo!(), // Maybe unreachable?
@@ -329,10 +366,22 @@ fn create_context(ty: &str, params: &Vec<(Pattern, UnresolvedType, Visibility)>)
 /// This call constructs an ast token referencing the above types
 /// The name is set in the function above `transform`, hence the
 /// whole token name is passed in
+///
+/// The replaced code:
+/// ```noir
+///
+/// /// Before
+/// fn foo() -> abi::PrivateCircuitPublicInputs {
+///    // ...
+/// }
+///
+/// /// After
+/// #[aztec(private)]
+/// fn foo() {
+///  // ...
+/// }
 pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
-    let return_ident = ident!(ty);
-    let mut return_path = ident_path!("abi");
-    return_path.segments.push(return_ident);
+    let return_path = chained_path!("abi", ty);
 
     let ty = UnresolvedType::Named(return_path, vec![]);
     FunctionReturnType::Ty(ty, Span::default())
@@ -342,6 +391,20 @@ pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
 ///
 /// Each aztec function calls `context.finish()` at the end of a function
 /// to return values required by the kernel.
+///
+/// The replaced code:
+/// ```noir
+/// /// Before
+/// fn foo() -> abi::PrivateCircuitPublicInputs {
+///   // ...
+///  context.finish()
+/// }
+///
+/// /// After
+/// #[aztec(private)]
+/// fn foo() {
+///  // ...
+/// }
 pub(crate) fn create_context_finish() -> Statement {
     let method_call = method_call!(
         variable!("context"), // variable
