@@ -47,7 +47,11 @@ impl<'f> FunctionInserter<'f> {
 
     /// Insert a key, value pair if the key isn't already present in the map
     pub(crate) fn try_map_value(&mut self, key: ValueId, value: ValueId) {
-        if key != value {
+        if key == value {
+            // This case is technically not needed since try_map_value isn't meant to change
+            // existing entries, but we should never have a value in the map referring to itself anyway.
+            self.values.remove(&key);
+        } else {
             self.values.entry(key).or_insert(value);
         }
     }
