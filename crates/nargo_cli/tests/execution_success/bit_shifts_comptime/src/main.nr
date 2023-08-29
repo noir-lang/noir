@@ -17,6 +17,7 @@ fn main(x: u64) {
 fn regression_2250() {
 	let a: u1 = 1 >> 1;
 	assert(a == 0);
-    let b: u32 = 1 >> 32;
+	
+	let b: u32 = 1 >> 32;
 	assert(b == 0);
 }
