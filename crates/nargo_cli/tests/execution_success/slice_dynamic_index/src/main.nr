@@ -1,8 +1,5 @@
 fn main(x : Field) {
-    assert(x == 5);
-    // The parameters to this function must come from witness values (inputs to main).
-    // The assert on `x` before this call is to guarantee we test the expected
-    // conditional branches.
+    // The parameters to this function must come directly from witness values (inputs to main).
     regression_dynamic_slice_index(x - 1, x - 4);
 }
 
