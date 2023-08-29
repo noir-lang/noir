@@ -187,13 +187,14 @@ impl UnresolvedTypeData {
     }
 }
 
-impl From<FunctionReturnType> for UnresolvedType {
-    pub fn from_func_return_type(item: &FunctionReturnType) -> Self {
+impl FunctionReturnType {
+    pub fn get_type(&self) -> &UnresolvedType {
         match item {
-            FunctionReturnType::Default(_span) => UnresolvedType::Unit,
-            FunctionReturnType::Ty(typ, _span) => typ.clone(),
+            FunctionReturnType::Default(_span) => &UnresolvedType::Unit,
+            FunctionReturnType::Ty(typ, _span) => typ,
         }
     }
+}
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
