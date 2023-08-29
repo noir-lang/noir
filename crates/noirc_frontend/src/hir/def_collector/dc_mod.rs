@@ -88,7 +88,7 @@ fn check_trait_method_implementation_parameters(
     }
     for (count, (parameter, typ, _abi_vis)) in impl_method.def.parameters.iter().enumerate() {
         let (_expected_name, expected_type) = &expected_parameters[count];
-        if typ != expected_type {
+        if typ.typ != expected_type.typ {
             return Err(DefCollectorErrorKind::MismatchTraitImlementationParameter {
                 trait_name: trait_name.to_owned(),
                 expected_type: expected_type.clone(),
