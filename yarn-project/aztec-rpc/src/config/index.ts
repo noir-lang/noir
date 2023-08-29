@@ -1,3 +1,7 @@
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
 /**
  * Configuration settings for the RPC Server.
  */
@@ -17,4 +21,13 @@ export function getConfigEnvVars(): RpcServerConfig {
   return {
     l2BlockPollingIntervalMS: RPC_SERVER_BLOCK_POLLING_INTERVAL_MS ? +RPC_SERVER_BLOCK_POLLING_INTERVAL_MS : 1000,
   };
+}
+
+/**
+ * Returns package name and version.
+ */
+export function getPackageInfo() {
+  const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json');
+  const { version, name } = JSON.parse(readFileSync(packageJsonPath).toString());
+  return { version, name };
 }

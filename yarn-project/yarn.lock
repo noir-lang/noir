@@ -322,6 +322,8 @@ __metadata:
     "@types/node": ^18.7.23
     commander: ^9.0.0
     jest: ^29.5.0
+    jest-mock-extended: ^3.0.5
+    semver: ^7.5.4
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tslib: ^2.4.0
@@ -8062,6 +8064,18 @@ __metadata:
     jest: ^24.0.0 || ^25.0.0 || ^26.0.0 || ^27.0.0 || ^28.0.0 || ^29.0.0
     typescript: ^3.0.0 || ^4.0.0 || ^5.0.0
   checksum: f861253c63508b30d971fbbbc1bf2911ff4406cd260d0e23483a1d4514898b18ba5efbd43fbdf6d94996dc09b20eb1aad1b46aeaea9c99244ba12dc99814fd3f
+  languageName: node
+  linkType: hard
+
+"jest-mock-extended@npm:^3.0.5":
+  version: 3.0.5
+  resolution: "jest-mock-extended@npm:3.0.5"
+  dependencies:
+    ts-essentials: ^7.0.3
+  peerDependencies:
+    jest: ^24.0.0 || ^25.0.0 || ^26.0.0 || ^27.0.0 || ^28.0.0 || ^29.0.0
+    typescript: ^3.0.0 || ^4.0.0 || ^5.0.0
+  checksum: 440c52f743af588493c2cd02fa7e4e42177748ac3f7ae720f414bd58a4a72fad4271878457bf8796b62abcf9cf32cde4dc5151caad0805037bd965cc9ef07ca8
   languageName: node
   linkType: hard
 

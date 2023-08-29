@@ -46,6 +46,10 @@ export type NodeInfo = {
    * The rollup contract address
    */
   rollupAddress: EthAddress;
+  /**
+   * Identifier of the client software.
+   */
+  client: string;
 };
 
 /** Provides up to which block has been synced by different components. */
