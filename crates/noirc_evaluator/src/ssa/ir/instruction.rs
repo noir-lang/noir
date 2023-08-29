@@ -764,10 +764,10 @@ impl Binary {
                 // and the operation should be handled by ACIR generation.
                 if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
                     return None;
-                } else {
-                    let result = function(lhs, rhs);
-                    truncate(result, *bit_size).into()
                 }
+
+                let result = function(lhs, rhs);
+                truncate(result, *bit_size).into()
             }
             _ => return None,
         };
