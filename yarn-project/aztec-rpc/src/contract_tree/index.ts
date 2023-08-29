@@ -1,6 +1,7 @@
 import {
   CONTRACT_TREE_HEIGHT,
   CircuitsWasm,
+  CompleteAddress,
   EthAddress,
   FUNCTION_TREE_HEIGHT,
   Fr,
@@ -19,6 +20,7 @@ import {
   computeContractAddress,
   computeContractLeaf,
   computeFunctionTreeRoot,
+  computePartialAddress,
   computeVarArgsHash,
   hashConstructor,
 } from '@aztec/circuits.js/abis';
@@ -93,10 +95,15 @@ export class ContractTree {
     const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
     const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
+    // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/1873: create computeCompleteAddress
+    // function --> The following is wasteful as it computes partial address twice
+    const partialAddress = computePartialAddress(wasm, contractAddressSalt, root, constructorHash);
     const address = computeContractAddress(wasm, from, contractAddressSalt, root, constructorHash);
+    const completeAddress = await CompleteAddress.create(address, from, partialAddress);
+
     const contractDao: ContractDao = {
       ...abi,
-      address,
+      completeAddress,
       functions,
       portalContract,
     };
@@ -119,7 +126,7 @@ export class ContractTree {
     const abi = this.contract.functions.find(f => f.selector.equals(selector));
     if (!abi) {
       throw new Error(
-        `Unknown function. Selector ${selector.toString()} not found in the ABI of contract ${this.contract.address.toString()}. Expected one of: ${this.contract.functions
+        `Unknown function. Selector ${selector.toString()} not found in the ABI of contract ${this.contract.completeAddress.address.toString()}. Expected one of: ${this.contract.functions
           .map(f => f.selector.toString())
           .join(', ')}`,
       );
@@ -151,14 +158,14 @@ export class ContractTree {
    */
   public async getContractMembershipWitness() {
     if (!this.contractMembershipWitness) {
-      const { address, portalContract } = this.contract;
+      const { completeAddress, portalContract } = this.contract;
       const root = await this.getFunctionTreeRoot();
-      const newContractData = new NewContractData(address, portalContract, root);
+      const newContractData = new NewContractData(completeAddress.address, portalContract, root);
       const commitment = computeContractLeaf(this.wasm, newContractData);
       const index = await this.contractCommitmentProvider.findContractIndex(commitment.toBuffer());
       if (index === undefined) {
         throw new Error(
-          `Failed to find contract at ${address} with portal ${portalContract} resulting in commitment ${commitment}.`,
+          `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,
         );
       }
 

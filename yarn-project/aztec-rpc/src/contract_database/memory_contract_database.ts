@@ -22,7 +22,7 @@ export class MemoryContractDatabase implements ContractDatabase {
    * @returns A Promise that resolves when the contract is successfully added.
    */
   public addContract(contract: ContractDao) {
-    this.log(`Adding contract ${contract.address.toString()}`);
+    this.log(`Adding contract ${contract.completeAddress.address.toString()}`);
     this.contracts.push(contract);
     return Promise.resolve();
   }
@@ -35,7 +35,7 @@ export class MemoryContractDatabase implements ContractDatabase {
    * @returns A Promise resolving to the ContractDao instance matching the given address or undefined.
    */
   public getContract(address: AztecAddress): Promise<ContractDao | undefined> {
-    return Promise.resolve(this.contracts.find(c => c.address.equals(address)));
+    return Promise.resolve(this.contracts.find(c => c.completeAddress.address.equals(address)));
   }
 
   public getContracts(): Promise<ContractDao[]> {

@@ -7,9 +7,9 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import {
   ContractData,
-  ContractDataAndBytecode,
   ContractDataSource,
   EncodedContractFunction,
+  ExtendedContractData,
   INITIAL_L2_BLOCK_NUM,
   L1ToL2Message,
   L1ToL2MessageSource,
@@ -224,9 +224,9 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     // store contracts for which we have retrieved L2 blocks
     const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
     retrievedContracts.retrievedData.forEach(async ([contracts, l2BlockNum], index) => {
-      this.log(`Retrieved contract data and bytecode for l2 block number: ${index}`);
+      this.log(`Retrieved extended contract data for l2 block number: ${index}`);
       if (l2BlockNum <= lastKnownL2BlockNum) {
-        await this.store.addContractDataAndBytecode(contracts, l2BlockNum);
+        await this.store.addExtendedContractData(contracts, l2BlockNum);
       }
     });
 
@@ -293,13 +293,12 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   }
 
   /**
-   * Lookup the L2 contract data for this contract.
-   * Contains the contract's public function bytecode.
+   * Get the extended contract data for this contract.
    * @param contractAddress - The contract data address.
-   * @returns The contract data.
+   * @returns The extended contract data or undefined if not found.
    */
-  public getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
-    return this.store.getContractDataAndBytecode(contractAddress);
+  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
+    return this.store.getExtendedContractData(contractAddress);
   }
 
   /**
@@ -307,8 +306,8 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    * @param blockNum - The block number to get all contract data from.
    * @returns All new contract data in the block (if found).
    */
-  public getContractDataAndBytecodeInBlock(blockNum: number): Promise<ContractDataAndBytecode[]> {
-    return this.store.getContractDataAndBytecodeInBlock(blockNum);
+  public getExtendedContractDataInBlock(blockNum: number): Promise<ExtendedContractData[]> {
+    return this.store.getExtendedContractDataInBlock(blockNum);
   }
 
   /**
@@ -341,7 +340,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     contractAddress: AztecAddress,
     selector: FunctionSelector,
   ): Promise<EncodedContractFunction | undefined> {
-    const contractData = await this.getContractDataAndBytecode(contractAddress);
+    const contractData = await this.getExtendedContractData(contractAddress);
     return contractData?.getPublicFunction(selector);
   }
 

@@ -135,7 +135,7 @@ export class ContractDataOracle {
    * @throws An Error if the contract is not found in the ContractDatabase.
    */
   private async getTree(contractAddress: AztecAddress) {
-    let tree = this.trees.find(t => t.contract.address.equals(contractAddress));
+    let tree = this.trees.find(t => t.contract.completeAddress.address.equals(contractAddress));
     if (!tree) {
       const contract = await this.db.getContract(contractAddress);
       if (!contract) {

@@ -222,7 +222,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const address = AztecAddress.fromString(contractAddress);
       const contractDataWithOrWithoutBytecode = options.includeBytecode
-        ? await client.getContractDataAndBytecode(address)
+        ? await client.getExtendedContractData(address)
         : await client.getContractData(address);
 
       if (!contractDataWithOrWithoutBytecode) {

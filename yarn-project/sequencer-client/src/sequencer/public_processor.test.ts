@@ -26,9 +26,9 @@ import {
 } from '@aztec/circuits.js/factories';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import {
-  ContractDataAndBytecode,
   ContractDataSource,
   EncodedContractFunction,
+  ExtendedContractData,
   FunctionCall,
   FunctionL2Logs,
   SiblingPath,
@@ -54,7 +54,7 @@ describe('public_processor', () => {
   let contractDataSource: MockProxy<ContractDataSource>;
 
   let publicFunction: EncodedContractFunction;
-  let contractData: ContractDataAndBytecode;
+  let contractData: ExtendedContractData;
   let proof: Proof;
   let root: Buffer;
 
@@ -66,7 +66,7 @@ describe('public_processor', () => {
     publicProver = mock<PublicProver>();
     contractDataSource = mock<ContractDataSource>();
 
-    contractData = ContractDataAndBytecode.random();
+    contractData = ExtendedContractData.random();
     publicFunction = EncodedContractFunction.random();
     proof = makeEmptyProof();
     root = Buffer.alloc(32, 5);
@@ -74,7 +74,7 @@ describe('public_processor', () => {
     publicProver.getPublicCircuitProof.mockResolvedValue(proof);
     publicProver.getPublicKernelCircuitProof.mockResolvedValue(proof);
     db.getTreeInfo.mockResolvedValue({ root } as TreeInfo);
-    contractDataSource.getContractDataAndBytecode.mockResolvedValue(contractData);
+    contractDataSource.getExtendedContractData.mockResolvedValue(contractData);
     contractDataSource.getPublicFunction.mockResolvedValue(publicFunction);
   });
 
@@ -155,7 +155,9 @@ describe('public_processor', () => {
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 
-      const tx = new Tx(kernelOutput, proof, TxL2Logs.random(2, 3), TxL2Logs.random(3, 2), [], callRequests);
+      const tx = new Tx(kernelOutput, proof, TxL2Logs.random(2, 3), TxL2Logs.random(3, 2), callRequests, [
+        ExtendedContractData.random(),
+      ]);
 
       publicExecutor.execute.mockImplementation(execution => {
         for (const request of callRequests) {
@@ -183,7 +185,14 @@ describe('public_processor', () => {
       kernelOutput.end.publicCallStack = padArrayEnd([callStackHash], Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 
-      const tx = new Tx(kernelOutput, proof, TxL2Logs.random(2, 3), TxL2Logs.random(3, 2), [], [callRequest]);
+      const tx = new Tx(
+        kernelOutput,
+        proof,
+        TxL2Logs.random(2, 3),
+        TxL2Logs.random(3, 2),
+        [callRequest],
+        [ExtendedContractData.random()],
+      );
 
       const publicExecutionResult = makePublicExecutionResultFromRequest(callRequest);
       publicExecutionResult.nestedExecutions = [

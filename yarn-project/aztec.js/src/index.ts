@@ -10,8 +10,7 @@ export { AztecAddress, EthAddress, Point, Fr } from '@aztec/circuits.js';
 export {
   AztecRPC,
   ContractData,
-  ContractDeploymentTx,
-  ContractDataAndBytecode,
+  ExtendedContractData as ExtendedContractData,
   DeployedContract,
   FunctionCall,
   L2BlockL2Logs,

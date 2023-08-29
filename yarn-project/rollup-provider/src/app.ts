@@ -118,7 +118,7 @@ export function appFactory(node: AztecNode, prefix: string) {
     const address = ctx.query.address;
     ctx.set('content-type', 'application/json');
     ctx.body = {
-      contractData: await node.getContractDataAndBytecode(AztecAddress.fromString(address as string)),
+      contractData: await node.getExtendedContractData(AztecAddress.fromString(address as string)),
     };
     ctx.status = 200;
   });

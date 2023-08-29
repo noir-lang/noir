@@ -2,8 +2,8 @@ import { AztecAddress, CircuitsWasm, Fr, PartialAddress, PrivateKey, TxContext }
 import {
   AztecRPC,
   ContractData,
-  ContractDataAndBytecode,
   DeployedContract,
+  ExtendedContractData,
   FunctionCall,
   L2BlockL2Logs,
   NodeInfo,
@@ -70,8 +70,8 @@ export abstract class BaseWallet implements Wallet {
   viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress | undefined): Promise<any> {
     return this.rpc.viewTx(functionName, args, to, from);
   }
-  getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
-    return this.rpc.getContractDataAndBytecode(contractAddress);
+  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
+    return this.rpc.getExtendedContractData(contractAddress);
   }
   getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     return this.rpc.getContractData(contractAddress);

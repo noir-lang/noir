@@ -7,6 +7,7 @@ import {
 import {
   AztecAddress,
   CompleteAddress,
+  EthAddress,
   FunctionData,
   KernelCircuitPublicInputs,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
@@ -16,15 +17,15 @@ import {
 } from '@aztec/circuits.js';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
   AztecNode,
   AztecRPC,
   ContractDao,
   ContractData,
-  ContractDataAndBytecode,
   DeployedContract,
+  ExtendedContractData,
   FunctionCall,
   INITIAL_L2_BLOCK_NUM,
   KeyStore,
@@ -148,17 +149,17 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   public async addContracts(contracts: DeployedContract[]) {
-    const contractDaos = contracts.map(c => toContractDao(c.abi, c.address, c.portalContract));
+    const contractDaos = contracts.map(c => toContractDao(c.abi, c.completeAddress, c.portalContract));
     await Promise.all(contractDaos.map(c => this.db.addContract(c)));
     for (const contract of contractDaos) {
       const portalInfo =
         contract.portalContract && !contract.portalContract.isZero() ? ` with portal ${contract.portalContract}` : '';
-      this.log.info(`Added contract ${contract.name} at ${contract.address}${portalInfo}`);
+      this.log.info(`Added contract ${contract.name} at ${contract.completeAddress.address}${portalInfo}`);
     }
   }
 
   public async getContracts(): Promise<AztecAddress[]> {
-    return (await this.db.getContracts()).map(c => c.address);
+    return (await this.db.getContracts()).map(c => c.completeAddress.address);
   }
 
   public async getPublicStorageAt(contract: AztecAddress, storageSlot: Fr) {
@@ -239,8 +240,8 @@ export class AztecRPCServer implements AztecRPC {
     return await this.node.getBlockNumber();
   }
 
-  public async getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
-    return await this.node.getContractDataAndBytecode(contractAddress);
+  public async getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
+    return await this.node.getExtendedContractData(contractAddress);
   }
 
   public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
@@ -396,18 +397,19 @@ export class AztecRPCServer implements AztecRPC {
     const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
 
+    const contractData = new ContractData(newContract?.completeAddress.address ?? AztecAddress.ZERO, EthAddress.ZERO);
+    const extendedContractData = new ExtendedContractData(
+      contractData,
+      newContractPublicFunctions,
+      newContract?.completeAddress.partialAddress ?? Fr.ZERO,
+      newContract?.completeAddress.publicKey ?? Point.ZERO,
+    );
+
     // HACK(#1639): Manually patches the ordering of the public call stack
     // TODO(#757): Enforce proper ordering of enqueued public calls
     await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
 
-    return new Tx(
-      publicInputs,
-      proof,
-      encryptedLogs,
-      unencryptedLogs,
-      newContractPublicFunctions,
-      enqueuedPublicFunctions,
-    );
+    return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions, [extendedContractData]);
   }
 
   // HACK(#1639): this is a hack to fix ordering of public calls enqueued in the call stack. Since the private kernel

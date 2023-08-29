@@ -1,12 +1,14 @@
 import { AztecAddress, CompleteAddress, EthAddress } from '@aztec/circuits.js';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import {
-  ContractData,
+  DeployedContract,
+  ExtendedContractData,
   NodeInfo,
   Tx,
   TxExecutionRequest,
   TxHash,
   TxReceipt,
+  randomContractAbi,
   randomDeployedContract,
 } from '@aztec/types';
 
@@ -17,8 +19,8 @@ import { Contract } from './contract.js';
 
 describe('Contract Class', () => {
   let wallet: MockProxy<Wallet>;
-
-  const contractAddress = AztecAddress.random();
+  let resolvedExtendedContractData: ExtendedContractData;
+  let contractAddress: AztecAddress;
   let account: CompleteAddress;
 
   const mockTx = { type: 'Tx' } as any as Tx;
@@ -88,10 +90,13 @@ describe('Contract Class', () => {
   };
 
   beforeEach(async () => {
+    resolvedExtendedContractData = ExtendedContractData.random();
+    contractAddress = resolvedExtendedContractData.contractData.contractAddress;
     account = await CompleteAddress.random();
+
     wallet = mock<Wallet>();
     wallet.createTxExecutionRequest.mockResolvedValue(mockTxRequest);
-    wallet.getContractData.mockResolvedValue(ContractData.random());
+    wallet.getExtendedContractData.mockResolvedValue(resolvedExtendedContractData);
     wallet.sendTx.mockResolvedValue(mockTxHash);
     wallet.viewTx.mockResolvedValue(mockViewResultValue);
     wallet.getTxReceipt.mockResolvedValue(mockTxReceipt);
@@ -139,8 +144,12 @@ describe('Contract Class', () => {
   });
 
   it('should add contract and dependencies to aztec rpc', async () => {
-    const entry = randomDeployedContract();
-    const contract = await Contract.at(entry.address, entry.abi, wallet);
+    const entry: DeployedContract = {
+      abi: randomContractAbi(),
+      completeAddress: resolvedExtendedContractData.getCompleteAddress(),
+      portalContract: EthAddress.random(),
+    };
+    const contract = await Contract.at(entry.completeAddress.address, entry.abi, wallet);
 
     {
       await contract.attach(entry.portalContract);
@@ -150,7 +159,7 @@ describe('Contract Class', () => {
     }
 
     {
-      const dependencies = [randomDeployedContract(), randomDeployedContract()];
+      const dependencies = [await randomDeployedContract(), await randomDeployedContract()];
       await contract.attach(entry.portalContract, dependencies);
       expect(wallet.addContracts).toHaveBeenCalledTimes(1);
       expect(wallet.addContracts).toHaveBeenCalledWith([entry, ...dependencies]);

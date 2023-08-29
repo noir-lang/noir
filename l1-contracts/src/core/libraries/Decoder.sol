@@ -275,8 +275,8 @@ library Decoder {
          *    newContractDataKernel2.ethAddress (padded to 32 bytes), ____
          *    encryptedLogsHashKernel1,                                   |
          *    encryptedLogsHashKernel2,                                   |=> Computed below from logs' preimages.
-         *    unencryptedLogsHashKernel1,                                |
-         *    unencryptedLogsHashKernel2                              ___|
+         *    unencryptedLogsHashKernel1,                                 |
+         *    unencryptedLogsHashKernel2                              ____|
          * );
          * Note that we always read data, the l2Block (atm) must therefore include dummy or zero-notes for
          * Zero values.

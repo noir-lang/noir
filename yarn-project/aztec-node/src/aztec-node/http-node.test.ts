@@ -3,7 +3,7 @@ import { randomBytes } from '@aztec/foundation/crypto';
 import { Pedersen } from '@aztec/merkle-tree';
 import {
   ContractData,
-  ContractDataAndBytecode,
+  ExtendedContractData,
   L1ToL2Message,
   L2Block,
   L2BlockL2Logs,
@@ -158,21 +158,21 @@ describe('HttpNode', () => {
     });
   });
 
-  describe('getContractDataAndBytecode', () => {
+  describe('getExtendedContractData', () => {
     it('should fetch and return contract public data', async () => {
-      const contractDataAndBytecode = ContractDataAndBytecode.random();
+      const extendedContractData = ExtendedContractData.random();
       const response = {
-        contractData: contractDataAndBytecode.toBuffer(),
+        contractData: extendedContractData.toBuffer(),
       };
 
       setFetchMock(response);
 
-      const result = await httpNode.getContractDataAndBytecode(contractDataAndBytecode.contractData.contractAddress);
+      const result = await httpNode.getExtendedContractData(extendedContractData.contractData.contractAddress);
 
       expect(fetch).toHaveBeenCalledWith(
-        `${TEST_URL}contract-data-and-bytecode?address=${contractDataAndBytecode.contractData.contractAddress.toString()}`,
+        `${TEST_URL}contract-data-and-bytecode?address=${extendedContractData.contractData.contractAddress.toString()}`,
       );
-      expect(result).toEqual(contractDataAndBytecode);
+      expect(result).toEqual(extendedContractData);
     });
 
     it('should return undefined if contract data is not available', async () => {
@@ -183,7 +183,7 @@ describe('HttpNode', () => {
 
       const randomAddress = AztecAddress.random();
 
-      const result = await httpNode.getContractDataAndBytecode(randomAddress);
+      const result = await httpNode.getExtendedContractData(randomAddress);
 
       expect(fetch).toHaveBeenCalledWith(`${TEST_URL}contract-data-and-bytecode?address=${randomAddress.toString()}`);
       expect(result).toEqual(undefined);

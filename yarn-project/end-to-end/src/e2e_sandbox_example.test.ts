@@ -112,7 +112,7 @@ describe('e2e_sandbox_example', () => {
       .send()
       .deployed();
 
-    logger(`Contract successfully deployed at address ${contract.address!.toShortString()}`);
+    logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);
     // docs:end:Deployment
 
     // ensure that private token contract is registered in the rpc
@@ -123,10 +123,10 @@ describe('e2e_sandbox_example', () => {
     ////////////// QUERYING THE TOKEN BALANCE FOR EACH ACCOUNT //////////////
 
     // Create the contract abstraction and link to Alice's wallet for future signing
-    const tokenContractAlice = await PrivateTokenContract.at(contract.address!, await accounts[0].getWallet());
+    const tokenContractAlice = await PrivateTokenContract.at(contract.address, await accounts[0].getWallet());
 
     // Bob wants to mint some funds, the contract is already deployed, create an abstraction and link it his wallet
-    const tokenContractBob = await PrivateTokenContract.at(contract.address!, await accounts[1].getWallet());
+    const tokenContractBob = await PrivateTokenContract.at(contract.address, await accounts[1].getWallet());
 
     let aliceBalance = await tokenContractAlice.methods.getBalance(alice).view();
     logger(`Alice's balance ${aliceBalance}`);

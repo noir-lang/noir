@@ -46,6 +46,8 @@ export async function getContractDeploymentInfo(
   const argsHash = await computeVarArgsHash(wasm, flatArgs);
   const constructorHash = hashConstructor(wasm, functionData, argsHash, constructorVkHash.toBuffer());
 
+  // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/1873: create computeCompleteAddress
+  // function --> The following is wasteful as it computes partial address twice
   const partialAddress = computePartialAddress(wasm, contractAddressSalt, functionTreeRoot, constructorHash);
   const contractAddress = computeContractAddress(
     wasm,

@@ -1,12 +1,11 @@
 import {
+  CompleteAddress,
   ContractDeploymentData,
   FunctionData,
-  PartialAddress,
   TxContext,
   getContractDeploymentInfo,
 } from '@aztec/circuits.js';
 import { ContractAbi, FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { AztecRPC, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/types';
@@ -35,11 +34,8 @@ export interface DeployOptions extends SendMethodOptions {
  * Extends the ContractFunctionInteraction class.
  */
 export class DeployMethod<TContract extends ContractBase = Contract> extends BaseContractInteraction {
-  /** The partially computed contract address. Known after creation of the deployment transaction. */
-  public partialAddress?: PartialAddress = undefined;
-
-  /** The complete contract address. */
-  public completeContractAddress?: AztecAddress = undefined;
+  /** The complete address of the contract. */
+  public completeAddress?: CompleteAddress = undefined;
 
   /** Constructor function to call. */
   private constructorAbi: FunctionAbi;
@@ -96,11 +92,10 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     });
 
     this.txRequest = txRequest;
-    this.partialAddress = completeAddress.partialAddress;
-    this.completeContractAddress = completeAddress.address;
+    this.completeAddress = completeAddress;
 
     // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
-    await this.rpc.addContracts([{ abi: this.abi, address: completeAddress.address, portalContract }]);
+    await this.rpc.addContracts([{ abi: this.abi, completeAddress, portalContract }]);
 
     return this.txRequest;
   }
