@@ -4,11 +4,12 @@
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
 //! calculating dominance frontiers.
 
-use std::{cmp::Ordering, collections::HashMap};
+use std::cmp::Ordering;
 
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
+use fxhash::FxHashMap as HashMap;
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
@@ -121,7 +122,7 @@ impl DominatorTree {
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
-        let mut dom_tree = DominatorTree { nodes: HashMap::new(), cache: HashMap::new() };
+        let mut dom_tree = DominatorTree { nodes: HashMap::default(), cache: HashMap::default() };
         dom_tree.compute_dominator_tree(cfg, post_order);
         dom_tree
     }

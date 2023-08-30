@@ -22,8 +22,8 @@ use acvm::{
     FieldElement,
 };
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
+use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
-use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

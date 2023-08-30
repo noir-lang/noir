@@ -131,7 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::collections::{BTreeMap, HashMap, HashSet};
+use fxhash::FxHashMap as HashMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -221,7 +222,7 @@ fn flatten_function_cfg(function: &mut Function) {
     let mut context = Context {
         inserter: FunctionInserter::new(function),
         cfg,
-        store_values: HashMap::new(),
+        store_values: HashMap::default(),
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
@@ -590,7 +591,7 @@ impl<'f> Context<'f> {
                 // args that will be merged by inline_branch_end. Since jmpifs don't have
                 // block arguments, it is safe to use the jmpif block here.
                 last_block: jmpif_block,
-                store_values: HashMap::new(),
+                store_values: HashMap::default(),
                 local_allocations: HashSet::new(),
             }
         } else {

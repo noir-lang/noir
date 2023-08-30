@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
@@ -19,6 +18,7 @@ use crate::ssa::ir::value::ValueId;
 use crate::ssa::ssa_builder::FunctionBuilder;
 
 use super::value::{Tree, Value, Values};
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -94,7 +94,7 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let builder = FunctionBuilder::new(function_name, function_id, runtime);
-        let mut this = Self { definitions: HashMap::new(), builder, shared_context };
+        let mut this = Self { definitions: HashMap::default(), builder, shared_context };
         this.add_parameters_to_scope(parameters);
         this
     }
