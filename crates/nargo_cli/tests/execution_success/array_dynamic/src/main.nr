@@ -15,6 +15,8 @@ fn main(x: [u32; 5], mut z: u32, t: u32, index: [Field;5], index2: [Field;5], of
     if 3 < (sublen as u32) {
       assert(index[offset + 3] == index2[3]);
     }
+
+    regression_mem_op_predicate(x, idx + 10);
 }
 
 fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
@@ -29,4 +31,13 @@ fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
       x[y] = 0;
     }
     assert(x[4] == 109);
+}
+
+fn regression_mem_op_predicate(mut x: [u32; 5], idx: Field) {
+  // We should not hit out of bounds here as we have a predicate
+  // that should not be hit
+  if idx as u32 < 3 {    
+    x[idx] = 10;
+  }
+  assert(x[4] == 111);
 }

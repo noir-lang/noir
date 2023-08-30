@@ -378,7 +378,11 @@ impl Context {
                         );
                         let index_var = index.into_var()?;
 
-                        self.acir_context.read_from_memory(block_id, &index_var, &self.current_side_effects_enabled_var)
+                        self.acir_context.read_from_memory(
+                            block_id,
+                            &index_var,
+                            &self.current_side_effects_enabled_var,
+                        )
                     };
 
                 for (lhs, rhs) in
