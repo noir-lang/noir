@@ -546,6 +546,26 @@ impl TerminatorInstruction {
         }
     }
 
+    /// Mutate each ValueId to a new ValueId using the given mapping function
+    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                *condition = f(*condition);
+            }
+            Jmp { arguments, .. } => {
+                for argument in arguments {
+                    *argument = f(*argument);
+                }
+            }
+            Return { return_values } => {
+                for return_value in return_values {
+                    *return_value = f(*return_value);
+                }
+            }
+        }
+    }
+
     /// Apply a function to each value
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         use TerminatorInstruction::*;
@@ -882,7 +902,7 @@ pub(crate) enum SimplifyResult {
     /// a function such as a tuple
     SimplifiedToMultiple(Vec<ValueId>),
 
-    /// Replace this function with an simpler but equivalent function.
+    /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
 
     /// Remove the instruction, it is unnecessary
