@@ -140,7 +140,8 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     // - opening pair: (z_challenge, 0)
     // - witness: polynomial Q - Q_z
     const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
-    auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
+    auto batched_quotient_Q =
+        ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
     prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
     const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
@@ -158,13 +159,14 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     // Gemini verifier output:
     // - claim: d+1 commitments to Fold_{r}^(0), Fold_{-r}^(0), Fold^(l), d+1 evaluations a_0_pos, a_l, l = 0:d-1
     auto gemini_verifier_claim = GeminiVerifier::reduce_verification(mle_opening_point,
-                                                       batched_evaluation,
-                                                       batched_commitment_unshifted,
-                                                       batched_commitment_to_be_shifted,
-                                                       verifier_transcript);
+                                                                     batched_evaluation,
+                                                                     batched_commitment_unshifted,
+                                                                     batched_commitment_to_be_shifted,
+                                                                     verifier_transcript);
 
     // Shplonk verifier claim: commitment [Q] - [Q_z], opening point (z_challenge, 0)
-    const auto shplonk_verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
+    const auto shplonk_verifier_claim =
+        ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
 
     // KZG verifier:
     // aggregates inputs [Q] - [Q_z] and [W] into an 'accumulator' (can perform pairing check on result)

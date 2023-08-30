@@ -88,9 +88,9 @@ void create_recursion_constraints(Builder& builder,
         for (size_t i = 0; i < 4; ++i) {
             aggregation_elements[i] =
                 bn254::BaseField(field_ct::from_witness_index(&builder, aggregation_input[4 * i]),
-                             field_ct::from_witness_index(&builder, aggregation_input[4 * i + 1]),
-                             field_ct::from_witness_index(&builder, aggregation_input[4 * i + 2]),
-                             field_ct::from_witness_index(&builder, aggregation_input[4 * i + 3]));
+                                 field_ct::from_witness_index(&builder, aggregation_input[4 * i + 1]),
+                                 field_ct::from_witness_index(&builder, aggregation_input[4 * i + 2]),
+                                 field_ct::from_witness_index(&builder, aggregation_input[4 * i + 3]));
             aggregation_elements[i].assert_is_in_field();
         }
         // If we have a previous aggregation object, assign it to `previous_aggregation` so that it is included

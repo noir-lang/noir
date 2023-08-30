@@ -9,8 +9,8 @@
 #include "barretenberg/crypto/hashers/hashers.hpp"
 
 #include "barretenberg/common/serialize.hpp"
-#include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/common/streams.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 
 namespace crypto {
 namespace schnorr {

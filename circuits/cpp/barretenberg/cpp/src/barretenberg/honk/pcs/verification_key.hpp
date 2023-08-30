@@ -26,7 +26,7 @@ template <class Curve> class VerifierCommitmentKey;
 
 /**
  * @brief Specialization for bn254
- * 
+ *
  * @tparam curve::BN254
  */
 template <> class VerifierCommitmentKey<curve::BN254> {
@@ -44,7 +44,7 @@ template <> class VerifierCommitmentKey<curve::BN254> {
      * @param srs verifier G2 point
      */
     VerifierCommitmentKey([[maybe_unused]] size_t num_points,
-                       std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
+                          std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
         : srs(crs_factory->get_verifier_crs())
     {}
 
@@ -70,7 +70,7 @@ template <> class VerifierCommitmentKey<curve::BN254> {
 
 /**
  * @brief Specialization for Grumpkin
- * 
+ *
  * @tparam curve::Grumpkin
  */
 template <> class VerifierCommitmentKey<curve::Grumpkin> {
@@ -88,7 +88,8 @@ template <> class VerifierCommitmentKey<curve::Grumpkin> {
      * @param num_points specifies the length of the SRS
      * @param path is the location to the SRS file
      */
-    VerifierCommitmentKey(size_t num_points, std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
+    VerifierCommitmentKey(size_t num_points,
+                          std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
         : pippenger_runtime_state(num_points)
         , srs(crs_factory->get_verifier_crs(num_points))
 

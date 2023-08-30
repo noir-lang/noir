@@ -1,5 +1,5 @@
-#include "sha256.hpp"
 #include "barretenberg/common/wasm_export.hpp"
+#include "sha256.hpp"
 
 WASM_EXPORT void sha256__hash(uint8_t* in, const size_t length, uint8_t* r)
 {

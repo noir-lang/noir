@@ -53,8 +53,10 @@ namespace proof_system::honk::pcs::gemini {
  * @return std::vector<Polynomial>
  */
 template <typename Curve>
-std::vector<typename barretenberg::Polynomial<typename Curve::ScalarField>> GeminiProver_<Curve>::compute_fold_polynomials(
-    std::span<const Fr> mle_opening_point, Polynomial&& batched_unshifted, Polynomial&& batched_to_be_shifted)
+std::vector<typename barretenberg::Polynomial<typename Curve::ScalarField>> GeminiProver_<
+    Curve>::compute_fold_polynomials(std::span<const Fr> mle_opening_point,
+                                     Polynomial&& batched_unshifted,
+                                     Polynomial&& batched_to_be_shifted)
 {
     const size_t num_variables = mle_opening_point.size(); // m
 
@@ -141,9 +143,8 @@ std::vector<typename barretenberg::Polynomial<typename Curve::ScalarField>> Gemi
  * @param r_challenge univariate opening challenge
  */
 template <typename Curve>
-ProverOutput<Curve> GeminiProver_<Curve>::compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
-                                                                         std::vector<Polynomial>&& fold_polynomials,
-                                                                         const Fr& r_challenge)
+ProverOutput<Curve> GeminiProver_<Curve>::compute_fold_polynomial_evaluations(
+    std::span<const Fr> mle_opening_point, std::vector<Polynomial>&& fold_polynomials, const Fr& r_challenge)
 {
     const size_t num_variables = mle_opening_point.size(); // m
 
@@ -185,7 +186,6 @@ ProverOutput<Curve> GeminiProver_<Curve>::compute_fold_polynomial_evaluations(st
 
     return { fold_poly_opening_pairs, std::move(fold_polynomials) };
 };
-
 
 template class GeminiProver_<curve::BN254>;
 template class GeminiProver_<curve::Grumpkin>;

@@ -195,7 +195,7 @@ template <typename OuterComposer> class RecursiveVerifierTest : public testing::
 
     /**
      * @brief Construct a recursive verification circuit for the proof of an inner circuit then call check_circuit on it
-     * 
+     *
      */
     static void test_recursive_proof_composition()
     {

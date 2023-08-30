@@ -152,7 +152,8 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
     }
 
     const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
-    auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
+    auto batched_quotient_Q =
+        ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
     prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
     const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
@@ -164,12 +165,13 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
 
     auto gemini_verifier_claim = GeminiVerifier::reduce_verification(mle_opening_point,
-                                                       batched_evaluation,
-                                                       batched_commitment_unshifted,
-                                                       batched_commitment_to_be_shifted,
-                                                       verifier_transcript);
+                                                                     batched_evaluation,
+                                                                     batched_commitment_unshifted,
+                                                                     batched_commitment_to_be_shifted,
+                                                                     verifier_transcript);
 
-    const auto shplonk_verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
+    const auto shplonk_verifier_claim =
+        ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
     bool verified = IPA::verify(this->vk(), shplonk_verifier_claim, verifier_transcript);
 
     EXPECT_EQ(verified, true);

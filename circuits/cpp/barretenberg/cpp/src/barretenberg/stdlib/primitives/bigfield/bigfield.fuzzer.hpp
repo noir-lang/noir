@@ -236,9 +236,7 @@ template <typename Composer> class BigFieldBase {
          * @param rng PRNG used
          * @return A random instruction
          */
-        template <typename T>
-        inline static Instruction generateRandom(T& rng)
-            requires SimpleRng<T>
+        template <typename T> inline static Instruction generateRandom(T& rng) requires SimpleRng<T>
         {
             // Choose which instruction we are going to generate
             OPCODE instruction_opcode = static_cast<OPCODE>(rng.next() % (OPCODE::_LAST));
@@ -364,8 +362,7 @@ template <typename Composer> class BigFieldBase {
          * @return Mutated element
          */
         template <typename T>
-        inline static fq mutateFieldElement(fq e, T& rng, HavocSettings& havoc_config)
-            requires SimpleRng<T>
+        inline static fq mutateFieldElement(fq e, T& rng, HavocSettings& havoc_config) requires SimpleRng<T>
         {
             // With a certain probability, we apply changes to the Montgomery form, rather than the plain form. This
             // has merit, since the computation is performed in montgomery form and comparisons are often performed
@@ -461,8 +458,9 @@ template <typename Composer> class BigFieldBase {
          * @return Mutated instruction
          */
         template <typename T>
-        inline static Instruction mutateInstruction(Instruction instruction, T& rng, HavocSettings& havoc_config)
-            requires SimpleRng<T>
+        inline static Instruction mutateInstruction(Instruction instruction,
+                                                    T& rng,
+                                                    HavocSettings& havoc_config) requires SimpleRng<T>
         {
 #define PUT_RANDOM_BYTE_IF_LUCKY(variable)                                                                             \
     if (rng.next() & 1) {                                                                                              \

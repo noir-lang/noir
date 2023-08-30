@@ -46,7 +46,9 @@ template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
 
 template <class VK> inline std::shared_ptr<VK> CreateVerifierCommitmentKey();
 
-template <> inline std::shared_ptr<VerifierCommitmentKey<curve::BN254>> CreateVerifierCommitmentKey<VerifierCommitmentKey<curve::BN254>>()
+template <>
+inline std::shared_ptr<VerifierCommitmentKey<curve::BN254>> CreateVerifierCommitmentKey<
+    VerifierCommitmentKey<curve::BN254>>()
 {
     constexpr size_t n = 4096;
     std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory(
@@ -55,7 +57,8 @@ template <> inline std::shared_ptr<VerifierCommitmentKey<curve::BN254>> CreateVe
 }
 // For IPA
 template <>
-inline std::shared_ptr<VerifierCommitmentKey<curve::Grumpkin>> CreateVerifierCommitmentKey<VerifierCommitmentKey<curve::Grumpkin>>()
+inline std::shared_ptr<VerifierCommitmentKey<curve::Grumpkin>> CreateVerifierCommitmentKey<
+    VerifierCommitmentKey<curve::Grumpkin>>()
 {
     constexpr size_t n = 4096;
     std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(

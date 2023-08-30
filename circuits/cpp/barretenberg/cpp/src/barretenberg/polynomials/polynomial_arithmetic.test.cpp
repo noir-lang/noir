@@ -1,9 +1,9 @@
-#include "polynomial_arithmetic.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "polynomial.hpp"
+#include "polynomial_arithmetic.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <gtest/gtest.h>

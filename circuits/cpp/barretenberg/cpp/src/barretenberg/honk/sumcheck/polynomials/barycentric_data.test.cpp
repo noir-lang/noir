@@ -1,5 +1,5 @@
-#include "barycentric_data.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barycentric_data.hpp"
 
 #include "barretenberg/numeric/random/engine.hpp"
 #include <gtest/gtest.h>

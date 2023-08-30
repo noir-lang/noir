@@ -1,5 +1,5 @@
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/common/wasm_export.hpp"
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "blake3s.hpp"
 
 WASM_EXPORT void blake3s_to_field(uint8_t const* data, size_t length, uint8_t* r)

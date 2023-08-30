@@ -52,8 +52,9 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
     const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
-    const auto [prover_opening_pair, shplonk_prover_witness] = ShplonkProver::compute_partially_evaluated_batched_quotient(
-        opening_pairs, polynomials, std::move(batched_quotient_Q), nu_challenge, z_challenge);
+    const auto [prover_opening_pair, shplonk_prover_witness] =
+        ShplonkProver::compute_partially_evaluated_batched_quotient(
+            opening_pairs, polynomials, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 
     // An intermediate check to confirm the opening of the shplonk prover witness Q
     this->verify_opening_pair(prover_opening_pair, shplonk_prover_witness);

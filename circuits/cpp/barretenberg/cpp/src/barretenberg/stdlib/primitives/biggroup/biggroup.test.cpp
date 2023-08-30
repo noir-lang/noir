@@ -30,7 +30,8 @@ template <typename _Curve, bool _use_bigfield = false> struct TestType {
     using element_ct =
         typename std::conditional<_use_bigfield, typename Curve::g1_bigfr_ct, typename Curve::Group>::type;
     // the field of scalars acting on element_ct
-    using scalar_ct = typename std::conditional<_use_bigfield, typename Curve::bigfr_ct, typename Curve::ScalarField>::type;
+    using scalar_ct =
+        typename std::conditional<_use_bigfield, typename Curve::bigfr_ct, typename Curve::ScalarField>::type;
 };
 
 template <typename TestType> class stdlib_biggroup : public testing::Test {

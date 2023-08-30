@@ -67,6 +67,7 @@ template <typename FF> class BaseTranscript {
     // TODO(Adrian): Make these tweakable
   public:
     static constexpr size_t HASH_OUTPUT_SIZE = 32;
+
   private:
     static constexpr size_t MIN_BYTES_PER_CHALLENGE = 128 / 8; // 128 bit challenges
 
