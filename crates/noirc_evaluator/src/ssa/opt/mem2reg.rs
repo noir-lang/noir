@@ -279,8 +279,6 @@ impl<'f> PerFunctionContext<'f> {
                 let address = self.inserter.function.dfg.resolve(*address);
                 let value = self.inserter.function.dfg.resolve(*value);
 
-                self.check_array_aliasing(references, value);
-
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
                 if let Some(last_store) = references.last_stores.get(&address) {
@@ -301,6 +299,10 @@ impl<'f> PerFunctionContext<'f> {
                 let mut aliases = BTreeSet::new();
                 aliases.insert(result);
                 references.aliases.insert(Expression::Other(result), aliases);
+            }
+            Instruction::MakeArray { elements } => {
+                let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                self.check_array_aliasing(references, array, elements);
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -343,17 +345,20 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn check_array_aliasing(&self, references: &mut Block, array: ValueId) {
-        if let Some((elements, typ)) = self.inserter.function.dfg.get_array_constant(array) {
-            if Self::contains_references(&typ) {
-                // TODO: Check if type directly holds references or holds arrays that hold references
-                let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                references.expressions.insert(array, expr.clone());
-                let aliases = references.aliases.entry(expr).or_default();
+    fn check_array_aliasing(&self, references: &mut Block, array: ValueId, elements: &im::Vector<ValueId>) {
+        let contains_references = elements.front().map_or(false, |element| {
+            let element_type = self.inserter.function.dfg.type_of_value(*element);
+            Self::contains_references(&element_type)
+        });
 
-                for element in elements {
-                    aliases.insert(element);
-                }
+        if contains_references {
+            // TODO: Check if type directly holds references or holds arrays that hold references
+            let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
+            references.expressions.insert(array, expr.clone());
+            let aliases = references.aliases.entry(expr).or_default();
+
+            for element in elements {
+                aliases.insert(*element);
             }
         }
     }
@@ -625,10 +630,11 @@ mod tests {
         // fn func() {
         //   b0():
         //     v0 = allocate
-        //     store [Field 1, Field 2] in v0
-        //     v1 = load v0
-        //     v2 = array_get v1, index 1
-        //     return v2
+        //     v1 = make_array [Field 1, Field 2]
+        //     store v1 in v0
+        //     v2 = load v0
+        //     v3 = array_get v2, index 1
+        //     return v3
         // }
 
         let func_id = Id::test_new(0);
@@ -639,12 +645,12 @@ mod tests {
 
         let element_type = Rc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 2);
-        let array = builder.array_constant(vector![one, two], array_type.clone());
+        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
 
-        builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, array_type);
-        let v2 = builder.insert_array_get(v1, one, Type::field());
-        builder.terminate_with_return(vec![v2]);
+        builder.insert_store(v0, v1);
+        let v2 = builder.insert_load(v0, array_type);
+        let v3 = builder.insert_array_get(v2, one, Type::field());
+        builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();
 

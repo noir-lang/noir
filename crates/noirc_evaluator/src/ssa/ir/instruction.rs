@@ -391,7 +391,7 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, element_type)), Some(index)) = (array, index) {
+                if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
 

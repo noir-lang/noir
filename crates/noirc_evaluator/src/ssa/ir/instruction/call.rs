@@ -307,12 +307,13 @@ fn make_constant_array(
     element_type: Type,
     block: BasicBlockId,
 ) -> ValueId {
+    let results_len = results.len();
     let elements = results
         .into_iter()
         .map(|element| dfg.make_constant(element, element_type.clone()))
         .collect();
 
-    let typ = Type::Array(Rc::new(vec![element_type]), results.len());
+    let typ = Type::Array(Rc::new(vec![element_type]), results_len);
     let instruction = Instruction::MakeArray { elements };
 
     // make_array instructions can't fail at runtime anyway, so this shouldn't need a call stack.

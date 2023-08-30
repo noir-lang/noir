@@ -454,8 +454,17 @@ impl Context {
                 self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::MakeArray { elements } => {
-                let elements = elements.iter().map(|element| self.convert_value(*element, dfg));
-                let array = AcirValue::Array(elements.collect());
+                let elements = elements.iter()
+                    .map(|element| self.convert_value(*element, dfg))
+                    .collect::<im::Vector<_>>();
+
+                let array = AcirValue::Array(elements.clone());
+
+                let elements: Vec<_> = elements.into_iter().collect();
+                let result = dfg.instruction_results(instruction_id)[0];
+                let block_id = self.block_id(&result);
+
+                self.initialize_array(block_id, elements.len(), Some(&elements))?;
                 self.define_result(dfg, instruction_id, array);
             }
             Instruction::ArrayGet { array, index } => {
@@ -611,19 +620,10 @@ impl Context {
         let array = dfg.resolve(array);
         let block_id = self.block_id(&array);
         if !self.initialized_arrays.contains(&block_id) {
-            match &dfg[array] {
-                Value::Array { array, .. } => {
-                    let values: Vec<AcirValue> =
-                        array.iter().map(|i| self.convert_value(*i, dfg)).collect();
-                    self.initialize_array(block_id, array.len(), Some(&values))?;
-                }
-                _ => {
-                    return Err(RuntimeError::UnInitialized {
-                        name: "array".to_string(),
-                        call_stack: self.acir_context.get_call_stack(),
-                    })
-                }
-            }
+            return Err(RuntimeError::UnInitialized {
+                name: "array".to_string(),
+                call_stack: self.acir_context.get_call_stack(),
+            })
         }
 
         let index_var = self.convert_value(index, dfg).into_var()?;
@@ -673,19 +673,10 @@ impl Context {
         // if not, we initialize it using the values from SSA
         let already_initialized = self.initialized_arrays.contains(&block_id);
         if !already_initialized {
-            match &dfg[array] {
-                Value::Array { array, .. } => {
-                    let values: Vec<AcirValue> =
-                        array.iter().map(|i| self.convert_value(*i, dfg)).collect();
-                    self.initialize_array(block_id, array.len(), Some(&values))?;
-                }
-                _ => {
-                    return Err(InternalError::General {
-                        message: format!("Array {array} should be initialized"),
-                        call_stack: self.acir_context.get_call_stack(),
-                    })
-                }
-            }
+            return Err(InternalError::General {
+                message: format!("Array {array} should be initialized"),
+                call_stack: self.acir_context.get_call_stack(),
+            })
         }
 
         // Since array_set creates a new array, we create a new block ID for this
@@ -804,10 +795,6 @@ impl Context {
         let acir_value = match value {
             Value::NumericConstant { constant, typ } => {
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ.into())
-            }
-            Value::Array { array, .. } => {
-                let elements = array.iter().map(|element| self.convert_value(*element, dfg));
-                AcirValue::Array(elements.collect())
             }
             Value::Intrinsic(..) => todo!(),
             Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
@@ -1216,7 +1203,8 @@ mod tests {
     fn returns_body_scoped_arrays() {
         // fn main {
         //   b0():
-        //     return [Field 1]
+        //     v1 = make_array [Field 1]
+        //     return v1
         // }
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
@@ -1225,7 +1213,7 @@ mod tests {
 
         let element_type = Rc::new(vec![Type::field()]);
         let array_type = Type::Array(element_type, 1);
-        let array = builder.array_constant(im::Vector::unit(one), array_type);
+        let array = builder.insert_make_array(im::Vector::unit(one), array_type);
 
         builder.terminate_with_return(vec![array]);
 

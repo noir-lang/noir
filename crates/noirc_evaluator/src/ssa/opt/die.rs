@@ -106,22 +106,10 @@ impl Context {
         });
     }
 
-    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
-    /// results as used.
+    /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
-        match &dfg[value_id] {
-            Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::Array { array, .. } => {
-                for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
-                }
-            }
-            _ => {
-                // Does not comprise of any instruction results
-            }
+        if matches!(&dfg[dfg.resolve(value_id)], Value::Instruction { .. }) {
+            self.used_values.insert(value_id);
         }
     }
 }

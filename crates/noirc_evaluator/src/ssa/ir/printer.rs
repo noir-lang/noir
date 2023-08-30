@@ -68,10 +68,6 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, .. } => {
-            let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
-        }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()
         }

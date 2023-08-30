@@ -6,7 +6,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
-        value::{Value, ValueId},
+        value::ValueId, types::Type,
     },
     ssa_gen::Ssa,
 };
@@ -44,14 +44,15 @@ fn last_use(
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
                     let resolved_arg = dfg.resolve(*argument);
-                    if matches!(dfg[resolved_arg], Value::Array { .. }) {
+                    let typ = dfg.type_of_value(resolved_arg);
+
+                    if matches!(typ, Type::Array { .. } | Type::Slice { .. }) {
                         array_def.insert(resolved_arg, *instruction_id);
                     }
                 }
             }
-            _ => {
-                // Nothing to do
-            }
+            // Nothing to do
+            _ => (),
         }
     }
 }

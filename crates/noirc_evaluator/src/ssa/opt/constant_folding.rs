@@ -124,7 +124,6 @@ mod test {
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::Value,
         },
         ssa_builder::FunctionBuilder,
     };
@@ -190,7 +189,8 @@ mod test {
         // fn main f0 {
         //   b0(v0: Field):
         //     v1 = add v0, Field 1
-        //     return [v1]
+        //     v2 = make_array [v1]
+        //     return v2
         // }
         //
         // After constructing this IR, we run constant folding with no expected benefit, but to
@@ -204,14 +204,14 @@ mod test {
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
 
         let array_type = Type::Array(Rc::new(vec![Type::field()]), 1);
-        let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
+        let arr = builder.insert_make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
         let ssa = builder.finish().fold_constants();
         let main = ssa.main();
         let entry_block_id = main.entry_block();
         let entry_block = &main.dfg[entry_block_id];
-        assert_eq!(entry_block.instructions().len(), 1);
+        assert_eq!(entry_block.instructions().len(), 2);
         let new_add_instr = entry_block.instructions().first().unwrap();
         let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
         assert_ne!(new_add_instr_result, v1);
@@ -220,10 +220,8 @@ mod test {
             TerminatorInstruction::Return { return_values } => return_values[0],
             _ => unreachable!(),
         };
-        let return_element = match &main.dfg[return_value_id] {
-            Value::Array { array, .. } => array[0],
-            _ => unreachable!(),
-        };
+        let return_element = main.dfg.get_array_constant(return_value_id).unwrap().0[0];
+
         // The return element is expected to refer to the new add instruction result.
         assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
     }
