@@ -14,7 +14,7 @@ The [`aztec3-circuits`](https://github.com/AztecProtocol/aztec3-packages) circui
 
 - cmake >= 3.24
 - Ninja (used by the presets as the default generator)
-- clang15
+- clang16
 - clang-format
 - wasm-opt (part of the [Binaryen](https://github.com/WebAssembly/binaryen) toolkit)
 - [wasmtime](https://docs.wasmtime.dev/cli-install.html) for running tests in a wasm environment
@@ -161,9 +161,9 @@ It may be useful to view coverage information from within vscode. The `./scripts
    - Open the command pallete (`Ctrl+Shift+P`)
    - Type and select "CMake: Select Configure Preset"
    - Choose a debug preset such as:
-     - "Debugging build with Clang-15"
+     - "Debugging build with Clang-16"
      - "Debugging build for WASM"
-   - Redo this step later to switch between Clang-15/native and wasm
+   - Redo this step later to switch between Clang-16/native and wasm
 1. Go to the "Run and Debug" panel
    - Button (usually on left) that looks like a play button with a bug
    - Or `Ctrl+Shift+D`
@@ -180,7 +180,7 @@ It may be useful to view coverage information from within vscode. The `./scripts
    - Don't commit these changes
 1. [OPTIONAL] set breakpoints in C++ files
 
-> _Note:_ redo steps 3-5 to switch between debugging Clang-15/native test executables and WASM test executables
+> _Note:_ redo steps 3-5 to switch between debugging Clang-16/native test executables and WASM test executables
 
 ---
 
