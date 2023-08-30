@@ -18,11 +18,11 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Build noir-source-resolver
-        working-directory: ./source-resolver
+        working-directory: ./crates/source-resolver
         run: npm run build
 
       - name: Publish to npm (latest tag)
-        working-directory: ./source-resolver
+        working-directory: ./crates/source-resolver
         run: |
           npm run build
           npm publish --tag latest
