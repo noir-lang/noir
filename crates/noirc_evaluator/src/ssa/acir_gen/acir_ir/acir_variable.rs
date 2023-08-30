@@ -284,8 +284,14 @@ impl AcirContext {
         let var_data = &self.vars[&var];
         if let AcirVarData::Const(constant) = var_data {
             // Note that this will return a 0 if the inverse is not available
-            let result_var = self.add_data(AcirVarData::Const(constant.inverse()));
-            return Ok(result_var);
+            let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
+
+            // Check that the inverted var is valid.
+            // This check prevents invalid divisons by zero.
+            let should_be_one = self.mul_var(inverted_var, var)?;
+            self.maybe_eq_predicate(should_be_one, predicate)?;
+
+            return Ok(inverted_var);
         }
 
         // Compute the inverse with brillig code
@@ -300,6 +306,8 @@ impl AcirContext {
         )?;
         let inverted_var = Self::expect_one_var(results);
 
+        // Check that the inverted var is valid.
+        // This check prevents invalid divisons by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.maybe_eq_predicate(should_be_one, predicate)?;
 

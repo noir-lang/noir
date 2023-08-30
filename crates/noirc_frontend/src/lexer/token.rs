@@ -484,6 +484,7 @@ impl AsRef<str> for Attribute {
 pub enum Keyword {
     As,
     Assert,
+    AssertEq,
     Bool,
     Char,
     CompTime,
@@ -523,6 +524,7 @@ impl fmt::Display for Keyword {
         match *self {
             Keyword::As => write!(f, "as"),
             Keyword::Assert => write!(f, "assert"),
+            Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
             Keyword::CompTime => write!(f, "comptime"),
@@ -565,6 +567,7 @@ impl Keyword {
         let keyword = match word {
             "as" => Keyword::As,
             "assert" => Keyword::Assert,
+            "assert_eq" => Keyword::AssertEq,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,
