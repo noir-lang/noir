@@ -76,6 +76,11 @@
       sharedEnvironment = {
         # We enable backtraces on any failure for help with debugging
         RUST_BACKTRACE = "1";
+
+        BARRETENBERG_ARCHIVE = builtins.fetchurl {
+          url = "https://github.com/AztecProtocol/barretenberg/releases/download/barretenberg-v0.4.5/acvm_backend.wasm.tar.gz";
+          sha256 = "sha256:0z24yhvxc0dr13xj7y4xs9p42lzxwpazrmsrdpcgynfajkk6vqy4";
+        };
       };
 
       nativeEnvironment = sharedEnvironment // {
