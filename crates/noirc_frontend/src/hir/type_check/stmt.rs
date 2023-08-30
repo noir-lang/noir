@@ -304,8 +304,6 @@ impl<'interner> TypeChecker<'interner> {
                     };
                     if let Type::Integer(_, bit_count) = annotated_type {
                         let max: u128 = 1 << bit_count;
-                        dbg!(max);
-                        dbg!(rhs_value);
                         let value: u128 = 1 << rhs_value;
                         if value >= max {
                             self.errors.push(TypeCheckError::OverflowingBitShift {
