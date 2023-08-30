@@ -16,12 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup NodeJS
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-          registry-url: "https://registry.npmjs.org"
-
       - name: Install dependencies
         working-directory: ./crates/source-resolver
         run: npm install
