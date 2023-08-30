@@ -19,12 +19,12 @@ That's it...
 
 ## Ok, so how do I try it out?
 
-Well, you can find instructions [at the website](https://up.aztec.network).
+Well, you can find instructions [at the website](https://sandbox.aztec.network).
 
 Or you can just curl the site instead like this:
 
 ```sh
-/bin/bash -c "$(curl -fsSL 'https://up.aztec.network')"
+/bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
 ```
 
 It will download and execute a script invoking docker compose with 2 containers:

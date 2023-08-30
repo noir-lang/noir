@@ -1,7 +1,7 @@
 # Quick start
 
-:::info 
-This guide is meant to be included in the up.aztec.network site and not in the main documentation.
+:::info
+This guide is meant to be included in the sandbox.aztec.network site and not in the main documentation.
 :::
 
 To interact with the sandbox, install the [Aztec CLI](../dev_docs/cli/main.md):

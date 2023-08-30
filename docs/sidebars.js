@@ -314,7 +314,7 @@ const sidebars = {
         id: "dev_docs/wallets/main",
       },
       items: [
-        "dev_docs/wallets/building_a_wallet",
+        "dev_docs/wallets/architecture",
         "dev_docs/wallets/writing_an_account_contract",
       ],
     },
