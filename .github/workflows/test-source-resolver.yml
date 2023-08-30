@@ -26,6 +26,10 @@ jobs:
         working-directory: ./crates/source-resolver
         run: npm install
 
+      - name: Build noir-source-resolver
+        working-directory: ./crates/source-resolver
+        run: npm run build
+
       - name: Run tests
         working-directory: ./crates/source-resolver
         run: npm run test
