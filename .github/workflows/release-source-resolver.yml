@@ -1,0 +1,46 @@
+name: Release Source Resolver
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "crates/source-resolver/**"
+
+jobs:
+  release-please:
+    name: Create Release
+    outputs:
+      release-pr: ${{ steps.release.outputs.pr }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run release-please
+        id: release
+        uses: google-github-actions/release-please-action@v3
+        with:
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+          command: manifest
+
+  publish-source-resolver:
+    name: Publish Source Resolver to NPM
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build noir-source-resolver
+        working-directory: ./crates/source-resolver
+        run: npm run build
+
+      - name: Update package.json version
+        working-directory: ./crates/source-resolver
+        run: npm version ${{ needs.release-please.outputs.tag-name }} --no-git-tag-version
+
+      - name: Publish to npm (latest tag)
+        working-directory: ./crates/source-resolver
+        run: npm publish --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
