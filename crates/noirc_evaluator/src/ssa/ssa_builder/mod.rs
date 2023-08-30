@@ -238,8 +238,8 @@ impl FunctionBuilder {
     }
 
     /// Insert a constrain instruction at the end of the current block.
-    pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+    pub(crate) fn insert_constrain(&mut self, lhs: ValueId, rhs: ValueId) {
+        self.insert_instruction(Instruction::Constrain(lhs, rhs), None);
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn insert_constant_call() {
-        // `bits` should be an array of constants [1, 1, 1, 0...]:
+        // `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
         // let x = 7;
         // let bits = x.to_le_bits(8);
         let func_id = Id::test_new(0);
@@ -404,7 +404,7 @@ mod tests {
             Value::NumericConstant { constant, .. } => *constant,
             _ => panic!(),
         };
-        assert_eq!(slice_len, FieldElement::from(256u128));
+        assert_eq!(slice_len, FieldElement::from(8_u128));
 
         let slice = match &builder.current_function.dfg[call_results[1]] {
             Value::Array { array, .. } => array,

@@ -1,0 +1,7 @@
+[package]
+name = "div_by_zero_numerator_witness"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.3"
+
+[dependencies]

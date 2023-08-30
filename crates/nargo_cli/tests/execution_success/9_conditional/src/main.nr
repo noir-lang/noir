@@ -79,7 +79,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             }
         }
     }
-    assert(c1==1);
+    assert(c1 == 1);
 
     //Regression for Issue #579
     let result1_true = test(true);
@@ -143,7 +143,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     }
     assert(y == result[0]);
     c = sort(c);
-    assert(c[0]==0);
+    assert(c[0] == 0);
 
     //test 1
     let mut x: u32 = 0;

@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main() -> pub Field {
     let f = if 3 * 7 > 200 as u32 { foo } else { bar };
     assert(f()[1] == 2);
@@ -46,14 +44,21 @@ fn main() -> pub Field {
 
 /// Test the array functions in std::array
 fn test_array_functions() {
+    let two = 2; // giving this a name, to ensure that the Option functions work with closures
+
     let myarray: [i32; 3] = [1, 2, 3];
     assert(myarray.any(|n| n > 2));
+    assert(myarray.any(|n| n > two));
 
-    let evens: [i32; 3] = [2, 4, 6];
+    let evens: [i32; 3] = myarray.map(|n| n * two); // [2, 4, 6]
+
     assert(evens.all(|n| n > 1));
+    assert(evens.all(|n| n >= two));
 
     assert(evens.fold(0, |a, b| a + b) == 12);
+    assert(evens.fold(0, |a, b| a + b + two) == 18);
     assert(evens.reduce(|a, b| a + b) == 12);
+    assert(evens.reduce(|a, b| a + b + two) == 16);
 
     // TODO: is this a sort_via issue with the new backend,
     // or something more general?
@@ -70,6 +75,7 @@ fn test_array_functions() {
     // assert(descending == [3, 2, 1]);
 
     assert(evens.map(|n| n / 2) == myarray);
+    assert(evens.map(|n| n / two) == myarray);
 }
 
 fn foo() -> [u32; 2] {

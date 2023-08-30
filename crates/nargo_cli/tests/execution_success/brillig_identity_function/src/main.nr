@@ -1,5 +1,3 @@
-use dep::std;
-
 struct myStruct {
     foo: Field,
     foo_arr: [Field; 2],

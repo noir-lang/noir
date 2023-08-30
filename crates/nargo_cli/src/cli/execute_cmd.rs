@@ -90,6 +90,9 @@ fn execute_package<B: Backend + acvm::BlackBoxFunctionSolver>(
     Ok((return_value, solved_witness))
 }
 
+/// There are certain errors that contain an [acvm::pwg::ErrorLocation].
+/// We need to determine whether the error location has been resolving during execution.
+/// If the location has been resolved we return the contained [OpcodeLocation].
 fn extract_opcode_error_from_nargo_error(
     nargo_err: &NargoError,
 ) -> Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)> {
@@ -115,7 +118,10 @@ fn extract_opcode_error_from_nargo_error(
     }
 }
 
-fn report_opcode_error(
+/// Resolve an [OpcodeLocation] using debug information generated during compilation
+/// to determine an opcode's call stack. Then report the error using the resolved
+/// call stack and any other relevant error information returned from the ACVM.
+fn report_error_with_opcode_location(
     opcode_err_info: Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)>,
     debug: &DebugInfo,
     context: &Context,
@@ -125,29 +131,31 @@ fn report_opcode_error(
             // The location of the error itself will be the location at the top
             // of the call stack (the last item in the Vec).
             if let Some(location) = locations.last() {
-                match opcode_err {
+                let message = match opcode_err {
                     acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
                         index,
                         array_size,
                         ..
                     } => {
-                        let message = format!(
+                        format!(
                             "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
-                        );
-                        CustomDiagnostic::simple_error(message, String::new(), location.span)
-                            .in_file(location.file)
-                            .with_call_stack(locations)
-                            .report(&context.file_manager, false);
+                        )
                     }
                     acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
-                        let message = "Failed constraint".into();
-                        CustomDiagnostic::simple_error(message, String::new(), location.span)
-                            .in_file(location.file)
-                            .with_call_stack(locations)
-                            .report(&context.file_manager, false);
+                        "Failed constraint".into()
                     }
-                    _ => (),
-                }
+                    _ => {
+                        // All other errors that do not have corresponding opcode locations
+                        // should not be reported in this method.
+                        // If an error with an opcode location is not handled in this match statement
+                        // the basic message attached to the original error from the ACVM should be reported.
+                        return;
+                    }
+                };
+                CustomDiagnostic::simple_error(message, String::new(), location.span)
+                    .in_file(location.file)
+                    .with_call_stack(locations)
+                    .report(&context.file_manager, false);
             }
         }
     }
@@ -167,7 +175,7 @@ pub(crate) fn execute_program<B: Backend + acvm::BlackBoxFunctionSolver>(
         Err(err) => {
             if let Some((debug, context)) = debug_data {
                 let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
-                report_opcode_error(opcode_err_info, &debug, &context);
+                report_error_with_opcode_location(opcode_err_info, &debug, &context);
             }
 
             Err(crate::errors::CliError::NargoError(err))

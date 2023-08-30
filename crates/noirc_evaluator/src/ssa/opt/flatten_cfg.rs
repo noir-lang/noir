@@ -769,16 +769,25 @@ impl<'f> Context<'f> {
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(value) => {
-                    let mul = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, value, condition),
+                Instruction::Constrain(lhs, rhs) => {
+                    // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
+
+                    // Condition needs to be cast to argument type in order to multiply them together.
+                    let argument_type = self.inserter.function.dfg.type_of_value(lhs);
+                    let casted_condition = self.insert_instruction(
+                        Instruction::Cast(condition, argument_type),
                         call_stack.clone(),
                     );
-                    let eq = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Eq, mul, condition),
+
+                    let lhs = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
+                        call_stack.clone(),
+                    );
+                    let rhs = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
                         call_stack,
                     );
-                    Instruction::Constrain(eq)
+                    Instruction::Constrain(lhs, rhs)
                 }
                 Instruction::Store { address, value } => {
                     self.remember_store(address, value);
@@ -890,11 +899,12 @@ mod test {
 
         let v0 = builder.add_parameter(Type::bool());
         let v1 = builder.add_parameter(Type::bool());
+        let v_true = builder.numeric_constant(true, Type::bool());
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        builder.insert_constrain(v1);
+        builder.insert_constrain(v1, v_true);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
@@ -1345,14 +1355,15 @@ mod test {
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
-        let v_false = builder.numeric_constant(0_u128, Type::bool());
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v_false = builder.numeric_constant(false, Type::bool());
         builder.terminate_with_jmpif(v_false, b1, b2);
 
         builder.switch_to_block(b1);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
-        builder.insert_constrain(v_false); // should not be removed
+        builder.insert_constrain(v_false, v_true); // should not be removed
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1360,7 +1371,7 @@ mod test {
 
         // Assert we have not incorrectly removed a constraint:
         use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_, _)));
         assert_eq!(constrain_count, 1);
     }
 
@@ -1433,9 +1444,9 @@ mod test {
         builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b3);
-        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
-        let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
-        builder.insert_constrain(v12);
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
+        builder.insert_constrain(v12, v_true);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1444,9 +1455,11 @@ mod test {
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(value) = main.dfg[*instruction] {
-                if let Some(constant) = main.dfg.get_numeric_constant(value) {
-                    assert!(constant.is_one());
+            if let Instruction::Constrain(lhs, rhs) = main.dfg[*instruction] {
+                if let (Some(lhs), Some(rhs)) =
+                    (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
+                {
+                    assert_eq!(lhs, rhs);
                 }
                 constrain_count += 1;
             }

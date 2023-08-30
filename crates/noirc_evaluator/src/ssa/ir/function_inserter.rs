@@ -30,7 +30,7 @@ impl<'f> FunctionInserter<'f> {
     pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
         value = self.function.dfg.resolve(value);
         match self.values.get(&value) {
-            Some(value) => *value,
+            Some(value) => self.resolve(*value),
             None => match &self.function.dfg[value] {
                 super::value::Value::Array { array, typ } => {
                     let array = array.clone();
@@ -47,12 +47,22 @@ impl<'f> FunctionInserter<'f> {
 
     /// Insert a key, value pair if the key isn't already present in the map
     pub(crate) fn try_map_value(&mut self, key: ValueId, value: ValueId) {
-        self.values.entry(key).or_insert(value);
+        if key == value {
+            // This case is technically not needed since try_map_value isn't meant to change
+            // existing entries, but we should never have a value in the map referring to itself anyway.
+            self.values.remove(&key);
+        } else {
+            self.values.entry(key).or_insert(value);
+        }
     }
 
     /// Insert a key, value pair in the map
     pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
-        self.values.insert(key, value);
+        if key == value {
+            self.values.remove(&key);
+        } else {
+            self.values.insert(key, value);
+        }
     }
 
     pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
@@ -62,9 +72,27 @@ impl<'f> FunctionInserter<'f> {
         )
     }
 
-    pub(crate) fn push_instruction(&mut self, id: InstructionId, block: BasicBlockId) {
+    /// Maps a terminator in place, replacing any ValueId in the terminator with the
+    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+    pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
+        let mut terminator = self.function.dfg[block].take_terminator();
+        terminator.mutate_values(|value| self.resolve(value));
+        self.function.dfg[block].set_terminator(terminator);
+    }
+
+    /// Push a new instruction to the given block and return its new InstructionId.
+    /// If the instruction was simplified out of the program, None is returned.
+    pub(crate) fn push_instruction(
+        &mut self,
+        id: InstructionId,
+        block: BasicBlockId,
+    ) -> Option<InstructionId> {
         let (instruction, location) = self.map_instruction(id);
-        self.push_instruction_value(instruction, id, block, location);
+
+        match self.push_instruction_value(instruction, id, block, location) {
+            InsertInstructionResult::Results(new_id, _) => Some(new_id),
+            _ => None,
+        }
     }
 
     pub(crate) fn push_instruction_value(
@@ -110,7 +138,7 @@ impl<'f> FunctionInserter<'f> {
                     values.insert(*old_result, *new_result);
                 }
             }
-            InsertInstructionResult::Results(new_results) => {
+            InsertInstructionResult::Results(_, new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(*new_results) {
                     values.insert(*old_result, *new_result);
                 }

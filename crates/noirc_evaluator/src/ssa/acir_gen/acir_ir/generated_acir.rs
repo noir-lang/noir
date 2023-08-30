@@ -3,13 +3,12 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    brillig::brillig_gen::brillig_directive,
+    brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
     errors::{InternalError, RuntimeError},
     ssa::ir::dfg::CallStack,
 };
 
 use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
@@ -148,47 +147,86 @@ impl GeneratedAcir {
                 BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: inputs[0].clone(), outputs },
-            BlackBoxFunc::Blake2s => {
-                BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
+            BlackBoxFunc::SHA256 => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
+                BlackBoxFuncCall::SHA256 { inputs, outputs }
             }
-            BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
-                inputs: inputs[0].clone(),
-                output: outputs[0],
-            },
-            BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
-                public_key_x: inputs[0][0],
-                public_key_y: inputs[1][0],
-                // Schnorr signature is an r & s, 32 bytes each
-                signature: inputs[2].clone(),
-                message: inputs[3].clone(),
-                output: outputs[0],
-            },
-            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
-                inputs: inputs[0].clone(),
-                outputs: (outputs[0], outputs[1]),
-                domain_separator: constants[0].to_u128() as u32,
-            },
-            BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
-                // 32 bytes for each public key co-ordinate
-                public_key_x: inputs[0].clone(),
-                public_key_y: inputs[1].clone(),
-                // (r,s) are both 32 bytes each, so signature
-                // takes up 64 bytes
-                signature: inputs[2].clone(),
-                hashed_message: inputs[3].clone(),
-                output: outputs[0],
-            },
-            BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
-                // 32 bytes for each public key co-ordinate
-                public_key_x: inputs[0].clone(),
-                public_key_y: inputs[1].clone(),
-                // (r,s) are both 32 bytes each, so signature
-                // takes up 64 bytes
-                signature: inputs[2].clone(),
-                hashed_message: inputs[3].clone(),
-                output: outputs[0],
-            },
+            BlackBoxFunc::Blake2s => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
+                BlackBoxFuncCall::Blake2s { inputs, outputs }
+            }
+            BlackBoxFunc::HashToField128Security => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
+                BlackBoxFuncCall::HashToField128Security { inputs, output: outputs[0] }
+            }
+            BlackBoxFunc::SchnorrVerify => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if inputs.len() > 4 { inputs[4].clone() } else { inputs[3].clone() };
+                BlackBoxFuncCall::SchnorrVerify {
+                    public_key_x: inputs[0][0],
+                    public_key_y: inputs[1][0],
+                    // Schnorr signature is an r & s, 32 bytes each
+                    signature: inputs[2].clone(),
+                    message,
+                    output: outputs[0],
+                }
+            }
+            BlackBoxFunc::Pedersen => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
+                BlackBoxFuncCall::Pedersen {
+                    inputs,
+                    outputs: (outputs[0], outputs[1]),
+                    domain_separator: constants[0].to_u128() as u32,
+                }
+            }
+            BlackBoxFunc::EcdsaSecp256k1 => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let hashed_message =
+                    if inputs.len() > 4 { inputs[4].clone() } else { inputs[3].clone() };
+                BlackBoxFuncCall::EcdsaSecp256k1 {
+                    // 32 bytes for each public key co-ordinate
+                    public_key_x: inputs[0].clone(),
+                    public_key_y: inputs[1].clone(),
+                    // (r,s) are both 32 bytes each, so signature
+                    // takes up 64 bytes
+                    signature: inputs[2].clone(),
+                    hashed_message,
+                    output: outputs[0],
+                }
+            }
+            BlackBoxFunc::EcdsaSecp256r1 => {
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let hashed_message =
+                    if inputs.len() > 4 { inputs[4].clone() } else { inputs[3].clone() };
+                BlackBoxFuncCall::EcdsaSecp256r1 {
+                    // 32 bytes for each public key co-ordinate
+                    public_key_x: inputs[0].clone(),
+                    public_key_y: inputs[1].clone(),
+                    // (r,s) are both 32 bytes each, so signature
+                    // takes up 64 bytes
+                    signature: inputs[2].clone(),
+                    hashed_message,
+                    output: outputs[0],
+                }
+            }
             BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                 input: inputs[0][0],
                 outputs: (outputs[0], outputs[1]),
@@ -204,11 +242,14 @@ impl GeneratedAcir {
                         });
                     }
                 };
-                BlackBoxFuncCall::Keccak256VariableLength {
-                    inputs: inputs[0].clone(),
-                    var_message_size,
-                    outputs,
-                }
+
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                // `inputs` is cloned into a vector before being popped to find the `var_message_size`
+                // so we still check `inputs` against its original size passed into `call_black_box`
+                let inputs = if inputs.len() > 2 { inputs[1].clone() } else { inputs[0].clone() };
+                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let has_previous_aggregation = self.opcodes.iter().any(|op| {
@@ -425,6 +466,16 @@ impl GeneratedAcir {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
+
+        // Check that we the rhs is not zero.
+        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
+        //
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the rhs must not be 0.
+        let rhs_is_zero = self.is_equal(&Expression::zero(), rhs);
+        let rhs_is_not_zero = &self.mul_with_witness(&rhs_is_zero.into(), predicate)
+            - &self.mul_with_witness(&Expression::zero(), predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(rhs_is_not_zero));
 
         // maximum bit size for q and for [r and rhs]
         let mut max_q_bits = max_bit_size;
@@ -788,7 +839,7 @@ impl GeneratedAcir {
     pub(crate) fn brillig(
         &mut self,
         predicate: Option<Expression>,
-        code: Vec<BrilligOpcode>,
+        generated_brillig: GeneratedBrillig,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
     ) {
@@ -796,10 +847,16 @@ impl GeneratedAcir {
             inputs,
             outputs,
             foreign_call_results: Vec::new(),
-            bytecode: code,
+            bytecode: generated_brillig.byte_code,
             predicate,
         });
         self.push_opcode(opcode);
+        for (brillig_index, call_stack) in generated_brillig.locations {
+            self.locations.insert(
+                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
+                call_stack,
+            );
+        }
     }
 
     /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr

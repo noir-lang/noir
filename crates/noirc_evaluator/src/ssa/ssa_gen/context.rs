@@ -247,7 +247,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
     }
 
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs/2^rhs
+    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
@@ -306,6 +306,7 @@ impl<'a> FunctionContext<'a> {
                 if operator_requires_swapped_operands(operator) {
                     std::mem::swap(&mut lhs, &mut rhs);
                 }
+
                 self.builder.set_location(location).insert_binary(lhs, op, rhs)
             }
         };
