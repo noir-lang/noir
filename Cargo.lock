@@ -5,6 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "acir_field",
  "bincode",
@@ -17,6 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -29,6 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -64,6 +67,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "acir",
  "blake2",
@@ -77,6 +81,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "acir",
 ]
@@ -527,6 +532,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "acir_field",
  "serde",
@@ -535,6 +541,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.22.0"
+source = "git+https://github.com/noir-lang/acvm?branch=arv/assert_msgs_0.22#4a94cb5be5b8bf10942ae33a5114abdac220beb6"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",

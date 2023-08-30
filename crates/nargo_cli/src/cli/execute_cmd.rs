@@ -1,11 +1,11 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
-use acvm::pwg::ErrorLocation;
+use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::errors::{ExecutionError, NargoError};
 use nargo::package::Package;
-use nargo::NargoError;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
@@ -93,7 +93,12 @@ fn execute_package<B: Backend>(
 
 fn extract_opcode_location_from_nargo_error(nargo_err: &NargoError) -> Option<OpcodeLocation> {
     match nargo_err {
-        NargoError::UnsatisfiedConstrain(_, ErrorLocation::Resolved(location)) => Some(*location),
+        NargoError::ExecutionError(
+            ExecutionError::AssertionFailed(_, opcode_location)
+            | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
+                opcode_location: ErrorLocation::Resolved(opcode_location),
+            }),
+        ) => Some(*opcode_location),
         _ => None,
     }
 }

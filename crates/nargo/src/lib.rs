@@ -9,7 +9,7 @@
 
 pub mod artifacts;
 pub mod constants;
-mod errors;
+pub mod errors;
 pub mod ops;
 pub mod package;
 pub mod workspace;

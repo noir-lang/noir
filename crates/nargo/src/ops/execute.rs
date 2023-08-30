@@ -2,6 +2,7 @@ use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
+use crate::errors::ExecutionError;
 use crate::NargoError;
 
 use super::foreign_calls::ForeignCall;
@@ -23,18 +24,17 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
                 unreachable!("Execution should not stop while in `InProgress` state.")
             }
             ACVMStatus::Failure(error) => {
-                return Err(match error {
-                    OpcodeResolutionError::UnsatisfiedConstrain { opcode_location } => {
-                        let assert_message = match opcode_location {
-                            ErrorLocation::Resolved(opcode_location) => {
-                                circuit.assert_messages.get(&opcode_location).cloned()
-                            }
-                            _ => None,
-                        };
-                        NargoError::UnsatisfiedConstrain(assert_message, opcode_location)
-                    }
-                    _ => NargoError::SolvingError(error),
-                })
+                return Err(NargoError::ExecutionError(match error {
+                    OpcodeResolutionError::UnsatisfiedConstrain {
+                        opcode_location: ErrorLocation::Resolved(opcode_location),
+                    } => match circuit.assert_messages.get(&opcode_location) {
+                        Some(assert_message) => {
+                            ExecutionError::AssertionFailed(assert_message.clone(), opcode_location)
+                        }
+                        None => ExecutionError::SolvingError(error),
+                    },
+                    _ => ExecutionError::SolvingError(error),
+                }))
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;
