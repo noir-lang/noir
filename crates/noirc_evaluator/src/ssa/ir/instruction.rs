@@ -214,6 +214,31 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
+    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
+    /// i.e. there are no interactions with memory.
+    ///
+    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
+    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+
+            // Unclear why this instruction causes problems.
+            Truncate { .. } => false,
+
+            // These either have side-effects or interact with memory
+            Constrain(_, _) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
+                false
+            }
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+        }
+    }
+
     pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
@@ -624,6 +649,12 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+            // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+            // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
+            // and division by zero should be handled by laying down constraints during ACIR generation.
+            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
+                return SimplifyResult::None;
+            }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
                 Some(value) => SimplifyResult::SimplifiedTo(value),
                 None => SimplifyResult::None,
@@ -765,6 +796,16 @@ impl Binary {
 
                 let lhs = truncate(lhs.try_into_u128()?, *bit_size);
                 let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+
+                // The divisor is being truncated into the type of the operand, which can potentially
+                // lead to the rhs being zero.
+                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                // and the operation should be handled by ACIR generation.
+                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
+                    return None;
+                }
+
                 let result = function(lhs, rhs);
                 truncate(result, *bit_size).into()
             }

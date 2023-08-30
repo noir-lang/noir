@@ -345,15 +345,6 @@ fn constant_to_radix(
         limbs.reverse();
     }
 
-    // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
-    // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
-    // become zero padding.
-    let max_decomposable_bits: u32 = 256;
-    let limb_count_with_padding = max_decomposable_bits / bit_size;
-    while limbs.len() < limb_count_with_padding as usize {
-        limbs.push(FieldElement::zero());
-    }
-
     make_constant_array(dfg, limbs, Type::unsigned(bit_size), block)
 }
 

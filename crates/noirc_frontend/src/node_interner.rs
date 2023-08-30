@@ -7,7 +7,7 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
@@ -70,6 +70,7 @@ pub struct NodeInterner {
     // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
     // We'd just lookup their methods as needed through the NodeInterner.
     traits: HashMap<TraitId, Shared<Trait>>,
+
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
@@ -326,6 +327,26 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
+    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        self.traits.insert(
+            type_id,
+            Shared::new(Trait::new(
+                type_id,
+                typ.trait_def.name.clone(),
+                typ.trait_def.span,
+                Vec::new(),
+                vecmap(&typ.trait_def.generics, |_| {
+                    // Temporary type variable ids before the trait is resolved to its actual ids.
+                    // This lets us record how many arguments the type expects so that other types
+                    // can refer to it with generic arguments before the generic parameters themselves
+                    // are resolved.
+                    let id = TypeVariableId(0);
+                    (id, Shared::new(TypeBinding::Unbound(id)))
+                }),
+            )),
+        );
+    }
+
     pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
         self.structs.insert(
             type_id,
@@ -365,6 +386,11 @@ impl NodeInterner {
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
+        f(&mut value);
+    }
+
+    pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
+        let mut value = self.traits.get_mut(&trait_id).unwrap().borrow_mut();
         f(&mut value);
     }
 

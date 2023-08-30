@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn insert_constant_call() {
-        // `bits` should be an array of constants [1, 1, 1, 0...]:
+        // `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
         // let x = 7;
         // let bits = x.to_le_bits(8);
         let func_id = Id::test_new(0);
@@ -409,7 +409,7 @@ mod tests {
             Value::NumericConstant { constant, .. } => *constant,
             _ => panic!(),
         };
-        assert_eq!(slice_len, FieldElement::from(256u128));
+        assert_eq!(slice_len, FieldElement::from(8_u128));
 
         let slice = builder.current_function.dfg.get_array_constant(call_results[1]).unwrap().0;
 

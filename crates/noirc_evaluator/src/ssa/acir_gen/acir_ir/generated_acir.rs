@@ -467,6 +467,16 @@ impl GeneratedAcir {
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
 
+        // Check that we the rhs is not zero.
+        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
+        //
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the rhs must not be 0.
+        let rhs_is_zero = self.is_equal(&Expression::zero(), rhs);
+        let rhs_is_not_zero = &self.mul_with_witness(&rhs_is_zero.into(), predicate)
+            - &self.mul_with_witness(&Expression::zero(), predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(rhs_is_not_zero));
+
         // maximum bit size for q and for [r and rhs]
         let mut max_q_bits = max_bit_size;
         let mut max_rhs_bits = max_bit_size;
