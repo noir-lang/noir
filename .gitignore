@@ -3,6 +3,7 @@
 examples/**/target/
 examples/9
 node_modules
+source_resolver/node_modules
 pkg/
 
 # Nix stuff
