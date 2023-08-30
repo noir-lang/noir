@@ -97,7 +97,7 @@ contract Parent {
         // Enqueue the first public call
         context.call_public_function(targetContract, targetSelector, [targetValue]);
         // Enqueue the second public call
-        context.call_public_function(targetContract, targetSelector, [targetValue]);
+        context.call_public_function(targetContract, targetSelector, [targetValue + 1]);
     }
 
     // Private function to enqueue a call to the pubEntryPoint function of this same contract, passing the target arguments provided

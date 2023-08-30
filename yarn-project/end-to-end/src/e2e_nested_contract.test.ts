@@ -1,12 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
-import { ContractAbi } from '@aztec/foundation/abi';
+import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { toBigInt } from '@aztec/foundation/serialize';
-import { ChildContractAbi, ParentContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { AztecRPC, CompleteAddress } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -35,40 +33,18 @@ describe('e2e_nested_contract', () => {
     let childContract: ChildContract;
 
     beforeEach(async () => {
-      parentContract = (await deployContract(ParentContractAbi)) as ParentContract;
-      childContract = (await deployContract(ChildContractAbi)) as ChildContract;
+      parentContract = await ParentContract.deploy(wallet).send().deployed();
+      childContract = await ChildContract.deploy(wallet).send().deployed();
     }, 100_000);
-
-    const deployContract = async (abi: ContractAbi) => {
-      logger(`Deploying L2 contract ${abi.name}...`);
-      const deployer = new ContractDeployer(abi, aztecRpcServer);
-      const tx = deployer.deploy().send();
-
-      await tx.isMined({ interval: 0.1 });
-
-      const receipt = await tx.getReceipt();
-      const contract = await Contract.at(receipt.contractAddress!, abi, wallet);
-      logger(`L2 contract ${abi.name} deployed at ${contract.address}`);
-      return contract;
-    };
-
-    const addressToField = (address: AztecAddress): bigint => Fr.fromBuffer(address.toBuffer()).value;
 
     const getChildStoredValue = (child: { address: AztecAddress }) =>
       aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
 
-    /**
-     * Milestone 3.
-     */
     it('performs nested calls', async () => {
-      const tx = parentContract.methods
+      await parentContract.methods
         .entryPoint(childContract.address, childContract.methods.value.selector.toField())
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-
-      expect(receipt.status).toBe(TxStatus.MINED);
+        .send({ origin: sender })
+        .wait();
     }, 100_000);
 
     it('fails simulation if calling a function not allowed to be called externally', async () => {
@@ -80,25 +56,17 @@ describe('e2e_nested_contract', () => {
     }, 100_000);
 
     it('performs public nested calls', async () => {
-      const tx = parentContract.methods
+      await parentContract.methods
         .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector.toField(), 42n)
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-
-      expect(receipt.status).toBe(TxStatus.MINED);
+        .send({ origin: sender })
+        .wait();
     }, 100_000);
 
     it('enqueues a single public call', async () => {
-      const tx = parentContract.methods
+      await parentContract.methods
         .enqueueCallToChild(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-      expect(receipt.status).toBe(TxStatus.MINED);
-
+        .send({ origin: sender })
+        .wait();
       expect(await getChildStoredValue(childContract)).toEqual(42n);
     }, 100_000);
 
@@ -110,70 +78,37 @@ describe('e2e_nested_contract', () => {
       ).rejects.toThrowError(/Assertion failed in public execution: '.*'/);
     }, 100_000);
 
-    // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"
-    // See https://github.com/noir-lang/noir/issues/1347
-    // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
-    it.skip('enqueues multiple public calls', async () => {
-      const tx = parentContract.methods
-        .enqueueCallToChildTwice(
-          addressToField(childContract.address),
-          childContract.methods.pubIncValue.selector.value,
-          42n,
-        )
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-      expect(receipt.status).toBe(TxStatus.MINED);
-
+    it('enqueues multiple public calls', async () => {
+      await parentContract.methods
+        .enqueueCallToChildTwice(childContract.address, childContract.methods.pubIncValue.selector.value, 42n)
+        .send({ origin: sender })
+        .wait();
       expect(await getChildStoredValue(childContract)).toEqual(85n);
     }, 100_000);
 
     it('enqueues a public call with nested public calls', async () => {
-      const tx = parentContract.methods
+      await parentContract.methods
         .enqueueCallToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-      expect(receipt.status).toBe(TxStatus.MINED);
-
+        .send({ origin: sender })
+        .wait();
       expect(await getChildStoredValue(childContract)).toEqual(42n);
     }, 100_000);
 
-    // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"
-    // See https://github.com/noir-lang/noir/issues/1347
-    // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
-    it.skip('enqueues multiple public calls with nested public calls', async () => {
-      const tx = parentContract.methods
+    it('enqueues multiple public calls with nested public calls', async () => {
+      await parentContract.methods
         .enqueueCallsToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-      expect(receipt.status).toBe(TxStatus.MINED);
-
-      expect(await getChildStoredValue(childContract)).toEqual(84n);
+        .send({ origin: sender })
+        .wait();
+      expect(await getChildStoredValue(childContract)).toEqual(85n);
     }, 100_000);
 
     // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
-    // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"
-    // See https://github.com/noir-lang/noir/issues/1347
-    // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
-    it.skip('reads fresh value after write within the same tx', async () => {
-      const tx = parentContract.methods
-        .pubEntryPointTwice(
-          addressToField(childContract.address),
-          childContract.methods.pubIncValue.selector.value,
-          42n,
-        )
-        .send({ origin: sender });
-
-      await tx.isMined({ interval: 0.1 });
-      const receipt = await tx.getReceipt();
-
-      expect(receipt.status).toBe(TxStatus.MINED);
-      expect(await getChildStoredValue(childContract)).toEqual(85n);
+    it('reads fresh value after write within the same tx', async () => {
+      await parentContract.methods
+        .pubEntryPointTwice(childContract.address, childContract.methods.pubIncValue.selector.value, 42n)
+        .send({ origin: sender })
+        .wait();
+      expect(await getChildStoredValue(childContract)).toEqual(84n);
     }, 100_000);
   });
 
