@@ -17,9 +17,13 @@ jobs:
           node-version: "18"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Build noir-source-resolver
+        working-directory: ./source-resolver
+        run: npm run build
+
       - name: Publish to npm (latest tag)
+        working-directory: ./source-resolver
         run: |
-          cd source-resolver
           npm run build
           npm publish --tag latest
         env:
