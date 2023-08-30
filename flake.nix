@@ -287,11 +287,9 @@
         default = noir-native;
 
         inherit noir-native;
-        inherit noir-wasm;
 
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
-        inherit wasm-cargo-artifacts;
         inherit noir-wasm-cargo-artifacts;
       };
 
