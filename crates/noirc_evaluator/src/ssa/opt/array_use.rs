@@ -38,14 +38,12 @@ fn last_use(
     for instruction_id in block.instructions() {
         match &dfg[*instruction_id] {
             Instruction::ArrayGet { array, .. } | Instruction::ArraySet { array, .. } => {
-                let array = dfg.resolve(*array);
-                array_def.insert(array, *instruction_id);
+                array_def.insert(*array, *instruction_id);
             }
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
-                    let resolved_arg = dfg.resolve(*argument);
-                    if matches!(dfg[resolved_arg], Value::Array { .. }) {
-                        array_def.insert(resolved_arg, *instruction_id);
+                    if matches!(dfg[*argument], Value::Array { .. }) {
+                        array_def.insert(*argument, *instruction_id);
                     }
                 }
             }

@@ -355,7 +355,7 @@ impl Instruction {
             Instruction::Binary(binary) => binary.simplify(dfg),
             Instruction::Cast(value, typ) => simplify_cast(*value, typ, dfg),
             Instruction::Not(value) => {
-                match &dfg[dfg.resolve(*value)] {
+                match &dfg[*value] {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
@@ -375,7 +375,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs) => {
-                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
+                if *lhs == *rhs {
                     // Remove trivial case `assert_eq(x, x)`
                     SimplifyResult::Remove
                 } else {
@@ -685,7 +685,7 @@ impl Binary {
                 }
             }
             BinaryOp::Eq => {
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if self.lhs == self.rhs {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
@@ -707,7 +707,7 @@ impl Binary {
                 }
             }
             BinaryOp::Lt => {
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if self.lhs == self.rhs {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -722,7 +722,7 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if self.lhs == self.rhs {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
                 if operand_type == Type::bool() {
@@ -738,7 +738,7 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if self.lhs == self.rhs {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
@@ -749,7 +749,7 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if self.lhs == self.rhs {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }

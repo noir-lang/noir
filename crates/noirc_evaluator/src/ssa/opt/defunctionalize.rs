@@ -132,9 +132,11 @@ impl DefunctionalizationContext {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
                         if !call_target_values.contains(&value_id) {
-                            let new_value =
+                            let _new_value =
                                 func.dfg.make_constant(function_id_to_field(*id), Type::field());
-                            func.dfg.set_value_from_id(value_id, new_value);
+
+                            // func.dfg.set_value_from_id(value_id, new_value);
+                            todo!("defunctionalization now needs to manually go through each instruction")
                         }
                     }
                     // If the value is a function used as value, just change the type of it

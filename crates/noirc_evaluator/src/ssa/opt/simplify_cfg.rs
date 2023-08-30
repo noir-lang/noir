@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::CallStack, function::Function,
-        instruction::TerminatorInstruction,
+        function_inserter::FunctionInserter, instruction::TerminatorInstruction,
     },
     ssa_gen::Ssa,
 };
@@ -60,7 +60,7 @@ fn simplify_function(function: &mut Function) {
             drop(predecessors);
 
             // If the block has only 1 predecessor, we can safely remove its block parameters
-            remove_block_parameters(function, block, predecessor);
+            let inserter = remove_block_parameters(function, block, predecessor);
 
             // Note: this function relies on `remove_block_parameters` being called first.
             // Otherwise the inlined block will refer to parameters that no longer exist.
@@ -68,7 +68,7 @@ fn simplify_function(function: &mut Function) {
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, &mut cfg, block, predecessor);
+            try_inline_into_predecessor(inserter, &mut cfg, block, predecessor);
         }
     }
 }
@@ -100,11 +100,13 @@ fn check_for_constant_jmpif(
 /// Currently, if this function is needed, `try_inline_into_predecessor` will also always apply,
 /// although in the future it is possible for only this function to apply if jmpif instructions
 /// with block arguments are ever added.
+///
+/// Returns a mapping from the old parameter IDs to their new values
 fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-) {
+) -> FunctionInserter {
     let block = &mut function.dfg[block];
 
     if !block.parameters().is_empty() {
@@ -119,9 +121,15 @@ fn remove_block_parameters(
         };
 
         assert_eq!(block_params.len(), jump_args.len());
-        for (param, arg) in block_params.iter().zip(jump_args) {
-            function.dfg.set_value_from_id(*param, arg);
+        let mut inserter = FunctionInserter::new(function);
+
+        for (param, arg) in block_params.into_iter().zip(jump_args) {
+            inserter.map_value(param, arg)
         }
+
+        inserter
+    } else {
+        FunctionInserter::new(function)
     }
 }
 
@@ -130,7 +138,7 @@ fn remove_block_parameters(
 /// This will only occur if the predecessor's only successor is the given block.
 /// It is also expected that the given block's only predecessor is the given one.
 fn try_inline_into_predecessor(
-    function: &mut Function,
+    mut inserter: FunctionInserter,
     cfg: &mut ControlFlowGraph,
     block: BasicBlockId,
     predecessor: BasicBlockId,
@@ -138,10 +146,17 @@ fn try_inline_into_predecessor(
     let mut successors = cfg.successors(predecessor);
     if successors.len() == 1 && successors.next() == Some(block) {
         drop(successors);
-        function.dfg.inline_block(block, predecessor);
 
-        cfg.recompute_block(function, block);
-        cfg.recompute_block(function, predecessor);
+        for instruction in inserter.function.dfg[block].take_instructions() {
+            inserter.push_instruction(instruction, predecessor);
+        }
+
+        inserter.map_terminator_in_place(block);
+        let terminator = inserter.function.dfg[block].take_terminator();
+        inserter.function.dfg[predecessor].set_terminator(terminator);
+
+        cfg.recompute_block(inserter.function, block);
+        cfg.recompute_block(inserter.function, predecessor);
         true
     } else {
         false

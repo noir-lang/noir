@@ -405,11 +405,10 @@ impl<'function> PerFunctionContext<'function> {
         call_stack.append(self.source_function.dfg.get_call_stack(id));
 
         let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
+            .then(|| vecmap(results, |result| self.source_function.dfg.type_of_value(*result)));
 
         self.context.builder.set_call_stack(call_stack);
 

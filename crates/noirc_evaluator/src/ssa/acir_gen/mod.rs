@@ -584,8 +584,7 @@ impl Context {
             }
             AcirValue::DynamicArray(_) => (),
         }
-        let resolved_array = dfg.resolve(array);
-        let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
+        let map_array = last_array_uses.get(&array) == Some(&instruction);
         if let Some(store) = store_value {
             self.array_set(instruction, array, index, store, dfg, map_array)?;
         } else {
@@ -603,7 +602,6 @@ impl Context {
         index: ValueId,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        let array = dfg.resolve(array);
         let block_id = self.block_id(&array);
         if !self.initialized_arrays.contains(&block_id) {
             match &dfg[array] {
@@ -651,9 +649,6 @@ impl Context {
         dfg: &DataFlowGraph,
         map_array: bool,
     ) -> Result<(), InternalError> {
-        // Fetch the internal SSA ID for the array
-        let array = dfg.resolve(array);
-
         // Use the SSA ID to get or create its block ID
         let block_id = self.block_id(&array);
 
@@ -790,7 +785,6 @@ impl Context {
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
-        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();

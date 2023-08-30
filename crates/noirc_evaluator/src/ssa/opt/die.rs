@@ -109,7 +109,6 @@ impl Context {
     /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
     /// results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
         match &dfg[value_id] {
             Value::Instruction { .. } => {
                 self.used_values.insert(value_id);

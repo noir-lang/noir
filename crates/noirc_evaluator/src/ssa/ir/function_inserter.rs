@@ -27,8 +27,7 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
-        value = self.function.dfg.resolve(value);
+    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
             None => match &self.function.dfg[value] {
@@ -102,8 +101,7 @@ impl<'f> FunctionInserter<'f> {
         block: BasicBlockId,
         call_stack: CallStack,
     ) -> InsertInstructionResult {
-        let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
+        let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()

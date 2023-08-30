@@ -61,7 +61,6 @@ pub(crate) fn display_block(
 /// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
-    let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")

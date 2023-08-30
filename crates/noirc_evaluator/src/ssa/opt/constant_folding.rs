@@ -7,6 +7,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::InsertInstructionResult,
         function::Function,
+        function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         value::ValueId,
     },
@@ -31,8 +32,7 @@ impl Ssa {
 /// The structure of this pass is simple:
 /// Go through each block and re-insert all instructions.
 fn constant_fold(function: &mut Function) {
-    let mut context = Context::default();
-    context.block_queue.push(function.entry_block());
+    let mut context = Context::new(function);
 
     while let Some(block) = context.block_queue.pop() {
         if context.visited_blocks.contains(&block) {
@@ -40,57 +40,61 @@ fn constant_fold(function: &mut Function) {
         }
 
         context.visited_blocks.insert(block);
-        context.fold_constants_in_block(function, block);
+        context.fold_constants_in_block(block);
     }
 }
 
-#[derive(Default)]
-struct Context {
+struct Context<'f> {
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
+    inserter: FunctionInserter<'f>,
 }
 
-impl Context {
-    fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
-        let instructions = function.dfg[block].take_instructions();
+impl<'f> Context<'f> {
+    fn new(function: &mut Function) -> Context {
+        Context {
+            visited_blocks: HashSet::new(),
+            block_queue: vec![function.entry_block()],
+            inserter: FunctionInserter::new(function),
+        }
+    }
+
+    fn fold_constants_in_block(&mut self, block: BasicBlockId) {
+        let instructions = self.inserter.function.dfg[block].take_instructions();
 
         // Cache of instructions without any side-effects along with their outputs.
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::new();
 
         for instruction_id in instructions {
-            self.push_instruction(function, block, instruction_id, &mut cached_instruction_results);
+            self.push_instruction(block, instruction_id, &mut cached_instruction_results);
         }
-        self.block_queue.extend(function.dfg[block].successors());
+        self.block_queue.extend(self.inserter.function.dfg[block].successors());
     }
 
     fn push_instruction(
         &mut self,
-        function: &mut Function,
         block: BasicBlockId,
         id: InstructionId,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
     ) {
-        let instruction = function.dfg[id].clone();
-        let old_results = function.dfg.instruction_results(id).to_vec();
-
-        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        let instruction = instruction.map_values(|value_id| function.dfg.resolve(value_id));
+        let instruction = self.inserter.function.dfg[id].clone();
+        let old_results = self.inserter.function.dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block then reuse the previous results.
         if let Some(cached_results) = instruction_result_cache.get(&instruction) {
             for (old_result, new_result) in old_results.iter().zip(cached_results) {
-                function.dfg.set_value_from_id(*old_result, *new_result);
+                self.inserter.map_value(*old_result, *new_result);
             }
             return;
         }
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
+        let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+            vecmap(&old_results, |result| self.inserter.function.dfg.type_of_value(*result))
+        });
 
-        let call_stack = function.dfg.get_call_stack(id);
-        let new_results = match function.dfg.insert_instruction_and_results(
+        let call_stack = self.inserter.function.dfg.get_call_stack(id);
+        let new_results = match self.inserter.function.dfg.insert_instruction_and_results(
             instruction.clone(),
             block,
             ctrl_typevars,
@@ -105,11 +109,11 @@ impl Context {
 
         // If the instruction doesn't have side-effects, cache the results so we can reuse them if
         // the same instruction appears again later in the block.
-        if instruction.is_pure(&function.dfg) {
+        if instruction.is_pure(&self.inserter.function.dfg) {
             instruction_result_cache.insert(instruction, new_results.clone());
         }
         for (old_result, new_result) in old_results.iter().zip(new_results) {
-            function.dfg.set_value_from_id(*old_result, new_result);
+            self.inserter.map_value(*old_result, new_result);
         }
     }
 }
@@ -121,7 +125,7 @@ mod test {
     use crate::ssa::{
         ir::{
             function::RuntimeType,
-            instruction::{BinaryOp, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
             value::Value,
@@ -162,10 +166,16 @@ mod test {
         // Expected output:
         //
         // fn main f0 {
-        //   b0(Field 2: Field):
+        //   b0(v0: Field):
         //     return Field 9
         // }
-        main.dfg.set_value_from_id(v0, two);
+
+        // Manually mutate add's v0 argument to Field 2 to enable optimizations on it
+        let add = instructions[0];
+        match &mut main.dfg[add] {
+            Instruction::Binary(binary) => binary.lhs = two,
+            other => unreachable!("Expected add, got {other:?}"),
+        }
 
         let ssa = ssa.fold_constants();
         let main = ssa.main();
@@ -225,6 +235,6 @@ mod test {
             _ => unreachable!(),
         };
         // The return element is expected to refer to the new add instruction result.
-        assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
+        assert_eq!(new_add_instr_result, return_element);
     }
 }
