@@ -161,16 +161,6 @@
         ] ++ extraBuildInputs;
       };
 
-      # Combine the environment and other configuration needed for crane to build with the wasm feature
-      wasmArgs = wasmEnvironment // sharedArgs // {
-        pname = "noir-wasm";
-
-        # We disable the default "plonk_bn254" feature and enable the "plonk_bn254_wasm" feature
-        cargoExtraArgs = "--no-default-features --features='plonk_bn254_wasm'";
-
-        buildInputs = [ ] ++ extraBuildInputs;
-      };
-
       # Combine the environmnet with cargo args needed to build wasm package
       noirWasmArgs = sharedEnvironment // sharedArgs // {
         pname = "noir_wasm";
@@ -253,22 +243,12 @@
 
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       native-cargo-artifacts = craneLib.buildDepsOnly nativeArgs;
-      wasm-cargo-artifacts = craneLib.buildDepsOnly wasmArgs;
       noir-wasm-cargo-artifacts = craneLib.buildDepsOnly noirWasmArgs;
 
       noir-native = craneLib.buildPackage (nativeArgs // {
         inherit GIT_COMMIT GIT_DIRTY;
 
         cargoArtifacts = native-cargo-artifacts;
-
-        # We don't want to run checks or tests when just building the project
-        doCheck = false;
-      });
-
-      noir-wasm = craneLib.buildPackage (wasmArgs // {
-        inherit GIT_COMMIT GIT_DIRTY;
-
-        cargoArtifacts = wasm-cargo-artifacts;
 
         # We don't want to run checks or tests when just building the project
         doCheck = false;
