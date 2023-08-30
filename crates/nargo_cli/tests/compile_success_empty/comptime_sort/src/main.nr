@@ -1,3 +1,4 @@
+
 fn main() {
     let unsorted: [u8; 3] = [3,1,2];
     let sorted = unsorted.sort();

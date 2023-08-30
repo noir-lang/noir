@@ -5,6 +5,7 @@ members = [
     "crates/noirc_frontend",
     "crates/noirc_errors",
     "crates/noirc_driver",
+    "crates/noirc_printable_type",
     "crates/nargo",
     "crates/nargo_cli",
     "crates/nargo_toml",
@@ -15,17 +16,18 @@ members = [
     "crates/wasm",
 ]
 default-members = ["crates/nargo_cli"]
+resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.10.3"
+version = "0.10.4"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.22.0"
+acvm = "0.23.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -38,6 +40,7 @@ noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }
 noirc_evaluator = { path = "crates/noirc_evaluator" }
 noirc_frontend = { path = "crates/noirc_frontend" }
+noirc_printable_type = { path = "crates/noirc_printable_type" }
 noir_wasm = { path = "crates/wasm" }
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive"] }
@@ -57,6 +60,3 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
-
-[patch.crates-io]
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", branch = "kw/dyn-backends" }

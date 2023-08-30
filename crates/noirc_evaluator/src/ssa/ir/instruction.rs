@@ -139,8 +139,8 @@ pub(crate) enum Instruction {
     /// Truncates `value` to `bit_size`
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
-    /// Constrains a value to be equal to true
-    Constrain(ValueId),
+    /// Constrains two values to be equal to one another.
+    Constrain(ValueId, ValueId),
 
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
@@ -189,7 +189,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_)
+            Instruction::Constrain(_, _)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
@@ -202,6 +202,31 @@ impl Instruction {
     /// inserting this instruction into a DataFlowGraph.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
+    /// i.e. there are no interactions with memory.
+    ///
+    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
+    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+
+            // Unclear why this instruction causes problems.
+            Truncate { .. } => false,
+
+            // These either have side-effects or interact with memory
+            Constrain(_, _) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
+                false
+            }
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+        }
     }
 
     pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
@@ -217,7 +242,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(_) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(_, _) | Store { .. } | EnableSideEffects { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -253,7 +278,7 @@ impl Instruction {
                 bit_size: *bit_size,
                 max_bit_size: *max_bit_size,
             },
-            Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            Instruction::Constrain(lhs, rhs) => Instruction::Constrain(f(*lhs), f(*rhs)),
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -291,10 +316,14 @@ impl Instruction {
             Instruction::Cast(value, _)
             | Instruction::Not(value)
             | Instruction::Truncate { value, .. }
-            | Instruction::Constrain(value)
             | Instruction::Load { address: value } => {
                 f(*value);
             }
+            Instruction::Constrain(lhs, rhs) => {
+                f(*lhs);
+                f(*rhs);
+            }
+
             Instruction::Store { address, value } => {
                 f(*address);
                 f(*value);
@@ -345,13 +374,13 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(value) => {
-                if let Some(constant) = dfg.get_numeric_constant(*value) {
-                    if constant.is_one() {
-                        return Remove;
-                    }
+            Instruction::Constrain(lhs, rhs) => {
+                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
+                    // Remove trivial case `assert_eq(x, x)`
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::None
                 }
-                None
             }
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
@@ -580,6 +609,12 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+            // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+            // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
+            // and division by zero should be handled by laying down constraints during ACIR generation.
+            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
+                return SimplifyResult::None;
+            }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
                 Some(value) => SimplifyResult::SimplifiedTo(value),
                 None => SimplifyResult::None,
@@ -721,6 +756,16 @@ impl Binary {
 
                 let lhs = truncate(lhs.try_into_u128()?, *bit_size);
                 let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+
+                // The divisor is being truncated into the type of the operand, which can potentially
+                // lead to the rhs being zero.
+                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                // and the operation should be handled by ACIR generation.
+                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
+                    return None;
+                }
+
                 let result = function(lhs, rhs);
                 truncate(result, *bit_size).into()
             }

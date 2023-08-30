@@ -1,4 +1,3 @@
-use dep::std;
 
 fn g(x: &mut Field) -> () {
     *x *= 2;

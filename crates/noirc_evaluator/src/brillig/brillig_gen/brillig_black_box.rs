@@ -16,12 +16,24 @@ pub(crate) fn convert_black_box_call(
 ) {
     match bb_func {
         BlackBoxFunc::SHA256 => {
-            if let (
-                [RegisterOrMemory::HeapArray(message_array)],
-                [RegisterOrMemory::HeapArray(result_array)],
-            ) = (function_arguments, function_results)
+            if let ([..], [RegisterOrMemory::HeapArray(result_array)]) =
+                (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 1 {
+                    &function_arguments[1]
+                } else {
+                    &function_arguments[0]
+                };
+                let message_vector = match message {
+                    RegisterOrMemory::HeapArray(message_array) => {
+                        brillig_context.array_to_vector(message_array)
+                    }
+                    RegisterOrMemory::HeapVector(message_vector) => *message_vector,
+                    _ => unreachable!("ICE: SHA256 expects the message to be an array or a vector"),
+                };
                 brillig_context.black_box_op_instruction(BlackBoxOp::Sha256 {
                     message: message_vector,
                     output: *result_array,
@@ -31,12 +43,26 @@ pub(crate) fn convert_black_box_call(
             }
         }
         BlackBoxFunc::Blake2s => {
-            if let (
-                [RegisterOrMemory::HeapArray(message_array)],
-                [RegisterOrMemory::HeapArray(result_array)],
-            ) = (function_arguments, function_results)
+            if let ([..], [RegisterOrMemory::HeapArray(result_array)]) =
+                (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 1 {
+                    &function_arguments[1]
+                } else {
+                    &function_arguments[0]
+                };
+                let message_vector = match message {
+                    RegisterOrMemory::HeapArray(message_array) => {
+                        brillig_context.array_to_vector(message_array)
+                    }
+                    RegisterOrMemory::HeapVector(message_vector) => *message_vector,
+                    _ => {
+                        unreachable!("ICE: Blake2s expects the message to be an array or a vector")
+                    }
+                };
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake2s {
                     message: message_vector,
                     output: *result_array,
@@ -47,12 +73,27 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Keccak256 => {
             if let (
-                [RegisterOrMemory::HeapArray(message_array), RegisterOrMemory::RegisterIndex(array_size)],
+                [.., RegisterOrMemory::RegisterIndex(array_size)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
-                let message_vector =
-                    HeapVector { size: *array_size, pointer: message_array.pointer };
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 2 {
+                    &function_arguments[1]
+                } else {
+                    &function_arguments[0]
+                };
+                let message_vector = match message {
+                    RegisterOrMemory::HeapArray(message_array) => {
+                        HeapVector { size: *array_size, pointer: message_array.pointer }
+                    }
+                    RegisterOrMemory::HeapVector(message_vector) => *message_vector,
+                    _ => unreachable!(
+                        "ICE: Keccak256 expects the message to be an array or a vector"
+                    ),
+                };
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
                     message: message_vector,
                     output: *result_array,
@@ -62,12 +103,26 @@ pub(crate) fn convert_black_box_call(
             }
         }
         BlackBoxFunc::HashToField128Security => {
-            if let (
-                [RegisterOrMemory::HeapArray(message_array)],
-                [RegisterOrMemory::RegisterIndex(result_register)],
-            ) = (function_arguments, function_results)
+            if let ([..], [RegisterOrMemory::RegisterIndex(result_register)]) =
+                (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 1 {
+                    &function_arguments[1]
+                } else {
+                    &function_arguments[0]
+                };
+                let message_vector = match message {
+                    RegisterOrMemory::HeapArray(message_array) => {
+                        brillig_context.array_to_vector(message_array)
+                    }
+                    RegisterOrMemory::HeapVector(message_vector) => {
+                        *message_vector
+                    }
+                    _ => unreachable!("ICE: HashToField128Security expects the message to be an array or a vector"),
+                };
                 brillig_context.black_box_op_instruction(BlackBoxOp::HashToField128Security {
                     message: message_vector,
                     output: *result_register,
@@ -78,11 +133,27 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
-                [RegisterOrMemory::HeapArray(public_key_x), RegisterOrMemory::HeapArray(public_key_y), RegisterOrMemory::HeapArray(signature), RegisterOrMemory::HeapArray(message_hash)],
+                [RegisterOrMemory::HeapArray(public_key_x), RegisterOrMemory::HeapArray(public_key_y), RegisterOrMemory::HeapArray(signature), ..],
                 [RegisterOrMemory::RegisterIndex(result_register)],
             ) = (function_arguments, function_results)
             {
-                let message_hash_vector = brillig_context.array_to_vector(message_hash);
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 4 {
+                    &function_arguments[4]
+                } else {
+                    &function_arguments[3]
+                };
+                let message_hash_vector = match message {
+                    RegisterOrMemory::HeapArray(message_hash) => {
+                        brillig_context.array_to_vector(message_hash)
+                    }
+                    RegisterOrMemory::HeapVector(message_hash_vector) => *message_hash_vector,
+                    _ => unreachable!(
+                        "ICE: EcdsaSecp256k1 expects the message to be an array or a vector"
+                    ),
+                };
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256k1 {
                     hashed_msg: message_hash_vector,
                     public_key_x: *public_key_x,
@@ -98,11 +169,27 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Pedersen => {
             if let (
-                [RegisterOrMemory::HeapArray(message_array), RegisterOrMemory::RegisterIndex(domain_separator)],
+                [.., RegisterOrMemory::RegisterIndex(domain_separator)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 2 {
+                    &function_arguments[1]
+                } else {
+                    &function_arguments[0]
+                };
+                let message_vector = match message {
+                    RegisterOrMemory::HeapArray(message_array) => {
+                        brillig_context.array_to_vector(message_array)
+                    }
+                    RegisterOrMemory::HeapVector(message_vector) => *message_vector,
+                    _ => {
+                        unreachable!("ICE: Pedersen expects the message to be an array or a vector")
+                    }
+                };
                 brillig_context.black_box_op_instruction(BlackBoxOp::Pedersen {
                     inputs: message_vector,
                     domain_separator: *domain_separator,
@@ -114,11 +201,27 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::SchnorrVerify => {
             if let (
-                [RegisterOrMemory::RegisterIndex(public_key_x), RegisterOrMemory::RegisterIndex(public_key_y), RegisterOrMemory::HeapArray(signature), RegisterOrMemory::HeapArray(message_hash)],
+                [RegisterOrMemory::RegisterIndex(public_key_x), RegisterOrMemory::RegisterIndex(public_key_y), RegisterOrMemory::HeapArray(signature), ..],
                 [RegisterOrMemory::RegisterIndex(result_register)],
             ) = (function_arguments, function_results)
             {
-                let message_hash = brillig_context.array_to_vector(message_hash);
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the number of inputs to differentiate between arrays and slices
+                // and make sure that we pass the correct inputs to the function call.
+                let message = if function_arguments.len() > 4 {
+                    &function_arguments[4]
+                } else {
+                    &function_arguments[3]
+                };
+                let message_hash = match message {
+                    RegisterOrMemory::HeapArray(message_hash) => {
+                        brillig_context.array_to_vector(message_hash)
+                    }
+                    RegisterOrMemory::HeapVector(message_hash) => *message_hash,
+                    _ => unreachable!(
+                        "ICE: Schnorr verify expects the message to be an array or a vector"
+                    ),
+                };
                 let signature = brillig_context.array_to_vector(signature);
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
                     public_key_x: *public_key_x,

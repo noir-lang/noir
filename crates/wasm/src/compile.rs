@@ -3,8 +3,8 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
-    check_crate, compile_contracts, compile_no_check, prepare_crate, propagate_dep, CompileOptions,
-    CompiledContract,
+    add_dep, check_crate, compile_contracts, compile_no_check, prepare_crate, prepare_dependency,
+    CompileOptions, CompiledContract,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
@@ -58,11 +58,32 @@ impl Default for WASMCompileOptions {
     }
 }
 
-fn add_noir_lib(context: &mut Context, crate_name: &str) {
-    let path_to_lib = Path::new(&crate_name).join("lib.nr");
-    let library_crate = prepare_crate(context, &path_to_lib);
+fn add_noir_lib(context: &mut Context, library_name: &str) {
+    let path_to_lib = Path::new(&library_name).join("lib.nr");
+    let library_crate_id = prepare_dependency(context, &path_to_lib);
 
-    propagate_dep(context, library_crate, &crate_name.parse().unwrap());
+    add_dep(context, *context.root_crate_id(), library_crate_id, library_name.parse().unwrap());
+
+    // TODO: Remove this code that attaches every crate to every other crate as a dependency
+    let root_crate_id = context.root_crate_id();
+    let stdlib_crate_id = context.stdlib_crate_id();
+    let other_crate_ids: Vec<_> = context
+        .crate_graph
+        .iter_keys()
+        .filter(|crate_id| {
+            // We don't want to attach this crate to itself or stdlib, nor re-attach it to the root crate
+            crate_id != &library_crate_id
+                && crate_id != root_crate_id
+                && crate_id != stdlib_crate_id
+        })
+        .collect();
+
+    for crate_id in other_crate_ids {
+        context
+            .crate_graph
+            .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
+            .expect(&format!("ICE: Cyclic error triggered by {} library", library_name));
+    }
 }
 
 #[wasm_bindgen]

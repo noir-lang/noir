@@ -63,6 +63,7 @@ pub(crate) fn optimize_into_acir(
             // and this pass is missed, slice merging will fail inside of flattening.
             .mem2reg()
             .print(print_ssa_passes, "After Mem2Reg:")
+            .fold_constants()
             .flatten_cfg()
             .print(print_ssa_passes, "After Flattening:")
             // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
@@ -87,14 +88,12 @@ pub fn create_circuit(
     enable_brillig_logging: bool,
 ) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
+    let mut generated_acir =
+        optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
+    let opcodes = generated_acir.take_opcodes();
     let GeneratedAcir {
-        current_witness_index,
-        opcodes,
-        return_witnesses,
-        locations,
-        input_witnesses,
-        ..
-    } = optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
+        current_witness_index, return_witnesses, locations, input_witnesses, ..
+    } = generated_acir;
 
     let abi = gen_abi(&context.def_interner, func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
