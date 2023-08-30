@@ -33,8 +33,10 @@ pub enum Source {
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
-    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
-    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
+    #[error("The literal `{expr:?}` cannot fit into `{typ}` which has range `{range}`")]
+    OverflowingAssignment { expr: FieldElement, typ: Type, range: String, span: Span },
+    #[error("Attempt to {operation} by {rhs}, which would overflow {typ}")]
+    OverflowingBitShift { operation: String, rhs: u128, typ: Type, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -161,6 +163,10 @@ impl From<TypeCheckError> for Diagnostic {
                 let was_or_were = if found == 1 { "was" } else { "were" };
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), span)
+            }
+            TypeCheckError::OverflowingBitShift { span, .. } => {
+                let msg = format!("This arithmetic operation will overflow");
+                Diagnostic::simple_error(msg, error.to_string(), span)
             }
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }

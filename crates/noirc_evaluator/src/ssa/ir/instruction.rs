@@ -778,12 +778,10 @@ impl Binary {
                 let rhs = truncate(rhs.try_into_u128()?, *bit_size);
 
                 // The divisor is being truncated into the type of the operand, which can potentially
-                // lead to the rhs being zero.
-                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
-                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-                // and the operation should be handled by ACIR generation.
+                // lead to the rhs being zero. This should be caught before instruction simplification
+                // and passing this if statement is a compiler bug.
                 if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
-                    return None;
+                    unreachable!("ICE: the divisor of a binary op has been truncated into zero");
                 }
 
                 let result = function(lhs, rhs);

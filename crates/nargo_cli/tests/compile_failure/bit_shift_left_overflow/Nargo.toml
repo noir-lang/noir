@@ -1,0 +1,7 @@
+[package]
+name = "bit_shift_left_overflow"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.4"
+
+[dependencies]

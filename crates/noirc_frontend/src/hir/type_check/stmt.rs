@@ -1,7 +1,8 @@
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
-use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
+use crate::hir_def::expr::{HirExpression, HirIdent, HirInfixExpression, HirLiteral};
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
@@ -287,12 +288,35 @@ impl<'interner> TypeChecker<'interner> {
                     if v >= max {
                         self.errors.push(TypeCheckError::OverflowingAssignment {
                             expr: value,
-                            ty: annotated_type.clone(),
+                            typ: annotated_type.clone(),
                             range: format!("0..={}", max - 1),
                             span,
                         });
                     };
                 };
+            }
+            HirExpression::Infix(HirInfixExpression { operator, rhs, .. }) => {
+                if operator.is_bit_shift() {
+                    let rhs_expr = self.interner.expression(&rhs);
+                    let rhs_value: u128 = match rhs_expr {
+                        HirExpression::Literal(HirLiteral::Integer(value)) => value.to_u128(),
+                        _ => return,
+                    };
+                    if let Type::Integer(_, bit_count) = annotated_type {
+                        let max: u128 = 1 << bit_count;
+                        dbg!(max);
+                        dbg!(rhs_value);
+                        let value: u128 = 1 << rhs_value;
+                        if value >= max {
+                            self.errors.push(TypeCheckError::OverflowingBitShift {
+                                operation: operator.kind.to_string(),
+                                rhs: rhs_value,
+                                typ: annotated_type.clone(),
+                                span,
+                            });
+                        };
+                    };
+                }
             }
             HirExpression::Prefix(_) => self
                 .errors

@@ -482,12 +482,16 @@ impl GeneratedAcir {
         let mut max_rhs_bits = max_bit_size;
         // when rhs is constant, we can better estimate the maximum bit sizes
         if let Some(rhs_const) = rhs.to_const() {
+            dbg!(rhs_const);
             max_rhs_bits = rhs_const.num_bits();
+            dbg!(max_bit_size);
+            dbg!(max_rhs_bits + 1);
             if max_rhs_bits != 0 {
                 max_q_bits = max_bit_size - max_rhs_bits + 1;
             }
         }
-
+        dbg!(max_bit_size);
+        dbg!(rhs.clone());
         let (q_witness, r_witness) =
             self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 

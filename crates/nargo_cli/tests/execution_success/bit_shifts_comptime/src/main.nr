@@ -11,13 +11,13 @@ fn main(x: u64) {
 	assert(x << 1 == 128);
 	assert(x >> 2 == 16);
 
-	regression_2250();
+	right_shift_zero();
 }
 
-fn regression_2250() {
-	let a: u1 = 1 >> 1;
+fn right_shift_zero() {
+	let a: u2 = 1 >> 1;
 	assert(a == 0);
 	
-	let b: u32 = 1 >> 32;
+	let b: u33 = 1 >> 32;
 	assert(b == 0);
 }
