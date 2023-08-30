@@ -455,11 +455,8 @@ impl<'block> BrilligBlock<'block> {
             Instruction::MakeArray { elements } => {
                 let result = dfg.instruction_results(instruction_id)[0];
 
-                let new_variable = self.function_context.get_or_create_variable(
-                    self.brillig_context,
-                    result,
-                    dfg,
-                );
+                let new_variable =
+                    self.function_context.get_or_create_variable(self.brillig_context, result, dfg);
 
                 // Initialize the variable
                 let pointer = match new_variable {
@@ -532,7 +529,9 @@ impl<'block> BrilligBlock<'block> {
                     value_variable,
                 );
             }
-            Instruction::EnableSideEffects { .. } => todo!("Unsupported instruction: {instruction:?}"),
+            Instruction::EnableSideEffects { .. } => {
+                todo!("Unsupported instruction: {instruction:?}")
+            }
         };
 
         self.brillig_context.set_call_stack(CallStack::new());
@@ -1003,9 +1002,9 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 new_variable
             }
-            Value::Function(_)
-            | Value::Intrinsic(_)
-            | Value::ForeignFunction(_) => todo!("ICE: Cannot convert value {value:?}"),
+            Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => {
+                todo!("ICE: Cannot convert value {value:?}")
+            }
         }
     }
 

@@ -454,7 +454,8 @@ impl Context {
                 self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::MakeArray { elements } => {
-                let elements = elements.iter()
+                let elements = elements
+                    .iter()
                     .map(|element| self.convert_value(*element, dfg))
                     .collect::<im::Vector<_>>();
 
@@ -623,7 +624,7 @@ impl Context {
             return Err(RuntimeError::UnInitialized {
                 name: "array".to_string(),
                 call_stack: self.acir_context.get_call_stack(),
-            })
+            });
         }
 
         let index_var = self.convert_value(index, dfg).into_var()?;
@@ -676,7 +677,7 @@ impl Context {
             return Err(InternalError::General {
                 message: format!("Array {array} should be initialized"),
                 call_stack: self.acir_context.get_call_stack(),
-            })
+            });
         }
 
         // Since array_set creates a new array, we create a new block ID for this

@@ -6,7 +6,8 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
-        value::ValueId, types::Type,
+        types::Type,
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };

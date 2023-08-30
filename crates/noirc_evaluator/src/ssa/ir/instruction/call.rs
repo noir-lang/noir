@@ -240,7 +240,9 @@ fn simplify_black_box_func(
 ) -> SimplifyResult {
     match bb_func {
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, block, acvm::blackbox_solver::sha256),
-        BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, block, acvm::blackbox_solver::blake2s),
+        BlackBoxFunc::Blake2s => {
+            simplify_hash(dfg, arguments, block, acvm::blackbox_solver::blake2s)
+        }
         BlackBoxFunc::Keccak256 => {
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
                 (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
@@ -254,7 +256,8 @@ fn simplify_black_box_func(
                     let hash_values =
                         vecmap(hash, |byte| FieldElement::from_be_bytes_reduce(&[byte]));
 
-                    let result_array = make_constant_array(dfg, hash_values, Type::unsigned(8), block);
+                    let result_array =
+                        make_constant_array(dfg, hash_values, Type::unsigned(8), block);
                     SimplifyResult::SimplifiedTo(result_array)
                 }
                 _ => SimplifyResult::None,
@@ -434,7 +437,11 @@ fn simplify_signature(
     }
 }
 
-fn simplify_sort(dfg: &mut DataFlowGraph, arguments: &[ValueId], block: BasicBlockId) -> SimplifyResult {
+fn simplify_sort(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    block: BasicBlockId,
+) -> SimplifyResult {
     match dfg.get_array_constant(arguments[0]) {
         Some((input, _)) => {
             let inputs: Option<Vec<FieldElement>> =

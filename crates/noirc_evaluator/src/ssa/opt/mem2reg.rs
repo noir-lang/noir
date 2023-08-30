@@ -345,7 +345,12 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn check_array_aliasing(&self, references: &mut Block, array: ValueId, elements: &im::Vector<ValueId>) {
+    fn check_array_aliasing(
+        &self,
+        references: &mut Block,
+        array: ValueId,
+        elements: &im::Vector<ValueId>,
+    ) {
         let contains_references = elements.front().map_or(false, |element| {
             let element_type = self.inserter.function.dfg.type_of_value(*element);
             Self::contains_references(&element_type)

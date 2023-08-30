@@ -414,11 +414,8 @@ impl<'f> Context<'f> {
             _ => panic!("Expected slice type"),
         };
 
-        let get_array_constant = |id| {
-            self.inserter.function.dfg.get_array_constant(id)
-                .expect("Expected array value")
-                .0
-        };
+        let get_array_constant =
+            |id| self.inserter.function.dfg.get_array_constant(id).expect("Expected array value").0;
 
         let then_value = get_array_constant(then_value_id);
         let else_value = get_array_constant(else_value_id);
@@ -459,8 +456,7 @@ impl<'f> Context<'f> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged };
-        self.insert_instruction_with_typevars(instruction, Some(vec![typ]))
-            .first()
+        self.insert_instruction_with_typevars(instruction, Some(vec![typ])).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -506,8 +502,7 @@ impl<'f> Context<'f> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged };
-        self.insert_instruction_with_typevars(instruction, Some(vec![typ]))
-            .first()
+        self.insert_instruction_with_typevars(instruction, Some(vec![typ])).first()
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
@@ -1420,11 +1415,8 @@ mod test {
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
-        let v4 = builder.insert_call(
-            pedersen,
-            vec![v3, i_zero],
-            vec![Type::Array(element_type, 2)],
-        )[0];
+        let v4 =
+            builder.insert_call(pedersen, vec![v3, i_zero], vec![Type::Array(element_type, 2)])[0];
         let v5 = builder.insert_array_get(v4, zero, Type::field());
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));

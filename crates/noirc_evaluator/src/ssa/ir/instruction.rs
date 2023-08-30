@@ -222,7 +222,12 @@ impl Instruction {
         use Instruction::*;
 
         match self {
-            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | MakeArray { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => true,
 
             // Unclear why this instruction causes problems.
             Truncate { .. } => false,
