@@ -79,3 +79,32 @@ jobs:
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  publish-source-resolver:
+    name: Publish Source Resolver to NPM
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build noir-source-resolver
+        working-directory: ./crates/source-resolver
+        run: npm run build
+
+      - name: Update package.json version
+        working-directory: ./crates/source-resolver
+        run: npm version ${{ needs.release-please.outputs.tag-name }} --no-git-tag-version
+
+      - name: Publish to npm (latest tag)
+        working-directory: ./crates/source-resolver
+        run: npm publish --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -3,8 +3,12 @@
 examples/**/target/
 examples/9
 node_modules
-crates/source_resolver/node_modules
 pkg/
+
+# Source resolver
+crates/source-resolver/node_modules
+crates/source-resolver/lib
+crates/source-resolver/lib-node
 
 # Nix stuff
 **/outputs
