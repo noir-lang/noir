@@ -128,12 +128,6 @@ pub(crate) fn run<B: Backend>(
                 bytecode: program.circuit,
             };
 
-            let preprocessed_program = PreprocessedProgram {
-                backend: String::from(BACKEND_IDENTIFIER),
-                abi: program.abi,
-                bytecode: program.circuit,
-            };
-
             save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
 
             if args.output_debug {
