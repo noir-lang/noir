@@ -1,0 +1,7 @@
+[package]
+name = "trait_wrong_parameters_count"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]

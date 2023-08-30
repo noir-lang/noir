@@ -98,7 +98,7 @@ impl Context {
         ) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-            InsertInstructionResult::Results(new_results) => new_results.to_vec(),
+            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
             InsertInstructionResult::InstructionRemoved => vec![],
         };
         assert_eq!(old_results.len(), new_results.len());

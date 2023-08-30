@@ -12,7 +12,9 @@ use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_package;
+use super::fs::common_reference_string::update_common_reference_string;
 use super::fs::{
+    common_reference_string::read_cached_common_reference_string,
     inputs::{read_inputs_from_file, write_inputs_to_file},
     program::read_program_from_file,
     proof::save_proof_to_dir,
@@ -104,6 +106,18 @@ pub(crate) fn prove_package<B: Backend>(
         };
         (preprocessed_program, Some((program.debug, context)))
     };
+
+    let common_reference_string = read_cached_common_reference_string();
+    let common_reference_string = update_common_reference_string(
+        backend,
+        &common_reference_string,
+        &preprocessed_program.bytecode,
+    )
+    .map_err(CliError::CommonReferenceStringError)?;
+
+    let (proving_key, verification_key) = backend
+        .preprocess(&common_reference_string, &preprocessed_program.bytecode)
+        .map_err(CliError::ProofSystemCompilerError)?;
 
     let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
 
