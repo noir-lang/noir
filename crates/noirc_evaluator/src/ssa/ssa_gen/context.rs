@@ -317,7 +317,7 @@ impl<'a> FunctionContext<'a> {
             rhs,
             &self.builder.current_function.dfg,
         ) {
-            let result_type = self.builder.current_function.dfg.type_of_value(result);
+            let result_type = self.builder.current_function.dfg.type_of_value(lhs);
             let bit_size = match result_type {
                 Type::Numeric(NumericType::Signed { bit_size })
                 | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,

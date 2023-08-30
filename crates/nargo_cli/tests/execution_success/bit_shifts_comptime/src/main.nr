@@ -21,3 +21,18 @@ fn regression_2250() {
 	let b: u32 = 1 >> 32;
 	assert(b == 0);
 }
+
+fn regression_2399() {
+    let result_0 = bitshift_variable(0);
+    assert(result_0 == 1);
+
+    let result_4 = bitshift_variable(4);
+    assert(result_4 == 16);
+}
+
+fn bitshift_variable(idx: u64) -> u64 {
+    let mut bits: u64 = 0;
+    bits |= 1 << idx;
+
+    bits
+}
