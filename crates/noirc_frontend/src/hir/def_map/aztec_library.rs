@@ -113,9 +113,7 @@ pub(crate) fn transform(mut ast: ParsedModule) -> ParsedModule {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
-    transform_module(&mut ast.functions);
-    include_relevant_imports(&mut ast);
-    for submodule in ast.submodules.iter_mut() {
+    for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
         include_relevant_imports(&mut submodule.contents);
         transform_module(&mut submodule.contents.functions);
     }
