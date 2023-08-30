@@ -202,6 +202,9 @@
 
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       native-cargo-artifacts = craneLib.buildDepsOnly nativeArgs;
+      native-debug-artifacts = craneLib.buildDepsOnly (nativeArgs // {
+        CARGO_PROFILE = "dev";
+      });
       wasm-cargo-artifacts = craneLib.buildDepsOnly wasmArgs;
       noir-wasm-cargo-artifacts = craneLib.buildDepsOnly noirWasmArgs;
 
@@ -235,13 +238,17 @@
         cargo-clippy = craneLib.cargoClippy (nativeArgs // {
           inherit GIT_COMMIT GIT_DIRTY;
 
-          cargoArtifacts = native-cargo-artifacts;
+          CARGO_PROFILE = "dev";
+
+          cargoArtifacts = native-debug-artifacts;
         });
 
         cargo-fmt = craneLib.cargoFmt (nativeArgs // {
           inherit GIT_COMMIT GIT_DIRTY;
 
-          cargoArtifacts = native-cargo-artifacts;
+          CARGO_PROFILE = "dev";
+
+          cargoArtifacts = native-debug-artifacts;
           doCheck = true;
         });
 
@@ -250,7 +257,7 @@
 
           CARGO_PROFILE = "dev";
 
-          cargoArtifacts = native-cargo-artifacts;
+          cargoArtifacts = native-debug-artifacts;
         });
       };
 
