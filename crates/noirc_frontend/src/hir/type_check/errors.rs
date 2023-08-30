@@ -164,10 +164,11 @@ impl From<TypeCheckError> for Diagnostic {
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), span)
             }
-            TypeCheckError::OverflowingBitShift { span, .. } => {
-                let msg = format!("This arithmetic operation will overflow");
-                Diagnostic::simple_error(msg, error.to_string(), span)
-            }
+            TypeCheckError::OverflowingBitShift { span, .. } => Diagnostic::simple_error(
+                "This arithmetic operation will overflow".to_string(),
+                error.to_string(),
+                span,
+            ),
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }

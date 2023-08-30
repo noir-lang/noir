@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
