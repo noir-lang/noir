@@ -197,7 +197,7 @@ We can now send a transaction to the network. We will transfer funds from the ow
 
 ```bash
 % aztec-cli send transfer \
-  --args 543 $ADDRESS $ADDRESS2 \
+  --args 543 $ADDRESS2 \
   --contract-abi PrivateTokenContractAbi \
   --contract-address $CONTRACT_ADDRESS \
   --private-key $PRIVATE_KEY
