@@ -1,5 +1,5 @@
 use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap, Backend};
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
@@ -102,34 +102,8 @@ pub(crate) fn run<B: Backend>(
                         },
                         debug_infos,
                     )
-                    .map_err(CliError::CommonReferenceStringError)?;
-
-                    Ok::<_, CliError<B>>((
-                        PreprocessedContractFunction {
-                            name: func.name,
-                            function_type: func.function_type,
-                            is_internal: func.is_internal,
-                            abi: func.abi,
-
-                            bytecode: func.bytecode,
-                        },
-                        func.debug,
-                    ))
-                })?;
-
-                let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
-                    preprocess_result.into_iter().unzip();
-
-                Ok((
-                    PreprocessedContract {
-                        name: contract.name,
-                        backend: String::from(BACKEND_IDENTIFIER),
-                        functions: preprocessed_contract_functions,
-                    },
-                    debug_infos,
-                ))
-            });
-            for (contract, debug_infos) in preprocessed_contracts? {
+                });
+            for (contract, debug_infos) in preprocessed_contracts {
                 save_contract_to_file(
                     &contract,
                     &format!("{}-{}", package.name, contract.name),
