@@ -248,6 +248,8 @@
         cargo-test = craneLib.cargoTest (nativeArgs // (testArgs 8000) // {
           inherit GIT_COMMIT GIT_DIRTY;
 
+          CARGO_PROFILE = "dev";
+
           cargoArtifacts = native-cargo-artifacts;
         });
       };
