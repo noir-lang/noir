@@ -3,9 +3,9 @@ use noirc_errors::Span;
 
 use crate::{
     token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, ForExpression, FunctionReturnType, Ident, IndexExpression, LetStatement,
-    Literal, MethodCallExpression, NoirFunction, ParsedModule, Path, Pattern, Statement,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement, IndexExpression,
+    LetStatement, Literal, MethodCallExpression, NoirFunction, ParsedModule, Path, PathKind,
+    Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 
 //
@@ -71,6 +71,19 @@ macro_rules! chained_path {
     }
 }
 
+macro_rules! chained_dep {
+    ( $base:expr $(, $tail:expr)* ) => {
+        {
+            let mut base_path = ident_path($base);
+            base_path.kind = PathKind::Dep;
+            $(
+                base_path.segments.push(ident($tail));
+            )*
+            base_path
+        }
+    }
+}
+
 fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
     expression(ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type: make_type(ty) })))
 }
@@ -86,6 +99,10 @@ fn index_array(array: Ident, index: &str) -> Expression {
     })))
 }
 
+fn import(path: Path) -> ImportStatement {
+    ImportStatement { path, alias: None }
+}
+
 //
 //                    Create AST Nodes for Aztec
 //
@@ -97,13 +114,28 @@ pub(crate) fn transform(mut ast: ParsedModule) -> ParsedModule {
 
     // Covers all functions in the ast
     transform_module(&mut ast.functions);
+    include_relevant_imports(&mut ast);
     for submodule in ast.submodules.iter_mut() {
+        include_relevant_imports(&mut submodule.contents);
         transform_module(&mut submodule.contents.functions);
     }
     ast
 }
 
-fn include_relavant_imports() {}
+/// Includes an import to the aztec library if it has not been included yet
+fn include_relevant_imports(ast: &mut ParsedModule) {
+    // Create the aztec import path using the assumed chained_dep! macro
+    let aztec_import_path = import(chained_dep!("aztec"));
+
+    // Check if the aztec import already exists
+    let is_aztec_imported =
+        ast.imports.iter().any(|existing_import| existing_import.path == aztec_import_path.path);
+
+    // If aztec is not imported, add the import at the beginning
+    if !is_aztec_imported {
+        ast.imports.insert(0, aztec_import_path);
+    }
+}
 
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
@@ -168,7 +200,8 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
 pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
     let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
-    let context_type = make_type(UnresolvedTypeData::Named(ident_path(ty), vec![]));
+    let type_path = chained_path!("aztec", "abi", ty);
+    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
     let visibility = Visibility::Private;
 
     (context_pattern, context_type, visibility)
@@ -206,8 +239,8 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     let let_hasher = mutable_assignment(
         "hasher", // Assigned to
         call(
-            variable_path(chained_path!("Hasher", "new")), // Path
-            vec![],                                        // args
+            variable_path(chained_path!("aztec", "abi", "Hasher", "new")), // Path
+            vec![],                                                        // args
         ),
     );
 
@@ -215,11 +248,11 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     injected_expressions.push(let_hasher);
 
     // Iterate over each of the function parameters, adding to them to the hasher
-    params.iter().for_each(|(pattern, ty, _vis)| {
+    params.iter().for_each(|(pattern, typ, _vis)| {
         match pattern {
             Pattern::Identifier(identifier) => {
                 // Match the type to determine the padding to do
-                let unresolved_type = &ty.typ;
+                let unresolved_type = &typ.typ;
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
@@ -251,8 +284,8 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     let let_context = mutable_assignment(
         "context", // Assigned to
         call(
-            variable_path(chained_path!(ty, "new")), // Path
-            vec![inputs_expression, hash_call],      // args
+            variable_path(chained_path!("aztec", "context", ty, "new")), // Path
+            vec![inputs_expression, hash_call],                          // args
         ),
     );
     injected_expressions.push(let_context);
@@ -284,7 +317,7 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
 ///  // ...
 /// }
 pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
-    let return_path = chained_path!("abi", ty);
+    let return_path = chained_path!("aztec", "abi", ty);
 
     let ty = make_type(UnresolvedTypeData::Named(return_path, vec![]));
     FunctionReturnType::Ty(ty, Span::default())
