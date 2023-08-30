@@ -89,31 +89,14 @@ impl<'f> Context<'f> {
             return;
         }
 
-        let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
-            vecmap(&old_results, |result| self.inserter.function.dfg.type_of_value(*result))
-        });
+        if let Some(new_id) = self.inserter.push_instruction(id, block) {
+            let new_results = self.inserter.function.dfg.instruction_results(new_id);
 
-        let call_stack = self.inserter.function.dfg.get_call_stack(id);
-        let new_results = match self.inserter.function.dfg.insert_instruction_and_results(
-            instruction.clone(),
-            block,
-            ctrl_typevars,
-            call_stack,
-        ) {
-            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-            InsertInstructionResult::InstructionRemoved => vec![],
-        };
-        assert_eq!(old_results.len(), new_results.len());
-
-        // If the instruction doesn't have side-effects, cache the results so we can reuse them if
-        // the same instruction appears again later in the block.
-        if instruction.is_pure(&self.inserter.function.dfg) {
-            instruction_result_cache.insert(instruction, new_results.clone());
-        }
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            self.inserter.map_value(*old_result, new_result);
+            // If the instruction doesn't have side-effects, cache the results so we can reuse them if
+            // the same instruction appears again later in the block.
+            if instruction.is_pure(&self.inserter.function.dfg) {
+                instruction_result_cache.insert(instruction, new_results.to_vec());
+            }
         }
     }
 }
