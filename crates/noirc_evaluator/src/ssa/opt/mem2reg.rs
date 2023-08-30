@@ -225,11 +225,8 @@ impl<'f> PerFunctionContext<'f> {
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
     fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
-        let reference_parameters = self
-            .inserter
-            .function
-            .parameters()
-            .iter()
+        let parameters = self.inserter.function.parameters().iter();
+        let reference_parameters = parameters
             .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
             .collect::<BTreeSet<_>>();
 
@@ -723,12 +720,18 @@ mod tests {
 
         // Store is needed by the return value, and can't be removed
         assert_eq!(count_stores(block_id, &func.dfg), 1);
+        let instructions = func.dfg[block_id].instructions();
+        assert_eq!(instructions.len(), 2);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[v0]);
+
+        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
+        // is most likely no longer v0. We have to retrieve the new id here.
+        let alloca_id = func.dfg.instruction_results(instructions[0])[0];
+        assert_eq!(ret_val_id, alloca_id);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -790,12 +793,12 @@ mod tests {
         // Expected result:
         // acir fn main f0 {
         //   b0():
-        //     v0 = allocate
-        //     store Field 5 at v0
+        //     v7 = allocate
+        //     store Field 5 at v7
         //     jmp b1(Field 5)
         //   b1(v3: Field):
-        //     store Field 6 at v0
-        //     return v3, Field 5, Field 6 // Optimized to constants 5 and 6
+        //     store Field 6 at v7
+        //     return v3, Field 5, Field 6
         // }
         let ssa = ssa.mem2reg();
 
@@ -878,14 +881,13 @@ mod tests {
         // Expected result:
         // acir fn main f0 {
         //   b0():
-        //     v0 = allocate
-        //     store Field 0 at v0
-        //     v2 = allocate
-        //     store v0 at v2
+        //     v9 = allocate
+        //     store Field 0 at v9
+        //     v10 = allocate
+        //     store v9 at v10
         //     jmp b1()
         //   b1():
-        //     store Field 2 at v0
-        //     v8 = eq Field 1, Field 2
+        //     store Field 2 at v9
         //     return
         // }
         let ssa = ssa.mem2reg();
@@ -905,18 +907,7 @@ mod tests {
 
         let b1_instructions = main.dfg[b1].instructions();
 
-        // The last instruction in b1 should be a binary operation
-        match &main.dfg[*b1_instructions.last().unwrap()] {
-            Instruction::Binary(binary) => {
-                let lhs =
-                    main.dfg.get_numeric_constant(binary.lhs).expect("Expected constant value");
-                let rhs =
-                    main.dfg.get_numeric_constant(binary.rhs).expect("Expected constant value");
-
-                assert_eq!(lhs, rhs);
-                assert_eq!(lhs, FieldElement::from(2u128));
-            }
-            _ => unreachable!(),
-        }
+        // We expect the last eq to be optimized out
+        assert_eq!(b1_instructions.len(), 1);
     }
 }
