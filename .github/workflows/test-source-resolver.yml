@@ -1,11 +1,16 @@
-name: Publish Source Resolver to NPM
+name: Test Source Resolver
 
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - "crates/source-resolver/**"
+  pull_request:
+    paths:
+      - "crates/source-resolver/**"
 
 jobs:
-  publish-npm:
-    runs-on: ubuntu-22.04
+  test:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -17,12 +22,10 @@ jobs:
           node-version: "18"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Build noir-source-resolver
+      - name: Install dependencies
         working-directory: ./crates/source-resolver
-        run: npm run build
+        run: npm install
 
-      - name: Publish to npm (latest tag)
+      - name: Run tests
         working-directory: ./crates/source-resolver
-        run: npm publish --tag latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run test
