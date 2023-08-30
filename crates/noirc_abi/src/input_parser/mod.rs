@@ -6,8 +6,8 @@ use std::collections::BTreeMap;
 use acvm::FieldElement;
 use serde::Serialize;
 
-use crate::errors::{AbiError, InputParserError};
-use crate::{decode_value, Abi, AbiType};
+use crate::errors::InputParserError;
+use crate::{Abi, AbiType};
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
@@ -64,35 +64,6 @@ impl InputValue {
             // All other InputValue-AbiType combinations are fundamentally incompatible.
             _ => false,
         }
-    }
-}
-
-/// In order to display an `InputValue` we need an `AbiType` to accurately
-/// convert the value into a human-readable format.
-pub struct InputValueDisplay {
-    input_value: InputValue,
-    abi_type: AbiType,
-}
-
-impl InputValueDisplay {
-    pub fn try_from_fields(
-        field_iterator: &mut impl Iterator<Item = FieldElement>,
-        abi_type: AbiType,
-    ) -> Result<Self, AbiError> {
-        let input_value = decode_value(field_iterator, &abi_type)?;
-        Ok(InputValueDisplay { input_value, abi_type })
-    }
-}
-
-impl std::fmt::Display for InputValueDisplay {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // From the docs: https://doc.rust-lang.org/std/fmt/struct.Error.html
-        // This type does not support transmission of an error other than that an error
-        // occurred. Any extra information must be arranged to be transmitted through
-        // some other means.
-        let json_value = json::JsonTypes::try_from_input_value(&self.input_value, &self.abi_type)
-            .map_err(|_| std::fmt::Error)?;
-        write!(f, "{}", serde_json::to_string(&json_value).map_err(|_| std::fmt::Error)?)
     }
 }
 

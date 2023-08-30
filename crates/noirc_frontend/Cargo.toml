@@ -8,8 +8,8 @@ edition.workspace = true
 
 [dependencies]
 acvm.workspace = true
-noirc_abi.workspace = true
 noirc_errors.workspace = true
+noirc_printable_type.workspace = true
 fm.workspace = true
 arena.workspace = true
 iter-extended.workspace = true
@@ -24,3 +24,6 @@ regex = "1.9.1"
 [dev-dependencies]
 strum = "0.24"
 strum_macros = "0.24"
+
+[features]
+aztec = []

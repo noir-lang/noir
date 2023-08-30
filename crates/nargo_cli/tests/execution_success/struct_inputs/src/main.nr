@@ -1,5 +1,3 @@
-use dep::std;
-
 mod foo;
 
 struct myStruct {

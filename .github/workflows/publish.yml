@@ -7,6 +7,9 @@ on:
       tag:
         description: The tag to build Nargo from (leave empty to build a nightly release from master)
         required: false
+      features:
+        description: Extra feature flags to release with
+        required: false
       publish:
         description: Whether to publish the build artifacts
         type: boolean
@@ -106,7 +109,7 @@ jobs:
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "plonk_bn254_wasm ${{ inputs.features }}"
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
@@ -197,8 +200,8 @@ jobs:
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo install cross --force --git https://github.com/cross-rs/cross
-          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+          cargo install cross --version 0.2.5 --force 
+          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "plonk_bn254_wasm ${{ inputs.features }}"
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
@@ -282,7 +285,7 @@ jobs:
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "plonk_bn254_wasm ${{ inputs.features }}"
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.

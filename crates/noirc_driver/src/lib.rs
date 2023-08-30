@@ -22,6 +22,8 @@ mod program;
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
+const STD_CRATE_NAME: &str = "std";
+
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
@@ -56,11 +58,32 @@ pub fn compile_file(
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
-/// Adds the file from the file system at `Path` to the crate graph
+/// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
+    let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
+    let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
+    let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
+
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
-    context.crate_graph.add_crate_root(root_file_id)
+    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
+    add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
+
+    root_crate_id
+}
+
+// Adds the file from the file system at `Path` to the crate graph
+pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
+    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+
+    let crate_id = context.crate_graph.add_crate(root_file_id);
+
+    // Every dependency has access to stdlib
+    let std_crate_id = context.stdlib_crate_id();
+    add_dep(context, crate_id, *std_crate_id, STD_CRATE_NAME.parse().unwrap());
+
+    crate_id
 }
 
 /// Adds a edge in the crate graph for two crates
@@ -76,23 +99,6 @@ pub fn add_dep(
         .expect("cyclic dependency triggered");
 }
 
-/// Propagates a given dependency to every other crate.
-pub fn propagate_dep(
-    context: &mut Context,
-    dep_to_propagate: CrateId,
-    dep_to_propagate_name: &CrateName,
-) {
-    let crate_ids: Vec<_> =
-        context.crate_graph.iter_keys().filter(|crate_id| *crate_id != dep_to_propagate).collect();
-
-    for crate_id in crate_ids {
-        context
-            .crate_graph
-            .add_dep(crate_id, dep_to_propagate_name.clone(), dep_to_propagate)
-            .expect("ice: cyclic error triggered with std library");
-    }
-}
-
 /// Run the lexing, parsing, name resolution, and type checking passes.
 ///
 /// This returns a (possibly empty) vector of any warnings found on success.
@@ -102,19 +108,6 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
-    // Add the stdlib before we check the crate
-    // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
-    // however, the `create_non_local_crate` panics if you add the stdlib as the first crate in the graph and other
-    // parts of the code expect the `0` FileID to be the crate root. See also #1681
-    let std_crate_name = "std";
-    let path_to_std_lib_file = Path::new(std_crate_name).join("lib.nr");
-    let root_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
-
-    // You can add any crate type to the crate graph
-    // but you cannot depend on Binaries
-    let std_crate = context.crate_graph.add_stdlib(root_file_id);
-    propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
-
     let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
@@ -135,7 +128,7 @@ pub fn compute_function_abi(
 
     let (parameters, return_type) = func_meta.into_function_signature();
     let parameters = into_abi_params(parameters, &context.def_interner);
-    let return_type = return_type.map(|typ| typ.as_abi_type());
+    let return_type = return_type.map(|typ| AbiType::from_type(&typ));
     Some((parameters, return_type))
 }
 

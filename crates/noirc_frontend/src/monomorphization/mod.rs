@@ -10,6 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
+use noirc_printable_type::PrintableType;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -291,11 +292,15 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
             HirExpression::Block(block) => self.block(block.0),
 
-            HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {
-                operator: prefix.operator,
-                rhs: Box::new(self.expr(prefix.rhs)),
-                result_type: Self::convert_type(&self.interner.id_type(expr)),
-            }),
+            HirExpression::Prefix(prefix) => {
+                let location = self.interner.expr_location(&expr);
+                ast::Expression::Unary(ast::Unary {
+                    operator: prefix.operator,
+                    rhs: Box::new(self.expr(prefix.rhs)),
+                    result_type: Self::convert_type(&self.interner.id_type(expr)),
+                    location,
+                })
+            }
 
             HirExpression::Infix(infix) => {
                 let lhs = Box::new(self.expr(infix.lhs));
@@ -775,7 +780,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if name.as_str() == "println" {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // Thus, the only argument to the `println` oracle is expected to always be an ident
-                    self.append_abi_arg(&hir_arguments[0], &mut arguments);
+                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -816,7 +821,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let call = self
-            .try_evaluate_call(&func, &return_type)
+            .try_evaluate_call(&func, &id, &return_type)
             .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
 
         if !block_expressions.is_empty() {
@@ -828,17 +833,16 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
-    /// a caller (such as nargo) how to convert values passed to an foreign call
-    /// back to a human-readable string.
+    /// `println` how to convert values passed to an foreign call  back to a human-readable string.
     /// The values passed to an foreign call will be a simple list of field elements,
     /// thus requiring extra metadata to correctly decode this list of elements.
     ///
-    /// The Noir compiler has an `AbiType` that handles encoding/decoding a list
+    /// The Noir compiler has a `PrintableType` that handles encoding/decoding a list
     /// of field elements to/from JSON. The type metadata attached in this method
-    /// is the serialized `AbiType` for the argument passed to the function.
-    /// The caller that is running a Noir program should then deserialize the `AbiType`,
+    /// is the serialized `PrintableType` for the argument passed to the function.
+    /// The caller that is running a Noir program should then deserialize the `PrintableType`,
     /// and accurately decode the list of field elements passed to the foreign call.
-    fn append_abi_arg(
+    fn append_printable_type_info(
         &mut self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
@@ -854,7 +858,7 @@ impl<'interner> Monomorphizer<'interner> {
                         match *elements {
                             Type::Tuple(element_types) => {
                                 for typ in element_types {
-                                    Self::append_abi_arg_inner(&typ, arguments);
+                                    Self::append_printable_type_info_inner(&typ, arguments);
                                 }
                             }
                             _ => unreachable!(
@@ -864,7 +868,7 @@ impl<'interner> Monomorphizer<'interner> {
                         true
                     }
                     _ => {
-                        Self::append_abi_arg_inner(&typ, arguments);
+                        Self::append_printable_type_info_inner(&typ, arguments);
                         false
                     }
                 };
@@ -875,15 +879,15 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+    fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
                 unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
             }
         }
-        let abi_type = typ.as_abi_type();
-        let abi_as_string =
-            serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+        let printable_type: PrintableType = typ.into();
+        let abi_as_string = serde_json::to_string(&printable_type)
+            .expect("ICE: expected PrintableType to serialize");
 
         arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
@@ -897,6 +901,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn try_evaluate_call(
         &mut self,
         func: &ast::Expression,
+        expr_id: &node_interner::ExprId,
         result_type: &ast::Type,
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
@@ -907,7 +912,10 @@ impl<'interner> Monomorphizer<'interner> {
                         (FieldElement::max_num_bits() as u128).into(),
                         ast::Type::Field,
                     ))),
-                    "zeroed" => Some(self.zeroed_value_of_type(result_type)),
+                    "zeroed" => {
+                        let location = self.interner.expr_location(expr_id);
+                        Some(self.zeroed_value_of_type(result_type, location))
+                    }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
                         Some(self.modulus_array_literal(bits, 1))
@@ -1118,7 +1126,7 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         let location = None; // TODO: This should match the location of the lambda expression
-        let mutable = false;
+        let mutable = true;
         let definition = Definition::Local(env_local_id);
 
         let env_ident = ast::Ident {
@@ -1179,7 +1187,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// Implements std::unsafe::zeroed by returning an appropriate zeroed
     /// ast literal or collection node for the given type. Note that for functions
     /// there is no obvious zeroed value so this should be considered unsafe to use.
-    fn zeroed_value_of_type(&mut self, typ: &ast::Type) -> ast::Expression {
+    fn zeroed_value_of_type(
+        &mut self,
+        typ: &ast::Type,
+        location: noirc_errors::Location,
+    ) -> ast::Expression {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ.clone()))
@@ -1189,7 +1201,7 @@ impl<'interner> Monomorphizer<'interner> {
             // anyway.
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type.as_ref());
+                let element = self.zeroed_value_of_type(element_type.as_ref(), location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![element; *length as usize],
                     typ: ast::Type::Array(*length, element_type.clone()),
@@ -1199,7 +1211,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
             }
             ast::Type::FmtString(length, fields) => {
-                let zeroed_tuple = self.zeroed_value_of_type(fields);
+                let zeroed_tuple = self.zeroed_value_of_type(fields, location);
                 let fields_len = match &zeroed_tuple {
                     ast::Expression::Tuple(fields) => fields.len() as u64,
                     _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
@@ -1210,11 +1222,11 @@ impl<'interner> Monomorphizer<'interner> {
                     Box::new(zeroed_tuple),
                 ))
             }
-            ast::Type::Tuple(fields) => {
-                ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field)))
-            }
+            ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
+                self.zeroed_value_of_type(field, location)
+            })),
             ast::Type::Function(parameter_types, ret_type, env) => {
-                self.create_zeroed_function(parameter_types, ret_type, env)
+                self.create_zeroed_function(parameter_types, ret_type, env, location)
             }
             ast::Type::Slice(element_type) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
@@ -1224,9 +1236,14 @@ impl<'interner> Monomorphizer<'interner> {
             }
             ast::Type::MutableReference(element) => {
                 use crate::UnaryOp::MutableReference;
-                let rhs = Box::new(self.zeroed_value_of_type(element));
+                let rhs = Box::new(self.zeroed_value_of_type(element, location));
                 let result_type = typ.clone();
-                ast::Expression::Unary(ast::Unary { rhs, result_type, operator: MutableReference })
+                ast::Expression::Unary(ast::Unary {
+                    rhs,
+                    result_type,
+                    operator: MutableReference,
+                    location,
+                })
             }
         }
     }
@@ -1242,6 +1259,7 @@ impl<'interner> Monomorphizer<'interner> {
         parameter_types: &[ast::Type],
         ret_type: &ast::Type,
         env_type: &ast::Type,
+        location: noirc_errors::Location,
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
@@ -1249,7 +1267,7 @@ impl<'interner> Monomorphizer<'interner> {
             (self.next_local_id(), false, "_".into(), parameter_type.clone())
         });
 
-        let body = self.zeroed_value_of_type(ret_type);
+        let body = self.zeroed_value_of_type(ret_type, location);
 
         let id = self.next_function_id();
         let return_type = ret_type.clone();
