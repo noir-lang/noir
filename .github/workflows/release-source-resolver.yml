@@ -35,10 +35,6 @@ jobs:
         working-directory: ./crates/source-resolver
         run: npm run build
 
-      - name: Update package.json version
-        working-directory: ./crates/source-resolver
-        run: npm version ${{ needs.release-please.outputs.tag-name }} --no-git-tag-version
-
       - name: Publish to npm (latest tag)
         working-directory: ./crates/source-resolver
         run: npm publish --tag latest
