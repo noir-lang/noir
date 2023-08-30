@@ -1,6 +1,3 @@
-use super::fs::common_reference_string::{
-    read_cached_common_reference_string, update_common_reference_string,
-};
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_package,
