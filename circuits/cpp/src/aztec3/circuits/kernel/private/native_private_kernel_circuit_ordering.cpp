@@ -1,7 +1,7 @@
 #include "common.hpp"
 #include "init.hpp"
 
-#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs_final.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
@@ -14,7 +14,7 @@
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 
-using aztec3::circuits::abis::KernelCircuitPublicInputs;
+using aztec3::circuits::abis::KernelCircuitPublicInputsFinal;
 using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::kernel::private_kernel::common_initialise_end_values;
 using aztec3::utils::array_length;
@@ -22,7 +22,8 @@ using aztec3::utils::array_rearrange;
 using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::DummyCircuitBuilder;
 
-void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, KernelCircuitPublicInputs<NT>& public_inputs)
+void initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
+                           KernelCircuitPublicInputsFinal<NT>& public_inputs)
 {
     common_initialise_end_values(previous_kernel, public_inputs);
     public_inputs.end.new_contracts = previous_kernel.public_inputs.end.new_contracts;
@@ -192,11 +193,11 @@ void apply_commitment_nonces(NT::fr const& first_nullifier,
     }
 }
 
-KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(DummyCircuitBuilder& builder,
-                                                                     PreviousKernelData<NT> const& previous_kernel)
+KernelCircuitPublicInputsFinal<NT> native_private_kernel_circuit_ordering(DummyCircuitBuilder& builder,
+                                                                          PreviousKernelData<NT> const& previous_kernel)
 {
     // We'll be pushing data to this during execution of this circuit.
-    KernelCircuitPublicInputs<NT> public_inputs{};
+    KernelCircuitPublicInputsFinal<NT> public_inputs{};
 
     // Do this before any functions can modify the inputs.
     initialise_end_values(previous_kernel, public_inputs);
@@ -217,8 +218,6 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(DummyCircui
                                previous_kernel.public_inputs.end.read_requests,
                                previous_kernel.public_inputs.end.read_request_membership_witnesses,
                                previous_kernel.public_inputs.end.new_commitments);
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): ideally final public_inputs
-    // shouldn't even include read_requests and read_request_membership_witnesses as they should be empty.
 
     // Matching nullifiers to pending commitments requires the full list of new commitments accumulated over
     // all iterations of the private kernel. Therefore, we match nullifiers (their nullified_commitments)

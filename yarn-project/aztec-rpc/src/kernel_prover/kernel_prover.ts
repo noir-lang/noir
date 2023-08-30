@@ -18,7 +18,7 @@ import {
 } from '@aztec/circuits.js';
 import { assertLength } from '@aztec/foundation/serialize';
 
-import { KernelProofCreator, ProofCreator, ProofOutput } from './proof_creator.js';
+import { KernelProofCreator, ProofCreator, ProofOutput, ProofOutputFinal } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
 
 /**
@@ -45,7 +45,7 @@ export interface OutputNoteData {
  * Represents the output data of the Kernel Prover.
  * Provides information about the newly created notes, along with the public inputs and proof.
  */
-export interface KernelProverOutput extends ProofOutput {
+export interface KernelProverOutput extends ProofOutputFinal {
   /**
    * An array of output notes containing the contract address, note data, and commitment for each new note.
    */
@@ -163,13 +163,13 @@ export class KernelProver {
       assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
     );
 
-    output = await this.proofCreator.createProofOrdering(previousKernelData);
+    const outputFinal = await this.proofCreator.createProofOrdering(previousKernelData);
 
     // Only return the notes whose commitment is in the commitments of the final proof.
-    const finalNewCommitments = output.publicInputs.end.newCommitments;
+    const finalNewCommitments = outputFinal.publicInputs.end.newCommitments;
     const outputNotes = finalNewCommitments.map(c => newNotes[c.toString()]).filter(c => !!c);
 
-    return { ...output, outputNotes };
+    return { ...outputFinal, outputNotes };
   }
 
   private async createPrivateCallData(

@@ -1,7 +1,9 @@
 import { expectSerializeToMatchSnapshot } from '../../tests/expectSerialize.js';
 import {
   makeAccumulatedData,
+  makeFinalAccumulatedData,
   makeKernelPublicInputs,
+  makeKernelPublicInputsFinal,
   makePreviousKernelData,
   makePrivateKernelInputsInit,
   makePrivateKernelInputsInner,
@@ -44,11 +46,27 @@ describe('structs/kernel', () => {
       'abis__test_roundtrip_serialize_combined_accumulated_data',
     );
   });
+
+  it(`serializes and prints FinalAccumulatedData`, async (seed = 1) => {
+    await expectSerializeToMatchSnapshot(
+      makeFinalAccumulatedData(seed, true).toBuffer(),
+      'abis__test_roundtrip_serialize_final_accumulated_data',
+    );
+  });
+
   it(`serializes and prints private_kernel_public_inputs`, async () => {
     const kernelInputs = makeKernelPublicInputs();
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_kernel_circuit_public_inputs',
+    );
+  });
+
+  it(`serializes and prints private_kernel_public_inputs for ordering circuit`, async () => {
+    const kernelInputs = makeKernelPublicInputsFinal();
+    await expectSerializeToMatchSnapshot(
+      kernelInputs.toBuffer(),
+      'abis__test_roundtrip_serialize_kernel_circuit_public_inputs_final',
     );
   });
 

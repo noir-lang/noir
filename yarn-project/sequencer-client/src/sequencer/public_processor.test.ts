@@ -4,11 +4,13 @@ import {
   AztecAddress,
   CallContext,
   CircuitsWasm,
+  CombinedAccumulatedData,
   EthAddress,
   Fr,
   FunctionData,
   GlobalVariables,
   HistoricBlockData,
+  KernelCircuitPublicInputs,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
@@ -20,7 +22,7 @@ import {
 import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import {
   makeAztecAddress,
-  makeKernelPublicInputs,
+  makeKernelPublicInputsFinal,
   makePublicCallRequest,
   makeSelector,
 } from '@aztec/circuits.js/factories';
@@ -39,7 +41,6 @@ import {
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
-import pick from 'lodash.pick';
 import times from 'lodash.times';
 
 import { PublicProver } from '../prover/index.js';
@@ -101,7 +102,18 @@ describe('public_processor', () => {
       const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toEqual([
-        { isEmpty: false, hash, ...pick(tx, 'data', 'proof', 'encryptedLogs', 'unencryptedLogs') },
+        {
+          isEmpty: false,
+          hash,
+          data: new KernelCircuitPublicInputs(
+            CombinedAccumulatedData.fromFinalAccumulatedData(tx.data.end),
+            tx.data.constants,
+            tx.data.isPrivate,
+          ),
+          proof: tx.proof,
+          encryptedLogs: tx.encryptedLogs,
+          unencryptedLogs: tx.unencryptedLogs,
+        },
       ]);
       expect(failed).toEqual([]);
     });
@@ -151,7 +163,7 @@ describe('public_processor', () => {
       const callStackItems = await Promise.all(callRequests.map(call => call.toPublicCallStackItem()));
       const callStackHashes = callStackItems.map(call => computeCallStackItemHash(wasm, call));
 
-      const kernelOutput = makeKernelPublicInputs(0x10);
+      const kernelOutput = makeKernelPublicInputsFinal(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 
@@ -181,7 +193,7 @@ describe('public_processor', () => {
       const callStackItem = await callRequest.toPublicCallStackItem();
       const callStackHash = computeCallStackItemHash(wasm, callStackItem);
 
-      const kernelOutput = makeKernelPublicInputs(0x10);
+      const kernelOutput = makeKernelPublicInputsFinal(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd([callStackHash], Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 

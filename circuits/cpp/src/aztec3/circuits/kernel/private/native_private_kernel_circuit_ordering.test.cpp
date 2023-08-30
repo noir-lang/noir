@@ -65,10 +65,6 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_one_read_request_to
     ASSERT_FALSE(builder.failed()) << "failure: " << builder.get_first_failure();
     ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 1);
     ASSERT_TRUE(public_inputs.end.new_commitments[0] == unique_siloed_commitments[0]);
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): read_request*s
-    // can be removed from final public inputs
-    ASSERT_TRUE(array_length(public_inputs.end.read_requests) == 0);
-    ASSERT_TRUE(array_length(public_inputs.end.read_request_membership_witnesses) == 0);
 }
 
 TEST_F(native_private_kernel_ordering_tests, native_matching_some_read_requests_to_commitments_works)
@@ -115,10 +111,6 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_some_read_requests_
     for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {
         ASSERT_TRUE(public_inputs.end.new_commitments[c_idx] == unique_siloed_commitments[c_idx]);
     }
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): read_request*s
-    // can be removed from final public inputs
-    ASSERT_TRUE(array_length(public_inputs.end.read_requests) == 0);
-    ASSERT_TRUE(array_length(public_inputs.end.read_request_membership_witnesses) == 0);
 }
 
 TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)

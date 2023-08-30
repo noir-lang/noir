@@ -6,7 +6,6 @@
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
-#include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include "aztec3/circuits/abis/read_request_membership_witness.hpp"
 #include "aztec3/circuits/hash.hpp"
@@ -21,7 +20,6 @@ using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::NewContractData;
-using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::ReadRequestMembershipWitness;
 
 using aztec3::utils::array_length;
@@ -421,33 +419,6 @@ void common_contract_logic(DummyBuilder& builder,
             "computed_contract_tree_root doesn't match purported_contract_tree_root",
             CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
     }
-}
-
-void common_initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
-                                  KernelCircuitPublicInputs<NT>& public_inputs)
-{
-    public_inputs.constants = previous_kernel.public_inputs.constants;
-
-    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
-    // functions within this circuit:
-    auto& end = public_inputs.end;
-    const auto& start = previous_kernel.public_inputs.end;
-
-    end.new_commitments = start.new_commitments;
-    end.new_nullifiers = start.new_nullifiers;
-    end.nullified_commitments = start.nullified_commitments;
-
-    end.private_call_stack = start.private_call_stack;
-    end.public_call_stack = start.public_call_stack;
-    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
-
-    end.encrypted_logs_hash = start.encrypted_logs_hash;
-    end.unencrypted_logs_hash = start.unencrypted_logs_hash;
-
-    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
-    end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
-
-    end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

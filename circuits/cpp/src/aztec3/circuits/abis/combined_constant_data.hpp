@@ -4,7 +4,6 @@
 
 #include "aztec3/circuits/abis/historic_block_data.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
-#include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
 
 #include <barretenberg/barretenberg.hpp>
@@ -27,7 +26,7 @@ template <typename NCT> struct CombinedConstantData {
     MSGPACK_FIELDS(block_data, tx_context);
     boolean operator==(CombinedConstantData<NCT> const& other) const
     {
-        return block_data == other.block_data && tx_context == other.tx_context;
+        return msgpack_derived_equals<boolean>(*this, other);
     }
 
     template <typename Builder> CombinedConstantData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const

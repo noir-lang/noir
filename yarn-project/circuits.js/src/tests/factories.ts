@@ -21,6 +21,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   FUNCTION_TREE_HEIGHT,
+  FinalAccumulatedData,
   Fq,
   Fr,
   FunctionData,
@@ -29,6 +30,7 @@ import {
   HISTORIC_BLOCKS_TREE_HEIGHT,
   HistoricBlockData,
   KernelCircuitPublicInputs,
+  KernelCircuitPublicInputsFinal,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
@@ -192,35 +194,6 @@ export function makeContractStorageRead(seed = 1): ContractStorageRead {
 }
 
 /**
- * Creates empty accumulated data.
- * @param seed - The seed to use for generating the accumulated data.
- * @returns An empty accumulated data.
- */
-export function makeEmptyAccumulatedData(seed = 1, full = false): CombinedAccumulatedData {
-  const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
-
-  return new CombinedAccumulatedData(
-    makeAggregationObject(seed),
-    tupleGenerator(MAX_READ_REQUESTS_PER_TX, fr, seed + 0x80),
-    tupleGenerator(MAX_READ_REQUESTS_PER_TX, i => makeReadRequestMembershipWitness(i * 123), seed + 0x90),
-    tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x300),
-    tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr.zero), // private call stack must be empty
-    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, fr, seed + 0x500),
-    tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
-    tupleGenerator(2, fr, seed + 0x700), // encrypted logs hash
-    tupleGenerator(2, fr, seed + 0x800), // unencrypted logs hash
-    fr(seed + 0x900), // encrypted_log_preimages_length
-    fr(seed + 0xa00), // unencrypted_log_preimages_length
-    tupleGenerator(MAX_NEW_CONTRACTS_PER_TX, makeNewContractData, seed + 0xb00),
-    tupleGenerator(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, makeOptionallyRevealedData, seed + 0xc00),
-    tupleGenerator(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makeEmptyPublicDataUpdateRequest, seed + 0xd00),
-    tupleGenerator(MAX_PUBLIC_DATA_READS_PER_TX, makeEmptyPublicDataRead, seed + 0xe00),
-  );
-}
-
-/**
  * Creates arbitrary accumulated data.
  * @param seed - The seed to use for generating the accumulated data.
  * @returns An accumulated data.
@@ -246,6 +219,31 @@ export function makeAccumulatedData(seed = 1, full = false): CombinedAccumulated
     tupleGenerator(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, makeOptionallyRevealedData, seed + 0xc00),
     tupleGenerator(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataUpdateRequest, seed + 0xd00),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_TX, makePublicDataRead, seed + 0xe00),
+  );
+}
+
+/**
+ * Creates arbitrary final accumulated data.
+ * @param seed - The seed to use for generating the final accumulated data.
+ * @returns A final accumulated data.
+ */
+export function makeFinalAccumulatedData(seed = 1, full = false): FinalAccumulatedData {
+  const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
+
+  return new FinalAccumulatedData(
+    makeAggregationObject(seed),
+    tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x300),
+    tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, fr, seed + 0x400),
+    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, fr, seed + 0x500),
+    tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
+    tupleGenerator(2, fr, seed + 0x700), // encrypted logs hash
+    tupleGenerator(2, fr, seed + 0x800), // unencrypted logs hash
+    fr(seed + 0x900), // encrypted_log_preimages_length
+    fr(seed + 0xa00), // unencrypted_log_preimages_length
+    tupleGenerator(MAX_NEW_CONTRACTS_PER_TX, makeNewContractData, seed + 0xb00),
+    tupleGenerator(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, makeOptionallyRevealedData, seed + 0xc00),
   );
 }
 
@@ -331,21 +329,25 @@ export function makePublicCircuitPublicInputs(
 }
 
 /**
- * Creates empty kernel circuit public inputs.
- * @param seed - The seed to use for generating the kernel circuit public inputs.
- * @returns Empty kernel circuit public inputs.
- */
-export function makeEmptyKernelPublicInputs(seed = 1): KernelCircuitPublicInputs {
-  return new KernelCircuitPublicInputs(makeEmptyAccumulatedData(seed), makeConstantData(seed + 0x100), true);
-}
-
-/**
  * Creates arbitrary kernel circuit public inputs.
  * @param seed - The seed to use for generating the kernel circuit public inputs.
  * @returns Kernel circuit public inputs.
  */
-export function makeKernelPublicInputs(seed = 1): KernelCircuitPublicInputs {
-  return new KernelCircuitPublicInputs(makeAccumulatedData(seed, true), makeConstantData(seed + 0x100), true);
+export function makeKernelPublicInputs(seed = 1, fullAccumulatedData = true): KernelCircuitPublicInputs {
+  return new KernelCircuitPublicInputs(
+    makeAccumulatedData(seed, fullAccumulatedData),
+    makeConstantData(seed + 0x100),
+    true,
+  );
+}
+
+/**
+ * Creates arbitrary final ordering kernel circuit public inputs.
+ * @param seed - The seed to use for generating the final ordering kernel circuit public inputs.
+ * @returns Final ordering kernel circuit public inputs.
+ */
+export function makeKernelPublicInputsFinal(seed = 1): KernelCircuitPublicInputsFinal {
+  return new KernelCircuitPublicInputsFinal(makeFinalAccumulatedData(seed, true), makeConstantData(seed + 0x100), true);
 }
 
 /**
@@ -397,6 +399,15 @@ export function makeReadRequestMembershipWitness(start: number): ReadRequestMemb
 }
 
 /**
+ * Creates empty membership witness where the sibling paths is an array of fields filled with zeros.
+ * @param start - The start of the membership witness.
+ * @returns Non-transient empty read request membership witness.
+ */
+export function makeEmptyReadRequestMembershipWitness(): ReadRequestMembershipWitness {
+  return new ReadRequestMembershipWitness(new Fr(0), makeTuple(PRIVATE_DATA_TREE_HEIGHT, Fr.zero), false, new Fr(0));
+}
+
+/**
  * Creates arbitrary/mocked verification key.
  * @returns A verification key.
  */
@@ -430,7 +441,7 @@ export function makePoint(seed = 1): Point {
  */
 export function makePreviousKernelData(seed = 1, kernelPublicInputs?: KernelCircuitPublicInputs): PreviousKernelData {
   return new PreviousKernelData(
-    kernelPublicInputs ?? makeKernelPublicInputs(seed),
+    kernelPublicInputs ?? makeKernelPublicInputs(seed, true),
     new Proof(Buffer.alloc(16, seed + 0x80)),
     makeVerificationKey(),
     0x42,
@@ -548,16 +559,16 @@ export async function makePublicKernelInputs(seed = 1): Promise<PublicKernelInpu
 }
 
 /**
- * Makes arbitrary public kernel inputs with empty output.
+ * Makes arbitrary public kernel inputs.
  * @param seed - The seed to use for generating the public kernel inputs.
  * @param tweak - An optional function to tweak the output before computing hashes.
  * @returns Public kernel inputs.
  */
-export async function makePublicKernelInputsWithEmptyOutput(
+export async function makePublicKernelInputsWithTweak(
   seed = 1,
   tweak?: (publicKernelInputs: PublicKernelInputs) => void,
 ): Promise<PublicKernelInputs> {
-  const kernelCircuitPublicInputs = makeEmptyKernelPublicInputs(seed);
+  const kernelCircuitPublicInputs = makeKernelPublicInputs(seed, false);
   const publicKernelInputs = new PublicKernelInputs(
     makePreviousKernelData(seed, kernelCircuitPublicInputs),
     await makePublicCallData(seed + 0x1000),

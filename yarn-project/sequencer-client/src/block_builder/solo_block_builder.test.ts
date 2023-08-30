@@ -22,7 +22,7 @@ import { computeBlockHashWithGlobals, computeContractLeaf } from '@aztec/circuit
 import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
-  makeKernelPublicInputs,
+  makeKernelPublicInputsFinal,
   makeNewContractData,
   makeProof,
   makePublicCallRequest,
@@ -169,7 +169,7 @@ describe('sequencer/solo_block_builder', () => {
   };
 
   const buildMockSimulatorInputs = async () => {
-    const kernelOutput = makeKernelPublicInputs();
+    const kernelOutput = makeKernelPublicInputsFinal();
     kernelOutput.constants.blockData = await getHistoricBlockData(expectsDb);
 
     const tx = await makeProcessedTx(

@@ -89,15 +89,11 @@ TEST_F(native_private_kernel_tests, native_accumulate_transient_read_requests)
     auto& previous_kernel = private_inputs_inner.previous_kernel;
     previous_kernel.public_inputs = public_inputs;
 
-    public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
+    auto final_public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
 
     ASSERT_FALSE(builder.failed()) << "failure: " << builder.get_first_failure()
                                    << " with code: " << builder.get_first_failure().code;
-    ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 2);  // no commitments squashed
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): read_request*s
-    // can be removed from final public inputs
-    ASSERT_TRUE(array_length(public_inputs.end.read_requests) == 0);
-    ASSERT_TRUE(array_length(public_inputs.end.read_request_membership_witnesses) == 0);
+    ASSERT_TRUE(array_length(final_public_inputs.end.new_commitments) == 2);  // no commitments squashed
 }
 
 // 1. We send transient read request on value 23 and pending commitment 10
@@ -146,16 +142,12 @@ TEST_F(native_private_kernel_tests, native_transient_read_requests_no_match)
     auto& previous_kernel = private_inputs_inner.previous_kernel;
     previous_kernel.public_inputs = public_inputs;
 
-    public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
+    auto final_public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
 
     ASSERT_TRUE(builder.failed());
     ASSERT_TRUE(builder.get_first_failure().code == CircuitErrorCode::PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH);
 
-    ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 2);  // no commitments squashed
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): read_request*s
-    // can be removed from final public inputs
-    ASSERT_TRUE(array_length(public_inputs.end.read_requests) == 0);
-    ASSERT_TRUE(array_length(public_inputs.end.read_request_membership_witnesses) == 0);
+    ASSERT_TRUE(array_length(final_public_inputs.end.new_commitments) == 2);  // no commitments squashed
 }
 
 // Testing that the special value EMPTY_NULLIFIED_COMMITMENT keeps new_nullifiers aligned with nullified_commitments.
@@ -198,13 +190,13 @@ TEST_F(native_private_kernel_tests, native_empty_nullified_commitment_respected)
     auto& previous_kernel = private_inputs_inner.previous_kernel;
     previous_kernel.public_inputs = public_inputs;
 
-    public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
+    auto final_public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
 
     ASSERT_FALSE(builder.failed()) << "failure: " << builder.get_first_failure()
                                    << " with code: " << builder.get_first_failure().code;
 
-    ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 1);  // 1/2 commitment squashed
-    ASSERT_TRUE(array_length(public_inputs.end.new_nullifiers) == 1);   // 1/2 nullifier squashed
+    ASSERT_TRUE(array_length(final_public_inputs.end.new_commitments) == 1);  // 1/2 commitment squashed
+    ASSERT_TRUE(array_length(final_public_inputs.end.new_nullifiers) == 1);   // 1/2 nullifier squashed
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

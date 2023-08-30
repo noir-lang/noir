@@ -4,6 +4,7 @@
 #include "function_data.hpp"
 #include "function_leaf_preimage.hpp"
 #include "kernel_circuit_public_inputs.hpp"
+#include "kernel_circuit_public_inputs_final.hpp"
 #include "previous_kernel_data.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "tx_context.hpp"
@@ -16,6 +17,7 @@
 #include "rollup/root/root_rollup_public_inputs.hpp"
 
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
+#include "aztec3/circuits/abis/final_accumulated_data.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/packers.hpp"
 #include "aztec3/circuits/abis/point.hpp"
@@ -593,6 +595,11 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_combined_accumulated_data
     return as_string_output<aztec3::circuits::abis::CombinedAccumulatedData<NT>>(input, size);
 }
 
+WASM_EXPORT const char* abis__test_roundtrip_serialize_final_accumulated_data(uint8_t const* input, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::FinalAccumulatedData<NT>>(input, size);
+}
+
 WASM_EXPORT const char* abis__test_roundtrip_serialize_signature(uint8_t const* input, uint32_t* size)
 {
     return as_string_output<NT::schnorr_signature>(input, size);
@@ -612,6 +619,12 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inp
                                                                                     uint32_t* size)
 {
     return as_string_output<aztec3::circuits::abis::KernelCircuitPublicInputs<NT>>(input, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inputs_final(uint8_t const* input,
+                                                                                          uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::KernelCircuitPublicInputsFinal<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_public_kernel_inputs(uint8_t const* input, uint32_t* size)

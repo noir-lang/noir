@@ -1,5 +1,5 @@
 import {
-  KernelCircuitPublicInputs,
+  KernelCircuitPublicInputsFinal,
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   Proof,
@@ -21,7 +21,7 @@ export class Tx {
     /**
      * Output of the private kernel circuit for this tx.
      */
-    public readonly data: KernelCircuitPublicInputs,
+    public readonly data: KernelCircuitPublicInputsFinal,
     /**
      * Proof from the private kernel circuit.
      */
@@ -73,7 +73,7 @@ export class Tx {
   static fromBuffer(buffer: Buffer | BufferReader): Tx {
     const reader = BufferReader.asReader(buffer);
     return new Tx(
-      reader.readObject(KernelCircuitPublicInputs),
+      reader.readObject(KernelCircuitPublicInputsFinal),
       reader.readObject(Proof),
       reader.readObject(TxL2Logs),
       reader.readObject(TxL2Logs),
@@ -118,7 +118,7 @@ export class Tx {
    * @returns A Tx class object.
    */
   public static fromJSON(obj: any) {
-    const publicInputs = KernelCircuitPublicInputs.fromBuffer(Buffer.from(obj.data, 'hex'));
+    const publicInputs = KernelCircuitPublicInputsFinal.fromBuffer(Buffer.from(obj.data, 'hex'));
     const encryptedLogs = TxL2Logs.fromBuffer(Buffer.from(obj.encryptedLogs, 'hex'));
     const unencryptedLogs = TxL2Logs.fromBuffer(Buffer.from(obj.unencryptedLogs, 'hex'));
     const proof = Buffer.from(obj.proof, 'hex');
@@ -162,7 +162,7 @@ export class Tx {
    * @returns The cloned transaction.
    */
   static clone(tx: Tx): Tx {
-    const publicInputs = KernelCircuitPublicInputs.fromBuffer(tx.data.toBuffer());
+    const publicInputs = KernelCircuitPublicInputsFinal.fromBuffer(tx.data.toBuffer());
     const proof = Proof.fromBuffer(tx.proof.toBuffer());
     const encryptedLogs = TxL2Logs.fromBuffer(tx.encryptedLogs.toBuffer());
     const unencryptedLogs = TxL2Logs.fromBuffer(tx.unencryptedLogs.toBuffer());

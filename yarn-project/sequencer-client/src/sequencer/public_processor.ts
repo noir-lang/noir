@@ -9,6 +9,7 @@ import {
 import {
   AztecAddress,
   CircuitsWasm,
+  CombinedAccumulatedData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
@@ -153,7 +154,11 @@ export class PublicProcessor {
     this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
     if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
 
-    let kernelOutput = tx.data;
+    let kernelOutput = new KernelCircuitPublicInputs(
+      CombinedAccumulatedData.fromFinalAccumulatedData(tx.data.end),
+      tx.data.constants,
+      tx.data.isPrivate,
+    );
     let kernelProof = tx.proof;
     const newUnencryptedFunctionLogs: FunctionL2Logs[] = [];
 

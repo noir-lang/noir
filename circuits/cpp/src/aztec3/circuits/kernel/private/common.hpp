@@ -48,7 +48,31 @@ void common_contract_logic(DummyBuilder& builder,
                            ContractDeploymentData<NT> const& contract_dep_data,
                            FunctionData<NT> const& function_data);
 
-void common_initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
-                                  KernelCircuitPublicInputs<NT>& public_inputs);
+template <typename KernelPublicInputs>
+void common_initialise_end_values(PreviousKernelData<NT> const& previous_kernel, KernelPublicInputs& public_inputs)
+{
+    public_inputs.constants = previous_kernel.public_inputs.constants;
+
+    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
+    // functions within this circuit:
+    auto& end = public_inputs.end;
+    const auto& start = previous_kernel.public_inputs.end;
+
+    end.new_commitments = start.new_commitments;
+    end.new_nullifiers = start.new_nullifiers;
+    end.nullified_commitments = start.nullified_commitments;
+
+    end.private_call_stack = start.private_call_stack;
+    end.public_call_stack = start.public_call_stack;
+    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
+
+    end.encrypted_logs_hash = start.encrypted_logs_hash;
+    end.unencrypted_logs_hash = start.unencrypted_logs_hash;
+
+    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
+    end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
+
+    end.optionally_revealed_data = start.optionally_revealed_data;
+}
 
 }  // namespace aztec3::circuits::kernel::private_kernel

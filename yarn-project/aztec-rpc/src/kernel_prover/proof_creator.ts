@@ -2,6 +2,7 @@ import {
   CircuitError,
   CircuitsWasm,
   KernelCircuitPublicInputs,
+  KernelCircuitPublicInputsFinal,
   PreviousKernelData,
   PrivateCallData,
   PrivateCircuitPublicInputs,
@@ -17,14 +18,29 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 /**
- * Represents the output of the proof creation process.
- * Contains the public inputs required for the kernel circuit and the generated proof.
+ * Represents the output of the proof creation process for init and inner private kernel circuit.
+ * Contains the public inputs required for the init and inner private kernel circuit and the generated proof.
  */
 export interface ProofOutput {
   /**
    * The public inputs required for the proof generation process.
    */
   publicInputs: KernelCircuitPublicInputs;
+  /**
+   * The zk-SNARK proof for the kernel execution.
+   */
+  proof: Proof;
+}
+
+/**
+ * Represents the output of the proof creation process for final ordering private kernel circuit.
+ * Contains the public inputs required for the final ordering private kernel circuit and the generated proof.
+ */
+export interface ProofOutputFinal {
+  /**
+   * The public inputs required for the proof generation process.
+   */
+  publicInputs: KernelCircuitPublicInputsFinal;
   /**
    * The zk-SNARK proof for the kernel execution.
    */
@@ -68,7 +84,7 @@ export interface ProofCreator {
    * @param previousKernelData - The previous kernel data object.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofOrdering(previousKernelData: PreviousKernelData): Promise<ProofOutput>;
+  createProofOrdering(previousKernelData: PreviousKernelData): Promise<ProofOutputFinal>;
 }
 
 /**
@@ -121,7 +137,7 @@ export class KernelProofCreator implements ProofCreator {
     };
   }
 
-  public async createProofOrdering(previousKernelData: PreviousKernelData): Promise<ProofOutput> {
+  public async createProofOrdering(previousKernelData: PreviousKernelData): Promise<ProofOutputFinal> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation ordering...');
     const result = privateKernelSimOrdering(wasm, previousKernelData);
@@ -133,7 +149,7 @@ export class KernelProofCreator implements ProofCreator {
     const proof = makeEmptyProof();
     this.log('Ordering Kernel Prover Ordering Completed!');
 
-    const publicInputs = result as KernelCircuitPublicInputs;
+    const publicInputs = result as KernelCircuitPublicInputsFinal;
 
     return {
       publicInputs,

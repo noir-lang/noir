@@ -1,11 +1,22 @@
-import { Fr, HistoricBlockData, KernelCircuitPublicInputs, Proof, makeEmptyProof } from '@aztec/circuits.js';
+import {
+  CombinedAccumulatedData,
+  Fr,
+  HistoricBlockData,
+  KernelCircuitPublicInputs,
+  Proof,
+  makeEmptyProof,
+} from '@aztec/circuits.js';
 import { Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'data' | 'proof' | 'encryptedLogs' | 'unencryptedLogs'> & {
+export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs'> & {
+  /**
+   * Output of the public kernel circuit for this tx.
+   */
+  data: KernelCircuitPublicInputs;
   /**
    * Hash of the transaction.
    */
@@ -61,7 +72,13 @@ export async function makeProcessedTx(
 ): Promise<ProcessedTx> {
   return {
     hash: await tx.getTxHash(),
-    data: kernelOutput ?? tx.data,
+    data:
+      kernelOutput ??
+      new KernelCircuitPublicInputs(
+        CombinedAccumulatedData.fromFinalAccumulatedData(tx.data.end),
+        tx.data.constants,
+        tx.data.isPrivate,
+      ),
     proof: proof ?? tx.proof,
     encryptedLogs: tx.encryptedLogs,
     unencryptedLogs: tx.unencryptedLogs,

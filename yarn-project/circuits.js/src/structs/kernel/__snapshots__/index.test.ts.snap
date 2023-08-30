@@ -237,6 +237,93 @@ value: 0xe11
 
 exports[`structs/kernel serializes and prints EcdsaSignature 1`] = `"{ 0101010101010101010101010101010101010101010101010101010101010101, 0101010101010101010101010101010101010101010101010101010101010101 }"`;
 
+exports[`structs/kernel serializes and prints FinalAccumulatedData 1`] = `
+"aggregation_object:
+P0: { 0x1, 0x2 }
+P1: { 0x101, 0x102 }
+public_inputs: [
+ 0x3
+ 0x4
+ 0x5
+ 0x6
+]
+proof_witness_indices: [ 7 8 9 10 11 12 ]
+has_data: 0
+
+new_commitments: [ 0x101 0x102 0x103 0x104 0x105 0x106 0x107 0x108 0x109 0x10a 0x10b 0x10c 0x10d 0x10e 0x10f 0x110 ]
+new_nullifiers: [ 0x201 0x202 0x203 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 ]
+nullified_commitments: [ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 0x309 0x30a 0x30b 0x30c 0x30d 0x30e 0x30f 0x310 ]
+private_call_stack: [ 0x401 0x402 0x403 0x404 0x405 0x406 0x407 0x408 ]
+public_call_stack: [ 0x501 0x502 0x503 0x504 0x505 0x506 0x507 0x508 ]
+new_l2_to_l1_msgs: [ 0x601 0x602 ]
+encrypted_logs_hash: [ 0x701 0x702 ]
+unencrypted_logs_hash: [ 0x801 0x802 ]
+encrypted_log_preimages_length: 0x901
+unencrypted_log_preimages_length: 0xa01
+new_contracts: [ contract_address: 0xb01
+portal_contract_address: 0x202020202020202020202020202020202020202
+function_tree_root: 0xb03
+ ]
+optionally_revealed_data: [ call_stack_item_hash: 0xc01
+function_data: selector:
+value: c02
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc03
+portal_contract_address: 0x404040404040404040404040404040404040404
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0xc02
+function_data: selector:
+value: c03
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc04
+portal_contract_address: 0x505050505050505050505050505050505050505
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0xc03
+function_data: selector:
+value: c04
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc05
+portal_contract_address: 0x606060606060606060606060606060606060606
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0xc04
+function_data: selector:
+value: c05
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc06
+portal_contract_address: 0x707070707070707070707070707070707070707
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ ]
+"
+`;
+
 exports[`structs/kernel serializes and prints previous_kernel_data 1`] = `
 "public_inputs:
 end:
@@ -1652,6 +1739,124 @@ value: 0xe0f
 value: 0xe10
  leaf_index: 0xe10
 value: 0xe11
+ ]
+
+constants:
+block_data:
+private_data_tree_root: 0x101
+nullifier_tree_root: 0x102
+contract_tree_root: 0x103
+l1_to_l2_messages_tree_root: 0x104
+blocks_tree_root: 0x105
+private_kernel_vk_tree_root: 0x106
+public_data_tree_root: 0x107
+global_variables_hash: 0x108
+
+tx_context:
+is_fee_payment_tx: 0
+is_rebate_payment_tx: 0
+is_contract_deployment_tx: 1
+contract_deployment_data: deployer_public_key:
+x: 0x105
+y: 0x106
+
+constructor_vk_hash: 0x106
+function_tree_root: 0x107
+contract_address_salt: 0x108
+portal_contract_address: 0x909090909090909090909090909090909090909
+
+chain_id: 0x0
+version: 0x0
+
+
+is_private: 1
+"
+`;
+
+exports[`structs/kernel serializes and prints private_kernel_public_inputs for ordering circuit 1`] = `
+"end:
+aggregation_object:
+P0: { 0x1, 0x2 }
+P1: { 0x101, 0x102 }
+public_inputs: [
+ 0x3
+ 0x4
+ 0x5
+ 0x6
+]
+proof_witness_indices: [ 7 8 9 10 11 12 ]
+has_data: 0
+
+new_commitments: [ 0x101 0x102 0x103 0x104 0x105 0x106 0x107 0x108 0x109 0x10a 0x10b 0x10c 0x10d 0x10e 0x10f 0x110 ]
+new_nullifiers: [ 0x201 0x202 0x203 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 ]
+nullified_commitments: [ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 0x309 0x30a 0x30b 0x30c 0x30d 0x30e 0x30f 0x310 ]
+private_call_stack: [ 0x401 0x402 0x403 0x404 0x405 0x406 0x407 0x408 ]
+public_call_stack: [ 0x501 0x502 0x503 0x504 0x505 0x506 0x507 0x508 ]
+new_l2_to_l1_msgs: [ 0x601 0x602 ]
+encrypted_logs_hash: [ 0x701 0x702 ]
+unencrypted_logs_hash: [ 0x801 0x802 ]
+encrypted_log_preimages_length: 0x901
+unencrypted_log_preimages_length: 0xa01
+new_contracts: [ contract_address: 0xb01
+portal_contract_address: 0x202020202020202020202020202020202020202
+function_tree_root: 0xb03
+ ]
+optionally_revealed_data: [ call_stack_item_hash: 0xc01
+function_data: selector:
+value: c02
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc03
+portal_contract_address: 0x404040404040404040404040404040404040404
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0xc02
+function_data: selector:
+value: c03
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc04
+portal_contract_address: 0x505050505050505050505050505050505050505
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0xc03
+function_data: selector:
+value: c04
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc05
+portal_contract_address: 0x606060606060606060606060606060606060606
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
+ call_stack_item_hash: 0xc04
+function_data: selector:
+value: c05
+
+is_internal: 0
+is_private: 1
+is_constructor: 1
+
+vk_hash: 0xc06
+portal_contract_address: 0x707070707070707070707070707070707070707
+pay_fee_from_l1: 1
+pay_fee_from_public_l2: 0
+called_from_l1: 1
+called_from_public_l2: 0
  ]
 
 constants:
