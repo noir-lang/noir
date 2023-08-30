@@ -17,6 +17,4 @@ impl Default for Foo {
 }
 
 fn main(x: Field, y: Field) {
-    let first = Foo::default_wrong_name(x,y);
-    assert(first.bar == x);
 }
