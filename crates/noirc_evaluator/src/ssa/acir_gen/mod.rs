@@ -1184,7 +1184,7 @@ mod tests {
 
     use acvm::{
         acir::{
-            circuit::Opcode,
+            circuit::{Opcode, opcodes::BlockId},
             native_types::{Expression, Witness},
         },
         FieldElement,
@@ -1223,9 +1223,12 @@ mod tests {
         let context = Context::new();
         let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
-        let expected_opcodes =
-            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
+        let expected_opcodes = vec![
+            Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1))),
+            Opcode::MemoryInit { block_id: BlockId(0), init: vec![Witness(1)] },
+            Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(2))),
+        ];
         assert_eq!(acir.take_opcodes(), expected_opcodes);
-        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
+        assert_eq!(acir.return_witnesses, vec![Witness(2)]);
     }
 }
