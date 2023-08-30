@@ -567,8 +567,16 @@ template <typename Composer> byte_array<Composer> keccak<Composer>::sponge_squee
  * @return std::vector<field_t<Composer>>
  */
 template <typename Composer>
-std::vector<field_t<Composer>> keccak<Composer>::format_input_lanes(byte_array_ct& input, const uint32_ct& num_bytes)
+std::vector<field_t<Composer>> keccak<Composer>::format_input_lanes(byte_array_ct& _input, const uint32_ct& num_bytes)
 {
+    byte_array_ct input(_input);
+
+    // make sure that every byte past `num_bytes` is zero!
+    for (size_t i = 0; i < input.size(); ++i) {
+        bool_ct valid_byte = uint32_ct(static_cast<uint32_t>(i)) < num_bytes;
+        input.set_byte(i, (input[i] * valid_byte));
+    }
+
     auto* ctx = input.get_context();
 
     // We require that `num_bytes` does not exceed the size of our input byte array.

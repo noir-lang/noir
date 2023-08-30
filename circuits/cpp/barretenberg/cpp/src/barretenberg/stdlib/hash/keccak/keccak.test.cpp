@@ -242,3 +242,30 @@ TEST(stdlib_keccak, test_double_block_variable_length)
     bool proof_result = composer.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
+
+TEST(stdlib_keccak, test_variable_length_nonzero_input_greater_than_byte_array_size)
+
+{
+    Composer composer = Composer();
+    std::string input = "";
+    size_t target_length = 2;
+    size_t byte_array_length = 200;
+    for (size_t i = 0; i < target_length; ++i) {
+        input += "a";
+    }
+    std::vector<uint8_t> input_expected(input.begin(), input.end());
+    std::vector<uint8_t> expected = stdlib::keccak<Composer>::hash_native(input_expected);
+    for (size_t i = target_length; i < byte_array_length; ++i) {
+        input += "a";
+    }
+    std::vector<uint8_t> input_v(input.begin(), input.end());
+
+    byte_array input_arr(&composer, input_v);
+
+    uint32_ct length(witness_ct(&composer, 2));
+    byte_array output = stdlib::keccak<Composer>::hash(input_arr, length);
+
+    EXPECT_EQ(output.get_value(), expected);
+    bool proof_result = composer.check_circuit();
+    EXPECT_EQ(proof_result, true);
+}
