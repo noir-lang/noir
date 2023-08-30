@@ -206,7 +206,6 @@ struct Context<'f> {
     conditions: Vec<(BasicBlockId, ValueId)>,
 }
 
-#[derive(Debug, Clone)]
 struct Store {
     old_value: ValueId,
     new_value: ValueId,
