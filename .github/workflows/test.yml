@@ -47,7 +47,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Run tests
-        run: cargo test --workspace --frozen --release
+        run: cargo test --workspace --locked --release
 
       - uses: actions/cache/save@v3
         # Write a cache entry even if the tests fail but don't create any for the merge queue.
