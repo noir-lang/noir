@@ -19,7 +19,7 @@ pub enum NargoError {
 
 #[derive(Debug, Error)]
 pub enum ExecutionError {
-    #[error("Failed assertion: {}", .0)]
+    #[error("Failed assertion: '{}'", .0)]
     AssertionFailed(String, OpcodeLocation),
 
     #[error(transparent)]
