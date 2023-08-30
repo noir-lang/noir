@@ -49,8 +49,12 @@ export class ContractStorageRead {
      * Value read from the storage slot.
      */
     currentValue: Fr;
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     */
+    sideEffectCounter?: number;
   }) {
-    return new ContractStorageRead(args.storageSlot, args.currentValue);
+    return new ContractStorageRead(args.storageSlot, args.currentValue, args.sideEffectCounter);
   }
 
   toBuffer() {
