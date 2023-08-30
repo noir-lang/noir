@@ -1,5 +1,5 @@
 // Computes a fixed base scalar multiplication over the embedded curve.
-// For bn254, We have  Grumpkin and Baby JubJub.
+// For bn254, We have Grumpkin and Baby JubJub.
 // For bls12-381, we have JubJub and Bandersnatch.
 //
 // The embedded curve being used, currently is decided by the 
