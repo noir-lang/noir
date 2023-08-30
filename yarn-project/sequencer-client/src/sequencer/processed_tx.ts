@@ -17,6 +17,20 @@ export type ProcessedTx = Pick<Tx, 'data' | 'proof' | 'encryptedLogs' | 'unencry
 };
 
 /**
+ * Represents a tx that failed to be processed by the sequencer public processor.
+ */
+export type FailedTx = {
+  /**
+   * The failing transaction.
+   */
+  tx: Tx;
+  /**
+   * The error that caused the tx to fail.
+   */
+  error: Error;
+};
+
+/**
  * Makes a processed tx out of a private only tx that has its proof already set.
  * @param tx - Source tx that doesn't need further processing.
  */

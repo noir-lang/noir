@@ -71,6 +71,14 @@ describe('e2e_nested_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
     }, 100_000);
 
+    it('fails simulation if calling a function not allowed to be called externally', async () => {
+      await expect(
+        parentContract.methods
+          .entryPoint(childContract.address, childContract.methods.valueInternal.selector.toField())
+          .simulate(),
+      ).rejects.toThrowError(/Assertion failed: '.*'/);
+    }, 100_000);
+
     it('performs public nested calls', async () => {
       const tx = parentContract.methods
         .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector.toField(), 42n)
@@ -92,6 +100,14 @@ describe('e2e_nested_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
 
       expect(await getChildStoredValue(childContract)).toEqual(42n);
+    }, 100_000);
+
+    it('fails simulation if calling a public function not allowed to be called externally', async () => {
+      await expect(
+        parentContract.methods
+          .enqueueCallToChild(childContract.address, childContract.methods.pubIncValueInternal.selector.toField(), 42n)
+          .simulate(),
+      ).rejects.toThrowError(/Assertion failed in public execution: '.*'/);
     }, 100_000);
 
     // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"

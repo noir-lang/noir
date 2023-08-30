@@ -3,7 +3,7 @@ import { DecodedReturn, decodeReturnValues } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecNode } from '@aztec/types';
+import { AztecNode, SimulationError } from '@aztec/types';
 
 import { extractReturnWitness, frToAztecAddress } from '../acvm/deserialize.js';
 import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
@@ -33,9 +33,7 @@ export class UnconstrainedFunctionExecution {
    * @returns The return values of the executed function.
    */
   public async run(aztecNode?: AztecNode): Promise<DecodedReturn> {
-    this.log(
-      `Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.selector.toString()}`,
-    );
+    this.log(`Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'base64');
     const initialWitness = toACVMWitness(1, this.args);
@@ -105,7 +103,9 @@ export class UnconstrainedFunctionExecution {
         },
       },
       this.abi.debug,
-    );
+    ).catch((err: Error) => {
+      throw SimulationError.fromError(this.contractAddress, this.functionData.selector, err);
+    });
 
     const returnValues: ACVMField[] = extractReturnWitness(acir, partialWitness);
 

@@ -15,6 +15,7 @@ export * from './logs/index.js';
 export * from './merkle_tree_id.js';
 export * from './mocks.js';
 export * from './public_data_write.js';
+export * from './simulation_error.js';
 export * from './tx/index.js';
 export * from './tx_execution_request.js';
 export * from './packed_arguments.js';

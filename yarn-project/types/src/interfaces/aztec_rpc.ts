@@ -139,10 +139,10 @@ export interface AztecRPC {
    * Throws an error if the contract or function is unknown.
    *
    * @param txRequest - An authenticated tx request ready for simulation
-   * @param optionalFromAddress - The address to simulate from
+   * @param simulatePublic - Whether to simulate the public part of the transaction.
    * @returns A Tx ready to send to the p2p pool for execution.
    */
-  simulateTx(txRequest: TxExecutionRequest): Promise<Tx>;
+  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx>;
 
   /**
    * Send a transaction.

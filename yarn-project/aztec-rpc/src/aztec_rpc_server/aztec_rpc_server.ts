@@ -3,6 +3,7 @@ import {
   collectEncryptedLogs,
   collectEnqueuedPublicFunctionCalls,
   collectUnencryptedLogs,
+  processAcvmError,
 } from '@aztec/acir-simulator';
 import {
   AztecAddress,
@@ -33,6 +34,7 @@ import {
   L2BlockL2Logs,
   LogType,
   NodeInfo,
+  SimulationError,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -177,7 +179,7 @@ export class AztecRPCServer implements AztecRPC {
     return await this.node.getBlock(blockNumber);
   }
 
-  public async simulateTx(txRequest: TxExecutionRequest) {
+  public async simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean) {
     if (!txRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
     }
@@ -191,6 +193,7 @@ export class AztecRPCServer implements AztecRPC {
     const newContract = deployedContractAddress ? await this.db.getContract(deployedContractAddress) : undefined;
 
     const tx = await this.#simulateAndProve(txRequest, newContract);
+    if (simulatePublic) await this.#simulatePublicCalls(tx);
     this.log.info(`Executed local simulation for ${await tx.getTxHash()}`);
 
     return tx;
@@ -327,10 +330,17 @@ export class AztecRPCServer implements AztecRPC {
     const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore, contractDataOracle);
 
     this.log('Executing simulator...');
-    const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract);
-    this.log('Simulation completed!');
-
-    return result;
+    try {
+      const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract);
+      this.log('Simulation completed!');
+      return result;
+    } catch (err) {
+      if (err instanceof SimulationError) {
+        await this.#enrichSimulationError(err);
+        this.log(err.toString());
+      }
+      throw err;
+    }
   }
 
   /**
@@ -353,17 +363,63 @@ export class AztecRPCServer implements AztecRPC {
     const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore, contractDataOracle);
 
     this.log('Executing unconstrained simulator...');
-    const result = await simulator.runUnconstrained(
-      execRequest,
-      from ?? AztecAddress.ZERO,
-      functionAbi,
-      contractAddress,
-      portalContract,
-      this.node,
-    );
-    this.log('Unconstrained simulation completed!');
+    try {
+      const result = await simulator.runUnconstrained(
+        execRequest,
+        from ?? AztecAddress.ZERO,
+        functionAbi,
+        contractAddress,
+        portalContract,
+        this.node,
+      );
+      this.log('Unconstrained simulation completed!');
 
-    return result;
+      return result;
+    } catch (err) {
+      if (err instanceof SimulationError) {
+        await this.#enrichSimulationError(err);
+        this.log(err.toString());
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Simulate the public part of a transaction.
+   * This allows to catch public execution errors before submitting the transaction.
+   * It can also be used for estimating gas in the future.
+   * @param tx - The transaction to be simulated.
+   */
+  async #simulatePublicCalls(tx: Tx) {
+    try {
+      await this.node.simulatePublicCalls(tx);
+    } catch (err) {
+      // Try to fill in the noir call stack since the RPC server may have access to the debug metadata
+      if (err instanceof SimulationError) {
+        const callStack = err.getCallStack();
+        const originalFailingFunction = callStack[callStack.length - 1];
+        const contractDataOracle = new ContractDataOracle(this.db, this.node);
+        const debugInfo = await contractDataOracle.getFunctionDebugMetadata(
+          originalFailingFunction.contractAddress,
+          originalFailingFunction.functionSelector,
+        );
+        if (debugInfo) {
+          const noirCallStack = processAcvmError(err.message, debugInfo);
+          if (noirCallStack) {
+            err.setNoirCallStack(noirCallStack);
+            err.updateMessage(
+              `Assertion failed in public execution: '${
+                noirCallStack[noirCallStack.length - 1]?.locationText ?? 'Unknown'
+              }'`,
+            );
+          }
+        }
+        await this.#enrichSimulationError(err);
+        this.log(err.toString());
+      }
+
+      throw err;
+    }
   }
 
   /**
@@ -410,6 +466,39 @@ export class AztecRPCServer implements AztecRPC {
     await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
 
     return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions, [extendedContractData]);
+  }
+
+  /**
+   * Adds contract and function names to a simulation error.
+   * @param err - The error to enrich.
+   */
+  async #enrichSimulationError(err: SimulationError) {
+    // Maps contract addresses to the set of functions selectors that were in error.
+    // Using strings because map and set don't use .equals()
+    const mentionedFunctions: Map<string, Set<string>> = new Map();
+
+    err.getCallStack().forEach(({ contractAddress, functionSelector }) => {
+      if (!mentionedFunctions.has(contractAddress.toString())) {
+        mentionedFunctions.set(contractAddress.toString(), new Set());
+      }
+      mentionedFunctions.get(contractAddress.toString())!.add(functionSelector.toString());
+    });
+
+    await Promise.all(
+      [...mentionedFunctions.entries()].map(async ([contractAddress, selectors]) => {
+        const parsedContractAddress = AztecAddress.fromString(contractAddress);
+        const contract = await this.db.getContract(parsedContractAddress);
+        if (contract) {
+          err.enrichWithContractName(parsedContractAddress, contract.name);
+          selectors.forEach(selector => {
+            const functionAbi = contract.functions.find(f => f.selector.toString() === selector);
+            if (functionAbi) {
+              err.enrichWithFunctionName(parsedContractAddress, functionAbi.selector, functionAbi.name);
+            }
+          });
+        }
+      }),
+    );
   }
 
   // HACK(#1639): this is a hack to fix ordering of public calls enqueued in the call stack. Since the private kernel

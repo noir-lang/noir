@@ -8,6 +8,8 @@ import {
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
 
+export { getPublicExecutor } from './public_executor.js';
+
 /**
  * Circuit simulator for the rollup circuits.
  */

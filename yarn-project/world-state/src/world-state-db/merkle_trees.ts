@@ -25,6 +25,7 @@ import {
   StandardIndexedTree,
   StandardTree,
   UpdateOnlyTree,
+  loadTree,
   newTree,
 } from '@aztec/merkle-tree';
 import { L2Block, MerkleTreeId, SiblingPath, merkleTreeIds } from '@aztec/types';
@@ -44,6 +45,16 @@ import {
 } from './index.js';
 
 /**
+ * Data necessary to reinitialise the merkle trees from Db.
+ */
+interface FromDbOptions {
+  /**
+   * The global variables from the last block.
+   */
+  globalVariables: GlobalVariables;
+}
+
+/**
  * A convenience class for managing multiple merkle trees.
  */
 export class MerkleTrees implements MerkleTreeDb {
@@ -58,18 +69,22 @@ export class MerkleTrees implements MerkleTreeDb {
   /**
    * Initialises the collection of Merkle Trees.
    * @param optionalWasm - WASM instance to use for hashing (if not provided PrimitivesWasm will be used).
+   * @param fromDbOptions - Options to initialise the trees from the database.
    */
-  public async init(optionalWasm?: IWasmModule) {
+  public async init(optionalWasm?: IWasmModule, fromDbOptions?: FromDbOptions) {
+    const fromDb = fromDbOptions !== undefined;
+    const initialiseTree = fromDb ? loadTree : newTree;
+
     const wasm = optionalWasm ?? (await CircuitsWasm.get());
     const hasher = new Pedersen(wasm);
-    const contractTree: AppendOnlyTree = await newTree(
+    const contractTree: AppendOnlyTree = await initialiseTree(
       StandardTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.CONTRACT_TREE]}`,
       CONTRACT_TREE_HEIGHT,
     );
-    const nullifierTree = await newTree(
+    const nullifierTree = await initialiseTree(
       StandardIndexedTree,
       this.db,
       hasher,
@@ -77,28 +92,28 @@ export class MerkleTrees implements MerkleTreeDb {
       NULLIFIER_TREE_HEIGHT,
       INITIAL_NULLIFIER_TREE_SIZE,
     );
-    const privateDataTree: AppendOnlyTree = await newTree(
+    const privateDataTree: AppendOnlyTree = await initialiseTree(
       StandardTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.PRIVATE_DATA_TREE]}`,
       PRIVATE_DATA_TREE_HEIGHT,
     );
-    const publicDataTree: UpdateOnlyTree = await newTree(
+    const publicDataTree: UpdateOnlyTree = await initialiseTree(
       SparseTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.PUBLIC_DATA_TREE]}`,
       PUBLIC_DATA_TREE_HEIGHT,
     );
-    const l1Tol2MessagesTree: AppendOnlyTree = await newTree(
+    const l1Tol2MessagesTree: AppendOnlyTree = await initialiseTree(
       StandardTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.L1_TO_L2_MESSAGES_TREE]}`,
       L1_TO_L2_MSG_TREE_HEIGHT,
     );
-    const historicBlocksTree: AppendOnlyTree = await newTree(
+    const historicBlocksTree: AppendOnlyTree = await initialiseTree(
       StandardTree,
       this.db,
       hasher,
@@ -110,10 +125,14 @@ export class MerkleTrees implements MerkleTreeDb {
     this.jobQueue.start();
 
     // The first leaf in the blocks tree contains the empty roots of the other trees and empty global variables.
-    const initialGlobalVariablesHash = await computeGlobalVariablesHash(GlobalVariables.empty());
-    await this._updateLatestGlobalVariablesHash(initialGlobalVariablesHash);
-    await this._updateHistoricBlocksTree(initialGlobalVariablesHash, true);
-    await this._commit();
+    if (!fromDb) {
+      const initialGlobalVariablesHash = await computeGlobalVariablesHash(GlobalVariables.empty());
+      await this._updateLatestGlobalVariablesHash(initialGlobalVariablesHash);
+      await this._updateHistoricBlocksTree(initialGlobalVariablesHash, true);
+      await this._commit();
+    } else {
+      await this._updateLatestGlobalVariablesHash(await computeGlobalVariablesHash(fromDbOptions.globalVariables));
+    }
   }
 
   /**

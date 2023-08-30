@@ -107,7 +107,7 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
         [],
       );
 
-      await expect(async () => await rpc.simulateTx(txExecutionRequest)).rejects.toThrow(
+      await expect(async () => await rpc.simulateTx(txExecutionRequest, false)).rejects.toThrow(
         'Public entrypoints are not allowed',
       );
     });

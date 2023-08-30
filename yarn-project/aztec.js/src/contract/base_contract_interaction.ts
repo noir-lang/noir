@@ -12,6 +12,10 @@ export interface SendMethodOptions {
    * Sender's address initiating the transaction.
    */
   origin?: AztecAddress;
+  /**
+   * Wether to skip the simulation of the public part of the transaction.
+   */
+  skipPublicSimulation?: boolean;
 }
 
 /**
@@ -38,7 +42,7 @@ export abstract class BaseContractInteraction {
    */
   public async simulate(options: SendMethodOptions = {}): Promise<Tx> {
     const txRequest = this.txRequest ?? (await this.create(options));
-    this.tx = await this.rpc.simulateTx(txRequest);
+    this.tx = await this.rpc.simulateTx(txRequest, !options.skipPublicSimulation);
     return this.tx;
   }
 

@@ -137,4 +137,11 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
    * @returns The current committed block data.
    */
   getHistoricBlockData(): Promise<HistoricBlockData>;
+
+  /**
+   * Simulates the public part of a transaction with the current state.
+   * This currently just checks that the transaction execution succeeds.
+   * @param tx - The transaction to simulate.
+   **/
+  simulatePublicCalls(tx: Tx): Promise<void>;
 }

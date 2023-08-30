@@ -4,6 +4,7 @@ import {
   CircuitsWasm,
   EthAddress,
   Fr,
+  GlobalVariables,
   HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
@@ -11,7 +12,12 @@ import {
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
-import { SequencerClient } from '@aztec/sequencer-client';
+import {
+  GlobalVariableBuilder,
+  PublicProcessorFactory,
+  SequencerClient,
+  getGlobalVariableBuilder,
+} from '@aztec/sequencer-client';
 import {
   AztecNode,
   ContractData,
@@ -61,6 +67,8 @@ export class AztecNodeService implements AztecNode {
     protected sequencer: SequencerClient,
     protected chainId: number,
     protected version: number,
+    protected globalVariableBuilder: GlobalVariableBuilder,
+    protected merkleTreesDb: levelup.LevelUp,
     private log = createDebugLogger('aztec:node'),
   ) {}
 
@@ -81,9 +89,10 @@ export class AztecNodeService implements AztecNode {
     const p2pClient = await createP2PClient(config, new InMemoryTxPool(), archiver);
 
     // now create the merkle trees and the world state syncher
-    const merkleTreeDB = await MerkleTrees.new(levelup(createMemDown()), await CircuitsWasm.get());
+    const merkleTreesDb = levelup(createMemDown());
+    const merkleTrees = await MerkleTrees.new(merkleTreesDb, await CircuitsWasm.get());
     const worldStateConfig: WorldStateConfig = getWorldStateConfig();
-    const worldStateSynchroniser = new ServerWorldStateSynchroniser(merkleTreeDB, archiver, worldStateConfig);
+    const worldStateSynchroniser = new ServerWorldStateSynchroniser(merkleTrees, archiver, worldStateConfig);
 
     // start both and wait for them to sync from the block source
     await Promise.all([p2pClient.start(), worldStateSynchroniser.start()]);
@@ -108,6 +117,8 @@ export class AztecNodeService implements AztecNode {
       sequencer,
       config.chainId,
       config.version,
+      getGlobalVariableBuilder(config),
+      merkleTreesDb,
     );
   }
 
@@ -365,6 +376,37 @@ export class AztecNodeService implements AztecNode {
       roots[MerkleTreeId.PUBLIC_DATA_TREE],
       globalsHash,
     );
+  }
+
+  /**
+   * Simulates the public part of a transaction with the current state.
+   * @param tx - The transaction to simulate.
+   **/
+  public async simulatePublicCalls(tx: Tx) {
+    this.log.info(`Simulating tx ${await tx.getTxHash()}`);
+    const blockNumber = (await this.blockSource.getBlockNumber()) + 1;
+    const newGlobalVariables = await this.globalVariableBuilder.buildGlobalVariables(new Fr(blockNumber));
+    const prevGlobalVariables = (await this.blockSource.getL2Block(-1))?.globalVariables ?? GlobalVariables.empty();
+
+    // Instantiate merkle trees so uncommited updates by this simulation are local to it.
+    // TODO we should be able to remove this after https://github.com/AztecProtocol/aztec-packages/issues/1869
+    // So simulation of public functions doesn't affect the merkle trees.
+    const merkleTrees = new MerkleTrees(this.merkleTreesDb, this.log);
+    await merkleTrees.init(await CircuitsWasm.get(), {
+      globalVariables: prevGlobalVariables,
+    });
+
+    const publicProcessorFactory = new PublicProcessorFactory(
+      merkleTrees.asLatest(),
+      this.contractDataSource,
+      this.l1ToL2MessageSource,
+    );
+    const processor = await publicProcessorFactory.create(prevGlobalVariables, newGlobalVariables);
+    const [, failedTxs] = await processor.process([tx]);
+    if (failedTxs.length) {
+      throw failedTxs[0].error;
+    }
+    this.log.info(`Simulated tx ${await tx.getTxHash()} succeeds`);
   }
 
   /**

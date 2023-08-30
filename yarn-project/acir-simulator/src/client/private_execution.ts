@@ -11,7 +11,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
-import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
+import { FunctionL2Logs, NotePreimage, NoteSpendingInfo, SimulationError } from '@aztec/types';
 
 import { extractPrivateCircuitPublicInputs, frToAztecAddress } from '../acvm/deserialize.js';
 import {
@@ -55,8 +55,8 @@ export class PrivateFunctionExecution {
    * @returns The execution result.
    */
   public async run(): Promise<ExecutionResult> {
-    const selector = this.functionData.selector.toString();
-    this.log(`Executing external function ${this.contractAddress.toString()}:${selector}`);
+    const selector = this.functionData.selector;
+    this.log(`Executing external function ${this.contractAddress}:${selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'base64');
     const initialWitness = this.getInitialWitness();
@@ -197,7 +197,9 @@ export class PrivateFunctionExecution {
         },
       },
       this.abi.debug,
-    );
+    ).catch((err: Error) => {
+      throw SimulationError.fromError(this.contractAddress, selector, err);
+    });
 
     const publicInputs = extractPrivateCircuitPublicInputs(partialWitness, acir);
 

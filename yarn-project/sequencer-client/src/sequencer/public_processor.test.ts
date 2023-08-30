@@ -113,7 +113,7 @@ describe('public_processor', () => {
       const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toEqual([]);
-      expect(failed).toEqual([tx]);
+      expect(failed[0].tx).toEqual(tx);
     });
   });
 

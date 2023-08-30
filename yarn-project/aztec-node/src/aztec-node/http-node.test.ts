@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, EthAddress, Fr, HistoricBlockData } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, EthAddress, Fr, FunctionSelector, HistoricBlockData } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Pedersen } from '@aztec/merkle-tree';
 import {
@@ -10,6 +10,7 @@ import {
   LogType,
   MerkleTreeId,
   SiblingPath,
+  SimulationError,
   TxHash,
   mockTx,
 } from '@aztec/types';
@@ -480,6 +481,38 @@ describe('HttpNode', () => {
       const url = `${TEST_URL}historic-block-data`;
       expect(fetch).toHaveBeenCalledWith(url);
       expect(result).toEqual(blockData);
+    });
+  });
+
+  describe('simulatePublicCalls', () => {
+    it('should fetch a successful simulation response', async () => {
+      const tx = mockTx();
+      const response = {};
+      setFetchMock(response);
+
+      await httpNode.simulatePublicCalls(tx);
+
+      const init: RequestInit = {
+        method: 'POST',
+        body: tx.toBuffer(),
+      };
+      const call = (fetch as jest.Mock).mock.calls[0] as any[];
+      expect(call[0].href).toBe(`${TEST_URL}simulate-tx`);
+      expect(call[1]).toStrictEqual(init);
+    });
+
+    it('should fetch a simulation error', async () => {
+      const tx = mockTx();
+      const simulationError = new SimulationError('Failing function', {
+        contractAddress: AztecAddress.ZERO,
+        functionSelector: FunctionSelector.empty(),
+      });
+      const response = {
+        simulationError: simulationError.toJSON(),
+      };
+      setFetchMock(response);
+
+      await expect(httpNode.simulatePublicCalls(tx)).rejects.toThrow(simulationError);
     });
   });
 });

@@ -24,6 +24,16 @@ contract Child {
         context.return_values.push(input + context.chain_id() + context.version());
     }
 
+    // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values. 
+    // Can only be called from this contract.
+    #[aztec(private)]
+    fn valueInternal(
+        input: Field,
+    ) {
+        assert(inputs.call_context.msg_sender == inputs.call_context.storage_contract_address);
+        context.return_values.push(input + context.chain_id() + context.version());
+    }
+
     // Returns base_value + 42.
     #[aztec(public)]
     open fn pubGetValue(base_value: Field) {
@@ -45,6 +55,17 @@ contract Child {
     #[aztec(public)]
     open fn pubIncValue(new_value: Field) {
         let storage = Storage::init();
+        let old_value = storage.current_value.read();
+        storage.current_value.write(old_value + new_value);
+        let _hash = emit_unencrypted_log(new_value);
+        context.return_values.push(new_value);
+    }
+
+    // Increments `current_value` by `new_value`. Can only be called from this contract.
+    #[aztec(public)]
+    open fn pubIncValueInternal(new_value: Field) {
+        let storage = Storage::init();
+        assert(inputs.call_context.msg_sender == inputs.call_context.storage_contract_address);
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
         let _hash = emit_unencrypted_log(new_value);

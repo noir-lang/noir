@@ -20,6 +20,7 @@ import {
   LogType,
   MerkleTreeId,
   SiblingPath,
+  SimulationError,
   Tx,
   TxHash,
 } from '@aztec/types';
@@ -368,5 +369,20 @@ export class HttpNode implements AztecNode {
     const url = new URL(`${this.baseUrl}/historic-block-data`);
     const response = await (await fetch(url.toString())).json();
     return response.blockData;
+  }
+
+  /**
+   * Simulates the public part of a transaction with the current state.
+   * @param tx - The transaction to simulate.
+   **/
+  public async simulatePublicCalls(tx: Tx) {
+    const url = new URL(`${this.baseUrl}/simulate-tx`);
+    const init: RequestInit = {};
+    init['method'] = 'POST';
+    init['body'] = tx.toBuffer();
+    const response = await (await fetch(url, init)).json();
+    if (response.simulationError) {
+      throw SimulationError.fromJSON(response.simulationError);
+    }
   }
 }

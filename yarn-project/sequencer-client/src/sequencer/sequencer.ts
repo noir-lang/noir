@@ -141,8 +141,9 @@ export class Sequencer {
       const processor = await this.publicProcessorFactory.create(prevGlobalVariables, newGlobalVariables);
       const [processedTxs, failedTxs] = await processor.process(validTxs);
       if (failedTxs.length > 0) {
-        this.log(`Dropping failed txs ${(await Tx.getHashes(failedTxs)).join(', ')}`);
-        await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxs));
+        const failedTxData = failedTxs.map(fail => fail.tx);
+        this.log(`Dropping failed txs ${(await Tx.getHashes(failedTxData)).join(', ')}`);
+        await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxData));
       }
 
       if (processedTxs.length === 0) {

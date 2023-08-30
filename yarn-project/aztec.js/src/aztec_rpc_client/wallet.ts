@@ -55,8 +55,8 @@ export abstract class BaseWallet implements Wallet {
   getContracts(): Promise<AztecAddress[]> {
     return this.rpc.getContracts();
   }
-  simulateTx(txRequest: TxExecutionRequest): Promise<Tx> {
-    return this.rpc.simulateTx(txRequest);
+  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx> {
+    return this.rpc.simulateTx(txRequest, simulatePublic);
   }
   sendTx(tx: Tx): Promise<TxHash> {
     return this.rpc.sendTx(tx);

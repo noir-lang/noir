@@ -4,6 +4,7 @@ import { ViemReader } from './viem-reader.js';
 
 export { SimpleTestGlobalVariableBuilder as SimpleGlobalVariableBuilder } from './global_builder.js';
 export { GlobalReaderConfig } from './config.js';
+export { GlobalVariableBuilder } from './global_builder.js';
 
 /**
  * Returns a new instance of the global variable builder.
