@@ -137,5 +137,10 @@ describe('e2e_nested_contract', () => {
       logger(`Calling openfn on importer contract`);
       await importerContract.methods.callOpenFn(testContract.address).send().wait();
     }, 30_000);
+
+    it('calls an open function from an open function', async () => {
+      logger(`Calling pub openfn on importer contract`);
+      await importerContract.methods.pubCallOpenFn(testContract.address).send().wait();
+    }, 30_000);
   });
 });

@@ -74,7 +74,7 @@ Read more about interacting with contracts using `aztec.js` [here](../dapps/main
 
 A Noir contract can [call a function](./functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serialising the arguments, which is not type-safe.
 
-To make this easier, the compiler can generate a contract interface struct that exposes a convenience method for each function listed in a given contract ABI. These structs are intended to be used from another contract project that calls into the current one.
+To make this easier, the compiler can generate contract interface structs that expose a convenience method for each function listed in a given contract ABI. These structs are intended to be used from another contract project that calls into the current one. For each contract, two interface structs are generated: one to be used from private functions with a `PrivateContext`, and one to be used from open functions with a `PublicContext`.
 
 To generate them, include a `--interface` option in the compile command with a path to the target folder for the generated Noir interface files:
 
@@ -85,7 +85,7 @@ aztec-cli compile --interface ./path/to/another_aztec_contract_project/src ./pat
 Example code generated from the [PrivateToken](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr) contract:
 
 ```rust
-impl PrivateTokenContractInterface {
+impl PrivateTokenPrivateContextInterface {
   fn at(address: Field) -> Self {
       Self { address }
   }

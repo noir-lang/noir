@@ -5,11 +5,12 @@ mod test_contract_interface;
 contract ImportTest {
     use dep::aztec::abi;
     use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::PrivateContext;
+    use dep::aztec::abi::{ PrivateContextInputs, PublicContextInputs };
+    use dep::aztec::context::{ PrivateContext, PublicContext };
     
     use crate::test_contract_interface::{
-        TestContractInterface,
+        TestPrivateContextInterface,
+        TestPublicContextInterface,
         AStructTestCodeGenStruct,
         ADeepStructTestCodeGenStruct,
         ANoteADeepStructTestCodeGenStruct,
@@ -29,7 +30,7 @@ contract ImportTest {
     fn main(
         target: Field
     ) {
-        let test_contract_instance = TestContractInterface::at(target);
+        let test_contract_instance = TestPrivateContextInterface::at(target);
         let return_values = test_contract_instance.testCodeGen(
             &mut context,
             1,
@@ -59,7 +60,7 @@ contract ImportTest {
     fn callNoArgs(
         target: Field
     ) {
-        let test_contract_instance = TestContractInterface::at(target);
+        let test_contract_instance = TestPrivateContextInterface::at(target);
         let return_values = test_contract_instance.getThisAddress(&mut context);
         context.return_values.push(return_values[0]);
     }
@@ -71,8 +72,22 @@ contract ImportTest {
     fn callOpenFn(
         target: Field,
     ) {
-        let test_contract_instance = TestContractInterface::at(target);
+        let test_contract_instance = TestPrivateContextInterface::at(target);
         test_contract_instance.createNullifierPublic(&mut context, 1, 2);
+    }
+
+    // Calls the createNullifierPublic on the Test contract at the target address
+    // Used for testing calling an open function from another open function
+    // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
+    open fn pubCallOpenFn(
+        inputs: PublicContextInputs,
+        target: Field,
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([target]));
+        let test_contract_instance = TestPublicContextInterface::at(target);
+        let ret = test_contract_instance.createNullifierPublic(context, 1, 2);
+        context.return_values.push(ret[0]);
+        context.finish()
     }
 }
 

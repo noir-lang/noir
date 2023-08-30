@@ -9,6 +9,7 @@ import {
 } from '@aztec/foundation/abi';
 
 import camelCase from 'lodash.camelcase';
+import capitalize from 'lodash.capitalize';
 import compact from 'lodash.compact';
 import times from 'lodash.times';
 import upperFirst from 'lodash.upperfirst';
@@ -134,20 +135,20 @@ function generateSerialisation(parameters: ABIParameter[]) {
 
 /**
  * Generate a function interface for a particular function of the Noir Contract being processed. This function will be a method of the ContractInterface struct being created here.
- * @param functionData - data relating to the function, which can be used to generate a callable Noir Function.
- * @returns a code string.
+ * @param functionData - Data relating to the function, which can be used to generate a callable Noir Function.
+ * @param kind - Whether this interface will be used from private or public functions.
+ * @returns A code string.
  */
-function generateFunctionInterface(functionData: FunctionAbi) {
+function generateFunctionInterface(functionData: FunctionAbi, kind: 'private' | 'public') {
   const { name, parameters } = functionData;
   const selector = FunctionSelector.fromNameAndParameters(name, parameters);
   const serialisation = generateSerialisation(parameters);
+  const contextType = kind === 'private' ? '&mut PrivateContext' : 'PublicContext';
   const callStatement = generateCallStatement(selector, functionData.functionType);
-  const allParams = [
-    'self',
-    'context: &mut PrivateContext',
-    ...parameters.map(p => generateParameter(p, functionData)),
-  ];
-  const retType = isPrivateCall(functionData.functionType) ? `-> [Field; RETURN_VALUES_LENGTH] ` : ``;
+  const allParams = ['self', `context: ${contextType}`, ...parameters.map(p => generateParameter(p, functionData))];
+  const isPrivate = isPrivateCall(functionData.functionType);
+  const isSync = (isPrivate && kind === 'private') || (!isPrivate && kind === 'public');
+  const retType = isSync ? `-> [Field; RETURN_VALUES_LENGTH] ` : ``;
 
   return `
   fn ${name}(
@@ -165,17 +166,29 @@ ${callStatement}
  */
 function generateStaticImports() {
   return `use dep::std;
-use dep::aztec::context::PrivateContext;
+use dep::aztec::context::{ PrivateContext, PublicContext };
 use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;`;
+}
+
+/**
+ * Generates the name of the contract struct, based on whether it's for private or public usage.
+ * @param contractName - Name of the contract.
+ * @param kind - Whether this interface will be used from private or public functions.
+ * @returns A name.
+ */
+function generateContractStructName(contractName: string, kind: 'private' | 'public') {
+  return `${contractName}${capitalize(kind)}ContextInterface`;
 }
 
 /**
  * Generate the main focus of this code generator: the contract interface struct.
  * @param contractName - the name of the contract, as matches the original source file.
+ * @param kind - Whether this interface will be used from private or public functions.
  * @returns Code.
  */
-function generateContractInterfaceStruct(contractName: string) {
-  return `struct ${contractName}ContractInterface {
+function generateContractInterfaceStruct(contractName: string, kind: 'private' | 'public') {
+  return `// Interface for calling ${contractName} functions from a ${kind} context
+struct ${generateContractStructName(contractName, kind)} {
   address: Field,
 }
 `;
@@ -184,11 +197,12 @@ function generateContractInterfaceStruct(contractName: string) {
 /**
  * Generates the implementation of the contract interface struct.
  * @param contractName - The name of the contract, as matches the original source file.
+ * @param kind - Whether this interface will be used from private or public functions.
  * @param functions - An array of strings, where each string is valid Noir code describing the function interface of one of the contract's functions (as generated via `generateFunctionInterface` above).
  * @returns Code.
  */
-function generateContractInterfaceImpl(contractName: string, functions: string[]) {
-  return `impl ${contractName}ContractInterface {
+function generateContractInterfaceImpl(contractName: string, kind: 'private' | 'public', functions: string[]) {
+  return `impl ${generateContractStructName(contractName, kind)} {
   fn at(address: Field) -> Self {
       Self {
           address,
@@ -238,6 +252,25 @@ function collectStructs(params: ABIVariable[], parentNames: string[]): StructInf
 }
 
 /**
+ * Generates the struct definition and implementation for a contract interface.
+ * @param abiName - Name of the contract.
+ * @param kind - Whether this interface will be used from private or public functions.
+ * @param methods - Contract methods to generate (private ones will be excluded if kind is public)
+ * @returns Code.
+ */
+function generateContractStruct(abiName: string, kind: 'private' | 'public', methods: FunctionAbi[]) {
+  const contractStruct: string = generateContractInterfaceStruct(abiName, kind);
+  const applicableMethods = methods.filter(m => kind === 'private' || !isPrivateCall(m.functionType));
+  const functionInterfaces = applicableMethods.map(m => generateFunctionInterface(m, kind));
+  const contractImpl: string = generateContractInterfaceImpl(abiName, kind, functionInterfaces);
+
+  return `
+${contractStruct}
+${contractImpl}  
+  `;
+}
+
+/**
  * Generates the Noir code to represent an interface for calling a contract.
  * @param abi - The compiled Noir artifact.
  * @returns The corresponding ts code.
@@ -249,17 +282,17 @@ export function generateNoirContractInterface(abi: ContractAbi) {
       f => f.name !== 'constructor' && !f.isInternal && f.functionType !== FunctionType.UNCONSTRAINED,
     ),
   );
-  const contractStruct: string = generateContractInterfaceStruct(abi.name);
   const paramStructs = methods.flatMap(m => collectStructs(m.parameters, [m.name])).map(generateStruct);
-  const functionInterfaces = methods.map(generateFunctionInterface);
-  const contractImpl: string = generateContractInterfaceImpl(abi.name, functionInterfaces);
+  const privateContractStruct = generateContractStruct(abi.name, 'private', methods);
+  const publicContractStruct = generateContractStruct(abi.name, 'public', methods);
 
   return `/* Autogenerated file, do not edit! */
   
 ${generateStaticImports()}
 ${paramStructs.join('\n')}
 
-${contractStruct}
-${contractImpl}
+${privateContractStruct}
+
+${publicContractStruct}
 `;
 }

@@ -23,7 +23,7 @@ contract PrivateTokenAirdrop {
 
     use crate::storage::Storage;
     use crate::claim_note::{ClaimNote, ClaimNoteMethods};
-    use crate::interface::PrivateTokenAirdropContractInterface;
+    use crate::interface::PrivateTokenAirdropPrivateContextInterface;
 
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
@@ -79,7 +79,7 @@ contract PrivateTokenAirdrop {
         if sum != amount {
             // The destroyed notes' sum is not enough. Keep burning.
             let amount_to_burn = amount - sum;
-            let this = PrivateTokenAirdropContractInterface::at(this_address);
+            let this = PrivateTokenAirdropPrivateContextInterface::at(this_address);
             let _res = this.burn(&mut context, amount_to_burn, owner);
         }
     }
@@ -106,7 +106,7 @@ contract PrivateTokenAirdrop {
             // We only call burn() when decrement_by_at_most() didn't destroy enough notes.
             let amount_to_burn = amount - sum;
             let this_address = context.this_address();
-            let this = PrivateTokenAirdropContractInterface::at(this_address);
+            let this = PrivateTokenAirdropPrivateContextInterface::at(this_address);
             let _res = this.burn(&mut context, amount_to_burn, sender);
         }
 

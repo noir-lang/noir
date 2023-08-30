@@ -28,7 +28,7 @@ contract Escrow {
 
     use crate::storage::Storage;
 
-    use crate::private_token_contract_interface::PrivateTokenContractInterface;
+    use crate::private_token_contract_interface::PrivateTokenPrivateContextInterface;
 
     // Creates a new instance
     #[aztec(private)]
@@ -68,7 +68,7 @@ contract Escrow {
         assert(note.address == sender);
         assert(note.owner == this);
 
-        let _callStackItem = PrivateTokenContractInterface::at(token).transfer(&mut context, amount, recipient);
+        let _callStackItem = PrivateTokenPrivateContextInterface::at(token).transfer(&mut context, amount, recipient);
     }
 
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; ADDRESS_NOTE_LEN]) -> [Field; 4] {
