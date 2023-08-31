@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acvm::Backend;
+use acvm::{Backend, BlackBoxFunctionSolver};
 use clap::Args;
 use nargo::{
     ops::{run_test, TestStatus},
@@ -43,7 +43,7 @@ pub(crate) struct TestCommand {
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
+    _backend: &B,
     args: TestCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
@@ -64,17 +64,19 @@ pub(crate) fn run<B: Backend>(
         None => FunctionNameMatch::Anything,
     };
 
+    #[allow(deprecated)]
+    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
     for package in &workspace {
         // By unwrapping here with `?`, we stop the test runner upon a package failing
         // TODO: We should run the whole suite even if there are failures in a package
-        run_tests(backend, package, pattern, args.show_output, &args.compile_options)?;
+        run_tests(&blackbox_solver, package, pattern, args.show_output, &args.compile_options)?;
     }
 
     Ok(())
 }
 
-fn run_tests<B: Backend>(
-    backend: &B,
+fn run_tests<B: Backend, S: BlackBoxFunctionSolver>(
+    blackbox_solver: &S,
     package: &Package,
     test_name: FunctionNameMatch,
     show_output: bool,
@@ -96,7 +98,7 @@ fn run_tests<B: Backend>(
             .expect("Failed to write to stdout");
         writer.flush().expect("Failed to flush writer");
 
-        match run_test(backend, &context, test_function, show_output, compile_options) {
+        match run_test(blackbox_solver, &context, test_function, show_output, compile_options) {
             TestStatus::Pass { .. } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))

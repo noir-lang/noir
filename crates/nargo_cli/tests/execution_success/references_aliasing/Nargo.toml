@@ -1,5 +1,5 @@
 [package]
-name = "references"
+name = "references_aliasing"
 type = "bin"
 authors = [""]
 compiler_version = "0.5.1"

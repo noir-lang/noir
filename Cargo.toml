@@ -16,6 +16,7 @@ members = [
     "crates/wasm",
 ]
 default-members = ["crates/nargo_cli"]
+resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
@@ -26,7 +27,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.22.0"
+acvm = "0.23.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -61,4 +62,4 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 
 [patch.crates-io]
-acvm = { git="https://github.com/noir-lang/acvm", branch="arv/assert_msgs_0.22" }
+acvm = { git="https://github.com/noir-lang/acvm", rev="06b97c51041e16651cf8b2be8bc18214e276c6c9" }

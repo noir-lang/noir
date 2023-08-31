@@ -1,7 +1,4 @@
-use acvm::{
-    acir::native_types::WitnessMapError, Backend, CommonReferenceString, ProofSystemCompiler,
-    SmartContract,
-};
+use acvm::{acir::native_types::WitnessMapError, Backend, ProofSystemCompiler, SmartContract};
 use hex::FromHexError;
 use nargo::NargoError;
 use nargo_toml::ManifestError;
@@ -74,10 +71,6 @@ pub(crate) enum CliError<B: Backend> {
     /// Backend error caused by a function on the ProofSystemCompiler trait
     #[error(transparent)]
     ProofSystemCompilerError(<B as ProofSystemCompiler>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
-
-    /// Backend error caused by a function on the CommonReferenceString trait
-    #[error(transparent)]
-    CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 }
 
 /// Errors covering situations where a package cannot be compiled.
