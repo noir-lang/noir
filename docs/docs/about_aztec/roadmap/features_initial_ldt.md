@@ -1,14 +1,10 @@
 ---
-title: Sandbox
+title: Initial Sandbox Features
 ---
 
-:::info
-We're aiming for a minimal version of an Aztec Sandbox -- with the below features -- in Q3.
-:::
+The Aztec Sandbox is intended to provide developers with a lightweight & fast node, with features similar to Ethereum's Ganache or Anvil 'local node' packages.
 
-The Aztec Sandbox Node is intended to provide developers with a lightweight & fast node, with features similar to Ethereum's Ganache or Anvil 'local node' packages.
-
-Devs should be able to quickly spin up local, emulated instances of an Ethereum blockchain and an Aztec encrypted rollup, and start deploying confidential contracts and submitting confidential txs.
+Devs should be able to quickly spin up local, emulated instances of an Ethereum blockchain and an Aztec encrypted rollup, and start deploying private contracts and submitting private txs.
 
 Here's a summary of the features we intend to support with the first release of the Aztec Sandbox.
 
@@ -16,22 +12,22 @@ Here's a summary of the features we intend to support with the first release of 
 
 - Noir `contract` scopes.
   - Declare a `contract`, containing a collection of state variables and functions.
-- `secret` state variables:
-  - `read`, `write`, and `delete` `secret` state variables within `secret` functions.
-- public (non-`secret`) state variables:
+- private state variables:
+  - `read`, `write`, and `delete` private state variables within private functions.
+- public (non-private) state variables:
   - Manipulate 'public' state in a familiar way to Ethereum state.
-- `secret` functions
-  - May read and modify `secret` state.
+- private functions
+  - May read and modify private state.
 - public functions
   - May read and modify public state.
 - `constructor` functions, for initialising contract state.
 - `import` other Noir contracts, so their functions may be called.
 - Nested function calls, for contract composability
-  - `secret` functions can call `secret` functions of other contracts, and receive return values.
-  - `secret` functions can call public functions any contract.
-  - public functions can call `secret` functions of any contract.
+  - private functions can call private functions of other contracts, and receive return values.
+  - private functions can call public functions any contract.
+  - public functions can call private functions of any contract.
   - public functions can call public functions of other contracts, and receive return values.
-  - `secret` functions can be called recursively.
+  - private functions can be called recursively.
   - public functions can be called recursively.
 - Send messages from Noir contracts to Ethereum L1, for consumption by L1 smart contracts.
   - Useful, for example, if writing an app to withdraw funds from L2 to L1.
@@ -63,7 +59,7 @@ A typescript wrapper for making RPC calls to an Aztec LDT node.
 A bundle of packages which emulate the actions of all eventual Aztec network participants. The goal is for developer experience to be akin to Ganache / Anvil.
 
 - Aztec RPC Client
-  - Simulate and/or execute `secret` functions locally.
+  - Simulate and/or execute private functions locally.
 - Aztec Public Node
   - Broadcasts a user's txs to the tx pool.
   - Simulate public functions locally.

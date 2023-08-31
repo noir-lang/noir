@@ -1,4 +1,8 @@
-# `contract`
+---
+title: Contract
+---
+
+# Contract
 
 A contract is a collection of persistent [state variables](#state-variables), and [functions](#functions) which may modify these persistent states. Functions and states within a contract's scope are said to belong to that contract. A contract can only access and modify its own state. If a contract wishes to access or modify another contract's state, it must make a [call](#calling-functions) to an external function of that other contract. For anything to happen on the Aztec network, an external function of a contract needs to be called.
 

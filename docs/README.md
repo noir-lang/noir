@@ -118,3 +118,8 @@ You can embed code snippets into a `.md`/`.mdx` file from code which lives elsew
 - You can add as a last optional parameter a comma-separated list of options to tweak the display of the code block, for example:
   - `#include_code hello path/from/repo/root/to/file.ts typescript noTitle,noLineNumbers,noSourceLink`
 - Ironically, we can't show you a rendering of these examples, because this README.md file doesn't support the `#include_code` macro!
+
+
+### Another way to include code.
+
+See [here](./src/components/GithubCode/index.js), although this approach is flakier, so the above `#include_code` macro is preferred.

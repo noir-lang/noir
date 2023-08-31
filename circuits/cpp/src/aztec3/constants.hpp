@@ -39,6 +39,7 @@ constexpr size_t RETURN_VALUES_LENGTH = 4;
  *
  */
 
+// docs:start:constants
 // "PER CALL" CONSTANTS
 constexpr size_t MAX_NEW_COMMITMENTS_PER_CALL = 4;
 constexpr size_t MAX_NEW_NULLIFIERS_PER_CALL = 4;
@@ -63,6 +64,7 @@ constexpr size_t MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX = 4;
 constexpr size_t MAX_READ_REQUESTS_PER_TX = MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL * MAX_READ_REQUESTS_PER_CALL;
 constexpr size_t NUM_ENCRYPTED_LOGS_HASHES_PER_TX = 1;
 constexpr size_t NUM_UNENCRYPTED_LOGS_HASHES_PER_TX = 1;
+// docs:end:constants
 
 ////////////////////////////////////////////////////////////////////////////////
 // ROLLUP CONTRACT CONSTANTS - constants used only in l1-contracts

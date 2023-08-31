@@ -11,27 +11,21 @@ On Ethereum today, everything is publicly visible, by everyone.
 In the real world, people enjoy privacy.
 
 Aztec brings privacy to Ethereum.
-
-<!-- include_code typescript /yarn-project/end-to-end/src/e2e_block_building.test.ts hello -->
-
-<!-- import GithubCode from '../src/components/GithubCode';
-
-<GithubCode owner="AztecProtocol" repo="aztec-packages" language="typescript" filePath="/yarn-project/end-to-end/src/e2e_block_building.test.ts" startLine='10' endLine='21'/> -->
   
 ---
 
 # Build with confidence.
 
-Design, build, and deploy confidential smart contracts.
+Design, build, and deploy private smart contracts.
 
-- Confidential functions
-- Confidential arguments
-- Confidential persistent state
-- Confidential bytecode
-- Confidential deployments
-- Confidential execution
-- Confidential transactions
-- Confidential contract composability
+- Private functions
+- Private arguments
+- Private persistent state
+- Private bytecode
+- Private deployments
+- Private execution
+- Private transactions
+- Private contract composability
 - Encrypted state transitions
 - Encrypted logs
 
@@ -56,8 +50,6 @@ Plus:
 # But what _is_ Aztec?
 
 Aztec encrypts Ethereum.
-
-Aztec is the confidentiality layer of Ethereum.
 
 Aztec is the privacy layer of Ethereum.
 

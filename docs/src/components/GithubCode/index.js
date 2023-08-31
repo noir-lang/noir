@@ -4,6 +4,17 @@ import Highlight, { defaultProps } from "prism-react-renderer";
 import github from "prism-react-renderer/themes/github";
 //import vsDark from 'prism-react-renderer/themes/vsDark';
 
+/**
+ * NOTE: See the docs/README.md for a better (more robust) way to embed code snippets from the codebase into your docs.
+ *
+ *
+ * EXAMPLE USAGE:
+ * Inside a markdown file:
+ *
+ * import GithubCode from '../src/components/GithubCode';
+ * <GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr" startLine={2} endLine={30000} />
+ */
+
 const GithubCode = ({
   owner,
   repo,

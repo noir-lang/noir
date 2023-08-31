@@ -85,7 +85,7 @@ aztec-cli get-logs --from 5 --limit 1
 </TabItem>
 </Tabs>
 
-### Costs
+## Costs
 
 All event data is pushed to Ethereum as calldata by the sequencer and for this reason the cost of emitting an event is non-trivial.
 
