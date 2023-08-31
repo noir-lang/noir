@@ -11,11 +11,11 @@ use super::{assert_binary_exists, get_binary_path, CliShimError};
 /// The proof will be written to the specified output file.
 pub(crate) struct ProveCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: PathBuf,
+    pub(crate) crs_path: PathBuf,
     pub(crate) is_recursive: bool,
-    pub(crate) path_to_bytecode: PathBuf,
-    pub(crate) path_to_witness: PathBuf,
-    pub(crate) path_to_proof: PathBuf,
+    pub(crate) bytecode_path: PathBuf,
+    pub(crate) witness_path: PathBuf,
+    pub(crate) proof_path: PathBuf,
 }
 
 impl ProveCommand {
@@ -26,13 +26,13 @@ impl ProveCommand {
         command
             .arg("prove")
             .arg("-c")
-            .arg(self.path_to_crs)
+            .arg(self.crs_path)
             .arg("-b")
-            .arg(self.path_to_bytecode)
+            .arg(self.bytecode_path)
             .arg("-w")
-            .arg(self.path_to_witness)
+            .arg(self.witness_path)
             .arg("-o")
-            .arg(self.path_to_proof);
+            .arg(self.proof_path);
 
         if self.verbose {
             command.arg("-v");
@@ -56,22 +56,22 @@ impl ProveCommand {
 fn prove_command() {
     use tempfile::tempdir;
 
-    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
-    let path_to_witness = PathBuf::from("./src/witness.tr");
+    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
+    let witness_path = PathBuf::from("./src/witness.tr");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
 
-    let path_to_crs = temp_directory_path.join("crs");
-    let path_to_proof = temp_directory_path.join("1_mul").with_extension("proof");
+    let crs_path = temp_directory_path.join("crs");
+    let proof_path = temp_directory_path.join("1_mul").with_extension("proof");
 
     let prove_command = ProveCommand {
         verbose: true,
-        path_to_crs,
-        path_to_bytecode,
-        path_to_witness,
+        crs_path,
+        bytecode_path,
+        witness_path,
         is_recursive: false,
-        path_to_proof,
+        proof_path,
     };
 
     let proof_created = prove_command.run();

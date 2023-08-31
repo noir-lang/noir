@@ -26,7 +26,7 @@ impl Backend {
         write_to_file(serialized_circuit.as_bytes(), &circuit_path);
 
         let number_of_gates_needed =
-            GatesCommand { path_to_crs: temp_directory, path_to_bytecode: circuit_path }.run();
+            GatesCommand { crs_path: temp_directory, bytecode_path: circuit_path }.run();
 
         Ok(number_of_gates_needed)
     }
@@ -68,30 +68,30 @@ impl Backend {
         // Create a temporary file for the witness
         let serialized_witnesses: Vec<u8> =
             witness_values.try_into().expect("could not serialize witness map");
-        let path_to_witness = temp_directory.join("witness").with_extension("tr");
-        write_to_file(&serialized_witnesses, &path_to_witness);
+        let witness_path = temp_directory.join("witness").with_extension("tr");
+        write_to_file(&serialized_witnesses, &witness_path);
 
         // Create a temporary file for the circuit
         //
-        let path_to_bytecode = temp_directory.join("circuit").with_extension("bytecode");
+        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &path_to_bytecode);
+        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
-        let path_to_proof = temp_directory.join("proof").with_extension("proof");
+        let proof_path = temp_directory.join("proof").with_extension("proof");
 
         // Create proof and store it in the specified path
         ProveCommand {
             verbose: true,
-            path_to_crs: temp_directory,
+            crs_path: temp_directory,
             is_recursive,
-            path_to_bytecode,
-            path_to_witness,
-            path_to_proof: path_to_proof.clone(),
+            bytecode_path,
+            witness_path,
+            proof_path: proof_path.clone(),
         }
         .run()
         .expect("prove command failed");
 
-        let proof_with_public_inputs = read_bytes_from_file(&path_to_proof).unwrap();
+        let proof_with_public_inputs = read_bytes_from_file(&proof_path).unwrap();
 
         // Barretenberg return the proof prepended with the public inputs.
         //
@@ -128,22 +128,22 @@ impl Backend {
             prepend_public_inputs(proof.to_vec(), flattened_public_inputs.to_vec());
 
         // Create a temporary file for the proof
-        let path_to_proof = temp_directory.join("proof").with_extension("proof");
-        write_to_file(&proof_with_public_inputs, &path_to_proof);
+        let proof_path = temp_directory.join("proof").with_extension("proof");
+        write_to_file(&proof_with_public_inputs, &proof_path);
 
         // Create a temporary file for the circuit
-        let path_to_bytecode = temp_directory.join("circuit").with_extension("bytecode");
+        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &path_to_bytecode);
+        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
         // Create the verification key and write it to the specified path
-        let path_to_vk_output = temp_directory.join("vk");
+        let vk_path_output = temp_directory.join("vk");
         WriteVkCommand {
             verbose: false,
-            path_to_crs: temp_directory.clone(),
+            crs_path: temp_directory.clone(),
             is_recursive,
-            path_to_bytecode,
-            path_to_vk_output: path_to_vk_output.clone(),
+            bytecode_path,
+            vk_path_output: vk_path_output.clone(),
         }
         .run()
         .expect("write vk command failed");
@@ -151,10 +151,10 @@ impl Backend {
         // Verify the proof
         Ok(VerifyCommand {
             verbose: false,
-            path_to_crs: temp_directory,
+            crs_path: temp_directory,
             is_recursive,
-            path_to_proof,
-            path_to_vk: path_to_vk_output,
+            proof_path,
+            vk_path: vk_path_output,
         }
         .run())
     }

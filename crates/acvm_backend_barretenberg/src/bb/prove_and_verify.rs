@@ -8,10 +8,10 @@ use super::{assert_binary_exists, get_binary_path};
 #[allow(dead_code)]
 struct ProveAndVerifyCommand {
     verbose: bool,
-    path_to_crs: String,
+    crs_path: String,
     is_recursive: bool,
-    path_to_bytecode: String,
-    path_to_witness: String,
+    bytecode_path: String,
+    witness_path: String,
 }
 
 #[allow(dead_code)]
@@ -23,11 +23,11 @@ impl ProveAndVerifyCommand {
         command
             .arg("prove_and_verify")
             .arg("-c")
-            .arg(self.path_to_crs)
+            .arg(self.crs_path)
             .arg("-b")
-            .arg(self.path_to_bytecode)
+            .arg(self.bytecode_path)
             .arg("-w")
-            .arg(self.path_to_witness);
+            .arg(self.witness_path);
         if self.verbose {
             command.arg("-v");
         }
@@ -49,14 +49,14 @@ fn prove_and_verify_command() {
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let path_to_crs = temp_directory_path.join("crs");
+    let crs_path = temp_directory_path.join("crs");
 
     let prove_and_verify_command = ProveAndVerifyCommand {
         verbose: true,
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        crs_path: crs_path.to_str().unwrap().to_string(),
         is_recursive: false,
-        path_to_bytecode: path_to_1_mul.to_string(),
-        path_to_witness: path_to_1_mul_witness.to_string(),
+        bytecode_path: path_to_1_mul.to_string(),
+        witness_path: path_to_1_mul_witness.to_string(),
     };
 
     let output = prove_and_verify_command.run();

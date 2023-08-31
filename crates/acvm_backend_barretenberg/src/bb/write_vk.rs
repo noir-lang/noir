@@ -6,10 +6,10 @@ use super::{assert_binary_exists, get_binary_path, CliShimError};
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: PathBuf,
+    pub(crate) crs_path: PathBuf,
     pub(crate) is_recursive: bool,
-    pub(crate) path_to_bytecode: PathBuf,
-    pub(crate) path_to_vk_output: PathBuf,
+    pub(crate) bytecode_path: PathBuf,
+    pub(crate) vk_path_output: PathBuf,
 }
 
 impl WriteVkCommand {
@@ -20,11 +20,11 @@ impl WriteVkCommand {
         command
             .arg("write_vk")
             .arg("-c")
-            .arg(self.path_to_crs)
+            .arg(self.crs_path)
             .arg("-b")
-            .arg(self.path_to_bytecode)
+            .arg(self.bytecode_path)
             .arg("-o")
-            .arg(self.path_to_vk_output);
+            .arg(self.vk_path_output);
 
         if self.verbose {
             command.arg("-v");
@@ -48,19 +48,19 @@ impl WriteVkCommand {
 fn write_vk_command() {
     use tempfile::tempdir;
 
-    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
+    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let path_to_crs = temp_directory_path.join("crs");
-    let path_to_vk_output = temp_directory_path.join("vk");
+    let crs_path = temp_directory_path.join("crs");
+    let vk_path_output = temp_directory_path.join("vk");
 
     let write_vk_command = WriteVkCommand {
         verbose: true,
-        path_to_bytecode,
-        path_to_crs,
+        bytecode_path,
+        crs_path,
         is_recursive: false,
-        path_to_vk_output,
+        vk_path_output,
     };
 
     let vk_written = write_vk_command.run();

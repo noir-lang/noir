@@ -16,33 +16,33 @@ impl Backend {
         let temp_directory_path = temp_directory.path().to_path_buf();
 
         // Create a temporary file for the circuit
-        let path_to_bytecode = temp_directory_path.join("circuit").with_extension("bytecode");
+        let bytecode_path = temp_directory_path.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &path_to_bytecode);
+        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");
         WriteVkCommand {
             verbose: false,
-            path_to_crs: temp_directory_path.clone(),
+            crs_path: temp_directory_path.clone(),
             is_recursive: false,
-            path_to_bytecode,
-            path_to_vk_output: vk_path.clone(),
+            bytecode_path,
+            vk_path_output: vk_path.clone(),
         }
         .run()
         .expect("write vk command failed");
 
-        let path_to_contract = temp_directory_path.join("contract");
+        let contract_path = temp_directory_path.join("contract");
         ContractCommand {
             verbose: false,
-            path_to_crs: temp_directory_path,
-            path_to_vk: vk_path,
-            path_to_contract: path_to_contract.clone(),
+            crs_path: temp_directory_path,
+            vk_path,
+            contract_path: contract_path.clone(),
         }
         .run()
         .expect("contract command failed");
 
-        let verification_key_library_bytes = read_bytes_from_file(&path_to_contract).unwrap();
+        let verification_key_library_bytes = read_bytes_from_file(&contract_path).unwrap();
         let verification_key_library = String::from_utf8(verification_key_library_bytes).unwrap();
 
         drop(temp_directory);

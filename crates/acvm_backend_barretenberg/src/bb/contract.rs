@@ -11,9 +11,9 @@ use super::{assert_binary_exists, get_binary_path, CliShimError};
 /// remaining logic that is missing.
 pub(crate) struct ContractCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: PathBuf,
-    pub(crate) path_to_vk: PathBuf,
-    pub(crate) path_to_contract: PathBuf,
+    pub(crate) crs_path: PathBuf,
+    pub(crate) vk_path: PathBuf,
+    pub(crate) contract_path: PathBuf,
 }
 
 impl ContractCommand {
@@ -24,11 +24,11 @@ impl ContractCommand {
         command
             .arg("contract")
             .arg("-c")
-            .arg(self.path_to_crs)
+            .arg(self.crs_path)
             .arg("-k")
-            .arg(self.path_to_vk)
+            .arg(self.vk_path)
             .arg("-o")
-            .arg(self.path_to_contract);
+            .arg(self.contract_path);
 
         if self.verbose {
             command.arg("-v");
@@ -48,26 +48,25 @@ impl ContractCommand {
 fn contract_command() {
     use tempfile::tempdir;
 
-    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
+    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let path_to_crs = temp_directory_path.join("crs");
-    let path_to_vk = temp_directory_path.join("vk");
-    let path_to_contract = temp_directory_path.join("contract");
+    let crs_path = temp_directory_path.join("crs");
+    let vk_path = temp_directory_path.join("vk");
+    let contract_path = temp_directory_path.join("contract");
 
     let write_vk_command = super::WriteVkCommand {
         verbose: true,
-        path_to_bytecode,
-        path_to_vk_output: path_to_vk.clone(),
+        bytecode_path,
+        vk_path_output: vk_path.clone(),
         is_recursive: false,
-        path_to_crs: path_to_crs.clone(),
+        crs_path: crs_path.clone(),
     };
 
     assert!(write_vk_command.run().is_ok());
 
-    let contract_command =
-        ContractCommand { verbose: true, path_to_vk, path_to_crs, path_to_contract };
+    let contract_command = ContractCommand { verbose: true, vk_path, crs_path, contract_path };
 
     assert!(contract_command.run().is_ok());
     drop(temp_directory);
