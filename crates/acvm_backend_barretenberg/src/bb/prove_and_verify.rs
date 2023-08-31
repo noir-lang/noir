@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::{assert_binary_exists, get_binary_path};
 
 /// ProveAndVerifyCommand will call the barretenberg binary
@@ -8,10 +10,10 @@ use super::{assert_binary_exists, get_binary_path};
 #[allow(dead_code)]
 struct ProveAndVerifyCommand {
     verbose: bool,
-    crs_path: String,
+    crs_path: PathBuf,
     is_recursive: bool,
-    bytecode_path: String,
-    witness_path: String,
+    bytecode_path: PathBuf,
+    witness_path: PathBuf,
 }
 
 #[allow(dead_code)]
@@ -44,8 +46,8 @@ impl ProveAndVerifyCommand {
 fn prove_and_verify_command() {
     use tempfile::tempdir;
 
-    let path_to_1_mul = "./src/1_mul.bytecode";
-    let path_to_1_mul_witness = "./src/witness.tr";
+    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
+    let witness_path = PathBuf::from("./src/witness.tr");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -53,10 +55,10 @@ fn prove_and_verify_command() {
 
     let prove_and_verify_command = ProveAndVerifyCommand {
         verbose: true,
-        crs_path: crs_path.to_str().unwrap().to_string(),
+        crs_path,
         is_recursive: false,
-        bytecode_path: path_to_1_mul.to_string(),
-        witness_path: path_to_1_mul_witness.to_string(),
+        bytecode_path,
+        witness_path,
     };
 
     let output = prove_and_verify_command.run();
