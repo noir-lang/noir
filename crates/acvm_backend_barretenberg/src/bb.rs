@@ -50,7 +50,7 @@ pub(crate) fn download_bb_binary(binary_path: &Path) {
     use tempfile::tempdir;
 
     // Create directory to place binary in.
-    std::fs::create_dir_all(binary_path).unwrap();
+    std::fs::create_dir_all(binary_path.parent().unwrap()).unwrap();
 
     // Download sources
     let compressed_file: Cursor<Vec<u8>> = download_binary_from_url(&get_bb_download_url())
