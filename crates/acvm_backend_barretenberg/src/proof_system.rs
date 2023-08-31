@@ -8,8 +8,8 @@ use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::bb::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{Backend, BackendError, FIELD_BYTES};
+use crate::cli::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::{assert_binary_exists, Backend, BackendError, FIELD_BYTES};
 
 impl Backend {
     pub fn np_language(&self) -> Language {
@@ -25,10 +25,8 @@ impl Backend {
         let serialized_circuit = serialize_circuit(circuit);
         write_to_file(serialized_circuit.as_bytes(), &circuit_path);
 
-        let number_of_gates_needed =
-            GatesCommand { crs_path: temp_directory, bytecode_path: circuit_path }.run();
-
-        Ok(number_of_gates_needed)
+        let binary_path = assert_binary_exists();
+        GatesCommand { crs_path: temp_directory, bytecode_path: circuit_path }.run(&binary_path)
     }
 
     pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
@@ -79,6 +77,7 @@ impl Backend {
 
         let proof_path = temp_directory.join("proof").with_extension("proof");
 
+        let binary_path = assert_binary_exists();
         // Create proof and store it in the specified path
         ProveCommand {
             verbose: true,
@@ -88,7 +87,7 @@ impl Backend {
             witness_path,
             proof_path: proof_path.clone(),
         }
-        .run()
+        .run(&binary_path)
         .expect("prove command failed");
 
         let proof_with_public_inputs = read_bytes_from_file(&proof_path).unwrap();
@@ -138,6 +137,8 @@ impl Backend {
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");
+
+        let binary_path = assert_binary_exists();
         WriteVkCommand {
             verbose: false,
             crs_path: temp_directory.clone(),
@@ -145,18 +146,20 @@ impl Backend {
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run()
+        .run(&binary_path)
         .expect("write vk command failed");
 
         // Verify the proof
-        Ok(VerifyCommand {
+        let valid_proof = VerifyCommand {
             verbose: false,
             crs_path: temp_directory,
             is_recursive,
             proof_path,
             vk_path,
         }
-        .run())
+        .run(&binary_path);
+
+        Ok(valid_proof)
     }
 }
 

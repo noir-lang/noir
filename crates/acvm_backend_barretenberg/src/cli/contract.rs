@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::{assert_binary_exists, get_binary_path, CliShimError};
+use crate::BackendError;
 
 /// VerifyCommand will call the barretenberg binary
 /// to return a solidity library with the verification key
@@ -17,9 +17,8 @@ pub(crate) struct ContractCommand {
 }
 
 impl ContractCommand {
-    pub(crate) fn run(self) -> Result<(), CliShimError> {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("contract")
@@ -38,7 +37,7 @@ impl ContractCommand {
         if output.status.success() {
             Ok(())
         } else {
-            Err(CliShimError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
         }
     }
 }
@@ -64,10 +63,11 @@ fn contract_command() {
         crs_path: crs_path.clone(),
     };
 
-    assert!(write_vk_command.run().is_ok());
+    let binary_path = crate::assert_binary_exists();
+    assert!(write_vk_command.run(&binary_path).is_ok());
 
     let contract_command = ContractCommand { verbose: true, vk_path, crs_path, contract_path };
 
-    assert!(contract_command.run().is_ok());
+    assert!(contract_command.run(&binary_path).is_ok());
     drop(temp_directory);
 }

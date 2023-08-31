@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-
-use super::{assert_binary_exists, get_binary_path};
+use std::path::{Path, PathBuf};
 
 /// ProveAndVerifyCommand will call the barretenberg binary
 /// to create a proof and then verify the proof once created.
@@ -18,9 +16,8 @@ struct ProveAndVerifyCommand {
 
 #[allow(dead_code)]
 impl ProveAndVerifyCommand {
-    fn run(self) -> bool {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    fn run(self, binary_path: &Path) -> bool {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("prove_and_verify")
@@ -37,7 +34,10 @@ impl ProveAndVerifyCommand {
             command.arg("-r");
         }
 
-        command.output().expect("Failed to execute command").status.success()
+        let output = command.output().expect("Failed to execute command");
+
+        // We currently do not distinguish between an invalid proof and an error inside the backend.
+        output.status.success()
     }
 }
 
@@ -61,7 +61,8 @@ fn prove_and_verify_command() {
         witness_path,
     };
 
-    let output = prove_and_verify_command.run();
-    assert!(output);
+    let binary_path = crate::assert_binary_exists();
+    let verified = prove_and_verify_command.run(&binary_path);
+    assert!(verified);
     drop(temp_directory);
 }

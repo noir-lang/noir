@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::{assert_binary_exists, get_binary_path, CliShimError};
+use crate::BackendError;
 
 /// ProveCommand will call the barretenberg binary
 /// to create a proof, given the witness and the bytecode.
@@ -19,9 +19,8 @@ pub(crate) struct ProveCommand {
 }
 
 impl ProveCommand {
-    pub(crate) fn run(self) -> Result<(), CliShimError> {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("prove")
@@ -42,11 +41,10 @@ impl ProveCommand {
         }
 
         let output = command.output().expect("Failed to execute command");
-
         if output.status.success() {
             Ok(())
         } else {
-            Err(CliShimError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
         }
     }
 }
@@ -74,7 +72,8 @@ fn prove_command() {
         proof_path,
     };
 
-    let proof_created = prove_command.run();
+    let binary_path = crate::assert_binary_exists();
+    let proof_created = prove_command.run(&binary_path);
     assert!(proof_created.is_ok());
     drop(temp_directory);
 }

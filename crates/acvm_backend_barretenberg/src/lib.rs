@@ -1,6 +1,8 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 
+use std::path::PathBuf;
+
 // `acvm-backend-barretenberg` can either interact with the Barretenberg backend through a static library
 // or through an embedded wasm binary. It does not make sense to include both of these backends at the same time.
 // We then throw a compilation error if both flags are set.
@@ -14,11 +16,20 @@ compile_error!("feature \"native\" cannot be enabled for a \"wasm32\" target");
 compile_error!("feature \"wasm\" cannot be enabled for a \"wasm32\" target");
 
 mod bb;
+mod cli;
 mod proof_system;
 mod smart_contract;
 
 /// The number of bytes necessary to store a `FieldElement`.
 const FIELD_BYTES: usize = 32;
+
+fn assert_binary_exists() -> PathBuf {
+    let binary_path = bb::get_binary_path();
+    if !binary_path.is_file() {
+        bb::download_bb_binary(&binary_path)
+    }
+    binary_path
+}
 
 #[derive(Debug, Default)]
 pub struct Backend {}

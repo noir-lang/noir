@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::{assert_binary_exists, get_binary_path, CliShimError};
+use crate::BackendError;
 
 /// WriteCommand will call the barretenberg binary
 /// to write a verification key to a file
@@ -13,9 +13,8 @@ pub(crate) struct WriteVkCommand {
 }
 
 impl WriteVkCommand {
-    pub(crate) fn run(self) -> Result<(), CliShimError> {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("write_vk")
@@ -34,11 +33,10 @@ impl WriteVkCommand {
         }
 
         let output = command.output().expect("Failed to execute command");
-
         if output.status.success() {
             Ok(())
         } else {
-            Err(CliShimError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
         }
     }
 }
@@ -63,7 +61,8 @@ fn write_vk_command() {
         vk_path_output,
     };
 
-    let vk_written = write_vk_command.run();
+    let binary_path = crate::assert_binary_exists();
+    let vk_written = write_vk_command.run(&binary_path);
     assert!(vk_written.is_ok());
     drop(temp_directory);
 }

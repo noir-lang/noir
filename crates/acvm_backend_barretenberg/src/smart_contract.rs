@@ -1,6 +1,7 @@
 use super::proof_system::{serialize_circuit, write_to_file};
 use crate::{
-    bb::{ContractCommand, WriteVkCommand},
+    assert_binary_exists,
+    cli::{ContractCommand, WriteVkCommand},
     proof_system::read_bytes_from_file,
     Backend, BackendError,
 };
@@ -12,6 +13,8 @@ const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
 
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
+        let binary_path = assert_binary_exists();
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path().to_path_buf();
 
@@ -29,7 +32,7 @@ impl Backend {
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run()
+        .run(&binary_path)
         .expect("write vk command failed");
 
         let contract_path = temp_directory_path.join("contract");
@@ -39,7 +42,7 @@ impl Backend {
             vk_path,
             contract_path: contract_path.clone(),
         }
-        .run()
+        .run(&binary_path)
         .expect("contract command failed");
 
         let verification_key_library_bytes = read_bytes_from_file(&contract_path).unwrap();

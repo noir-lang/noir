@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-
-use super::{assert_binary_exists, get_binary_path};
+use std::path::{Path, PathBuf};
 
 /// VerifyCommand will call the barretenberg binary
 /// to verify a proof
@@ -13,9 +11,8 @@ pub(crate) struct VerifyCommand {
 }
 
 impl VerifyCommand {
-    pub(crate) fn run(self) -> bool {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    pub(crate) fn run(self, binary_path: &Path) -> bool {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("verify")
@@ -34,6 +31,8 @@ impl VerifyCommand {
         }
 
         let output = command.output().expect("Failed to execute command");
+
+        // We currently do not distinguish between an invalid proof and an error inside the backend.
         output.status.success()
     }
 }
@@ -43,7 +42,7 @@ impl VerifyCommand {
 fn verify_command() {
     use tempfile::tempdir;
 
-    use crate::bb::{ProveCommand, WriteVkCommand};
+    use super::{ProveCommand, WriteVkCommand};
 
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
     let witness_path = PathBuf::from("./src/witness.tr");
@@ -63,7 +62,8 @@ fn verify_command() {
         vk_path_output: vk_path_output.clone(),
     };
 
-    let vk_written = write_vk_command.run();
+    let binary_path = crate::assert_binary_exists();
+    let vk_written = write_vk_command.run(&binary_path);
     assert!(vk_written.is_ok());
 
     let prove_command = ProveCommand {
@@ -74,7 +74,7 @@ fn verify_command() {
         witness_path,
         proof_path: proof_path.clone(),
     };
-    prove_command.run().unwrap();
+    prove_command.run(&binary_path).unwrap();
 
     let verify_command = VerifyCommand {
         verbose: true,
@@ -84,7 +84,7 @@ fn verify_command() {
         vk_path: vk_path_output,
     };
 
-    let verified = verify_command.run();
+    let verified = verify_command.run(&binary_path);
     assert!(verified);
     drop(temp_directory);
 }
