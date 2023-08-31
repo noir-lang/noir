@@ -1,7 +1,6 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::pwg::ErrorLocation;
-use acvm::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
@@ -17,6 +16,7 @@ use noirc_frontend::hir::Context;
 use super::compile_cmd::compile_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
+use crate::backends::Backend;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
@@ -41,11 +41,11 @@ pub(crate) struct ExecuteCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: ExecuteCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -70,12 +70,12 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn execute_package<B: Backend>(
-    backend: &B,
+fn execute_package(
+    backend: &Backend,
     package: &Package,
     prover_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
+) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     let (context, compiled_program) = compile_package(backend, package, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
@@ -161,13 +161,13 @@ fn report_error_with_opcode_location(
     }
 }
 
-pub(crate) fn execute_program<B: Backend>(
-    _backend: &B,
+pub(crate) fn execute_program(
+    _backend: &Backend,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
     debug_data: Option<(DebugInfo, Context)>,
-) -> Result<WitnessMap, CliError<B>> {
+) -> Result<WitnessMap, CliError> {
     #[allow(deprecated)]
     let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
 

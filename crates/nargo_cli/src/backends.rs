@@ -1,1 +1,1 @@
-pub(crate) use acvm_backend_barretenberg::Barretenberg as ConcreteBackend;
+pub(crate) use acvm_backend_barretenberg::Backend;

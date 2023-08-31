@@ -5,11 +5,12 @@ use super::{
     compile_cmd::compile_package,
     fs::{create_named_dir, program::read_program_from_file, write_to_file},
 };
+use crate::backends::Backend;
 use crate::errors::CliError;
-use acvm::Backend;
+
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
-use nargo::{ops::codegen_verifier, package::Package};
+use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
@@ -32,11 +33,11 @@ pub(crate) struct CodegenVerifierCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: CodegenVerifierCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -64,12 +65,12 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn smart_contract_for_package<B: Backend>(
-    backend: &B,
+fn smart_contract_for_package(
+    backend: &Backend,
     package: &Package,
     circuit_build_path: PathBuf,
     compile_options: &CompileOptions,
-) -> Result<String, CliError<B>> {
+) -> Result<String, CliError> {
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
@@ -82,8 +83,7 @@ fn smart_contract_for_package<B: Backend>(
         }
     };
 
-    let smart_contract_string = codegen_verifier(backend, &preprocessed_program.bytecode)
-        .map_err(CliError::SmartContractError)?;
+    let smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
 
     Ok(smart_contract_string)
 }
