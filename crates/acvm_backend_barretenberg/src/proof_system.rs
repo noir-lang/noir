@@ -9,7 +9,7 @@ use acvm::Language;
 use tempfile::tempdir;
 
 use crate::bb::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{BackendError, Barretenberg};
+use crate::{Backend, BackendError};
 
 impl Backend {
     pub fn np_language(&self) -> Language {
