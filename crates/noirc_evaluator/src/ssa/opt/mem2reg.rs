@@ -61,7 +61,7 @@
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
-use std::collections::{BTreeMap, BTreeSet};
+use std::{collections::{BTreeMap, BTreeSet}, borrow::Cow};
 
 use crate::ssa::{
     ir::{
@@ -70,10 +70,10 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
+        instruction::{Instruction, InstructionId, TerminatorInstruction, Intrinsic},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::{ValueId, Value},
     },
     ssa_gen::Ssa,
 };
@@ -118,7 +118,7 @@ struct Block {
     /// may have. If there is only 1, we can attempt to optimize
     /// out any known loads to that alias. Note that "alias" here
     /// includes the original reference as well.
-    aliases: BTreeMap<Expression, BTreeSet<ValueId>>,
+    aliases: BTreeMap<Expression, AliasSet>,
 
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
@@ -144,6 +144,17 @@ enum Expression {
 enum ReferenceValue {
     Unknown,
     Known(ValueId),
+}
+
+/// A set of possible aliases. Each ValueId in this set represents one possible value the reference
+/// holding this AliasSet may be aliased to. This struct wrapper is provided so that when we take
+/// the union of multiple alias sets, the result should be empty if any individual set is empty.
+///
+/// Note that we distinguish between "definitely has no aliases" - `Some(BTreeSet::new())`, and
+/// "unknown which aliases this may refer to" - `None`.
+#[derive(Debug, Default, Clone)]
+struct AliasSet {
+    aliases: Option<BTreeSet<ValueId>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -234,9 +245,10 @@ impl<'f> PerFunctionContext<'f> {
             if let Some(expression) = references.expressions.get(allocation) {
                 if let Some(aliases) = references.aliases.get(expression) {
                     let allocation_aliases_parameter =
-                        aliases.iter().any(|alias| reference_parameters.contains(alias));
+                        aliases.any(|alias| reference_parameters.contains(&alias));
 
-                    if !aliases.is_empty() && !allocation_aliases_parameter {
+                    // If `allocation_aliases_parameter` is known to be false
+                    if allocation_aliases_parameter == Some(false) {
                         self.instructions_to_remove.insert(*instruction);
                     }
                 }
@@ -290,17 +302,11 @@ impl<'f> PerFunctionContext<'f> {
                 references.set_known_value(address, value);
                 references.last_stores.insert(address, instruction);
             }
-            Instruction::Call { arguments, .. } => {
-                self.mark_all_unknown(arguments, references);
-            }
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.expressions.insert(result, Expression::Other(result));
-
-                let mut aliases = BTreeSet::new();
-                aliases.insert(result);
-                references.aliases.insert(Expression::Other(result), aliases);
+                references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -329,14 +335,20 @@ impl<'f> PerFunctionContext<'f> {
                     } else if let Some((elements, _)) =
                         self.inserter.function.dfg.get_array_constant(array)
                     {
-                        // TODO: This should be a unification of each alias set
-                        // If any are empty, the whole should be as well.
-                        for reference in elements {
-                            self.try_add_alias(references, reference, array);
-                        }
+                        let aliases = references.collect_all_aliases(elements);
+                        todo!("left off here")
+                        self.set_aliases(references, array, aliases);
                     }
 
                     references.expressions.insert(result, expression);
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                match &self.inserter.function.dfg[*func] {
+                    Value::Intrinsic(Intrinsic::SliceInsert | Intrinsic::SliceRemove | Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) => {
+
+                    },
+                    _ => self.mark_all_unknown(arguments, references),
                 }
             }
             _ => (),
@@ -369,12 +381,10 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn try_add_alias(&self, references: &mut Block, reference: ValueId, alias: ValueId) {
-        if let Some(expression) = references.expressions.get(&reference) {
-            if let Some(aliases) = references.aliases.get_mut(expression) {
-                aliases.insert(alias);
-            }
-        }
+    fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
+        let expression = references.expressions.entry(address).or_insert(Expression::Other(address));
+        let aliases = references.aliases.entry(expression.clone()).or_default();
+        *aliases = new_aliases;
     }
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
@@ -439,10 +449,8 @@ impl Block {
             if let Some(aliases) = self.aliases.get(expression) {
                 // We could allow multiple aliases if we check that the reference
                 // value in each is equal.
-                if aliases.len() == 1 {
-                    let alias = aliases.first().expect("There should be exactly 1 alias");
-
-                    if let Some(ReferenceValue::Known(value)) = self.references.get(alias) {
+                if let Some(alias) = aliases.single_alias() {
+                    if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
                         return Some(*value);
                     }
                 }
@@ -464,21 +472,20 @@ impl Block {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();
 
-        if aliases.is_empty() {
+        if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
-        } else if aliases.len() == 1 {
-            let alias = aliases.first().expect("There should be exactly 1 alias");
-            self.references.insert(*alias, value);
+        } else if let Some(alias) = aliases.single_alias() {
+            self.references.insert(alias, value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
-            for alias in aliases.iter() {
-                if let Some(reference_value) = self.references.get_mut(alias) {
+            aliases.for_each(|alias| {
+                if let Some(reference_value) = self.references.get_mut(&alias) {
                     *reference_value = ReferenceValue::Unknown;
                 }
-            }
+            });
         }
     }
 
@@ -504,11 +511,7 @@ impl Block {
 
             self.aliases
                 .entry(expression)
-                .and_modify(|aliases| {
-                    for alias in new_aliases {
-                        aliases.insert(*alias);
-                    }
-                })
+                .and_modify(|aliases| aliases.unify(new_aliases))
                 .or_insert_with(|| new_aliases.clone());
         }
 
@@ -548,9 +551,9 @@ impl Block {
     ) {
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
-                for alias in aliases {
+                aliases.for_each(|alias| {
                     f(self, alias);
-                }
+                });
             }
         }
     }
@@ -589,6 +592,25 @@ impl Block {
             }
         }
     }
+
+    /// Collect all aliases used by the given value list
+    fn collect_all_aliases(&self, values: impl IntoIterator<Item = ValueId>) -> AliasSet {
+        let mut aliases = AliasSet::known_empty();
+        for value in values {
+            aliases.unify(&self.get_aliases_for_value(value));
+        }
+        aliases
+    }
+
+    fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
+        if let Some(expression) = self.expressions.get(&value) {
+            if let Some(aliases) = self.aliases.get(expression) {
+                return Cow::Borrowed(aliases);
+            }
+        }
+
+        Cow::Owned(AliasSet::unknown())
+    }
 }
 
 impl ReferenceValue {
@@ -597,6 +619,68 @@ impl ReferenceValue {
             self
         } else {
             ReferenceValue::Unknown
+        }
+    }
+}
+
+impl AliasSet {
+    fn unknown() -> AliasSet {
+        Self { aliases: None }
+    }
+
+    fn known(value: ValueId) -> AliasSet {
+        let mut aliases = BTreeSet::new();
+        aliases.insert(value);
+        Self { aliases: Some(aliases) }
+    }
+
+    /// In rare cases, such as when creating an empty array of references, the set of aliases for a
+    /// particular value will be known to be zero, which is distinct from being unknown and
+    /// possibly referring to any alias.
+    fn known_empty() -> AliasSet {
+        Self { aliases: Some(BTreeSet::new()) }
+    }
+
+    fn is_unknown(&self) -> bool {
+        self.aliases.is_none()
+    }
+
+    /// Return the single known alias if there is exactly one.
+    /// Otherwise, return None.
+    fn single_alias(&self) -> Option<ValueId> {
+        self.aliases.as_ref().and_then(|aliases| {
+            (aliases.len() == 1).then(|| *aliases.first().unwrap())
+        })
+    }
+
+    /// Unify this alias set with another. The result of this set is empty if either set is empty.
+    /// Otherwise, it is the union of both alias sets.
+    fn unify(&mut self, other: &Self) {
+        if let (Some(self_aliases), Some(other_aliases)) = (&mut self.aliases, &other.aliases) {
+            self_aliases.extend(other_aliases);
+        } else {
+            self.aliases = None;
+        }
+    }
+
+    /// Inserts a new alias into this set if it is not unknown
+    fn insert(&mut self, new_alias: ValueId) {
+        if let Some(aliases) = &mut self.aliases {
+            aliases.insert(new_alias);
+        }
+    }
+
+    /// Returns `Some(true)` if `f` returns true for any known alias in this set.
+    /// If this alias set is unknown, None is returned.
+    fn any(&self, f: impl FnMut(ValueId) -> bool) -> Option<bool> {
+        self.aliases.as_ref().map(|aliases| aliases.iter().copied().any(f))
+    }
+
+    fn for_each(&self, mut f: impl FnMut(ValueId)) {
+        if let Some(aliases) = &self.aliases {
+            for alias in aliases {
+                f(*alias);
+            }
         }
     }
 }
