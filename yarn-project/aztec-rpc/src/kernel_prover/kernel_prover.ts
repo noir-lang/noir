@@ -3,13 +3,13 @@ import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
   Fr,
-  KernelCircuitPublicInputs,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MembershipWitness,
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
+  PrivateKernelPublicInputs,
   ReadRequestMembershipWitness,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -78,7 +78,7 @@ export class KernelProver {
     let previousVerificationKey = VerificationKey.makeFake();
 
     let output: ProofOutput = {
-      publicInputs: KernelCircuitPublicInputs.empty(),
+      publicInputs: PrivateKernelPublicInputs.empty(),
       proof: makeEmptyProof(),
     };
 

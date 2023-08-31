@@ -3,10 +3,10 @@ import {
   makeAccumulatedData,
   makeFinalAccumulatedData,
   makeKernelPublicInputs,
-  makeKernelPublicInputsFinal,
   makePreviousKernelData,
   makePrivateKernelInputsInit,
   makePrivateKernelInputsInner,
+  makePrivateKernelPublicInputsFinal,
   makePublicKernelInputs,
   makeSchnorrSignature,
 } from '../../tests/factories.js';
@@ -63,7 +63,7 @@ describe('structs/kernel', () => {
   });
 
   it(`serializes and prints private_kernel_public_inputs for ordering circuit`, async () => {
-    const kernelInputs = makeKernelPublicInputsFinal();
+    const kernelInputs = makePrivateKernelPublicInputsFinal();
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_kernel_circuit_public_inputs_final',

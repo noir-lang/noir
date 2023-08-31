@@ -24,6 +24,8 @@ import { createDebugLogger } from '@aztec/foundation/log';
 export interface ProofOutput {
   /**
    * The public inputs required for the proof generation process.
+   * Note: C++ side does not define the specific data structure PrivateKernelPublicInputs and therefore
+   * would not generate a binding in circuits.gen.ts.
    */
   publicInputs: KernelCircuitPublicInputs;
   /**
@@ -39,6 +41,8 @@ export interface ProofOutput {
 export interface ProofOutputFinal {
   /**
    * The public inputs required for the proof generation process.
+   * Note: C++ side does not define the specific data structure PrivateKernelPublicInputsFinal and therefore
+   * would not generate a binding in circuits.gen.ts.
    */
   publicInputs: KernelCircuitPublicInputsFinal;
   /**

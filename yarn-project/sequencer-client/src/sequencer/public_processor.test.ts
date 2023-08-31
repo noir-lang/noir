@@ -10,19 +10,19 @@ import {
   FunctionData,
   GlobalVariables,
   HistoricBlockData,
-  KernelCircuitPublicInputs,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
   Proof,
   PublicCallRequest,
+  PublicKernelPublicInputs,
   makeEmptyProof,
   makeTuple,
 } from '@aztec/circuits.js';
 import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import {
   makeAztecAddress,
-  makeKernelPublicInputsFinal,
+  makePrivateKernelPublicInputsFinal,
   makePublicCallRequest,
   makeSelector,
 } from '@aztec/circuits.js/factories';
@@ -105,10 +105,9 @@ describe('public_processor', () => {
         {
           isEmpty: false,
           hash,
-          data: new KernelCircuitPublicInputs(
+          data: new PublicKernelPublicInputs(
             CombinedAccumulatedData.fromFinalAccumulatedData(tx.data.end),
             tx.data.constants,
-            tx.data.isPrivate,
           ),
           proof: tx.proof,
           encryptedLogs: tx.encryptedLogs,
@@ -163,7 +162,7 @@ describe('public_processor', () => {
       const callStackItems = await Promise.all(callRequests.map(call => call.toPublicCallStackItem()));
       const callStackHashes = callStackItems.map(call => computeCallStackItemHash(wasm, call));
 
-      const kernelOutput = makeKernelPublicInputsFinal(0x10);
+      const kernelOutput = makePrivateKernelPublicInputsFinal(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(callStackHashes, Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 
@@ -193,7 +192,7 @@ describe('public_processor', () => {
       const callStackItem = await callRequest.toPublicCallStackItem();
       const callStackHash = computeCallStackItemHash(wasm, callStackItem);
 
-      const kernelOutput = makeKernelPublicInputsFinal(0x10);
+      const kernelOutput = makePrivateKernelPublicInputsFinal(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd([callStackHash], Fr.ZERO, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
       kernelOutput.end.privateCallStack = padArrayEnd([], Fr.ZERO, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 

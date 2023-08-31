@@ -30,7 +30,6 @@ import {
   HISTORIC_BLOCKS_TREE_HEIGHT,
   HistoricBlockData,
   KernelCircuitPublicInputs,
-  KernelCircuitPublicInputsFinal,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
@@ -68,6 +67,7 @@ import {
   PrivateCircuitPublicInputs,
   PrivateKernelInputsInit,
   PrivateKernelInputsInner,
+  PrivateKernelPublicInputsFinal,
   Proof,
   PublicCallData,
   PublicCallRequest,
@@ -346,8 +346,8 @@ export function makeKernelPublicInputs(seed = 1, fullAccumulatedData = true): Ke
  * @param seed - The seed to use for generating the final ordering kernel circuit public inputs.
  * @returns Final ordering kernel circuit public inputs.
  */
-export function makeKernelPublicInputsFinal(seed = 1): KernelCircuitPublicInputsFinal {
-  return new KernelCircuitPublicInputsFinal(makeFinalAccumulatedData(seed, true), makeConstantData(seed + 0x100), true);
+export function makePrivateKernelPublicInputsFinal(seed = 1): PrivateKernelPublicInputsFinal {
+  return new PrivateKernelPublicInputsFinal(makeFinalAccumulatedData(seed, true), makeConstantData(seed + 0x100));
 }
 
 /**
