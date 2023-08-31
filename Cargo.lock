@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "acir_field",
  "bincode",
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -63,7 +63,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "acir",
  "blake2",
@@ -86,7 +86,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "acir",
 ]
@@ -490,7 +490,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "acir_field",
  "serde",
@@ -499,7 +499,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm#cfd8cbf58307511ac0cc9106c299695c2ca779de"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
