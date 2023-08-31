@@ -87,8 +87,7 @@ impl Backend {
             witness_path,
             proof_path: proof_path.clone(),
         }
-        .run(&binary_path)
-        .expect("prove command failed");
+        .run(&binary_path)?;
 
         let proof_with_public_inputs = read_bytes_from_file(&proof_path).unwrap();
 
@@ -146,8 +145,7 @@ impl Backend {
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run(&binary_path)
-        .expect("write vk command failed");
+        .run(&binary_path)?;
 
         // Verify the proof
         let valid_proof = VerifyCommand {
