@@ -23,20 +23,42 @@ mod smart_contract;
 /// The number of bytes necessary to store a `FieldElement`.
 const FIELD_BYTES: usize = 32;
 
+fn get_bb() -> Backend {
+    Backend::new("acvm-backend-barretenberg".to_owned())
+}
+
 fn assert_binary_exists() -> PathBuf {
-    let binary_path = bb::get_binary_path();
+    let bb = get_bb();
+    let binary_path = bb.binary_path();
+
     if !binary_path.is_file() {
         bb::download_bb_binary(&binary_path)
     }
     binary_path
 }
 
-#[derive(Debug, Default)]
-pub struct Backend {}
+#[derive(Debug)]
+pub struct Backend {
+    name: String,
+}
 
 impl Backend {
-    pub fn new() -> Backend {
-        Backend {}
+    pub fn new(name: String) -> Backend {
+        Backend { name }
+    }
+
+    fn backend_directory(&self) -> PathBuf {
+        const BACKENDS_DIR: &str = ".nargo/backends";
+
+        let home_directory = dirs::home_dir().unwrap();
+
+        home_directory.join(BACKENDS_DIR).join(&self.name)
+    }
+
+    fn binary_path(&self) -> PathBuf {
+        const BINARY_NAME: &str = "backend_binary";
+
+        self.backend_directory().join(BINARY_NAME)
     }
 }
 

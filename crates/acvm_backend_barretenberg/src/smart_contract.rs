@@ -62,11 +62,11 @@ mod tests {
         native_types::{Expression, Witness},
     };
 
+    use crate::get_bb;
+
     #[test]
     #[serial_test::serial]
     fn test_smart_contract() {
-        use crate::Backend;
-
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
         let constraint = Opcode::Arithmetic(expression);
 
@@ -78,9 +78,7 @@ mod tests {
             return_values: PublicInputs::default(),
         };
 
-        let bb = Backend::default();
-
-        let contract = bb.eth_contract(&circuit).unwrap();
+        let contract = get_bb().eth_contract(&circuit).unwrap();
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));

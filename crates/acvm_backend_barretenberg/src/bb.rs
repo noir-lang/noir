@@ -1,19 +1,6 @@
-use std::{
-    io::Cursor,
-    path::{Path, PathBuf},
-};
+use std::{io::Cursor, path::Path};
 
 use const_format::formatcp;
-
-const DEST_FOLDER: &str = ".nargo/backends/acvm-backend-barretenberg";
-const BINARY_NAME: &str = "backend_binary";
-
-pub(crate) fn get_binary_path() -> PathBuf {
-    match std::env::var("BB_BINARY_PATH") {
-        Ok(path) => PathBuf::from(path),
-        Err(_) => dirs::home_dir().unwrap().join(formatcp!("{}/{}", DEST_FOLDER, BINARY_NAME)),
-    }
-}
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "barretenberg";
