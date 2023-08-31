@@ -549,7 +549,6 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
     ))
 }
 
-// TODO: move elsewhere
 fn create_loop_over(var: Expression, loop_body: Vec<Expression>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
@@ -593,17 +592,6 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
     );
     create_loop_over(variable_ident(identifier.clone()), vec![cast_expression])
 }
-
-/// We want to push each of the array objects into the `context.return_values` array
-/// Ident is the identifier that we want to get rid of
-// fn add_array_to_return_values(identifier: &Ident) -> Statement {
-//     let push_back_expression = method_call(
-//         variable(chained_path!("context", ))), // variable
-//         "push",                             // method name
-//         vec![],                                  // args
-//     );
-
-// }
 
 fn add_field_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident})`
