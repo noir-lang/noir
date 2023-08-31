@@ -27,7 +27,7 @@ impl Backend {
         let vk_path = temp_directory_path.join("vk");
         WriteVkCommand {
             verbose: false,
-            crs_path: temp_directory_path.clone(),
+            crs_path: self.backend_directory(),
             is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
@@ -38,7 +38,7 @@ impl Backend {
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
             verbose: false,
-            crs_path: temp_directory_path,
+            crs_path: self.backend_directory(),
             vk_path,
             contract_path: contract_path.clone(),
         }
