@@ -63,12 +63,10 @@ impl ProofSystemCompiler for Barretenberg {
         }
     }
 
-    fn prove_with_pk(
+    fn prove(
         &self,
-        _common_reference_string: &[u8],
         circuit: &Circuit,
         witness_values: WitnessMap,
-        _proving_key: &[u8],
         is_recursive: bool,
     ) -> Result<Vec<u8>, Self::Error> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
@@ -76,9 +74,8 @@ impl ProofSystemCompiler for Barretenberg {
         let temp_dir_path_str = temp_directory.to_str().unwrap();
 
         // Create a temporary file for the witness
-        let serialized_witnesses: Vec<u8> = witness_values
-            .try_into()
-            .expect("could not serialize witness map");
+        let serialized_witnesses: Vec<u8> =
+            witness_values.try_into().expect("could not serialize witness map");
         let witness_path = temp_directory.join("witness").with_extension("tr");
         write_to_file(&serialized_witnesses, &witness_path);
 
@@ -117,13 +114,11 @@ impl ProofSystemCompiler for Barretenberg {
         Ok(proof)
     }
 
-    fn verify_with_vk(
+    fn verify(
         &self,
-        _common_reference_string: &[u8],
         proof: &[u8],
         public_inputs: WitnessMap,
         circuit: &Circuit,
-        _verification_key: &[u8],
         is_recursive: bool,
     ) -> Result<bool, Self::Error> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
@@ -184,7 +179,6 @@ impl ProofSystemCompiler for Barretenberg {
 
     fn vk_as_fields(
         &self,
-        _common_reference_string: &[u8],
         _verification_key: &[u8],
     ) -> Result<(Vec<FieldElement>, FieldElement), Self::Error> {
         panic!("vk_as_fields not supported in this backend");
@@ -232,9 +226,8 @@ fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Ve
         return proof;
     }
 
-    let public_inputs_bytes = public_inputs
-        .into_iter()
-        .flat_map(|assignment| assignment.to_be_bytes());
+    let public_inputs_bytes =
+        public_inputs.into_iter().flat_map(|assignment| assignment.to_be_bytes());
 
     public_inputs_bytes.chain(proof.into_iter()).collect()
 }

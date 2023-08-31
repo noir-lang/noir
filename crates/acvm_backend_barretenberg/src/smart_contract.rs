@@ -13,12 +13,7 @@ const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
 impl SmartContract for Barretenberg {
     type Error = BackendError;
 
-    fn eth_contract_from_vk(
-        &self,
-        _common_reference_string: &[u8],
-        circuit: &Circuit,
-        _verification_key: &[u8],
-    ) -> Result<String, Self::Error> {
+    fn eth_contract(&self, circuit: &Circuit) -> Result<String, Self::Error> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path();
         let temp_dir_path = temp_directory_path.to_str().unwrap();
