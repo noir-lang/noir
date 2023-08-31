@@ -18,10 +18,11 @@ pub(crate) use write_vk::WriteVkCommand;
 fn no_command_provided_works() {
     // This is a simple test to check that the binaries work
 
-    let binary_path = crate::assert_binary_exists();
+    let backend = crate::get_bb();
 
-    let output =
-        std::process::Command::new(binary_path).output().expect("Failed to execute command");
+    let output = std::process::Command::new(backend.binary_path())
+        .output()
+        .expect("Failed to execute command");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(stderr, "No command provided.\n");

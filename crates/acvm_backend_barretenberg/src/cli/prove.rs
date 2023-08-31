@@ -54,15 +54,15 @@ impl ProveCommand {
 fn prove_command() {
     use tempfile::tempdir;
 
+    let backend = crate::get_bb();
+
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
     let witness_path = PathBuf::from("./src/witness.tr");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
-    let temp_directory_path = temp_directory.path();
+    let proof_path = temp_directory.path().join("1_mul").with_extension("proof");
 
-    let crs_path = temp_directory_path.join("crs");
-    let proof_path = temp_directory_path.join("1_mul").with_extension("proof");
-
+    let crs_path = backend.backend_directory();
     let prove_command = ProveCommand {
         verbose: true,
         crs_path,
@@ -72,8 +72,7 @@ fn prove_command() {
         proof_path,
     };
 
-    let binary_path = crate::assert_binary_exists();
-    let proof_created = prove_command.run(&binary_path);
+    let proof_created = prove_command.run(&backend.binary_path());
     assert!(proof_created.is_ok());
     drop(temp_directory);
 }

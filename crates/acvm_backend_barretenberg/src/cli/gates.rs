@@ -54,18 +54,13 @@ impl GatesCommand {
 #[test]
 #[serial_test::serial]
 fn gate_command() {
-    use tempfile::tempdir;
-
+    let backend = crate::get_bb();
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
-    let temp_directory = tempdir().expect("could not create a temporary directory");
-    let temp_directory_path = temp_directory.path();
-    let crs_path = temp_directory_path.join("crs");
+    let crs_path = backend.backend_directory();
 
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
-    let binary_path = crate::assert_binary_exists();
-    let output = gate_command.run(&binary_path).unwrap();
+    let output = gate_command.run(&backend.binary_path()).unwrap();
     assert_eq!(output, 2775);
-    drop(temp_directory);
 }

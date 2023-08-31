@@ -47,13 +47,16 @@ impl ContractCommand {
 fn contract_command() {
     use tempfile::tempdir;
 
+    let backend = crate::get_bb();
+
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let crs_path = temp_directory_path.join("crs");
     let vk_path = temp_directory_path.join("vk");
     let contract_path = temp_directory_path.join("contract");
+
+    let crs_path = backend.backend_directory();
 
     let write_vk_command = super::WriteVkCommand {
         verbose: true,
@@ -63,11 +66,10 @@ fn contract_command() {
         crs_path: crs_path.clone(),
     };
 
-    let binary_path = crate::assert_binary_exists();
-    assert!(write_vk_command.run(&binary_path).is_ok());
+    assert!(write_vk_command.run(&backend.binary_path()).is_ok());
 
     let contract_command = ContractCommand { verbose: true, vk_path, crs_path, contract_path };
 
-    assert!(contract_command.run(&binary_path).is_ok());
+    assert!(contract_command.run(&backend.binary_path()).is_ok());
     drop(temp_directory);
 }

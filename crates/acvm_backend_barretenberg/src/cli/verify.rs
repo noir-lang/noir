@@ -44,15 +44,17 @@ fn verify_command() {
 
     use super::{ProveCommand, WriteVkCommand};
 
+    let backend = crate::get_bb();
+
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
     let witness_path = PathBuf::from("./src/witness.tr");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-
-    let crs_path = temp_directory_path.join("crs");
     let proof_path = temp_directory_path.join("1_mul").with_extension("proof");
     let vk_path_output = temp_directory_path.join("vk");
+
+    let crs_path = backend.backend_directory();
 
     let write_vk_command = WriteVkCommand {
         verbose: true,
@@ -62,8 +64,7 @@ fn verify_command() {
         vk_path_output: vk_path_output.clone(),
     };
 
-    let binary_path = crate::assert_binary_exists();
-    let vk_written = write_vk_command.run(&binary_path);
+    let vk_written = write_vk_command.run(&backend.binary_path());
     assert!(vk_written.is_ok());
 
     let prove_command = ProveCommand {
@@ -74,7 +75,7 @@ fn verify_command() {
         witness_path,
         proof_path: proof_path.clone(),
     };
-    prove_command.run(&binary_path).unwrap();
+    prove_command.run(&backend.binary_path()).unwrap();
 
     let verify_command = VerifyCommand {
         verbose: true,
@@ -84,7 +85,7 @@ fn verify_command() {
         vk_path: vk_path_output,
     };
 
-    let verified = verify_command.run(&binary_path);
+    let verified = verify_command.run(&backend.binary_path());
     assert!(verified);
     drop(temp_directory);
 }

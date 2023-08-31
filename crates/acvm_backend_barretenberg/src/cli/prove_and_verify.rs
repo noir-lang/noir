@@ -61,8 +61,8 @@ fn prove_and_verify_command() {
         witness_path,
     };
 
-    let binary_path = crate::assert_binary_exists();
-    let verified = prove_and_verify_command.run(&binary_path);
+    let backend = crate::get_bb();
+    let verified = prove_and_verify_command.run(&backend.binary_path());
     assert!(verified);
     drop(temp_directory);
 }

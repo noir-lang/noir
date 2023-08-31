@@ -74,7 +74,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
-    let backend = crate::backends::Backend::new("acvm-backend-barretenberg".to_owned());
+    let backend = crate::backends::Backend::default();
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
