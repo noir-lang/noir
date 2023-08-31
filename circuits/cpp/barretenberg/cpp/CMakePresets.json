@@ -29,20 +29,20 @@
       }
     },
     {
-      "name": "clang15",
-      "displayName": "Build with Clang-15",
-      "description": "Build with globally installed Clang-15",
+      "name": "clang16",
+      "displayName": "Build with Clang-16",
+      "description": "Build with globally installed Clang-16",
       "inherits": "default",
       "environment": {
-        "CC": "clang-15",
-        "CXX": "clang++-15"
+        "CC": "clang-16",
+        "CXX": "clang++-16"
       }
     },
     {
-      "name": "clang15-dbg",
-      "displayName": "Debugging build with Clang-15",
-      "description": "Build with globally installed Clang-15 in debug mode",
-      "inherits": "clang15",
+      "name": "clang16-dbg",
+      "displayName": "Debugging build with Clang-16",
+      "description": "Build with globally installed Clang-16 in debug mode",
+      "inherits": "clang16",
       "environment": {
         "CMAKE_BUILD_TYPE": "Debug"
       },
@@ -75,7 +75,7 @@
       "name": "bench",
       "displayName": "Build benchmarks",
       "description": "Build default preset but with a special benchmark directory",
-      "inherits": "default",
+      "inherits": "clang16",
       "binaryDir": "build-bench"
     },
     {
@@ -161,14 +161,14 @@
       "configurePreset": "homebrew"
     },
     {
-      "name": "clang15",
+      "name": "clang16",
       "inherits": "default",
-      "configurePreset": "clang15"
+      "configurePreset": "clang16"
     },
     {
-      "name": "clang15-dbg",
+      "name": "clang16-dbg",
       "inherits": "default",
-      "configurePreset": "clang15-dbg"
+      "configurePreset": "clang16-dbg"
     },
     {
       "name": "gcc",
@@ -182,7 +182,7 @@
     },
     {
       "name": "bench",
-      "inherits": "default",
+      "inherits": "clang16",
       "configurePreset": "bench"
     },
     {
@@ -229,14 +229,14 @@
       "configurePreset": "homebrew"
     },
     {
-      "name": "clang15",
+      "name": "clang16",
       "inherits": "default",
-      "configurePreset": "clang15"
+      "configurePreset": "clang16"
     },
     {
-      "name": "clang15-dbg",
+      "name": "clang16-dbg",
       "inherits": "default",
-      "configurePreset": "clang15-dbg"
+      "configurePreset": "clang16-dbg"
     },
     {
       "name": "gcc",
@@ -250,7 +250,7 @@
     },
     {
       "name": "bench",
-      "inherits": "default",
+      "inherits": "clang16",
       "configurePreset": "bench"
     },
     {
