@@ -35,7 +35,7 @@ impl<T> [T] {
 
     // Append each element of the `other` slice to the end of `self`.
     // This returns a new slice and leaves both input slices unchanged.
-    fn append(mut self, other: Self) -> Self {
+    pub fn append(mut self, other: Self) -> Self {
         for elem in other {
             self = self.push_back(elem);
         }

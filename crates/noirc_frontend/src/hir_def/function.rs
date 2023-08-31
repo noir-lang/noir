@@ -112,6 +112,10 @@ pub struct FuncMeta {
     /// Will be None if not in contract.
     pub is_internal: Option<bool>,
 
+    /// Function accessibility
+    /// A non public function cannot be called from outside a library
+    pub is_public: bool,
+
     pub is_unconstrained: bool,
 
     pub parameters: Parameters,

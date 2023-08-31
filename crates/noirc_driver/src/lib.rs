@@ -10,6 +10,7 @@ use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
+use noirc_frontend::hir::visilibity::FunctionVisibility;
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
@@ -110,6 +111,26 @@ pub fn check_crate(
 ) -> Result<Warnings, ErrorsAndWarnings> {
     let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, context, &mut errors);
+
+    // Check that private functions defined in another module are not called from the root crate
+    if matches!(crate_id, CrateId::Root(_)) {
+        let mut visibility = FunctionVisibility::default();
+        if let Some(main) = context.get_main_function(&crate_id) {
+            visibility.check_visibility(&context.def_interner, &main);
+        } else {
+            // no main function so we are in a contract
+            // we check all functions
+            let local_crate = context.def_map(&crate_id).unwrap();
+            for (_, module) in local_crate.modules() {
+                for def in module.value_definitions() {
+                    if let noirc_frontend::hir::def_map::ModuleDefId::FunctionId(id) = def {
+                        visibility.check_visibility(&context.def_interner, &id);
+                    }
+                }
+            }
+        }
+        errors.extend(visibility.errors);
+    }
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)

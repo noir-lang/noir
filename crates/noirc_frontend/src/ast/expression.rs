@@ -362,6 +362,9 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
+    /// True if this function was defined with the 'pub' keyword
+    pub is_public: bool,
+
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,

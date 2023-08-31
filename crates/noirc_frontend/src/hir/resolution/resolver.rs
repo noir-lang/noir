@@ -744,6 +744,7 @@ impl<'a> Resolver<'a> {
             contract_function_type: self.handle_function_type(func),
             is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
+            is_public: func.def.is_public,
             location,
             typ,
             parameters: parameters.into(),

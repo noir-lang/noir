@@ -181,6 +181,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.1,
                 is_internal: modifiers.2,
+                is_public: modifiers.3,
                 generics,
                 parameters,
                 body,
@@ -196,13 +197,14 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
 /// function_modifiers: 'unconstrained'? 'open'? 'internal'?
 ///
 /// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
+        .then(keyword(Keyword::Pub).or_not())
         .then(keyword(Keyword::Open).or_not())
         .then(keyword(Keyword::Internal).or_not())
-        .map(|((unconstrained, open), internal)| {
-            (unconstrained.is_some(), open.is_some(), internal.is_some())
+        .map(|(((unconstrained, public), open), internal)| {
+            (unconstrained.is_some(), open.is_some(), internal.is_some(), public.is_some())
         })
 }
 
