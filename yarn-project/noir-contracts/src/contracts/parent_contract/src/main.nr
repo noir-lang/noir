@@ -1,13 +1,5 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext,
-    };
 
     #[aztec(private)]
     fn constructor() {}
@@ -32,7 +24,7 @@ contract Parent {
         targetContract: Field,
         targetSelector: Field,
         initValue: Field
-    ) -> pub abi::PublicCircuitPublicInputs {
+    ) {
         let return_values = context.call_public_function(targetContract, targetSelector, [initValue]);
 
         context.return_values.push(return_values[0]);
@@ -44,7 +36,7 @@ contract Parent {
         targetContract: Field,
         targetSelector: Field,
         initValue: Field
-    ) -> pub abi::PublicCircuitPublicInputs {
+    ) {
         let returnValue = context.call_public_function(targetContract, targetSelector, [initValue])[0];
         let return_values = context.call_public_function(targetContract, targetSelector, [returnValue]);
 

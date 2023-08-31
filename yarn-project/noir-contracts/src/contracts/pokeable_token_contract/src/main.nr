@@ -8,10 +8,6 @@ contract PokeableToken {
         utils::increment,
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
     };
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::PrivateContext;
     use dep::aztec::note::{
         note_getter::NoteGetterOptions,
         note_header::{NoteHeader},

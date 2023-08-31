@@ -10,10 +10,6 @@ contract PrivateTokenAirdrop {
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
     };
 
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::PrivateContext;
     use dep::aztec::note::{
         note_getter_options::NoteGetterOptions,
         note_header::NoteHeader,
@@ -24,7 +20,6 @@ contract PrivateTokenAirdrop {
     use crate::storage::Storage;
     use crate::claim_note::{ClaimNote, ClaimNoteMethods};
     use crate::interface::PrivateTokenAirdropPrivateContextInterface;
-
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
     #[aztec(private)]

@@ -1,14 +1,6 @@
 mod storage;
 
 contract PublicToken {
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext,
-    };
 
     // docs:start:unencrypted_import
     use dep::aztec::oracle::logs::emit_unencrypted_log;

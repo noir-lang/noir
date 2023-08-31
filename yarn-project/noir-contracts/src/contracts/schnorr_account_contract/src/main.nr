@@ -7,13 +7,9 @@ contract SchnorrAccount {
     use dep::std;
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::CallContext;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::context::PrivateContext;
     use dep::aztec::log::emit_encrypted_log;
     use dep::aztec::oracle::get_public_key::get_public_key;
     use dep::aztec::types::vec::BoundedVec;

@@ -1,18 +1,6 @@
 mod storage;
 
 contract PriceFeed {
-    use dep::aztec::{
-        abi,
-        abi::{
-            PrivateContextInputs,
-            PublicContextInputs,
-            Hasher
-        }
-    };
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext
-    };
     use crate::storage::{Storage, Asset};
 
     #[aztec(private)]

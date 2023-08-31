@@ -11,18 +11,6 @@ mod interfaces;
 // - A way to repay all debt at once
 // - Liquidations
 contract Lending {
-    use dep::aztec::{
-        abi,
-        abi::{
-            PrivateContextInputs,
-            PublicContextInputs,
-            Hasher
-        }
-    };
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext
-    };
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use crate::storage::{Storage, Asset};
     use dep::safe_math::SafeU120;

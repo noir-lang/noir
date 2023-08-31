@@ -1,10 +1,5 @@
 // Demonstrates how to perform 4 x 4 = 16 transfers in one transaction. Uses the private airdrop contract in the backend.
 contract MultiTransfer {
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::PrivateContext;
     use dep::aztec::oracle::public_call;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;

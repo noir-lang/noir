@@ -23,18 +23,8 @@ contract NativeToken {
 
     use crate::storage::Storage;
 
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext,
-    };
     use dep::aztec::types::point::Point;
     use dep::aztec::{
-        abi,
-        abi::{
-            Hasher,
-            PublicContextInputs,
-            PrivateContextInputs,
-        },
         note::{
             note_header::NoteHeader,
             utils as note_utils,

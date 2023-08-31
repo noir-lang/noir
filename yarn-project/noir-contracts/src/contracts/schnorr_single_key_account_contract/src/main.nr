@@ -5,13 +5,9 @@ contract SchnorrSingleKeyAccount {
     use dep::std;
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::CallContext;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::context::PrivateContext;
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
     use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;

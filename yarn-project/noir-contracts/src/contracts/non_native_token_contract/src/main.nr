@@ -33,18 +33,8 @@ contract NonNativeToken {
     use crate::storage::Storage;
     use crate::hash::{get_mint_content_hash, get_withdraw_content_hash};
 
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext,
-    };
     use dep::aztec::types::point::Point;
     use dep::aztec::{
-        abi,
-        abi::{
-            PublicContextInputs,
-            PrivateContextInputs,
-            Hasher
-        },
         note::{
             note_header::NoteHeader,
             utils as note_utils,

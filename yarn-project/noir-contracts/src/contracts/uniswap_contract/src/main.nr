@@ -1,10 +1,5 @@
 // Demonstrates how to send a message to a portal contract on L1. We use Uniswap here as it's the most typical example.
 contract Uniswap {
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::PrivateContext;
     use dep::aztec::oracle::{
         public_call,
         context::get_portal_address

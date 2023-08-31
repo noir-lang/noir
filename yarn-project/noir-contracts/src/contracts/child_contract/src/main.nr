@@ -2,14 +2,6 @@ mod storage;
 
 // A contract used along with `Parent` contract to test nested calls.
 contract Child {
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::{
-        PrivateContext,
-        PublicContext
-    };
     use crate::storage::Storage;
     use dep::aztec::oracle::logs::emit_unencrypted_log;
 
