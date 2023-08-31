@@ -17,6 +17,7 @@ pub enum DuplicateType {
     TypeDefinition,
     Import,
     Trait,
+    TraitImplementation,
 }
 
 #[derive(Error, Debug)]

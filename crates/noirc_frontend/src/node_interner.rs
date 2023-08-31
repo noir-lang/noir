@@ -7,7 +7,9 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{
+    UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
+};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
@@ -70,6 +72,11 @@ pub struct NodeInterner {
     // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
     // We'd just lookup their methods as needed through the NodeInterner.
     traits: HashMap<TraitId, Shared<Trait>>,
+
+    // Trait implementation map
+    // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
+    // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
+    trait_implementaions: HashMap<(Type, TraitId), Ident>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -297,6 +304,7 @@ impl Default for NodeInterner {
             structs: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
+            trait_implementaions: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -701,6 +709,26 @@ impl NodeInterner {
                 self.primitive_methods.insert((key, method_name), method_id)
             }
         }
+    }
+
+    // If the self_type did not have implemented the trait_id, None is returned.
+    // If the self_type did have implemented the trait, the provided methods are updated, and the old implementaion methods are returned.
+    pub fn add_trait_implementaion(
+        &mut self,
+        self_type: &Type,
+        trait_id: &TraitId,
+        location: &Ident,
+        methods: &UnresolvedFunctions,
+    ) -> Option<Ident> {
+        let key = (self_type.clone(), trait_id.clone());
+        let func_ids = methods
+            .functions
+            .iter()
+            .flat_map(|(_, func_id, _)| {
+                self.add_method(&self_type, self.function_name(func_id).to_owned(), *func_id)
+            })
+            .collect::<Vec<FuncId>>();
+        self.trait_implementaions.insert(key, location.clone())
     }
 
     /// Search by name for a method on the given struct

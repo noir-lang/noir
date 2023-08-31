@@ -6,8 +6,8 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
     parser::SubModule,
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, TraitItem,
-    NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TypeImpl,
+    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
+    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -157,6 +157,7 @@ impl<'a> ModCollector<'a> {
                             module_id: self.module_id,
                             the_trait: collected_trait,
                             methods: unresolved_functions,
+                            trait_impl_ident: trait_impl.clone(),
                         };
 
                         let trait_id = match module_def_id {

@@ -56,6 +56,7 @@ pub struct UnresolvedTraitImpl {
     pub module_id: LocalModuleId,
     pub the_trait: UnresolvedTrait, // TODO(vitkov) this should be an ID
     pub methods: UnresolvedFunctions,
+    pub trait_impl_ident: Ident, // for error reporting
 }
 
 #[derive(Clone)]
@@ -664,7 +665,7 @@ fn resolve_trait_impls(
     let mut interner = &mut context.def_interner;
     let mut methods = Vec::<(FileId, FuncId)>::new();
 
-    for ((unresolved_type, _, _trait_id), trait_impl) in traits {
+    for ((unresolved_type, _, trait_id), trait_impl) in traits {
         let local_mod_id = trait_impl.module_id;
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let mut path_resolver = StandardPathResolver::new(module_id);
@@ -685,9 +686,19 @@ fn resolve_trait_impls(
             errors,
         );
 
-        for (_, func_id, _) in &trait_impl.methods.functions {
-            let method_name = interner.function_name(func_id).to_owned();
-            interner.add_method(&self_type, method_name.clone(), *func_id);
+        if let Some(first_def) = interner.add_trait_implementaion(
+            &self_type,
+            &trait_id,
+            &trait_impl.trait_impl_ident,
+            &trait_impl.methods.functions,
+        ) {
+            // trait is implemented more then one time !
+            let err = DefCollectorErrorKind::Duplicate {
+                typ: DuplicateType::TraitImplementation,
+                first_def,
+                second_def: trait_impl.trait_impl_ident,
+            };
+            errors.push(err.into_file_diagnostic(trait_impl.methods.file_id));
         }
 
         ////////////////////////////////////////
