@@ -19,6 +19,7 @@ struct ImmutableSingleton<Note, N> {
 
 impl<Note, N> ImmutableSingleton<Note, N> {
     fn new(storage_slot: Field, note_interface: NoteInterface<Note, N>) -> Self {
+        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
         ImmutableSingleton { storage_slot, note_interface }
     }
 

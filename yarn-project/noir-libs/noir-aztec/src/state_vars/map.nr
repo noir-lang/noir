@@ -5,6 +5,7 @@ struct Map<V> {
 
 impl<V> Map<V> {
     fn new(storage_slot: Field, state_var_constructor: fn (Field) -> V) -> Map<V> {
+        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
         Map { storage_slot, state_var_constructor }
     }
 

@@ -23,6 +23,7 @@ struct EasyPrivateUint {
 
 impl EasyPrivateUint {
     fn new(storage_slot: Field) -> Self {
+        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
         let set = Set {
             storage_slot,
             note_interface: ValueNoteMethods,
