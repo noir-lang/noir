@@ -5,9 +5,6 @@ mod bb;
 mod proof_system;
 mod smart_contract;
 
-/// The number of bytes necessary to store a `FieldElement`.
-const FIELD_BYTES: usize = 32;
-
 #[derive(Debug, Default)]
 pub struct Barretenberg;
 
