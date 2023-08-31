@@ -113,6 +113,7 @@ pub fn create_circuit(
         private_parameters,
         public_parameters,
         return_values,
+        assert_messages: Default::default(),
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec
