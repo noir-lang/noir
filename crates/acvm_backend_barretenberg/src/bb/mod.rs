@@ -27,12 +27,8 @@ const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
 const DEST_FOLDER: &str = ".nargo/backends/acvm-backend-barretenberg";
 const BINARY_NAME: &str = "backend_binary";
 
-const API_URL: &str = formatcp!(
-    "https://github.com/{}/{}/releases/download/{}",
-    USERNAME,
-    REPO,
-    TAG
-);
+const API_URL: &str =
+    formatcp!("https://github.com/{}/{}/releases/download/{}", USERNAME, REPO, TAG);
 
 fn get_bb_download_url() -> String {
     if let Ok(path) = std::env::var("BB_BINARY_URL") {
@@ -59,9 +55,7 @@ fn get_bb_download_url() -> String {
 fn get_binary_path() -> PathBuf {
     match std::env::var("BB_BINARY_PATH") {
         Ok(path) => PathBuf::from(path),
-        Err(_) => dirs::home_dir()
-            .unwrap()
-            .join(formatcp!("{}/{}", DEST_FOLDER, BINARY_NAME)),
+        Err(_) => dirs::home_dir().unwrap().join(formatcp!("{}/{}", DEST_FOLDER, BINARY_NAME)),
     }
 }
 
@@ -109,14 +103,14 @@ fn download_binary_from_url(url: &str) -> Result<Cursor<Vec<u8>>, String> {
 }
 
 #[test]
+#[serial_test::serial]
 fn no_command_provided_works() {
     // This is a simple test to check that the binaries work
 
     assert_binary_exists();
 
-    let output = std::process::Command::new(get_binary_path())
-        .output()
-        .expect("Failed to execute command");
+    let output =
+        std::process::Command::new(get_binary_path()).output().expect("Failed to execute command");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(stderr, "No command provided.\n");

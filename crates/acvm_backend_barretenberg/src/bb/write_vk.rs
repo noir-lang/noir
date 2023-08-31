@@ -42,6 +42,7 @@ impl WriteVkCommand {
 }
 
 #[test]
+#[serial_test::serial]
 fn write_vk_command() {
     use tempfile::tempdir;
 

@@ -51,6 +51,7 @@ impl GatesCommand {
 }
 
 #[test]
+#[serial_test::serial]
 fn gate_command() {
     use tempfile::tempdir;
 

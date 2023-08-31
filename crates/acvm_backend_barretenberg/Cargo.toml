@@ -26,5 +26,8 @@ reqwest = { version = "0.11.16", default-features = false, features = [
     "blocking",
 ] }
 
+[dev-dependencies]
+serial_test = "2.0.0"
+
 [build-dependencies]
 build-target = "0.4.0"

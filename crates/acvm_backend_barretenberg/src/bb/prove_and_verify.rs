@@ -35,15 +35,12 @@ impl ProveAndVerifyCommand {
             command.arg("-r");
         }
 
-        command
-            .output()
-            .expect("Failed to execute command")
-            .status
-            .success()
+        command.output().expect("Failed to execute command").status.success()
     }
 }
 
 #[test]
+#[serial_test::serial]
 fn prove_and_verify_command() {
     use tempfile::tempdir;
 

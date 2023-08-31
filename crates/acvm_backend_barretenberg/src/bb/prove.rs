@@ -50,6 +50,7 @@ impl ProveCommand {
 }
 
 #[test]
+#[serial_test::serial]
 fn prove_command() {
     use tempfile::tempdir;
 
