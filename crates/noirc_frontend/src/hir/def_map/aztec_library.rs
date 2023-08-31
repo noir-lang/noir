@@ -1,12 +1,14 @@
 use acvm::FieldElement;
-use noirc_errors::Span;
+use noirc_errors::{CustomDiagnostic, Span};
 
+use crate::graph::CrateId;
 use crate::{
-    token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement, IndexExpression,
-    LetStatement, Literal, MethodCallExpression, NoirFunction, ParsedModule, Path, PathKind,
-    Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+    hir::Context, token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness,
+    Expression, ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement,
+    IndexExpression, LetStatement, Literal, MethodCallExpression, NoirFunction, ParsedModule, Path,
+    PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use noirc_errors::FileDiagnostic;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -109,13 +111,20 @@ fn import(path: Path) -> ImportStatement {
 
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
-pub(crate) fn transform(mut ast: ParsedModule) -> ParsedModule {
+pub(crate) fn transform(
+    mut ast: ParsedModule,
+    crate_id: &CrateId,
+    context: &Context,
+    errors: &mut Vec<FileDiagnostic>,
+) -> ParsedModule {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        include_relevant_imports(&mut submodule.contents);
-        transform_module(&mut submodule.contents.functions);
+        if transform_module(&mut submodule.contents.functions) {
+            check_for_aztec_dependency(crate_id, context, errors);
+            include_relevant_imports(&mut submodule.contents);
+        }
     }
     ast
 }
@@ -135,18 +144,46 @@ fn include_relevant_imports(ast: &mut ParsedModule) {
     }
 }
 
+/// Creates an error alerting the user that they have not downloaded the Aztec-noir library
+fn check_for_aztec_dependency(
+    crate_id: &CrateId,
+    context: &Context,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    let crate_graph = &context.crate_graph[crate_id];
+    let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
+
+    if !has_aztec_dependency {
+        errors.push(FileDiagnostic::new(
+            crate_graph.root_file_id,
+            CustomDiagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
+        ));
+    }
+}
+
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
-fn transform_module(functions: &mut [NoirFunction]) {
+/// Returns true if an annotated function is found, false otherwise
+fn transform_module(functions: &mut [NoirFunction]) -> bool {
+    let mut has_annotated_functions = false;
     for func in functions.iter_mut() {
         if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
             match custom_attribute.as_str() {
-                "aztec(private)" => transform_function("Private", func),
-                "aztec(public)" => transform_function("Public", func),
-                _ => return,
+                "aztec(private)" => {
+                    transform_function("Private", func);
+                    has_annotated_functions = true;
+                }
+                "aztec(public)" => {
+                    transform_function("Public", func);
+                    has_annotated_functions = true;
+                }
+                _ => continue,
             }
         }
     }
+    has_annotated_functions
 }
 
 /// If it does, it will insert the following things:
@@ -175,8 +212,11 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
     func.def.return_visibility = Visibility::Public;
 
     // Distinct return types are only required for private functions
-    if ty == "Private" {
-        func.def.return_distinctness = Distinctness::Distinct;
+    // Public functions should have open auto-inferred
+    match ty {
+        "Private" => func.def.return_distinctness = Distinctness::Distinct,
+        "Public" => func.def.is_open = true,
+        _ => (),
     }
 }
 

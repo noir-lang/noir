@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "crates/acvm_backend_barretenberg",
     "crates/noirc_evaluator",
     "crates/noirc_frontend",
     "crates/noirc_errors",

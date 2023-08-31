@@ -89,7 +89,7 @@ impl CrateDefMap {
         let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
         #[cfg(feature = "aztec")]
-        let ast = aztec_library::transform(ast);
+        let ast = aztec_library::transform(ast, &crate_id, context, errors);
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
