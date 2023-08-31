@@ -2,7 +2,7 @@ use super::import::{
     allow_referencing_contracts, resolve_path_to_ns, ImportDirective, PathResolutionError,
 };
 use crate::Path;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
@@ -11,7 +11,7 @@ pub trait PathResolver {
     /// Resolve the given path returning the resolved ModuleDefId.
     fn resolve(
         &self,
-        def_maps: &HashMap<CrateId, CrateDefMap>,
+        def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
     ) -> Result<ModuleDefId, PathResolutionError>;
 
@@ -34,7 +34,7 @@ impl StandardPathResolver {
 impl PathResolver for StandardPathResolver {
     fn resolve(
         &self,
-        def_maps: &HashMap<CrateId, CrateDefMap>,
+        def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
     ) -> Result<ModuleDefId, PathResolutionError> {
         resolve_path(def_maps, self.module_id, path)
@@ -52,7 +52,7 @@ impl PathResolver for StandardPathResolver {
 /// Resolve the given path to a function or a type.
 /// In the case of a conflict, functions are given priority
 pub fn resolve_path(
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
 ) -> Result<ModuleDefId, PathResolutionError> {

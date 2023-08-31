@@ -139,7 +139,7 @@ impl FuncId {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct StructId(pub ModuleId);
 
 impl StructId {
@@ -151,7 +151,7 @@ impl StructId {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeAliasId(pub usize);
 
 impl TypeAliasId {
@@ -160,7 +160,7 @@ impl TypeAliasId {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitId(pub ModuleId);
 
 impl TraitId {

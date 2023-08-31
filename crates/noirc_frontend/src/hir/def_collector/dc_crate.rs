@@ -21,7 +21,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 use std::vec;
 
@@ -69,9 +69,9 @@ pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
-    pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
-    pub(crate) collected_type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
-    pub(crate) collected_traits: HashMap<TraitId, UnresolvedTrait>,
+    pub(crate) collected_types: BTreeMap<StructId, UnresolvedStruct>,
+    pub(crate) collected_type_aliases: BTreeMap<TypeAliasId, UnresolvedTypeAlias>,
+    pub(crate) collected_traits: BTreeMap<TraitId, UnresolvedTrait>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
     pub(crate) collected_traits_impls: ImplMap,
@@ -80,6 +80,10 @@ pub struct DefCollector {
 /// Maps the type and the module id in which the impl is defined to the functions contained in that
 /// impl along with the generics declared on the impl itself. This also contains the Span
 /// of the object_type of the impl, used to issue an error if the object type fails to resolve.
+///
+/// Note that because these are keyed by unresolved types, the impl map is one of the few instances
+/// of HashMap rather than BTreeMap. For this reason, we should be careful not to iterate over it
+/// since it would be non-deterministic.
 type ImplMap =
     HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
@@ -89,9 +93,9 @@ impl DefCollector {
             def_map,
             collected_imports: vec![],
             collected_functions: vec![],
-            collected_types: HashMap::new(),
-            collected_type_aliases: HashMap::new(),
-            collected_traits: HashMap::new(),
+            collected_types: BTreeMap::new(),
+            collected_type_aliases: BTreeMap::new(),
+            collected_traits: BTreeMap::new(),
             collected_impls: HashMap::new(),
             collected_traits_impls: HashMap::new(),
             collected_globals: vec![],
@@ -375,14 +379,14 @@ fn type_check_globals(
 /// so that expressions can access the fields of structs
 fn resolve_structs(
     context: &mut Context,
-    structs: HashMap<StructId, UnresolvedStruct>,
+    structs: BTreeMap<StructId, UnresolvedStruct>,
     crate_id: CrateId,
     errors: &mut Vec<FileDiagnostic>,
 ) {
     // We must first go through the struct list once to ensure all IDs are pushed to
     // the def_interner map. This lets structs refer to each other regardless of declaration order
     // without resolve_struct_fields non-deterministically unwrapping a value
-    // that isn't in the HashMap.
+    // that isn't in the BTreeMap.
     for (type_id, typ) in &structs {
         context.def_interner.push_empty_struct(*type_id, typ);
     }
@@ -487,7 +491,7 @@ fn take_errors_filter_self_not_resolved(resolver: Resolver<'_>) -> Vec<ResolverE
 /// so that expressions can access the elements of traits
 fn resolve_traits(
     context: &mut Context,
-    traits: HashMap<TraitId, UnresolvedTrait>,
+    traits: BTreeMap<TraitId, UnresolvedTrait>,
     crate_id: CrateId,
     errors: &mut Vec<FileDiagnostic>,
 ) {
@@ -530,7 +534,7 @@ fn resolve_struct_fields(
 
 fn resolve_type_aliases(
     context: &mut Context,
-    type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
+    type_aliases: BTreeMap<TypeAliasId, UnresolvedTypeAlias>,
     crate_id: CrateId,
     all_errors: &mut Vec<FileDiagnostic>,
 ) {
@@ -552,7 +556,7 @@ fn resolve_type_aliases(
 fn resolve_impls(
     interner: &mut NodeInterner,
     crate_id: CrateId,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_impls: ImplMap,
     errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, FuncId)> {
@@ -606,7 +610,7 @@ fn resolve_impls(
 fn resolve_free_functions(
     interner: &mut NodeInterner,
     crate_id: CrateId,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
     self_type: Option<Type>,
     errors: &mut Vec<FileDiagnostic>,
@@ -631,7 +635,7 @@ fn resolve_free_functions(
 fn resolve_function_set(
     interner: &mut NodeInterner,
     crate_id: CrateId,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
