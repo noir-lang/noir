@@ -56,6 +56,9 @@ class VersionMismatchError extends Error {}
 export async function checkServerVersion(rpc: AztecRPC, expectedVersionRange: string, logger?: DebugLogger) {
   const serverName = 'Aztec Sandbox';
   const { client } = await rpc.getNodeInfo();
+  if (!client) {
+    throw new VersionMismatchError(`Couldn't determine ${serverName} version. You may run into issues.`);
+  }
   const version = client.split('@')[1];
   logger?.debug(`Comparing server version ${version} against CLI expected ${expectedVersionRange}`);
   if (!version || !valid(version)) {
