@@ -443,6 +443,7 @@ impl AcirContext {
                     lhs: Box::new(lhs_expr),
                     rhs: Box::new(rhs_expr),
                     call_stack: self.get_call_stack(),
+                    assert_message,
                 });
             };
         }

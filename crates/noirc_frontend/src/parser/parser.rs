@@ -722,7 +722,9 @@ fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expression_list(expr_parser)))
+    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_most(2);
+
+    ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
         .validate(|expressions, span, emit| {
             let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
@@ -744,7 +746,7 @@ fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().exactly(2);
+    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_most(3);
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)

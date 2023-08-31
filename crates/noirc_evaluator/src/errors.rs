@@ -14,14 +14,26 @@ use thiserror::Error;
 
 use crate::ssa::ir::dfg::CallStack;
 
+fn format_failed_constraint(message: &Option<String>) -> String {
+    match message {
+        Some(message) => format!("Failed constraint: '{}'", message),
+        None => "Failed constraint".to_owned(),
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
     // We avoid showing the actual lhs and rhs since most of the time they are just 0
     // and 1 respectively. This would confuse users if a constraint such as
     // assert(foo < bar) fails with "failed constraint: 0 = 1."
     // TODO add assertion message here too
-    #[error("Failed constraint")]
-    FailedConstraint { lhs: Box<Expression>, rhs: Box<Expression>, call_stack: CallStack },
+    #[error("{}", format_failed_constraint(.assert_message))]
+    FailedConstraint {
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+        call_stack: CallStack,
+        assert_message: Option<String>,
+    },
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
