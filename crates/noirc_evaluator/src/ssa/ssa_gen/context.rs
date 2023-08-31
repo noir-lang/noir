@@ -244,14 +244,20 @@ impl<'a> FunctionContext<'a> {
     fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
-        self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
+        let result = self.builder.insert_binary(lhs, BinaryOp::Mul, pow);
+        // `pow` returns a Field so we must cast the result to make sure it has the correct type
+        let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+        self.builder.insert_cast(result, result_type)
     }
 
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
-        self.builder.insert_binary(lhs, BinaryOp::Div, pow)
+        let result = self.builder.insert_binary(lhs, BinaryOp::Div, pow);
+        // `pow` returns a Field so we must cast the result to make sure it has the correct type
+        let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+        self.builder.insert_cast(result, result_type)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
@@ -317,7 +323,7 @@ impl<'a> FunctionContext<'a> {
             rhs,
             &self.builder.current_function.dfg,
         ) {
-            let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+            let result_type = self.builder.current_function.dfg.type_of_value(result);
             let bit_size = match result_type {
                 Type::Numeric(NumericType::Signed { bit_size })
                 | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
