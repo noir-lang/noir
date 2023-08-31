@@ -35,7 +35,7 @@ contract ExamplePublicStateIncrement {
 
     // a += b;
     #[aztec(public)]
-    open fn increment_a(
+    fn increment_a(
         b: Field,
     ) {
         let storage = Storage::init();

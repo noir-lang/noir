@@ -82,7 +82,7 @@ contract Test {
 
     // Purely exists for testing
     #[aztec(public)]
-    open fn createL2ToL1MessagePublic(
+    fn createL2ToL1MessagePublic(
         amount: Field,
         secretHash: Field,
     ) {
@@ -96,7 +96,7 @@ contract Test {
 
     // Purely exists for testing
     #[aztec(public)]
-    open fn createNullifierPublic(
+    fn createNullifierPublic(
         amount: Field,
         secretHash: Field,
     ) {
@@ -108,7 +108,7 @@ contract Test {
     }
 
     #[aztec(public)]
-    open fn isTimeEqual(
+    fn isTimeEqual(
         time: Field,
     ) {
         assert(context.timestamp() == time);

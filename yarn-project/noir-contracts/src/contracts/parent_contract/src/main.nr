@@ -20,7 +20,7 @@ contract Parent {
 
     // Public function to directly call another public function to the targetContract using the selector and value provided
     #[aztec(public)]
-    open fn pubEntryPoint(
+    fn pubEntryPoint(
         targetContract: Field,
         targetSelector: Field,
         initValue: Field
@@ -32,7 +32,7 @@ contract Parent {
 
     // Same as pubEntryPoint, but calls the target contract twice, using the return value from the first invocation as the argument for the second.
     #[aztec(public)]
-    open fn pubEntryPointTwice(
+    fn pubEntryPointTwice(
         targetContract: Field,
         targetSelector: Field,
         initValue: Field

@@ -14,7 +14,7 @@ contract PublicToken {
 
     // Mints `amount` of tokens to a `recipient`.
     #[aztec(public)]
-    open fn mint(
+    fn mint(
         amount: Field,
         recipient: Field,
     ) {
@@ -33,7 +33,7 @@ contract PublicToken {
 
     // Transfers `amount` of tokens from `msg_sender` to `recipient`.
     #[aztec(public)]
-    open fn transfer(
+    fn transfer(
         amount: Field,
         recipient: Field,
     ) {

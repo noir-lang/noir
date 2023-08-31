@@ -46,7 +46,7 @@ contract NativeToken {
 
     // uint256(keccak256("owner_mint_pub(field,field)")) >> 224 -> 1071038680
     #[aztec(public)]
-    open fn owner_mint_pub(
+    fn owner_mint_pub(
         to: Field,
         amount: Field,
     ) {
@@ -59,7 +59,7 @@ contract NativeToken {
 
     // uint256(keccak256("owner_mint_priv(field,field)")) >> 224 -> 3157518188
     #[aztec(public)]
-    open fn owner_mint_priv(
+    fn owner_mint_priv(
         amount: Field,
         secret_hash: Field,
     ) {
@@ -123,7 +123,7 @@ contract NativeToken {
     // upon consuming valid messages from a token portal contract
     // uint256(keccak256("mintPublic(field,field,field,field,field)")) >> 224 -> 1598652179
     #[aztec(public)]
-    open fn mintPublic(
+    fn mintPublic(
         amount: Field,
         owner_address: Field,
         // This field should be hidden
@@ -151,7 +151,7 @@ contract NativeToken {
     // Withdraws using user's public balance.
     // uint256(keccak256("withdrawPublic(field,field,field)")) >> 224 -> 2996031894
     #[aztec(public)]
-    open fn withdrawPublic(
+    fn withdrawPublic(
         amount: Field,
         recipient: Field,
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
@@ -177,7 +177,7 @@ contract NativeToken {
     }
 
     #[aztec(public)]
-    open fn approve(
+    fn approve(
         spender: Field,
         allowance: Field,
     ) {
@@ -187,7 +187,7 @@ contract NativeToken {
 
     // uint256(keccak256("transfer_pub(field,field)")) >> 224 -> 1012824788
     #[aztec(public)]
-    open fn transfer_pub(
+    fn transfer_pub(
         to: Field,
         amount: Field,
     ) {
@@ -209,7 +209,7 @@ contract NativeToken {
 
     // uint256(keccak256("transfer_from_pub(field,field,field)")) >> 224 -> 1602017294
     #[aztec(public)]
-    open fn transfer_from_pub(
+    fn transfer_from_pub(
         from: Field,
         to: Field,
         amount: Field,
@@ -257,7 +257,7 @@ contract NativeToken {
     // Shield creates a way for a user to move tokens from the public context into the private context.
     // uint256(keccak256("shield(field,field)")) >> 224 -> 845411215
     #[aztec(public)]
-    open fn shield(
+    fn shield(
         amount: Field,
         secretHash: Field,
     ) {

@@ -75,7 +75,7 @@ contract ImportTest {
     // Used for testing calling an open function from another open function
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(public)]
-    open fn pubCallOpenFn(
+    fn pubCallOpenFn(
         target: Field,
     ) {
         let test_contract_instance = TestPublicContextInterface::at(target);

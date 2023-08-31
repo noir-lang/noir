@@ -7,7 +7,7 @@ contract PriceFeed {
     fn constructor(){}
 
     #[aztec(public)]
-    open fn set_price(
+    fn set_price(
         asset_id: Field,
         price: u120,
     ) {
@@ -19,7 +19,7 @@ contract PriceFeed {
     }
 
     #[aztec(public)]
-    open fn get_price(
+    fn get_price(
         asset_id: Field,
     ) {
         let storage = Storage::init();
