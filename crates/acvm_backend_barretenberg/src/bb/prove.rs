@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::{assert_binary_exists, get_binary_path, CliShimError};
 
 /// ProveCommand will call the barretenberg binary
@@ -9,11 +11,11 @@ use super::{assert_binary_exists, get_binary_path, CliShimError};
 /// The proof will be written to the specified output file.
 pub(crate) struct ProveCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: String,
+    pub(crate) path_to_crs: PathBuf,
     pub(crate) is_recursive: bool,
-    pub(crate) path_to_bytecode: String,
-    pub(crate) path_to_witness: String,
-    pub(crate) path_to_proof: String,
+    pub(crate) path_to_bytecode: PathBuf,
+    pub(crate) path_to_witness: PathBuf,
+    pub(crate) path_to_proof: PathBuf,
 }
 
 impl ProveCommand {
@@ -54,8 +56,8 @@ impl ProveCommand {
 fn prove_command() {
     use tempfile::tempdir;
 
-    let path_to_1_mul = "./src/1_mul.bytecode";
-    let path_to_1_mul_witness = "./src/witness.tr";
+    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
+    let path_to_witness = PathBuf::from("./src/witness.tr");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -65,11 +67,11 @@ fn prove_command() {
 
     let prove_command = ProveCommand {
         verbose: true,
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        path_to_crs,
+        path_to_bytecode,
+        path_to_witness,
         is_recursive: false,
-        path_to_bytecode: path_to_1_mul.to_string(),
-        path_to_witness: path_to_1_mul_witness.to_string(),
-        path_to_proof: path_to_proof.to_str().unwrap().to_string(),
+        path_to_proof,
     };
 
     let proof_created = prove_command.run();

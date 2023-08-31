@@ -1,13 +1,15 @@
+use std::path::PathBuf;
+
 use super::{assert_binary_exists, get_binary_path, CliShimError};
 
 /// WriteCommand will call the barretenberg binary
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: String,
+    pub(crate) path_to_crs: PathBuf,
     pub(crate) is_recursive: bool,
-    pub(crate) path_to_bytecode: String,
-    pub(crate) path_to_vk_output: String,
+    pub(crate) path_to_bytecode: PathBuf,
+    pub(crate) path_to_vk_output: PathBuf,
 }
 
 impl WriteVkCommand {
@@ -46,19 +48,19 @@ impl WriteVkCommand {
 fn write_vk_command() {
     use tempfile::tempdir;
 
-    let path_to_1_mul = "./src/1_mul.bytecode";
+    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
     let path_to_crs = temp_directory_path.join("crs");
-    let path_to_vk = temp_directory_path.join("vk");
+    let path_to_vk_output = temp_directory_path.join("vk");
 
     let write_vk_command = WriteVkCommand {
         verbose: true,
-        path_to_bytecode: path_to_1_mul.to_string(),
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        path_to_bytecode,
+        path_to_crs,
         is_recursive: false,
-        path_to_vk_output: path_to_vk.to_str().unwrap().to_string(),
+        path_to_vk_output,
     };
 
     let vk_written = write_vk_command.run();

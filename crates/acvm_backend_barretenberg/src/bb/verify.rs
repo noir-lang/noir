@@ -1,13 +1,15 @@
+use std::path::PathBuf;
+
 use super::{assert_binary_exists, get_binary_path};
 
 /// VerifyCommand will call the barretenberg binary
 /// to verify a proof
 pub(crate) struct VerifyCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: String,
+    pub(crate) path_to_crs: PathBuf,
     pub(crate) is_recursive: bool,
-    pub(crate) path_to_proof: String,
-    pub(crate) path_to_vk: String,
+    pub(crate) path_to_proof: PathBuf,
+    pub(crate) path_to_vk: PathBuf,
 }
 
 impl VerifyCommand {
@@ -43,22 +45,22 @@ fn verify_command() {
 
     use crate::bb::{ProveCommand, WriteVkCommand};
 
-    let path_to_1_mul = "./src/1_mul.bytecode";
-    let path_to_1_mul_witness = "./src/witness.tr";
+    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
+    let path_to_witness = PathBuf::from("./src/witness.tr");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
 
     let path_to_crs = temp_directory_path.join("crs");
     let path_to_proof = temp_directory_path.join("1_mul").with_extension("proof");
-    let path_to_vk = temp_directory_path.join("vk");
+    let path_to_vk_output = temp_directory_path.join("vk");
 
     let write_vk_command = WriteVkCommand {
         verbose: true,
-        path_to_bytecode: path_to_1_mul.to_string(),
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        path_to_bytecode: path_to_bytecode.clone(),
+        path_to_crs: path_to_crs.clone(),
         is_recursive: false,
-        path_to_vk_output: path_to_vk.to_str().unwrap().to_string(),
+        path_to_vk_output: path_to_vk_output.clone(),
     };
 
     let vk_written = write_vk_command.run();
@@ -66,20 +68,20 @@ fn verify_command() {
 
     let prove_command = ProveCommand {
         verbose: true,
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        path_to_crs: path_to_crs.clone(),
         is_recursive: false,
-        path_to_bytecode: path_to_1_mul.to_string(),
-        path_to_witness: path_to_1_mul_witness.to_string(),
-        path_to_proof: path_to_proof.to_str().unwrap().to_string(),
+        path_to_bytecode,
+        path_to_witness,
+        path_to_proof: path_to_proof.clone(),
     };
     prove_command.run().unwrap();
 
     let verify_command = VerifyCommand {
         verbose: true,
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        path_to_crs,
         is_recursive: false,
-        path_to_proof: path_to_proof.to_str().unwrap().to_string(),
-        path_to_vk: path_to_vk.to_str().unwrap().to_string(),
+        path_to_proof,
+        path_to_vk: path_to_vk_output,
     };
 
     let verified = verify_command.run();

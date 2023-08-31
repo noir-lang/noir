@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::{assert_binary_exists, get_binary_path, CliShimError};
 
 /// VerifyCommand will call the barretenberg binary
@@ -9,9 +11,9 @@ use super::{assert_binary_exists, get_binary_path, CliShimError};
 /// remaining logic that is missing.
 pub(crate) struct ContractCommand {
     pub(crate) verbose: bool,
-    pub(crate) path_to_crs: String,
-    pub(crate) path_to_vk: String,
-    pub(crate) path_to_contract: String,
+    pub(crate) path_to_crs: PathBuf,
+    pub(crate) path_to_vk: PathBuf,
+    pub(crate) path_to_contract: PathBuf,
 }
 
 impl ContractCommand {
@@ -46,7 +48,7 @@ impl ContractCommand {
 fn contract_command() {
     use tempfile::tempdir;
 
-    let path_to_1_mul = "./src/1_mul.bytecode";
+    let path_to_bytecode = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -56,20 +58,16 @@ fn contract_command() {
 
     let write_vk_command = super::WriteVkCommand {
         verbose: true,
-        path_to_bytecode: path_to_1_mul.to_string(),
-        path_to_vk_output: path_to_vk.to_str().unwrap().to_string(),
+        path_to_bytecode,
+        path_to_vk_output: path_to_vk.clone(),
         is_recursive: false,
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
+        path_to_crs: path_to_crs.clone(),
     };
 
     assert!(write_vk_command.run().is_ok());
 
-    let contract_command = ContractCommand {
-        verbose: true,
-        path_to_vk: path_to_vk.to_str().unwrap().to_string(),
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
-        path_to_contract: path_to_contract.to_str().unwrap().to_string(),
-    };
+    let contract_command =
+        ContractCommand { verbose: true, path_to_vk, path_to_crs, path_to_contract };
 
     assert!(contract_command.run().is_ok());
     drop(temp_directory);
