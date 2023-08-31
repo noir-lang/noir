@@ -722,7 +722,8 @@ fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_most(2);
+    let argument_parser =
+        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(1).at_most(2);
 
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
@@ -746,7 +747,8 @@ fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_most(3);
+    let argument_parser =
+        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(2).at_most(3);
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
@@ -1862,6 +1864,14 @@ mod test {
                 "assert(x + x ^ x == y | m)",
             ],
         );
+
+        match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
+        {
+            Statement::Constrain(ConstrainStatement(_, message)) => {
+                assert_eq!(message, Some("assertion message".to_owned()));
+            }
+            _ => unreachable!(),
+        }
     }
 
     /// This is the standard way to assert that two expressions are equivalent
@@ -1878,6 +1888,14 @@ mod test {
                 "assert_eq(x + x ^ x, y | m)",
             ],
         );
+        match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
+            .unwrap()
+        {
+            Statement::Constrain(ConstrainStatement(_, message)) => {
+                assert_eq!(message, Some("assertion message".to_owned()));
+            }
+            _ => unreachable!(),
+        }
     }
 
     #[test]
@@ -2235,8 +2253,10 @@ mod test {
             ("assert", 1, "constrain Error"),
             ("constrain x ==", 2, "constrain (plain::x == Error)"),
             ("assert(x ==)", 1, "constrain (plain::x == Error)"),
+            ("assert(x == x, x)", 1, "constrain (plain::x == plain::x)"),
             ("assert_eq(x,)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x)", 1, "constrain (Error == Error)"),
+            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
+            ("assert_eq(x, x, x, x)", 1, "constrain (Error == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
