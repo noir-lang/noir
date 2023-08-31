@@ -413,7 +413,7 @@ impl<'function> PerFunctionContext<'function> {
         self.context.builder.set_call_stack(call_stack);
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
-        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
+        Self::insert_new_instruction_results(&mut self.values, results, new_results);
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous

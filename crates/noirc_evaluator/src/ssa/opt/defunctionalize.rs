@@ -48,6 +48,7 @@ struct ApplyFunction {
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     apply_functions: HashMap<Signature, ApplyFunction>,
+    value_map: HashMap<ValueId, ValueId>,
 }
 
 impl Ssa {
@@ -57,7 +58,7 @@ impl Ssa {
 
         let apply_functions = create_apply_functions(&mut self, variants);
 
-        let context = DefunctionalizationContext { apply_functions };
+        let context = DefunctionalizationContext { apply_functions, value_map: HashMap::new() };
 
         context.defunctionalize_all(&mut self);
         self
@@ -75,6 +76,7 @@ impl DefunctionalizationContext {
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
         let mut call_target_values = HashSet::new();
+        self.value_map.clear();
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
@@ -132,11 +134,10 @@ impl DefunctionalizationContext {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
                         if !call_target_values.contains(&value_id) {
-                            let _new_value =
+                            let new_value =
                                 func.dfg.make_constant(function_id_to_field(*id), Type::field());
 
-                            // func.dfg.set_value_from_id(value_id, new_value);
-                            todo!("defunctionalization now needs to manually go through each instruction")
+                            self.value_map.insert(value_id, new_value);
                         }
                     }
                     // If the value is a function used as value, just change the type of it
@@ -147,11 +148,20 @@ impl DefunctionalizationContext {
                 }
             }
         }
+
+        self.replace_function_values(func);
     }
 
     /// Returns the apply function for the given signature
     fn get_apply_function(&self, signature: &Signature) -> ApplyFunction {
         *self.apply_functions.get(signature).expect("Could not find apply function")
+    }
+
+    fn replace_function_values(&mut self, function: &mut Function) {
+        for (_, instruction) in function.dfg.iter_instructions_mut() {
+            instruction
+                .map_values_mut(|value| self.value_map.get(&value).copied().unwrap_or(value));
+        }
     }
 }
 

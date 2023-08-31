@@ -124,7 +124,7 @@ fn remove_block_parameters(
         let mut inserter = FunctionInserter::new(function);
 
         for (param, arg) in block_params.into_iter().zip(jump_args) {
-            inserter.map_value(param, arg)
+            inserter.map_value(param, arg);
         }
 
         inserter

@@ -1,11 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use iter_extended::vecmap;
-
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::InsertInstructionResult,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
@@ -69,6 +66,8 @@ impl<'f> Context<'f> {
         for instruction_id in instructions {
             self.push_instruction(block, instruction_id, &mut cached_instruction_results);
         }
+
+        self.inserter.map_terminator_in_place(block);
         self.block_queue.extend(self.inserter.function.dfg[block].successors());
     }
 

@@ -149,6 +149,14 @@ impl<T> DenseMap<T> {
         let ids_iter = (0..self.storage.len()).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
+
+    /// Gets an iterator to a mutable reference to each element in the dense map paired with its id.
+    ///
+    /// The id-element pairs are ordered by the numeric values of the ids.
+    pub(crate) fn iter_mut(&mut self) -> impl ExactSizeIterator<Item = (Id<T>, &mut T)> {
+        let ids_iter = (0..self.storage.len()).map(|idx| Id::new(idx));
+        ids_iter.zip(self.storage.iter_mut())
+    }
 }
 
 impl<T> Default for DenseMap<T> {

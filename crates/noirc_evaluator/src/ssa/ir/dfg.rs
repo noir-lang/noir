@@ -409,6 +409,12 @@ impl DataFlowGraph {
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         !matches!(&self[argument], Value::Instruction { .. } | Value::Param { .. })
     }
+
+    pub(crate) fn iter_instructions_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (InstructionId, &mut Instruction)> {
+        self.instructions.iter_mut()
+    }
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {

@@ -300,6 +300,51 @@ impl Instruction {
         }
     }
 
+    /// Mutates each ValueId inside this instruction to a new ValueId using the given mapping function.
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        match self {
+            Instruction::Binary(binary) => {
+                binary.lhs = f(binary.lhs);
+                binary.rhs = f(binary.rhs);
+            }
+            Instruction::Cast(value, _) => *value = f(*value),
+            Instruction::Not(value) => *value = f(*value),
+            Instruction::Truncate { value, .. } => {
+                *value = f(*value);
+            }
+            Instruction::Constrain(lhs, rhs) => {
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+            }
+            Instruction::Call { func, arguments } => {
+                *func = f(*func);
+                for argument in arguments {
+                    *argument = f(*argument);
+                }
+            }
+            Instruction::Allocate => (),
+            Instruction::Load { address } => {
+                *address = f(*address);
+            }
+            Instruction::Store { address, value } => {
+                *address = f(*address);
+                *value = f(*value);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                *condition = f(*condition);
+            }
+            Instruction::ArrayGet { array, index } => {
+                *array = f(*array);
+                *index = f(*index);
+            }
+            Instruction::ArraySet { array, index, value } => {
+                *array = f(*array);
+                *index = f(*index);
+                *value = f(*value);
+            }
+        }
+    }
+
     /// Applies a function to each input value this instruction holds.
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         match self {
