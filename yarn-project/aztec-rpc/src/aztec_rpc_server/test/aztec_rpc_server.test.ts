@@ -1,8 +1,8 @@
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecNode, AztecRPC } from '@aztec/types';
+import { AztecNode, AztecRPC, L2Tx, mockTx } from '@aztec/types';
 
-import { mock } from 'jest-mock-extended';
+import { MockProxy, mock } from 'jest-mock-extended';
 
 import { MemoryDB } from '../../database/memory_db.js';
 import { EthAddress, RpcServerConfig } from '../../index.js';
@@ -27,3 +27,29 @@ async function createAztecRpcServer(): Promise<AztecRPC> {
 }
 
 aztecRpcTestSuite('AztecRPCServer', createAztecRpcServer);
+
+describe('AztecRPCServer', () => {
+  let keyStore: TestKeyStore;
+  let node: MockProxy<AztecNode>;
+  let db: MemoryDB;
+  let config: RpcServerConfig;
+
+  beforeEach(async () => {
+    keyStore = new TestKeyStore(await Grumpkin.new());
+    node = mock<AztecNode>();
+    db = new MemoryDB();
+    config = {
+      l2BlockPollingIntervalMS: 100,
+    };
+  });
+
+  it('throws when submitting a tx with a nullifier of already settled tx', async () => {
+    const settledTx = L2Tx.random();
+    const duplicateTx = mockTx();
+
+    node.getTx.mockResolvedValue(settledTx);
+
+    const rpc = new AztecRPCServer(keyStore, node, db, config);
+    await expect(rpc.sendTx(duplicateTx)).rejects.toThrowError(/A settled tx with equal hash/);
+  });
+});

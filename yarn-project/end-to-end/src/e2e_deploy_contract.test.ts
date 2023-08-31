@@ -79,9 +79,8 @@ describe('e2e_deploy_contract', () => {
   /**
    * Milestone 1.2.
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
-   * Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1810
    */
-  it.skip('should not deploy a contract with the same salt twice', async () => {
+  it('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
     const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
 
@@ -97,13 +96,9 @@ describe('e2e_deploy_contract', () => {
     }
 
     {
-      const tx = deployer.deploy().send({ contractAddressSalt });
-      const isMined = await tx.isMined({ interval: 0.1 });
-      expect(isMined).toBe(false);
-      const receipt = await tx.getReceipt();
-
-      expect(receipt.status).toBe(TxStatus.DROPPED);
-      expect(receipt.error).toBe('Tx dropped by P2P node.');
+      await expect(deployer.deploy().send({ contractAddressSalt }).wait()).rejects.toThrowError(
+        /A settled tx with equal hash/,
+      );
     }
   }, 30_000);
 });

@@ -201,6 +201,9 @@ export class AztecRPCServer implements AztecRPC {
 
   public async sendTx(tx: Tx): Promise<TxHash> {
     const txHash = await tx.getTxHash();
+    if (await this.node.getTx(txHash)) {
+      throw new Error(`A settled tx with equal hash ${txHash.toString()} exists.`);
+    }
     this.log.info(`Sending transaction ${txHash}`);
     await this.node.sendTx(tx);
     return txHash;
