@@ -845,7 +845,10 @@ impl<'a> Resolver<'a> {
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, Shared<TypeBinding>>) {
+    fn find_numeric_generics_in_type(
+        typ: &Type,
+        found: &mut BTreeMap<String, Shared<TypeBinding>>,
+    ) {
         match typ {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -1544,7 +1547,8 @@ mod test {
     // and functions can be forward declared
     fn init_src_code_resolution(
         src: &str,
-    ) -> (ParsedModule, NodeInterner, BTreeMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
+    ) -> (ParsedModule, NodeInterner, BTreeMap<CrateId, CrateDefMap>, FileId, TestPathResolver)
+    {
         let (program, errors) = parse_program(src);
         if errors.iter().any(|e| e.is_error()) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
