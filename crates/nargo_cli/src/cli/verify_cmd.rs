@@ -1,6 +1,3 @@
-use super::fs::common_reference_string::{
-    read_cached_common_reference_string, update_common_reference_string,
-};
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_package,
@@ -91,18 +88,6 @@ fn verify_package<B: Backend>(
         }
     };
 
-    let common_reference_string = read_cached_common_reference_string();
-    let common_reference_string = update_common_reference_string(
-        backend,
-        &common_reference_string,
-        &preprocessed_program.bytecode,
-    )
-    .map_err(CliError::CommonReferenceStringError)?;
-
-    let (_, verification_key) = backend
-        .preprocess(&common_reference_string, &preprocessed_program.bytecode)
-        .map_err(CliError::ProofSystemCompilerError)?;
-
     let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
 
     // Load public inputs (if any) from `verifier_name`.
@@ -113,15 +98,8 @@ fn verify_package<B: Backend>(
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
     let proof = load_hex_data(proof_path)?;
 
-    let valid_proof = verify_proof(
-        backend,
-        &common_reference_string,
-        &bytecode,
-        &proof,
-        public_inputs,
-        &verification_key,
-    )
-    .map_err(CliError::ProofSystemCompilerError)?;
+    let valid_proof = verify_proof(backend, &bytecode, &proof, public_inputs)
+        .map_err(CliError::ProofSystemCompilerError)?;
 
     if valid_proof {
         Ok(())

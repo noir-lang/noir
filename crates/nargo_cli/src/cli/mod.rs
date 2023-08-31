@@ -74,7 +74,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
-    let backend = crate::backends::ConcreteBackend::default();
+    let backend = crate::backends::ConcreteBackend;
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),

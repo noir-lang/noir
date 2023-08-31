@@ -162,14 +162,19 @@ fn report_error_with_opcode_location(
 }
 
 pub(crate) fn execute_program<B: Backend>(
-    backend: &B,
+    _backend: &B,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
     debug_data: Option<(DebugInfo, Context)>,
 ) -> Result<WitnessMap, CliError<B>> {
+    #[allow(deprecated)]
+    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+
     let initial_witness = abi.encode(inputs_map, None)?;
-    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness, true);
+
+    let solved_witness_err =
+        nargo::ops::execute_circuit(&blackbox_solver, circuit, initial_witness, true);
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
