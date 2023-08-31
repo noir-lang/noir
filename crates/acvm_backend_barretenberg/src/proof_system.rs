@@ -137,13 +137,13 @@ impl Backend {
         write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
         // Create the verification key and write it to the specified path
-        let vk_path_output = temp_directory.join("vk");
+        let vk_path = temp_directory.join("vk");
         WriteVkCommand {
             verbose: false,
             crs_path: temp_directory.clone(),
             is_recursive,
             bytecode_path,
-            vk_path_output: vk_path_output.clone(),
+            vk_path_output: vk_path.clone(),
         }
         .run()
         .expect("write vk command failed");
@@ -154,7 +154,7 @@ impl Backend {
             crs_path: temp_directory,
             is_recursive,
             proof_path,
-            vk_path: vk_path_output,
+            vk_path,
         }
         .run())
     }
