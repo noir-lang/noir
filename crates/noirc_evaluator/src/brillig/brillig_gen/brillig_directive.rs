@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use acvm::acir::brillig::{
     BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
 };
@@ -35,7 +33,7 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
             },
             BrilligOpcode::Stop,
         ],
-        assert_messages: BTreeMap::new(),
+        assert_messages: Default::default(),
         locations: Default::default(),
     }
 }
@@ -104,7 +102,7 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             },
             BrilligOpcode::Stop,
         ],
-        assert_messages: BTreeMap::new(),
+        assert_messages: Default::default(),
         locations: Default::default(),
     }
 }

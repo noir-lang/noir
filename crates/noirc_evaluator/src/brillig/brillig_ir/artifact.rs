@@ -155,11 +155,6 @@ impl BrilligArtifact {
         self.byte_code.push(opcode);
     }
 
-    pub(crate) fn add_assert_message_to_last_opcode(&mut self, message: String) {
-        let position = self.index_of_next_opcode() - 1;
-        self.assert_messages.insert(position, message);
-    }
-
     /// Adds a unresolved jump to be fixed at the end of bytecode processing.
     pub(crate) fn add_unresolved_jump(
         &mut self,
@@ -257,5 +252,10 @@ impl BrilligArtifact {
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
         self.call_stack = call_stack;
+    }
+
+    pub(crate) fn add_assert_message_to_last_opcode(&mut self, message: String) {
+        let position = self.index_of_next_opcode() - 1;
+        self.assert_messages.insert(position, message);
     }
 }

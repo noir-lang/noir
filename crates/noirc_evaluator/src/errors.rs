@@ -19,6 +19,7 @@ pub enum RuntimeError {
     // We avoid showing the actual lhs and rhs since most of the time they are just 0
     // and 1 respectively. This would confuse users if a constraint such as
     // assert(foo < bar) fails with "failed constraint: 0 = 1."
+    // TODO add assertion message here too
     #[error("Failed constraint")]
     FailedConstraint { lhs: Box<Expression>, rhs: Box<Expression>, call_stack: CallStack },
     #[error(transparent)]

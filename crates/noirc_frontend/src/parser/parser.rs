@@ -723,14 +723,9 @@ where
     P: ExprParser + 'a,
 {
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expression_list(expr_parser)))
-        // TODO correct this label
         .labelled(ParsingRuleLabel::Statement)
         .validate(|expressions, span, emit| {
-            let condition = expressions.get(0);
-            if condition.is_none() {
-                emit(ParserError::with_reason(ParserErrorReason::EmptyAssert, span));
-            }
-
+            let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
             let mut message_str = None;
 
             if let Some(message) = expressions.get(1) {
@@ -741,10 +736,7 @@ where
                 }
             }
 
-            (condition.unwrap().clone(), message_str)
-        })
-        .map(|(condition_expression, message)| {
-            Statement::Constrain(ConstrainStatement(condition_expression, message))
+            Statement::Constrain(ConstrainStatement(condition, message_str))
         })
 }
 
@@ -756,7 +748,7 @@ where
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, _| {
+        .validate(|exprs: Vec<Expression>, span, emit| {
             let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
@@ -765,8 +757,16 @@ where
                 })),
                 span,
             );
-            // TODO message
-            Statement::Constrain(ConstrainStatement(predicate, None))
+            let mut message_str = None;
+
+            if let Some(message) = exprs.get(2) {
+                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
+                    message_str = Some(message.clone());
+                } else {
+                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
+                }
+            }
+            Statement::Constrain(ConstrainStatement(predicate, message_str))
         })
 }
 
