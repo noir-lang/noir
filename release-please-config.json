@@ -20,7 +20,7 @@
         }
       ]
     },
-    "./crates/source-resolver": {
+    "crates/source-resolver": {
       "release-type": "simple",
       "extra-files": [
         {
