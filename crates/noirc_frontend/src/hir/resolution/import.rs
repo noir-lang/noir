@@ -163,7 +163,6 @@ fn resolve_name_in_module(
         let found_ns = current_mod.find_name(segment);
 
         if found_ns.is_none() {
-            println!("failed to resolv {found_ns:?} {segment:?}");
             return Err(PathResolutionError::Unresolved(segment.clone()));
         }
         // Check if it is a contract and we're calling from a non-contract context
