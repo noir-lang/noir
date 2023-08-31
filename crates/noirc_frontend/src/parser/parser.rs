@@ -2255,8 +2255,8 @@ mod test {
             ("assert(x ==)", 1, "constrain (plain::x == Error)"),
             ("assert(x == x, x)", 1, "constrain (plain::x == plain::x)"),
             ("assert_eq(x,)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
             ("assert_eq(x, x, x, x)", 1, "constrain (Error == Error)"),
+            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
