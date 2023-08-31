@@ -2,23 +2,16 @@ use super::proof_system::{serialize_circuit, write_to_file};
 use crate::{
     bb::{ContractCommand, WriteVkCommand},
     proof_system::read_bytes_from_file,
-    BackendError, Barretenberg,
+    Backend, BackendError,
 };
-use acvm::{acir::circuit::Circuit, SmartContract};
+use acvm::acir::circuit::Circuit;
 use tempfile::tempdir;
 
 /// Embed the Solidity verifier file
 const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
 
-impl SmartContract for Barretenberg {
-    type Error = BackendError;
-
-    fn eth_contract_from_vk(
-        &self,
-        _common_reference_string: &[u8],
-        circuit: &Circuit,
-        _verification_key: &[u8],
-    ) -> Result<String, Self::Error> {
+impl Backend {
+    pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path();
         let temp_dir_path = temp_directory_path.to_str().unwrap();
@@ -62,18 +55,15 @@ impl SmartContract for Barretenberg {
 mod tests {
     use std::collections::BTreeSet;
 
-    use acvm::{
-        acir::{
-            circuit::{Circuit, Opcode, PublicInputs},
-            native_types::{Expression, Witness},
-        },
-        SmartContract,
+    use acvm::acir::{
+        circuit::{Circuit, Opcode, PublicInputs},
+        native_types::{Expression, Witness},
     };
 
     #[test]
     #[serial_test::serial]
     fn test_smart_contract() {
-        use crate::Barretenberg;
+        use crate::Backend;
 
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
         let constraint = Opcode::Arithmetic(expression);
@@ -86,12 +76,9 @@ mod tests {
             return_values: PublicInputs::default(),
         };
 
-        let bb = Barretenberg;
+        let bb = Backend::default();
 
-        let common_reference_string = Vec::new();
-        let verification_key = Vec::new();
-        let contract =
-            bb.eth_contract_from_vk(&common_reference_string, &circuit, &verification_key).unwrap();
+        let contract = bb.eth_contract(&circuit).unwrap();
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));

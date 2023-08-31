@@ -21,20 +21,19 @@ mod smart_contract;
 const FIELD_BYTES: usize = 32;
 
 #[derive(Debug, Default)]
-pub struct Barretenberg;
+pub struct Backend {}
 
-impl Barretenberg {
-    pub fn new() -> Barretenberg {
-        Barretenberg
+impl Backend {
+    pub fn new() -> Backend {
+        Backend {}
     }
 }
 
-impl acvm::Backend for Barretenberg {}
-
 #[derive(Debug, thiserror::Error)]
-#[error(transparent)]
-pub struct BackendError(#[from] Error);
+pub struct BackendError(String);
 
-#[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, thiserror::Error)]
-enum Error {}
+impl std::fmt::Display for BackendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

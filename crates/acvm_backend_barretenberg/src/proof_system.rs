@@ -5,20 +5,18 @@ use std::path::Path;
 use acvm::acir::circuit::Opcode;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap, BlackBoxFunc};
 use acvm::FieldElement;
-use acvm::{Language, ProofSystemCompiler};
+use acvm::Language;
 use tempfile::tempdir;
 
 use crate::bb::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{BackendError, Barretenberg, FIELD_BYTES};
+use crate::{Backend, BackendError, FIELD_BYTES};
 
-impl ProofSystemCompiler for Barretenberg {
-    type Error = BackendError;
-
-    fn np_language(&self) -> Language {
+impl Backend {
+    pub fn np_language(&self) -> Language {
         Language::PLONKCSat { width: 3 }
     }
 
-    fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, Self::Error> {
+    pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path();
         let temp_dir_path_str = temp_directory.to_str().unwrap();
@@ -38,7 +36,7 @@ impl ProofSystemCompiler for Barretenberg {
         Ok(number_of_gates_needed)
     }
 
-    fn supports_opcode(&self, opcode: &Opcode) -> bool {
+    pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
         match opcode {
             Opcode::Arithmetic(_) => true,
             Opcode::Directive(_) => true,
@@ -63,22 +61,19 @@ impl ProofSystemCompiler for Barretenberg {
         }
     }
 
-    fn prove_with_pk(
+    pub fn prove(
         &self,
-        _common_reference_string: &[u8],
         circuit: &Circuit,
         witness_values: WitnessMap,
-        _proving_key: &[u8],
         is_recursive: bool,
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Vec<u8>, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path();
         let temp_dir_path_str = temp_directory.to_str().unwrap();
 
         // Create a temporary file for the witness
-        let serialized_witnesses: Vec<u8> = witness_values
-            .try_into()
-            .expect("could not serialize witness map");
+        let serialized_witnesses: Vec<u8> =
+            witness_values.try_into().expect("could not serialize witness map");
         let witness_path = temp_directory.join("witness").with_extension("tr");
         write_to_file(&serialized_witnesses, &witness_path);
 
@@ -117,15 +112,13 @@ impl ProofSystemCompiler for Barretenberg {
         Ok(proof)
     }
 
-    fn verify_with_vk(
+    pub fn verify(
         &self,
-        _common_reference_string: &[u8],
         proof: &[u8],
         public_inputs: WitnessMap,
         circuit: &Circuit,
-        _verification_key: &[u8],
         is_recursive: bool,
-    ) -> Result<bool, Self::Error> {
+    ) -> Result<bool, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path();
         let temp_dir_path = temp_directory.to_str().unwrap();
@@ -173,22 +166,6 @@ impl ProofSystemCompiler for Barretenberg {
         }
         .run())
     }
-
-    fn proof_as_fields(
-        &self,
-        _proof: &[u8],
-        _public_inputs: WitnessMap,
-    ) -> Result<Vec<FieldElement>, Self::Error> {
-        panic!("vk_as_fields not supported in this backend");
-    }
-
-    fn vk_as_fields(
-        &self,
-        _common_reference_string: &[u8],
-        _verification_key: &[u8],
-    ) -> Result<(Vec<FieldElement>, FieldElement), Self::Error> {
-        panic!("vk_as_fields not supported in this backend");
-    }
 }
 
 pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
@@ -232,9 +209,8 @@ fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Ve
         return proof;
     }
 
-    let public_inputs_bytes = public_inputs
-        .into_iter()
-        .flat_map(|assignment| assignment.to_be_bytes());
+    let public_inputs_bytes =
+        public_inputs.into_iter().flat_map(|assignment| assignment.to_be_bytes());
 
     public_inputs_bytes.chain(proof.into_iter()).collect()
 }
