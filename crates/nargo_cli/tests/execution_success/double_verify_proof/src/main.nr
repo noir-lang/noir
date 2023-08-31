@@ -9,17 +9,17 @@ fn main(
     proof_b : [Field; 94],
 ) -> pub [Field; 16] {
     let output_aggregation_object_a = std::verify_proof(
-        verification_key, 
-        proof, 
-        public_inputs, 
+        verification_key.as_slice(), 
+        proof.as_slice(), 
+        public_inputs.as_slice(), 
         key_hash, 
         input_aggregation_object
     );
 
     let output_aggregation_object = std::verify_proof(
-        verification_key,
-        proof_b,
-        public_inputs,
+        verification_key.as_slice(),
+        proof_b.as_slice(),
+        public_inputs.as_slice(),
         key_hash,
         output_aggregation_object_a
     );
