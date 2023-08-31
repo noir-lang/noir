@@ -157,7 +157,7 @@ impl<'a> ModCollector<'a> {
                             module_id: self.module_id,
                             the_trait: collected_trait,
                             methods: unresolved_functions,
-                            trait_impl_ident: trait_impl.clone(),
+                            trait_impl_ident: trait_impl.trait_name.clone(),
                         };
 
                         let trait_id = match module_def_id {

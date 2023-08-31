@@ -72,6 +72,7 @@ impl fmt::Display for DuplicateType {
             DuplicateType::Global => write!(f, "global"),
             DuplicateType::TypeDefinition => write!(f, "type definition"),
             DuplicateType::Trait => write!(f, "trait definition"),
+            DuplicateType::TraitImplementation => write!(f, "trait implementation"),
             DuplicateType::Import => write!(f, "import"),
         }
     }

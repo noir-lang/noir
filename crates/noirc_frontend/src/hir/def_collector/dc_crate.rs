@@ -662,24 +662,24 @@ fn resolve_trait_impls(
     crate_id: CrateId,
     errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, FuncId)> {
-    let mut interner = &mut context.def_interner;
+    let interner = &mut context.def_interner;
     let mut methods = Vec::<(FileId, FuncId)>::new();
 
     for ((unresolved_type, _, trait_id), trait_impl) in traits {
         let local_mod_id = trait_impl.module_id;
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
-        let mut path_resolver = StandardPathResolver::new(module_id);
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let mut resolver =
-            Resolver::new(&mut interner, &mut path_resolver, &context.def_maps, trait_impl.file_id);
+            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
 
         // TODO(vitkov); Handle Type::Error
         let self_type = resolver.resolve_type(unresolved_type.clone());
 
         let mut impl_methods = resolve_function_set(
-            &mut interner,
+            interner,
             crate_id,
-            &mut context.def_maps,
+            &context.def_maps,
             trait_impl.methods.clone(),
             Some(self_type.clone()),
             vec![], // TODO
@@ -690,7 +690,7 @@ fn resolve_trait_impls(
             &self_type,
             &trait_id,
             &trait_impl.trait_impl_ident,
-            &trait_impl.methods.functions,
+            &trait_impl.methods,
         ) {
             // trait is implemented more then one time !
             let err = DefCollectorErrorKind::Duplicate {

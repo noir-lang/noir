@@ -720,12 +720,12 @@ impl NodeInterner {
         location: &Ident,
         methods: &UnresolvedFunctions,
     ) -> Option<Ident> {
-        let key = (self_type.clone(), trait_id.clone());
-        let func_ids = methods
+        let key = (self_type.clone(), *trait_id);
+        let _func_ids = methods
             .functions
             .iter()
             .flat_map(|(_, func_id, _)| {
-                self.add_method(&self_type, self.function_name(func_id).to_owned(), *func_id)
+                self.add_method(self_type, self.function_name(func_id).to_owned(), *func_id)
             })
             .collect::<Vec<FuncId>>();
         self.trait_implementaions.insert(key, location.clone())
