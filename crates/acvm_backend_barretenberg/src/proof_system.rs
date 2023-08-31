@@ -9,7 +9,7 @@ use acvm::{Language, ProofSystemCompiler};
 use tempfile::tempdir;
 
 use crate::bb::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{BackendError, Barretenberg, FIELD_BYTES};
+use crate::{BackendError, Barretenberg};
 
 impl ProofSystemCompiler for Barretenberg {
     type Error = BackendError;
@@ -76,9 +76,8 @@ impl ProofSystemCompiler for Barretenberg {
         let temp_dir_path_str = temp_directory.to_str().unwrap();
 
         // Create a temporary file for the witness
-        let serialized_witnesses: Vec<u8> = witness_values
-            .try_into()
-            .expect("could not serialize witness map");
+        let serialized_witnesses: Vec<u8> =
+            witness_values.try_into().expect("could not serialize witness map");
         let witness_path = temp_directory.join("witness").with_extension("tr");
         write_to_file(&serialized_witnesses, &witness_path);
 
@@ -222,7 +221,7 @@ pub(super) fn read_bytes_from_file(path: &str) -> std::io::Result<Vec<u8>> {
 fn remove_public_inputs(num_pub_inputs: usize, proof: &[u8]) -> Vec<u8> {
     // Barretenberg prepends the public inputs onto the proof so we need to remove
     // the first `num_pub_inputs` field elements.
-    let num_bytes_to_remove = num_pub_inputs * FIELD_BYTES;
+    let num_bytes_to_remove = num_pub_inputs * (FieldElement::max_num_bytes() as usize);
     proof[num_bytes_to_remove..].to_vec()
 }
 
@@ -232,9 +231,8 @@ fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Ve
         return proof;
     }
 
-    let public_inputs_bytes = public_inputs
-        .into_iter()
-        .flat_map(|assignment| assignment.to_be_bytes());
+    let public_inputs_bytes =
+        public_inputs.into_iter().flat_map(|assignment| assignment.to_be_bytes());
 
     public_inputs_bytes.chain(proof.into_iter()).collect()
 }
