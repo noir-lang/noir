@@ -10,6 +10,8 @@ pub(crate) mod registers;
 
 mod entry_point;
 
+use crate::ssa::ir::dfg::CallStack;
+
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
     registers::BrilligRegistersContext,
@@ -952,6 +954,11 @@ impl BrilligContext {
             _ => unreachable!("ICE: Expected vector, got {variable:?}"),
         }
     }
+
+    /// Sets a current call stack that the next pushed opcodes will be associated with.
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.obj.set_call_stack(call_stack);
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig
@@ -977,7 +984,7 @@ pub(crate) mod tests {
 
     use crate::brillig::brillig_ir::BrilligContext;
 
-    use super::artifact::{BrilligCode, BrilligParameter};
+    use super::artifact::{BrilligParameter, GeneratedBrillig};
     use super::{BrilligOpcode, ReservedRegisters};
 
     pub(crate) struct DummyBlackBoxSolver;
@@ -1017,7 +1024,7 @@ pub(crate) mod tests {
         context: BrilligContext,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> BrilligCode {
+    ) -> GeneratedBrillig {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
@@ -1086,7 +1093,7 @@ pub(crate) mod tests {
 
         context.stop_instruction();
 
-        let bytecode = context.artifact().byte_code;
+        let bytecode = context.artifact().finish().byte_code;
         let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
         let mut vm = VM::new(
             Registers { inner: vec![] },

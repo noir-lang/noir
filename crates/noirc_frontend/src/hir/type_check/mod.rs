@@ -183,7 +183,7 @@ mod test {
     use crate::hir_def::types::Type;
     use crate::hir_def::{
         expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
-        function::{FuncMeta, HirFunction, Param},
+        function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
@@ -268,8 +268,8 @@ mod test {
                 Box::new(Type::Unit),
             ),
             parameters: vec![
-                Param(Identifier(x), Type::FieldElement, Visibility::Private),
-                Param(Identifier(y), Type::FieldElement, Visibility::Private),
+                (Identifier(x), Type::FieldElement, Visibility::Private),
+                (Identifier(y), Type::FieldElement, Visibility::Private),
             ]
             .into(),
             return_visibility: Visibility::Private,

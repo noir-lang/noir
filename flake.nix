@@ -117,7 +117,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.10.3";
+        version = "0.10.5";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -236,6 +236,13 @@
           inherit GIT_COMMIT GIT_DIRTY;
 
           cargoArtifacts = native-cargo-artifacts;
+        });
+
+        cargo-fmt = craneLib.cargoFmt (nativeArgs // {
+          inherit GIT_COMMIT GIT_DIRTY;
+
+          cargoArtifacts = native-cargo-artifacts;
+          doCheck = true;
         });
 
         cargo-test = craneLib.cargoTest (nativeArgs // (testArgs 8000) // {

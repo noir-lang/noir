@@ -84,7 +84,7 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }} 
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path:  ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
@@ -199,4 +199,6 @@ jobs:
 
       - name: Run tests
         working-directory: ./crates/wasm
-        run: yarn test:browser
+        run: |
+          yarn test:browser
+          yarn test:node

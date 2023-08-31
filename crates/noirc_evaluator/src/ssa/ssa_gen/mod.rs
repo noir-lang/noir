@@ -7,7 +7,10 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::{
+    monomorphization::ast::{self, Binary, Expression, Program},
+    BinaryOpKind,
+};
 
 use crate::ssa::ir::types::NumericType;
 
@@ -77,8 +80,8 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(constrain, location, assert_message) => {
-                self.codegen_constrain(constrain, *location, assert_message.clone())
+            Expression::Constrain(expr, location, assert_message) => {
+                self.codegen_constrain(expr, *location, assert_message.clone())
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
@@ -207,7 +210,12 @@ impl<'a> FunctionContext<'a> {
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
-                self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
+                self.insert_binary(
+                    zero,
+                    noirc_frontend::BinaryOpKind::Subtract,
+                    rhs,
+                    unary.location,
+                )
             }
             noirc_frontend::UnaryOp::MutableReference => {
                 self.codegen_reference(&unary.rhs).map(|rhs| {
@@ -337,7 +345,8 @@ impl<'a> FunctionContext<'a> {
         };
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        self.builder.insert_constrain(is_offset_out_of_bounds, None);
+        let true_const = self.builder.numeric_constant(true, Type::bool());
+        self.builder.insert_constrain(is_offset_out_of_bounds, true_const, None);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
@@ -516,8 +525,26 @@ impl<'a> FunctionContext<'a> {
         location: Location,
         assert_message: Option<String>,
     ) -> Values {
-        let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.set_location(location).insert_constrain(boolean, assert_message);
+        match expr {
+            // If we're constraining an equality to be true then constrain the two sides directly.
+            Expression::Binary(Binary { lhs, operator, rhs, .. })
+                if operator == &BinaryOpKind::Equal =>
+            {
+                let lhs = self.codegen_non_tuple_expression(lhs);
+                let rhs = self.codegen_non_tuple_expression(rhs);
+                self.builder.set_location(location).insert_constrain(lhs, rhs, assert_message);
+            }
+
+            _ => {
+                let expr = self.codegen_non_tuple_expression(expr);
+                let true_literal = self.builder.numeric_constant(true, Type::bool());
+                self.builder.set_location(location).insert_constrain(
+                    expr,
+                    true_literal,
+                    assert_message,
+                );
+            }
+        }
         Self::unit_value()
     }
 

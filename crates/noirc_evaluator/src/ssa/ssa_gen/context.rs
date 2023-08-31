@@ -247,7 +247,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
     }
 
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs/2^rhs
+    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
@@ -306,6 +306,7 @@ impl<'a> FunctionContext<'a> {
                 if operator_requires_swapped_operands(operator) {
                     std::mem::swap(&mut lhs, &mut rhs);
                 }
+
                 self.builder.set_location(location).insert_binary(lhs, op, rhs)
             }
         };
@@ -551,7 +552,9 @@ impl<'a> FunctionContext<'a> {
                     LValue::Ident
                 }
             }
-            ast::LValue::Index { array, index, .. } => self.index_lvalue(array, index).2,
+            ast::LValue::Index { array, index, location, .. } => {
+                self.index_lvalue(array, index, location).2
+            }
             ast::LValue::MemberAccess { object, field_index } => {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
                 let object_lvalue = Box::new(object_lvalue);
@@ -590,20 +593,27 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
+        location: &Location,
     ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
         let index = self.codegen_non_tuple_expression(index);
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
+        let location = *location;
         // A slice is represented as a tuple (length, slice contents).
         // We need to fetch the second value.
         if array_values.len() > 1 {
-            let slice_lvalue =
-                LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
+            let slice_lvalue = LValue::SliceIndex {
+                old_slice: old_array,
+                index,
+                slice_lvalue: array_lvalue,
+                location,
+            };
             (array_values[1], index, slice_lvalue, Some(array_values[0]))
         } else {
-            let array_lvalue = LValue::Index { old_array: array_values[0], index, array_lvalue };
+            let array_lvalue =
+                LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
         }
     }
@@ -620,7 +630,8 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                let (old_array, index, index_lvalue, max_length) = self.index_lvalue(array, index);
+                let (old_array, index, index_lvalue, max_length) =
+                    self.index_lvalue(array, index, location);
                 let element =
                     self.codegen_array_index(old_array, index, element_type, *location, max_length);
                 (element, index_lvalue)
@@ -647,14 +658,15 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
-            LValue::Index { old_array: mut array, index, array_lvalue } => {
-                array = self.assign_lvalue_index(new_value, array, index);
+            LValue::Index { old_array: mut array, index, array_lvalue, location } => {
+                array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
-            LValue::SliceIndex { old_slice: slice, index, slice_lvalue } => {
+            LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                slice_values[1] = self.assign_lvalue_index(new_value, slice_values[1], index);
+                slice_values[1] =
+                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
@@ -675,11 +687,13 @@ impl<'a> FunctionContext<'a> {
         new_value: Values,
         mut array: ValueId,
         index: ValueId,
+        location: Location,
     ) -> ValueId {
         let element_size = self.builder.field_constant(self.element_size(array));
 
         // The actual base index is the user's index * the array element type's size
-        let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
+        let mut index =
+            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
         let one = self.builder.field_constant(FieldElement::one());
 
         new_value.for_each(|value| {
@@ -862,8 +876,8 @@ impl SharedContext {
 #[derive(Debug)]
 pub(super) enum LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
-    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue> },
+    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
+    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue>, location: Location },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
 }

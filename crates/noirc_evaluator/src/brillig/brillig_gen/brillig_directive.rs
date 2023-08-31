@@ -4,10 +4,10 @@ use acvm::acir::brillig::{
     BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
 };
 
-use crate::brillig::brillig_ir::artifact::BrilligCode;
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 
 /// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
-pub(crate) fn directive_invert() -> BrilligCode {
+pub(crate) fn directive_invert() -> GeneratedBrillig {
     //  We generate the following code:
     // fn invert(x : Field) -> Field {
     //    1/ x
@@ -20,7 +20,7 @@ pub(crate) fn directive_invert() -> BrilligCode {
     // Location of the stop opcode
     let stop_location = 3;
 
-    BrilligCode {
+    GeneratedBrillig {
         byte_code: vec![
             // If the input is zero, then we jump to the stop opcode
             BrilligOpcode::JumpIfNot { condition: input, location: stop_location },
@@ -36,6 +36,7 @@ pub(crate) fn directive_invert() -> BrilligCode {
             BrilligOpcode::Stop,
         ],
         assert_messages: BTreeMap::new(),
+        locations: Default::default(),
     }
 }
 
@@ -54,11 +55,11 @@ pub(crate) fn directive_invert() -> BrilligCode {
 ///    }
 /// }
 /// ```
-pub(crate) fn directive_quotient(bit_size: u32) -> BrilligCode {
-    BrilligCode {
-        // `a` is (0) (i.e register index 0)
-        // `b` is (1)
-        // `predicate` is (2)
+pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
+    // `a` is (0) (i.e register index 0)
+    // `b` is (1)
+    // `predicate` is (2)
+    GeneratedBrillig {
         byte_code: vec![
             // If the predicate is zero, we jump to the exit segment
             BrilligOpcode::JumpIfNot { condition: RegisterIndex::from(2), location: 6 },
@@ -104,5 +105,6 @@ pub(crate) fn directive_quotient(bit_size: u32) -> BrilligCode {
             BrilligOpcode::Stop,
         ],
         assert_messages: BTreeMap::new(),
+        locations: Default::default(),
     }
 }

@@ -4,12 +4,14 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::graph::{CrateGraph, CrateId};
+use crate::graph::{CrateGraph, CrateId, Dependency};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use std::collections::HashMap;
+
+use self::def_map::TestFunction;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
@@ -59,6 +61,14 @@ impl Context {
         self.crate_graph.iter_keys()
     }
 
+    pub fn root_crate_id(&self) -> &CrateId {
+        self.crate_graph.root_crate_id()
+    }
+
+    pub fn stdlib_crate_id(&self) -> &CrateId {
+        self.crate_graph.stdlib_crate_id()
+    }
+
     // TODO: Decide if we actually need `function_name` and `fully_qualified_function_name`
     pub fn function_name(&self, id: &FuncId) -> &str {
         self.def_interner.function_name(id)
@@ -79,6 +89,36 @@ impl Context {
             name.into()
         } else {
             format!("{parent}::{name}")
+        }
+    }
+
+    /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
+    /// account for the crate names of dependencies.
+    ///
+    /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
+    /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
+    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
+        let module_id = id.0;
+        let child_id = module_id.local_id.0;
+        let def_map =
+            self.def_map(&module_id.krate).expect("The local crate should be analyzed already");
+
+        let module = self.module(module_id);
+
+        let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
+
+        if &module_id.krate == crate_id {
+            module_path
+        } else {
+            let crate_name = &self.crate_graph[crate_id]
+                .dependencies
+                .iter()
+                .find_map(|dep| match dep {
+                    Dependency { name, crate_id } if crate_id == &module_id.krate => Some(name),
+                    _ => None,
+                })
+                .expect("The Struct was supposed to be defined in a dependency");
+            format!("{crate_name}::{module_path}")
         }
     }
 
@@ -103,22 +143,22 @@ impl Context {
         &self,
         crate_id: &CrateId,
         pattern: FunctionNameMatch,
-    ) -> Vec<(String, FuncId)> {
+    ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 
         def_map
             .get_all_test_functions(interner)
-            .filter_map(|id| {
-                let fully_qualified_name = self.fully_qualified_function_name(crate_id, &id);
+            .filter_map(|test_function| {
+                let fully_qualified_name =
+                    self.fully_qualified_function_name(crate_id, &test_function.get_id());
                 match &pattern {
-                    FunctionNameMatch::Anything => Some((fully_qualified_name, id)),
-                    FunctionNameMatch::Exact(pattern) => {
-                        (&fully_qualified_name == pattern).then_some((fully_qualified_name, id))
-                    }
-                    FunctionNameMatch::Contains(pattern) => {
-                        fully_qualified_name.contains(pattern).then_some((fully_qualified_name, id))
-                    }
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
+                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                        .then_some((fully_qualified_name, test_function)),
+                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
+                        .contains(pattern)
+                        .then_some((fully_qualified_name, test_function)),
                 }
             })
             .collect()

@@ -1,6 +1,8 @@
 use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap, Backend};
 use iter_extended::try_vecmap;
+use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
+use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
@@ -14,8 +16,6 @@ use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
 use clap::Args;
-
-use nargo::ops::{preprocess_contract_function, preprocess_program};
 
 use crate::errors::{CliError, CompileError};
 
@@ -94,13 +94,17 @@ pub(crate) fn run<B: Backend>(
                     )
                     .map_err(CliError::CommonReferenceStringError)?;
 
-                    preprocess_contract_function(
-                        backend,
-                        args.include_keys,
-                        &common_reference_string,
-                        func,
-                    )
-                    .map_err(CliError::ProofSystemCompilerError)
+                    Ok::<_, CliError<B>>((
+                        PreprocessedContractFunction {
+                            name: func.name,
+                            function_type: func.function_type,
+                            is_internal: func.is_internal,
+                            abi: func.abi,
+
+                            bytecode: func.bytecode,
+                        },
+                        func.debug,
+                    ))
                 })?;
 
                 let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
@@ -138,13 +142,16 @@ pub(crate) fn run<B: Backend>(
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
 
-            let (preprocessed_program, debug_info) =
-                preprocess_program(backend, args.include_keys, &common_reference_string, program)
-                    .map_err(CliError::ProofSystemCompilerError)?;
+            let preprocessed_program = PreprocessedProgram {
+                backend: String::from(BACKEND_IDENTIFIER),
+                abi: program.abi,
+                bytecode: program.circuit,
+            };
+
             save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
 
             if args.output_debug {
-                let debug_artifact = DebugArtifact::new(vec![debug_info], &context);
+                let debug_artifact = DebugArtifact::new(vec![program.debug], &context);
                 let circuit_name: String = (&package.name).into();
                 save_debug_artifact_to_file(&debug_artifact, &circuit_name, &circuit_dir);
             }

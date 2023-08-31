@@ -20,7 +20,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::brillig_ir::artifact::BrilligCode;
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, RuntimeError};
@@ -328,9 +328,64 @@ impl Context {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::Constrain(value_id, assert_message) => {
-                let constrain_condition = self.convert_numeric_value(*value_id, dfg)?;
-                self.acir_context.assert_eq_one(constrain_condition, assert_message.clone())?;
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                let lhs = self.convert_value(*lhs, dfg);
+                let rhs = self.convert_value(*rhs, dfg);
+
+                fn get_var_equality_assertions(
+                    lhs: AcirValue,
+                    rhs: AcirValue,
+                    read_from_index: &mut impl FnMut(BlockId, usize) -> Result<AcirVar, InternalError>,
+                ) -> Result<Vec<(AcirVar, AcirVar)>, InternalError> {
+                    match (lhs, rhs) {
+                        (AcirValue::Var(lhs, _), AcirValue::Var(rhs, _)) => Ok(vec![(lhs, rhs)]),
+                        (AcirValue::Array(lhs_values), AcirValue::Array(rhs_values)) => {
+                            let var_equality_assertions = lhs_values
+                                .into_iter()
+                                .zip(rhs_values)
+                                .map(|(lhs, rhs)| {
+                                    get_var_equality_assertions(lhs, rhs, read_from_index)
+                                })
+                                .collect::<Result<Vec<_>, _>>()?
+                                .into_iter()
+                                .flatten()
+                                .collect();
+                            Ok(var_equality_assertions)
+                        }
+                        (
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                block_id: lhs_block_id,
+                                len,
+                            }),
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                block_id: rhs_block_id,
+                                ..
+                            }),
+                        ) => try_vecmap(0..len, |i| {
+                            let lhs_var = read_from_index(lhs_block_id, i)?;
+                            let rhs_var = read_from_index(rhs_block_id, i)?;
+                            Ok((lhs_var, rhs_var))
+                        }),
+                        _ => unreachable!("ICE: lhs and rhs should be of the same type"),
+                    }
+                }
+
+                let mut read_dynamic_array_index =
+                    |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
+                        let index = AcirValue::Var(
+                            self.acir_context.add_constant(FieldElement::from(array_index as u128)),
+                            AcirType::NumericType(NumericType::NativeField),
+                        );
+                        let index_var = index.into_var()?;
+
+                        self.acir_context.read_from_memory(block_id, &index_var)
+                    };
+
+                for (lhs, rhs) in
+                    get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
+                {
+                    self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
+                }
             }
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg)?;
@@ -436,7 +491,7 @@ impl Context {
         &self,
         func: &Function,
         brillig: &Brillig,
-    ) -> Result<BrilligCode, InternalError> {
+    ) -> Result<GeneratedBrillig, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),
@@ -1172,11 +1227,11 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.take_opcodes(), expected_opcodes);
         assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

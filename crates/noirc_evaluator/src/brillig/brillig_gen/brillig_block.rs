@@ -1,6 +1,7 @@
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
+use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -202,6 +203,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
+        self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
 
         match instruction {
             Instruction::Binary(binary) => {
@@ -212,9 +214,17 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Constrain(value, assert_message) => {
-                let condition = self.convert_ssa_register_value(*value, dfg);
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                let condition = self.brillig_context.allocate_register();
+
+                self.convert_ssa_binary(
+                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
+                    dfg,
+                    condition,
+                );
+
                 self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
@@ -479,6 +489,8 @@ impl<'block> BrilligBlock<'block> {
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+
+        self.brillig_context.set_call_stack(CallStack::new());
     }
 
     fn convert_ssa_function_call(
@@ -1077,7 +1089,7 @@ impl<'block> BrilligBlock<'block> {
 /// Returns the type of the operation considering the types of the operands
 /// TODO: SSA issues binary operations between fields and integers.
 /// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
-pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
@@ -1094,7 +1106,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
-        | (typ, Type::Numeric(NumericType::NativeField)) => typ,
+        | (typ, Type::Numeric(NumericType::NativeField)) => typ.clone(),
         // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -1102,7 +1114,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same"
             );
-            Type::Numeric(lhs_type)
+            Type::Numeric(*lhs_type)
         }
     }
 }

@@ -19,11 +19,11 @@ use noirc_errors::debug_info::DebugInfo;
 
 use noirc_abi::Abi;
 
-use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
 use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ir::function::RuntimeType, ssa_gen::Ssa};
 
-mod abi_gen;
+pub mod abi_gen;
 mod acir_gen;
 pub mod ir;
 mod opt;
@@ -63,6 +63,7 @@ pub(crate) fn optimize_into_acir(
             // and this pass is missed, slice merging will fail inside of flattening.
             .mem2reg()
             .print(print_ssa_passes, "After Mem2Reg:")
+            .fold_constants()
             .flatten_cfg()
             .print(print_ssa_passes, "After Flattening:")
             // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
@@ -81,22 +82,25 @@ pub(crate) fn optimize_into_acir(
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 pub fn create_circuit(
+    context: &Context,
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
 ) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
+    let mut generated_acir =
+        optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
+    let opcodes = generated_acir.take_opcodes();
     let GeneratedAcir {
         current_witness_index,
-        opcodes,
         return_witnesses,
         locations,
         input_witnesses,
         assert_messages,
         ..
-    } = optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
+    } = generated_acir;
 
-    let abi = gen_abi(func_sig, &input_witnesses, return_witnesses.clone());
+    let abi = gen_abi(context, func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =

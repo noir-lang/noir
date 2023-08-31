@@ -1,5 +1,5 @@
 use acvm::{acir::circuit::OpcodeLocation, pwg::OpcodeResolutionError};
-use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -24,18 +24,4 @@ pub enum ExecutionError {
 
     #[error(transparent)]
     SolvingError(#[from] OpcodeResolutionError),
-}
-
-#[derive(Debug, Error)]
-pub enum ForeignCallError {
-    #[error("Foreign call inputs needed for execution are missing")]
-    MissingForeignCallInputs,
-
-    /// ABI encoding/decoding error
-    #[error(transparent)]
-    AbiError(#[from] AbiError),
-
-    /// Input parsing error
-    #[error(transparent)]
-    InputParserError(#[from] InputParserError),
 }
