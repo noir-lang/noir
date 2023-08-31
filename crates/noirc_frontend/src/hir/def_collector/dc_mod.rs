@@ -6,12 +6,15 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
     parser::SubModule,
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, TraitItem,
+    NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TypeImpl,
 };
 
 use super::{
-    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
+    dc_crate::{
+        DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
+        UnresolvedTypeAlias,
+    },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleDefId, ModuleId};
@@ -135,23 +138,36 @@ impl<'a> ModCollector<'a> {
             match module.find_name(&trait_name).types {
                 Some((module_def_id, _visibility)) => {
                     if let Some(collected_trait) = self.get_unresolved_trait(module_def_id) {
-                        let trait_def = collected_trait.trait_def.clone();
-                        let collected_implementations = self.collect_trait_implementations(
+                        let unresolved_functions = self.collect_trait_implementations(
                             context,
                             &trait_impl,
-                            &trait_def,
+                            &collected_trait.trait_def,
                             errors,
                         );
 
-                        let impl_type_span = trait_impl.object_type_span;
-                        let impl_generics = trait_impl.impl_generics.clone();
-                        let impl_object_type = trait_impl.object_type.clone();
-                        let key = (impl_object_type, self.module_id);
-                        self.def_collector.collected_traits_impls.entry(key).or_default().push((
-                            impl_generics,
-                            impl_type_span,
-                            collected_implementations,
-                        ));
+                        for (_, _, noir_function) in &unresolved_functions.functions {
+                            let name = noir_function.name().to_owned();
+                            let func_id = context.def_interner.push_empty_fn();
+
+                            context.def_interner.push_function_definition(name, func_id);
+                        }
+
+                        let unresolved_trait_impl = UnresolvedTraitImpl {
+                            file_id: self.file_id,
+                            module_id: self.module_id,
+                            the_trait: collected_trait,
+                            methods: unresolved_functions,
+                        };
+
+                        let trait_id = match module_def_id {
+                            ModuleDefId::TraitId(trait_id) => trait_id,
+                            _ => unreachable!(),
+                        };
+
+                        let key = (trait_impl.object_type, self.module_id, trait_id);
+                        self.def_collector
+                            .collected_traits_impls
+                            .insert(key, unresolved_trait_impl);
                     } else {
                         let error = DefCollectorErrorKind::NotATrait {
                             not_a_trait_name: trait_name.clone(),
@@ -170,9 +186,11 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn get_unresolved_trait(&self, module_def_id: ModuleDefId) -> Option<&UnresolvedTrait> {
+    fn get_unresolved_trait(&self, module_def_id: ModuleDefId) -> Option<UnresolvedTrait> {
         match module_def_id {
-            ModuleDefId::TraitId(trait_id) => self.def_collector.collected_traits.get(&trait_id),
+            ModuleDefId::TraitId(trait_id) => {
+                self.def_collector.collected_traits.get(&trait_id).cloned()
+            }
             _ => None,
         }
     }
