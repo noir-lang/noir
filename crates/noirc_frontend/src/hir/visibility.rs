@@ -77,14 +77,14 @@ impl FunctionVisibility {
             }
             HirExpression::Lambda(lambda) => self.lookup_function_calls(interner, lambda.body),
             HirExpression::MethodCall(_) => {
-                unreachable!("Encountered HirExpression::MethodCall ???")
+                unreachable!("Encountered HirExpression::MethodCall")
             }
             HirExpression::Error => (),
         }
     }
 
     /// Checks that the input function is only calling functions with 'pub' modifier outside its module
-    /// recusively checks the calling functions, if they are not already checked.
+    /// recursively checks the calling functions, if they are not already checked.
     pub fn check_visibility(&mut self, interner: &NodeInterner, func_id: &FuncId) {
         if !self.processed_functions.contains(func_id) {
             let meta = interner.function_meta(func_id);
