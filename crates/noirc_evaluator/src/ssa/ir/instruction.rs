@@ -627,7 +627,9 @@ impl Binary {
         let lhs = dfg.get_numeric_constant(self.lhs);
         let rhs = dfg.get_numeric_constant(self.rhs);
         let operand_type = dfg.type_of_value(self.lhs);
-
+        // dbg!(self.operator);
+        // dbg!(lhs);
+        // dbg!(rhs);
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
             // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
@@ -771,12 +773,16 @@ impl Binary {
             Type::Numeric(NumericType::NativeField) => {
                 self.operator.get_field_function()?(lhs, rhs)
             }
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            // Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            Type::Numeric(NumericType::Unsigned { .. }) => {
                 let function = self.operator.get_u128_function();
-
-                let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-                let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-
+                // dbg!(self.operator);
+                // let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+                // let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+                let lhs = lhs.try_into_u128()?;
+                // dbg!(lhs);
+                let rhs = rhs.try_into_u128()?;
+                // dbg!(rhs);
                 // The divisor is being truncated into the type of the operand, which can potentially
                 // lead to the rhs being zero.
                 // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
@@ -787,11 +793,12 @@ impl Binary {
                 }
 
                 let result = function(lhs, rhs);
-                truncate(result, *bit_size).into()
+                result.into()
+                // truncate(result, *bit_size).into()
             }
             _ => return None,
         };
-
+        // dbg!(value);
         if matches!(self.operator, BinaryOp::Eq | BinaryOp::Lt) {
             operand_type = Type::bool();
         }
@@ -829,6 +836,11 @@ impl BinaryOp {
             BinaryOp::Mul => u128::wrapping_mul,
             BinaryOp::Div => u128::wrapping_div,
             BinaryOp::Mod => u128::wrapping_rem,
+            // BinaryOp::Add => u128::saturating_add,
+            // BinaryOp::Sub => u128::saturating_sub,
+            // BinaryOp::Mul => u128::saturating_mul,
+            // BinaryOp::Div => u128::saturating_div,
+            // BinaryOp::Mod => u128::wrapping_rem,
             BinaryOp::And => |x, y| x & y,
             BinaryOp::Or => |x, y| x | y,
             BinaryOp::Xor => |x, y| x ^ y,

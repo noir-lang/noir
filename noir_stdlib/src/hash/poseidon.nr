@@ -20,7 +20,7 @@ fn config<M,N>(
     mds: [Field; N])
     -> PoseidonConfig<M,N> {
     // Input checks
-    assert(t as u8 * (rf + rp) == ark.len() as u8);
+    assert(t as u16 * (rf + rp) as u16 == ark.len() as u16);
     assert(t * t == mds.len());
     assert(alpha != 0);
     

@@ -245,6 +245,10 @@ impl<'a> FunctionContext<'a> {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
         self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
+        // let result = self.builder.insert_binary(lhs, BinaryOp::Mul, pow);
+        // // `pow` returns a Field so we must cast the result to make sure it has the correct type
+        // let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+        // self.builder.insert_cast(result, result_type)
     }
 
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
@@ -252,6 +256,10 @@ impl<'a> FunctionContext<'a> {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
         self.builder.insert_binary(lhs, BinaryOp::Div, pow)
+        // let result = self.builder.insert_binary(lhs, BinaryOp::Div, pow);
+        // // `pow` returns a Field so we must cast the result to make sure it has the correct type
+        // let result_type = self.builder.current_function.dfg.type_of_value(lhs);
+        // self.builder.insert_cast(result, result_type)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
@@ -282,6 +290,24 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    fn max_value(&mut self, lhs: ValueId) -> ValueId {
+        let operand_type = self.builder.current_function.dfg.type_of_value(lhs);
+        let bit_size = match operand_type {
+            Type::Numeric(NumericType::Signed { bit_size })
+            | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+            Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
+            _ => {
+                unreachable!("ICE: attemptedto fetch max value of non numeric type");
+            }
+        };
+        let bit_size_value =
+            self.builder.numeric_constant(bit_size as u128, Type::unsigned(bit_size));
+        // let bit_size_value = self.builder.field_constant(FieldElement::from(bit_size as u128));
+        let one = self.builder.field_constant(FieldElement::one());
+        // let one = self.builder.numeric_constant(1_u128, Type::unsigned(bit_size));
+        self.insert_shift_left(one, bit_size_value)
+    }
+
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -310,6 +336,58 @@ impl<'a> FunctionContext<'a> {
                 self.builder.set_location(location).insert_binary(lhs, op, rhs)
             }
         };
+
+        match operator {
+            BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
+                let zero = self.builder.field_constant(FieldElement::zero());
+                let is_lhs_zero = self.builder.insert_binary(lhs, BinaryOp::Eq, zero);
+                let is_result_zero = self.builder.insert_binary(result, BinaryOp::Eq, zero);
+                // It should be fine to XOR here as there are three scenarios
+                // 1. We have a true shift overflow where the lhs is not zero, but the result is zero
+                // 2. The result is zero but the lhs is also zero so this result is valid
+                // 3. The lhs is zero where the result is not zero is a compiler error as this scenario should never happen
+                let shift_overflow =
+                    self.builder.insert_binary(is_lhs_zero, BinaryOp::Xor, is_result_zero);
+                self.builder.set_location(location).insert_constrain(shift_overflow, zero);
+            }
+            _ => {
+                // dbg!("handle the other ops differently");
+                // Do nothing
+                let max = self.max_value(result);
+                let result_type = self.builder.current_function.dfg.type_of_value(result);
+                match result_type {
+                    Type::Numeric(NumericType::NativeField) => {
+                        // do nothing
+                        // dbg!("result is field do not compare");
+                        // self.builder.insert_cast(max, Type::unsigned(127))
+                    }
+                    _ => {
+                        let is_value_less_than_max =
+                            self.builder.insert_binary(result, BinaryOp::Lt, max);
+                        let one = self.builder.field_constant(FieldElement::one());
+                        self.builder
+                            .set_location(location)
+                            .insert_constrain(is_value_less_than_max, one);
+                    }
+                }
+            }
+        }
+
+        // let max = self.max_value(result);
+        // let result_type = self.builder.current_function.dfg.type_of_value(result);
+        // match result_type {
+        //     Type::Numeric(NumericType::NativeField) => {
+        //         // do nothing
+        //         // dbg!("result is field do not compare");
+        //         // self.builder.insert_cast(max, Type::unsigned(127))
+        //     }
+        //     _ => {
+        //         let is_value_less_than_max =
+        //             self.builder.insert_binary(result, BinaryOp::Lt, max);
+        //         let one = self.builder.field_constant(FieldElement::one());
+        //         self.builder.set_location(location).insert_constrain(is_value_less_than_max, one);
+        //     }
+        // }
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,

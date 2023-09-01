@@ -64,6 +64,7 @@ fn sha_c(msg: [u32; 16], hash: [u32; 8]) -> [u32; 8]
     
     let mut out_h: [u32; 8] = hash;
     let w = sha_w(msg);
+    // let w: [u32; 64] = [0; 64];
     for j in 0..64
     {
         let t1 = out_h[7] + bigma1(out_h[4]) + ch(out_h[4], out_h[5], out_h[6])
@@ -91,6 +92,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16]
     {
         for j in 0..4
         {
+            // let mut shift_msg = 0;
             msg32[15 - i] = (msg32[15 - i] << 8) + msg[64 - 4*(i + 1) + j] as u32;
         };
     };
@@ -153,7 +155,11 @@ fn digest<N>(msg: [u8; N]) -> [u8; 32] {
             let mut len = 8 * msg.len() as u64;
             for j in 0..8 {
                 msg_block[63 - j] = len as u8;
-                len >>= 8;
+                if len < 256 {
+                    len = 0;
+                } else {
+                    len >>= 8;
+                }
             }
             i += 8;
         }
