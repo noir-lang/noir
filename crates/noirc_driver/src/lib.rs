@@ -10,7 +10,7 @@ use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
-use noirc_frontend::hir::visilibity::FunctionVisibility;
+use noirc_frontend::hir::visibility::FunctionVisibility;
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
