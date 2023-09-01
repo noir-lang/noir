@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
-use nargo::ops::{prove_execution, verify_proof};
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
@@ -18,7 +16,7 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
-use crate::{cli::execute_cmd::execute_program, errors::CliError};
+use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliError};
 
 // TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
@@ -50,11 +48,11 @@ pub(crate) struct ProveCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: ProveCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -81,8 +79,8 @@ pub(crate) fn run<B: Backend>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn prove_package<B: Backend>(
-    backend: &B,
+pub(crate) fn prove_package(
+    backend: &Backend,
     package: &Package,
     prover_name: &str,
     verifier_name: &str,
@@ -90,7 +88,7 @@ pub(crate) fn prove_package<B: Backend>(
     circuit_build_path: PathBuf,
     check_proof: bool,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let (preprocessed_program, debug_data) = if circuit_build_path.exists() {
         let program = read_program_from_file(circuit_build_path)?;
 
@@ -126,13 +124,11 @@ pub(crate) fn prove_package<B: Backend>(
         Format::Toml,
     )?;
 
-    let proof = prove_execution(backend, &bytecode, solved_witness)
-        .map_err(CliError::ProofSystemCompilerError)?;
+    let proof = backend.prove(&bytecode, solved_witness, false)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof = verify_proof(backend, &bytecode, &proof, public_inputs)
-            .map_err(CliError::ProofSystemCompilerError)?;
+        let valid_proof = backend.verify(&proof, public_inputs, &bytecode, false)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acvm::{Backend, BlackBoxFunctionSolver};
+use acvm::BlackBoxFunctionSolver;
 use clap::Args;
 use nargo::{
     ops::{run_test, TestStatus},
@@ -12,7 +12,7 @@ use noirc_driver::CompileOptions;
 use noirc_frontend::{graph::CrateName, hir::FunctionNameMatch};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::{backends::Backend, cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
 use super::NargoConfig;
 
@@ -42,11 +42,11 @@ pub(crate) struct TestCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    _backend: &B,
+pub(crate) fn run(
+    _backend: &Backend,
     args: TestCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -75,13 +75,13 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn run_tests<B: Backend, S: BlackBoxFunctionSolver>(
+fn run_tests<S: BlackBoxFunctionSolver>(
     blackbox_solver: &S,
     package: &Package,
     test_name: FunctionNameMatch,
     show_output: bool,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 

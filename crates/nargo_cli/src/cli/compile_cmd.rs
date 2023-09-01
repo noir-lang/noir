@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap, Backend};
+use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap};
 use iter_extended::{try_vecmap, vecmap};
 use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
@@ -17,6 +17,7 @@ use noirc_frontend::hir::Context;
 
 use clap::Args;
 
+use crate::backends::Backend;
 use crate::errors::{CliError, CompileError};
 
 use super::fs::program::{
@@ -50,11 +51,11 @@ pub(crate) struct CompileCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: CompileCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -141,8 +142,8 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-pub(crate) fn compile_package<B: Backend>(
-    backend: &B,
+pub(crate) fn compile_package(
+    backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(Context, CompiledProgram), CompileError> {
@@ -164,10 +165,10 @@ pub(crate) fn compile_package<B: Backend>(
     Ok((context, program))
 }
 
-pub(super) fn optimize_circuit<B: Backend>(
-    backend: &B,
+pub(super) fn optimize_circuit(
+    backend: &Backend,
     circuit: Circuit,
-) -> Result<(Circuit, AcirTransformationMap), CliError<B>> {
+) -> Result<(Circuit, AcirTransformationMap), CliError> {
     let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
         backend.supports_opcode(opcode)
     })
@@ -176,15 +177,15 @@ pub(super) fn optimize_circuit<B: Backend>(
     Ok(result)
 }
 
-pub(super) fn optimize_contract<B: Backend>(
-    backend: &B,
+pub(super) fn optimize_contract(
+    backend: &Backend,
     contract: CompiledContract,
-) -> Result<CompiledContract, CliError<B>> {
+) -> Result<CompiledContract, CliError> {
     let functions = try_vecmap(contract.functions, |mut func| {
         let (optimized_bytecode, location_map) = optimize_circuit(backend, func.bytecode)?;
         func.bytecode = optimized_bytecode;
         func.debug.update_acir(location_map);
-        Ok::<_, CliError<B>>(func)
+        Ok::<_, CliError>(func)
     })?;
 
     Ok(CompiledContract { functions, ..contract })

@@ -1,3 +1,4 @@
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
@@ -15,6 +16,16 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(blackbox_solver, circuit.opcodes, initial_witness);
 
+    fn get_assert_message(
+        assert_messages: &[(OpcodeLocation, String)],
+        opcode_location: &OpcodeLocation,
+    ) -> Option<String> {
+        assert_messages
+            .iter()
+            .find(|(loc, _)| loc == opcode_location)
+            .map(|(_, message)| message.clone())
+    }
+
     loop {
         let solver_status = acvm.solve();
 
@@ -27,9 +38,9 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
                 return Err(NargoError::ExecutionError(match error {
                     OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: ErrorLocation::Resolved(opcode_location),
-                    } => match circuit.assert_messages.get(&opcode_location) {
+                    } => match get_assert_message(&circuit.assert_messages, &opcode_location) {
                         Some(assert_message) => {
-                            ExecutionError::AssertionFailed(assert_message.clone(), opcode_location)
+                            ExecutionError::AssertionFailed(assert_message, opcode_location)
                         }
                         None => ExecutionError::SolvingError(error),
                     },

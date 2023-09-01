@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "crates/acvm_backend_barretenberg",
     "crates/noirc_evaluator",
     "crates/noirc_frontend",
     "crates/noirc_errors",
@@ -27,7 +28,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.23.0"
+acvm = { git = "https://github.com/noir-lang/acvm", branch = "kw/remove-btreemap-temp" }
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -60,6 +61,3 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
-
-[patch.crates-io]
-acvm = { git="https://github.com/noir-lang/acvm", rev="06b97c51041e16651cf8b2be8bc18214e276c6c9" }
