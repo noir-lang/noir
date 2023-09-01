@@ -144,10 +144,6 @@ void update_end_values(DummyCircuitBuilder& builder,
     builder.do_assert(is_array_empty(public_inputs.end.read_requests),
                       "public_inputs.end.read_requests must start as empty in initial kernel iteration",
                       CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
-    builder.do_assert(
-        is_array_empty(public_inputs.end.read_request_membership_witnesses),
-        "public_inputs.end.read_request_membership_witnesses must start as empty in initial kernel iteration",
-        CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
     builder.do_assert(public_inputs.end.encrypted_log_preimages_length == NT::fr(0),
                       "public_inputs.end.encrypted_log_preimages_length must start as 0 in initial kernel iteration",
                       CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);

@@ -5,6 +5,8 @@
 
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
+#include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_ordering.hpp"
 #include "aztec3/constants.hpp"
 
 #include <barretenberg/barretenberg.hpp>
@@ -20,6 +22,7 @@ using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
+using aztec3::circuits::abis::private_kernel::PrivateKernelInputsOrdering;
 using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit_initial;
 using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit_inner;
 using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit_ordering;
@@ -123,8 +126,8 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
     return builder.alloc_and_serialize_first_failure();
 }
 
-CBIND(private_kernel__sim_ordering, [](PreviousKernelData<NT> previous_kernel) {
+CBIND(private_kernel__sim_ordering, [](PrivateKernelInputsOrdering<NT> private_inputs) {
     DummyCircuitBuilder builder = DummyCircuitBuilder("private_kernel__sim_ordering");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(builder, previous_kernel);
+    auto const& public_inputs = native_private_kernel_circuit_ordering(builder, private_inputs);
     return builder.result_or_error(public_inputs);
 });

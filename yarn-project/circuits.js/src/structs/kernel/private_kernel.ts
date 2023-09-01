@@ -1,10 +1,12 @@
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { Tuple } from '@aztec/foundation/serialize';
 
 import {
   CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
+  MAX_READ_REQUESTS_PER_TX,
 } from '../../cbind/constants.gen.js';
 import { FieldsOf, assertMemberLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
@@ -143,5 +145,29 @@ export class PrivateKernelInputsInner {
    */
   toBuffer() {
     return serializeToBuffer(this.previousKernel, this.privateCall);
+  }
+}
+
+/**
+ * Input to the private kernel circuit - Final ordering call.
+ */
+export class PrivateKernelInputsOrdering {
+  constructor(
+    /**
+     * The previous kernel data
+     */
+    public previousKernel: PreviousKernelData,
+    /**
+     * Contains hints for the transient read requests to localize corresponding commitments.
+     */
+    public hintToCommitments: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
+  ) {}
+
+  /**
+   * Serialize this as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(this.previousKernel, this.hintToCommitments);
   }
 }

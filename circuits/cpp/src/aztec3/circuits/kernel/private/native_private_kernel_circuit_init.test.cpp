@@ -596,62 +596,6 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
 // Check enforcement that inner iterations' read_requests match root in constants
 // https://github.com/AztecProtocol/aztec-packages/issues/786
 
-TEST_F(native_private_kernel_init_tests, native_read_requests_less_than_witnesses)
-{
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
-
-    auto const& contract_address =
-        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
-
-    auto const first_nullifier = silo_nullifier<NT>(contract_address, private_inputs.tx_request.hash());
-    auto [read_requests,
-          read_request_membership_witnesses,
-          _transient_read_requests,
-          _transient_read_request_membership_witnesses,
-          root] = get_random_reads(first_nullifier, contract_address, MAX_READ_REQUESTS_PER_CALL);
-
-    read_requests[MAX_READ_REQUESTS_PER_CALL - 1] = fr(0);
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
-    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
-    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
-
-    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_read_requests_less_than_witnesses");
-    native_private_kernel_circuit_initial(builder, private_inputs);
-
-    ASSERT_TRUE(builder.failed());
-    ASSERT_EQ(builder.get_first_failure().code,
-              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_WITNESSES_ARRAY_LENGTH_MISMATCH);
-}
-
-TEST_F(native_private_kernel_init_tests, native_read_requests_more_than_witnesses)
-{
-    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
-
-    auto const& contract_address =
-        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
-
-    auto const first_nullifier = silo_nullifier<NT>(contract_address, private_inputs.tx_request.hash());
-    auto [read_requests,
-          read_request_membership_witnesses,
-          _transient_read_requests,
-          _transient_read_request_membership_witnesses,
-          root] = get_random_reads(first_nullifier, contract_address, MAX_READ_REQUESTS_PER_CALL);
-
-    read_request_membership_witnesses[MAX_READ_REQUESTS_PER_CALL - 1] =
-        ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>{};
-
-    private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.private_data_tree_root = root;
-    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
-    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
-
-    DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_read_requests_more_than_witnesses");
-    native_private_kernel_circuit_initial(builder, private_inputs);
-
-    ASSERT_TRUE(builder.failed());
-    ASSERT_EQ(builder.get_first_failure().code,
-              CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_WITNESSES_ARRAY_LENGTH_MISMATCH);
-}
-
 TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_works)
 {
     // one transient read request should work

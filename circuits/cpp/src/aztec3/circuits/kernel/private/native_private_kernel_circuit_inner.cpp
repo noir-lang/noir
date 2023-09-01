@@ -30,7 +30,6 @@ void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, Kernel
     auto& end = public_inputs.end;
     const auto& start = previous_kernel.public_inputs.end;
     end.read_requests = start.read_requests;
-    end.read_request_membership_witnesses = start.read_request_membership_witnesses;
 }
 }  // namespace
 
@@ -112,9 +111,6 @@ void validate_inputs(DummyCircuitBuilder& builder, PrivateKernelInputsInner<NT> 
     builder.do_assert(start_private_call_stack_length != 0,
                       "Cannot execute private kernel circuit with an empty private call stack",
                       CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_EMPTY);
-
-    common_validate_previous_kernel_read_requests(
-        builder, start.read_requests, start.read_request_membership_witnesses);
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1329): validate that 0th nullifier is nonzero
 }

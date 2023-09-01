@@ -14,27 +14,29 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
-template <typename NCT> struct PrivateKernelInputsInner {
+template <typename NCT> struct PrivateKernelInputsOrdering {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
     PreviousKernelData<NCT> previous_kernel{};
-    PrivateCallData<NCT> private_call{};
+
+    std::array<fr, MAX_READ_REQUESTS_PER_TX> hint_to_commitments{};
 
     // For serialization, update with new fields
-    MSGPACK_FIELDS(previous_kernel, private_call);
-    boolean operator==(PrivateKernelInputsInner<NCT> const& other) const
+    MSGPACK_FIELDS(previous_kernel, hint_to_commitments);
+    boolean operator==(PrivateKernelInputsOrdering<NCT> const& other) const
     {
         return msgpack_derived_equals<boolean>(*this, other);
     };
 
-    template <typename Builder> PrivateKernelInputsInner<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
+    template <typename Builder>
+    PrivateKernelInputsOrdering<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        PrivateKernelInputsInner<CircuitTypes<Builder>> private_inputs = {
+        PrivateKernelInputsOrdering<CircuitTypes<Builder>> private_inputs = {
             previous_kernel.to_circuit_type(builder),
-            private_call.to_circuit_type(builder),
+            hint_to_commitments.to_circuit_type(builder),
         };
 
         return private_inputs;

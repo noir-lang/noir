@@ -32,12 +32,6 @@ void common_validate_read_requests(DummyBuilder& builder,
                                    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
                                               MAX_READ_REQUESTS_PER_CALL> const& read_request_membership_witnesses);
 
-void common_validate_previous_kernel_read_requests(
-    DummyBuilder& builder,
-    std::array<NT::fr, MAX_READ_REQUESTS_PER_TX> const& read_requests,
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX> const&
-        read_request_membership_witnesses);
-
 void common_update_end_values(DummyBuilder& builder,
                               PrivateCallData<NT> const& private_call,
                               KernelCircuitPublicInputs<NT>& public_inputs);

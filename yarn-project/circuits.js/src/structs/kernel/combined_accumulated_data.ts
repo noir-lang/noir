@@ -15,16 +15,8 @@ import {
   NUM_FIELDS_PER_SHA256,
 } from '../../cbind/constants.gen.js';
 import { assertMemberLength, makeTuple } from '../../index.js';
-import { makeEmptyReadRequestMembershipWitness } from '../../tests/factories.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
-import {
-  AggregationObject,
-  AztecAddress,
-  EthAddress,
-  Fr,
-  FunctionData,
-  ReadRequestMembershipWitness,
-} from '../index.js';
+import { AggregationObject, AztecAddress, EthAddress, Fr, FunctionData } from '../index.js';
 
 /**
  * The information assembled after the contract deployment was processed by the private kernel circuit.
@@ -296,10 +288,6 @@ export class CombinedAccumulatedData {
      */
     public readRequests: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
     /**
-     * All the read request membership witnesses made in this transaction.
-     */
-    public readRequestMembershipWitnesses: Tuple<ReadRequestMembershipWitness, typeof MAX_READ_REQUESTS_PER_TX>,
-    /**
      * The new commitments made in this transaction.
      */
     public newCommitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
@@ -360,7 +348,6 @@ export class CombinedAccumulatedData {
     public publicDataReads: Tuple<PublicDataRead, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
   ) {
     assertMemberLength(this, 'readRequests', MAX_READ_REQUESTS_PER_TX);
-    assertMemberLength(this, 'readRequestMembershipWitnesses', MAX_READ_REQUESTS_PER_TX);
     assertMemberLength(this, 'newCommitments', MAX_NEW_COMMITMENTS_PER_TX);
     assertMemberLength(this, 'newNullifiers', MAX_NEW_NULLIFIERS_PER_TX);
     assertMemberLength(this, 'nullifiedCommitments', MAX_NEW_NULLIFIERS_PER_TX);
@@ -379,7 +366,6 @@ export class CombinedAccumulatedData {
     return serializeToBuffer(
       this.aggregationObject,
       this.readRequests,
-      this.readRequestMembershipWitnesses,
       this.newCommitments,
       this.newNullifiers,
       this.nullifiedCommitments,
@@ -411,7 +397,6 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       reader.readObject(AggregationObject),
       reader.readArray(MAX_READ_REQUESTS_PER_TX, Fr),
-      reader.readArray(MAX_READ_REQUESTS_PER_TX, ReadRequestMembershipWitness),
       reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
@@ -433,7 +418,6 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       finalData.aggregationObject,
       makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero),
-      makeTuple(MAX_READ_REQUESTS_PER_TX, makeEmptyReadRequestMembershipWitness),
       finalData.newCommitments,
       finalData.newNullifiers,
       finalData.nullifiedCommitments,
@@ -464,7 +448,6 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       AggregationObject.makeFake(),
       makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero),
-      makeTuple(MAX_READ_REQUESTS_PER_TX, () => ReadRequestMembershipWitness.empty(BigInt(0))),
       makeTuple(MAX_NEW_COMMITMENTS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),

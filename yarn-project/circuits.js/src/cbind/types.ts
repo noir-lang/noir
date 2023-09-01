@@ -52,6 +52,7 @@ export {
   Point,
   Coordinate,
   GlobalVariables,
+  PrivateKernelInputsOrdering,
 } from '../structs/index.js';
 export { FunctionSelector } from '@aztec/foundation/abi';
 

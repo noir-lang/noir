@@ -23,7 +23,7 @@ template <typename NCT> struct PrivateKernelInputsInit {
     MSGPACK_FIELDS(tx_request, private_call);
     boolean operator==(PrivateKernelInputsInit<NCT> const& other) const
     {
-        return tx_request == other.tx_request && private_call == other.private_call;
+        return msgpack_derived_equals<boolean>(*this, other);
     };
 
     template <typename Builder> PrivateKernelInputsInit<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
