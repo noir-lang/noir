@@ -3,7 +3,6 @@
 mod contract;
 mod gates;
 mod prove;
-mod prove_and_verify;
 mod verify;
 mod write_vk;
 
