@@ -32,8 +32,7 @@ impl Backend {
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run(&binary_path)
-        .expect("write vk command failed");
+        .run(&binary_path)?;
 
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
@@ -42,8 +41,7 @@ impl Backend {
             vk_path,
             contract_path: contract_path.clone(),
         }
-        .run(&binary_path)
-        .expect("contract command failed");
+        .run(&binary_path)?;
 
         let verification_key_library_bytes = read_bytes_from_file(&contract_path).unwrap();
         let verification_key_library = String::from_utf8(verification_key_library_bytes).unwrap();
