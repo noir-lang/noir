@@ -726,18 +726,12 @@ impl AcirContext {
                 / big_divisor
                 + BigUint::from(1_u32);
             let q_max_bits = q_max_big.bits() as u32;
-            let toto = FieldElement::modulus()
-                - BigUint::from(1_u32)
-                - BigUint::from(2_u32).pow(target_bit_size);
-            dbg!(toto.bits());
             let q_max_var =
                 self.add_constant(FieldElement::from_be_bytes_reduce(&q_max_big.to_bytes_be()));
             self.range_constrain_var(
                 quotient_high,
                 &NumericType::Unsigned { bit_size: q_max_bits },
             )?;
-            dbg!(&q_max_big);
-            dbg!(&q_max_bits);
             self.less_than_constrain(quotient_high, q_max_var, q_max_bits, one)?;
             // Reduce lhs with quotient_high
             let reduce = self.mul_var(quotient_high, divisor_var)?;
