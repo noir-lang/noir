@@ -1,0 +1,7 @@
+[package]
+name = "dup_trait_declaration"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]

@@ -82,7 +82,7 @@ fn add_noir_lib(context: &mut Context, library_name: &str) {
         context
             .crate_graph
             .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
-            .expect(&format!("ICE: Cyclic error triggered by {} library", library_name));
+            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {} library", library_name));
     }
 }
 
