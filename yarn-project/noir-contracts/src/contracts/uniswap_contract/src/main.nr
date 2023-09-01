@@ -33,7 +33,7 @@ contract Uniswap {
         deadlineForL1ToL2Message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         cancellerForL1ToL2Message: Field, // L1 address of who can cancel the message to consume assets on L2.
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) {
+    ) -> Field {
         // Get portal addresses
         let l1UniswapPortal = context.this_portal_address();
         let inputAssetPortalAddress = get_portal_address(inputAsset);
@@ -49,9 +49,6 @@ contract Uniswap {
             l1UniswapPortal,
         ]);
         
-        let result = return_values[0];
-        context.return_values.push(result);
-
         // Send the swap message to L1 portal
         let content_hash = _compute_swap_content_hash(
            inputAssetPortalAddress,
@@ -66,6 +63,8 @@ contract Uniswap {
            callerOnL1,
         );
         context.message_portal(content_hash);
+
+        return_values[0]
     }
 
     // refer `l1-contracts/test/portals/UniswapPortal.sol` on how L2 to L1 message is expected

@@ -24,7 +24,7 @@ contract ImportTest {
     #[aztec(private)]
     fn main(
         target: Field
-    ) {
+    ) -> Field {
         let test_contract_instance = TestPrivateContextInterface::at(target);
         let return_values = test_contract_instance.testCodeGen(
             &mut context,
@@ -45,7 +45,7 @@ contract ImportTest {
             }
         );
 
-        context.return_values.push(return_values[0]);
+        return_values[0]
     }
 
     // Calls the getThisAddress on the Test contract at the target address
@@ -54,10 +54,11 @@ contract ImportTest {
     #[aztec(private)]
     fn callNoArgs(
         target: Field
-    ) {
+    ) -> Field {
         let test_contract_instance = TestPrivateContextInterface::at(target);
         let return_values = test_contract_instance.getThisAddress(&mut context);
-        context.return_values.push(return_values[0]);
+        
+        return_values[0]
     }
 
     // Calls the createNullifierPublic on the Test contract at the target address
@@ -77,10 +78,11 @@ contract ImportTest {
     #[aztec(public)]
     fn pubCallOpenFn(
         target: Field,
-    ) {
+    ) -> Field {
         let test_contract_instance = TestPublicContextInterface::at(target);
         let ret = test_contract_instance.createNullifierPublic(context, 1, 2);
-        context.return_values.push(ret[0]);
+        
+        ret[0]
     }
 }
 

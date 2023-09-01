@@ -107,7 +107,7 @@ contract NonNativeToken {
         msg_key: Field,
         secret: Field,
         canceller: Field,
-    ) {
+    ) -> Field {
         let storage = Storage::init();
         let public_balances = storage.public_balances;
 
@@ -122,7 +122,7 @@ contract NonNativeToken {
         recipient_balance.write(new_balance);
 
         // Push the return value into the context
-        context.return_values.push(new_balance);
+        new_balance 
     }
 
 

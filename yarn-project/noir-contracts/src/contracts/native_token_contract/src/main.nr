@@ -49,12 +49,13 @@ contract NativeToken {
     fn owner_mint_pub(
         to: Field,
         amount: Field,
-    ) {
+    ) -> Field {
         let storage = Storage::init();
         let new_balance = storage.public_balances.at(to).read() + amount;
         storage.public_balances.at(to).write(new_balance);
         storage.total_supply.write(storage.total_supply.read() + amount);
-        context.return_values.push(1);
+        
+        1
     }
 
     // uint256(keccak256("owner_mint_priv(field,field)")) >> 224 -> 3157518188
@@ -62,7 +63,7 @@ contract NativeToken {
     fn owner_mint_priv(
         amount: Field,
         secret_hash: Field,
-    ) {
+    ) -> Field {
         let storage = Storage::init();
         let pending_shields = storage.pending_shields;
 
@@ -71,7 +72,7 @@ contract NativeToken {
 
         storage.total_supply.write(storage.total_supply.read() + amount);
     
-        context.return_values.push(1);
+        1
     }
 
     // Mint Private Function
@@ -130,7 +131,7 @@ contract NativeToken {
         msg_key: Field,
         secret: Field,
         canceller: Field,
-    ) {
+    ) -> Field {
         let storage = Storage::init();
         let public_balances = storage.public_balances;
 
@@ -145,7 +146,7 @@ contract NativeToken {
         recipient_balance.write(new_balance);
 
         // Push the return value into the context
-        context.return_values.push(new_balance);
+        new_balance
     }
 
     // Withdraws using user's public balance.
@@ -327,7 +328,7 @@ contract NativeToken {
     }
 
     #[aztec(public)]
-    open internal fn addUnshieldedBalance(
+    internal fn addUnshieldedBalance(
         amount: Field,
         to: Field,
     ) {

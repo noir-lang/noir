@@ -12,8 +12,8 @@ contract Child {
     #[aztec(private)]
     fn value(
         input: Field,
-    ) {
-        context.return_values.push(input + context.chain_id() + context.version());
+    ) -> Field {
+        input + context.chain_id() + context.version()
     }
 
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values. 
@@ -21,47 +21,50 @@ contract Child {
     #[aztec(private)]
     fn valueInternal(
         input: Field,
-    ) {
+    ) -> Field {
         assert(inputs.call_context.msg_sender == inputs.call_context.storage_contract_address);
-        context.return_values.push(input + context.chain_id() + context.version());
+        input + context.chain_id() + context.version()
     }
 
     // Returns base_value + 42.
     #[aztec(public)]
-    fn pubGetValue(base_value: Field) {
+    fn pubGetValue(base_value: Field) -> Field {
         let returnValue = base_value + context.chain_id() + context.version() + context.block_number() + context.timestamp();
 
-        context.return_values.push(returnValue);
+        returnValue
     }
 
     // Sets `current_value` to `new_value`
     #[aztec(public)]
-    fn pubSetValue(new_value: Field) {
+    fn pubSetValue(new_value: Field) -> Field {
         let storage = Storage::init();
         storage.current_value.write(new_value);
         let _hash = emit_unencrypted_log(new_value);
-        context.return_values.push(new_value);
+        
+        new_value
     }
 
     // Increments `current_value` by `new_value`
     #[aztec(public)]
-    fn pubIncValue(new_value: Field) {
+    fn pubIncValue(new_value: Field) -> Field {
         let storage = Storage::init();
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
         let _hash = emit_unencrypted_log(new_value);
-        context.return_values.push(new_value);
+
+        new_value
     }
 
     // Increments `current_value` by `new_value`. Can only be called from this contract.
-    #[aztec(public)]
-    fn pubIncValueInternal(new_value: Field) {
+    #[aztec(public)] 
+    fn pubIncValueInternal(new_value: Field) -> Field {
         let storage = Storage::init();
         assert(inputs.call_context.msg_sender == inputs.call_context.storage_contract_address);
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
         let _hash = emit_unencrypted_log(new_value);
-        context.return_values.push(new_value);
+        
+        new_value
     }
 
     #[aztec(public)]

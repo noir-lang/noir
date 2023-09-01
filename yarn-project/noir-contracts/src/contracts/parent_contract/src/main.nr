@@ -9,13 +9,12 @@ contract Parent {
     fn entryPoint(
         targetContract: Field,
         targetSelector: Field,
-    ) {
+    ) -> Field {
         // Call the target private function
         let return_values = context.call_private_function(targetContract, targetSelector, [0]);
 
         // Copy the return value from the call to this function's return values
-        let result = return_values[0];
-        context.return_values.push(result);
+        return_values[0]
     }
 
     // Public function to directly call another public function to the targetContract using the selector and value provided
@@ -24,10 +23,10 @@ contract Parent {
         targetContract: Field,
         targetSelector: Field,
         initValue: Field
-    ) {
+    ) -> Field {
         let return_values = context.call_public_function(targetContract, targetSelector, [initValue]);
 
-        context.return_values.push(return_values[0]);
+        return_values[0]
     }
 
     // Same as pubEntryPoint, but calls the target contract twice, using the return value from the first invocation as the argument for the second.
@@ -36,11 +35,11 @@ contract Parent {
         targetContract: Field,
         targetSelector: Field,
         initValue: Field
-    ) {
+    ) -> Field {
         let returnValue = context.call_public_function(targetContract, targetSelector, [initValue])[0];
         let return_values = context.call_public_function(targetContract, targetSelector, [returnValue]);
 
-        context.return_values.push(return_values[0]);
+        return_values[0]
     }
 
     // Private function to enqueue a call to the targetContract address using the selector and argument provided

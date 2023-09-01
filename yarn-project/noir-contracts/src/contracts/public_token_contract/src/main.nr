@@ -17,7 +17,7 @@ contract PublicToken {
     fn mint(
         amount: Field,
         recipient: Field,
-    ) {
+    ) -> Field {
 
         let storage = Storage::init();
         let recipient_balance = storage.balances.at(recipient);
@@ -28,7 +28,7 @@ contract PublicToken {
         // docs:end:unencrypted_log
         recipient_balance.write(new_amount);
 
-        context.return_values.push(new_amount);
+        new_amount
     }
 
     // Transfers `amount` of tokens from `msg_sender` to `recipient`.
@@ -36,7 +36,7 @@ contract PublicToken {
     fn transfer(
         amount: Field,
         recipient: Field,
-    ) {
+    ) -> Field {
         let storage = Storage::init();
         let sender = context.msg_sender();
 
@@ -60,7 +60,7 @@ contract PublicToken {
             // TODO: Revert if there is not enough balance
             return_value = current_recipient_balance;
         }
-        context.return_values.push(return_value);
+        return_value
     }
 
     unconstrained fn publicBalanceOf(

@@ -19,32 +19,30 @@ contract Test {
     #[aztec(private)]
     fn getPublicKey(
         address: Field,
-    )  {
+    ) -> [Field; 2]{
         let pub_key = get_public_key(address);
-        context.return_values.push_array([pub_key.x, pub_key.y]);
+        
+        [pub_key.x, pub_key.y]
     }
 
     // Get the portal contract address through an oracle call
     #[aztec(private)]
     fn getPortalContractAddress(
         aztec_address: Field
-    )  {
-        let portal_address = get_portal_address(aztec_address);
-        context.return_values.push_array([portal_address]);
+    ) -> Field {
+        get_portal_address(aztec_address)
     }
 
     // Get the address of the l1 portal for this contract (taken from the input context)
     #[aztec(private)]
-    fn getThisPortalAddress()  {
-        let this_portal_address = context.this_portal_address();
-        context.return_values.push_array([this_portal_address]);
+    fn getThisPortalAddress() -> Field {
+        context.this_portal_address()
     }
 
     // Get the address of this contract (taken from the input context)
     #[aztec(private)]
-    fn getThisAddress()  {
-        let this_address = context.this_address();
-        context.return_values.push_array([this_address]);
+    fn getThisAddress() -> Field {
+        context.this_address()
     }
 
     // Test codegen for noir interfaces
@@ -110,10 +108,10 @@ contract Test {
     #[aztec(public)]
     fn isTimeEqual(
         time: Field,
-    ) {
+    ) -> Field {
         assert(context.timestamp() == time);
 
-        context.return_values.push(time);
+        time
     }
 
     // Purely exists for testing
