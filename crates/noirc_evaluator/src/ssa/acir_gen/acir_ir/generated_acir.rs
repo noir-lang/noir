@@ -491,8 +491,15 @@ impl GeneratedAcir {
         let (q_witness, r_witness) =
             self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 
-        // Constrain `q < 2^{q_max_bits}`.
+        // Constrain `q < 2^{max_q_bits}`.
         self.range_constraint(q_witness, max_q_bits)?;
+
+        // Constrain `r < 2^{max_rhs_bits}`.
+        //
+        // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
+        // This range constraint is required however otherwise as the bound constraint creates a new witness.
+        // This opcode will be optimized out if it is redundant so we keep it for safety.
+        self.range_constraint(r_witness, max_rhs_bits)?;
 
         // Constrain `r < rhs`.
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
