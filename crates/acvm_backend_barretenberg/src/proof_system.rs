@@ -9,7 +9,7 @@ use acvm::Language;
 use tempfile::tempdir;
 
 use crate::cli::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{assert_binary_exists, Backend, BackendError, FIELD_BYTES};
+use crate::{assert_binary_exists, Backend, BackendError};
 
 impl Backend {
     pub fn np_language(&self) -> Language {
@@ -192,7 +192,7 @@ pub(super) fn read_bytes_from_file(path: &Path) -> std::io::Result<Vec<u8>> {
 fn remove_public_inputs(num_pub_inputs: usize, proof: &[u8]) -> Vec<u8> {
     // Barretenberg prepends the public inputs onto the proof so we need to remove
     // the first `num_pub_inputs` field elements.
-    let num_bytes_to_remove = num_pub_inputs * FIELD_BYTES;
+    let num_bytes_to_remove = num_pub_inputs * (FieldElement::max_num_bytes() as usize);
     proof[num_bytes_to_remove..].to_vec()
 }
 
