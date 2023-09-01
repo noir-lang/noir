@@ -11,8 +11,8 @@ pub enum TestStatus {
     CompileError(FileDiagnostic),
 }
 
-pub fn run_test<B: BlackBoxFunctionSolver + Default>(
-    backend: &B,
+pub fn run_test<B: BlackBoxFunctionSolver>(
+    blackbox_solver: &B,
     context: &Context,
     test_function: TestFunction,
     show_output: bool,
@@ -24,7 +24,7 @@ pub fn run_test<B: BlackBoxFunctionSolver + Default>(
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
             // otherwise constraints involving these expressions will not error.
             let circuit_execution =
-                execute_circuit(backend, program.circuit, WitnessMap::new(), show_output);
+                execute_circuit(blackbox_solver, program.circuit, WitnessMap::new(), show_output);
 
             if test_function.should_fail() {
                 match circuit_execution {
