@@ -61,7 +61,10 @@
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
-use std::{collections::{BTreeMap, BTreeSet}, borrow::Cow};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet},
+};
 
 use crate::ssa::{
     ir::{
@@ -70,10 +73,10 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId, TerminatorInstruction, Intrinsic},
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::{ValueId, Value},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -323,34 +326,34 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::ArraySet { array, value, .. } => {
                 references.mark_value_used(*array, self.inserter.function);
+                let element_type = self.inserter.function.dfg.type_of_value(*value);
 
-                if self.inserter.function.dfg.value_is_reference(*value) {
+                if Self::contains_references(&element_type) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = self.inserter.function.dfg.resolve(*array);
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
-                    if let Some(aliases) = references.aliases.get_mut(&expression) {
-                        aliases.insert(result);
+                    let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
+                    {
+                        aliases.clone()
                     } else if let Some((elements, _)) =
                         self.inserter.function.dfg.get_array_constant(array)
                     {
                         let aliases = references.collect_all_aliases(elements);
-                        todo!("left off here")
-                        self.set_aliases(references, array, aliases);
-                    }
+                        self.set_aliases(references, array, aliases.clone());
+                        aliases
+                    } else {
+                        AliasSet::unknown()
+                    };
 
-                    references.expressions.insert(result, expression);
+                    aliases.unify(&references.get_aliases_for_value(*value));
+
+                    references.expressions.insert(result, expression.clone());
+                    references.aliases.insert(expression, aliases);
                 }
             }
-            Instruction::Call { func, arguments } => {
-                match &self.inserter.function.dfg[*func] {
-                    Value::Intrinsic(Intrinsic::SliceInsert | Intrinsic::SliceRemove | Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) => {
-
-                    },
-                    _ => self.mark_all_unknown(arguments, references),
-                }
-            }
+            Instruction::Call { arguments, .. } => self.mark_all_unknown(arguments, references),
             _ => (),
         }
     }
@@ -382,7 +385,8 @@ impl<'f> PerFunctionContext<'f> {
     }
 
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
-        let expression = references.expressions.entry(address).or_insert(Expression::Other(address));
+        let expression =
+            references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(expression.clone()).or_default();
         *aliases = new_aliases;
     }
@@ -648,9 +652,9 @@ impl AliasSet {
     /// Return the single known alias if there is exactly one.
     /// Otherwise, return None.
     fn single_alias(&self) -> Option<ValueId> {
-        self.aliases.as_ref().and_then(|aliases| {
-            (aliases.len() == 1).then(|| *aliases.first().unwrap())
-        })
+        self.aliases
+            .as_ref()
+            .and_then(|aliases| (aliases.len() == 1).then(|| *aliases.first().unwrap()))
     }
 
     /// Unify this alias set with another. The result of this set is empty if either set is empty.
