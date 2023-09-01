@@ -650,6 +650,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
+            is_public: false,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),
