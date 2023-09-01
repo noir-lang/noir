@@ -1,6 +1,0 @@
-[package]
-name = "brillig_top_level"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

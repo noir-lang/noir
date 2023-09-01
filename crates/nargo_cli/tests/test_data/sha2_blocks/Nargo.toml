@@ -1,6 +1,0 @@
-[package]
-name = "sha2_blocks"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

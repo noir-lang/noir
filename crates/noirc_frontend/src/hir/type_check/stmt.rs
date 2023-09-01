@@ -1,12 +1,12 @@
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
-use crate::hir_def::expr::HirIdent;
+use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
-use crate::CompTime;
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
@@ -67,18 +67,23 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 Type::Error => (),
                 other => {
-                    self.errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: other.to_string(),
-                        expr_typ: other.to_string(),
-                        expr_span: *span,
+                    let expected =
+                        Type::Tuple(vecmap(fields, |_| self.interner.next_type_variable()));
+
+                    self.errors.push(TypeCheckError::TypeMismatchWithSource {
+                        expected,
+                        actual: other,
+                        span: *span,
+                        source: Source::Assignment,
                     });
                 }
             },
             HirPattern::Struct(struct_type, fields, span) => {
-                self.unify(struct_type, &typ, *span, || TypeCheckError::TypeMismatch {
-                    expected_typ: typ.to_string(),
-                    expr_typ: struct_type.to_string(),
-                    expr_span: *span,
+                self.unify(struct_type, &typ, || TypeCheckError::TypeMismatchWithSource {
+                    expected: struct_type.clone(),
+                    actual: typ.clone(),
+                    span: *span,
+                    source: Source::Assignment,
                 });
 
                 if let Type::Struct(struct_type, generics) = struct_type {
@@ -108,10 +113,10 @@ impl<'interner> TypeChecker<'interner> {
         });
 
         let span = self.interner.expr_span(&assign_stmt.expression);
-        self.make_subtype_of(&expr_type, &lvalue_type, assign_stmt.expression, || {
+        self.unify_with_coercions(&expr_type, &lvalue_type, assign_stmt.expression, || {
             TypeCheckError::TypeMismatchWithSource {
-                rhs: expr_type.clone(),
-                lhs: lvalue_type.clone(),
+                actual: lvalue_type.clone(),
+                expected: expr_type.clone(),
                 span,
                 source: Source::Assignment,
             }
@@ -178,7 +183,6 @@ impl<'interner> TypeChecker<'interner> {
 
                 index_type.unify(
                     &Type::polymorphic_integer(self.interner),
-                    expr_span,
                     &mut self.errors,
                     || TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
@@ -212,12 +216,10 @@ impl<'interner> TypeChecker<'interner> {
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
                 let expected_type = Type::MutableReference(Box::new(element_type.clone()));
-                reference_type.unify(&expected_type, assign_span, &mut self.errors, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: reference_type.to_string(),
-                        expr_span: assign_span,
-                    }
+                self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: expected_type.to_string(),
+                    expr_typ: reference_type.to_string(),
+                    expr_span: assign_span,
                 });
 
                 (element_type.clone(), HirLValue::Dereference { lvalue, element_type })
@@ -226,9 +228,7 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     fn check_let_stmt(&mut self, let_stmt: HirLetStatement) {
-        let mut resolved_type = self.check_declaration(let_stmt.expression, let_stmt.r#type);
-
-        resolved_type.set_comp_time_span(self.interner.expr_span(&let_stmt.expression));
+        let resolved_type = self.check_declaration(let_stmt.expression, let_stmt.r#type);
 
         // Set the type of the pattern to be equal to the annotated type
         self.bind_pattern(&let_stmt.pattern, resolved_type);
@@ -238,10 +238,9 @@ impl<'interner> TypeChecker<'interner> {
         let expr_type = self.check_expression(&stmt.0);
         let expr_span = self.interner.expr_span(&stmt.0);
 
-        let bool_type = Type::Bool(CompTime::new(self.interner));
-        self.unify(&expr_type, &bool_type, expr_span, || TypeCheckError::TypeMismatch {
+        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool(CompTime::No(None)).to_string(),
+            expected_typ: Type::Bool.to_string(),
             expr_span,
         });
     }
@@ -259,16 +258,46 @@ impl<'interner> TypeChecker<'interner> {
             // Now check if LHS is the same type as the RHS
             // Importantly, we do not coerce any types implicitly
             let expr_span = self.interner.expr_span(&rhs_expr);
-            self.make_subtype_of(&expr_type, &annotated_type, rhs_expr, || {
+            self.unify_with_coercions(&expr_type, &annotated_type, rhs_expr, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: annotated_type.to_string(),
                     expr_typ: expr_type.to_string(),
                     expr_span,
                 }
             });
+            if annotated_type.is_unsigned() {
+                self.lint_overflowing_uint(&rhs_expr, &annotated_type);
+            }
             annotated_type
         } else {
             expr_type
+        }
+    }
+
+    /// Check if an assignment is overflowing with respect to `annotated_type`
+    /// in a declaration statement where `annotated_type` is an unsigned integer
+    fn lint_overflowing_uint(&mut self, rhs_expr: &ExprId, annotated_type: &Type) {
+        let expr = self.interner.expression(rhs_expr);
+        let span = self.interner.expr_span(rhs_expr);
+        match expr {
+            HirExpression::Literal(HirLiteral::Integer(value)) => {
+                let v = value.to_u128();
+                if let Type::Integer(_, bit_count) = annotated_type {
+                    let max = 1 << bit_count;
+                    if v >= max {
+                        self.errors.push(TypeCheckError::OverflowingAssignment {
+                            expr: value,
+                            ty: annotated_type.clone(),
+                            range: format!("0..={}", max - 1),
+                            span,
+                        });
+                    };
+                };
+            }
+            HirExpression::Prefix(_) => self
+                .errors
+                .push(TypeCheckError::InvalidUnaryOp { kind: annotated_type.to_string(), span }),
+            _ => {}
         }
     }
 }

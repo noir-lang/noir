@@ -135,18 +135,17 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
+        dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -260,7 +259,7 @@ impl<'f> Context<'f> {
                     self.inline_branch(block, then_block, old_condition, then_condition, one);
 
                 let else_condition =
-                    self.insert_instruction(Instruction::Not(then_condition), None);
+                    self.insert_instruction(Instruction::Not(then_condition), CallStack::new());
                 let zero = FieldElement::zero();
 
                 // Make sure the else branch sees the previous values of each store
@@ -285,7 +284,7 @@ impl<'f> Context<'f> {
                 let end = self.branch_ends[&block];
                 self.inline_branch_end(end, then_branch, else_branch)
             }
-            TerminatorInstruction::Jmp { destination, arguments } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if let Some((end_block, _)) = self.conditions.last() {
                     if destination == end_block {
                         return block;
@@ -317,7 +316,7 @@ impl<'f> Context<'f> {
 
         if let Some((_, previous_condition)) = self.conditions.last() {
             let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
-            let new_condition = self.insert_instruction(and, None);
+            let new_condition = self.insert_instruction(and, CallStack::new());
             self.conditions.push((end_block, new_condition));
         } else {
             self.conditions.push((end_block, condition));
@@ -327,16 +326,12 @@ impl<'f> Context<'f> {
     /// Insert a new instruction into the function's entry block.
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
-    fn insert_instruction(
-        &mut self,
-        instruction: Instruction,
-        location: Option<Location>,
-    ) -> ValueId {
+    fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStack) -> ValueId {
         let block = self.inserter.function.entry_block();
         self.inserter
             .function
             .dfg
-            .insert_instruction_and_results(instruction, block, None, location)
+            .insert_instruction_and_results(instruction, block, None, call_stack)
             .first()
     }
 
@@ -354,7 +349,7 @@ impl<'f> Context<'f> {
             instruction,
             block,
             ctrl_typevars,
-            None,
+            CallStack::new(),
         )
     }
 
@@ -396,11 +391,76 @@ impl<'f> Context<'f> {
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            // TODO(#1889)
-            Type::Slice(_) => panic!("Cannot return slices from an if expression"),
+            typ @ Type::Slice(_) => {
+                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+            }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
         }
+    }
+
+    fn merge_slice_values(
+        &mut self,
+        typ: Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value_id: ValueId,
+        else_value_id: ValueId,
+    ) -> ValueId {
+        let mut merged = im::Vector::new();
+
+        let element_types = match &typ {
+            Type::Slice(elements) => elements,
+            _ => panic!("Expected slice type"),
+        };
+
+        let then_value = self.inserter.function.dfg[then_value_id].clone();
+        let else_value = self.inserter.function.dfg[else_value_id].clone();
+
+        let len = match then_value {
+            Value::Array { array, .. } => array.len(),
+            _ => panic!("Expected array value"),
+        };
+
+        let else_len = match else_value {
+            Value::Array { array, .. } => array.len(),
+            _ => panic!("Expected array value"),
+        };
+
+        let len = len.max(else_len);
+
+        for i in 0..len {
+            for (element_index, element_type) in element_types.iter().enumerate() {
+                let index_value = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index_value, Type::field());
+
+                let typevars = Some(vec![element_type.clone()]);
+
+                let mut get_element = |array, typevars, len| {
+                    // The smaller slice is filled with placeholder data. Codegen for slice accesses must
+                    // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
+                    if (len - 1) < index_value.to_u128() as usize {
+                        let zero = FieldElement::zero();
+                        self.inserter.function.dfg.make_constant(zero, Type::field())
+                    } else {
+                        let get = Instruction::ArrayGet { array, index };
+                        self.insert_instruction_with_typevars(get, typevars).first()
+                    }
+                };
+
+                let then_element = get_element(then_value_id, typevars.clone(), len);
+                let else_element = get_element(else_value_id, typevars, else_len);
+
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
+            }
+        }
+
+        self.inserter.function.dfg.make_array(merged, typ)
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -465,22 +525,27 @@ impl<'f> Context<'f> {
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        let then_location = self.inserter.function.dfg.get_value_location(&then_value);
-        let else_location = self.inserter.function.dfg.get_value_location(&else_value);
-        let merge_location = then_location.or(else_location);
+        let then_call_stack = self.inserter.function.dfg.get_value_call_stack(then_value);
+        let else_call_stack = self.inserter.function.dfg.get_value_call_stack(else_value);
+
+        let call_stack = if then_call_stack.is_empty() {
+            else_call_stack.clone()
+        } else {
+            then_call_stack.clone()
+        };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition =
-            self.insert_instruction(Instruction::Cast(then_condition, then_type), then_location);
+            self.insert_instruction(Instruction::Cast(then_condition, then_type), then_call_stack);
         let else_condition =
-            self.insert_instruction(Instruction::Cast(else_condition, else_type), else_location);
+            self.insert_instruction(Instruction::Cast(else_condition, else_type), else_call_stack);
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
         let then_value = self
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(mul, block, None, merge_location)
+            .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
@@ -488,14 +553,14 @@ impl<'f> Context<'f> {
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(mul, block, None, merge_location)
+            .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
         self.inserter
             .function
             .dfg
-            .insert_instruction_and_results(add, block, None, merge_location)
+            .insert_instruction_and_results(add, block, None, call_stack)
             .first()
     }
 
@@ -681,12 +746,12 @@ impl<'f> Context<'f> {
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
-        let (instruction, location) = self.inserter.map_instruction(id);
-        let instruction = self.handle_instruction_side_effects(instruction, location);
+        let (instruction, call_stack) = self.inserter.map_instruction(id);
+        let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
 
         let entry = self.inserter.function.entry_block();
-        let results = self.inserter.push_instruction_value(instruction, id, entry, location);
+        let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
@@ -700,20 +765,29 @@ impl<'f> Context<'f> {
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
-        location: Option<Location>,
+        call_stack: CallStack,
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(value) => {
-                    let mul = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, value, condition),
-                        location,
+                Instruction::Constrain(lhs, rhs) => {
+                    // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
+
+                    // Condition needs to be cast to argument type in order to multiply them together.
+                    let argument_type = self.inserter.function.dfg.type_of_value(lhs);
+                    let casted_condition = self.insert_instruction(
+                        Instruction::Cast(condition, argument_type),
+                        call_stack.clone(),
                     );
-                    let eq = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Eq, mul, condition),
-                        location,
+
+                    let lhs = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
+                        call_stack.clone(),
                     );
-                    Instruction::Constrain(eq)
+                    let rhs = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
+                        call_stack,
+                    );
+                    Instruction::Constrain(lhs, rhs)
                 }
                 Instruction::Store { address, value } => {
                     self.remember_store(address, value);
@@ -825,11 +899,12 @@ mod test {
 
         let v0 = builder.add_parameter(Type::bool());
         let v1 = builder.add_parameter(Type::bool());
+        let v_true = builder.numeric_constant(true, Type::bool());
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        builder.insert_constrain(v1);
+        builder.insert_constrain(v1, v_true);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
@@ -1000,8 +1075,8 @@ mod test {
         // will store values. Other blocks do not store values so that we can test
         // how these existing values are merged at each join point.
         //
-        // For debugging purposes, each block also has a call to println with two
-        // arguments. The first is the block the println was originally in, and the
+        // For debugging purposes, each block also has a call to test_function with two
+        // arguments. The first is the block the test_function was originally in, and the
         // second is the current value stored in the reference.
         //
         //         b0   (0 stored)
@@ -1040,54 +1115,56 @@ mod test {
             builder.insert_store(r1, value);
         };
 
-        let println = builder.import_intrinsic_id(Intrinsic::Println);
+        let test_function = Id::test_new(1);
 
-        let call_println = |builder: &mut FunctionBuilder, block: u128| {
+        let call_test_function = |builder: &mut FunctionBuilder, block: u128| {
             let block = builder.field_constant(block);
             let load = builder.insert_load(r1, Type::field());
-            builder.insert_call(println, vec![block, load], Vec::new());
+            builder.insert_call(test_function, vec![block, load], Vec::new());
         };
 
-        let switch_store_and_print = |builder: &mut FunctionBuilder, block, block_number: u128| {
-            builder.switch_to_block(block);
-            store_value(builder, block_number);
-            call_println(builder, block_number);
-        };
+        let switch_store_and_test_function =
+            |builder: &mut FunctionBuilder, block, block_number: u128| {
+                builder.switch_to_block(block);
+                store_value(builder, block_number);
+                call_test_function(builder, block_number);
+            };
 
-        let switch_and_print = |builder: &mut FunctionBuilder, block, block_number: u128| {
-            builder.switch_to_block(block);
-            call_println(builder, block_number);
-        };
+        let switch_and_test_function =
+            |builder: &mut FunctionBuilder, block, block_number: u128| {
+                builder.switch_to_block(block);
+                call_test_function(builder, block_number);
+            };
 
         store_value(&mut builder, 0);
-        call_println(&mut builder, 0);
+        call_test_function(&mut builder, 0);
         builder.terminate_with_jmp(b1, vec![]);
 
-        switch_store_and_print(&mut builder, b1, 1);
+        switch_store_and_test_function(&mut builder, b1, 1);
         builder.terminate_with_jmpif(c1, b2, b3);
 
-        switch_store_and_print(&mut builder, b2, 2);
+        switch_store_and_test_function(&mut builder, b2, 2);
         builder.terminate_with_jmp(b4, vec![]);
 
-        switch_store_and_print(&mut builder, b3, 3);
+        switch_store_and_test_function(&mut builder, b3, 3);
         builder.terminate_with_jmp(b8, vec![]);
 
-        switch_and_print(&mut builder, b4, 4);
+        switch_and_test_function(&mut builder, b4, 4);
         builder.terminate_with_jmpif(c4, b5, b6);
 
-        switch_store_and_print(&mut builder, b5, 5);
+        switch_store_and_test_function(&mut builder, b5, 5);
         builder.terminate_with_jmp(b7, vec![]);
 
-        switch_store_and_print(&mut builder, b6, 6);
+        switch_store_and_test_function(&mut builder, b6, 6);
         builder.terminate_with_jmp(b7, vec![]);
 
-        switch_and_print(&mut builder, b7, 7);
+        switch_and_test_function(&mut builder, b7, 7);
         builder.terminate_with_jmp(b9, vec![]);
 
-        switch_and_print(&mut builder, b8, 8);
+        switch_and_test_function(&mut builder, b8, 8);
         builder.terminate_with_jmp(b9, vec![]);
 
-        switch_and_print(&mut builder, b9, 9);
+        switch_and_test_function(&mut builder, b9, 9);
         let load = builder.insert_load(r1, Type::field());
         builder.terminate_with_return(vec![load]);
 
@@ -1097,18 +1174,18 @@ mod test {
         //
         // fn main f0 {
         //   b0(v0: u1, v1: u1):
-        //     call println(Field 0, Field 0)
-        //     call println(Field 1, Field 1)
+        //     call test_function(Field 0, Field 0)
+        //     call test_function(Field 1, Field 1)
         //     enable_side_effects v0
-        //     call println(Field 2, Field 2)
-        //     call println(Field 4, Field 2)
+        //     call test_function(Field 2, Field 2)
+        //     call test_function(Field 4, Field 2)
         //     v29 = and v0, v1
         //     enable_side_effects v29
-        //     call println(Field 5, Field 5)
+        //     call test_function(Field 5, Field 5)
         //     v32 = not v1
         //     v33 = and v0, v32
         //     enable_side_effects v33
-        //     call println(Field 6, Field 6)
+        //     call test_function(Field 6, Field 6)
         //     enable_side_effects v0
         //     v36 = mul v1, Field 5
         //     v37 = mul v32, Field 2
@@ -1116,12 +1193,12 @@ mod test {
         //     v39 = mul v1, Field 5
         //     v40 = mul v32, Field 6
         //     v41 = add v39, v40
-        //     call println(Field 7, v42)
+        //     call test_function(Field 7, v42)
         //     v43 = not v0
         //     enable_side_effects v43
         //     store Field 3 at v2
-        //     call println(Field 3, Field 3)
-        //     call println(Field 8, Field 3)
+        //     call test_function(Field 3, Field 3)
+        //     call test_function(Field 8, Field 3)
         //     enable_side_effects Field 1
         //     v47 = mul v0, v41
         //     v48 = mul v43, Field 1
@@ -1129,7 +1206,7 @@ mod test {
         //     v50 = mul v0, v44
         //     v51 = mul v43, Field 3
         //     v52 = add v50, v51
-        //     call println(Field 9, v53)
+        //     call test_function(Field 9, v53)
         //     return v54
         // }
 
@@ -1278,14 +1355,15 @@ mod test {
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
-        let v_false = builder.numeric_constant(0_u128, Type::bool());
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v_false = builder.numeric_constant(false, Type::bool());
         builder.terminate_with_jmpif(v_false, b1, b2);
 
         builder.switch_to_block(b1);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
-        builder.insert_constrain(v_false); // should not be removed
+        builder.insert_constrain(v_false, v_true); // should not be removed
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1293,7 +1371,7 @@ mod test {
 
         // Assert we have not incorrectly removed a constraint:
         use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_, _)));
         assert_eq!(constrain_count, 1);
     }
 
@@ -1366,9 +1444,9 @@ mod test {
         builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b3);
-        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
-        let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
-        builder.insert_constrain(v12);
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
+        builder.insert_constrain(v12, v_true);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1377,9 +1455,11 @@ mod test {
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(value) = main.dfg[*instruction] {
-                if let Some(constant) = main.dfg.get_numeric_constant(value) {
-                    assert!(constant.is_one());
+            if let Instruction::Constrain(lhs, rhs) = main.dfg[*instruction] {
+                if let (Some(lhs), Some(rhs)) =
+                    (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
+                {
+                    assert_eq!(lhs, rhs);
                 }
                 constrain_count += 1;
             }

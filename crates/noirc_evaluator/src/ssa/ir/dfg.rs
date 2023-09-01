@@ -73,10 +73,18 @@ pub(crate) struct DataFlowGraph {
 
     /// Source location of each instruction for debugging and issuing errors.
     ///
+    /// The `CallStack` here corresponds to the entire callstack of locations. Initially this
+    /// only contains the actual location of the instruction. During inlining, a new location
+    /// will be pushed to each instruction for the location of the function call of the function
+    /// the instruction was originally located in. Once inlining is complete, the locations Vec
+    /// here should contain the entire callstack for each instruction.
+    ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
-    locations: HashMap<InstructionId, Location>,
+    locations: HashMap<InstructionId, CallStack>,
 }
+
+pub(crate) type CallStack = im::Vector<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -98,7 +106,7 @@ impl DataFlowGraph {
         let parameters = self.blocks[block].parameters();
 
         let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
-            let typ = self.values[*param].get_type();
+            let typ = self.values[*param].get_type().clone();
             self.values.insert(Value::Param { block: new_block, position, typ })
         });
 
@@ -149,7 +157,7 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        location: Option<Location>,
+        call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
@@ -162,10 +170,8 @@ impl DataFlowGraph {
                 let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
-                if let Some(location) = location {
-                    self.locations.insert(id, location);
-                }
-                InsertInstructionResult::Results(self.instruction_results(id))
+                self.locations.insert(id, call_stack);
+                InsertInstructionResult::Results(id, self.instruction_results(id))
             }
         }
     }
@@ -308,7 +314,13 @@ impl DataFlowGraph {
 
     /// Returns the type of a given value
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type()
+        self.values[value].get_type().clone()
+    }
+
+    /// True if the type of this value is Type::Reference.
+    /// Using this method over type_of_value avoids cloning the value's type.
+    pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
+        matches!(self.values[value].get_type(), Type::Reference)
     }
 
     /// Appends a result type to the instruction.
@@ -399,7 +411,7 @@ impl DataFlowGraph {
     /// source block.
     pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
         let source = &mut self.blocks[source];
-        let mut instructions = std::mem::take(source.instructions_mut());
+        let mut instructions = source.take_instructions();
         let terminator = source.take_terminator();
 
         let destination = &mut self.blocks[destination];
@@ -407,15 +419,24 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
-        self.locations.get(id).cloned()
+    pub(crate) fn get_call_stack(&self, instruction: InstructionId) -> CallStack {
+        self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn get_value_location(&self, id: &ValueId) -> Option<Location> {
-        match &self.values[*id] {
-            Value::Instruction { instruction, .. } => self.get_location(instruction),
-            _ => None,
+    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
+        self.locations.entry(instruction).or_default().push_back(location);
+    }
+
+    pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
+        match &self.values[self.resolve(value)] {
+            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+            _ => im::Vector::new(),
         }
+    }
+
+    /// True if the given ValueId refers to a constant value
+    pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
+        !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
     }
 }
 
@@ -457,7 +478,8 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
 pub(crate) enum InsertInstructionResult<'dfg> {
-    Results(&'dfg [ValueId]),
+    /// Results is the standard case containing the instruction id and the results of that instruction.
+    Results(InstructionId, &'dfg [ValueId]),
     SimplifiedTo(ValueId),
     SimplifiedToMultiple(Vec<ValueId>),
     InstructionRemoved,
@@ -469,7 +491,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
-            InsertInstructionResult::Results(results) => results[0],
+            InsertInstructionResult::Results(_, results) => results[0],
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
             }
@@ -480,12 +502,10 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     /// This is used for instructions returning multiple results like function calls.
     pub(crate) fn results(self) -> Cow<'dfg, [ValueId]> {
         match self {
-            InsertInstructionResult::Results(results) => Cow::Borrowed(results),
+            InsertInstructionResult::Results(_, results) => Cow::Borrowed(results),
             InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![result]),
             InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results),
-            InsertInstructionResult::InstructionRemoved => {
-                panic!("InsertInstructionResult::results called on a removed instruction")
-            }
+            InsertInstructionResult::InstructionRemoved => Cow::Owned(vec![]),
         }
     }
 
@@ -494,7 +514,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,
             InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
-            InsertInstructionResult::Results(results) => results.len(),
+            InsertInstructionResult::Results(_, results) => results.len(),
             InsertInstructionResult::InstructionRemoved => 0,
         }
     }

@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
+    dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -33,13 +33,14 @@ pub(crate) type InstructionId = Id<Instruction>;
 pub(crate) enum Intrinsic {
     Sort,
     ArrayLen,
+    AssertConstant,
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
     SlicePopFront,
     SliceInsert,
     SliceRemove,
-    Println,
+    StrAsBytes,
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
@@ -48,15 +49,16 @@ pub(crate) enum Intrinsic {
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Intrinsic::Println => write!(f, "println"),
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
             Intrinsic::SlicePopFront => write!(f, "slice_pop_front"),
             Intrinsic::SliceInsert => write!(f, "slice_insert"),
             Intrinsic::SliceRemove => write!(f, "slice_remove"),
+            Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -67,19 +69,44 @@ impl std::fmt::Display for Intrinsic {
 }
 
 impl Intrinsic {
+    /// Returns whether the `Intrinsic` has side effects.
+    ///
+    /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    pub(crate) fn has_side_effects(&self) -> bool {
+        match self {
+            Intrinsic::AssertConstant => true,
+
+            Intrinsic::Sort
+            | Intrinsic::ArrayLen
+            | Intrinsic::SlicePushBack
+            | Intrinsic::SlicePushFront
+            | Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceInsert
+            | Intrinsic::SliceRemove
+            | Intrinsic::StrAsBytes
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_) => false,
+
+            // Some black box functions have side-effects
+            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+        }
+    }
+
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
-            "println" => Some(Intrinsic::Println),
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
+            "assert_constant" => Some(Intrinsic::AssertConstant),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),
             "slice_pop_front" => Some(Intrinsic::SlicePopFront),
             "slice_insert" => Some(Intrinsic::SliceInsert),
             "slice_remove" => Some(Intrinsic::SliceRemove),
+            "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
@@ -112,8 +139,8 @@ pub(crate) enum Instruction {
     /// Truncates `value` to `bit_size`
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
-    /// Constrains a value to be equal to true
-    Constrain(ValueId),
+    /// Constrains two values to be equal to one another.
+    Constrain(ValueId, ValueId),
 
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
@@ -162,7 +189,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_)
+            Instruction::Constrain(_, _)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
@@ -175,6 +202,63 @@ impl Instruction {
     /// inserting this instruction into a DataFlowGraph.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
+    /// i.e. there are no interactions with memory.
+    ///
+    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
+    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+
+            // Unclear why this instruction causes problems.
+            Truncate { .. } => false,
+
+            // These either have side-effects or interact with memory
+            Constrain(_, _) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
+                false
+            }
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+                _ => false,
+            },
+        }
+    }
+
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => false,
+
+            Constrain(_, _) | Store { .. } | EnableSideEffects { .. } => true,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+
+                // All foreign functions are treated as having side effects.
+                // This is because they can be used to pass information
+                // from the ACVM to the external world during execution.
+                Value::ForeignFunction(_) => true,
+
+                // We must assume that functions contain a side effect as we cannot inspect more deeply.
+                Value::Function(_) => true,
+
+                _ => false,
+            },
+        }
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
@@ -194,7 +278,7 @@ impl Instruction {
                 bit_size: *bit_size,
                 max_bit_size: *max_bit_size,
             },
-            Instruction::Constrain(value) => Instruction::Constrain(f(*value)),
+            Instruction::Constrain(lhs, rhs) => Instruction::Constrain(f(*lhs), f(*rhs)),
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -232,10 +316,14 @@ impl Instruction {
             Instruction::Cast(value, _)
             | Instruction::Not(value)
             | Instruction::Truncate { value, .. }
-            | Instruction::Constrain(value)
             | Instruction::Load { address: value } => {
                 f(*value);
             }
+            Instruction::Constrain(lhs, rhs) => {
+                f(*lhs);
+                f(*rhs);
+            }
+
             Instruction::Store { address, value } => {
                 f(*address);
                 f(*value);
@@ -286,13 +374,13 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(value) => {
-                if let Some(constant) = dfg.get_numeric_constant(*value) {
-                    if constant.is_one() {
-                        return Remove;
-                    }
+            Instruction::Constrain(lhs, rhs) => {
+                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
+                    // Remove trivial case `assert_eq(x, x)`
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::None
                 }
-                None
             }
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
@@ -419,8 +507,10 @@ pub(crate) enum TerminatorInstruction {
 
     /// Unconditional Jump
     ///
-    /// Jumps to specified `destination` with `arguments`
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId> },
+    /// Jumps to specified `destination` with `arguments`.
+    /// The CallStack here is expected to be used to issue an error when the start range of
+    /// a for loop cannot be deduced at compile-time.
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -445,11 +535,33 @@ impl TerminatorInstruction {
                 then_destination: *then_destination,
                 else_destination: *else_destination,
             },
-            Jmp { destination, arguments } => {
-                Jmp { destination: *destination, arguments: vecmap(arguments, |value| f(*value)) }
-            }
+            Jmp { destination, arguments, call_stack } => Jmp {
+                destination: *destination,
+                arguments: vecmap(arguments, |value| f(*value)),
+                call_stack: call_stack.clone(),
+            },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }
+            }
+        }
+    }
+
+    /// Mutate each ValueId to a new ValueId using the given mapping function
+    pub(crate) fn mutate_values(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                *condition = f(*condition);
+            }
+            Jmp { arguments, .. } => {
+                for argument in arguments {
+                    *argument = f(*argument);
+                }
+            }
+            Return { return_values } => {
+                for return_value in return_values {
+                    *return_value = f(*return_value);
+                }
             }
         }
     }
@@ -517,6 +629,12 @@ impl Binary {
         let operand_type = dfg.type_of_value(self.lhs);
 
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+            // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+            // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
+            // and division by zero should be handled by laying down constraints during ACIR generation.
+            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
+                return SimplifyResult::None;
+            }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
                 Some(value) => SimplifyResult::SimplifiedTo(value),
                 None => SimplifyResult::None,
@@ -571,9 +689,30 @@ impl Binary {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
+                if operand_type == Type::bool() {
+                    // Simplify forms of `(boolean == true)` into `boolean`
+                    if lhs_is_one {
+                        return SimplifyResult::SimplifiedTo(self.rhs);
+                    }
+                    if rhs_is_one {
+                        return SimplifyResult::SimplifiedTo(self.lhs);
+                    }
+                    // Simplify forms of `(boolean == false)` into `!boolean`
+                    if lhs_is_zero {
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.rhs));
+                    }
+                    if rhs_is_zero {
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.lhs));
+                    }
+                }
             }
             BinaryOp::Lt => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+                if operand_type.is_unsigned() && rhs_is_zero {
+                    // Unsigned values cannot be less than zero.
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -637,7 +776,17 @@ impl Binary {
 
                 let lhs = truncate(lhs.try_into_u128()?, *bit_size);
                 let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-                let result = function(lhs, rhs)?;
+
+                // The divisor is being truncated into the type of the operand, which can potentially
+                // lead to the rhs being zero.
+                // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
+                // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                // and the operation should be handled by ACIR generation.
+                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
+                    return None;
+                }
+
+                let result = function(lhs, rhs);
                 truncate(result, *bit_size).into()
             }
             _ => return None,
@@ -673,18 +822,18 @@ impl BinaryOp {
         }
     }
 
-    fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
+    fn get_u128_function(self) -> fn(u128, u128) -> u128 {
         match self {
-            BinaryOp::Add => u128::checked_add,
-            BinaryOp::Sub => u128::checked_sub,
-            BinaryOp::Mul => u128::checked_mul,
-            BinaryOp::Div => u128::checked_div,
-            BinaryOp::Mod => u128::checked_rem,
-            BinaryOp::And => |x, y| Some(x & y),
-            BinaryOp::Or => |x, y| Some(x | y),
-            BinaryOp::Xor => |x, y| Some(x ^ y),
-            BinaryOp::Eq => |x, y| Some((x == y) as u128),
-            BinaryOp::Lt => |x, y| Some((x < y) as u128),
+            BinaryOp::Add => u128::wrapping_add,
+            BinaryOp::Sub => u128::wrapping_sub,
+            BinaryOp::Mul => u128::wrapping_mul,
+            BinaryOp::Div => u128::wrapping_div,
+            BinaryOp::Mod => u128::wrapping_rem,
+            BinaryOp::And => |x, y| x & y,
+            BinaryOp::Or => |x, y| x | y,
+            BinaryOp::Xor => |x, y| x ^ y,
+            BinaryOp::Eq => |x, y| (x == y) as u128,
+            BinaryOp::Lt => |x, y| (x < y) as u128,
         }
     }
 }
@@ -753,7 +902,7 @@ pub(crate) enum SimplifyResult {
     /// a function such as a tuple
     SimplifiedToMultiple(Vec<ValueId>),
 
-    /// Replace this function with an simpler but equivalent function.
+    /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
 
     /// Remove the instruction, it is unnecessary

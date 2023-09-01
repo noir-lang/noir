@@ -1,9 +1,8 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Signedness};
+use crate::{hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -74,6 +73,9 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+
+    pub start_range_location: Location,
+    pub end_range_location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +92,7 @@ pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
     pub result_type: Type,
+    pub location: Location,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -120,6 +123,7 @@ pub struct If {
 pub struct Cast {
     pub lhs: Box<Expression>,
     pub r#type: Type,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -204,7 +208,6 @@ pub struct Function {
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
-/// - No CompTime
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -238,14 +241,14 @@ pub struct Program {
     ///
     /// Note: this has no impact on monomorphization, and is simply attached here for ease of
     /// forwarding to the next phase.
-    pub return_distinctness: noirc_abi::AbiDistinctness,
+    pub return_distinctness: Distinctness,
 }
 
 impl Program {
     pub fn new(
         functions: Vec<Function>,
         main_function_signature: FunctionSignature,
-        return_distinctness: noirc_abi::AbiDistinctness,
+        return_distinctness: Distinctness,
     ) -> Program {
         Program { functions, main_function_signature, return_distinctness }
     }

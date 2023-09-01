@@ -1,6 +1,0 @@
-[package]
-name = "4_sub"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

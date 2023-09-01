@@ -1,44 +1,48 @@
 use std::path::PathBuf;
 
-use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
-    create_named_dir,
-    program::read_program_from_file,
-    write_to_file,
-};
 use super::NargoConfig;
-use crate::{cli::compile_cmd::compile_circuit, errors::CliError};
-use crate::{find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package};
-use acvm::Backend;
-use clap::Args;
-use nargo::{
-    ops::{codegen_verifier, preprocess_program},
-    package::Package,
+use super::{
+    compile_cmd::compile_package,
+    fs::{create_named_dir, program::read_program_from_file, write_to_file},
 };
+use crate::backends::Backend;
+use crate::errors::CliError;
+
+use clap::Args;
+use nargo::artifacts::program::PreprocessedProgram;
+use nargo::package::Package;
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
+
+// TODO(#1388): pull this from backend.
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CodegenVerifierCommand {
     /// The name of the package to codegen
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Codegen all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: CodegenVerifierCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+) -> Result<(), CliError> {
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
@@ -61,42 +65,25 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn smart_contract_for_package<B: Backend>(
-    backend: &B,
+fn smart_contract_for_package(
+    backend: &Backend,
     package: &Package,
     circuit_build_path: PathBuf,
     compile_options: &CompileOptions,
-) -> Result<String, CliError<B>> {
-    let common_reference_string = read_cached_common_reference_string();
-    let (common_reference_string, preprocessed_program) = if circuit_build_path.exists() {
-        let program = read_program_from_file(circuit_build_path)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.bytecode)
-                .map_err(CliError::CommonReferenceStringError)?;
-        (common_reference_string, program)
+) -> Result<String, CliError> {
+    let preprocessed_program = if circuit_build_path.exists() {
+        read_program_from_file(circuit_build_path)?
     } else {
-        let (mut context, crate_id) = prepare_package(package);
-        let program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
-        let (program, _) = preprocess_program(backend, true, &common_reference_string, program)
-            .map_err(CliError::ProofSystemCompilerError)?;
-        (common_reference_string, program)
+        let (_, program) = compile_package(backend, package, compile_options)?;
+
+        PreprocessedProgram {
+            backend: String::from(BACKEND_IDENTIFIER),
+            abi: program.abi,
+            bytecode: program.circuit,
+        }
     };
 
-    let verification_key = preprocessed_program
-        .verification_key
-        .expect("Verification key should exist as `true` is passed to `preprocess_program`");
-    let smart_contract_string = codegen_verifier(
-        backend,
-        &common_reference_string,
-        &preprocessed_program.bytecode,
-        &verification_key,
-    )
-    .map_err(CliError::SmartContractError)?;
-
-    write_cached_common_reference_string(&common_reference_string);
+    let smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
 
     Ok(smart_contract_string)
 }

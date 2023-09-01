@@ -1,10 +1,11 @@
-use acvm::acir::circuit::OpcodeLabel;
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
-use acvm::Backend;
+use acvm::pwg::ErrorLocation;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo::NargoError;
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -12,12 +13,11 @@ use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
-use super::compile_cmd::compile_circuit;
+use super::compile_cmd::compile_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
+use crate::backends::Backend;
 use crate::errors::CliError;
-use crate::manifest::resolve_workspace_from_toml;
-use crate::{find_package_manifest, prepare_package};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -30,20 +30,27 @@ pub(crate) struct ExecuteCommand {
     prover_name: String,
 
     /// The name of the package to execute
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Execute all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: ExecuteCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+) -> Result<(), CliError> {
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let witness_dir = &workspace.target_directory_path();
 
     for package in &workspace {
@@ -63,20 +70,18 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn execute_package<B: Backend>(
-    backend: &B,
+fn execute_package(
+    backend: &Backend,
     package: &Package,
     prover_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
-    let (mut context, crate_id) = prepare_package(package);
-    let compiled_program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+) -> Result<(Option<InputValue>, WitnessMap), CliError> {
+    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
-
     let solved_witness =
         execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
     let public_abi = abi.public_abi();
@@ -85,60 +90,97 @@ fn execute_package<B: Backend>(
     Ok((return_value, solved_witness))
 }
 
-fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Option<usize> {
+/// There are certain errors that contain an [acvm::pwg::ErrorLocation].
+/// We need to determine whether the error location has been resolving during execution.
+/// If the location has been resolved we return the contained [OpcodeLocation].
+fn extract_opcode_error_from_nargo_error(
+    nargo_err: &NargoError,
+) -> Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)> {
     let solving_err = match nargo_err {
         nargo::NargoError::SolvingError(err) => err,
         _ => return None,
     };
 
     match solving_err {
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_label } => {
-            match opcode_label {
-                OpcodeLabel::Unresolved => {
-                    unreachable!("Cannot resolve index for unsatisfied constraint")
-                }
-                OpcodeLabel::Resolved(opcode_index) => Some(*opcode_index as usize),
-            }
+        acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+            opcode_location: error_location,
+            ..
         }
+        | acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain {
+            opcode_location: error_location,
+        } => match error_location {
+            ErrorLocation::Unresolved => {
+                unreachable!("Cannot resolve index for unsatisfied constraint")
+            }
+            ErrorLocation::Resolved(opcode_location) => Some((*opcode_location, solving_err)),
+        },
         _ => None,
     }
 }
-fn report_unsatisfied_constraint_error(
-    opcode_idx: Option<usize>,
+
+/// Resolve an [OpcodeLocation] using debug information generated during compilation
+/// to determine an opcode's call stack. Then report the error using the resolved
+/// call stack and any other relevant error information returned from the ACVM.
+fn report_error_with_opcode_location(
+    opcode_err_info: Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)>,
     debug: &DebugInfo,
     context: &Context,
 ) {
-    if let Some(opcode_index) = opcode_idx {
-        if let Some(loc) = debug.opcode_location(opcode_index) {
-            noirc_errors::reporter::report(
-                &context.file_manager,
-                &CustomDiagnostic::simple_error(
-                    "Unsatisfied constraint".to_string(),
-                    "Constraint failed".to_string(),
-                    loc.span,
-                ),
-                Some(loc.file),
-                false,
-            );
+    if let Some((opcode_location, opcode_err)) = opcode_err_info {
+        if let Some(locations) = debug.opcode_location(&opcode_location) {
+            // The location of the error itself will be the location at the top
+            // of the call stack (the last item in the Vec).
+            if let Some(location) = locations.last() {
+                let message = match opcode_err {
+                    acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+                        index,
+                        array_size,
+                        ..
+                    } => {
+                        format!(
+                            "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
+                        )
+                    }
+                    acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
+                        "Failed constraint".into()
+                    }
+                    _ => {
+                        // All other errors that do not have corresponding opcode locations
+                        // should not be reported in this method.
+                        // If an error with an opcode location is not handled in this match statement
+                        // the basic message attached to the original error from the ACVM should be reported.
+                        return;
+                    }
+                };
+                CustomDiagnostic::simple_error(message, String::new(), location.span)
+                    .in_file(location.file)
+                    .with_call_stack(locations)
+                    .report(&context.file_manager, false);
+            }
         }
     }
 }
 
-pub(crate) fn execute_program<B: Backend>(
-    backend: &B,
+pub(crate) fn execute_program(
+    _backend: &Backend,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
     debug_data: Option<(DebugInfo, Context)>,
-) -> Result<WitnessMap, CliError<B>> {
+) -> Result<WitnessMap, CliError> {
+    #[allow(deprecated)]
+    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+
     let initial_witness = abi.encode(inputs_map, None)?;
-    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness, true);
+
+    let solved_witness_err =
+        nargo::ops::execute_circuit(&blackbox_solver, circuit, initial_witness, true);
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
             if let Some((debug, context)) = debug_data {
-                let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(opcode_idx, &debug, &context);
+                let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
+                report_error_with_opcode_location(opcode_err_info, &debug, &context);
             }
 
             Err(crate::errors::CliError::NargoError(err))

@@ -1,7 +1,0 @@
-[package]
-name = "ec_baby_jubjub"
-description = "Baby Jubjub sanity checks"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

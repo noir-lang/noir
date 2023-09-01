@@ -1,0 +1,7 @@
+[package]
+name = "constrain_typo"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

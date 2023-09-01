@@ -5,10 +5,10 @@
 
 use clap::Args;
 use fm::FileId;
-use noirc_abi::FunctionSignature;
+use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::create_circuit;
-use noirc_frontend::graph::{CrateId, CrateName, CrateType};
+use noirc_evaluator::{create_circuit, into_abi_params};
+use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
@@ -21,6 +21,8 @@ mod program;
 
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
+
+const STD_CRATE_NAME: &str = "std";
 
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
@@ -52,15 +54,36 @@ pub fn compile_file(
     context: &mut Context,
     root_file: &Path,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let crate_id = prepare_crate(context, root_file, CrateType::Binary);
+    let crate_id = prepare_crate(context, root_file);
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
-/// Adds the file from the file system at `Path` to the crate graph
-pub fn prepare_crate(context: &mut Context, file_name: &Path, crate_type: CrateType) -> CrateId {
+/// Adds the file from the file system at `Path` to the crate graph as a root file
+pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
+    let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
+    let std_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
+    let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
+
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
-    context.crate_graph.add_crate_root(crate_type, root_file_id)
+    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
+    add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
+
+    root_crate_id
+}
+
+// Adds the file from the file system at `Path` to the crate graph
+pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
+    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+
+    let crate_id = context.crate_graph.add_crate(root_file_id);
+
+    // Every dependency has access to stdlib
+    let std_crate_id = context.stdlib_crate_id();
+    add_dep(context, crate_id, *std_crate_id, STD_CRATE_NAME.parse().unwrap());
+
+    crate_id
 }
 
 /// Adds a edge in the crate graph for two crates
@@ -70,32 +93,10 @@ pub fn add_dep(
     depends_on: CrateId,
     crate_name: CrateName,
 ) {
-    // Cannot depend on a binary
-    if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
-        panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
-    }
-
     context
         .crate_graph
         .add_dep(this_crate, crate_name, depends_on)
         .expect("cyclic dependency triggered");
-}
-
-/// Propagates a given dependency to every other crate.
-pub fn propagate_dep(
-    context: &mut Context,
-    dep_to_propagate: CrateId,
-    dep_to_propagate_name: &CrateName,
-) {
-    let crate_ids: Vec<_> =
-        context.crate_graph.iter_keys().filter(|crate_id| *crate_id != dep_to_propagate).collect();
-
-    for crate_id in crate_ids {
-        context
-            .crate_graph
-            .add_dep(crate_id, dep_to_propagate_name.clone(), dep_to_propagate)
-            .expect("ice: cyclic error triggered with std library");
-    }
 }
 
 /// Run the lexing, parsing, name resolution, and type checking passes.
@@ -107,19 +108,6 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
-    // Add the stdlib before we check the crate
-    // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
-    // however, the `create_non_local_crate` panics if you add the stdlib as the first crate in the graph and other
-    // parts of the code expect the `0` FileID to be the crate root. See also #1681
-    let std_crate_name = "std";
-    let path_to_std_lib_file = Path::new(std_crate_name).join("lib.nr");
-    let root_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
-
-    // You can add any crate type to the crate graph
-    // but you cannot depend on Binaries
-    let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
-    propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
-
     let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
@@ -130,15 +118,18 @@ pub fn check_crate(
     }
 }
 
-pub fn compute_function_signature(
+pub fn compute_function_abi(
     context: &Context,
     crate_id: &CrateId,
-) -> Option<FunctionSignature> {
+) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
     let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
 
-    Some(func_meta.into_function_signature(&context.def_interner))
+    let (parameters, return_type) = func_meta.into_function_signature();
+    let parameters = into_abi_params(context, parameters);
+    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
+    Some((parameters, return_type))
 }
 
 /// Run the frontend to check the crate for errors then compile the main function if there were none
@@ -155,10 +146,11 @@ pub fn compile_main(
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
         None => {
-            let err = FileDiagnostic {
-                    file_id: FileId::default(),
-                    diagnostic: CustomDiagnostic::from_message("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command")
-                };
+            // TODO(#2155): This error might be a better to exist in Nargo
+            let err = CustomDiagnostic::from_message(
+                "cannot compile crate into a program as it does not contain a `main` function",
+            )
+            .in_file(FileId::default());
             return Err(vec![err]);
         }
     };
@@ -181,6 +173,7 @@ pub fn compile_contracts(
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
+    // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
     let mut errors = warnings;
@@ -227,13 +220,13 @@ fn compile_contract(
     options: &CompileOptions,
 ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
     let mut functions = Vec::new();
-    let mut errs = Vec::new();
+    let mut errors = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
         let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
-            Err(err) => {
-                errs.push(err);
+            Err(new_error) => {
+                errors.push(new_error);
                 continue;
             }
         };
@@ -250,13 +243,14 @@ fn compile_contract(
             is_internal: func_meta.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
+            debug: function.debug,
         });
     }
 
-    if errs.is_empty() {
+    if errors.is_empty() {
         Ok(CompiledContract { name: contract.name, functions })
     } else {
-        Err(errs)
+        Err(errors)
     }
 }
 
@@ -272,7 +266,8 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
+    let (circuit, debug, abi) =
+        create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

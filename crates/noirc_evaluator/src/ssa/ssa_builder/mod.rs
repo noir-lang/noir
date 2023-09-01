@@ -14,7 +14,7 @@ use crate::ssa::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        dfg::InsertInstructionResult,
+        dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
     },
@@ -32,7 +32,7 @@ pub(crate) struct FunctionBuilder {
     pub(super) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
-    current_location: Option<Location>,
+    call_stack: CallStack,
 }
 
 impl FunctionBuilder {
@@ -53,7 +53,7 @@ impl FunctionBuilder {
             current_function: new_function,
             current_block,
             finished_functions: Vec::new(),
-            current_location: None,
+            call_stack: CallStack::new(),
         }
     }
 
@@ -150,7 +150,7 @@ impl FunctionBuilder {
             instruction,
             self.current_block,
             ctrl_typevars,
-            self.current_location,
+            self.call_stack.clone(),
         )
     }
 
@@ -174,7 +174,12 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.current_location = Some(location);
+        self.call_stack = im::Vector::unit(location);
+        self
+    }
+
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) -> &mut FunctionBuilder {
+        self.call_stack = call_stack;
         self
     }
 
@@ -233,8 +238,8 @@ impl FunctionBuilder {
     }
 
     /// Insert a constrain instruction at the end of the current block.
-    pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+    pub(crate) fn insert_constrain(&mut self, lhs: ValueId, rhs: ValueId) {
+        self.insert_instruction(Instruction::Constrain(lhs, rhs), None);
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -281,7 +286,12 @@ impl FunctionBuilder {
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
     ) {
-        self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments });
+        let call_stack = self.call_stack.clone();
+        self.terminate_block_with(TerminatorInstruction::Jmp {
+            destination,
+            arguments,
+            call_stack,
+        });
     }
 
     /// Terminate the current block with a jmpif instruction to jmp with the given arguments
@@ -375,7 +385,7 @@ mod tests {
 
     #[test]
     fn insert_constant_call() {
-        // `bits` should be an array of constants [1, 1, 1, 0...]:
+        // `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
         // let x = 7;
         // let bits = x.to_le_bits(8);
         let func_id = Id::test_new(0);
@@ -387,15 +397,22 @@ mod tests {
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
         let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
         let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
-        let call_result = builder.insert_call(to_bits_id, vec![input, length], result_types)[0];
+        let call_results =
+            builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let array = match &builder.current_function.dfg[call_result] {
+        let slice_len = match &builder.current_function.dfg[call_results[0]] {
+            Value::NumericConstant { constant, .. } => *constant,
+            _ => panic!(),
+        };
+        assert_eq!(slice_len, FieldElement::from(8_u128));
+
+        let slice = match &builder.current_function.dfg[call_results[1]] {
             Value::Array { array, .. } => array,
             _ => panic!(),
         };
-        assert_eq!(array[0], one);
-        assert_eq!(array[1], one);
-        assert_eq!(array[2], one);
-        assert_eq!(array[3], zero);
+        assert_eq!(slice[0], one);
+        assert_eq!(slice[1], one);
+        assert_eq!(slice[2], one);
+        assert_eq!(slice[3], zero);
     }
 }

@@ -7,7 +7,12 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::{
+    monomorphization::ast::{self, Binary, Expression, Program},
+    BinaryOpKind,
+};
+
+use crate::ssa::ir::types::NumericType;
 
 use self::{
     context::FunctionContext,
@@ -75,9 +80,7 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(constrain, location) => {
-                self.codegen_constrain(constrain, *location)
-            }
+            Expression::Constrain(expr, location) => self.codegen_constrain(expr, *location),
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
         }
@@ -118,8 +121,21 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let typ = Self::convert_non_tuple_type(&array.typ);
-                self.codegen_array(elements, typ)
+
+                let typ = Self::convert_type(&array.typ).flatten();
+                match array.typ {
+                    ast::Type::Array(_, _) => self.codegen_array(elements, typ[0].clone()),
+                    ast::Type::Slice(_) => {
+                        let slice_length =
+                            self.builder.field_constant(array.contents.len() as u128);
+                        let slice_contents = self.codegen_array(elements, typ[1].clone());
+                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                    }
+                    _ => unreachable!(
+                        "ICE: array literal type must be an array or a slice, but got {}",
+                        array.typ
+                    ),
+                }
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -192,7 +208,12 @@ impl<'a> FunctionContext<'a> {
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
-                self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
+                self.insert_binary(
+                    zero,
+                    noirc_frontend::BinaryOpKind::Subtract,
+                    rhs,
+                    unary.location,
+                )
             }
             noirc_frontend::UnaryOp::MutableReference => {
                 self.codegen_reference(&unary.rhs).map(|rhs| {
@@ -215,6 +236,14 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+        let element_types = Self::convert_type(element_type);
+        values.map_both(element_types, |value, element_type| {
+            let reference = value.eval(self);
+            self.builder.insert_load(reference, element_type).into()
+        })
+    }
+
     fn codegen_reference(&mut self, expr: &Expression) -> Values {
         match expr {
             Expression::Ident(ident) => self.codegen_ident_reference(ident),
@@ -233,9 +262,22 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
-        let array = self.codegen_non_tuple_expression(&index.collection);
+        let array_or_slice = self.codegen_expression(&index.collection).into_value_list(self);
         let index_value = self.codegen_non_tuple_expression(&index.index);
-        self.codegen_array_index(array, index_value, &index.element_type, index.location)
+        // Slices are represented as a tuple in the form: (length, slice contents).
+        // Thus, slices require two value ids for their representation.
+        let (array, slice_length) = if array_or_slice.len() > 1 {
+            (array_or_slice[1], Some(array_or_slice[0]))
+        } else {
+            (array_or_slice[0], None)
+        };
+        self.codegen_array_index(
+            array,
+            index_value,
+            &index.element_type,
+            index.location,
+            slice_length,
+        )
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -250,6 +292,7 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
+        length: Option<super::ir::value::ValueId>,
     ) -> Values {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
@@ -261,13 +304,53 @@ impl<'a> FunctionContext<'a> {
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
+
+            let array_type = &self.builder.type_of_value(array);
+            match array_type {
+                Type::Slice(_) => {
+                    self.codegen_slice_access_check(index, length);
+                }
+                Type::Array(..) => {
+                    // Nothing needs to done to prepare an array access on an array
+                }
+                _ => unreachable!("must have array or slice but got {array_type}"),
+            }
             self.builder.insert_array_get(array, offset, typ).into()
         })
+    }
+
+    /// Prepare a slice access.
+    /// Check that the index being used to access a slice element
+    /// is less than the dynamic slice length.
+    fn codegen_slice_access_check(
+        &mut self,
+        index: super::ir::value::ValueId,
+        length: Option<super::ir::value::ValueId>,
+    ) {
+        let array_len = length.expect("ICE: a length must be supplied for indexing slices");
+        // Check the type of the index value for valid comparisons
+        let array_len = match self.builder.type_of_value(index) {
+            Type::Numeric(numeric_type) => match numeric_type {
+                // If the index itself is an integer, keep the array length as a Field
+                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
+                // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
+                // Thus, we cast the array length to a u64 before performing the less than comparison
+                NumericType::NativeField => self
+                    .builder
+                    .insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 })),
+            },
+            _ => unreachable!("ICE: array index must be a numeric type"),
+        };
+
+        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+        let true_const = self.builder.numeric_constant(true, Type::bool());
+        self.builder.insert_constrain(is_offset_out_of_bounds, true_const);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
         let lhs = self.codegen_non_tuple_expression(&cast.lhs);
         let typ = Self::convert_non_tuple_type(&cast.r#type);
+        self.builder.set_location(cast.location);
         self.builder.insert_cast(lhs, typ).into()
     }
 
@@ -297,13 +380,24 @@ impl<'a> FunctionContext<'a> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
+        self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range);
+
+        self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range);
 
+        // Set the location of the initial jmp instruction to the start range. This is the location
+        // used to issue an error if the start range cannot be determined at compile-time.
+        self.builder.set_location(for_expr.start_range_location);
         self.builder.terminate_with_jmp(loop_entry, vec![start_index]);
 
         // Compile the loop entry block
         self.builder.switch_to_block(loop_entry);
+
+        // Set the location of the ending Lt instruction and the jmpif back-edge of the loop to the
+        // end range. These are the instructions used to issue an error if the end of the range
+        // cannot be determined at compile-time.
+        self.builder.set_location(for_expr.end_range_location);
         let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
         self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
 
@@ -424,8 +518,22 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
-        let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.set_location(location).insert_constrain(boolean);
+        match expr {
+            // If we're constraining an equality to be true then constrain the two sides directly.
+            Expression::Binary(Binary { lhs, operator, rhs, .. })
+                if operator == &BinaryOpKind::Equal =>
+            {
+                let lhs = self.codegen_non_tuple_expression(lhs);
+                let rhs = self.codegen_non_tuple_expression(rhs);
+                self.builder.set_location(location).insert_constrain(lhs, rhs);
+            }
+
+            _ => {
+                let expr = self.codegen_non_tuple_expression(expr);
+                let true_literal = self.builder.numeric_constant(true, Type::bool());
+                self.builder.set_location(location).insert_constrain(expr, true_literal);
+            }
+        }
         Self::unit_value()
     }
 

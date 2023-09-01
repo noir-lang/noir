@@ -1,6 +1,0 @@
-[package]
-name = "brillig_integer_binary_operations"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

@@ -1,4 +1,4 @@
-use crate::{FileDiagnostic, Span};
+use crate::{FileDiagnostic, Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
@@ -60,7 +60,7 @@ impl CustomDiagnostic {
     }
 
     pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
-        FileDiagnostic { file_id, diagnostic: self }
+        FileDiagnostic::new(file_id, self)
     }
 
     pub fn add_note(&mut self, message: String) {
@@ -73,6 +73,10 @@ impl CustomDiagnostic {
 
     pub fn is_error(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Error)
+    }
+
+    pub fn is_warning(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Warning)
     }
 }
 
@@ -111,12 +115,20 @@ pub fn report_all(
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
 ) -> ReportedErrors {
-    let error_count = diagnostics
-        .iter()
-        .map(|error| report(files, &error.diagnostic, Some(error.file_id), deny_warnings) as u32)
-        .sum();
+    // Report warnings before any errors
+    let (mut diagnostics, mut errors): (Vec<_>, _) =
+        diagnostics.iter().partition(|item| item.diagnostic.is_warning());
+    diagnostics.append(&mut errors);
+    let error_count =
+        diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
 
     ReportedErrors { error_count }
+}
+
+impl FileDiagnostic {
+    pub fn report(&self, files: &fm::FileManager, deny_warnings: bool) -> bool {
+        report(files, &self.diagnostic, Some(self.file_id), &self.call_stack, deny_warnings)
+    }
 }
 
 /// Report the given diagnostic, and return true if it was an error
@@ -124,12 +136,14 @@ pub fn report(
     files: &fm::FileManager,
     custom_diagnostic: &CustomDiagnostic,
     file: Option<fm::FileId>,
+    call_stack: &[Location],
     deny_warnings: bool,
 ) -> bool {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();
 
-    let diagnostic = convert_diagnostic(custom_diagnostic, file, deny_warnings);
+    let stack_trace = stack_trace(files, call_stack);
+    let diagnostic = convert_diagnostic(custom_diagnostic, file, stack_trace, deny_warnings);
     term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
 
     deny_warnings || custom_diagnostic.is_error()
@@ -138,6 +152,7 @@ pub fn report(
 fn convert_diagnostic(
     cd: &CustomDiagnostic,
     file: Option<fm::FileId>,
+    stack_trace: String,
     deny_warnings: bool,
 ) -> Diagnostic<usize> {
     let diagnostic = match (cd.kind, deny_warnings) {
@@ -150,7 +165,7 @@ fn convert_diagnostic(
             .iter()
             .map(|sl| {
                 let start_span = sl.span.start() as usize;
-                let end_span = sl.span.end() as usize + 1;
+                let end_span = sl.span.end() as usize;
                 Label::secondary(file_id.as_usize(), start_span..end_span).with_message(&sl.message)
             })
             .collect()
@@ -158,5 +173,46 @@ fn convert_diagnostic(
         vec![]
     };
 
-    diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
+    let mut notes = cd.notes.clone();
+    notes.push(stack_trace);
+
+    diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(notes)
+}
+
+fn stack_trace(files: &fm::FileManager, call_stack: &[Location]) -> String {
+    if call_stack.is_empty() {
+        return String::new();
+    }
+
+    let mut result = "Call stack:\n".to_string();
+
+    for (i, call_item) in call_stack.iter().enumerate() {
+        let path = files.path(call_item.file);
+        let source = files.fetch_file(call_item.file).source();
+
+        let (line, column) = location(source, call_item.span.start());
+        result += &format!("{}. {}.nr:{}:{}\n", i + 1, path.display(), line, column);
+    }
+
+    result
+}
+
+fn location(source: &str, span_start: u32) -> (u32, u32) {
+    let mut line = 1;
+    let mut column = 0;
+
+    for (i, char) in source.chars().enumerate() {
+        column += 1;
+
+        if char == '\n' {
+            line += 1;
+            column = 0;
+        }
+
+        if span_start <= i as u32 {
+            break;
+        }
+    }
+
+    (line, column)
 }

@@ -7,30 +7,40 @@
 //!    b. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
 //!    c. If not, try to unroll the loop. If successful, remember the modified
-//!       blocks. If not, remember that the loop failed to unroll and leave it
-//!       unmodified.
+//!       blocks. If unsuccessfuly either error if the abort_on_error flag is set,
+//!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
-        function::Function, function_inserter::FunctionInserter,
-        instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            cfg::ControlFlowGraph,
+            dfg::{CallStack, DataFlowGraph},
+            dom::DominatorTree,
+            function::{Function, RuntimeType},
+            function_inserter::FunctionInserter,
+            instruction::TerminatorInstruction,
+            post_order::PostOrder,
+            value::ValueId,
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// Unroll all loops in each SSA function.
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
-    pub(crate) fn unroll_loops(mut self) -> Ssa {
+    pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            find_all_loops(function).unroll_each_loop(function);
+            let abort_on_error = function.runtime() == RuntimeType::Acir;
+            find_all_loops(function).unroll_each_loop(function, abort_on_error)?;
         }
-        self
+        Ok(self)
     }
 }
 
@@ -44,7 +54,7 @@ struct Loop {
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    blocks: HashSet<BasicBlockId>,
+    pub(crate) blocks: HashSet<BasicBlockId>,
 }
 
 struct Loops {
@@ -96,25 +106,34 @@ fn find_all_loops(function: &Function) -> Loops {
 impl Loops {
     /// Unroll all loops within a given function.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    fn unroll_each_loop(mut self, function: &mut Function) {
+    fn unroll_each_loop(
+        mut self,
+        function: &mut Function,
+        abort_on_error: bool,
+    ) -> Result<(), RuntimeError> {
         while let Some(next_loop) = self.yet_to_unroll.pop() {
             // If we've previously modified a block in this loop we need to refresh the context.
             // This happens any time we have nested loops.
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
                 let mut new_context = find_all_loops(function);
                 new_context.failed_to_unroll = self.failed_to_unroll;
-                return new_context.unroll_each_loop(function);
+                return new_context.unroll_each_loop(function, abort_on_error);
             }
 
             // Don't try to unroll the loop again if it is known to fail
             if !self.failed_to_unroll.contains(&next_loop.header) {
-                if unroll_loop(function, &self.cfg, &next_loop).is_ok() {
-                    self.modified_blocks.extend(next_loop.blocks);
-                } else {
-                    self.failed_to_unroll.insert(next_loop.header);
+                match unroll_loop(function, &self.cfg, &next_loop) {
+                    Ok(_) => self.modified_blocks.extend(next_loop.blocks),
+                    Err(call_stack) if abort_on_error => {
+                        return Err(RuntimeError::UnknownLoopBound { call_stack });
+                    }
+                    Err(_) => {
+                        self.failed_to_unroll.insert(next_loop.header);
+                    }
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -151,7 +170,11 @@ fn find_blocks_in_loop(
 
 /// Unroll a single loop in the function.
 /// Returns Err(()) if it failed to unroll and Ok(()) otherwise.
-fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: &Loop) -> Result<(), ()> {
+fn unroll_loop(
+    function: &mut Function,
+    cfg: &ControlFlowGraph,
+    loop_: &Loop,
+) -> Result<(), CallStack> {
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
@@ -181,9 +204,9 @@ fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
 ///
 /// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
 /// a Field value.
-fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, ()> {
+fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
     match function.dfg[block].terminator() {
-        Some(TerminatorInstruction::Jmp { arguments, .. }) => {
+        Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
@@ -193,10 +216,10 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                Err(())
+                Err(location.clone())
             }
         }
-        _ => Err(()),
+        _ => Err(CallStack::new()),
     }
 }
 
@@ -208,7 +231,7 @@ fn unroll_loop_header<'a>(
     loop_: &'a Loop,
     unroll_into: BasicBlockId,
     induction_value: ValueId,
-) -> Result<Option<LoopIteration<'a>>, ()> {
+) -> Result<Option<LoopIteration<'a>>, CallStack> {
     // We insert into a fresh block first and move instructions into the unroll_into block later
     // only once we verify the jmpif instruction has a constant condition. If it does not, we can
     // just discard this fresh block and leave the loop unmodified.
@@ -225,7 +248,8 @@ fn unroll_loop_header<'a>(
 
     match context.dfg()[fresh_block].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
-            let next_blocks = context.handle_jmpif(*condition, *then_destination, *else_destination);
+            let condition = *condition;
+            let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination);
 
             // If there is only 1 next block the jmpif evaluated to a single known block.
             // This is the expected case and lets us know if we should loop again or not.
@@ -240,7 +264,7 @@ fn unroll_loop_header<'a>(
             } else {
                 // If this case is reached the loop either uses non-constant indices or we need
                 // another pass, such as mem2reg to resolve them to constants.
-                Err(())
+                Err(context.inserter.function.dfg.get_value_call_stack(condition))
             }
         }
         other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
@@ -332,7 +356,7 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 self.handle_jmpif(*condition, *then_destination, *else_destination)
             }
-            TerminatorInstruction::Jmp { destination, arguments } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     assert_eq!(arguments.len(), 1);
                     self.induction_value = Some((self.insert_block, arguments[0]));
@@ -361,7 +385,12 @@ impl<'f> LoopIteration<'f> {
 
                 self.source_block = self.get_original_block(destination);
 
-                let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
+                let arguments = Vec::new();
+                let jmp = TerminatorInstruction::Jmp {
+                    destination,
+                    arguments,
+                    call_stack: CallStack::new(),
+                };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
             }
@@ -507,7 +536,7 @@ mod tests {
         builder.switch_to_block(b5);
         let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
         let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5);
+        builder.insert_constrain(v5, one);
         let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
         builder.terminate_with_jmp(b4, vec![v6]);
 
@@ -547,7 +576,7 @@ mod tests {
         // }
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let ssa = ssa.unroll_loops();
+        let ssa = ssa.unroll_loops().expect("All loops should be unrolled");
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
     }
 
@@ -595,8 +624,7 @@ mod tests {
         let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
-        // Expected ssa is unchanged
-        let ssa = ssa.unroll_loops();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+        // Expected that we failed to unroll the loop
+        assert!(ssa.unroll_loops().is_err());
     }
 }

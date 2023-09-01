@@ -6,6 +6,7 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
+use super::ir::dfg::CallStack;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -19,16 +20,17 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
-    acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
+    acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
-use noirc_abi::AbiDistinctness;
+use noirc_frontend::Distinctness;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
@@ -93,7 +95,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::into_var on an array".to_string(),
-                location: None,
+                call_stack: CallStack::new(),
             }),
         }
     }
@@ -111,14 +113,14 @@ impl Ssa {
     pub(crate) fn into_acir(
         self,
         brillig: Brillig,
-        abi_distinctness: AbiDistinctness,
+        abi_distinctness: Distinctness,
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let context = Context::new();
         let mut generated_acir = context.convert_ssa(self, brillig, last_array_uses)?;
 
         match abi_distinctness {
-            AbiDistinctness::Distinct => {
+            Distinctness::Distinct => {
                 // Create a witness for each return witness we have
                 // to guarantee that the return witnesses are distinct
                 let distinct_return_witness: Vec<_> = generated_acir
@@ -134,7 +136,7 @@ impl Ssa {
                 generated_acir.return_witnesses = distinct_return_witness;
                 Ok(generated_acir)
             }
-            AbiDistinctness::DuplicationAllowed => Ok(generated_acir),
+            Distinctness::DuplicationAllowed => Ok(generated_acir),
         }
     }
 }
@@ -320,15 +322,70 @@ impl Context {
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
-        self.acir_context.set_location(dfg.get_location(&instruction_id));
+        self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::Constrain(value_id) => {
-                let constrain_condition = self.convert_numeric_value(*value_id, dfg)?;
-                self.acir_context.assert_eq_one(constrain_condition)?;
+            Instruction::Constrain(lhs, rhs) => {
+                let lhs = self.convert_value(*lhs, dfg);
+                let rhs = self.convert_value(*rhs, dfg);
+
+                fn get_var_equality_assertions(
+                    lhs: AcirValue,
+                    rhs: AcirValue,
+                    read_from_index: &mut impl FnMut(BlockId, usize) -> Result<AcirVar, InternalError>,
+                ) -> Result<Vec<(AcirVar, AcirVar)>, InternalError> {
+                    match (lhs, rhs) {
+                        (AcirValue::Var(lhs, _), AcirValue::Var(rhs, _)) => Ok(vec![(lhs, rhs)]),
+                        (AcirValue::Array(lhs_values), AcirValue::Array(rhs_values)) => {
+                            let var_equality_assertions = lhs_values
+                                .into_iter()
+                                .zip(rhs_values)
+                                .map(|(lhs, rhs)| {
+                                    get_var_equality_assertions(lhs, rhs, read_from_index)
+                                })
+                                .collect::<Result<Vec<_>, _>>()?
+                                .into_iter()
+                                .flatten()
+                                .collect();
+                            Ok(var_equality_assertions)
+                        }
+                        (
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                block_id: lhs_block_id,
+                                len,
+                            }),
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                block_id: rhs_block_id,
+                                ..
+                            }),
+                        ) => try_vecmap(0..len, |i| {
+                            let lhs_var = read_from_index(lhs_block_id, i)?;
+                            let rhs_var = read_from_index(rhs_block_id, i)?;
+                            Ok((lhs_var, rhs_var))
+                        }),
+                        _ => unreachable!("ICE: lhs and rhs should be of the same type"),
+                    }
+                }
+
+                let mut read_dynamic_array_index =
+                    |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
+                        let index = AcirValue::Var(
+                            self.acir_context.add_constant(FieldElement::from(array_index as u128)),
+                            AcirType::NumericType(NumericType::NativeField),
+                        );
+                        let index_var = index.into_var()?;
+
+                        self.acir_context.read_from_memory(block_id, &index_var)
+                    };
+
+                for (lhs, rhs) in
+                    get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
+                {
+                    self.acir_context.assert_eq_var(lhs, rhs)?;
+                }
             }
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg)?;
@@ -426,7 +483,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
-        self.acir_context.set_location(None);
+        self.acir_context.set_call_stack(CallStack::new());
         Ok(())
     }
 
@@ -434,7 +491,7 @@ impl Context {
         &self,
         func: &Function,
         brillig: &Brillig,
-    ) -> Result<Vec<Opcode>, InternalError> {
+    ) -> Result<GeneratedBrillig, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),
@@ -449,7 +506,7 @@ impl Context {
                 None => {
                     return Err(InternalError::General {
                         message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                        location: None,
+                        call_stack: CallStack::new(),
                     })
                 }
             };
@@ -478,7 +535,7 @@ impl Context {
                 return Err(RuntimeError::InternalError(InternalError::UnExpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
-                    location: self.acir_context.get_location(),
+                    call_stack: self.acir_context.get_call_stack(),
                 }))
             }
             AcirValue::Array(array) => {
@@ -487,11 +544,11 @@ impl Context {
                     let index = match index_const.try_to_u64() {
                         Some(index_const) => index_const as usize,
                         None => {
-                            let location = self.acir_context.get_location();
+                            let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::TypeConversion {
                                 from: "array index".to_string(),
                                 into: "u64".to_string(),
-                                location,
+                                call_stack,
                             });
                         }
                     };
@@ -499,11 +556,11 @@ impl Context {
                         // Ignore the error if side effects are disabled.
                         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
                         {
-                            let location = self.acir_context.get_location();
+                            let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::IndexOutOfBounds {
                                 index,
                                 array_size,
-                                location,
+                                call_stack,
                             });
                         }
                         let result_type =
@@ -558,7 +615,7 @@ impl Context {
                 _ => {
                     return Err(RuntimeError::UnInitialized {
                         name: "array".to_string(),
-                        location: self.acir_context.get_location(),
+                        call_stack: self.acir_context.get_call_stack(),
                     })
                 }
             }
@@ -620,7 +677,7 @@ impl Context {
                 _ => {
                     return Err(InternalError::General {
                         message: format!("Array {array} should be initialized"),
-                        location: self.acir_context.get_location(),
+                        call_stack: self.acir_context.get_call_stack(),
                     })
                 }
             }
@@ -770,12 +827,12 @@ impl Context {
             AcirValue::Array(array) => Err(InternalError::UnExpected {
                 expected: "a numeric value".to_string(),
                 found: format!("{array:?}"),
-                location: self.acir_context.get_location(),
+                call_stack: self.acir_context.get_call_stack(),
             }),
             AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
-                location: self.acir_context.get_location(),
+                call_stack: self.acir_context.get_call_stack(),
             }),
         }
     }
@@ -801,7 +858,7 @@ impl Context {
                     return Err(RuntimeError::UnsupportedIntegerSize {
                         num_bits: *bit_size,
                         max_num_bits: max_integer_bit_size,
-                        location: self.acir_context.get_location(),
+                        call_stack: self.acir_context.get_call_stack(),
                     });
                 }
             }
@@ -939,18 +996,27 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
-        let truncation_target = match &dfg[value_id] {
-            Value::Instruction { instruction, .. } => &dfg[*instruction],
-            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op"),
+        match &dfg[value_id] {
+            Value::Instruction { instruction, .. } => {
+                if matches!(
+                    &dfg[*instruction],
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub, .. })
+                ) {
+                    // Subtractions must first have the integer modulus added before truncation can be
+                    // applied. This is done in order to prevent underflow.
+                    let integer_modulus =
+                        self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
+                    var = self.acir_context.add_var(var, integer_modulus)?;
+                }
+            }
+            Value::Param { .. } => {
+                // Binary operations on params may have been entirely simplified if the operation
+                // results in the identity of the parameter
+            }
+            _ => unreachable!(
+                "ICE: Truncates are only ever applied to the result of a binary op or a param"
+            ),
         };
-        if matches!(truncation_target, Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
-        {
-            // Subtractions must first have the integer modulus added before truncation can be
-            // applied. This is done in order to prevent underflow.
-            let integer_modulus =
-                self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
-            var = self.acir_context.add_var(var, integer_modulus)?;
-        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
@@ -981,19 +1047,19 @@ impl Context {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
                 let limb_size = self.convert_value(arguments[2], dfg).into_var()?;
-                let result_type = Self::array_element_type(dfg, result_ids[0]);
+
+                let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.radix_decompose(endian, field, radix, limb_size, result_type)
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
-                let result_type = Self::array_element_type(dfg, result_ids[0]);
+
+                let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
             }
-            // TODO(#2115): Remove the println intrinsic as the oracle println is now used instead
-            Intrinsic::Println => Ok(Vec::new()),
             Intrinsic::Sort => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
                 // We flatten the inputs and retrieve the bit_size of the elements
@@ -1161,11 +1227,11 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.take_opcodes(), expected_opcodes);
         assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

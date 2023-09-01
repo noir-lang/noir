@@ -100,7 +100,7 @@ pub(crate) fn display_terminator(
     f: &mut Formatter,
 ) -> Result {
     match terminator {
-        Some(TerminatorInstruction::Jmp { destination, arguments }) => {
+        Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
             writeln!(f, "    jmp {}({})", destination, value_list(function, arguments))
         }
         Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) => {
@@ -145,8 +145,8 @@ pub(crate) fn display_instruction(
             let value = show(*value);
             writeln!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
         }
-        Instruction::Constrain(value) => {
-            writeln!(f, "constrain {}", show(*value))
+        Instruction::Constrain(lhs, rhs) => {
+            writeln!(f, "constrain {} == {}", show(*lhs), show(*rhs))
         }
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))

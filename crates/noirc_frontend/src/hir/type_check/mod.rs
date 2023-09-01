@@ -4,29 +4,27 @@
 //! the HIR of each function and outputs the inferred type of each HIR node into the NodeInterner,
 //! keyed by the ID of the node.
 //!
-//! The algorithm for checking and inferring types itself is somewhat ad-hoc. It includes both
-//! unification and subtyping, with the only difference between the two being how CompTime
-//! is handled (See note on CompTime and make_subtype_of for details). Additionally, although
-//! this algorithm features inference via TypeVariables, there is no generalization step as
-//! all functions are required to give their full signatures. Closures are inferred but are
+//! Although this algorithm features inference via TypeVariables, there is no generalization step
+//! as all functions are required to give their full signatures. Closures are inferred but are
 //! never generalized and thus cannot be used polymorphically.
 mod errors;
 mod expr;
 mod stmt;
 
 pub use errors::TypeCheckError;
-use noirc_errors::Span;
 
 use crate::{
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
+
+use self::errors::Source;
 
 type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 pub struct TypeChecker<'interner> {
     delayed_type_checks: Vec<TypeCheckFn>,
-    current_function: Option<FuncId>,
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
 }
@@ -41,7 +39,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_body = interner.function(&func_id);
     let function_body_id = function_body.as_expr();
 
-    let mut type_checker = TypeChecker::new(func_id, interner);
+    let mut type_checker = TypeChecker::new(interner);
 
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
@@ -62,16 +60,29 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
+        let (expr_span, empty_function) = function_info(interner, function_body_id);
+
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.make_subtype_with_coercions(
+        function_last_type.unify_with_coercions(
             &declared_return_type,
             *function_body_id,
             interner,
             &mut errors,
-            || TypeCheckError::TypeMismatch {
-                expected_typ: declared_return_type.to_string(),
-                expr_typ: function_last_type.to_string(),
-                expr_span: func_span,
+            || {
+                let mut error = TypeCheckError::TypeMismatchWithSource {
+                    expected: declared_return_type.clone(),
+                    actual: function_last_type.clone(),
+                    span: func_span,
+                    source: Source::Return(meta.return_type, expr_span),
+                };
+
+                if empty_function {
+                    error = error.add_context(
+                        "implicitly returns `()` as its body has no tail or `return` expression",
+                    );
+                }
+
+                error
             },
         );
     }
@@ -79,14 +90,31 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors
 }
 
+fn function_info(
+    interner: &mut NodeInterner,
+    function_body_id: &ExprId,
+) -> (noirc_errors::Span, bool) {
+    let (expr_span, empty_function) =
+        if let HirExpression::Block(block) = interner.expression(function_body_id) {
+            let last_stmt = block.statements().last();
+            let mut span = interner.expr_span(function_body_id);
+
+            if let Some(last_stmt) = last_stmt {
+                if let HirStatement::Expression(expr) = interner.statement(last_stmt) {
+                    span = interner.expr_span(&expr);
+                }
+            }
+
+            (span, last_stmt.is_none())
+        } else {
+            (interner.expr_span(function_body_id), false)
+        };
+    (expr_span, empty_function)
+}
+
 impl<'interner> TypeChecker<'interner> {
-    fn new(current_function: FuncId, interner: &'interner mut NodeInterner) -> Self {
-        Self {
-            delayed_type_checks: Vec::new(),
-            current_function: Some(current_function),
-            interner,
-            errors: vec![],
-        }
+    fn new(interner: &'interner mut NodeInterner) -> Self {
+        Self { delayed_type_checks: Vec::new(), interner, errors: vec![] }
     }
 
     pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
@@ -102,20 +130,9 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
-        let mut this = Self {
-            delayed_type_checks: Vec::new(),
-            current_function: None,
-            interner,
-            errors: vec![],
-        };
+        let mut this = Self { delayed_type_checks: Vec::new(), interner, errors: vec![] };
         this.check_statement(id);
         this.errors
-    }
-
-    fn is_unconstrained(&self) -> bool {
-        self.current_function.map_or(false, |current_function| {
-            self.interner.function_meta(&current_function).is_unconstrained
-        })
     }
 
     /// Wrapper of Type::unify using self.errors
@@ -123,21 +140,20 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         actual: &Type,
         expected: &Type,
-        span: Span,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.unify(expected, span, &mut self.errors, make_error);
+        actual.unify(expected, &mut self.errors, make_error);
     }
 
-    /// Wrapper of Type::make_subtype_of using self.errors
-    fn make_subtype_of(
+    /// Wrapper of Type::unify_with_coercions using self.errors
+    fn unify_with_coercions(
         &mut self,
         actual: &Type,
         expected: &Type,
         expression: ExprId,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.make_subtype_with_coercions(
+        actual.unify_with_coercions(
             expected,
             expression,
             self.interner,
@@ -159,7 +175,7 @@ mod test {
     use noirc_errors::{Location, Span};
 
     use crate::graph::CrateId;
-    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
+    use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
@@ -167,11 +183,10 @@ mod test {
     use crate::hir_def::types::Type;
     use crate::hir_def::{
         expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
-        function::{FuncMeta, HirFunction, Param},
+        function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
-    use crate::BinaryOpKind;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -179,6 +194,7 @@ mod test {
         },
         parse_program, FunctionKind, Path,
     };
+    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
     #[test]
     fn basic_let() {
@@ -220,7 +236,7 @@ mod test {
         // Create let statement
         let let_stmt = HirLetStatement {
             pattern: Identifier(z),
-            r#type: Type::FieldElement(crate::CompTime::No(None)),
+            r#type: Type::FieldElement,
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
@@ -247,18 +263,19 @@ mod test {
             is_internal: None,
             is_unconstrained: false,
             typ: Type::Function(
-                vec![Type::field(None), Type::field(None)],
+                vec![Type::FieldElement, Type::FieldElement],
                 Box::new(Type::Unit),
                 Box::new(Type::Unit),
             ),
             parameters: vec![
-                Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
-                Param(Identifier(y), Type::field(None), noirc_abi::AbiVisibility::Private),
+                (Identifier(x), Type::FieldElement, Visibility::Private),
+                (Identifier(y), Type::FieldElement, Visibility::Private),
             ]
             .into(),
-            return_visibility: noirc_abi::AbiVisibility::Private,
-            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
+            return_type: FunctionReturnType::Default(Span::default()),
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -402,7 +419,8 @@ mod test {
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
-        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+        let location = Location::new(Default::default(), file);
+        modules.insert(ModuleData::new(None, location, false));
 
         def_maps.insert(
             CrateId::dummy_id(),

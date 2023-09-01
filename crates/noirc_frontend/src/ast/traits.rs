@@ -3,7 +3,10 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
+use crate::{
+    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, UnresolvedGenerics,
+    UnresolvedType,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -11,6 +14,8 @@ use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: Vec<Ident>,
+    pub where_clause: Vec<TraitConstraint>,
+    pub span: Span,
     pub items: Vec<TraitItem>,
 }
 
@@ -22,8 +27,14 @@ pub enum TraitItem {
         name: Ident,
         generics: Vec<Ident>,
         parameters: Vec<(Ident, UnresolvedType)>,
-        return_type: UnresolvedType,
+        return_type: FunctionReturnType,
         where_clause: Vec<TraitConstraint>,
+        body: Option<BlockExpression>,
+    },
+    Constant {
+        name: Ident,
+        typ: UnresolvedType,
+        default_value: Option<Expression>,
     },
     Type {
         name: Ident,
@@ -57,10 +68,21 @@ pub struct TraitImpl {
     pub items: Vec<TraitImplItem>,
 }
 
-/// Represents a trait constraint such as `where Foo: Display`
+/// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
+/// Complex trait constraints such as `where Foo: Display + TraitX + TraitY<U, V>` are converted
+/// in the parser to a series of simple constraints:
+///   `Foo: Display`
+///   `Foo: TraitX`
+///   `Foo: TraitY<U, V>`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: UnresolvedType,
+    pub trait_bound: TraitBound,
+}
+
+/// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TraitBound {
     pub trait_name: Ident,
     pub trait_generics: Vec<UnresolvedType>,
 }
@@ -68,6 +90,7 @@ pub struct TraitConstraint {
 #[derive(Clone, Debug)]
 pub enum TraitImplItem {
     Function(NoirFunction),
+    Constant(Ident, UnresolvedType, Expression),
     Type { name: Ident, alias: UnresolvedType },
 }
 
@@ -110,7 +133,7 @@ impl Display for NoirTrait {
 impl Display for TraitItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause } => {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);
@@ -121,9 +144,24 @@ impl Display for TraitItem {
 
                 write!(
                     f,
-                    "fn {name}<{}>({}) -> {} where {};",
+                    "fn {name}<{}>({}) -> {} where {}",
                     generics, parameters, return_type, where_clause
-                )
+                )?;
+
+                if let Some(body) = body {
+                    write!(f, "{}", body)
+                } else {
+                    write!(f, ";")
+                }
+            }
+            TraitItem::Constant { name, typ, default_value } => {
+                write!(f, "let {}: {}", name, typ)?;
+
+                if let Some(default_value) = default_value {
+                    write!(f, "{};", default_value)
+                } else {
+                    write!(f, ";")
+                }
             }
             TraitItem::Type { name } => write!(f, "type {name};"),
         }
@@ -132,8 +170,18 @@ impl Display for TraitItem {
 
 impl Display for TraitConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.typ, self.trait_bound)
+    }
+}
+
+impl Display for TraitBound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
-        write!(f, "{}: {}<{}>", self.typ, self.trait_name, generics.join(", "))
+        if !generics.is_empty() {
+            write!(f, "{}<{}>", self.trait_name, generics.join(", "))
+        } else {
+            write!(f, "{}", self.trait_name)
+        }
     }
 }
 
@@ -159,7 +207,10 @@ impl Display for TraitImplItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TraitImplItem::Function(function) => function.fmt(f),
-            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias}"),
+            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
+            TraitImplItem::Constant(name, typ, value) => {
+                write!(f, "let {}: {} = {};", name, typ, value)
+            }
         }
     }
 }
