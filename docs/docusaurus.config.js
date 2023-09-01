@@ -90,9 +90,9 @@ const config = {
         },
       ],
       algolia: {
-        appId: "I5BXQIOJ1H",
-        apiKey: "aeeba49f90558700f8035c54e150080c",
-        indexName: "dev_docs",
+        appId: "YOMNCJ88NY",
+        apiKey: "ef5490899a6f9618f55c7997ba5b35b4",
+        indexName: "aztec--dev",
       },
       colorMode: {
         defaultMode: "light",
