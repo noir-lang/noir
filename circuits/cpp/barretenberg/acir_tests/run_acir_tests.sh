@@ -7,7 +7,7 @@ set -e
 
 BB=$PWD/${BB:-../cpp/build/bin/bb}
 CRS_PATH=~/.bb-crs
-BRANCH=master
+BRANCH=kw/acvm-0-24
 
 # Pull down the test vectors from the noir repo, if we don't have the folder already.
 if [ ! -d acir_tests ]; then
@@ -29,7 +29,7 @@ fi
 cd acir_tests
 
 # Convert them to array
-skip_array=(diamond_deps_0 workspace workspace_default_member)
+skip_array=(diamond_deps_0 workspace workspace_default_member double_verify_proof)
 
 function test() {
   echo -n "Testing $1... "

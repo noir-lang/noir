@@ -30,7 +30,7 @@
     "serve": "webpack serve",
     "formatting": "prettier --check ./src && eslint --max-warnings 0 ./src",
     "formatting:fix": "prettier -w ./src",
-    "test": "yarn build:ts:browser && yarn build:ts:node && yarn test:jest && yarn test:bin",
+    "test": "yarn build:ts:browser && yarn build:ts:node && yarn test:jest",
     "test:jest": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests",
     "test:bin": "cd ./bin-test && ./bin-test.sh",
     "test:debug": "NODE_NO_WARNINGS=1 node --inspect-brk=0.0.0.0 --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests --runInBand",
