@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::token::{Attribute, Token};
 use crate::{
     Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
-    Visibility,
+    UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -626,6 +626,39 @@ impl Display for Lambda {
     }
 }
 
+impl FunctionDefinition {
+    pub fn normal(
+        name: &Ident,
+        generics: &UnresolvedGenerics,
+        parameters: &[(Ident, UnresolvedType)],
+        body: &BlockExpression,
+        where_clause: &[TraitConstraint],
+        return_type: &FunctionReturnType,
+    ) -> FunctionDefinition {
+        let p = parameters
+            .iter()
+            .map(|(ident, unresolved_type)| {
+                (Pattern::Identifier(ident.clone()), unresolved_type.clone(), Visibility::Private)
+            })
+            .collect();
+        FunctionDefinition {
+            name: name.clone(),
+            attribute: None,
+            is_open: false,
+            is_internal: false,
+            is_unconstrained: false,
+            generics: generics.clone(),
+            parameters: p,
+            body: body.clone(),
+            span: name.span(),
+            where_clause: where_clause.to_vec(),
+            return_type: return_type.clone(),
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
+        }
+    }
+}
+
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(attribute) = &self.attribute {
@@ -636,14 +669,31 @@ impl Display for FunctionDefinition {
             format!("{name}: {visibility} {type}")
         });
 
+        let where_clause = vecmap(&self.where_clause, ToString::to_string);
+        let where_clause_str = if !where_clause.is_empty() {
+            format!("where {}", where_clause.join(", "))
+        } else {
+            "".to_string()
+        };
+
         write!(
             f,
-            "fn {}({}) -> {} {}",
+            "fn {}({}) -> {} {} {}",
             self.name,
             parameters.join(", "),
             self.return_type,
+            where_clause_str,
             self.body
         )
+    }
+}
+
+impl FunctionReturnType {
+    pub fn get_type(&self) -> &UnresolvedTypeData {
+        match self {
+            FunctionReturnType::Default(_span) => &UnresolvedTypeData::Unit,
+            FunctionReturnType::Ty(typ, _span) => &typ.typ,
+        }
     }
 }
 

@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
-use nargo::ops::{preprocess_program, prove_execution, verify_proof};
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
@@ -13,16 +11,15 @@ use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_package;
 use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
     inputs::{read_inputs_from_file, write_inputs_to_file},
     program::read_program_from_file,
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
-use crate::{cli::execute_cmd::execute_program, errors::CliError};
+use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliError};
+
+// TODO(#1388): pull this from backend.
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
@@ -51,11 +48,11 @@ pub(crate) struct ProveCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: ProveCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -82,8 +79,8 @@ pub(crate) fn run<B: Backend>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn prove_package<B: Backend>(
-    backend: &B,
+pub(crate) fn prove_package(
+    backend: &Backend,
     package: &Package,
     prover_name: &str,
     verifier_name: &str,
@@ -91,30 +88,22 @@ pub(crate) fn prove_package<B: Backend>(
     circuit_build_path: PathBuf,
     check_proof: bool,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
-    let common_reference_string = read_cached_common_reference_string();
-
-    let (common_reference_string, preprocessed_program, debug_data) = if circuit_build_path.exists()
-    {
+) -> Result<(), CliError> {
+    let (preprocessed_program, debug_data) = if circuit_build_path.exists() {
         let program = read_program_from_file(circuit_build_path)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.bytecode)
-                .map_err(CliError::CommonReferenceStringError)?;
-        (common_reference_string, program, None)
+
+        (program, None)
     } else {
         let (context, program) = compile_package(backend, package, compile_options)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
-        let (program, debug) = preprocess_program(backend, true, &common_reference_string, program)
-            .map_err(CliError::ProofSystemCompilerError)?;
-        (common_reference_string, program, Some((debug, context)))
+        let preprocessed_program = PreprocessedProgram {
+            backend: String::from(BACKEND_IDENTIFIER),
+            abi: program.abi,
+            bytecode: program.circuit,
+        };
+        (preprocessed_program, Some((program.debug, context)))
     };
 
-    write_cached_common_reference_string(&common_reference_string);
-
-    let PreprocessedProgram { abi, bytecode, proving_key, verification_key, .. } =
-        preprocessed_program;
+    let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
@@ -135,26 +124,11 @@ pub(crate) fn prove_package<B: Backend>(
         Format::Toml,
     )?;
 
-    let proving_key =
-        proving_key.expect("Proving key should exist as `true` is passed to `preprocess_program`");
-
-    let proof =
-        prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
-            .map_err(CliError::ProofSystemCompilerError)?;
+    let proof = backend.prove(&bytecode, solved_witness, false)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let verification_key = verification_key
-            .expect("Verification key should exist as `true` is passed to `preprocess_program`");
-        let valid_proof = verify_proof(
-            backend,
-            &common_reference_string,
-            &bytecode,
-            &proof,
-            public_inputs,
-            &verification_key,
-        )
-        .map_err(CliError::ProofSystemCompilerError)?;
+        let valid_proof = backend.verify(&proof, public_inputs, &bytecode, false)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

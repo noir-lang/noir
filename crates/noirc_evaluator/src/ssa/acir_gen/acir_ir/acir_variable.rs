@@ -6,12 +6,10 @@ use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::brillig::Opcode as BrilligOpcode;
+use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
-use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
-    circuit::brillig::{BrilligInputs, BrilligOutputs},
-};
 use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
 use acvm::{
     acir::{
@@ -284,8 +282,14 @@ impl AcirContext {
         let var_data = &self.vars[&var];
         if let AcirVarData::Const(constant) = var_data {
             // Note that this will return a 0 if the inverse is not available
-            let result_var = self.add_data(AcirVarData::Const(constant.inverse()));
-            return Ok(result_var);
+            let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
+
+            // Check that the inverted var is valid.
+            // This check prevents invalid divisons by zero.
+            let should_be_one = self.mul_var(inverted_var, var)?;
+            self.maybe_eq_predicate(should_be_one, predicate)?;
+
+            return Ok(inverted_var);
         }
 
         // Compute the inverse with brillig code
@@ -300,6 +304,8 @@ impl AcirContext {
         )?;
         let inverted_var = Self::expect_one_var(results);
 
+        // Check that the inverted var is valid.
+        // This check prevents invalid divisons by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -944,7 +950,6 @@ impl AcirContext {
         }
 
         // Otherwise we must generate ACIR for it and execute at runtime.
-
         let mut b_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
             AcirType::NumericType(_) => {

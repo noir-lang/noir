@@ -335,12 +335,19 @@ impl<'interner> TypeChecker<'interner> {
                     // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
                     if self.try_remove_implicit_dereference(method_call.object).is_none() {
                         // If that didn't work, then wrap the whole expression in an `&mut`
+                        let location = self.interner.id_location(method_call.object);
+
                         method_call.object =
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
                         self.interner.push_expr_type(&method_call.object, new_type);
+                        self.interner.push_expr_location(
+                            method_call.object,
+                            location.span,
+                            location.file,
+                        );
                     }
                 }
             }
@@ -567,6 +574,9 @@ impl<'interner> TypeChecker<'interner> {
             }));
             this.interner.push_expr_type(&old_lhs, lhs_type);
             this.interner.push_expr_type(access_lhs, element);
+
+            let old_location = this.interner.id_location(old_lhs);
+            this.interner.push_expr_location(*access_lhs, span, old_location.file);
         };
 
         match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {

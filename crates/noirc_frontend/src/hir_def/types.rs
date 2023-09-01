@@ -130,7 +130,7 @@ pub enum TraitItemType {
         name: Ident,
         generics: Generics,
         arguments: Vec<Type>,
-        return_type: Type,
+        return_type: Option<Type>,
         span: Span,
     },
 
@@ -195,6 +195,10 @@ impl Trait {
         generics: Generics,
     ) -> Trait {
         Trait { id, name, span, items, generics }
+    }
+
+    pub fn set_items(&mut self, items: Vec<TraitItemType>) {
+        self.items = items;
     }
 }
 

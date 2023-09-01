@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(x: Field, y: Field) {
     let pair = (x, y);
     assert(pair.0 == 1);

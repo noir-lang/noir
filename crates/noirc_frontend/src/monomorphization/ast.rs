@@ -92,6 +92,7 @@ pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
     pub result_type: Type,
+    pub location: Location,
 }
 
 pub type BinaryOp = BinaryOpKind;

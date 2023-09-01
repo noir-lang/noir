@@ -1,4 +1,3 @@
-
 fn main(a: u32, mut c: [u32; 4]){
     if a == c[0] {
         assert(c[0] == 0);

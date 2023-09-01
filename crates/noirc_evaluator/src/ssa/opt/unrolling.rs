@@ -44,7 +44,7 @@ impl Ssa {
     }
 }
 
-pub(crate) struct Loop {
+struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
     header: BasicBlockId,
@@ -57,12 +57,12 @@ pub(crate) struct Loop {
     pub(crate) blocks: HashSet<BasicBlockId>,
 }
 
-pub(crate) struct Loops {
+struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
     failed_to_unroll: HashSet<BasicBlockId>,
 
-    pub(crate) yet_to_unroll: Vec<Loop>,
+    yet_to_unroll: Vec<Loop>,
     modified_blocks: HashSet<BasicBlockId>,
     cfg: ControlFlowGraph,
     dom_tree: DominatorTree,
@@ -70,7 +70,7 @@ pub(crate) struct Loops {
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
-pub(crate) fn find_all_loops(function: &Function) -> Loops {
+fn find_all_loops(function: &Function) -> Loops {
     let cfg = ControlFlowGraph::with_function(function);
     let post_order = PostOrder::with_function(function);
     let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -454,8 +454,8 @@ impl<'f> LoopIteration<'f> {
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]
@@ -536,7 +536,7 @@ mod tests {
         builder.switch_to_block(b5);
         let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
         let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5);
+        builder.insert_constrain(v5, one);
         let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
         builder.terminate_with_jmp(b4, vec![v6]);
 
