@@ -130,10 +130,11 @@ impl GeneratedAcir {
         constants: Vec<FieldElement>,
         output_count: usize,
     ) -> Result<Vec<Witness>, InternalError> {
+        dbg!(output_count);
         let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, output_count);
-
+        dbg!(input_count);
         let outputs = vecmap(0..output_count, |_| self.next_witness_index());
 
         // clone is needed since outputs is moved when used in blackbox function.
@@ -258,15 +259,19 @@ impl GeneratedAcir {
                         AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
                     )
                 });
-
+                
+                // Slices are represented as a tuple of (length, slice contents).
+                // All inputs to the `RecursiveAggregation` black box func are slices,
+                // thus we must make sure to only fetch the slice contents rather than 
+                // the slice length when setting up the inputs.
                 let input_aggregation_object =
-                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
+                    if !has_previous_aggregation { None } else { Some(inputs[7].clone()) };
 
                 BlackBoxFuncCall::RecursiveAggregation {
-                    verification_key: inputs[0].clone(),
-                    proof: inputs[1].clone(),
-                    public_inputs: inputs[2].clone(),
-                    key_hash: inputs[3][0],
+                    verification_key: inputs[1].clone(),
+                    proof: inputs[3].clone(),
+                    public_inputs: inputs[5].clone(),
+                    key_hash: inputs[6][0],
                     input_aggregation_object,
                     output_aggregation_object: outputs,
                 }
