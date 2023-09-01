@@ -893,7 +893,6 @@ mod tests {
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
-        println!("{ssa}");
 
         // All loads should be removed
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
