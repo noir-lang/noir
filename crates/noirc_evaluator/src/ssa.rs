@@ -81,7 +81,7 @@ pub fn create_circuit(
         current_witness_index, return_witnesses, locations, input_witnesses, ..
     } = generated_acir;
 
-    let abi = gen_abi(&context.def_interner, func_sig, &input_witnesses, return_witnesses.clone());
+    let abi = gen_abi(context, func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =

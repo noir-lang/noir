@@ -6,7 +6,6 @@ use std::{
 
 use crate::errors::FilesystemError;
 
-pub(super) mod common_reference_string;
 pub(super) mod inputs;
 pub(super) mod program;
 pub(super) mod proof;

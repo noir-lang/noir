@@ -1,5 +1,6 @@
+use crate::backends::Backend;
 use crate::errors::{CliError, CompileError};
-use acvm::Backend;
+
 use clap::Args;
 use iter_extended::btree_map;
 use nargo::{package::Package, prepare_package};
@@ -29,11 +30,11 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    _backend: &B,
+pub(crate) fn run(
+    _backend: &Backend,
     args: CheckCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -135,7 +136,7 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
-                    name: String::from("MyStruct"),
+                    path: String::from("MyStruct"),
                     fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
