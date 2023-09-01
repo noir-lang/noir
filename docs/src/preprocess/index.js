@@ -1,4 +1,3 @@
-const { match } = require("assert");
 const fs = require("fs");
 const path = require("path");
 
@@ -168,19 +167,10 @@ function extractCodeSnippet(filePath, identifier) {
   // We have our code snippet!
   let codeSnippet = lines.join("\n");
 
-  let startCharIndex = startMatch.index;
-  let endCharIndex = endMatch.index;
-
-  const startLine = getLineNumberFromIndex(codeSnippet, startCharIndex) + 1;
-  const endLine =
-    getLineNumberFromIndex(codeSnippet, endCharIndex) -
-    1 -
-    linesToRemove.length;
-
   // The code snippet might contain some docusaurus highlighting comments for other identifiers. We should remove those.
   codeSnippet = processHighlighting(codeSnippet, identifier);
 
-  return [codeSnippet, startLine, endLine];
+  return [codeSnippet, startLineNum, endLineNum];
 }
 
 async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
@@ -207,9 +197,15 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
         matchesFound = true;
         const fullMatch = match[0];
         const identifier = match[1];
-        const codeFilePath = match[2]; // Absolute path to the code file from the root of the Docusaurus project
+        let codeFilePath = match[2];
         const language = match[3];
         const opts = match[4] || "";
+
+        if (codeFilePath.slice(0) != "/") {
+          // Absolute path to the code file from the root of the Docusaurus project
+          // Note: without prefixing with `/`, the later call to `path.resolve()` gives an incorrect path (absolute instead of relative)
+          codeFilePath = `/${codeFilePath}`;
+        }
 
         const noTitle = opts.includes("noTitle");
         const noLineNumbers = opts.includes("noLineNumbers");
@@ -224,10 +220,9 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
             identifier
           );
 
-          const url = `https://github.com/AztecProtocol/aztec-packages/blob/master/${path.resolve(
-            rootDir,
-            codeFilePath
-          )}#L${startLine}-L${endLine}`;
+          const relativeCodeFilePath = path.resolve(rootDir, codeFilePath);
+
+          const url = `https://github.com/AztecProtocol/aztec-packages/blob/master/${relativeCodeFilePath}#L${startLine}-L${endLine}`;
 
           const title = noTitle ? "" : `title="${identifier}"`;
           const lineNumbers = noLineNumbers ? "" : "showLineNumbers";
@@ -242,14 +237,8 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
           const lineNum = getLineNumberFromIndex(markdownContent, match.index);
           let wrapped_msg = `Error processing "${filePath}:${lineNum}": ${error.message}.`;
 
-          // Let's just output a warning, so we don't ruin our development experience.
-          // throw new Error(wrapped_msg);
-          console.warn(
-            "\n\x1b[33m%s\x1b[0m%s",
-            "[WARNING] ",
-            wrapped_msg,
-            "\n"
-          );
+          // We were warning here, but code snippets were being broken. So making this throw an error instead:
+          throw new Error(`${wrapped_msg}\n`);
         }
       }
 

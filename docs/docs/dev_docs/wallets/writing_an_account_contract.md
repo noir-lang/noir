@@ -40,13 +40,9 @@ Using the `EntrypointPayload` struct is not mandatory. You can package the instr
 
 Let's go step by step into what the `entrypoint` function is doing:
 
-#include_code entrypoint-init yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
-
-We first initialise the private function context using the provided arguments, as we do in any other function. We use a `BoundedVec` container to make it easy to collect the arguments into a single array to be hashed, but we could also have assembled it manually.
-
 #include_code entrypoint-auth yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
-Next is authenticating the transaction. To do this, we serialise and Pedersen-hash the payload, which contains the instructions to be carried out along with a nonce. We then assert that the signature verifies against the resulting hash and the contract public key. This makes a transaction with an invalid signature unprovable.
+We authenticate the transaction. To do this, we serialise and Pedersen-hash the payload, which contains the instructions to be carried out along with a nonce. We then assert that the signature verifies against the resulting hash and the contract public key. This makes a transaction with an invalid signature unprovable.
 
 #include_code entrypoint-auth yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
