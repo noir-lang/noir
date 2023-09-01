@@ -13,9 +13,7 @@ contract PrivateToken {
         utils as note_utils,
     };
 
-    // docs:start:storage-import
     use crate::storage::Storage;
-    // docs:end:storage-import
 
     // docs:start:constructor
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.

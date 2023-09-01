@@ -9,11 +9,19 @@
 
 ## secret functions
 
+> a.k.a. "private" functions
+
+#include_code functions-SecretFunction /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+
 ## `open` functions
+
+> a.k.a. "public" functions
+
+#include_code functions-OpenFunction /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 ## `unconstrained` functions
 
-
+#include_code functions-UncontrainedFunction /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 # Calling functions
 

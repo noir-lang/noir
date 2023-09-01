@@ -1,5 +1,6 @@
 use crate::note::note_header::NoteHeader;
 
+// docs:start:NoteInterface
 struct NoteInterface<Note, N> {
     deserialise: fn ([Field; N]) -> Note,
 
@@ -13,3 +14,4 @@ struct NoteInterface<Note, N> {
 
     set_header: fn (&mut Note, NoteHeader) -> (),
 }
+// docs:end:NoteInterface

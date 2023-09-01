@@ -8,14 +8,11 @@ use dep::value_note::value_note::{
     VALUE_NOTE_LEN,
 };
 
-// docs:start:storage-declaration
-// highlight-next-line:storage-declaration
 struct Storage {
     // maps an aztec address to its balance
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
 }
 
-// highlight-next-line:storage-declaration
 impl Storage {
     fn init() -> Self {
         Storage {
@@ -23,4 +20,3 @@ impl Storage {
         }
     }
 }
-// docs:end:storage-declaration

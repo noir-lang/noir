@@ -1,4 +1,3 @@
-// docs:start:PublicState
 use dep::aztec::state_vars::{
     map::Map,
     // highlight-start:PublicState
@@ -12,7 +11,6 @@ use dep::aztec::types::type_serialisation::field_serialisation::{
 };
 
 struct Storage {
-    // highlight-next-line:PublicState
     balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
 }
 
@@ -23,4 +21,3 @@ impl Storage {
         }
     }
 }
-// docs:end:PublicState
