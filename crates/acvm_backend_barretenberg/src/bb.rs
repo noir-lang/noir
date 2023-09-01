@@ -4,9 +4,8 @@ use const_format::formatcp;
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "barretenberg";
-// const VERSION: &str = "0.4.6";
-// const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
-const TAG: &str = formatcp!("nightly");
+const VERSION: &str = "0.5.0";
+const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
 
 const API_URL: &str =
     formatcp!("https://github.com/{}/{}/releases/download/{}", USERNAME, REPO, TAG);
