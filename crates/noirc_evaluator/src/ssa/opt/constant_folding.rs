@@ -18,13 +18,17 @@ impl Ssa {
     ///
     /// 1. Re-insert each instruction in order to apply the constant folding which is done automatically
     ///    by the [`DataFlowGraph`] as new instructions are pushed.
+    ///
+    ///    This is generally done automatically but this pass can become needed
+    ///    if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
+    ///    used on a value which enables instructions dependent on the value to
+    ///    now be simplified.
+    ///
     /// 2. Check for the existence of [pure instructions][Instruction::is_pure()] which have a duplicate earlier in the block.
     ///    These can be replaced with the results of this previous instruction.
     ///
-    /// This is generally done automatically but this pass can become needed
-    /// if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
-    /// used on a value which enables instructions dependent on the value to
-    /// now be simplified.
+    ///    This is only performed within this pass and so is needed when different blocks are merged,
+    ///    i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);
