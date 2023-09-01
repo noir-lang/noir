@@ -1184,7 +1184,7 @@ mod tests {
 
     use acvm::{
         acir::{
-            circuit::{Opcode, opcodes::BlockId},
+            circuit::{opcodes::BlockId, Opcode},
             native_types::{Expression, Witness},
         },
         FieldElement,
