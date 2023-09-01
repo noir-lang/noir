@@ -223,9 +223,8 @@ fn update_slice(
     let length =
         dfg.insert_instruction_and_results(instruction, block, None, call_stack.clone()).first();
 
-    let instruction = Instruction::MakeArray { elements };
-    let array =
-        dfg.insert_instruction_and_results(instruction, block, Some(vec![typ]), call_stack).first();
+    let instruction = Instruction::MakeArray { elements, typ };
+    let array = dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
 
     (length, array)
 }
@@ -317,11 +316,11 @@ fn make_constant_array(
         .collect();
 
     let typ = Type::Array(Rc::new(vec![element_type]), results_len);
-    let instruction = Instruction::MakeArray { elements };
+    let instruction = Instruction::MakeArray { elements, typ };
 
     // make_array instructions can't fail at runtime anyway, so this shouldn't need a call stack.
     let no_call_stack = im::Vector::new();
-    dfg.insert_instruction_and_results(instruction, block, Some(vec![typ]), no_call_stack).first()
+    dfg.insert_instruction_and_results(instruction, block, None, no_call_stack).first()
 }
 
 /// Returns a Value::Array of constants corresponding to the limbs of the radix decomposition.

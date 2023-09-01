@@ -155,7 +155,7 @@ pub(crate) fn display_instruction(
         Instruction::EnableSideEffects { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::MakeArray { elements } => {
+        Instruction::MakeArray { elements, typ: _ } => {
             writeln!(f, "make_array [{}]", value_list(function, elements))
         }
         Instruction::ArrayGet { array, index } => {

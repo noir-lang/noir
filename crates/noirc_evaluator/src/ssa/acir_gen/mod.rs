@@ -453,7 +453,7 @@ impl Context {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
                 self.current_side_effects_enabled_var = acir_var;
             }
-            Instruction::MakeArray { elements } => {
+            Instruction::MakeArray { elements, typ: _ } => {
                 let elements = elements
                     .iter()
                     .map(|element| self.convert_value(*element, dfg))

@@ -167,7 +167,6 @@ impl DataFlowGraph {
             }
             SimplifyResult::Remove => InstructionRemoved,
             result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
-                // TODO handle type when array set simplified to make_array which reqs typevars
                 let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
@@ -376,10 +375,12 @@ impl DataFlowGraph {
     /// instruction. Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, typ, position: _ } => {
+            Value::Instruction { instruction, .. } => {
                 match &self.instructions[*instruction] {
                     // Arrays are shared, so cloning them is cheap
-                    Instruction::MakeArray { elements } => Some((elements.clone(), typ.clone())),
+                    Instruction::MakeArray { elements, typ } => {
+                        Some((elements.clone(), typ.clone()))
+                    }
                     _ => None,
                 }
             }

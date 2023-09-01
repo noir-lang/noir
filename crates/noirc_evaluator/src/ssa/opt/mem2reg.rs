@@ -300,7 +300,7 @@ impl<'f> PerFunctionContext<'f> {
                 aliases.insert(result);
                 references.aliases.insert(Expression::Other(result), aliases);
             }
-            Instruction::MakeArray { elements } => {
+            Instruction::MakeArray { elements, typ: _ } => {
                 let array = self.inserter.function.dfg.instruction_results(instruction)[0];
                 self.check_array_aliasing(references, array, elements);
             }

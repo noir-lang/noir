@@ -452,7 +452,7 @@ impl<'block> BrilligBlock<'block> {
                     &dfg.type_of_value(*value),
                 );
             }
-            Instruction::MakeArray { elements } => {
+            Instruction::MakeArray { elements, typ: _ } => {
                 let result = dfg.instruction_results(instruction_id)[0];
 
                 let new_variable =

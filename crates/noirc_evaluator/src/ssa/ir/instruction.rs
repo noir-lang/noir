@@ -172,7 +172,13 @@ pub(crate) enum Instruction {
     ///
     /// Note that struct or tuple values may be stored in a single array. In this case, they are
     /// flattened such that a tuple of (a, (b, c), d) is stored in the array as [a0, b0, c0, d0, a1, b1, ...].
-    MakeArray { elements: im::Vector<ValueId> },
+    ///
+    /// The `typ` argument is currently needed so that we can simplify ArraySet instructions to
+    /// MakeArray instructions. ArraySet instructions do not require control type variables, so calls to
+    /// DataFlowGraph::insert_instruction_and_results will pass None for that parameter. Without a
+    /// typ argument here though, MakeArray would require a control type variable, so that compiler
+    /// would panic on calls where ArraySet was simplified to MakeArray and no type variables were provided.
+    MakeArray { elements: im::Vector<ValueId>, typ: Type },
 
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
@@ -194,6 +200,7 @@ impl Instruction {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
             Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
+            Instruction::MakeArray { typ, .. } => InstructionResultType::Known(typ.clone()),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
@@ -201,10 +208,9 @@ impl Instruction {
             Instruction::Constrain(_, _)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
-            Instruction::Load { .. }
-            | Instruction::MakeArray { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::Call { .. } => InstructionResultType::Unknown,
+            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
+                InstructionResultType::Unknown
+            }
         }
     }
 
@@ -307,9 +313,10 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 Instruction::EnableSideEffects { condition: f(*condition) }
             }
-            Instruction::MakeArray { elements } => {
-                Instruction::MakeArray { elements: elements.iter().map(|elem| f(*elem)).collect() }
-            }
+            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
+                elements: elements.iter().map(|elem| f(*elem)).collect(),
+                typ: typ.clone(),
+            },
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
@@ -348,7 +355,7 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate { .. } => (),
-            Instruction::MakeArray { elements } => {
+            Instruction::MakeArray { elements, typ: _ } => {
                 for element in elements {
                     f(*element);
                 }
@@ -419,15 +426,16 @@ impl Instruction {
                 None
             }
             Instruction::ArraySet { array, index, value } => {
-                let array = dfg.get_array_constant(*array);
+                let elements = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, _)), Some(index)) = (array, index) {
+                if let (Some((elements, _)), Some(index)) = (elements, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
 
-                    if index < array.len() {
-                        let elements = array.update(index, *value);
-                        return SimplifiedToInstruction(Instruction::MakeArray { elements });
+                    if index < elements.len() {
+                        let elements = elements.update(index, *value);
+                        let typ = dfg.type_of_value(*array);
+                        return SimplifiedToInstruction(Instruction::MakeArray { elements, typ });
                     }
                 }
                 None

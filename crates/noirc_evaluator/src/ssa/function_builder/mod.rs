@@ -254,8 +254,7 @@ impl FunctionBuilder {
         elements: im::Vector<ValueId>,
         typ: Type,
     ) -> ValueId {
-        let array_type = Some(vec![typ]);
-        self.insert_instruction(Instruction::MakeArray { elements }, array_type).first()
+        self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
     }
 
     /// Insert an instruction to extract an element from an array

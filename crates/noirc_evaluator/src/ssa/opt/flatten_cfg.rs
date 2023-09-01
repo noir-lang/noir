@@ -452,8 +452,8 @@ impl<'f> Context<'f> {
             }
         }
 
-        let instruction = Instruction::MakeArray { elements: merged };
-        self.insert_instruction_with_typevars(instruction, Some(vec![typ])).first()
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        self.insert_instruction_with_typevars(instruction, None).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -498,8 +498,8 @@ impl<'f> Context<'f> {
             }
         }
 
-        let instruction = Instruction::MakeArray { elements: merged };
-        self.insert_instruction_with_typevars(instruction, Some(vec![typ])).first()
+        let instruction = Instruction::MakeArray { elements: merged, typ };
+        self.insert_instruction_with_typevars(instruction, None).first()
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
