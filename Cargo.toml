@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "crates/acvm_backend_barretenberg",
     "crates/noirc_evaluator",
     "crates/noirc_frontend",
     "crates/noirc_errors",
@@ -16,17 +17,18 @@ members = [
     "crates/wasm",
 ]
 default-members = ["crates/nargo_cli"]
+resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.10.4"
+version = "0.10.5"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.22.0"
+acvm = "0.23.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

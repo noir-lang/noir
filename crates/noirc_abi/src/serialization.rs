@@ -88,11 +88,11 @@ mod tests {
         let deserialized_array: AbiParameter = serde_json::from_str(serialized_array).unwrap();
         assert_eq!(deserialized_array, expected_array);
 
-        let serialized_struct = "{   
+        let serialized_struct = "{
             \"name\":\"thing3\",
             \"type\": {
                 \"kind\":\"struct\",
-                \"name\": \"MyStruct\",
+                \"path\": \"MyStruct\",
                 \"fields\": [
                     {
                         \"name\": \"field1\",
@@ -120,7 +120,7 @@ mod tests {
         let expected_struct = AbiParameter {
             name: "thing3".to_string(),
             typ: AbiType::Struct {
-                name: "MyStruct".to_string(),
+                path: "MyStruct".to_string(),
                 fields: vec![
                     ("field1".to_string(), AbiType::Integer { sign: Sign::Unsigned, width: 3 }),
                     (
