@@ -274,6 +274,8 @@
     ],
     "dependencies": [
       "aztec.js",
+      "cli",
+      "foundation",
       "l1-artifacts",
       "noir-contracts"
     ]

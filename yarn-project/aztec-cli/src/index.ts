@@ -33,6 +33,8 @@ import {
   prepTx,
 } from './utils.js';
 
+export { cliTestSuite } from './test/cli_test_suite.js';
+
 const accountCreationSalt = Fr.ZERO;
 
 const stripLeadingHex = (hex: string) => {

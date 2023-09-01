@@ -23,6 +23,12 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../aztec-cli"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
       "path": "../l1-artifacts"
     },
     {

@@ -10,7 +10,7 @@ import {
 } from '@aztec/types';
 
 export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise<AztecRPC>) => {
-  describe(testName, function () {
+  describe(testName, () => {
     let rpc: AztecRPC;
 
     beforeAll(async () => {
