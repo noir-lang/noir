@@ -12,20 +12,31 @@ use async_lsp::{
 };
 use codespan_reporting::files;
 use fm::FILE_EXTENSION;
-use lsp_types::{
-    notification, request, CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic,
-    DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    InitializeParams, InitializeResult, InitializedParams, LogMessageParams, MessageType, Position,
-    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
+use nargo::{
+    ops::{run_test, TestStatus},
+    prepare_package,
 };
-use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::check_crate;
+use noirc_driver::{check_crate, CompileOptions};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
-use noirc_frontend::hir::FunctionNameMatch;
+use noirc_frontend::{
+    graph::{CrateId, CrateName},
+    hir::{Context, FunctionNameMatch},
+};
 use serde_json::Value as JsonValue;
 use tower::Service;
+
+mod types;
+
+use types::{
+    notification, request, CodeLens, CodeLensOptions, CodeLensParams, CodeLensResult, Command,
+    Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    InitializeParams, InitializeResult, InitializedParams, LogMessageParams, MessageType,
+    NargoCapability, NargoPackageTests, NargoTest, NargoTestId, NargoTestRunParams,
+    NargoTestRunResult, NargoTestsOptions, NargoTestsParams, NargoTestsResult, Position,
+    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions, Url,
+};
 
 const ARROW: &str = "▶\u{fe0e}";
 const TEST_COMMAND: &str = "nargo.test";
@@ -58,7 +69,9 @@ impl NargoLspService {
         router
             .request::<request::Initialize, _>(on_initialize)
             .request::<request::Shutdown, _>(on_shutdown)
-            .request::<request::CodeLensRequest, _>(on_code_lens_request)
+            .request::<request::CodeLens, _>(on_code_lens_request)
+            .request::<request::NargoTests, _>(on_tests_request)
+            .request::<request::NargoTestRun, _>(on_test_run_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -120,16 +133,182 @@ fn on_initialize(
 
         let code_lens = CodeLensOptions { resolve_provider: Some(false) };
 
+        let nargo = NargoCapability {
+            tests: Some(NargoTestsOptions {
+                fetch: Some(true),
+                run: Some(true),
+                update: Some(true),
+            }),
+        };
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(text_document_sync.into()),
                 code_lens_provider: Some(code_lens),
-                // Add capabilities before this spread when adding support for one
-                ..Default::default()
+                nargo: Some(nargo),
             },
             server_info: None,
         })
     }
+}
+
+fn on_test_run_request(
+    state: &mut LspState,
+    params: NargoTestRunParams,
+) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> {
+    let root_path = match &state.root_path {
+        Some(root) => root,
+        None => {
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Could not find project root",
+            )))
+        }
+    };
+
+    let toml_path = match find_package_manifest(root_path, root_path) {
+        Ok(toml_path) => toml_path,
+        Err(err) => {
+            // If we cannot find a manifest, we can't run the test
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                format!("{}", err),
+            )));
+        }
+    };
+
+    let crate_name = params.id.crate_name();
+    let function_name = params.id.function_name();
+
+    let workspace = match resolve_workspace_from_toml(
+        &toml_path,
+        PackageSelection::Selected(crate_name.clone()),
+    ) {
+        Ok(workspace) => workspace,
+        Err(err) => {
+            // If we found a manifest, but the workspace is invalid, we raise an error about it
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                format!("{}", err),
+            )));
+        }
+    };
+
+    // Since we filtered on crate name, this should be the only item in the iterator
+    match workspace.into_iter().next() {
+        Some(package) => {
+            let (mut context, crate_id) = prepare_package(package);
+            if check_crate(&mut context, crate_id, false).is_err() {
+                let result = NargoTestRunResult {
+                    id: params.id.clone(),
+                    result: "error".to_string(),
+                    message: Some("The project failed to compile".into()),
+                };
+                return future::ready(Ok(result));
+            };
+
+            let test_funcs = context.get_all_test_functions_in_crate_matching(
+                &crate_id,
+                FunctionNameMatch::Exact(function_name),
+            );
+
+            match test_funcs.into_iter().next() {
+                Some((_, test_function)) => {
+                    #[allow(deprecated)]
+                    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+                    let test_result = run_test(
+                        &blackbox_solver,
+                        &context,
+                        test_function,
+                        false,
+                        &CompileOptions::default(),
+                    );
+                    let result = match test_result {
+                        TestStatus::Pass => NargoTestRunResult {
+                            id: params.id.clone(),
+                            result: "pass".to_string(),
+                            message: None,
+                        },
+                        TestStatus::Fail { message } => NargoTestRunResult {
+                            id: params.id.clone(),
+                            result: "fail".to_string(),
+                            message: Some(message),
+                        },
+                        TestStatus::CompileError(diag) => NargoTestRunResult {
+                            id: params.id.clone(),
+                            result: "error".to_string(),
+                            message: Some(diag.diagnostic.message),
+                        },
+                    };
+                    future::ready(Ok(result))
+                }
+                None => future::ready(Err(ResponseError::new(
+                    ErrorCode::REQUEST_FAILED,
+                    format!("Could not locate test named: {function_name} in {crate_name}"),
+                ))),
+            }
+        }
+        None => future::ready(Err(ResponseError::new(
+            ErrorCode::REQUEST_FAILED,
+            format!("Could not locate package named: {crate_name}"),
+        ))),
+    }
+}
+
+fn on_tests_request(
+    state: &mut LspState,
+    _params: NargoTestsParams,
+) -> impl Future<Output = Result<NargoTestsResult, ResponseError>> {
+    let root_path = match &state.root_path {
+        Some(root) => root,
+        None => {
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Could not find project root",
+            )))
+        }
+    };
+
+    let toml_path = match find_package_manifest(root_path, root_path) {
+        Ok(toml_path) => toml_path,
+        Err(err) => {
+            // If we cannot find a manifest, we log a warning but return no tests
+            // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
+            let _ = state.client.log_message(LogMessageParams {
+                typ: MessageType::WARNING,
+                message: format!("{}", err),
+            });
+            return future::ready(Ok(None));
+        }
+    };
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
+        Ok(workspace) => workspace,
+        Err(err) => {
+            // If we found a manifest, but the workspace is invalid, we raise an error about it
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                format!("{}", err),
+            )));
+        }
+    };
+
+    let mut package_tests = Vec::new();
+
+    for package in &workspace {
+        let (mut context, crate_id) = prepare_package(package);
+        // We ignore the warnings and errors produced by compilation for producing tests
+        // because we can still get the test functions even if compilation fails
+        let _ = check_crate(&mut context, crate_id, false);
+
+        // We don't add test headings for a package if it contains no `#[test]` functions
+        if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
+            package_tests.push(NargoPackageTests { package: package.name.to_string(), tests });
+        }
+    }
+
+    let res = if package_tests.is_empty() { Ok(None) } else { Ok(Some(package_tests)) };
+
+    future::ready(res)
 }
 
 fn on_shutdown(
@@ -142,7 +321,7 @@ fn on_shutdown(
 fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
-) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
+) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
     let file_path = match params.text_document.uri.to_file_path() {
         Ok(file_path) => file_path,
         Err(()) => {
@@ -415,6 +594,14 @@ fn on_did_save_text_document(
             Err(errors_and_warnings) => errors_and_warnings,
         };
 
+        // We don't add test headings for a package if it contains no `#[test]` functions
+        if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
+            let _ = state.client.notify::<notification::NargoUpdateTests>(NargoPackageTests {
+                package: package.name.to_string(),
+                tests,
+            });
+        }
+
         if !file_diagnostics.is_empty() {
             let fm = &context.file_manager;
             let files = fm.as_file_map();
@@ -445,7 +632,7 @@ fn on_did_save_text_document(
                     range,
                     severity,
                     message: diagnostic.message,
-                    ..Diagnostic::default()
+                    ..Default::default()
                 })
             }
         }
@@ -467,12 +654,46 @@ fn on_exit(_state: &mut LspState, _params: ()) -> ControlFlow<Result<(), async_l
     ControlFlow::Continue(())
 }
 
+fn get_package_tests_in_crate(
+    context: &Context,
+    crate_id: &CrateId,
+    crate_name: &CrateName,
+) -> Option<Vec<NargoTest>> {
+    let fm = &context.file_manager;
+    let files = fm.as_file_map();
+    let tests =
+        context.get_all_test_functions_in_crate_matching(crate_id, FunctionNameMatch::Anything);
+
+    let mut package_tests = Vec::new();
+
+    for (func_name, test_function) in tests {
+        let location = context.function_meta(&test_function.get_id()).name.location;
+        let file_id = location.file;
+
+        let file_path = fm.path(file_id).with_extension(FILE_EXTENSION);
+        let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+
+        package_tests.push(NargoTest {
+            id: NargoTestId::new(crate_name.clone(), func_name.clone()),
+            label: func_name,
+            uri: Url::from_file_path(file_path)
+                .expect("Expected a valid file path that can be converted into a URI"),
+            range,
+        })
+    }
+
+    if package_tests.is_empty() {
+        None
+    } else {
+        Some(package_tests)
+    }
+}
+
 fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     files: &'a F,
     file_id: F::FileId,
     span: ops::Range<usize>,
 ) -> Option<Range> {
-    // TODO(#1683): Codespan ranges are often (always?) off by some amount of characters
     if let Ok(codespan_range) = codespan_lsp::byte_span_to_range(files, file_id, span) {
         // We have to manually construct a Range because the codespan_lsp restricts lsp-types to the wrong version range
         // TODO: codespan is unmaintained and we should probably subsume it. Ref https://github.com/brendanzab/codespan/issues/345
