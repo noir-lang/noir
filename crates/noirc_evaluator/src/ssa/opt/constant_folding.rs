@@ -5,7 +5,7 @@ use iter_extended::vecmap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::InsertInstructionResult,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
         value::ValueId,
@@ -14,7 +14,12 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Performs constant folding on each instruction.
+    /// Performs constant folding on each instruction. This is done by two methods:
+    ///
+    /// 1. Re-insert each instruction in order to apply the constant folding which is done automatically
+    ///    by the [`DataFlowGraph`] as new instructions are pushed.
+    /// 2. Check for the existence of [pure instructions][Instruction::is_pure()] which have a duplicate earlier in the block.
+    ///    These can be replaced with the results of this previous instruction.
     ///
     /// This is generally done automatically but this pass can become needed
     /// if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
@@ -59,58 +64,82 @@ impl Context {
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::new();
 
         for instruction_id in instructions {
-            self.push_instruction(function, block, instruction_id, &mut cached_instruction_results);
+            Self::fold_constants_into_instruction(
+                &mut function.dfg,
+                block,
+                instruction_id,
+                &mut cached_instruction_results,
+            );
         }
         self.block_queue.extend(function.dfg[block].successors());
     }
 
-    fn push_instruction(
-        &mut self,
-        function: &mut Function,
+    fn fold_constants_into_instruction(
+        dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         id: InstructionId,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
     ) {
-        let instruction = function.dfg[id].clone();
-        let old_results = function.dfg.instruction_results(id).to_vec();
+        let instruction = Self::resolve_instruction(id, dfg);
+        let old_results = dfg.instruction_results(id).to_vec();
 
-        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        let instruction = instruction.map_values(|value_id| function.dfg.resolve(value_id));
-
-        // If a copy of this instruction exists earlier in the block then reuse the previous results.
+        // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cached_results) = instruction_result_cache.get(&instruction) {
             for (old_result, new_result) in old_results.iter().zip(cached_results) {
-                function.dfg.set_value_from_id(*old_result, *new_result);
+                dfg.set_value_from_id(*old_result, *new_result);
             }
             return;
         }
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
+        // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
+        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
 
-        let call_stack = function.dfg.get_call_stack(id);
-        let new_results = match function.dfg.insert_instruction_and_results(
-            instruction.clone(),
-            block,
-            ctrl_typevars,
-            call_stack,
-        ) {
-            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-            InsertInstructionResult::InstructionRemoved => vec![],
-        };
-        assert_eq!(old_results.len(), new_results.len());
-
-        // If the instruction doesn't have side-effects, cache the results so we can reuse them if
+        // If the instruction is pure then we cache the results so we can reuse them if
         // the same instruction appears again later in the block.
-        if instruction.is_pure(&function.dfg) {
+        if instruction.is_pure(dfg) {
             instruction_result_cache.insert(instruction, new_results.clone());
         }
         for (old_result, new_result) in old_results.iter().zip(new_results) {
-            function.dfg.set_value_from_id(*old_result, new_result);
+            dfg.set_value_from_id(*old_result, new_result);
         }
+    }
+
+    /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
+    fn resolve_instruction(instruction_id: InstructionId, dfg: &DataFlowGraph) -> Instruction {
+        let instruction = dfg[instruction_id].clone();
+
+        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
+        instruction.map_values(|value_id| dfg.resolve(value_id))
+    }
+
+    /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
+    /// based on newly resolved values for its inputs.
+    ///
+    /// This may result in the [`Instruction`] being optimized away or replaced with a constant value.
+    fn push_instruction(
+        id: InstructionId,
+        instruction: Instruction,
+        old_results: &[ValueId],
+        block: BasicBlockId,
+        dfg: &mut DataFlowGraph,
+    ) -> Vec<ValueId> {
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
+
+        let call_stack = dfg.get_call_stack(id);
+        let new_results =
+            match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
+            {
+                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
+                InsertInstructionResult::InstructionRemoved => vec![],
+            };
+        // Optimizations while inserting the instruction should not change the number of results.
+        assert_eq!(old_results.len(), new_results.len());
+
+        new_results
     }
 }
 
