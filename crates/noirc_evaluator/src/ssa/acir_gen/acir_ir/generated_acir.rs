@@ -497,8 +497,9 @@ impl GeneratedAcir {
         // Constrain `r < 2^{max_rhs_bits}`.
         //
         // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
-        // This range constraint is required however otherwise as the bound constraint creates a new witness.
-        // This opcode will be optimized out if it is redundant so we keep it for safety.
+        // In the case where `rhs` isn't a power of 2 then this range constraint is required
+        // as the bound constraint creates a new witness.
+        // This opcode will be optimized out if it is redundant so we always add it for safety.
         self.range_constraint(r_witness, max_rhs_bits)?;
 
         // Constrain `r < rhs`.
