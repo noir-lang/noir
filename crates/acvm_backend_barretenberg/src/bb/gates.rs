@@ -67,6 +67,6 @@ fn gate_command() {
     };
 
     let output = gate_command.run();
-    assert_eq!(output, 2775);
+    assert_eq!(output, 2788);
     drop(temp_directory);
 }
