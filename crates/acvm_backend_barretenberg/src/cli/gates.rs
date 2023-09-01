@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::{assert_binary_exists, get_binary_path};
+use crate::BackendError;
 
 /// GatesCommand will call the barretenberg binary
 /// to return the number of gates needed to create a proof
@@ -11,9 +11,8 @@ pub(crate) struct GatesCommand {
 }
 
 impl GatesCommand {
-    pub(crate) fn run(self) -> u32 {
-        assert_binary_exists();
-        let output = std::process::Command::new(get_binary_path())
+    pub(crate) fn run(self, binary_path: &Path) -> Result<u32, BackendError> {
+        let output = std::process::Command::new(binary_path)
             .arg("gates")
             .arg("-c")
             .arg(self.crs_path)
@@ -23,17 +22,17 @@ impl GatesCommand {
             .expect("Failed to execute command");
 
         if !output.status.success() {
-            panic!(
-                "gates command encountered an error: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            return Err(BackendError(String::from_utf8(output.stderr).unwrap()));
         }
         // Note: barretenberg includes the newline, so that subsequent prints to stdout
         // are not on the same line as the gates output.
 
         // Ensure we got the expected number of bytes
         if output.stdout.len() != 8 {
-            panic!("Unexpected 8 bytes, received {}", output.stdout.len());
+            return Err(BackendError(format!(
+                "Unexpected 8 bytes, received {}",
+                output.stdout.len()
+            )));
         }
 
         // Convert bytes to u64 in little-endian format
@@ -48,24 +47,20 @@ impl GatesCommand {
             output.stdout[7],
         ]);
 
-        value as u32
+        Ok(value as u32)
     }
 }
 
 #[test]
 #[serial_test::serial]
 fn gate_command() {
-    use tempfile::tempdir;
-
+    let backend = crate::get_bb();
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
-    let temp_directory = tempdir().expect("could not create a temporary directory");
-    let temp_directory_path = temp_directory.path();
-    let crs_path = temp_directory_path.join("crs");
+    let crs_path = backend.backend_directory();
 
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
-    let output = gate_command.run();
+    let output = gate_command.run(&backend.binary_path()).unwrap();
     assert_eq!(output, 2775);
-    drop(temp_directory);
 }

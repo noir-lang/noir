@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::{assert_binary_exists, get_binary_path, CliShimError};
+use crate::BackendError;
 
 /// WriteCommand will call the barretenberg binary
 /// to write a verification key to a file
@@ -13,9 +13,8 @@ pub(crate) struct WriteVkCommand {
 }
 
 impl WriteVkCommand {
-    pub(crate) fn run(self) -> Result<(), CliShimError> {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("write_vk")
@@ -34,11 +33,10 @@ impl WriteVkCommand {
         }
 
         let output = command.output().expect("Failed to execute command");
-
         if output.status.success() {
             Ok(())
         } else {
-            Err(CliShimError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
         }
     }
 }
@@ -48,12 +46,14 @@ impl WriteVkCommand {
 fn write_vk_command() {
     use tempfile::tempdir;
 
+    let backend = crate::get_bb();
+
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
-    let temp_directory_path = temp_directory.path();
-    let crs_path = temp_directory_path.join("crs");
-    let vk_path_output = temp_directory_path.join("vk");
+    let vk_path_output = temp_directory.path().join("vk");
+
+    let crs_path = backend.backend_directory();
 
     let write_vk_command = WriteVkCommand {
         verbose: true,
@@ -63,7 +63,7 @@ fn write_vk_command() {
         vk_path_output,
     };
 
-    let vk_written = write_vk_command.run();
+    let vk_written = write_vk_command.run(&backend.binary_path());
     assert!(vk_written.is_ok());
     drop(temp_directory);
 }

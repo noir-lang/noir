@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::{assert_binary_exists, get_binary_path, CliShimError};
+use crate::BackendError;
 
 /// VerifyCommand will call the barretenberg binary
 /// to return a solidity library with the verification key
@@ -17,9 +17,8 @@ pub(crate) struct ContractCommand {
 }
 
 impl ContractCommand {
-    pub(crate) fn run(self) -> Result<(), CliShimError> {
-        assert_binary_exists();
-        let mut command = std::process::Command::new(get_binary_path());
+    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+        let mut command = std::process::Command::new(binary_path);
 
         command
             .arg("contract")
@@ -38,7 +37,7 @@ impl ContractCommand {
         if output.status.success() {
             Ok(())
         } else {
-            Err(CliShimError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
         }
     }
 }
@@ -48,13 +47,16 @@ impl ContractCommand {
 fn contract_command() {
     use tempfile::tempdir;
 
+    let backend = crate::get_bb();
+
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let crs_path = temp_directory_path.join("crs");
     let vk_path = temp_directory_path.join("vk");
     let contract_path = temp_directory_path.join("contract");
+
+    let crs_path = backend.backend_directory();
 
     let write_vk_command = super::WriteVkCommand {
         verbose: true,
@@ -64,10 +66,10 @@ fn contract_command() {
         crs_path: crs_path.clone(),
     };
 
-    assert!(write_vk_command.run().is_ok());
+    assert!(write_vk_command.run(&backend.binary_path()).is_ok());
 
     let contract_command = ContractCommand { verbose: true, vk_path, crs_path, contract_path };
 
-    assert!(contract_command.run().is_ok());
+    assert!(contract_command.run(&backend.binary_path()).is_ok());
     drop(temp_directory);
 }
