@@ -2,9 +2,9 @@ type Foo<T> = [T; 2];
 
 type Bar = Field;
 
-type Three = Two<u8>;
-type Two<A> = One<A, u32>;
 type One<A, B> = (A, B);
+type Two<A> = One<A, u32>;
+type Three = Two<u8>;
 
 struct MyStruct {
     foo: Bar,
