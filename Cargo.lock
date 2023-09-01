@@ -4,8 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c0287862805552930d12b43d087b82bda06d9d1ab52b25b9973adeb312416a4"
 dependencies = [
  "acir_field",
  "bincode",
@@ -17,8 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d349495b437a995f6803986630b28efc019f8900ff62adbdbd2ecb10ddced5"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -30,8 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64f1bcac4479888319caf3fab4e3b74f587ab34d4e1a50706364dec2d4c60b1b"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -62,8 +65,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f9fb9004713c582ce85fce85267526c973ead882338775e294463131a03c67b"
 dependencies = [
  "acir",
  "blake2",
@@ -85,8 +89,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34406915c37eee16ae9278ac99031a087a934dd8607f845aceb83d49fdfa7727"
 dependencies = [
  "acir",
 ]
@@ -489,8 +494,9 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b49b33f6c76f183a5a0ac9700f96e9f0cbe70cd7cc7f9f8bc5cadc639e3e2162"
 dependencies = [
  "acir_field",
  "serde",
@@ -498,8 +504,9 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.23.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/remove-btreemap-temp#4b80e607ac24a9ed7397dabf23ba99960267412d"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1537b96605a5e2e12ff9bfecb8275a2ba5c01adc870dc81635636639463720d0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
