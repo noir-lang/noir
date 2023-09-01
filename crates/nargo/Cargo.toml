@@ -11,6 +11,10 @@ edition.workspace = true
 rustc_version = "0.4.0"
 
 [dependencies]
+
+# Backends
+acvm-backend-barretenberg = { path = "../acvm_backend_barretenberg" }
+
 acvm.workspace = true
 fm.workspace = true
 noirc_abi.workspace = true
