@@ -711,24 +711,24 @@ impl NodeInterner {
         }
     }
 
-    // If the self_type did not have implemented the trait_id, None is returned.
-    // If the self_type did have implemented the trait, the provided methods are updated, and the old implementaion methods are returned.
+    pub fn get_previous_trait_implementation(&self, key: &(Type, TraitId)) -> Option<&Ident> {
+        self.trait_implementaions.get(key)
+    }
+
     pub fn add_trait_implementaion(
         &mut self,
-        self_type: &Type,
-        trait_id: &TraitId,
-        location: &Ident,
+        key: &(Type, TraitId),
+        trait_definition_ident: &Ident,
         methods: &UnresolvedFunctions,
-    ) -> Option<Ident> {
-        let key = (self_type.clone(), *trait_id);
-        let _func_ids = methods
+    ) -> Vec<FuncId> {
+        self.trait_implementaions.insert(key.clone(), trait_definition_ident.clone());
+        methods
             .functions
             .iter()
             .flat_map(|(_, func_id, _)| {
-                self.add_method(self_type, self.function_name(func_id).to_owned(), *func_id)
+                self.add_method(&key.0, self.function_name(func_id).to_owned(), *func_id)
             })
-            .collect::<Vec<FuncId>>();
-        self.trait_implementaions.insert(key, location.clone())
+            .collect::<Vec<FuncId>>()
     }
 
     /// Search by name for a method on the given struct

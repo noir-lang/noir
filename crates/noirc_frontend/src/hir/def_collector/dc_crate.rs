@@ -686,19 +686,19 @@ fn resolve_trait_impls(
             errors,
         );
 
-        if let Some(first_def) = interner.add_trait_implementaion(
-            &self_type,
-            &trait_id,
-            &trait_impl.trait_impl_ident,
-            &trait_impl.methods,
-        ) {
+        let trait_definition_ident = &trait_impl.trait_impl_ident;
+        let key = (self_type, trait_id);
+        if let Some(first_def) = interner.get_previous_trait_implementation(&key) {
             // trait is implemented more then one time !
             let err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::TraitImplementation,
                 first_def,
-                second_def: trait_impl.trait_impl_ident,
+                second_def: trait_definition_ident.clone(),
             };
             errors.push(err.into_file_diagnostic(trait_impl.methods.file_id));
+        } else {
+            let func_ids =
+                interner.add_trait_implementaion(&key, trait_definition_ident, &trait_impl.methods);
         }
 
         ////////////////////////////////////////
