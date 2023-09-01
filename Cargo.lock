@@ -2152,7 +2152,6 @@ name = "nargo"
 version = "0.10.5"
 dependencies = [
  "acvm",
- "acvm-backend-barretenberg",
  "base64",
  "fm",
  "iter-extended",
