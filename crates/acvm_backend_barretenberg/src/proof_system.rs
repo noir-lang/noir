@@ -5,20 +5,18 @@ use std::path::Path;
 use acvm::acir::circuit::Opcode;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap, BlackBoxFunc};
 use acvm::FieldElement;
-use acvm::{Language, ProofSystemCompiler};
+use acvm::Language;
 use tempfile::tempdir;
 
 use crate::bb::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{BackendError, Barretenberg};
+use crate::{Backend, BackendError};
 
-impl ProofSystemCompiler for Barretenberg {
-    type Error = BackendError;
-
-    fn np_language(&self) -> Language {
+impl Backend {
+    pub fn np_language(&self) -> Language {
         Language::PLONKCSat { width: 3 }
     }
 
-    fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, Self::Error> {
+    pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path();
         let temp_dir_path_str = temp_directory.to_str().unwrap();
@@ -38,7 +36,7 @@ impl ProofSystemCompiler for Barretenberg {
         Ok(number_of_gates_needed)
     }
 
-    fn supports_opcode(&self, opcode: &Opcode) -> bool {
+    pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
         match opcode {
             Opcode::Arithmetic(_) => true,
             Opcode::Directive(_) => true,
@@ -63,12 +61,12 @@ impl ProofSystemCompiler for Barretenberg {
         }
     }
 
-    fn prove(
+    pub fn prove(
         &self,
         circuit: &Circuit,
         witness_values: WitnessMap,
         is_recursive: bool,
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Vec<u8>, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path();
         let temp_dir_path_str = temp_directory.to_str().unwrap();
@@ -114,13 +112,13 @@ impl ProofSystemCompiler for Barretenberg {
         Ok(proof)
     }
 
-    fn verify(
+    pub fn verify(
         &self,
         proof: &[u8],
         public_inputs: WitnessMap,
         circuit: &Circuit,
         is_recursive: bool,
-    ) -> Result<bool, Self::Error> {
+    ) -> Result<bool, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path();
         let temp_dir_path = temp_directory.to_str().unwrap();
@@ -167,21 +165,6 @@ impl ProofSystemCompiler for Barretenberg {
             path_to_vk: vk_path.as_os_str().to_str().unwrap().to_string(),
         }
         .run())
-    }
-
-    fn proof_as_fields(
-        &self,
-        _proof: &[u8],
-        _public_inputs: WitnessMap,
-    ) -> Result<Vec<FieldElement>, Self::Error> {
-        panic!("vk_as_fields not supported in this backend");
-    }
-
-    fn vk_as_fields(
-        &self,
-        _verification_key: &[u8],
-    ) -> Result<(Vec<FieldElement>, FieldElement), Self::Error> {
-        panic!("vk_as_fields not supported in this backend");
     }
 }
 

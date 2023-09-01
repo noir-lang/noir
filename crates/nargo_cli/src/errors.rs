@@ -1,4 +1,5 @@
-use acvm::{acir::native_types::WitnessMapError, Backend, ProofSystemCompiler, SmartContract};
+use acvm::acir::native_types::WitnessMapError;
+use acvm_backend_barretenberg::BackendError;
 use hex::FromHexError;
 use nargo::NargoError;
 use nargo_toml::ManifestError;
@@ -29,7 +30,7 @@ pub(crate) enum FilesystemError {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError<B: Backend> {
+pub(crate) enum CliError {
     #[error("{0}")]
     Generic(String),
     #[error("Error: destination {} already exists", .0.display())]
@@ -64,13 +65,9 @@ pub(crate) enum CliError<B: Backend> {
     #[error(transparent)]
     CompileError(#[from] CompileError),
 
-    /// Backend error caused by a function on the SmartContract trait
+    /// Backend error
     #[error(transparent)]
-    SmartContractError(<B as SmartContract>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
-
-    /// Backend error caused by a function on the ProofSystemCompiler trait
-    #[error(transparent)]
-    ProofSystemCompilerError(<B as ProofSystemCompiler>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
+    SmartContractError(#[from] BackendError),
 }
 
 /// Errors covering situations where a package cannot be compiled.
