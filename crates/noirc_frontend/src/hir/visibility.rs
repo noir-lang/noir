@@ -18,8 +18,10 @@ impl FunctionVisibility {
     fn lookup_function_calls(&mut self, interner: &NodeInterner, expr_id: ExprId) {
         match interner.expression(&expr_id) {
             HirExpression::Ident(ident) => {
-                if let DefinitionKind::Function(id) = interner.definition(ident.id).kind {
-                    self.called_functions.insert((id, ident.location));
+                if let Some(definition_info) = interner.try_definition(ident.id) {
+                    if let DefinitionKind::Function(id) = definition_info.kind {
+                        self.called_functions.insert((id, ident.location));
+                    }
                 }
             }
             HirExpression::Literal(_) => (),
@@ -93,8 +95,20 @@ impl FunctionVisibility {
             self.called_functions.clear();
             let body = interner.function(func_id).block(interner);
             for stmt in body.statements() {
-                if let HirStatement::Expression(expr_id) = interner.statement(stmt) {
-                    self.lookup_function_calls(interner, expr_id);
+                match interner.statement(stmt) {
+                    HirStatement::Let(let_stmt) => {
+                        self.lookup_function_calls(interner, let_stmt.expression);
+                    }
+                    HirStatement::Constrain(constrain_stmt) => {
+                        self.lookup_function_calls(interner, constrain_stmt.0);
+                    }
+                    HirStatement::Assign(assign_stmt) => {
+                        self.lookup_function_calls(interner, assign_stmt.expression);
+                    }
+                    HirStatement::Expression(expr_id) | HirStatement::Semi(expr_id) => {
+                        self.lookup_function_calls(interner, expr_id);
+                    }
+                    HirStatement::Error => (),
                 }
             }
             //check callee visibility

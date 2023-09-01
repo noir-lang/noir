@@ -24,7 +24,7 @@ pub fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-pub fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
+fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
     //round 0
     let mut t = x + k;
     let mut h = t.pow_32(exp);
@@ -39,7 +39,7 @@ pub fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field 
 global MIMC_BN254_ROUNDS = 91;
 
 //mimc implementation with hardcoded parameters for BN254 curve.
-fn mimc_bn254<N>(array: [Field; N]) -> Field {
+pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;
     //generated from seed "mimc" using keccak256 
