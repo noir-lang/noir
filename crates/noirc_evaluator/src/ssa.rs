@@ -21,13 +21,13 @@ use noirc_abi::Abi;
 
 use noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
-use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ir::function::RuntimeType, ssa_gen::Ssa};
+use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
 pub mod abi_gen;
 mod acir_gen;
+mod function_builder;
 pub mod ir;
 mod opt;
-mod ssa_builder;
 pub mod ssa_gen;
 
 /// Optimize the given program by converting it into SSA
@@ -39,40 +39,27 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
-    let mut ssa = ssa_gen::generate_ssa(program)
-        .print(print_ssa_passes, "Initial SSA:")
-        .defunctionalize()
-        .print(print_ssa_passes, "After Defunctionalization:");
+    let ssa = SsaBuilder::new(program, print_ssa_passes)
+        .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+        .run_pass(Ssa::inline_functions, "After Inlining:")
+        // Run mem2reg with the CFG separated into blocks
+        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
+        .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
+        .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+        // Run mem2reg before flattening to handle any promotion
+        // of values that can be accessed after loop unrolling.
+        // If there are slice mergers uncovered by loop unrolling
+        // and this pass is missed, slice merging will fail inside of flattening.
+        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::flatten_cfg, "After Flattening:")
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::fold_constants, "After Constant Folding:")
+        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+        .finish();
 
     let brillig = ssa.to_brillig(print_brillig_trace);
-    if let RuntimeType::Acir = ssa.main().runtime() {
-        ssa = ssa
-            .inline_functions()
-            .print(print_ssa_passes, "After Inlining:")
-            // Run mem2reg with the CFG separated into blocks
-            .mem2reg()
-            .print(print_ssa_passes, "After Mem2Reg:")
-            .evaluate_assert_constant()?
-            .unroll_loops()?
-            .print(print_ssa_passes, "After Unrolling:")
-            .simplify_cfg()
-            .print(print_ssa_passes, "After Simplifying:")
-            // Run mem2reg before flattening to handle any promotion
-            // of values that can be accessed after loop unrolling.
-            // If there are slice mergers uncovered by loop unrolling
-            // and this pass is missed, slice merging will fail inside of flattening.
-            .mem2reg()
-            .print(print_ssa_passes, "After Mem2Reg:")
-            .flatten_cfg()
-            .print(print_ssa_passes, "After Flattening:")
-            // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-            .mem2reg()
-            .print(print_ssa_passes, "After Mem2Reg:")
-            .fold_constants()
-            .print(print_ssa_passes, "After Constant Folding:")
-            .dead_instruction_elimination()
-            .print(print_ssa_passes, "After Dead Instruction Elimination:");
-    }
     let last_array_uses = ssa.find_last_array_uses();
     ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
@@ -125,10 +112,40 @@ pub fn create_circuit(
     Ok((circuit, debug_info, abi))
 }
 
-impl Ssa {
-    fn print(self, print_ssa_passes: bool, msg: &str) -> Ssa {
-        if print_ssa_passes {
-            println!("{msg}\n{self}");
+// This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
+struct SsaBuilder {
+    ssa: Ssa,
+    print_ssa_passes: bool,
+}
+
+impl SsaBuilder {
+    fn new(program: Program, print_ssa_passes: bool) -> SsaBuilder {
+        SsaBuilder { print_ssa_passes, ssa: ssa_gen::generate_ssa(program) }.print("Initial SSA:")
+    }
+
+    fn finish(self) -> Ssa {
+        self.ssa
+    }
+
+    /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
+    fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
+        self.ssa = pass(self.ssa);
+        self.print(msg)
+    }
+
+    /// The same as `run_pass` but for passes that may fail
+    fn try_run_pass(
+        mut self,
+        pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
+        msg: &str,
+    ) -> Result<Self, RuntimeError> {
+        self.ssa = pass(self.ssa)?;
+        Ok(self.print(msg))
+    }
+
+    fn print(self, msg: &str) -> Self {
+        if self.print_ssa_passes {
+            println!("{msg}\n{}", self.ssa);
         }
         self
     }

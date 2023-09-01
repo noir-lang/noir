@@ -264,10 +264,10 @@ fn collect_impls(
 
             if let Some(struct_type) = get_struct_type(&typ) {
                 let struct_type = struct_type.borrow();
-                let type_module = struct_type.id.0.local_id;
+                let type_module = struct_type.id.local_module_id();
 
                 // `impl`s are only allowed on types defined within the current crate
-                if struct_type.id.0.krate != crate_id {
+                if struct_type.id.krate() != crate_id {
                     let span = *span;
                     let type_name = struct_type.name.to_string();
                     let error = DefCollectorErrorKind::ForeignImpl { span, type_name };
@@ -379,14 +379,8 @@ fn resolve_structs(
     crate_id: CrateId,
     errors: &mut Vec<FileDiagnostic>,
 ) {
-    // We must first go through the struct list once to ensure all IDs are pushed to
-    // the def_interner map. This lets structs refer to each other regardless of declaration order
-    // without resolve_struct_fields non-deterministically unwrapping a value
-    // that isn't in the HashMap.
-    for (type_id, typ) in &structs {
-        context.def_interner.push_empty_struct(*type_id, typ);
-    }
-
+    // Resolve each field in each struct.
+    // Each struct should already be present in the NodeInterner after def collection.
     for (type_id, typ) in structs {
         let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
         context.def_interner.update_struct(type_id, |struct_def| {

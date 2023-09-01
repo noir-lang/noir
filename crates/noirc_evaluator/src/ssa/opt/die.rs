@@ -117,13 +117,13 @@ impl Context {
 #[cfg(test)]
 mod test {
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
             instruction::{BinaryOp, Intrinsic},
             map::Id,
             types::Type,
         },
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

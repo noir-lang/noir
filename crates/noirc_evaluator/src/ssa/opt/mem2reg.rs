@@ -29,7 +29,7 @@
 //!     of the reference it dereferences to (if known).
 //!     - If which reference it dereferences to is not known, this load result has no aliases.
 //! - On `Instruction::Store { address, value }`:
-//!   - If the address of the store is `Known(value)`:
+//!   - If the address of the store is known:
 //!     - If the address has exactly 1 alias:
 //!       - Set the value of the address to `Known(value)`.
 //!     - If the address has more than 1 alias:
@@ -619,6 +619,7 @@ mod tests {
     use im::vector;
 
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
@@ -627,7 +628,6 @@ mod tests {
             map::Id,
             types::Type,
         },
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]
