@@ -21,7 +21,6 @@ pub(crate) struct CliShimError(String);
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "barretenberg";
-const VERSION: &str = "0.4.6";
 // const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
 const TAG: &str = formatcp!("nightly");
 const DEST_FOLDER: &str = ".nargo/backends/acvm-backend-barretenberg";
