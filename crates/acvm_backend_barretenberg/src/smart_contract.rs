@@ -13,37 +13,36 @@ const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
-        let temp_directory_path = temp_directory.path();
-        let temp_dir_path = temp_directory_path.to_str().unwrap();
+        let temp_directory_path = temp_directory.path().to_path_buf();
 
         // Create a temporary file for the circuit
-        let circuit_path = temp_directory_path.join("circuit").with_extension("bytecode");
+        let bytecode_path = temp_directory_path.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &circuit_path);
+        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
         // Create the verification key and write it to the specified path
-        let vk_path = temp_directory_path.join("vk").to_str().unwrap().to_string();
+        let vk_path = temp_directory_path.join("vk");
         WriteVkCommand {
             verbose: false,
-            path_to_crs: temp_dir_path.to_string(),
+            crs_path: temp_directory_path.clone(),
             is_recursive: false,
-            path_to_bytecode: circuit_path.as_os_str().to_str().unwrap().to_string(),
-            path_to_vk_output: vk_path.clone(),
+            bytecode_path,
+            vk_path_output: vk_path.clone(),
         }
         .run()
         .expect("write vk command failed");
 
-        let path_to_contract = temp_directory_path.join("contract").to_str().unwrap().to_string();
+        let contract_path = temp_directory_path.join("contract");
         ContractCommand {
             verbose: false,
-            path_to_crs: temp_dir_path.to_string(),
-            path_to_vk: vk_path,
-            path_to_contract: path_to_contract.clone(),
+            crs_path: temp_directory_path,
+            vk_path,
+            contract_path: contract_path.clone(),
         }
         .run()
         .expect("contract command failed");
 
-        let verification_key_library_bytes = read_bytes_from_file(&path_to_contract).unwrap();
+        let verification_key_library_bytes = read_bytes_from_file(&contract_path).unwrap();
         let verification_key_library = String::from_utf8(verification_key_library_bytes).unwrap();
 
         drop(temp_directory);

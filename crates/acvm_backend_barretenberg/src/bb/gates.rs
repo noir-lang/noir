@@ -1,11 +1,13 @@
+use std::path::PathBuf;
+
 use super::{assert_binary_exists, get_binary_path};
 
 /// GatesCommand will call the barretenberg binary
 /// to return the number of gates needed to create a proof
 /// for the given bytecode.
 pub(crate) struct GatesCommand {
-    pub(crate) path_to_crs: String,
-    pub(crate) path_to_bytecode: String,
+    pub(crate) crs_path: PathBuf,
+    pub(crate) bytecode_path: PathBuf,
 }
 
 impl GatesCommand {
@@ -14,9 +16,9 @@ impl GatesCommand {
         let output = std::process::Command::new(get_binary_path())
             .arg("gates")
             .arg("-c")
-            .arg(self.path_to_crs)
+            .arg(self.crs_path)
             .arg("-b")
-            .arg(self.path_to_bytecode)
+            .arg(self.bytecode_path)
             .output()
             .expect("Failed to execute command");
 
@@ -55,16 +57,13 @@ impl GatesCommand {
 fn gate_command() {
     use tempfile::tempdir;
 
-    let path_to_1_mul = "./src/1_mul.bytecode";
+    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let path_to_crs = temp_directory_path.join("crs");
+    let crs_path = temp_directory_path.join("crs");
 
-    let gate_command = GatesCommand {
-        path_to_crs: path_to_crs.to_str().unwrap().to_string(),
-        path_to_bytecode: path_to_1_mul.to_string(),
-    };
+    let gate_command = GatesCommand { crs_path, bytecode_path };
 
     let output = gate_command.run();
     assert_eq!(output, 2775);
