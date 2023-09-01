@@ -127,7 +127,7 @@ impl InlineContext {
         let mut context = PerFunctionContext::new(&mut self, entry_point);
         context.inlining_entry = true;
 
-        // The main block is already inserted so we have to add it to context.blocks and add
+        // The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
         let entry_block = context.context.builder.current_function.entry_block();
