@@ -46,12 +46,14 @@ impl WriteVkCommand {
 fn write_vk_command() {
     use tempfile::tempdir;
 
+    let backend = crate::get_bb();
+
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
-    let temp_directory_path = temp_directory.path();
-    let crs_path = temp_directory_path.join("crs");
-    let vk_path_output = temp_directory_path.join("vk");
+    let vk_path_output = temp_directory.path().join("vk");
+
+    let crs_path = backend.backend_directory();
 
     let write_vk_command = WriteVkCommand {
         verbose: true,
@@ -61,8 +63,7 @@ fn write_vk_command() {
         vk_path_output,
     };
 
-    let binary_path = crate::assert_binary_exists();
-    let vk_written = write_vk_command.run(&binary_path);
+    let vk_written = write_vk_command.run(&backend.binary_path());
     assert!(vk_written.is_ok());
     drop(temp_directory);
 }

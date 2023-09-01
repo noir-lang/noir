@@ -13,8 +13,6 @@ const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
 
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
-        let binary_path = assert_binary_exists();
-
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path().to_path_buf();
 
@@ -25,9 +23,11 @@ impl Backend {
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");
+
+        let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             verbose: false,
-            crs_path: temp_directory_path.clone(),
+            crs_path: self.backend_directory(),
             is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
@@ -37,7 +37,7 @@ impl Backend {
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
             verbose: false,
-            crs_path: temp_directory_path,
+            crs_path: self.backend_directory(),
             vk_path,
             contract_path: contract_path.clone(),
         }
@@ -60,11 +60,11 @@ mod tests {
         native_types::{Expression, Witness},
     };
 
+    use crate::get_bb;
+
     #[test]
     #[serial_test::serial]
     fn test_smart_contract() {
-        use crate::Backend;
-
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
         let constraint = Opcode::Arithmetic(expression);
 
@@ -76,9 +76,7 @@ mod tests {
             return_values: PublicInputs::default(),
         };
 
-        let bb = Backend::default();
-
-        let contract = bb.eth_contract(&circuit).unwrap();
+        let contract = get_bb().eth_contract(&circuit).unwrap();
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));
