@@ -2179,7 +2179,6 @@ dependencies = [
  "color-eyre",
  "const_format",
  "criterion",
- "dirs",
  "fm",
  "hex",
  "iai",
