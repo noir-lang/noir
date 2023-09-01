@@ -8,8 +8,8 @@ use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::bb::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{Backend, BackendError};
+use crate::cli::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::{assert_binary_exists, Backend, BackendError};
 
 impl Backend {
     pub fn np_language(&self) -> Language {
@@ -18,22 +18,16 @@ impl Backend {
 
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
-        let temp_directory = temp_directory.path();
-        let temp_dir_path_str = temp_directory.to_str().unwrap();
+        let temp_directory = temp_directory.path().to_path_buf();
 
         // Create a temporary file for the circuit
-        //
         let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
         write_to_file(serialized_circuit.as_bytes(), &circuit_path);
 
-        let number_of_gates_needed = GatesCommand {
-            path_to_crs: temp_dir_path_str.to_string(),
-            path_to_bytecode: circuit_path.as_os_str().to_str().unwrap().to_string(),
-        }
-        .run();
-
-        Ok(number_of_gates_needed)
+        let binary_path = assert_binary_exists(self);
+        GatesCommand { crs_path: self.backend_directory(), bytecode_path: circuit_path }
+            .run(&binary_path)
     }
 
     pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
@@ -68,8 +62,7 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<Vec<u8>, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
-        let temp_directory = temp_directory.path();
-        let temp_dir_path_str = temp_directory.to_str().unwrap();
+        let temp_directory = temp_directory.path().to_path_buf();
 
         // Create a temporary file for the witness
         let serialized_witnesses: Vec<u8> =
@@ -79,26 +72,25 @@ impl Backend {
 
         // Create a temporary file for the circuit
         //
-        let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
+        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &circuit_path);
+        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
         let proof_path = temp_directory.join("proof").with_extension("proof");
 
+        let binary_path = assert_binary_exists(self);
         // Create proof and store it in the specified path
         ProveCommand {
             verbose: true,
-            path_to_crs: temp_dir_path_str.to_string(),
+            crs_path: self.backend_directory(),
             is_recursive,
-            path_to_bytecode: circuit_path.as_os_str().to_str().unwrap().to_string(),
-            path_to_witness: witness_path.as_os_str().to_str().unwrap().to_string(),
-            path_to_proof: proof_path.as_os_str().to_str().unwrap().to_string(),
+            bytecode_path,
+            witness_path,
+            proof_path: proof_path.clone(),
         }
-        .run()
-        .expect("prove command failed");
+        .run(&binary_path)?;
 
-        let proof_with_public_inputs =
-            read_bytes_from_file(proof_path.as_os_str().to_str().unwrap()).unwrap();
+        let proof_with_public_inputs = read_bytes_from_file(&proof_path).unwrap();
 
         // Barretenberg return the proof prepended with the public inputs.
         //
@@ -120,8 +112,7 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<bool, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
-        let temp_directory = temp_directory.path();
-        let temp_dir_path = temp_directory.to_str().unwrap();
+        let temp_directory = temp_directory.path().to_path_buf();
 
         // Unlike when proving, we omit any unassigned witnesses.
         // Witness values should be ordered by their index but we skip over any indices without an assignment.
@@ -140,31 +131,34 @@ impl Backend {
         write_to_file(&proof_with_public_inputs, &proof_path);
 
         // Create a temporary file for the circuit
-        let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
+        let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &circuit_path);
+        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");
+
+        let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             verbose: false,
-            path_to_crs: temp_dir_path.to_string(),
+            crs_path: self.backend_directory(),
             is_recursive,
-            path_to_bytecode: circuit_path.as_os_str().to_str().unwrap().to_string(),
-            path_to_vk_output: vk_path.as_os_str().to_str().unwrap().to_string(),
+            bytecode_path,
+            vk_path_output: vk_path.clone(),
         }
-        .run()
-        .expect("write vk command failed");
+        .run(&binary_path)?;
 
         // Verify the proof
-        Ok(VerifyCommand {
+        let valid_proof = VerifyCommand {
             verbose: false,
-            path_to_crs: temp_dir_path.to_string(),
+            crs_path: self.backend_directory(),
             is_recursive,
-            path_to_proof: proof_path.as_os_str().to_str().unwrap().to_string(),
-            path_to_vk: vk_path.as_os_str().to_str().unwrap().to_string(),
+            proof_path,
+            vk_path,
         }
-        .run())
+        .run(&binary_path);
+
+        Ok(valid_proof)
     }
 }
 
@@ -182,7 +176,7 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
     }
 }
 
-pub(super) fn read_bytes_from_file(path: &str) -> std::io::Result<Vec<u8>> {
+pub(super) fn read_bytes_from_file(path: &Path) -> std::io::Result<Vec<u8>> {
     // Open the file for reading.
     let mut file = File::open(path)?;
 
