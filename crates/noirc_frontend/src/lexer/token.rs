@@ -451,6 +451,10 @@ impl Attribute {
                     name.trim_matches('"').to_string().into(),
                 ))
             }
+            ["abi", name] => {
+                validate(name)?;
+                Attribute::Secondary(SecondaryAttribute::Abi(name.to_string()))
+            }
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
@@ -512,6 +516,7 @@ impl fmt::Display for PrimaryAttribute {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum SecondaryAttribute {
     Deprecated(Option<String>),
+    Abi(String),
     Custom(String),
 }
 
@@ -522,6 +527,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(ref note)) => {
                 write!(f, r#"#[deprecated("{note}")]"#)
             }
+            SecondaryAttribute::Abi(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
         }
     }
@@ -543,6 +549,7 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
+            SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::Custom(string) => string,
         }
     }
