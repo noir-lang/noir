@@ -89,9 +89,7 @@ impl Context {
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cached_results) = instruction_result_cache.get(&instruction) {
-            for (old_result, new_result) in old_results.iter().zip(cached_results) {
-                dfg.set_value_from_id(*old_result, *new_result);
-            }
+            Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
 
@@ -103,9 +101,7 @@ impl Context {
         if instruction.is_pure(dfg) {
             instruction_result_cache.insert(instruction, new_results.clone());
         }
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            dfg.set_value_from_id(*old_result, new_result);
-        }
+        Self::replace_result_ids(dfg, &old_results, &new_results);
     }
 
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
@@ -144,6 +140,17 @@ impl Context {
         assert_eq!(old_results.len(), new_results.len());
 
         new_results
+    }
+
+    /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
+    fn replace_result_ids(
+        dfg: &mut DataFlowGraph,
+        old_results: &[ValueId],
+        new_results: &[ValueId],
+    ) {
+        for (old_result, new_result) in old_results.iter().zip(new_results) {
+            dfg.set_value_from_id(*old_result, *new_result);
+        }
     }
 }
 
