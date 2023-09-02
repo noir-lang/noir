@@ -155,10 +155,10 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
-            instruction::{BinaryOp, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::Value,
+            value::{Value, ValueId},
         },
     };
 
@@ -259,5 +259,50 @@ mod test {
         };
         // The return element is expected to refer to the new add instruction result.
         assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
+    }
+
+    #[test]
+    fn instruction_deduplication() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = cast v0 as u32
+        //     v2 = cast v0 as u32
+        //     constrain v1 v2
+        // }
+        //
+        // After constructing this IR, we run constant folding which should replace the second cast
+        // with a reference to the outputs of the results to the first. This then allows us to optimize away
+        // the constrain instruction as both inputs are known to be equal.
+        //
+        // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::field());
+
+        let v1 = builder.insert_cast(v0, Type::unsigned(32));
+        let v2 = builder.insert_cast(v0, Type::unsigned(32));
+        builder.insert_constrain(v1, v2);
+
+        let mut ssa = builder.finish();
+        let main = ssa.main_mut();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 3);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = cast v0 as u32
+        // }
+        let ssa = ssa.fold_constants();
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+
+        assert_eq!(instructions.len(), 1);
+        let instruction = &main.dfg[instructions[0]];
+
+        assert_eq!(instruction, &Instruction::Cast(ValueId::test_new(0), Type::unsigned(32)));
     }
 }
