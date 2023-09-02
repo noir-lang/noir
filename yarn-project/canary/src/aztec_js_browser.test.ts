@@ -2,6 +2,7 @@
 import * as AztecJs from '@aztec/aztec.js';
 import { AztecAddress, PrivateKey } from '@aztec/circuits.js';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { fileURLToPath } from '@aztec/foundation/url';
 import { PrivateTokenContractAbi } from '@aztec/noir-contracts/artifacts';
 
 import { Server } from 'http';
@@ -9,7 +10,6 @@ import Koa from 'koa';
 import serve from 'koa-static';
 import path, { dirname } from 'path';
 import { Browser, Page, launch } from 'puppeteer';
-import { fileURLToPath } from 'url';
 
 declare global {
   interface Window {

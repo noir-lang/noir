@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises';
 import { dirname } from 'path';
-import { fileURLToPath } from 'url';
 
+import { fileURLToPath } from '../url/index.js';
 import { WasmModule } from './wasm_module.js';
 
 /**

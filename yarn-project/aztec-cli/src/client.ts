@@ -1,11 +1,11 @@
 import { AztecRPC, createAztecRpcClient } from '@aztec/aztec.js';
 import { makeFetch } from '@aztec/foundation/json-rpc/client';
 import { DebugLogger } from '@aztec/foundation/log';
+import { fileURLToPath } from '@aztec/foundation/url';
 
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { gtr, ltr, satisfies, valid } from 'semver';
-import { fileURLToPath } from 'url';
 
 const retries = [1, 1, 2];
 

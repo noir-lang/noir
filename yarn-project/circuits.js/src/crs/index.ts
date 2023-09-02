@@ -1,8 +1,9 @@
+import { fileURLToPath } from '@aztec/foundation/url';
+
 import isNode from 'detect-node';
 import { existsSync } from 'fs';
 import { open } from 'fs/promises';
 import { dirname } from 'path';
-import { fileURLToPath } from 'url';
 
 /**
  * Downloader for CRS from the web or local.

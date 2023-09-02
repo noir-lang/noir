@@ -1,6 +1,7 @@
+import { fileURLToPath } from '@aztec/foundation/url';
+
 import { writeFileSync } from 'fs';
 import { dirname } from 'path';
-import { fileURLToPath } from 'url';
 
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { getCbindSchema } from './cbind.js';

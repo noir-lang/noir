@@ -1,8 +1,8 @@
 import { ContractAbi } from '@aztec/foundation/abi';
+import { fileURLToPath } from '@aztec/foundation/url';
 
 import { execSync } from 'child_process';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { compileUsingNargo, generateNoirContractInterface, generateTypescriptContractInterface } from './index.js';
 

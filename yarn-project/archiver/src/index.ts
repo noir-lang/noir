@@ -1,6 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation/log';
+import { fileURLToPath } from '@aztec/foundation/url';
 
-import { fileURLToPath } from 'url';
 import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 
