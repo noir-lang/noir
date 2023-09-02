@@ -28,8 +28,6 @@ pub struct PreprocessedContractFunction {
 
     pub function_type: ContractFunctionType,
 
-    pub is_internal: bool,
-
     pub abi: Abi,
 
     #[serde(

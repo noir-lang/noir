@@ -70,8 +70,6 @@ pub enum ResolverError {
     MutableReferenceToImmutableVariable { variable: String, span: Span },
     #[error("Mutable references to array indices are unsupported")]
     MutableReferenceToArrayElement { span: Span },
-    #[error("Function is not defined in a contract yet sets is_internal")]
-    ContractFunctionInternalInNormalFunction { span: Span },
     #[error("Numeric constants should be printed without formatting braces")]
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
@@ -275,11 +273,6 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::MutableReferenceToArrayElement { span } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), span)
             },
-            ResolverError::ContractFunctionInternalInNormalFunction { span } => Diagnostic::simple_error(
-                "Only functions defined within contracts can set their functions to be internal".into(),
-                "Non-contract functions cannot be 'internal'".into(),
-                span,
-            ),
             ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{name}` in this scope "),
                 "Numeric constants should be printed without formatting braces".to_string(),

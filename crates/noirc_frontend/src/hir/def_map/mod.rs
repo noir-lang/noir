@@ -88,6 +88,8 @@ impl CrateDefMap {
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
+        dbg!(&ast.functions.iter().map(|func| func.attributes()).collect::<Vec<_>>());
+
         #[cfg(feature = "aztec")]
         let ast = aztec_library::transform(ast, &crate_id, context, errors);
 

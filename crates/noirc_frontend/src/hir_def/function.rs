@@ -107,11 +107,6 @@ pub struct FuncMeta {
     /// If this function is not in a contract, this is always 'Secret'.
     pub contract_function_type: Option<ContractFunctionType>,
 
-    /// This function's visibility.
-    /// If this function is internal can only be called by itself.
-    /// Will be None if not in contract.
-    pub is_internal: Option<bool>,
-
     pub is_unconstrained: bool,
 
     pub parameters: Parameters,

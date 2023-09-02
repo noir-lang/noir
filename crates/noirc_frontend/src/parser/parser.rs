@@ -183,7 +183,6 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 attributes: sorted_attributes, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.1,
-                is_internal: modifiers.2,
                 generics,
                 parameters,
                 body,
@@ -198,15 +197,12 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
 
 /// function_modifiers: 'unconstrained'? 'open'? 'internal'?
 ///
-/// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
+/// returns (is_unconstrained, is_open) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(keyword(Keyword::Open).or_not())
-        .then(keyword(Keyword::Internal).or_not())
-        .map(|((unconstrained, open), internal)| {
-            (unconstrained.is_some(), open.is_some(), internal.is_some())
-        })
+        .map(|(unconstrained, open)| (unconstrained.is_some(), open.is_some()))
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list

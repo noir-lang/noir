@@ -355,10 +355,9 @@ pub struct FunctionDefinition {
     // and `secondary` attributes (ones that do not change the function kind)
     pub attributes: Attributes,
 
+    /// TODO: REMOVE THIS TOO!
     /// True if this function was defined with the 'open' keyword
     pub is_open: bool,
-
-    pub is_internal: bool,
 
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
@@ -647,7 +646,6 @@ impl FunctionDefinition {
             // TODO(MD): is this the best way to do this? -> It was previously just None
             attributes: Attributes::empty(),
             is_open: false,
-            is_internal: false,
             is_unconstrained: false,
             generics: generics.clone(),
             parameters: p,

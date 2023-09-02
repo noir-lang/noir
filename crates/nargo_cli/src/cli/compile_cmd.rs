@@ -173,7 +173,6 @@ fn save_contracts(
                     PreprocessedContractFunction {
                         name: func.name,
                         function_type: func.function_type,
-                        is_internal: func.is_internal,
                         abi: func.abi,
 
                         bytecode: func.bytecode,

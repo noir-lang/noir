@@ -240,7 +240,8 @@ fn compile_contract(
         functions.push(ContractFunction {
             name,
             function_type,
-            is_internal: func_meta.is_internal.unwrap_or(false),
+
+            // TODO: edit this to inlcude annotations
             abi: function.abi,
             bytecode: function.circuit,
             debug: function.debug,

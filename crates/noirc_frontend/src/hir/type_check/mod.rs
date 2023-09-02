@@ -261,7 +261,6 @@ mod test {
             attributes: Attributes::empty(),
             location,
             contract_function_type: None,
-            is_internal: None,
             is_unconstrained: false,
             typ: Type::Function(
                 vec![Type::FieldElement, Type::FieldElement],

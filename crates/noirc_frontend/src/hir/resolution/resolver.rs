@@ -744,7 +744,6 @@ impl<'a> Resolver<'a> {
             attributes,
             module_id,
             contract_function_type: self.handle_function_type(func),
-            is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
@@ -788,19 +787,6 @@ impl<'a> Resolver<'a> {
             }
         } else {
             Some(ContractFunctionType::Secret)
-        }
-    }
-
-    fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
-        if self.in_contract() {
-            Some(func.def.is_internal)
-        } else {
-            if func.def.is_internal {
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
-                    span: func.name_ident().span(),
-                });
-            }
-            None
         }
     }
 

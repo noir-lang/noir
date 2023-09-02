@@ -207,6 +207,9 @@ pub struct Abi {
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
     pub param_witnesses: BTreeMap<String, Vec<Witness>>,
+
+    // NEW!
+    // pub abi_annotations: Vec<String>,
     pub return_type: Option<AbiType>,
     pub return_witnesses: Vec<Witness>,
 }
