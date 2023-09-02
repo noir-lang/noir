@@ -271,7 +271,7 @@ mod test {
         // }
         //
         // After constructing this IR, we run constant folding which should replace the second cast
-        // with a reference to the outputs of the results to the first. This then allows us to optimize away
+        // with a reference to the results to the first. This then allows us to optimize away
         // the constrain instruction as both inputs are known to be equal.
         //
         // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
