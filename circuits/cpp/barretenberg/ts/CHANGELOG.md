@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.4.6...barretenberg.js-v0.5.0) (2023-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* update to acvm 0.24.0 ([#1925](https://github.com/AztecProtocol/barretenberg/issues/1925))
+
+### Miscellaneous Chores
+
+* Update to acvm 0.24.0 ([#1925](https://github.com/AztecProtocol/barretenberg/issues/1925)) ([5d8db8e](https://github.com/AztecProtocol/barretenberg/commit/5d8db8eb993334b43e24a51efba9c59e123320ab))
+
 ## [0.4.6](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.4.5...barretenberg.js-v0.4.6) (2023-08-29)
 
 

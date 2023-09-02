@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.24)
 project(
     Barretenberg
     DESCRIPTION "BN254 elliptic curve library, and PLONK SNARK prover"
-    VERSION 0.4.6 # x-release-please-version
+    VERSION 0.5.0 # x-release-please-version
     LANGUAGES CXX C
 )
 
