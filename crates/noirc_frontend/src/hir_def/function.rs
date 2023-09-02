@@ -99,9 +99,8 @@ pub struct FuncMeta {
     pub module_id: ModuleId,
 
     /// A function's attributes are the `#[...]` items above the function
-    /// definition, if any. Currently, this is limited to a maximum of only one
-    /// Attribute per function.
-    /// TODO: edit the above
+    /// definition.
+    /// Primary Attributes will alter the function kind, secondary attributes do not
     pub attributes: Attributes,
 
     /// This function's type in its contract.

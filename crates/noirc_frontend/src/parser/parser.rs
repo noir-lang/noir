@@ -434,8 +434,8 @@ fn validate_attributes(
     if attributes.is_none() {
         return Attributes::empty();
     }
-    // TODO: zero copy possilbe?
-    let attrs = attributes.unwrap().clone();
+
+    let attrs = attributes.unwrap();
 
     let mut primary = None;
     let mut secondary = Vec::new();
@@ -449,7 +449,7 @@ fn validate_attributes(
                         span,
                     ));
                 }
-                primary = Some(attr)
+                primary = Some(attr);
             }
             Attribute::Secondary(attr) => secondary.push(attr),
         }

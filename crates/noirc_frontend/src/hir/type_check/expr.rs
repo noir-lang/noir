@@ -11,7 +11,6 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId},
-    token::SecondaryAttribute::Deprecated,
     Shared, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
@@ -26,10 +25,10 @@ impl<'interner> TypeChecker<'interner> {
                 self.interner.try_definition(id).map(|def| &def.kind)
             {
                 let meta = self.interner.function_meta(func_id);
-                if let note = meta.attributes.get_deprecated_note() {
+                if let Some(note) = meta.attributes.get_deprecated_note() {
                     self.errors.push(TypeCheckError::CallDeprecated {
                         name: self.interner.definition_name(id).to_string(),
-                        note, // TODO(MD): remove clone
+                        note,
                         span: location.span,
                     });
                 }

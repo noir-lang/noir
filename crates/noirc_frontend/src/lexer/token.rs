@@ -363,9 +363,9 @@ impl Attributes {
     }
 
     /// Returns note if a deprecated secondary attribute is found
-    pub fn get_deprecated_note(&self) -> Option<String> {
+    pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
-            SecondaryAttribute::Deprecated(note) => note.clone(),
+            SecondaryAttribute::Deprecated(note) => Some(note.clone()),
             _ => None,
         })
     }
