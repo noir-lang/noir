@@ -16,7 +16,7 @@ using namespace barretenberg;
 // based on memory constraints for UltraPlonk.
 // However, since this CLI does not use WASM, we can increase the
 // size.
-uint32_t MAX_CIRCUIT_SIZE = 1 << 23;
+uint32_t MAX_CIRCUIT_SIZE = 1 << 22;
 std::string CRS_PATH = "./crs";
 bool verbose = false;
 
