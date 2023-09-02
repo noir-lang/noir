@@ -115,7 +115,8 @@ fn compile_success_empty_{test_name}() {{
         .and(predicate::str::contains("| Language"))
         .and(predicate::str::contains("| ACIR Opcodes | Backend Circuit Size |"))
         .and(predicate::str::contains("| PLONKCSat {{ width: 3 }} |"))
-        .and(predicate::str::contains("| 0            | 1                    |")));
+        // This currently matches on there being zero acir opcodes due to the width of the cell.
+        .and(predicate::str::contains("| 0            |")));
 }}
             "#,
             test_dir = test_dir.display(),
@@ -189,7 +190,7 @@ fn compile_failure_{test_name}() {{
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute");
 
-    cmd.assert().failure();
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
             "#,
             test_dir = test_dir.display(),

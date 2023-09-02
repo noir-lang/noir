@@ -8,6 +8,7 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
 
+use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -15,7 +16,6 @@ use crate::ssa::ir::instruction::{BinaryOp, Endian, Intrinsic};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
-use crate::ssa::ssa_builder::FunctionBuilder;
 
 use super::value::{Tree, Value, Values};
 use fxhash::FxHashMap as HashMap;

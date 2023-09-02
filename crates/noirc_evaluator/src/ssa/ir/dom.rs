@@ -247,6 +247,7 @@ mod tests {
     use std::cmp::Ordering;
 
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
             dom::DominatorTree,
@@ -255,7 +256,6 @@ mod tests {
             map::Id,
             types::Type,
         },
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

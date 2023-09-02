@@ -120,6 +120,7 @@ mod test {
     use std::rc::Rc;
 
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
             instruction::{BinaryOp, TerminatorInstruction},
@@ -127,7 +128,6 @@ mod test {
             types::Type,
             value::Value,
         },
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

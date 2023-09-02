@@ -30,6 +30,7 @@ impl FunctionContext {
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> RegisterOrMemory {
+        let value = dfg.resolve(value);
         let typ = dfg.type_of_value(value);
 
         let variable = match typ {
@@ -69,7 +70,8 @@ impl FunctionContext {
     }
 
     /// For a given SSA value id, return the corresponding cached variable.
-    pub(crate) fn get_variable(&mut self, value: ValueId) -> RegisterOrMemory {
+    pub(crate) fn get_variable(&mut self, value: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
+        let value = dfg.resolve(value);
         *self
             .ssa_value_to_brillig_variable
             .get(&value)
@@ -82,6 +84,7 @@ impl FunctionContext {
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> RegisterOrMemory {
+        let value = dfg.resolve(value);
         if let Some(variable) = self.ssa_value_to_brillig_variable.get(&value) {
             return *variable;
         }
