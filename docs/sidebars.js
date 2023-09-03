@@ -18,6 +18,9 @@ const sidebars = {
       type: "html",
       value: '<span class="sidebar-divider" />',
     },
+
+    // ABOUT AZTEC
+
     {
       type: "html",
       className: "sidebar-title",
@@ -54,129 +57,9 @@ const sidebars = {
       type: "html",
       value: '<span class="sidebar-divider" />',
     },
-    {
-      type: "html",
-      className: "sidebar-title",
-      value: "Specification",
-      defaultStyle: true,
-    },
 
-    {
-      label: "Foundational Concepts",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "concepts/foundation/main",
-      },
-      items: [
-        "concepts/foundation/state_model",
-        {
-          label: "Accounts",
-          type: "category",
-          link: { type: "doc", id: "concepts/foundation/accounts/main" },
-          items: ["concepts/foundation/accounts/keys"],
-        },
-        "concepts/foundation/contracts",
-        "concepts/foundation/transactions",
-        "concepts/foundation/blocks",
-        "concepts/foundation/globals",
-        {
-          label: "Communication",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/foundation/communication/main",
-          },
-          items: [
-            "concepts/foundation/communication/public_private_calls",
-            "concepts/foundation/communication/cross_chain_calls",
-          ],
-        },
-        {
-          label: "Nodes and Clients",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/foundation/nodes_clients/main",
-          },
-          items: [
-            "concepts/foundation/nodes_clients/execution_client",
-            "concepts/foundation/nodes_clients/prover_client",
-            "concepts/foundation/nodes_clients/sequencer_client",
-          ],
-        },
-        "concepts/foundation/block_production",
-        "concepts/foundation/upgrade_mechanism",
-      ],
-    },
+    // DEVELOPER DOCUMENTATION
 
-    {
-      label: "Advanced Concepts",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "concepts/advanced/main",
-      },
-      items: [
-        {
-          label: "Data Structures",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/advanced/data_structures/main",
-          },
-          items: [
-            "concepts/advanced/data_structures/trees",
-            "concepts/advanced/data_structures/indexed_merkle_tree",
-          ],
-        },
-        {
-          label: "Circuits",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/advanced/circuits/main",
-          },
-          items: [
-            {
-              label: "Kernels",
-              type: "category",
-              link: {
-                type: "doc",
-                id: "concepts/advanced/circuits/kernels/main",
-              },
-              items: [
-                "concepts/advanced/circuits/kernels/private_kernel",
-                "concepts/advanced/circuits/kernels/public_kernel",
-              ],
-            },
-            {
-              label: "Rollup Circuits",
-              type: "category",
-              link: {
-                type: "doc",
-                id: "concepts/advanced/circuits/rollup_circuits/main",
-              },
-              items: [
-                "concepts/advanced/circuits/rollup_circuits/base_rollup",
-                "concepts/advanced/circuits/rollup_circuits/merge_rollup",
-                "concepts/advanced/circuits/rollup_circuits/root_rollup",
-              ],
-            },
-          ],
-        },
-
-        "concepts/advanced/public_vm",
-
-        "concepts/advanced/contract_creation",
-        "concepts/advanced/rollup_contract",
-      ],
-    },
-
-    {
-      type: "html",
-      value: '<span class="sidebar-divider" />',
-    },
     {
       type: "html",
       className: "sidebar-title",
@@ -328,6 +211,135 @@ const sidebars = {
       type: "html",
       value: '<span class="sidebar-divider" />',
     },
+
+    // SPECIFICATION
+
+    {
+      type: "html",
+      className: "sidebar-title",
+      value: "Specification",
+      defaultStyle: true,
+    },
+
+    {
+      label: "Foundational Concepts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "concepts/foundation/main",
+      },
+      items: [
+        "concepts/foundation/state_model",
+        {
+          label: "Accounts",
+          type: "category",
+          link: { type: "doc", id: "concepts/foundation/accounts/main" },
+          items: ["concepts/foundation/accounts/keys"],
+        },
+        "concepts/foundation/contracts",
+        "concepts/foundation/transactions",
+        "concepts/foundation/blocks",
+        "concepts/foundation/globals",
+        {
+          label: "Communication",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/foundation/communication/main",
+          },
+          items: [
+            "concepts/foundation/communication/public_private_calls",
+            "concepts/foundation/communication/cross_chain_calls",
+          ],
+        },
+        {
+          label: "Nodes and Clients",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/foundation/nodes_clients/main",
+          },
+          items: [
+            "concepts/foundation/nodes_clients/execution_client",
+            "concepts/foundation/nodes_clients/prover_client",
+            "concepts/foundation/nodes_clients/sequencer_client",
+          ],
+        },
+        "concepts/foundation/block_production",
+        "concepts/foundation/upgrade_mechanism",
+      ],
+    },
+
+    {
+      label: "Advanced Concepts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "concepts/advanced/main",
+      },
+      items: [
+        {
+          label: "Data Structures",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/advanced/data_structures/main",
+          },
+          items: [
+            "concepts/advanced/data_structures/trees",
+            "concepts/advanced/data_structures/indexed_merkle_tree",
+          ],
+        },
+        {
+          label: "Circuits",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/advanced/circuits/main",
+          },
+          items: [
+            {
+              label: "Kernels",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/advanced/circuits/kernels/main",
+              },
+              items: [
+                "concepts/advanced/circuits/kernels/private_kernel",
+                "concepts/advanced/circuits/kernels/public_kernel",
+              ],
+            },
+            {
+              label: "Rollup Circuits",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/advanced/circuits/rollup_circuits/main",
+              },
+              items: [
+                "concepts/advanced/circuits/rollup_circuits/base_rollup",
+                "concepts/advanced/circuits/rollup_circuits/merge_rollup",
+                "concepts/advanced/circuits/rollup_circuits/root_rollup",
+              ],
+            },
+          ],
+        },
+
+        "concepts/advanced/public_vm",
+
+        "concepts/advanced/contract_creation",
+        "concepts/advanced/rollup_contract",
+      ],
+    },
+
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+
+    // MISCELLANEOUS
+
     {
       type: "html",
       className: "sidebar-title",
