@@ -3,7 +3,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -11,7 +11,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -19,7 +19,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-fuzzing",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -27,7 +27,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -35,7 +35,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -43,7 +43,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.circuits-x86_64-linux-clang-builder-runner",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -51,7 +51,7 @@
     "buildDir": "circuits/cpp/barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.circuits-wasm-linux-clang-builder-runner",
     "rebuildPatterns": [
-      "^circuits/cpp/barretenberg/cpp/"
+      "^circuits/cpp/barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/cpp/barretenberg/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -78,7 +78,8 @@
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
     "rebuildPatterns": [
-      "^circuits/"
+      
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -86,7 +87,8 @@
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang-assert",
     "rebuildPatterns": [
-      "^circuits/"
+      
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -94,7 +96,8 @@
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-tidy",
     "rebuildPatterns": [
-      "^circuits/"
+      
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -102,7 +105,8 @@
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
     "rebuildPatterns": [
-      "^circuits/"
+      
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -110,7 +114,7 @@
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
     "rebuildPatterns": [
-      "^circuits/"
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -118,7 +122,7 @@
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
     "rebuildPatterns": [
-      "^circuits/"
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$"
     ],
     "dependencies": []
   },
@@ -154,7 +158,8 @@
     "buildDir": "yarn-project",
     "dockerfile": "yarn-project-base/Dockerfile",
     "rebuildPatterns": [
-      "^circuits/",
+      
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$",
       "^l1-contracts/",
       "^yarn-project/l1-artifacts/",
       "^yarn-project/noir-contracts/",
@@ -294,7 +299,8 @@
     "projectDir": "yarn-project/circuits.js",
     "dockerfile": "circuits.js/Dockerfile",
     "rebuildPatterns": [
-      "^circuits/",
+      
+      "^circuits/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$|^circuits/.*CMakeLists\\.txt$",
       "^yarn-project/circuits.js/"
     ],
     "dependencies": [
