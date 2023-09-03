@@ -109,14 +109,14 @@ fn compile_success_empty_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
+    cmd.arg("--json");
 
+    let output = cmd.output().expect("Failed to execute command");
+    
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
-    cmd.assert().stdout(predicate::str::contains("| Package")
-        .and(predicate::str::contains("| Language"))
-        .and(predicate::str::contains("| ACIR Opcodes | Backend Circuit Size |"))
-        .and(predicate::str::contains("| PLONKCSat {{ width: 3 }} |"))
-        // This currently matches on there being zero acir opcodes due to the width of the cell.
-        .and(predicate::str::contains("| 0            |")));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("JSON was not well-formatted");
+    let num_opcodes = &json["programs"][0]["acir_opcodes"];
+    assert_eq!(num_opcodes.as_u64().unwrap(), 0);
 }}
             "#,
             test_dir = test_dir.display(),
