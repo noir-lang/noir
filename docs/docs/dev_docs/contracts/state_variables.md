@@ -8,7 +8,8 @@ Public state is persistent state that is _publicly visible_ to anyone in the wor
 
 For developers coming from other blockchain ecosystems (such as Ethereum), this will be a familiar concept, because there, _all_ state is _publicly visible_.
 
-Aztec public state follows an account-based model. That is, each state occupies a leaf in an account-based merkle tree: the [_public state tree_](INSERT_LINK_HERE). See [here] (INSERT_LINK_HERE) for more of the technical details.
+Aztec public state follows an account-based model. That is, each state occupies a leaf in an account-based merkle tree: the _public state tree_ (INSERT LINK HERE). See _here_ (INSERT LINK HERE) for more of the technical details.
+<!-- TODO: Insert links in the italics above -->
 
 The `PublicState<T, T_SERIALISED_LEN>` struct serves as a wrapper around conventional Noir types `T`, allowing these types to be written to and read from the public state tree.
 
@@ -90,9 +91,11 @@ For example, the following function calls the account contract before it updates
 
 In contrast to public state, private state is persistent state that is _not_ visible to the whole world. Depending on the logic of the smart contract, a _private_ state variable's current value will only be known to one entity, or a closed group of entities.
 
-The value of a private state variable can either be shared via an [encrypted log](INSERT_LINK_HERE), or offchain via web2, or completely offline: it's up to the app developer.
+The value of a private state variable can either be shared via an _encrypted log_ (INSERT_LINK_HERE), or offchain via web2, or completely offline: it's up to the app developer.
+<!-- TODO: insert link in italics above -->
 
-Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the [_private state tree_](INSERT_LINK_HERE).
+Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the _private state tree_ (INSERT_LINK_HERE).
+<!-- TODO: insert link in italics above -->
 
 To greatly simplify the experience of writing private state, Aztec.nr provides three different types of private state variable:
 
@@ -227,7 +230,8 @@ This function returns the notes the account has access to:
 
 #include_code state_vars-SetGet /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
-There's a limit on the maxinum number of notes this function can return at a time. Check [here](INSERT_LINK_HERE) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
+There's a limit on the maxinum number of notes this function can return at a time. Check _here_ (INSERT_LINK_HERE) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
+<!-- TODO: insert link in italics above -->
 
 Because of this limit, we should always consider using the second argument `NoteGetterOptions` to target the notes we need, and to reduce the time required to recursively call this function.
 
@@ -245,7 +249,7 @@ For example, the following function outputs an instance of `NoteGetterOptions`, 
 
 The first value of `.select` and `.sort` is the index of a field in a note type. For the note type `CardNote` that has the following fields:
 
-#include_code state_vars-CardNote /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/types/card.nr rust
+#include_code state_vars-CardNote /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/types/card_note.nr rust
 
 The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
 

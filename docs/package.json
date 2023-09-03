@@ -19,10 +19,10 @@
     "update-specs": "./scripts/update_specs.sh"
   },
   "dependencies": {
-    "@docusaurus/core": "^2.3.1",
-    "@docusaurus/plugin-ideal-image": "^2.3.1",
-    "@docusaurus/preset-classic": "^2.3.1",
-    "@docusaurus/theme-mermaid": "^2.3.1",
+    "@docusaurus/core": "^2.4.1",
+    "@docusaurus/plugin-ideal-image": "^2.4.1",
+    "@docusaurus/preset-classic": "^2.4.1",
+    "@docusaurus/theme-mermaid": "^2.4.1",
     "@mdx-js/react": "^1.6.22",
     "axios": "^1.4.0",
     "clsx": "^1.1.1",
@@ -35,7 +35,7 @@
     "remark-math": "3"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^2.3.1",
+    "@docusaurus/module-type-aliases": "^2.4.1",
     "@tsconfig/docusaurus": "^1.0.5",
     "concurrently": "^8.0.1",
     "nodemon": "^3.0.1",

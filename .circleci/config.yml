@@ -972,6 +972,20 @@ jobs:
           name: "Test"
           command: cond_spot_run_test_script ./scripts/run_tests canary-build uniswap_trade_on_l1_from_l2.test.ts canary-build docker-compose-e2e-sandbox.yml
 
+  build-docs:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Copy docs dockerignore"
+          command: cp docs/.dockerignore .
+      - run:
+          name: "Build docs"
+          command: build docs
+
   e2e-join:
     docker:
       - image: cimg/base:current
@@ -1232,6 +1246,7 @@ workflows:
     when:
       equal: [system, << pipeline.parameters.workflow >>]
     jobs:
+      - build-docs: *defaults
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
       - barretenberg-x86_64-linux-clang-assert: *defaults
@@ -1445,5 +1460,4 @@ workflows:
           requires:
             - build-deployment-canary
           <<: *deploy_defaults
-
 

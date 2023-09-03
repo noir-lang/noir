@@ -1,0 +1,25 @@
+*.node_modules
+*.docusaurus
+*.processed-docs
+*.processed-docs-cache
+*Dockerfile
+*.CONTRIBUTING.md
+*.LICENSE
+
+# Ignore C++ object files and executables
+build/
+Debug/
+Release/
+circuits/cpp/build/
+circuits/cpp/build-wasm/
+circuits/cpp/build-coverage/
+circuits/cpp/barretenberg/
+
+# Ignore Node.js build artifacts
+*/node_modules/
+*.log
+npm-debug.log
+yarn.lock
+yarn-error.log
+package-lock.json
+dist/
