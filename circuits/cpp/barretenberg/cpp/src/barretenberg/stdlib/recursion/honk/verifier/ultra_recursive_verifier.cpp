@@ -63,11 +63,11 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     const auto pub_inputs_offset = transcript.template receive_from_prover<uint32_t>("pub_inputs_offset");
 
     // For debugging purposes only
-    ASSERT(static_cast<size_t>(circuit_size.get_value()) == key->circuit_size);
-    ASSERT(static_cast<size_t>(public_input_size.get_value()) == key->num_public_inputs);
+    ASSERT(static_cast<uint32_t>(circuit_size.get_value()) == key->circuit_size);
+    ASSERT(static_cast<uint32_t>(public_input_size.get_value()) == key->num_public_inputs);
 
     std::vector<FF> public_inputs;
-    for (size_t i = 0; i < static_cast<size_t>(public_input_size.get_value()); ++i) {
+    for (size_t i = 0; i < static_cast<uint32_t>(public_input_size.get_value()); ++i) {
         auto public_input_i = transcript.template receive_from_prover<FF>("public_input_" + std::to_string(i));
         public_inputs.emplace_back(public_input_i);
     }
@@ -101,7 +101,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
     const FF public_input_delta = proof_system::honk::compute_public_input_delta<Flavor>(
-        public_inputs, beta, gamma, circuit_size, static_cast<size_t>(pub_inputs_offset.get_value()));
+        public_inputs, beta, gamma, circuit_size, static_cast<uint32_t>(pub_inputs_offset.get_value()));
     const FF lookup_grand_product_delta =
         proof_system::honk::compute_lookup_grand_product_delta<FF>(beta, gamma, circuit_size);
 
@@ -115,7 +115,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     commitments.z_lookup = transcript.template receive_from_prover<Commitment>(commitment_labels.z_lookup);
 
     // Execute Sumcheck Verifier
-    auto sumcheck = Sumcheck(static_cast<size_t>(circuit_size.get_value()));
+    auto sumcheck = Sumcheck(static_cast<uint32_t>(circuit_size.get_value()));
 
     std::optional sumcheck_output = sumcheck.verify(relation_parameters, transcript);
 

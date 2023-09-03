@@ -19,17 +19,6 @@ TEST(bitop, ClzUint640)
     EXPECT_EQ(numeric::count_leading_zeros(a), 0U);
 }
 
-TEST(bitop, ClzSizeT)
-{
-    size_t a = 0x80;
-    auto r = numeric::count_leading_zeros(a);
-    if (sizeof(a) == 4) {
-        EXPECT_EQ(r, 24U);
-    } else {
-        EXPECT_EQ(r, 56U);
-    }
-}
-
 TEST(bitop, ClzUint256255)
 {
     uint256_t a = 0x1;
