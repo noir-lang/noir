@@ -10,6 +10,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::ssa::{
+    function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
@@ -17,7 +18,6 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
 };
 

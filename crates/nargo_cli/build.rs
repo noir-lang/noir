@@ -190,7 +190,7 @@ fn compile_failure_{test_name}() {{
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute");
 
-    cmd.assert().failure();
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
             "#,
             test_dir = test_dir.display(),

@@ -72,13 +72,13 @@ impl PostOrder {
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{
             function::{Function, RuntimeType},
             map::Id,
             post_order::PostOrder,
             types::Type,
         },
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

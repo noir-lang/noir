@@ -113,9 +113,9 @@ impl<'cfg> Context<'cfg> {
 mod test {
 
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{cfg::ControlFlowGraph, function::RuntimeType, map::Id, types::Type},
         opt::flatten_cfg::branch_analysis::find_branch_ends,
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

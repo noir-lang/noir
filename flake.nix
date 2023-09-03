@@ -99,12 +99,18 @@
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
       GIT_DIRTY = if (self ? rev) then "false" else "true";
 
+      # We use `include_str!` macro to embed the solidity verifier template so we need to create a special
+      # source filter to include .sol files in addition to usual rust/cargo source files.
+      solidityFilter = path: _type: builtins.match ".*sol$" path != null;
+      # We use `.bytecode` and `.tr` files to test interactions with `bb` so we add a source filter to include these.
+      bytecodeFilter = path: _type: builtins.match ".*bytecode$" path != null;
+      witnessFilter = path: _type: builtins.match ".*tr$" path != null;
       # We use `.nr` and `.toml` files in tests so we need to create a special source
       # filter to include those files in addition to usual rust/cargo source files
       noirFilter = path: _type: builtins.match ".*nr$" path != null;
       tomlFilter = path: _type: builtins.match ".*toml$" path != null;
       sourceFilter = path: type:
-        (noirFilter path type) || (tomlFilter path type) || (craneLib.filterCargoSources path type);
+        (solidityFilter path type) || (bytecodeFilter path type)|| (witnessFilter path type) || (noirFilter path type) || (tomlFilter path type) || (craneLib.filterCargoSources path type);
 
       # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7 since it seems that aarch64-linux uses
       # gcc9 instead of gcc11 for the C++ stdlib, while all other targets we support provide the correct libstdc++

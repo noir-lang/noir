@@ -964,7 +964,6 @@ impl AcirContext {
         }
 
         // Otherwise we must generate ACIR for it and execute at runtime.
-
         let mut b_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
             AcirType::NumericType(_) => {
