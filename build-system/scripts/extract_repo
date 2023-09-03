@@ -1,6 +1,6 @@
 #!/bin/bash
 # Given a repository, extracts the builds entire /usr/src dir to the given path.
-set -e
+set -eu
 
 REPOSITORY=$1
 EXTRACT_FROM=${2:-/usr/src}

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 # To be called only LOCALLY for testing WITH docker.
 # Builds a docker image and runs tests in it.
@@ -31,7 +31,7 @@ time docker build -f $DOCKERFILE -t $IMAGE_URI .
 # run tests in docker image
 RUN_ARGS="$@" # helper var necessary for some reason to pass all args to docker run
 time docker run --rm -t $IMAGE_URI /bin/sh -c "\
-  set -e; \
+  set -xe; \
   cd /usr/src/circuits/cpp/barretenberg/cpp/srs_db; \
   ln -sf /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \

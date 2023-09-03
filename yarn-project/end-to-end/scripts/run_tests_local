@@ -1,19 +1,17 @@
 #!/bin/bash
 # This script is used to run an e2e test in CI (see config.yml and cond_run_script).
 # It sets a few environment variables used inside the docker-compose.yml, pulls images, and runs docker-compose.
-set -e
+set -eu
 
 export TEST=$1
 export COMPOSE_FILE=${2:-./scripts/docker-compose.yml}
 
-if [ -n "$COMMIT_HASH" ]; then
-  aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com
+aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com
 
-  for REPO in end-to-end; do
-    docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$COMMIT_HASH
-    docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$COMMIT_HASH aztecprotocol/$REPO:latest
-  done
-fi
+for REPO in end-to-end; do
+  docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$CONTENT_HASH
+  docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$CONTENT_HASH aztecprotocol/$REPO:latest
+done
 
 docker-compose -f $COMPOSE_FILE rm -f
 docker-compose -f $COMPOSE_FILE up --exit-code-from end-to-end

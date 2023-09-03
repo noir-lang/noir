@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 NAME=$1
 CPUS=${2:-32}
@@ -51,7 +51,7 @@ fi
 aws ec2 create-tags --resources $IID --tags "Key=Name,Value=$NAME"
 aws ec2 create-tags --resources $IID --tags "Key=Group,Value=build-instance"
 
-while [ -z "$IP" ]; do
+while [ -z "${IP:-}" ]; do
   sleep 1
   IP=$(aws ec2 describe-instances \
     --filter "Name=instance-id,Values=$IID" \

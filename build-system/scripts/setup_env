@@ -6,13 +6,13 @@
 # The script should be sourced from the root of the repository, e.g:
 #   source ./build-system/scripts/setup_env
 # This ensures the resultant variables are set in the calling shell.
-set -e
+set -eu
 
 COMMIT_HASH=$1
 COMMIT_TAG=$2
 JOB_NAME=$3
-GIT_REPOSITORY_URL=$4
-BRANCH=$5
+GIT_REPOSITORY_URL=${4:-}
+BRANCH=${5:-}
 
 BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PROJECT=$(cat PROJECT)

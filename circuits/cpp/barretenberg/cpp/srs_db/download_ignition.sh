@@ -13,7 +13,7 @@
 # If a checksums file is available, it will be used to validate if a download is required
 # and also check the validity of the downloaded transcripts. If not the script downloads
 # whatever is requested but does not check the validity of the downloads.
-set -e
+set -eu
 
 mkdir -p ignition
 cd ignition

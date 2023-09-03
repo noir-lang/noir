@@ -1,12 +1,12 @@
 #!/bin/bash
 # This script runs all test suites that have not been broken out into their own jobs for parallelisation.
 # Might be better to list exclusions here rather than inclusions as risky to maintain.
-set -e
+set -eu
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
-
-IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/barretenberg-x86_64-linux-clang-assert:cache-$COMMIT_HASH
-
+REPOSITORY=barretenberg-x86_64-linux-clang-assert
+# use the image rebuild patterns to compute a content hash, use this to get a URI
+IMAGE_URI="278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPOSITORY:cache-$CONTENT_HASH"
 docker pull $IMAGE_URI
 
 TESTS=(
@@ -30,7 +30,7 @@ TESTS=(
 TESTS_STR="${TESTS[@]}"
 
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
-  set -e; \
+  set -xe; \
   cd /usr/src/barretenberg/cpp; \
   (cd srs_db && ./download_ignition.sh 1); \
   cd build; \

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Erase the image tag associated with the last commit for the given repository.
 # If TILL_COMMIT_HASH is given, erase tags going back in time until we reach TILL_COMMIT_HASH.
-set -e
+set -eu
 
 REPOSITORY=$1
 TILL_COMMIT_HASH=$2
@@ -11,7 +11,8 @@ if [ -n "$3" ]; then
 fi
 
 for COMMIT_HASH in $(git log -n 50 --pretty=format:"%H"); do
-  TAG=cache-${COMMIT_HASH}$TAG_POSTFIX
+  CONTENT_HASH=$(calculate_content_hash $REPOSITORY $COMMIT_HASH)
+  TAG=cache-${CONTENT_HASH}$TAG_POSTFIX
   if image_exists $REPOSITORY $TAG; then
     echo "Erasing image tag: $REPOSITORY:$TAG"
     aws ecr batch-delete-image --region=$ECR_REGION --repository-name $1 --image-ids imageTag=$TAG > /dev/null

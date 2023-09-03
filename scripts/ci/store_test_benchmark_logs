@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 AZTEC_GITHUB_TOKEN=$1
 
@@ -33,11 +33,11 @@ cat /tmp/csv/new.csv \
 if [ -s /tmp/csv/trimmed.csv ]; then
     cd /tmp
     
-    git clone --depth 1 https://$AZTEC_GITHUB_TOKEN:@github.com/AztecProtocol/benchmark-archive
+    git clone --depth 1 git@github.com-logs:AztecProtocol/benchmark-archive.git
 
     cd benchmark-archive
-    git config --global user.name AztecBot
-    git config --global user.email tech@aztecprotocol.com
+    git config user.email "circleci@bot"
+    git config user.name "CircleCi Bot"
     cat /tmp/csv/trimmed.csv >>benchmarks.csv
     git add benchmarks.csv
     git commit -m "Added information from branch $BRANCH commit $COMMIT_HASH"

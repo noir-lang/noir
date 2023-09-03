@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 # To be called from CI for testing with docker and AWS.
 # Can't be called locally unless AWS credentials are set up.
@@ -25,13 +25,14 @@ shift # arg1 (num transcripts) is not forwarded to `run_tests_local`
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/circuits-$ARCH-linux-clang-assert:cache-$COMMIT_HASH
+REPOSITORY="circuits-$ARCH-linux-clang-assert"
+IMAGE_URI="278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPOSITORY:cache-$CONTENT_HASH"
 docker pull $IMAGE_URI
 
 # run tests in docker image
 RUN_ARGS="$@" # helper var necessary for some reason to pass all args to docker run
 time docker run --rm -t $IMAGE_URI /bin/sh -c "\
-  set -e; \
+  set -xe; \
   cd /usr/src/circuits/cpp/barretenberg/cpp/srs_db; \
   ln -sf /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \

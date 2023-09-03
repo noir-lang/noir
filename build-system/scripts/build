@@ -35,8 +35,6 @@ echo "Working directory: $PWD"
 echo "Dockerfile: $DOCKERFILE"
 echo "Build directory: $BUILD_DIR"
 
-init_submodules $REPOSITORY
-
 function fetch_image() {
   echo "Pulling: $1"
   if ! docker pull $1 > /dev/null 2>&1; then
@@ -49,22 +47,19 @@ function fetch_image() {
 # Ensure ECR repository exists.
 ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 
-LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY)
-echo "Last successful commit: $LAST_SUCCESSFUL_COMMIT"
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "Content hash: $CONTENT_HASH"
 
 cd $BUILD_DIR
 
 # If we have previously successful commit, we can early out if nothing relevant has changed since.
-if [[ $FORCE_BUILD == 'false' ]] && check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
-  echo "No rebuild necessary. Retagging..."
-  STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
-  for STAGE in $STAGES; do
-    tag_remote_image $REPOSITORY cache-$LAST_SUCCESSFUL_COMMIT-$STAGE cache-$COMMIT_HASH-$STAGE || true
-  done
-  tag_remote_image $REPOSITORY cache-$LAST_SUCCESSFUL_COMMIT cache-$COMMIT_HASH
+if [[ $FORCE_BUILD == 'false' ]] && check_rebuild cache-"$CONTENT_HASH" $REPOSITORY; then
+  echo "No rebuild necessary."
   untag_remote_image $REPOSITORY tainted
   exit 0
 fi
+
+init_submodules $REPOSITORY
 
 # Validate any terraform if it exists.
 if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
@@ -94,13 +89,13 @@ PARENTS=$(cat $DOCKERFILE | sed -n -e "s/^FROM $ECR_DEPLOY_URL\/\([^[:space:]]\+
 for PARENT in $PARENTS; do
   # Extract repository name (i.e. discard tag).
   PARENT_REPO=${PARENT%:*}
-  PARENT_COMMIT_HASH=$(last_successful_commit $PARENT_REPO)
+  PARENT_CONTENT_HASH=$(calculate_content_hash $PARENT_REPO)
   # There must be a parent image to continue.
-  if [ -z "$PARENT_COMMIT_HASH" ]; then
+  if [ -z "$PARENT_CONTENT_HASH" ]; then
     echo "No parent image found for $PARENT_REPO"
     exit 1
   fi
-  PARENT_IMAGE_URI=$ECR_URL/$PARENT_REPO:cache-$PARENT_COMMIT_HASH
+  PARENT_IMAGE_URI=$ECR_URL/$PARENT_REPO:cache-$PARENT_CONTENT_HASH
   echo "Pulling dependency $PARENT_REPO..."
   fetch_image $PARENT_IMAGE_URI
   # Tag it to look like an official release as that's what we use in Dockerfiles.
@@ -113,18 +108,18 @@ CACHE_FROM=""
 STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
 for STAGE in $STAGES; do
   # Get the last build of this stage to leverage layer caching.
-  if [ -n "$LAST_SUCCESSFUL_COMMIT" ]; then
+  if [ -n "$CONTENT_HASH" ]; then
     echo "Pulling stage: $STAGE"
-    STAGE_IMAGE_LAST_URI=$ECR_URL/$REPOSITORY:cache-$LAST_SUCCESSFUL_COMMIT-$STAGE
+    STAGE_IMAGE_LAST_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
     if fetch_image $STAGE_IMAGE_LAST_URI; then
       STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
     fi
   fi
 
   echo "Building stage: $STAGE"
-  STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$COMMIT_HASH-$STAGE
+  STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
   # Build our dockerfile, add timing information
-  docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg ARG_COMMIT_HASH=$COMMIT_HASH . \
+  docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
     | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
 
   # We don't want to have redo this stages work when building the final image. Use it as a layer cache.
@@ -136,8 +131,8 @@ for STAGE in $STAGES; do
 done
 
 # Pull previous image to use it as a layer cache if it exists.
-if [ -n "$LAST_SUCCESSFUL_COMMIT" ]; then
-  LAST_SUCCESSFUL_URI=$ECR_URL/$REPOSITORY:cache-$LAST_SUCCESSFUL_COMMIT
+if [ -n "$CONTENT_HASH" ]; then
+  LAST_SUCCESSFUL_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
   echo "Pulling previous build of $REPOSITORY..."
   fetch_image $LAST_SUCCESSFUL_URI || true
   CACHE_FROM="--cache-from $LAST_SUCCESSFUL_URI $CACHE_FROM"
@@ -145,10 +140,10 @@ if [ -n "$LAST_SUCCESSFUL_COMMIT" ]; then
 fi
 
 # Build the actual image and give it a commit tag.
-IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$COMMIT_HASH
+IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
 echo "Building image: $IMAGE_COMMIT_URI"
 # Build our dockerfile, add timing information
-docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG --build-arg ARG_COMMIT_HASH=$COMMIT_HASH . \
+docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
   | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
 echo "Pushing image: $IMAGE_COMMIT_URI"
 docker push $IMAGE_COMMIT_URI > /dev/null 2>&1

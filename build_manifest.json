@@ -126,7 +126,9 @@
     "buildDir": ".",
     "dockerfile": "docs/Dockerfile",
     "rebuildPatterns": [
-      "^."
+      "^docs/",
+      "^.*.cpp$",
+      "^.*.ts$"
     ],
     "dependencies": []
   },
@@ -282,7 +284,6 @@
     ],
     "dependencies": [
       "aztec.js",
-      "cli",
       "foundation",
       "l1-artifacts",
       "noir-contracts"
@@ -314,7 +315,6 @@
       "aztec-sandbox",
       "aztec.js",
       "circuits.js",
-      "cli",
       "ethereum",
       "foundation",
       "l1-artifacts",

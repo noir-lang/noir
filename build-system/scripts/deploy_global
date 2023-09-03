@@ -1,6 +1,6 @@
 #!/bin/bash
 # Deployment script for global service (e.g. company website and metrics).
-set -e
+set -eu
 
 REPOSITORY=$1
 
@@ -10,9 +10,9 @@ cd $(query_manifest projectDir $REPOSITORY)
 deploy_ecr $REPOSITORY
 
 # Bail out if nothing changed.
-LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY $DEPLOY_TAG-deployed)
-echo "Last successfully deployed commit: $LAST_SUCCESSFUL_COMMIT"
-if check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "Last successfully deployed commit: $CONTENT_HASH"
+if check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $REPOSITORY; then
   echo "No changes detected, skipping deployment."
   exit 0
 fi
@@ -22,4 +22,4 @@ deploy_terraform "" ./terraform
 deploy_service $REPOSITORY
 
 # Tag the image as deployed.
-tag_remote_image $REPOSITORY cache-$COMMIT_HASH cache-$COMMIT_HASH-$DEPLOY_TAG-deployed
+tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$DEPLOY_TAG-deployed

@@ -21,7 +21,10 @@ function updateBuildManifest(buildManifestFile, allDependencies, projectKey, opt
 
     // Update the "dependencies" key in the corresponding section of the buildManifestData
     // Take just the folder name component
-    const updatedDependencies = aztecDependencies.map(packageName => packageName.split('/')[1]);
+    // Filter out dependencies that are not themselves in the manifest:
+    const updatedDependencies = aztecDependencies
+      .map(packageName => packageName.split('/')[1])
+      .filter(depProjectKey => !!buildManifestData[depProjectKey]);
 
     // If we are just checking, throw if dependencies don't match
     if (options.checkOnly) {

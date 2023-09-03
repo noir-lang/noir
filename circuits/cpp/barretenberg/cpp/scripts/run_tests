@@ -3,7 +3,7 @@
 # 1. The number of ignition transcripts to download.
 # 2. The set of gtest binary names to run.
 # 3-n. The arguments to pass to the gtest binaries.
-set -e
+set -eu
 
 NUM_TRANSCRIPTS=$1
 TESTS=$2
@@ -12,8 +12,9 @@ shift
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/barretenberg-x86_64-linux-clang-assert:cache-$COMMIT_HASH
-
+# use the image rebuild patterns to compute a content hash, use this to get a URI
+REPOSITORY=barretenberg-x86_64-linux-clang-assert
+IMAGE_URI="278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPOSITORY:cache-$CONTENT_HASH"
 docker pull $IMAGE_URI
 
 if [ -f "$TESTS" ]; then
@@ -21,7 +22,7 @@ if [ -f "$TESTS" ]; then
 fi
 
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
-  set -e; \
+  set -xe; \
   cd /usr/src/barretenberg/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \
   cd /usr/src/barretenberg/cpp/build; \

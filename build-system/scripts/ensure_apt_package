@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 if dpkg -s $1 &> /dev/null; then
   exit 0

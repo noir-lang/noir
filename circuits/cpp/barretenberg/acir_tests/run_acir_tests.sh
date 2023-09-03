@@ -3,7 +3,7 @@
 #   BB: to specify a different binary to test with (e.g. bb.js or bb.js-dev).
 #   VERBOSE: to enable logging for each test.
 
-set -e
+set -eu
 
 BB=$PWD/${BB:-../cpp/build/bin/bb}
 CRS_PATH=~/.bb-crs
@@ -11,7 +11,7 @@ BRANCH=kw/acvm-0-24
 
 # Pull down the test vectors from the noir repo, if we don't have the folder already.
 if [ ! -d acir_tests ]; then
-  if [ -n "$TEST_SRC" ]; then
+  if [ -n "${TEST_SRC:-}" ]; then
     cp -R $TEST_SRC acir_tests
   else
     rm -rf noir
@@ -48,13 +48,13 @@ function test() {
   cd $1
 
   set +e
-  if [ -n "$VERBOSE" ]; then
+  if [ -n "${VERBOSE:-}" ]; then
     $BB prove_and_verify -v -c $CRS_PATH -b ./target/$dir_name.bytecode
   else
     $BB prove_and_verify -c $CRS_PATH -b ./target/$dir_name.bytecode > /dev/null 2>&1
   fi
   result=$?
-  set -e
+  set -xeu
 
   if [ $result -eq 0 ]; then
     echo -e "\033[32mPASSED\033[0m"
@@ -68,7 +68,7 @@ function test() {
   cd ..
 }
 
-if [ -n "$1" ]; then
+if [ -n "${1:-}" ]; then
   test $1
 else
   for DIR in $(find -maxdepth 1 -type d -not -path '.'); do

@@ -11,21 +11,21 @@
 #
 # Arguments are:
 # 1. REPOSITORY: The project repository name in ECR. Used to determine if there are changes since last success.
-# 2. SUCCESS_TAG: To track if this job needs to be run, the repository image is tagged with a success tag after a
+# 2. SUCCESS_TAG: To track if this job needs to be run, the repository image is tagged with a prefix after a
 #    successful run. The script will only run if there were relevant code changes since the last successful commit.
 # 3... ARGS: Arguments to pass to spot_run_script.
-set -e
+set -eu
 
 REPOSITORY=$1
 shift
 SUCCESS_TAG=$1
 shift
 
-LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY $SUCCESS_TAG)
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "Content hash: $CONTENT_HASH"
 
-echo "Last successful commit for $SUCCESS_TAG: $LAST_SUCCESSFUL_COMMIT"
-
-if ! check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
-  spot_run_script $@
-  tag_remote_image $REPOSITORY cache-$COMMIT_HASH cache-$COMMIT_HASH-$SUCCESS_TAG
+if ! check_rebuild cache-$CONTENT_HASH-$SUCCESS_TAG $REPOSITORY; then
+  init_submodules $REPOSITORY
+  spot_run_script $CONTENT_HASH $@
+  tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$SUCCESS_TAG
 fi

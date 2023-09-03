@@ -1,15 +1,16 @@
 #!/bin/bash
-set -e
+set -eu
 SCRIPT_PATH=$1
 REPOSITORY=$2
 shift
 shift
-
-init_submodules $REPOSITORY
 
 cd $(query_manifest projectDir $REPOSITORY)
 
 mkdir -p /tmp/test-logs
 
 set -o pipefail
-spot_run_script 32 $SCRIPT_PATH $@ | tee "/tmp/test-logs/$JOB_NAME.log"
+
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "Content hash: $CONTENT_HASH"
+spot_run_script $CONTENT_HASH 32 $SCRIPT_PATH $@ | tee "/tmp/test-logs/$JOB_NAME.log"

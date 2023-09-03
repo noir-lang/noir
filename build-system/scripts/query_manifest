@@ -1,6 +1,5 @@
 #!/bin/bash
-set -e
-
+set -eu
 CMD=$1
 REPO=$2
 

@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2013-2020 Ingy döt Net
 
-set -e
+set -eu
 
 [[ ${BASHPLUS_VERSION-} ]] && return 0
 

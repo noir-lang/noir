@@ -1,28 +1,29 @@
 #!/bin/bash
 # Runs a test script on a remote spot instance. Arguments are:
-# 1. SPEC: Instance specification filename.
-# 2... ARGS: Arguments to pass to remote_run_script.
-set -e
+# 1. Content hash for our repository contents. Used for identify spot jobs and image tags.
+# 2. SPEC: Instance specification filename.
+# 3... ARGS: Arguments to pass to remote_run_script.
+set -eu
+CONTENT_HASH=$1
+SPEC=$2
+shift 2
 
 # On any sort of exit (error or not), kill spot request so it doesn't count against quota.
 function on_exit {
-    if [ -f "sir-$COMMIT_HASH:$JOB_NAME.txt" ]; then
-        SIR=$(cat sir-$COMMIT_HASH:$JOB_NAME.txt)
+    if [ -f "sir-$CONTENT_HASH:$JOB_NAME.txt" ]; then
+        SIR=$(cat sir-$CONTENT_HASH:$JOB_NAME.txt)
         echo "Cancelling spot instance request $SIR (silently)"
         aws ec2 cancel-spot-instance-requests --spot-instance-request-ids $SIR >/dev/null 2>&1 || true
     fi
 }
 trap on_exit EXIT
 
-SPEC=$1
-shift
-
 # Get spot instance.
-IP=$(request_spot $COMMIT_HASH:$JOB_NAME $SPEC)
+IP=$(request_spot $CONTENT_HASH:$JOB_NAME $SPEC)
 
 # Run script remotely on spot instance, capturing success or failure.
 set +e
-remote_run_script $IP $@
+remote_run_script $IP $CONTENT_HASH $@
 CODE=$?
 
 # Shutdown spot.

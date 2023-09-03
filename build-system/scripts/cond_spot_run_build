@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 set -o pipefail
 
 REPOSITORY=$1
@@ -8,20 +8,13 @@ SPEC=$1
 shift
 DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
 
-init_submodules $REPOSITORY
-
-LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY)
-echo "Last successful commit: $LAST_SUCCESSFUL_COMMIT"
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "Content hash: $CONTENT_HASH"
 
 cd $(query_manifest buildDir $REPOSITORY)
 
-if ! check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
-  spot_run_script $SPEC $BUILD_SYSTEM_PATH/remote_build/remote_build $REPOSITORY $@
-else
-  echo "No rebuild necessary. Retagging..."
-  STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
-  for STAGE in $STAGES; do
-    tag_remote_image $REPOSITORY cache-$LAST_SUCCESSFUL_COMMIT-$STAGE cache-$COMMIT_HASH-$STAGE || true
-  done
-  tag_remote_image $REPOSITORY cache-$LAST_SUCCESSFUL_COMMIT cache-$COMMIT_HASH
+if ! check_rebuild cache-$CONTENT_HASH $REPOSITORY; then
+  init_submodules $REPOSITORY
+  spot_run_script $CONTENT_HASH $SPEC $BUILD_SYSTEM_PATH/remote_build/remote_build $REPOSITORY $@
+  tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH
 fi

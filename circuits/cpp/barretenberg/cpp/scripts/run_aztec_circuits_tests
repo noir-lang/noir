@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 # To be called from CI for testing with docker and AWS.
 # Can't be called locally unless AWS credentials are set up.
@@ -19,7 +19,8 @@ shift # to aztec's circuits `run_tests_local`
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/barretenberg-circuits-${ARCH}-linux-clang-builder-runner:cache-$COMMIT_HASH
+REPOSITORY="barretenberg-circuits-${ARCH}-linux-clang-builder-runner"
+IMAGE_URI="278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPOSITORY:cache-$CONTENT_HASH"
 docker pull $IMAGE_URI
 
 if [ "$ARCH" != "wasm" ]; then
@@ -36,7 +37,7 @@ echo "*** Running Aztec circuits tests on commit: $AZTEC_COMMIT"
 # run tests in docker
 RUN_ARGS="$@" # helper var necessary for some reason to pass all args to docker run
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
-  set -e; \
+  set -xe; \
   cd /usr/src/; \
   git clone https://github.com/AztecProtocol/aztec3-packages.git; \
   cd /usr/src/aztec3-packages/circuits/cpp; \
