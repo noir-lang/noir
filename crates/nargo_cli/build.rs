@@ -4,6 +4,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
+type TestCodeGenerator = dyn Fn(&mut File, &Path, &str);
+
 fn check_rustc_version() {
     assert!(
         version().unwrap() >= Version::parse("1.66.0").unwrap(),
@@ -39,29 +41,7 @@ fn main() {
     };
     let test_dir = manifest_dir.join("tests");
 
-    generate_execution_success_tests(&mut test_file, &test_dir);
-    generate_compile_success_empty_tests(&mut test_file, &test_dir);
-    generate_compile_success_contract_tests(&mut test_file, &test_dir);
-    generate_compile_failure_tests(&mut test_file, &test_dir);
-}
-
-fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "execution_success";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let generate_execution_success_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
         write!(
             test_file,
             r#"
@@ -79,26 +59,9 @@ fn execution_success_{test_name}() {{
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
-    }
-}
+    });
 
-fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_success_empty";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let generate_compile_success_empty_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
         write!(
             test_file,
             r#"
@@ -122,26 +85,9 @@ fn compile_success_empty_{test_name}() {{
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
-    }
-}
+    });
 
-fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_success_contract";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let generate_compile_success_contract_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
         write!(
             test_file,
             r#"
@@ -159,26 +105,9 @@ fn compile_success_contract_{test_name}() {{
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
-    }
-}
+    });
 
-fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let generate_compile_failure_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
         write!(
             test_file,
             r#"
@@ -196,5 +125,30 @@ fn compile_failure_{test_name}() {{
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
+    });
+
+    generate_tests(&mut test_file, &test_dir, "execution_success", &*generate_execution_success_code);
+    generate_tests(&mut test_file, &test_dir, "compile_success_empty", &*generate_compile_success_empty_code);
+    generate_tests(&mut test_file, &test_dir, "compile_success_contract", &*generate_compile_success_contract_code);
+    generate_tests(&mut test_file, &test_dir, "compile_failure", &*generate_compile_failure_code);
+}
+
+fn generate_tests(test_file: &mut File, test_data_dir: &Path, test_sub_dir: &str, generate_code: &TestCodeGenerator) {
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        generate_code(test_file, test_dir, &test_name);
     }
 }
