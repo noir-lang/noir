@@ -5,11 +5,11 @@ REPOSITORY=$1
 IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
 
 # Login to build region and pull the build.
-ensure_repo $REPOSITORY $ECR_REGION
+retry_10 ensure_repo $REPOSITORY $ECR_REGION
 docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
 
 # Ensure ECR repository exists in deployment region.
-ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
+retry_10 ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 
 # Push image to deployment repo with commit hash tag e.g:
 # falafel:deadbeefcafebabe1337c0de

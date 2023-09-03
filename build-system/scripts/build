@@ -45,7 +45,7 @@ function fetch_image() {
 }
 
 # Ensure ECR repository exists.
-ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
+retry_10 ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
 echo "Content hash: $CONTENT_HASH"
