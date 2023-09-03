@@ -45,7 +45,11 @@ pub(crate) fn gen_abi(
     let parameters = into_abi_params(context, parameters);
     let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
-    Abi { parameters, return_type, param_witnesses, return_witnesses }
+
+    // TODO: work out how to nicely get the annotations in here -> just need access to the interner when this function is called
+    // Or do we want to keep the annotations exclusive to functions
+    let abi_annotations = None;
+    Abi { parameters, return_type, abi_annotations, param_witnesses, return_witnesses }
 }
 
 // Takes each abi parameter and shallowly maps to the expected witness range in which the

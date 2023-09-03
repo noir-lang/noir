@@ -207,9 +207,8 @@ pub struct Abi {
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
     pub param_witnesses: BTreeMap<String, Vec<Witness>>,
+    pub abi_annotations: Option<Vec<String>>,
 
-    // NEW!
-    // pub abi_annotations: Vec<String>,
     pub return_type: Option<AbiType>,
     pub return_witnesses: Vec<Witness>,
 }
@@ -246,6 +245,10 @@ impl Abi {
         map
     }
 
+    pub fn attach_abi_annotations(&mut self, annotations: Vec<String>) {
+        self.abi_annotations = Some(annotations);
+    }
+
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
@@ -258,7 +261,9 @@ impl Abi {
             .collect();
         Abi {
             parameters,
+            // TODO: I want to have some notion of the abi in here
             param_witnesses,
+            abi_annotations: self.abi_annotations,
             return_type: self.return_type,
             return_witnesses: self.return_witnesses,
         }

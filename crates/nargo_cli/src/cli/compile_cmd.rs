@@ -170,6 +170,7 @@ fn save_contracts(
         vecmap(contracts, |contract| {
             let preprocess_result = vecmap(contract.functions, |func| {
                 (
+                    // TODO(maddiaa): in this case the abis are exclusive to contracts, which im not sure if we want
                     PreprocessedContractFunction {
                         name: func.name,
                         function_type: func.function_type,

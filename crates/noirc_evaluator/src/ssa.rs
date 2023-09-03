@@ -81,6 +81,7 @@ pub fn create_circuit(
         current_witness_index, return_witnesses, locations, input_witnesses, ..
     } = generated_acir;
 
+    // TODO(Maddiaa): gen abi needs more from the program to determine the abi
     let abi = gen_abi(context, func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 

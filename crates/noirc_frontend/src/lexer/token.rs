@@ -369,6 +369,16 @@ impl Attributes {
             _ => None,
         })
     }
+
+    pub fn get_abi_annotations(&self) -> Vec<String> {
+        self.secondary
+            .iter()
+            .filter_map(|attr| match attr {
+                SecondaryAttribute::Abi(annotation) => Some(annotation.clone()),
+                _ => None,
+            })
+            .collect::<Vec<String>>()
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute

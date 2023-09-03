@@ -223,7 +223,7 @@ fn compile_contract(
     let mut errors = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+        let mut function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error);
@@ -235,12 +235,16 @@ fn compile_contract(
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");
 
+        // Read the abi annotations from the func meta
+        // This should be able to be pumped into the function definition
+        let abi_annotations = func_meta.attributes.get_abi_annotations();
+        function.abi.attach_abi_annotations(abi_annotations);
+
         let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
         functions.push(ContractFunction {
             name,
             function_type,
-
             // TODO: edit this to inlcude annotations
             abi: function.abi,
             bytecode: function.circuit,
