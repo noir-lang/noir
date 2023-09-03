@@ -251,10 +251,20 @@ impl TestFunction {
 
     /// Returns true if the test function has been specified to fail
     /// This is done by annotating the function with `#[test(should_fail)]`
+    /// or `#[test(should_fail_with = "reason")]`
     pub fn should_fail(&self) -> bool {
         match self.scope {
-            TestScope::ShouldFail => true,
+            TestScope::ShouldFail | TestScope::ShouldFailWith(_) => true,
             TestScope::None => false,
+        }
+    }
+
+    /// Returns the reason for the test function to fail if specified
+    /// by the user.
+    pub fn failure_reason(&self) -> Option<&str> {
+        match &self.scope {
+            TestScope::ShouldFail | TestScope::None => None,
+            TestScope::ShouldFailWith(contents) => Some(&contents),
         }
     }
 }
