@@ -1,3 +1,23 @@
+//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+//! later [`Instruction`]s to maximise the impact of [compile-time simplifications][Instruction::simplify()].
+//!
+//! The pass works as follows:
+//! - Re-insert each instruction in order to apply the instruction simplification performed
+//!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
+//! - Check whether the instruction is [pure][Instruction::is_pure()]
+//!   and there exists a duplicate instruction earlier in the same block.
+//!   If so, the instruction can be replaced with the results of this previous instruction.
+//!
+//! These operations are done in parallel so that they can each benefit from each other
+//! without the need for multiple passes.
+//!
+//! Other passes perform a certain amount of constant folding automatically as they insert instructions
+//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value`] or
+//! [`DataFlowGraph::set_value_from_id`] are used on a value which enables instructions dependent on the value to
+//! now be simplified.
+//!
+//! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
+//! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
@@ -14,21 +34,9 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Performs constant folding on each instruction. This is done by two methods:
+    /// Performs constant folding on each instruction.
     ///
-    /// 1. Re-insert each instruction in order to apply the constant folding which is done automatically
-    ///    by the [`DataFlowGraph`] as new instructions are pushed.
-    ///
-    ///    This is generally done automatically but this pass can become needed
-    ///    if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
-    ///    used on a value which enables instructions dependent on the value to
-    ///    now be simplified.
-    ///
-    /// 2. Check for the existence of [pure instructions][Instruction::is_pure()] which have a duplicate earlier in the block.
-    ///    These can be replaced with the results of this previous instruction.
-    ///
-    ///    This is only performed within this pass and so is needed when different blocks are merged,
-    ///    i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
+    /// See [`constant_folding`][self] module for more infomation.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);
