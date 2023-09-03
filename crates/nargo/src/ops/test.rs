@@ -32,7 +32,22 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
                         // TODO: Improve color variations on this message
                         message: "error: Test passed when it should have failed".to_string(),
                     },
-                    Err(_) => TestStatus::Pass,
+                    Err(err) => {
+                        let expected_failure_message =
+                            test_function.failure_reason().unwrap_or_default();
+                        // Check for the failure message
+                        if err.to_string().contains(&expected_failure_message) {
+                            TestStatus::Pass
+                        } else {
+                            TestStatus::Fail {
+                                message: format!(
+                                    "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
+                                    expected_failure_message,
+                                    err.to_string().trim_matches('\'')
+                                ),
+                            }
+                        }
+                    }
                 }
             } else {
                 match circuit_execution {
@@ -58,7 +73,22 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             let program_is_never_satisfiable =
                 diag.diagnostic.message.contains("Failed constraint");
             if program_is_never_satisfiable {
-                return TestStatus::Pass;
+                let expected_failure_message = test_function.failure_reason().unwrap_or_default();
+                // Now check to see if it contains the expected failure message
+                if diag.diagnostic.message.contains(&expected_failure_message) {
+                    return TestStatus::Pass;
+                } else {
+                    return TestStatus::Fail {
+                        message: format!(
+                            "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
+                            expected_failure_message,
+                            diag.diagnostic
+                                .message
+                                .trim_start_matches("Failed constraint: ")
+                                .trim_matches('\'')
+                        ),
+                    };
+                }
             }
 
             // The test has failed compilation, but its a compilation error. Report error
