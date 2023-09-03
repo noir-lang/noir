@@ -1537,7 +1537,7 @@ mod test {
         src: &str,
     ) -> (ParsedModule, NodeInterner, HashMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
         let (program, errors) = parse_program(src);
-        if !errors.is_empty() {
+        if errors.iter().any(|e| e.is_error()) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
         }
 

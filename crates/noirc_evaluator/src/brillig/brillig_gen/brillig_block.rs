@@ -350,7 +350,7 @@ impl<'block> BrilligBlock<'block> {
                 ) => {
                     self.convert_ssa_slice_intrinsic_call(
                         dfg,
-                        &dfg[*func],
+                        &dfg[dfg.resolve(*func)],
                         instruction_id,
                         arguments,
                     );
@@ -937,13 +937,13 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
-        let value = &dfg[value_id];
+        let value = &dfg[dfg.resolve(value_id)];
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.function_context.get_variable(value_id)
+                self.function_context.get_variable(value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
@@ -1089,7 +1089,7 @@ impl<'block> BrilligBlock<'block> {
 /// Returns the type of the operation considering the types of the operands
 /// TODO: SSA issues binary operations between fields and integers.
 /// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
-pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
@@ -1106,7 +1106,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
-        | (typ, Type::Numeric(NumericType::NativeField)) => typ,
+        | (typ, Type::Numeric(NumericType::NativeField)) => typ.clone(),
         // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -1114,7 +1114,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same"
             );
-            Type::Numeric(lhs_type)
+            Type::Numeric(*lhs_type)
         }
     }
 }
