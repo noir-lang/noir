@@ -321,28 +321,42 @@ impl IntType {
 pub enum TestScope {
     /// If a test has a scope of ShouldFail, then it is expected to fail
     ShouldFail,
+    /// If a test has a scope of ShouldFailWith, then it can only pass
+    /// if it fails with the specified reason.
+    ShouldFailWith(String),
     /// No scope is applied and so the test must pass
     None,
 }
 
 impl TestScope {
     fn lookup_str(string: &str) -> Option<TestScope> {
-        match string {
+        match string.trim() {
             "should_fail" => Some(TestScope::ShouldFail),
+            s if s.starts_with("should_fail_with") => {
+                let parts: Vec<&str> = s.splitn(2, '=').collect();
+                if parts.len() == 2 {
+                    let reason = parts[1].trim();
+                    let reason = reason.trim_matches('"');
+                    Some(TestScope::ShouldFailWith(reason.to_string()))
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     }
-    fn as_str(&self) -> &'static str {
+    fn to_string(&self) -> String {
         match self {
-            TestScope::ShouldFail => "should_fail",
-            TestScope::None => "",
+            TestScope::ShouldFail => "should_fail".to_owned(),
+            TestScope::None => String::new(),
+            TestScope::ShouldFailWith(contents) => format!("should_fail_with = ({})", contents),
         }
     }
 }
 
 impl fmt::Display for TestScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({})", self.as_str())
+        write!(f, "({})", self.to_string())
     }
 }
 
@@ -391,6 +405,9 @@ impl Attribute {
                         || ch == '_'
                         || ch == '('
                         || ch == ')'
+                        || ch == '='
+                        || ch == '"'
+                        || ch == ' '
                 })
                 .then_some(());
 

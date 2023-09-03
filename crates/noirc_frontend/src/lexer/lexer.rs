@@ -536,6 +536,18 @@ mod tests {
     }
 
     #[test]
+    fn test_attribute_with_valid_scope_should_fail_with() {
+        let input = r#"#[test(should_fail_with = "hello")]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith("hello".to_owned())))
+        );
+    }
+
+    #[test]
     fn test_attribute_with_invalid_scope() {
         let input = r#"#[test(invalid_scope)]"#;
         let mut lexer = Lexer::new(input);
