@@ -41,10 +41,11 @@ fn main() {
     };
     let test_dir = manifest_dir.join("tests");
 
-    let generate_execution_success_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
-        write!(
-            test_file,
-            r#"
+    let generate_execution_success_code: Box<TestCodeGenerator> =
+        Box::new(|test_file, test_dir, test_name| {
+            write!(
+                test_file,
+                r#"
 #[test]
 fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
@@ -56,15 +57,16 @@ fn execution_success_{test_name}() {{
     cmd.assert().success();
 }}
             "#,
-            test_dir = test_dir.display(),
-        )
-        .expect("Could not write templated test file.");
-    });
+                test_dir = test_dir.display(),
+            )
+            .expect("Could not write templated test file.");
+        });
 
-    let generate_compile_success_empty_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
-        write!(
-            test_file,
-            r#"
+    let generate_compile_success_empty_code: Box<TestCodeGenerator> =
+        Box::new(|test_file, test_dir, test_name| {
+            write!(
+                test_file,
+                r#"
 #[test]
 fn compile_success_empty_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
@@ -82,15 +84,16 @@ fn compile_success_empty_{test_name}() {{
         .and(predicate::str::contains("| 0            |")));
 }}
             "#,
-            test_dir = test_dir.display(),
-        )
-        .expect("Could not write templated test file.");
-    });
+                test_dir = test_dir.display(),
+            )
+            .expect("Could not write templated test file.");
+        });
 
-    let generate_compile_success_contract_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
-        write!(
-            test_file,
-            r#"
+    let generate_compile_success_contract_code: Box<TestCodeGenerator> =
+        Box::new(|test_file, test_dir, test_name| {
+            write!(
+                test_file,
+                r#"
 #[test]
 fn compile_success_contract_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
@@ -102,13 +105,14 @@ fn compile_success_contract_{test_name}() {{
     cmd.assert().success();
 }}
             "#,
-            test_dir = test_dir.display(),
-        )
-        .expect("Could not write templated test file.");
-    });
+                test_dir = test_dir.display(),
+            )
+            .expect("Could not write templated test file.");
+        });
 
-    let generate_compile_failure_code: Box<TestCodeGenerator> = Box::new(|test_file, test_dir, test_name| {
-        write!(
+    let generate_compile_failure_code: Box<TestCodeGenerator> = Box::new(
+        |test_file, test_dir, test_name| {
+            write!(
             test_file,
             r#"
 #[test]
@@ -125,15 +129,36 @@ fn compile_failure_{test_name}() {{
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
-    });
+        },
+    );
 
-    generate_tests(&mut test_file, &test_dir, "execution_success", &*generate_execution_success_code);
-    generate_tests(&mut test_file, &test_dir, "compile_success_empty", &*generate_compile_success_empty_code);
-    generate_tests(&mut test_file, &test_dir, "compile_success_contract", &*generate_compile_success_contract_code);
+    generate_tests(
+        &mut test_file,
+        &test_dir,
+        "execution_success",
+        &*generate_execution_success_code,
+    );
+    generate_tests(
+        &mut test_file,
+        &test_dir,
+        "compile_success_empty",
+        &*generate_compile_success_empty_code,
+    );
+    generate_tests(
+        &mut test_file,
+        &test_dir,
+        "compile_success_contract",
+        &*generate_compile_success_contract_code,
+    );
     generate_tests(&mut test_file, &test_dir, "compile_failure", &*generate_compile_failure_code);
 }
 
-fn generate_tests(test_file: &mut File, test_data_dir: &Path, test_sub_dir: &str, generate_code: &TestCodeGenerator) {
+fn generate_tests(
+    test_file: &mut File,
+    test_data_dir: &Path,
+    test_sub_dir: &str,
+    generate_code: &TestCodeGenerator,
+) {
     let test_data_dir = test_data_dir.join(test_sub_dir);
 
     let test_case_dirs =
