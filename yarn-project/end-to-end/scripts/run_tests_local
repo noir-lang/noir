@@ -8,9 +8,11 @@ export COMPOSE_FILE=${2:-./scripts/docker-compose.yml}
 
 aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com
 
+BS=$(git rev-parse --show-toplevel)/build-system/scripts
+
 for REPO in end-to-end; do
-  docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$CONTENT_HASH
-  docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$CONTENT_HASH aztecprotocol/$REPO:latest
+  docker pull $($BS/calculate_image_uri $REPO)
+  docker tag $($BS/calculate_image_uri $REPO) aztecprotocol/$REPO:latest
 done
 
 docker-compose -f $COMPOSE_FILE rm -f
