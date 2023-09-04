@@ -74,6 +74,7 @@ mod tests {
             private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
         };
 
         let contract = get_bb().eth_contract(&circuit).unwrap();
