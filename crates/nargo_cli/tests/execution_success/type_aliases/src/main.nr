@@ -26,4 +26,11 @@ fn main(x : [Field; 2]) {
         foo: 10
     };
     assert(s.foo == 10);
+
+    let _regression2502: Regression2502Alias = Regression2502 {};
 }
+
+// An ICE was occurring if a type alias referred to a struct before it was initialized
+// during name resolution. The fix was to initialize structs during def collection instead.
+type Regression2502Alias = Regression2502;
+struct Regression2502 {}

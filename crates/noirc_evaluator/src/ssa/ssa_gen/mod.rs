@@ -7,7 +7,10 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::{
+    monomorphization::ast::{self, Binary, Expression, Program},
+    BinaryOpKind,
+};
 
 use crate::ssa::ir::types::NumericType;
 
@@ -77,9 +80,7 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(constrain, location) => {
-                self.codegen_constrain(constrain, *location)
-            }
+            Expression::Constrain(expr, location) => self.codegen_constrain(expr, *location),
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
         }
@@ -342,7 +343,8 @@ impl<'a> FunctionContext<'a> {
         };
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        self.builder.insert_constrain(is_offset_out_of_bounds);
+        let true_const = self.builder.numeric_constant(true, Type::bool());
+        self.builder.insert_constrain(is_offset_out_of_bounds, true_const);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
@@ -516,8 +518,22 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
-        let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.set_location(location).insert_constrain(boolean);
+        match expr {
+            // If we're constraining an equality to be true then constrain the two sides directly.
+            Expression::Binary(Binary { lhs, operator, rhs, .. })
+                if operator == &BinaryOpKind::Equal =>
+            {
+                let lhs = self.codegen_non_tuple_expression(lhs);
+                let rhs = self.codegen_non_tuple_expression(rhs);
+                self.builder.set_location(location).insert_constrain(lhs, rhs);
+            }
+
+            _ => {
+                let expr = self.codegen_non_tuple_expression(expr);
+                let true_literal = self.builder.numeric_constant(true, Type::bool());
+                self.builder.set_location(location).insert_constrain(expr, true_literal);
+            }
+        }
         Self::unit_value()
     }
 

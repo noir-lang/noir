@@ -1,6 +1,10 @@
-use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap, Backend};
-use iter_extended::try_vecmap;
+use std::path::Path;
+
+use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap};
+use iter_extended::{try_vecmap, vecmap};
+use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
+use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
@@ -15,17 +19,11 @@ use noirc_frontend::hir::Context;
 
 use clap::Args;
 
-use nargo::ops::{preprocess_contract_function, preprocess_program};
-
+use crate::backends::Backend;
 use crate::errors::{CliError, CompileError};
 
-use super::fs::program::save_debug_artifact_to_file;
-use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
-    program::{save_contract_to_file, save_program_to_file},
+use super::fs::program::{
+    save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
 
@@ -55,19 +53,17 @@ pub(crate) struct CompileCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: CompileCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let circuit_dir = workspace.target_directory_path();
-
-    let mut common_reference_string = read_cached_common_reference_string();
 
     for package in &workspace {
         let (mut context, crate_id) = prepare_package(package);
@@ -78,86 +74,18 @@ pub(crate) fn run<B: Backend>(
             let optimized_contracts =
                 try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
 
-            // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
-            // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-            // are compiled via nargo-core and then the PreprocessedContract is constructed here.
-            // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-            let preprocessed_contracts: Result<
-                Vec<(PreprocessedContract, Vec<DebugInfo>)>,
-                CliError<B>,
-            > = try_vecmap(optimized_contracts, |contract| {
-                let preprocess_result = try_vecmap(contract.functions, |func| {
-                    common_reference_string = update_common_reference_string(
-                        backend,
-                        &common_reference_string,
-                        &func.bytecode,
-                    )
-                    .map_err(CliError::CommonReferenceStringError)?;
-
-                    preprocess_contract_function(
-                        backend,
-                        args.include_keys,
-                        &common_reference_string,
-                        func,
-                    )
-                    .map_err(CliError::ProofSystemCompilerError)
-                })?;
-
-                let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
-                    preprocess_result.into_iter().unzip();
-
-                Ok((
-                    PreprocessedContract {
-                        name: contract.name,
-                        backend: String::from(BACKEND_IDENTIFIER),
-                        functions: preprocessed_contract_functions,
-                    },
-                    debug_infos,
-                ))
-            });
-            for (contract, debug_infos) in preprocessed_contracts? {
-                save_contract_to_file(
-                    &contract,
-                    &format!("{}-{}", package.name, contract.name),
-                    &circuit_dir,
-                );
-
-                if args.output_debug {
-                    let debug_artifact = DebugArtifact::new(debug_infos, &context);
-                    save_debug_artifact_to_file(
-                        &debug_artifact,
-                        &format!("{}-{}", package.name, contract.name),
-                        &circuit_dir,
-                    );
-                }
-            }
+            save_contracts(&context, optimized_contracts, package, &circuit_dir, args.output_debug);
         } else {
             let (context, program) = compile_package(backend, package, &args.compile_options)?;
-
-            common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
-
-            let (preprocessed_program, debug_info) =
-                preprocess_program(backend, args.include_keys, &common_reference_string, program)
-                    .map_err(CliError::ProofSystemCompilerError)?;
-            save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
-
-            if args.output_debug {
-                let debug_artifact = DebugArtifact::new(vec![debug_info], &context);
-                let circuit_name: String = (&package.name).into();
-                save_debug_artifact_to_file(&debug_artifact, &circuit_name, &circuit_dir);
-            }
+            save_program(&context, program, package, &circuit_dir, args.output_debug);
         }
     }
-
-    write_cached_common_reference_string(&common_reference_string);
 
     Ok(())
 }
 
-pub(crate) fn compile_package<B: Backend>(
-    backend: &B,
+pub(crate) fn compile_package(
+    backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(Context, CompiledProgram), CompileError> {
@@ -179,10 +107,10 @@ pub(crate) fn compile_package<B: Backend>(
     Ok((context, program))
 }
 
-pub(super) fn optimize_circuit<B: Backend>(
-    backend: &B,
+pub(super) fn optimize_circuit(
+    backend: &Backend,
     circuit: Circuit,
-) -> Result<(Circuit, AcirTransformationMap), CliError<B>> {
+) -> Result<(Circuit, AcirTransformationMap), CliError> {
     let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
         backend.supports_opcode(opcode)
     })
@@ -191,18 +119,97 @@ pub(super) fn optimize_circuit<B: Backend>(
     Ok(result)
 }
 
-pub(super) fn optimize_contract<B: Backend>(
-    backend: &B,
+pub(super) fn optimize_contract(
+    backend: &Backend,
     contract: CompiledContract,
-) -> Result<CompiledContract, CliError<B>> {
+) -> Result<CompiledContract, CliError> {
     let functions = try_vecmap(contract.functions, |mut func| {
         let (optimized_bytecode, location_map) = optimize_circuit(backend, func.bytecode)?;
         func.bytecode = optimized_bytecode;
         func.debug.update_acir(location_map);
-        Ok::<_, CliError<B>>(func)
+        Ok::<_, CliError>(func)
     })?;
 
     Ok(CompiledContract { functions, ..contract })
+}
+
+fn save_program(
+    context: &Context,
+    program: CompiledProgram,
+    package: &Package,
+    circuit_dir: &Path,
+    output_debug: bool,
+) {
+    let preprocessed_program = PreprocessedProgram {
+        backend: String::from(BACKEND_IDENTIFIER),
+        abi: program.abi,
+        bytecode: program.circuit,
+    };
+
+    save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+
+    if output_debug {
+        let debug_artifact = DebugArtifact::new(vec![program.debug], context);
+        let circuit_name: String = (&package.name).into();
+        save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
+    }
+}
+
+fn save_contracts(
+    context: &Context,
+    contracts: Vec<CompiledContract>,
+    package: &Package,
+    circuit_dir: &Path,
+    output_debug: bool,
+) {
+    // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
+    // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
+    // are compiled via nargo-core and then the PreprocessedContract is constructed here.
+    // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
+    let preprocessed_contracts: Vec<(PreprocessedContract, Vec<DebugInfo>)> =
+        vecmap(contracts, |contract| {
+            let preprocess_result = vecmap(contract.functions, |func| {
+                (
+                    PreprocessedContractFunction {
+                        name: func.name,
+                        function_type: func.function_type,
+                        is_internal: func.is_internal,
+                        abi: func.abi,
+
+                        bytecode: func.bytecode,
+                    },
+                    func.debug,
+                )
+            });
+
+            let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
+                preprocess_result.into_iter().unzip();
+
+            (
+                PreprocessedContract {
+                    name: contract.name,
+                    backend: String::from(BACKEND_IDENTIFIER),
+                    functions: preprocessed_contract_functions,
+                },
+                debug_infos,
+            )
+        });
+    for (contract, debug_infos) in preprocessed_contracts {
+        save_contract_to_file(
+            &contract,
+            &format!("{}-{}", package.name, contract.name),
+            circuit_dir,
+        );
+
+        if output_debug {
+            let debug_artifact = DebugArtifact::new(debug_infos, context);
+            save_debug_artifact_to_file(
+                &debug_artifact,
+                &format!("{}-{}", package.name, contract.name),
+                circuit_dir,
+            );
+        }
+    }
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
