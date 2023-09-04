@@ -1,7 +1,0 @@
-[package]
-name = "bit_shifts_comptime"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

@@ -1,7 +1,0 @@
-[package]
-name = "signed_division"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

@@ -1,7 +1,0 @@
-[package]
-name = "distinct_keyword"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

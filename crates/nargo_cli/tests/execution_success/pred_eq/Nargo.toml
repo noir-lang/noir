@@ -1,7 +1,0 @@
-[package]
-name = "pred_eq"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]
