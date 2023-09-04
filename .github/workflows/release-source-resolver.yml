@@ -39,11 +39,7 @@ jobs:
         # run: npm publish
         run: |
           echo "Dry run: Running npm pack to simulate npm publish:"
-          PACK_FILENAME=$(npm pack)
-          echo "Dry run: Listing the contents of the tarball:"
-          tar -tf $PACK_FILENAME
-          echo "Dry run: Outputting the package.json inside of the tarball:"
-          tar -Oxf $PACK_FILENAME package/package.json
+          npm pack
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
