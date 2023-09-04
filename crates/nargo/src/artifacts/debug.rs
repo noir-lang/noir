@@ -1,3 +1,4 @@
+use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -5,7 +6,6 @@ use std::{
 };
 
 use fm::FileId;
-use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::hir::Context;
 
 /// For a given file, we store the source code and the path to the file

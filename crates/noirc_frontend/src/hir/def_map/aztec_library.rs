@@ -1,115 +1,108 @@
 use acvm::FieldElement;
-use noirc_errors::Span;
+use noirc_errors::{CustomDiagnostic, Span};
 
+use crate::graph::CrateId;
 use crate::{
-    token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, ForExpression, FunctionReturnType, Ident, IndexExpression, LetStatement,
-    Literal, MethodCallExpression, NoirFunction, ParsedModule, Path, Pattern, Statement,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    hir::Context, token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness,
+    Expression, ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement,
+    IndexExpression, LetStatement, Literal, MethodCallExpression, NoirFunction, ParsedModule, Path,
+    PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use noirc_errors::FileDiagnostic;
 
 //
 //             Helper macros for creating noir ast nodes
 //
-macro_rules! ident {
-    ($name:expr) => {
-        Ident::new($name.to_string(), Span::default())
-    };
+fn ident(name: &str) -> Ident {
+    Ident::new(name.to_string(), Span::default())
 }
 
-macro_rules! ident_path {
-    ($name:expr) => {
-        Path::from_ident(ident!($name))
-    };
+fn ident_path(name: &str) -> Path {
+    Path::from_ident(ident(name))
 }
 
-macro_rules! expression {
-    ($kind:expr) => {
-        Expression::new($kind, Span::default())
-    };
+fn path(ident: Ident) -> Path {
+    Path::from_ident(ident)
 }
 
-macro_rules! variable {
-    ($name:expr) => {
-        expression!(ExpressionKind::Variable(ident_path!($name)))
-    };
+fn expression(kind: ExpressionKind) -> Expression {
+    Expression::new(kind, Span::default())
 }
 
-macro_rules! variable_path {
-    ($path:expr) => {
-        expression!(ExpressionKind::Variable($path))
-    };
+fn variable(name: &str) -> Expression {
+    expression(ExpressionKind::Variable(ident_path(name)))
 }
 
-macro_rules! method_call {
-    ($object:expr, $method_name:expr, $arguments:expr) => {
-        expression!(ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-            object: $object,
-            method_name: ident!($method_name),
-            arguments: $arguments,
-        })))
-    };
+fn variable_path(path: Path) -> Expression {
+    expression(ExpressionKind::Variable(path))
 }
 
-macro_rules! call {
-    ($func:expr, $arguments:expr) => {
-        expression!(ExpressionKind::Call(Box::new(CallExpression {
-            func: Box::new($func),
-            arguments: $arguments,
-        })))
-    };
+fn method_call(object: Expression, method_name: &str, arguments: Vec<Expression>) -> Expression {
+    expression(ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+        object,
+        method_name: ident(method_name),
+        arguments,
+    })))
 }
 
-macro_rules! mutable {
-    ( $name:expr ) => {
-        Pattern::Mutable(Box::new(Pattern::Identifier(ident!($name))), Span::default())
-    };
+fn call(func: Expression, arguments: Vec<Expression>) -> Expression {
+    expression(ExpressionKind::Call(Box::new(CallExpression { func: Box::new(func), arguments })))
 }
 
-macro_rules! mutable_assignment {
-    ( $name:expr, $assigned_to:expr ) => {
-        Statement::Let(LetStatement {
-            pattern: mutable!($name),
-            r#type: make_type!(UnresolvedTypeData::Unspecified),
-            expression: $assigned_to,
-        })
-    };
+fn mutable(pattern: &str) -> Pattern {
+    Pattern::Mutable(Box::new(Pattern::Identifier(ident(pattern))), Span::default())
+}
+
+fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
+    Statement::Let(LetStatement {
+        pattern: mutable(name),
+        r#type: make_type(UnresolvedTypeData::Unspecified),
+        expression: assigned_to,
+    })
 }
 
 macro_rules! chained_path {
     ( $base:expr $(, $tail:expr)* ) => {
         {
-            let mut base_path = ident_path!($base);
+            let mut base_path = ident_path($base);
             $(
-                base_path.segments.push(ident!($tail));
+                base_path.segments.push(ident($tail));
             )*
             base_path
         }
     }
 }
 
-macro_rules! cast {
-    ( $lhs:expr, $ty:expr ) => {
-        expression!(ExpressionKind::Cast(Box::new(CastExpression {
-            lhs: $lhs,
-            r#type: make_type!($ty)
-        })))
-    };
+macro_rules! chained_dep {
+    ( $base:expr $(, $tail:expr)* ) => {
+        {
+            let mut base_path = ident_path($base);
+            base_path.kind = PathKind::Dep;
+            $(
+                base_path.segments.push(ident($tail));
+            )*
+            base_path
+        }
+    }
 }
 
-macro_rules! make_type {
-    ( $ty:expr ) => {
-        UnresolvedType { typ: $ty, span: None }
-    };
+fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
+    expression(ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type: make_type(ty) })))
 }
 
-macro_rules! index_array {
-    ( $array:expr, $index:expr ) => {
-        expression!(ExpressionKind::Index(Box::new(IndexExpression {
-            collection: variable_path!(ident_path!($array)),
-            index: variable!($index),
-        })))
-    };
+fn make_type(typ: UnresolvedTypeData) -> UnresolvedType {
+    UnresolvedType { typ, span: None }
+}
+
+fn index_array(array: Ident, index: &str) -> Expression {
+    expression(ExpressionKind::Index(Box::new(IndexExpression {
+        collection: variable_path(path(array)),
+        index: variable(index),
+    })))
+}
+
+fn import(path: Path) -> ImportStatement {
+    ImportStatement { path, alias: None }
 }
 
 //
@@ -118,29 +111,79 @@ macro_rules! index_array {
 
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
-pub(crate) fn transform(mut ast: ParsedModule) -> ParsedModule {
+pub(crate) fn transform(
+    mut ast: ParsedModule,
+    crate_id: &CrateId,
+    context: &Context,
+    errors: &mut Vec<FileDiagnostic>,
+) -> ParsedModule {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
-    transform_module(&mut ast.functions);
-    for submodule in ast.submodules.iter_mut() {
-        transform_module(&mut submodule.contents.functions);
+    for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
+        if transform_module(&mut submodule.contents.functions) {
+            check_for_aztec_dependency(crate_id, context, errors);
+            include_relevant_imports(&mut submodule.contents);
+        }
     }
     ast
 }
 
+/// Includes an import to the aztec library if it has not been included yet
+fn include_relevant_imports(ast: &mut ParsedModule) {
+    // Create the aztec import path using the assumed chained_dep! macro
+    let aztec_import_path = import(chained_dep!("aztec"));
+
+    // Check if the aztec import already exists
+    let is_aztec_imported =
+        ast.imports.iter().any(|existing_import| existing_import.path == aztec_import_path.path);
+
+    // If aztec is not imported, add the import at the beginning
+    if !is_aztec_imported {
+        ast.imports.insert(0, aztec_import_path);
+    }
+}
+
+/// Creates an error alerting the user that they have not downloaded the Aztec-noir library
+fn check_for_aztec_dependency(
+    crate_id: &CrateId,
+    context: &Context,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    let crate_graph = &context.crate_graph[crate_id];
+    let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
+
+    if !has_aztec_dependency {
+        errors.push(FileDiagnostic::new(
+            crate_graph.root_file_id,
+            CustomDiagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
+        ));
+    }
+}
+
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
-fn transform_module(functions: &mut [NoirFunction]) {
+/// Returns true if an annotated function is found, false otherwise
+fn transform_module(functions: &mut [NoirFunction]) -> bool {
+    let mut has_annotated_functions = false;
     for func in functions.iter_mut() {
         if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
             match custom_attribute.as_str() {
-                "aztec(private)" => transform_function("Private", func),
-                "aztec(public)" => transform_function("Public", func),
-                _ => return,
+                "aztec(private)" => {
+                    transform_function("Private", func);
+                    has_annotated_functions = true;
+                }
+                "aztec(public)" => {
+                    transform_function("Public", func);
+                    has_annotated_functions = true;
+                }
+                _ => continue,
             }
         }
     }
+    has_annotated_functions
 }
 
 /// If it does, it will insert the following things:
@@ -169,8 +212,11 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
     func.def.return_visibility = Visibility::Public;
 
     // Distinct return types are only required for private functions
-    if ty == "Private" {
-        func.def.return_distinctness = Distinctness::Distinct;
+    // Public functions should have open auto-inferred
+    match ty {
+        "Private" => func.def.return_distinctness = Distinctness::Distinct,
+        "Public" => func.def.is_open = true,
+        _ => (),
     }
 }
 
@@ -190,9 +236,10 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
 ///   // ...
 /// }
 pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
-    let context_ident = ident!("inputs");
+    let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
-    let context_type = make_type!(UnresolvedTypeData::Named(ident_path!(ty), vec![]));
+    let type_path = chained_path!("aztec", "abi", ty);
+    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
     let visibility = Visibility::Private;
 
     (context_pattern, context_type, visibility)
@@ -227,33 +274,33 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     let mut injected_expressions: Vec<Statement> = vec![];
 
     // `let mut hasher = Hasher::new();`
-    let let_hasher = mutable_assignment!(
+    let let_hasher = mutable_assignment(
         "hasher", // Assigned to
-        call!(
-            variable_path!(chained_path!("Hasher", "new")), // Path
-            vec![]                                          // args
-        )
+        call(
+            variable_path(chained_path!("aztec", "abi", "Hasher", "new")), // Path
+            vec![],                                                        // args
+        ),
     );
 
     // Completes: `let mut hasher = Hasher::new();`
     injected_expressions.push(let_hasher);
 
     // Iterate over each of the function parameters, adding to them to the hasher
-    params.iter().for_each(|(pattern, ty, _vis)| {
+    params.iter().for_each(|(pattern, typ, _vis)| {
         match pattern {
-            Pattern::Identifier(ident) => {
+            Pattern::Identifier(identifier) => {
                 // Match the type to determine the padding to do
-                let unresolved_type = &ty.typ;
+                let unresolved_type = &typ.typ;
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
-                    UnresolvedTypeData::Named(..) => add_struct_to_hasher(ident),
+                    UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
                     // TODO: if this is an array of structs, we should call serialise on each of them (no methods currently do this yet)
-                    UnresolvedTypeData::Array(..) => add_array_to_hasher(ident),
+                    UnresolvedTypeData::Array(..) => add_array_to_hasher(identifier),
                     // `hasher.add({ident})`
-                    UnresolvedTypeData::FieldElement => add_field_to_hasher(ident),
+                    UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
                     // Add the integer to the hasher, casted to a field
                     // `hasher.add({ident} as Field)`
-                    UnresolvedTypeData::Integer(..) => add_int_to_hasher(ident),
+                    UnresolvedTypeData::Integer(..) => add_int_to_hasher(identifier),
                     _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
                 };
                 injected_expressions.push(expression);
@@ -263,21 +310,21 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
     });
 
     // Create the inputs to the context
-    let inputs_expression = variable!("inputs");
+    let inputs_expression = variable("inputs");
     // `hasher.hash()`
-    let hash_call = method_call!(
-        variable!("hasher"), // variable
-        "hash",              // method name
-        vec![]               // args
+    let hash_call = method_call(
+        variable("hasher"), // variable
+        "hash",             // method name
+        vec![],             // args
     );
 
     // let mut context = {ty}::new(inputs, hash);
-    let let_context = mutable_assignment!(
+    let let_context = mutable_assignment(
         "context", // Assigned to
-        call!(
-            variable_path!(chained_path!(ty, "new")), // Path
-            vec![inputs_expression, hash_call]        // args
-        )
+        call(
+            variable_path(chained_path!("aztec", "context", ty, "new")), // Path
+            vec![inputs_expression, hash_call],                          // args
+        ),
     );
     injected_expressions.push(let_context);
 
@@ -308,9 +355,9 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
 ///  // ...
 /// }
 pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
-    let return_path = chained_path!("abi", ty);
+    let return_path = chained_path!("aztec", "abi", ty);
 
-    let ty = make_type!(UnresolvedTypeData::Named(return_path, vec![]));
+    let ty = make_type(UnresolvedTypeData::Named(return_path, vec![]));
     FunctionReturnType::Ty(ty, Span::default())
 }
 
@@ -333,10 +380,10 @@ pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
 ///  // ...
 /// }
 pub(crate) fn create_context_finish() -> Statement {
-    let method_call = method_call!(
-        variable!("context"), // variable
-        ident!("finish"),     // method name
-        vec![]                // args
+    let method_call = method_call(
+        variable("context"), // variable
+        "finish",            // method name
+        vec![],              // args
     );
     Statement::Expression(method_call)
 }
@@ -345,80 +392,80 @@ pub(crate) fn create_context_finish() -> Statement {
 //                 Methods to create hasher inputs
 //
 
-fn add_struct_to_hasher(ident: &Ident) -> Statement {
+fn add_struct_to_hasher(identifier: &Ident) -> Statement {
     // If this is a struct, we call serialize and add the array to the hasher
-    let serialised_call = method_call!(
-        variable_path!(ident_path!(ident.clone())), // variable
-        "serialize",                                // method name
-        vec![]                                      // args
+    let serialised_call = method_call(
+        variable_path(path(identifier.clone())), // variable
+        "serialize",                             // method name
+        vec![],                                  // args
     );
 
-    Statement::Semi(method_call!(
-        variable!("hasher"),   // variable
+    Statement::Semi(method_call(
+        variable("hasher"),    // variable
         "add_multiple",        // method name
-        vec![serialised_call]  // args
+        vec![serialised_call], // args
     ))
 }
 
-fn add_array_to_hasher(ident: &Ident) -> Statement {
+fn add_array_to_hasher(identifier: &Ident) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
 
     // `array.len()`
-    let end_range_expression = method_call!(
-        variable_path!(ident_path!(ident.clone())), // variable
-        "len",                                      // method name
-        vec![]                                      // args
+    let end_range_expression = method_call(
+        variable_path(path(identifier.clone())), // variable
+        "len",                                   // method name
+        vec![],                                  // args
     );
 
     // Wrap in the semi thing - does that mean ended with semi colon?
     // `hasher.add({ident}[i] as Field)`
-    let cast_expression = cast!(
-        index_array!(ident.clone(), "i"), // lhs - `ident[i]`
-        UnresolvedTypeData::FieldElement  // cast to - `as Field`
+    let cast_expression = cast(
+        index_array(identifier.clone(), "i"), // lhs - `ident[i]`
+        UnresolvedTypeData::FieldElement,     // cast to - `as Field`
     );
     // What will be looped over
     // - `hasher.add({ident}[i] as Field)`
     let for_loop_block =
-        expression!(ExpressionKind::Block(BlockExpression(vec![Statement::Semi(method_call!(
-            variable!("hasher"), // variable
-            "add",               // method name
-            vec![cast_expression]
-        ),)])));
+        expression(ExpressionKind::Block(BlockExpression(vec![Statement::Semi(method_call(
+            variable("hasher"), // variable
+            "add",              // method name
+            vec![cast_expression],
+        ))])));
 
     // `for i in 0..{ident}.len()`
-    Statement::Expression(expression!(ExpressionKind::For(Box::new(ForExpression {
-        identifier: ident!("i"),
-        start_range: expression!(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
-            i128::from(0)
+    Statement::Expression(expression(ExpressionKind::For(Box::new(ForExpression {
+        identifier: ident("i"),
+        start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
+            i128::from(0),
         )))),
         end_range: end_range_expression,
         block: for_loop_block,
     }))))
 }
 
-fn add_field_to_hasher(ident: &Ident) -> Statement {
+fn add_field_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident})`
-    let iden = variable_path!(ident_path!(ident.clone()));
-    Statement::Semi(method_call!(
-        variable!("hasher"), // variable
-        "add",               // method name
-        vec![iden]           // args
+    let iden = variable_path(path(identifier.clone()));
+    Statement::Semi(method_call(
+        variable("hasher"), // variable
+        "add",              // method name
+        vec![iden],         // args
     ))
 }
 
-fn add_int_to_hasher(ident: &Ident) -> Statement {
+fn add_int_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident} as Field)`
     // `{ident} as Field`
-    let cast_operation = cast!(
-        variable_path!(ident_path!(ident.clone())), // lhs
-        UnresolvedTypeData::FieldElement            // rhs
+    let cast_operation = cast(
+        variable_path(path(identifier.clone())), // lhs
+        UnresolvedTypeData::FieldElement,        // rhs
     );
 
     // `hasher.add({ident} as Field)`
-    Statement::Semi(method_call!(
-        variable!("hasher"),  // variable
+    Statement::Semi(method_call(
+        variable("hasher"),   // variable
         "add",                // method name
-        vec![cast_operation]  // args
+        vec![cast_operation], // args
     ))
 }
