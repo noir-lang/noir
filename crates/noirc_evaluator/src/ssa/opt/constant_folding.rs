@@ -1,5 +1,5 @@
 //! The goal of the constant folding optimization pass is to propagate any constants forwards into
-//! later [`Instruction`]s to maximise the impact of [compile-time simplifications][Instruction::simplify()].
+//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][Instruction::simplify()].
 //!
 //! The pass works as follows:
 //! - Re-insert each instruction in order to apply the instruction simplification performed
@@ -36,7 +36,7 @@ use crate::ssa::{
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
-    /// See [`constant_folding`][self] module for more infomation.
+    /// See [`constant_folding`][self] module for more information.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);
