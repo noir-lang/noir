@@ -328,7 +328,7 @@ impl Context {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, assert_message) => {
                 let lhs = self.convert_value(*lhs, dfg);
                 let rhs = self.convert_value(*rhs, dfg);
 
@@ -384,7 +384,7 @@ impl Context {
                 for (lhs, rhs) in
                     get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
                 {
-                    self.acir_context.assert_eq_var(lhs, rhs)?;
+                    self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
                 }
             }
             Instruction::Cast(value_id, typ) => {

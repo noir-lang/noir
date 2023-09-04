@@ -78,7 +78,12 @@ pub fn create_circuit(
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
     let opcodes = generated_acir.take_opcodes();
     let GeneratedAcir {
-        current_witness_index, return_witnesses, locations, input_witnesses, ..
+        current_witness_index,
+        return_witnesses,
+        locations,
+        input_witnesses,
+        assert_messages,
+        ..
     } = generated_acir;
 
     let abi = gen_abi(context, func_sig, &input_witnesses, return_witnesses.clone());
@@ -99,7 +104,7 @@ pub fn create_circuit(
         private_parameters,
         public_parameters,
         return_values,
-        assert_messages: Default::default(),
+        assert_messages: assert_messages.into_iter().collect(),
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec
