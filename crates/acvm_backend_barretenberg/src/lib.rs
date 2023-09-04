@@ -17,7 +17,7 @@ pub fn backends_directory() -> PathBuf {
 
 #[cfg(test)]
 fn get_bb() -> Backend {
-    let bb = Backend::new();
+    let bb = Backend::default();
     crate::assert_binary_exists(&bb);
     bb
 }
@@ -31,18 +31,24 @@ fn assert_binary_exists(backend: &Backend) -> PathBuf {
     binary_path
 }
 
-#[derive(Debug, Default)]
-pub struct Backend {}
+#[derive(Debug)]
+pub struct Backend {
+    name: String,
+}
+
+impl Default for Backend {
+    fn default() -> Self {
+        Self { name: "acvm-backend-barretenberg".to_string() }
+    }
+}
 
 impl Backend {
-    pub fn new() -> Backend {
-        Backend::default()
+    pub fn new(name: String) -> Backend {
+        Backend { name }
     }
 
     fn backend_directory(&self) -> PathBuf {
-        const BACKEND_NAME: &str = "acvm-backend-barretenberg";
-
-        backends_directory().join(BACKEND_NAME)
+        backends_directory().join(&self.name)
     }
 
     fn binary_path(&self) -> PathBuf {

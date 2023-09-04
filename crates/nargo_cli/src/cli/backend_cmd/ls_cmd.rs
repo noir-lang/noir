@@ -8,23 +8,25 @@ use crate::errors::CliError;
 pub(crate) struct LsCommand;
 
 pub(crate) fn run(_args: LsCommand) -> Result<(), CliError> {
+    for backend in get_available_backends() {
+        println!("{}", backend);
+    }
+
+    Ok(())
+}
+
+pub(super) fn get_available_backends() -> Vec<String> {
     let backend_directory_contents = std::fs::read_dir(backends_directory()).unwrap();
 
-    let backend_directories: Vec<std::path::PathBuf> = backend_directory_contents
+    backend_directory_contents
         .into_iter()
         .filter_map(|entry| {
             let path = entry.ok()?.path();
             if path.is_dir() {
-                Some(path)
+                path.file_name().map(|name| name.to_string_lossy().to_string())
             } else {
                 None
             }
         })
-        .collect();
-
-    for backend in backend_directories {
-        println!("{}", backend.file_name().unwrap().to_str().unwrap());
-    }
-
-    Ok(())
+        .collect()
 }
