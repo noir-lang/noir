@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - uses: actions/cache/restore@v3
         id: cache
@@ -39,7 +39,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path:  ${{ env.CACHED_PATHS }}
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
@@ -62,7 +62,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout noir-lang/noir
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
