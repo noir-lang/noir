@@ -74,6 +74,9 @@ impl Context {
         let instruction = function.dfg[id].clone();
         let old_results = function.dfg.instruction_results(id).to_vec();
 
+        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
+        let instruction = instruction.map_values(|value_id| function.dfg.resolve(value_id));
+
         // If a copy of this instruction exists earlier in the block then reuse the previous results.
         if let Some(cached_results) = instruction_result_cache.get(&instruction) {
             for (old_result, new_result) in old_results.iter().zip(cached_results) {
@@ -95,16 +98,14 @@ impl Context {
         ) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-            InsertInstructionResult::Results(new_results) => new_results.to_vec(),
+            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
             InsertInstructionResult::InstructionRemoved => vec![],
         };
         assert_eq!(old_results.len(), new_results.len());
 
         // If the instruction doesn't have side-effects, cache the results so we can reuse them if
         // the same instruction appears again later in the block.
-        if !instruction.has_side_effects(&function.dfg)
-            && !matches!(instruction, Instruction::Allocate)
-        {
+        if instruction.is_pure(&function.dfg) {
             instruction_result_cache.insert(instruction, new_results.clone());
         }
         for (old_result, new_result) in old_results.iter().zip(new_results) {
