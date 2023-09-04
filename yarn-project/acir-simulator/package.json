@@ -35,7 +35,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
-    "acvm_js": "github:noir-lang/acvm-js-wasm#arv/0.23.0_prerelease",
+    "acvm_js": "github:noir-lang/acvm-js-wasm#arv/0.24.1",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

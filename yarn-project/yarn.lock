@@ -70,7 +70,7 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
-    acvm_js: "github:noir-lang/acvm-js-wasm#arv/0.23.0_prerelease"
+    acvm_js: "github:noir-lang/acvm-js-wasm#arv/0.24.1"
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
     levelup: ^5.1.1
@@ -3957,10 +3957,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"acvm_js@github:noir-lang/acvm-js-wasm#arv/0.23.0_prerelease":
-  version: 0.0.0-be7fafd
-  resolution: "acvm_js@https://github.com/noir-lang/acvm-js-wasm.git#commit=89b4ddef96ec4098d53be9d532952043502f53b9"
-  checksum: 469cfb1654781f928e203ebdde52e06e4633d5b319c5301a4f29a07961ef763059dd539ca37d179cbf5e786bdf114fa9767eea27d5f0c1af6bdb802360538297
+"acvm_js@github:noir-lang/acvm-js-wasm#arv/0.24.1":
+  version: 0.0.0-675753c
+  resolution: "acvm_js@https://github.com/noir-lang/acvm-js-wasm.git#commit=8e61f6fd9f4f8b65ad718912d9b3f01a6b869c11"
+  checksum: 3c40827d2f41dbc946a976b3a6f0091d1de6832f26bf45eec59204cf37d78f1db213cf2cc4a884996bacc4eb410b7c48d761de22058d8fc339c1c1a7a8b60ec8
   languageName: node
   linkType: hard
 
