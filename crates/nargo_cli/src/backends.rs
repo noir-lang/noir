@@ -8,6 +8,10 @@ fn active_backend_file_path() -> PathBuf {
 }
 
 pub(crate) fn set_active_backend(backend_name: &str) {
+    std::fs::create_dir_all(
+        active_backend_file_path().parent().expect("active backend file should have parent"),
+    )
+    .unwrap();
     std::fs::write(active_backend_file_path(), backend_name.as_bytes()).unwrap();
 }
 
