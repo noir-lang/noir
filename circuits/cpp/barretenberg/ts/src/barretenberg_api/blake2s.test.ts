@@ -1,19 +1,18 @@
-import { newBarretenbergApiSync } from '../factory/index.js';
+import { Barretenberg } from '../barretenberg/index.js';
 import { Buffer32, Fr } from '../types/index.js';
-import { BarretenbergApiSync } from './index.js';
 
 describe('blake2s', () => {
-  let api: BarretenbergApiSync;
+  let api: Barretenberg;
 
   beforeAll(async () => {
-    api = await newBarretenbergApiSync();
+    api = await Barretenberg.new(1);
   });
 
   afterAll(async () => {
     await api.destroy();
   });
 
-  it('blake2s', () => {
+  it('blake2s', async () => {
     const input = Buffer.from('abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789');
     const expected = Buffer32.fromBuffer(
       new Uint8Array([
@@ -21,11 +20,11 @@ describe('blake2s', () => {
         0x2a, 0xc2, 0xb1, 0x00, 0x54, 0x1e, 0x04, 0xfe, 0x87, 0xb4, 0xa5, 0x9e, 0x12, 0x43,
       ]),
     );
-    const result = api.blake2s(input);
+    const result = await api.blake2s(input);
     expect(result).toEqual(expected);
   });
 
-  it('blake2sToField', () => {
+  it('blake2sToField', async () => {
     const input = Buffer.from('abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789');
     const expected = Fr.fromBufferReduce(
       new Uint8Array([
@@ -33,7 +32,7 @@ describe('blake2s', () => {
         0x2a, 0xc2, 0xb1, 0x00, 0x54, 0x1e, 0x04, 0xfe, 0x87, 0xb4, 0xa5, 0x9e, 0x12, 0x43,
       ]),
     );
-    const result = api.blake2sToField(input);
+    const result = await api.blake2sToField(input);
     expect(result).toEqual(expected);
   });
 });

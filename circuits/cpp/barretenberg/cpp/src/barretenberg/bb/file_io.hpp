@@ -5,11 +5,25 @@
 
 inline std::vector<uint8_t> read_file(const std::string& filename)
 {
-    std::ifstream file(filename, std::ios::binary);
+    // Open the file in binary mode and move to the end.
+    std::ifstream file(filename, std::ios::binary | std::ios::ate);
     if (!file) {
-        throw std::runtime_error(format("Unable to open file: ", filename));
+        throw std::runtime_error("Unable to open file: " + filename);
     }
-    std::vector<uint8_t> fileData((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    // Get the file size.
+    std::streamsize size = file.tellg();
+    if (size <= 0) {
+        throw std::runtime_error("File is empty or there's an error reading it: " + filename);
+    }
+
+    // Create a vector with enough space for the file data.
+    std::vector<uint8_t> fileData((size_t)size);
+
+    // Go back to the start of the file and read all its contents.
+    file.seekg(0, std::ios::beg);
+    file.read(reinterpret_cast<char*>(fileData.data()), size);
+
     return fileData;
 }
 

@@ -4,3 +4,4 @@ node_modules
 Dockerfile
 .yarn
 !.yarn/releases
+.tsbuildinfo

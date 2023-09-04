@@ -1,40 +1,8 @@
 {
+  "extends": ".",
   "compilerOptions": {
-    "baseUrl": ".",
-    "target": "es2020",
-    "lib": [
-      "dom",
-      "esnext",
-      "es2017.object"
-    ],
-    "module": "NodeNext",
-    "strict": false,
-    "declaration": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "downlevelIteration": true,
-    "inlineSourceMap": true,
-    "declarationMap": true,
-    "importHelpers": true,
-    "resolveJsonModule": true,
-    "composite": true,
     "outDir": "dest/browser",
-    "rootDir": "src",
-    "tsBuildInfoFile": ".tsbuildinfo.browser",
-    "paths": {
-      "dynamic/barretenberg_wasm": [
-        "src/barretenberg_wasm/browser/index.ts"
-      ],
-      "dynamic/crs": [
-        "src/crs/browser/index.ts"
-      ],
-      "dynamic/random": [
-        "src/random/browser/index.ts"
-      ],
-      "dynamic/types": [
-        "src/types/browser/index.ts"
-      ]
-    }
+    "tsBuildInfoFile": ".tsbuildinfo.browser"
   },
-  "include": ["src/**/*"]
+  "include": ["src", "src/barretenberg_wasm/barretenberg_wasm_thread/factory/browser/thread.worker.ts"]
 }

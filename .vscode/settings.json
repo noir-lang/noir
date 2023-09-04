@@ -113,7 +113,9 @@
     "**/.yarn": true,
     "**/.yalc": true,
     "**/node_modules": true,
-    "**/.pnp.*": true
+    "**/.pnp.*": true,
+    "circuits/cpp/barretenberg/**": true,
+    "**/msgpack-c/**": true
   },
   "[terraform]": {
     "editor.defaultFormatter": "hashicorp.terraform"
@@ -128,8 +130,8 @@
   // C++/Circuits settings
   ///////////////////////////////////////
   "[cpp]": {
-     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
-      "editor.formatOnSave": true,
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": true
   },
   //
   // Clangd. Note that this setting may be overridden by user settings
@@ -164,7 +166,7 @@
   // which ensures SRS can be read
   "testMate.cpp.test.workingDirectory": "${workspaceFolder}/circuits/cpp/build",
   // Filter all binaries that are not tests
-  "testMate.cpp.test.executables": "${workspaceFolder}/circuits/cpp/build/bin/*{test,Test,TEST}*",
+  "testMate.cpp.test.executables": "${workspaceFolder}/circuits/cpp/build/bin/*{test,Test,TEST}*"
   // End C++/Circuits settings
   ///////////////////////////////////////
 }

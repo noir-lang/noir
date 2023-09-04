@@ -1,5 +1,3 @@
-export * from './crs/index.js';
-export * from './barretenberg_wasm/index.js';
-export * from './barretenberg_api/index.js';
-export * from './factory/index.js';
+export { Crs } from './crs/index.js';
+export { Barretenberg } from './barretenberg/index.js';
 export { RawBuffer } from './types/index.js';

@@ -1,10 +1,10 @@
-import { BarretenbergApiAsync, newBarretenbergApiAsync } from '../factory/index.js';
+import { Barretenberg } from '../barretenberg/index.js';
 
 describe('env', () => {
-  let api: BarretenbergApiAsync;
+  let api: Barretenberg;
 
   beforeAll(async () => {
-    api = await newBarretenbergApiAsync(3);
+    api = await Barretenberg.new(3);
   }, 15000);
 
   afterAll(async () => {

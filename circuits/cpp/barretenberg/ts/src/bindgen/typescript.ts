@@ -48,44 +48,7 @@ export class BarretenbergApi {
     }
   }
 
-  output += `}
-
-export class BarretenbergApiSync {
-  constructor(public binder: BarretenbergBinderSync) {}
-
-  async destroy() {
-    await this.binder.wasm.destroy();
-  }
-`;
-
-  for (const { functionName, inArgs, outArgs } of functionDeclarations) {
-    try {
-      const parameters = inArgs.map(({ name, type }) => `${toCamelCase(name)}: ${mapType(type)}`).join(', ');
-      const inArgsVar = `[${inArgs.map(arg => toCamelCase(arg.name)).join(', ')}]`;
-      const outTypesVar = `[${outArgs.map(arg => mapDeserializer(arg.type)).join(', ')}]`;
-      const wasmCall = `const result = this.binder.callWasmExport('${functionName}', ${inArgsVar}, ${outTypesVar});`;
-
-      const n = outArgs.length;
-      const returnStmt = n === 0 ? 'return;' : n === 1 ? 'return result[0];' : 'return result as any;';
-      const returnType =
-        outArgs.length === 0
-          ? 'void'
-          : outArgs.length === 1
-          ? `${mapType(outArgs[0].type)}`
-          : `[${outArgs.map(a => mapType(a.type)).join(', ')}]`;
-
-      output += `
-  ${toCamelCase(functionName)}(${parameters}): ${returnType} {
-    ${wasmCall}
-    ${returnStmt}
-  }
-`;
-    } catch (err: any) {
-      throw new Error(`Function ${functionName}: ${err.message}`);
-    }
-  }
-
-  output += '}';
+  output += `}`;
 
   return output;
 }

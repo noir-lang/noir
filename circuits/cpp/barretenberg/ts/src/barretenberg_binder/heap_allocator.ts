@@ -1,5 +1,5 @@
 import { Bufferable, serializeBufferable, OutputType } from '../serialize/index.js';
-import { BarretenbergWasm, BarretenbergWasmWorker } from '../barretenberg_wasm/barretenberg_wasm.js';
+import { BarretenbergWasm, BarretenbergWasmWorker } from '../barretenberg_wasm/index.js';
 import { asyncMap } from '../async_map/index.js';
 
 /**

@@ -70,9 +70,7 @@ WASM_EXPORT void acir_get_verification_key(in_ptr acir_composer_ptr, uint8_t** o
 {
     auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
     auto vk = acir_composer->init_verification_key();
-    // to_buffer gives a vector<uint8_t>.
-    // to_heap_buffer serializes that into the heap (i.e. length prefixes).
-    // if you just did: to_heap_buffer(*vk) you get the un-prefixed buffer. no good.
+    // We flatten to a vector<uint8_t> first, as that's how we treat it on the calling side.
     *out = to_heap_buffer(to_buffer(*vk));
 }
 

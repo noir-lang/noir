@@ -1,2 +1,3 @@
-acir_tests
-acir-to-bberg-circuit/target
+acir_tests*
+**/node_modules
+Dockerfile*

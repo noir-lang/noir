@@ -17,9 +17,3 @@
 
 # Needed scripts.
 !scripts/install-wasi-sdk.sh
-
-# Noir project for testing bb binary.
-!bin-test
-bin-test/crs
-bin-test/proof
-bin-test/vk

@@ -1,6 +1,9 @@
 #!/bin/bash
-# This script builds the projects listed in build_mainifest.sh, terminating when it reaches TARGET_PROJECT.
+# This script builds the projects listed in build_mainifest.sh, terminating when it reaches PROJECT_NAME.
 # If run from within a project, it will build only that project, unless env var ONLY_TARGET=false.
+#
+# Usage:
+#   boostrap_docker.sh [PROJECT_NAME]
 #
 # To build everything in build_manifest.sh:
 #   bootstrap_docker.sh
@@ -18,24 +21,25 @@
 
 set -e
 
-TARGET_PROJECT=$1
+PROJECT_NAME=$1
 COMMIT_HASH=$(git rev-parse HEAD)
+ONLY_TARGET=${ONLY_TARGET:-}
 
 # If we're calling this script from within a project directory, that's the target project.
-if [ -z "$TARGET_PROJECT" ]; then
+if [ -z "$PROJECT_NAME" ]; then
   PATH_PREFIX=$(git rev-parse --show-prefix)
   if [ -n "$PATH_PREFIX" ]; then
     # We are in a project folder.
     ONLY_TARGET=${ONLY_TARGET:-true}
-    TARGET_PROJECT=$(basename $PATH_PREFIX)
+    PROJECT_NAME=$(basename $PATH_PREFIX)
     cd $(git rev-parse --show-cdup)
   fi
 fi
 
-source ./build-system/scripts/setup_env $COMMIT_HASH '' mainframe_$USER 
-build_local $TARGET_PROJECT $ONLY_TARGET
+source ./build-system/scripts/setup_env $COMMIT_HASH '' mainframe_$USER
+build_local $PROJECT_NAME $ONLY_TARGET
 
-if [ -z "$TARGET_PROJECT" ]; then
+if [ -z "$PROJECT_NAME" ]; then
   echo
   echo "Success! You could now run e.g.:"
   echo "  docker run -ti --rm aztecprotocol/end-to-end:latest e2e_private_token_contract.test"

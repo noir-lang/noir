@@ -240,6 +240,17 @@ jobs:
           name: "Test"
           command: ./scripts/ci/store_test_benchmark_logs $AZTEC_GITHUB_TOKEN
 
+  barretenberg-acir-tests-bb:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: cond_spot_run_build barretenberg-acir-tests-bb 32
+
   bb-js:
     machine:
       image: ubuntu-2004:202010-01
@@ -248,7 +259,7 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: "Build"
+          name: "Build and test"
           command: build bb.js
 
   bb-js-tests:
@@ -259,10 +270,10 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: "Test"
+          name: "Build and test"
           command: cond_spot_run_tests bb.js
 
-  barretenberg-acir-tests:
+  bb-js-acir-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -271,7 +282,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: cond_spot_run_build barretenberg-acir-tests 32
+          command: cond_spot_run_build barretenberg-acir-tests-bb.js 32
 
   circuits-wasm-linux-clang:
     docker:
@@ -1279,9 +1290,12 @@ workflows:
           requires:
             - bb-js
           <<: *defaults
-      - barretenberg-acir-tests:
+      - barretenberg-acir-tests-bb:
           requires:
             - barretenberg-x86_64-linux-clang-assert
+          <<: *defaults
+      - bb-js-acir-tests:
+          requires:
             - bb-js
           <<: *defaults
       - circuits-wasm-linux-clang: *defaults

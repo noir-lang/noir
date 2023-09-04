@@ -1,0 +1,4 @@
+#!/bin/sh
+SCRIPT_PATH=$(dirname $(realpath $0))
+export TS_NODE_PROJECT="$SCRIPT_PATH/tsconfig.json"
+NODE_OPTIONS="--loader $SCRIPT_PATH/node_modules/ts-node/esm/transpile-only.mjs --no-warnings" node $SCRIPT_PATH/src/index.ts $@

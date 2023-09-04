@@ -12,11 +12,8 @@
 #include <vector>
 
 using namespace barretenberg;
-// The maximum size that we can do in the browser and node is 2^19
-// based on memory constraints for UltraPlonk.
-// However, since this CLI does not use WASM, we can increase the
-// size.
-uint32_t MAX_CIRCUIT_SIZE = 1 << 22;
+// Transcript downloading code only supports fetching and parsing the first transcript file.
+const uint32_t MAX_CIRCUIT_SIZE = 1 << 22;
 std::string CRS_PATH = "./crs";
 bool verbose = false;
 

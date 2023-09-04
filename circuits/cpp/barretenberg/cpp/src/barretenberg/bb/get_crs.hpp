@@ -32,6 +32,12 @@ inline std::vector<uint8_t> download_g1_data(size_t num_points)
     std::string command =
         "curl -s -H \"Range: bytes=" + std::to_string(g1_start) + "-" + std::to_string(g1_end) + "\" '" + url + "'";
 
+    auto data = exec_pipe(command);
+    // Header + num_points * sizeof point.
+    if (data.size() < g1_end - g1_start) {
+        throw std::runtime_error("Failed to download g1 data.");
+    }
+
     return exec_pipe(command);
 }
 
@@ -51,51 +57,37 @@ inline std::vector<uint8_t> download_g2_data()
 inline std::vector<barretenberg::g1::affine_element> get_g1_data(const std::filesystem::path& path, size_t num_points)
 {
     std::filesystem::create_directories(path);
-    try {
-        std::ifstream size_file(path / "size");
-        size_t size = 0;
-        if (size_file) {
-            size_file >> size;
-            size_file.close();
-        }
-        if (size >= num_points) {
-            vinfo("using cached crs at: ", path);
-            auto data = read_file(path / "g1.dat");
-            auto points = std::vector<barretenberg::g1::affine_element>(num_points);
-
-            auto size_of_points_in_bytes = num_points * 64;
-            if (data.size() < size_of_points_in_bytes) {
-                vinfo("data is smaller than expected!", data.size(), size_of_points_in_bytes);
-            }
-            size_t actual_buffer_size = std::min(data.size(), size_of_points_in_bytes);
-
-            barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(
-                points.data(), (char*)data.data(), actual_buffer_size);
-            return points;
-        }
-
-        std::ofstream new_size_file(path / "size");
-        if (!new_size_file) {
-            throw std::runtime_error("Failed to open size file for writing");
-        }
-        new_size_file << num_points;
-        new_size_file.close();
-
-        vinfo("downloading crs...");
-        auto data = download_g1_data(num_points);
-
-        write_file(path / "g1.dat", data);
-
-        auto points = std::vector<barretenberg::g1::affine_element>(num_points);
-        barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(
-            points.data(), (char*)data.data(), data.size());
-        return points;
-    } catch (std::exception& e) {
-        std::filesystem::remove(path / "size");
-        std::filesystem::remove(path / "g1.dat");
-        // We cannot do anything here except tell the user there is an error and stop the cli
-        throw std::runtime_error("Failed to download srs: " + std::string(e.what()));
+    std::ifstream size_file(path / "size");
+    size_t size = 0;
+    if (size_file) {
+        size_file >> size;
+        size_file.close();
     }
+    if (size >= num_points) {
+        vinfo("using cached crs at: ", path);
+        auto data = read_file(path / "g1.dat");
+        auto points = std::vector<barretenberg::g1::affine_element>(num_points);
+        auto size_of_points_in_bytes = num_points * 64;
+        barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(
+            points.data(), (char*)data.data(), size_of_points_in_bytes);
+        return points;
+    }
+
+    vinfo("downloading crs...");
+    auto data = download_g1_data(num_points);
+    write_file(path / "g1.dat", data);
+
+    std::ofstream new_size_file(path / "size");
+    if (!new_size_file) {
+        throw std::runtime_error("Failed to open size file for writing");
+    }
+    new_size_file << num_points;
+    new_size_file.close();
+
+    auto points = std::vector<barretenberg::g1::affine_element>(num_points);
+    barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(
+        points.data(), (char*)data.data(), data.size());
+    return points;
 }
 
 inline barretenberg::g2::affine_element get_g2_data(const std::filesystem::path& path)

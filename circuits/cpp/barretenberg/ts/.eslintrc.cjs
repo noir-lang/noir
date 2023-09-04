@@ -26,13 +26,6 @@ const contexts = [
   'EnumExpression',
 ];
 
-let tsconfigPaths;
-if (process.env.DOCKER_ENV) {
-  tsconfigPaths = ['./tsconfig.node.json', './tsconfig.browser.json'];
-} else {
-  tsconfigPaths = ['./ts/tsconfig.node.json', './ts/tsconfig.browser.json'];
-}
-
 module.exports = {
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   root: true,
@@ -43,7 +36,7 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'],
       parserOptions: {
-        project: tsconfigPaths,
+        project: true,
       },
     },
     {

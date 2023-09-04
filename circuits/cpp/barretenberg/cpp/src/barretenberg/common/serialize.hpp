@@ -403,13 +403,25 @@ template <typename T> std::vector<uint8_t> to_buffer(T const& value)
     return buf;
 }
 
+/**
+ * Serializes the given value, such that it is byte length prefixed, for deserialization on the calling side.
+ * This is used for variable length outputs, whereby the caller needs to discover the length so the memory can be
+ * appropriately sliced.
+ * It can result in the (expected) oddity of e.g. a vector<uint8_t> being "multiple prefixed":
+ * e.g. [heap buffer length][value length][value bytes].
+ */
 template <typename T> uint8_t* to_heap_buffer(T const& value)
 {
     using serialize::write;
-    std::vector<uint8_t> buf;
-    write(buf, value);
-    auto* ptr = (uint8_t*)aligned_alloc(64, buf.size()); // NOLINT
-    std::copy(buf.begin(), buf.end(), ptr);
+
+    // Initial serialization of the value. Creates a vector of bytes.
+    auto buf = to_buffer(value);
+
+    // Serialize this byte vector, giving us a length prefixed buffer of bytes.
+    auto heap_buf = to_buffer(buf);
+
+    auto* ptr = (uint8_t*)aligned_alloc(64, heap_buf.size()); // NOLINT
+    std::copy(heap_buf.begin(), heap_buf.end(), ptr);
     return ptr;
 }
 

@@ -1,0 +1,28 @@
+{
+  "name": "browser-test-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "rm -rf dest && webpack",
+    "serve:dest:st": "serve -n -L -p 8080 dest",
+    "serve:dest:mt": "serve -n -L -p 8080 -c ../serve.mt.json dest"
+  },
+  "devDependencies": {
+    "@aztec/bb.js": "../../ts",
+    "@types/debug": "^4.1.8",
+    "@types/pako": "^2.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "debug": "^4.3.4",
+    "html-webpack-plugin": "^5.5.3",
+    "pako": "^2.1.0",
+    "resolve-typescript-plugin": "^2.0.1",
+    "serve": "^14.2.1",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.1.6",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  }
+}
