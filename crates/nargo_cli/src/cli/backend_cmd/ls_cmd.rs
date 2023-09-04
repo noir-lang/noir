@@ -3,7 +3,7 @@ use clap::Args;
 
 use crate::errors::CliError;
 
-/// Checks the constraint system for errors
+/// Prints the list of available backends
 #[derive(Debug, Clone, Args)]
 pub(crate) struct LsCommand;
 
