@@ -8,6 +8,13 @@ mod cli;
 mod proof_system;
 mod smart_contract;
 
+const BACKENDS_DIR: &str = ".nargo/backends";
+
+pub fn backends_directory() -> PathBuf {
+    let home_directory = dirs::home_dir().unwrap();
+    home_directory.join(BACKENDS_DIR)
+}
+
 #[cfg(test)]
 fn get_bb() -> Backend {
     let bb = Backend::new();
@@ -33,12 +40,9 @@ impl Backend {
     }
 
     fn backend_directory(&self) -> PathBuf {
-        const BACKENDS_DIR: &str = ".nargo/backends";
         const BACKEND_NAME: &str = "acvm-backend-barretenberg";
 
-        let home_directory = dirs::home_dir().unwrap();
-
-        home_directory.join(BACKENDS_DIR).join(BACKEND_NAME)
+        backends_directory().join(BACKEND_NAME)
     }
 
     fn binary_path(&self) -> PathBuf {
