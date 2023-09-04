@@ -18,9 +18,11 @@ for dir in $base_path/*; do
   dir_name=$(basename "$dir")
 
   if [[ ! " ${excluded_dirs[@]} " =~ " ${dir_name} " ]]; then
-      echo "Creating directory $current_dir/acir_artifacts/$dir_name"
-      mkdir -p $current_dir/acir_artifacts/$dir_name
-      echo "Directory created."
+      if [[ ! -d "$current_dir/acir_artifacts/$dir_name" ]]; then
+        echo "Creating directory $current_dir/acir_artifacts/$dir_name"
+        mkdir -p $current_dir/acir_artifacts/$dir_name
+        echo "Directory created."
+      fi
 
       cd $dir
       if [ -d ./target/ ]; then
