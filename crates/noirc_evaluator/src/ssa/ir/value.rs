@@ -57,15 +57,15 @@ pub(crate) enum Value {
 
 impl Value {
     /// Retrieves the type of this Value
-    pub(crate) fn get_type(&self) -> Type {
+    pub(crate) fn get_type(&self) -> &Type {
         match self {
-            Value::Instruction { typ, .. } => typ.clone(),
-            Value::Param { typ, .. } => typ.clone(),
-            Value::NumericConstant { typ, .. } => typ.clone(),
-            Value::Array { typ, .. } => typ.clone(),
-            Value::Function { .. } => Type::Function,
-            Value::Intrinsic { .. } => Type::Function,
-            Value::ForeignFunction { .. } => Type::Function,
+            Value::Instruction { typ, .. } => typ,
+            Value::Param { typ, .. } => typ,
+            Value::NumericConstant { typ, .. } => typ,
+            Value::Array { typ, .. } => typ,
+            Value::Function { .. } => &Type::Function,
+            Value::Intrinsic { .. } => &Type::Function,
+            Value::ForeignFunction { .. } => &Type::Function,
         }
     }
 }

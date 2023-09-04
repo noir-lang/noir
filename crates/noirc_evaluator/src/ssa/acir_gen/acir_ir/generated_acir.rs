@@ -44,12 +44,15 @@ pub(crate) struct GeneratedAcir {
     /// All witness indices which are inputs to the main function
     pub(crate) input_witnesses: Vec<Witness>,
 
-    /// Correspondance between an opcode index (in opcodes) and the source code call stack which generated it
+    /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
     pub(crate) call_stack: CallStack,
+
+    /// Correspondence between an opcode index and the error message associated with it.
+    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 }
 
 impl GeneratedAcir {
@@ -62,8 +65,7 @@ impl GeneratedAcir {
     pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
-            self.locations
-                .insert(OpcodeLocation::Acir(self.opcodes.len() - 1), self.call_stack.clone());
+            self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
         }
     }
 
@@ -467,6 +469,16 @@ impl GeneratedAcir {
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
 
+        // Check that we the rhs is not zero.
+        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
+        //
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the rhs must not be 0.
+        let rhs_is_zero = self.is_equal(&Expression::zero(), rhs);
+        let rhs_is_not_zero = &self.mul_with_witness(&rhs_is_zero.into(), predicate)
+            - &self.mul_with_witness(&Expression::zero(), predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(rhs_is_not_zero));
+
         // maximum bit size for q and for [r and rhs]
         let mut max_q_bits = max_bit_size;
         let mut max_rhs_bits = max_bit_size;
@@ -481,12 +493,18 @@ impl GeneratedAcir {
         let (q_witness, r_witness) =
             self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 
-        // Apply range constraints to injected witness values.
-        // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
+        // Constrain `q < 2^{max_q_bits}`.
         self.range_constraint(q_witness, max_q_bits)?;
+
+        // Constrain `r < 2^{max_rhs_bits}`.
+        //
+        // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
+        // In the case where `rhs` isn't a power of 2 then this range constraint is required
+        // as the bound constraint creates a new witness.
+        // This opcode will be optimized out if it is redundant so we always add it for safety.
         self.range_constraint(r_witness, max_rhs_bits)?;
 
-        // Constrain r < rhs
+        // Constrain `r < rhs`.
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
 
         // a * predicate == (b * q + r) * predicate
@@ -847,6 +865,12 @@ impl GeneratedAcir {
                 call_stack,
             );
         }
+        for (brillig_index, message) in generated_brillig.assert_messages {
+            self.assert_messages.insert(
+                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
+                message,
+            );
+        }
     }
 
     /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
@@ -881,6 +905,10 @@ impl GeneratedAcir {
             self.push_opcode(AcirOpcode::Arithmetic(b - o));
         }
         Ok(())
+    }
+
+    pub(crate) fn last_acir_opcode_location(&self) -> OpcodeLocation {
+        OpcodeLocation::Acir(self.opcodes.len() - 1)
     }
 }
 

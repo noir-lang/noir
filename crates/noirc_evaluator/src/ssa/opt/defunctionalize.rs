@@ -10,6 +10,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::ssa::{
+    function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
@@ -17,7 +18,6 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
 };
 
@@ -305,7 +305,7 @@ fn create_apply_function(
                 function_builder.switch_to_block(executor_block);
             } else {
                 // Else just constrain the condition
-                function_builder.insert_constrain(target_id, function_id_constant);
+                function_builder.insert_constrain(target_id, function_id_constant, None);
             }
             // Find the target block or build it if necessary
             let current_block = function_builder.current_block();
