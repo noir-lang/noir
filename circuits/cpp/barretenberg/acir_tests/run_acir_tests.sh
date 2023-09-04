@@ -54,7 +54,7 @@ function test() {
     $BB prove_and_verify -c $CRS_PATH -b ./target/$dir_name.bytecode > /dev/null 2>&1
   fi
   result=$?
-  set -xeu
+  set -eu
 
   if [ $result -eq 0 ]; then
     echo -e "\033[32mPASSED\033[0m"
