@@ -9,7 +9,6 @@ jobs:
   release-please:
     name: Create Release
     outputs:
-      source-resolver-released: ${{ steps.release.outputs.crates/source-resolver--release_created }}
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
     runs-on: ubuntu-latest
@@ -80,26 +79,3 @@ jobs:
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
-
-  publish-source-resolver:
-    name: Publish Source Resolver to NPM
-    needs: [release-please]
-    if: ${{ needs.release-please.outputs.source-resolver-released }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Build noir-source-resolver
-        working-directory: ./crates/source-resolver
-        run: npm run build
-
-      - name: Update package.json version
-        working-directory: ./crates/source-resolver
-        run: npm version ${{ needs.release-please.outputs.tag-name }} --no-git-tag-version
-
-      # - name: Publish to NPM
-      #   working-directory: ./crates/source-resolver
-      #   run: npm publish
-      #   env:
-      # NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

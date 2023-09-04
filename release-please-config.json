@@ -19,16 +19,6 @@
           "jsonpath": "$.version"
         }
       ]
-    },
-    "crates/source-resolver": {
-      "release-type": "simple",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.version"
-        }
-      ]
     }
   },
   "plugins": ["sentence-case"]

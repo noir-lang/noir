@@ -1,0 +1,49 @@
+name: Release Source Resolver
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number"
+        required: false
+
+jobs:
+  release-source-resolver:
+    name: Publish Source Resolver to NPM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Bump version
+        working-directory: ./crates/source-resolver
+        run: |
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            npm version patch --no-git-tag-version
+          else
+            npm version ${{ github.event.inputs.version }} --no-git-tag-version
+          fi
+
+      - name: Build noir-source-resolver
+        working-directory: ./crates/source-resolver
+        run: |
+          npm i
+          npm run build
+
+      # - name: Publish to NPM
+      #   working-directory: ./crates/source-resolver
+      #   run: npm publish
+      #   env:
+      # NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
+      - name: Commit updates
+        run: |
+          git add crates/source-resolver/package-lock.json
+          git add crates/source-resolver/package.json
+          git commit -m 'chore: Update source-resolver'
+          git push
