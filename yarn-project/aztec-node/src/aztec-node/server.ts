@@ -250,7 +250,7 @@ export class AztecNodeService implements AztecNode {
    * @returns - The pending tx if it exists.
    */
   public async getPendingTxByHash(txHash: TxHash) {
-    return await this.p2pClient!.getTxByhash(txHash);
+    return await this.p2pClient!.getTxByHash(txHash);
   }
 
   /**
@@ -388,7 +388,7 @@ export class AztecNodeService implements AztecNode {
     const newGlobalVariables = await this.globalVariableBuilder.buildGlobalVariables(new Fr(blockNumber));
     const prevGlobalVariables = (await this.blockSource.getL2Block(-1))?.globalVariables ?? GlobalVariables.empty();
 
-    // Instantiate merkle trees so uncommited updates by this simulation are local to it.
+    // Instantiate merkle trees so uncommitted updates by this simulation are local to it.
     // TODO we should be able to remove this after https://github.com/AztecProtocol/aztec-packages/issues/1869
     // So simulation of public functions doesn't affect the merkle trees.
     const merkleTrees = new MerkleTrees(this.merkleTreesDb, this.log);
