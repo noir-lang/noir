@@ -30,20 +30,25 @@ jobs:
           npm i
           npm run build
 
-      # - name: Publish to NPM
-      #   working-directory: ./crates/source-resolver
-      #   run: npm publish
-      #   env:
-      # NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to NPM
+        working-directory: ./crates/source-resolver
+        # run: npm publish
+        run: |
+          echo "Dry run: Running npm pack to simulate npm publish:"
+          npm pack
+          echo "Dry run: Listing the contents of the tarball:"
+          tar -tf *.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Configure git
         run: |
           git config user.name kevaundray
           git config user.email kevtheappdev@gmail.com
 
-      - name: Commit updates
-        run: |
-          git add crates/source-resolver/package-lock.json
-          git add crates/source-resolver/package.json
-          git commit -m 'chore: Update source-resolver'
-          git push
+      # - name: Commit updates
+      #   run: |
+      #     git add crates/source-resolver/package-lock.json
+      #     git add crates/source-resolver/package.json
+      #     git commit -m 'chore: Update source-resolver'
+      #     git push
