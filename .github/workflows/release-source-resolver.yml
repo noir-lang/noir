@@ -6,9 +6,6 @@ on:
       version:
         description: "Version number"
         required: false
-  push:
-    branches:
-      - jb/add-source-resolver
 
 jobs:
   release-source-resolver:
@@ -37,11 +34,11 @@ jobs:
         working-directory: ./crates/source-resolver
         run: npm run build
 
-      # - name: Publish to NPM
-      #   working-directory: ./crates/source-resolver
-      #   run: npm publish
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to NPM
+        working-directory: ./crates/source-resolver
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Configure git
         run: |
@@ -50,9 +47,7 @@ jobs:
 
       - name: Commit updates
         run: |
-          echo "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
-        # run: |
-        # git add crates/source-resolver/package-lock.json
-        # git add crates/source-resolver/package.json
-        # git commit -m "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
-        # git push
+          git add crates/source-resolver/package-lock.json
+          git add crates/source-resolver/package.json
+          git commit -m "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
+          git push
