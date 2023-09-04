@@ -6,6 +6,9 @@ on:
       version:
         description: "Version number"
         required: false
+  push:
+    branches:
+      - jb/add-source-resolver
 
 jobs:
   release-source-resolver:
