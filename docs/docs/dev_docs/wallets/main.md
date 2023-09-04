@@ -42,11 +42,9 @@ Due to limitations in the current architecture, privacy keys need to be availabl
 :::
 ## Recipient encryption keys
 
-Wallets are also expected to manage the public encryption keys of any recipients of local transactions. When creating an encrypted note for a recipient given their address, the wallet needs to provide their [complete address](../../concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys). This requires keeping a local registry of complete addresses for all recipients that the user intends to interact with.
+Wallets are also expected to manage the public encryption keys of any recipients of local transactions. When creating an encrypted note for a recipient given their address, the wallet needs to provide their [complete address](../../concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys). Recipients broadcast their complete addresses when deploying their account contracts, and wallets collect this information and save it in a local registry for easy access when needed.
 
-:::info
-There is no built-in mechanism for broadcasting public encryption keys at the moment. In a future release, clients may automatically track the complete address that corresponds to an account contract deployment, though it will still be needed to manually add recipients who have not yet deployed their account contracts.
-:::
+Note that, in order to interact with a recipient who has not yet deployed their account contract (and thus not broadcasted their complete address), it must also be possible to manually add an entry to a wallet's local registry of complete addresses.
 
 ## Private state
 
