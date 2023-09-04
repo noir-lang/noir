@@ -24,11 +24,13 @@ jobs:
             npm version ${{ github.event.inputs.version }} --no-git-tag-version
           fi
 
+      - name: Install dependencies
+        working-directory: ./crates/source-resolver
+        run: npm install
+
       - name: Build noir-source-resolver
         working-directory: ./crates/source-resolver
-        run: |
-          npm i
-          npm run build
+        run: npm run build
 
       - name: Publish to NPM
         working-directory: ./crates/source-resolver
