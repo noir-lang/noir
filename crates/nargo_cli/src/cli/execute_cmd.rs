@@ -1,10 +1,10 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
-use acvm::pwg::ErrorLocation;
+use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::errors::{ExecutionError, NargoError};
 use nargo::package::Package;
-use nargo::NargoError;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
@@ -95,24 +95,25 @@ fn execute_package(
 /// If the location has been resolved we return the contained [OpcodeLocation].
 fn extract_opcode_error_from_nargo_error(
     nargo_err: &NargoError,
-) -> Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)> {
-    let solving_err = match nargo_err {
-        nargo::NargoError::SolvingError(err) => err,
+) -> Option<(OpcodeLocation, &ExecutionError)> {
+    let execution_error = match nargo_err {
+        NargoError::ExecutionError(err) => err,
         _ => return None,
     };
 
-    match solving_err {
-        acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+    match execution_error {
+        ExecutionError::AssertionFailed(_, location) => Some((*location, execution_error)),
+        ExecutionError::SolvingError(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: error_location,
             ..
-        }
-        | acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain {
+        })
+        | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: error_location,
-        } => match error_location {
+        }) => match error_location {
             ErrorLocation::Unresolved => {
                 unreachable!("Cannot resolve index for unsatisfied constraint")
             }
-            ErrorLocation::Resolved(opcode_location) => Some((*opcode_location, solving_err)),
+            ErrorLocation::Resolved(opcode_location) => Some((*opcode_location, execution_error)),
         },
         _ => None,
     }
@@ -122,7 +123,7 @@ fn extract_opcode_error_from_nargo_error(
 /// to determine an opcode's call stack. Then report the error using the resolved
 /// call stack and any other relevant error information returned from the ACVM.
 fn report_error_with_opcode_location(
-    opcode_err_info: Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)>,
+    opcode_err_info: Option<(OpcodeLocation, &ExecutionError)>,
     debug: &DebugInfo,
     context: &Context,
 ) {
@@ -132,18 +133,21 @@ fn report_error_with_opcode_location(
             // of the call stack (the last item in the Vec).
             if let Some(location) = locations.last() {
                 let message = match opcode_err {
-                    acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+                    ExecutionError::AssertionFailed(message, _) => {
+                        format!("Assertion failed: '{message}'")
+                    }
+                    ExecutionError::SolvingError(OpcodeResolutionError::IndexOutOfBounds {
                         index,
                         array_size,
                         ..
-                    } => {
+                    }) => {
                         format!(
                             "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
                         )
                     }
-                    acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
-                        "Failed constraint".into()
-                    }
+                    ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
+                        ..
+                    }) => "Failed constraint".into(),
                     _ => {
                         // All other errors that do not have corresponding opcode locations
                         // should not be reported in this method.

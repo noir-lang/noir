@@ -536,7 +536,7 @@ mod tests {
         builder.switch_to_block(b5);
         let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
         let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5, one);
+        builder.insert_constrain(v5, one, None);
         let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
         builder.terminate_with_jmp(b4, vec![v6]);
 
