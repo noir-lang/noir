@@ -19,9 +19,7 @@ for dir in $base_path/*; do
 
   if [[ ! " ${excluded_dirs[@]} " =~ " ${dir_name} " ]]; then
       if [[ ! -d "$current_dir/acir_artifacts/$dir_name" ]]; then
-        echo "Creating directory $current_dir/acir_artifacts/$dir_name"
         mkdir -p $current_dir/acir_artifacts/$dir_name
-        echo "Directory created."
       fi
 
       cd $dir
@@ -37,6 +35,11 @@ for dir in $base_path/*; do
 
       # Delete the JSON file after extracting bytecode field
       rm ./target/${dir_name}.json
+
+      # Delete the target directory in acir_artifacts if it exists
+      if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
+        rm -r "$current_dir/acir_artifacts/$dir_name/target"
+      fi
       
       # Move the target directory to the corresponding directory in acir_artifacts
       mv ./target/ $current_dir/acir_artifacts/$dir_name/
