@@ -28,7 +28,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.24.1"
+acvm = "0.25.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -61,6 +61,3 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
-
-[patch.crates-io]
-acvm = { git="https://github.com/noir-lang/acvm", branch="arv/brillig_call_stacks" }
