@@ -6,6 +6,10 @@ on:
       version:
         description: "Version number"
         required: false
+  # TODO: remove this:
+  push:
+    branches:
+      - jb/add-source-resolver
 
 jobs:
   release-source-resolver:
@@ -35,9 +39,11 @@ jobs:
         # run: npm publish
         run: |
           echo "Dry run: Running npm pack to simulate npm publish:"
-          npm pack
+          PACK_FILENAME=$(npm pack)
           echo "Dry run: Listing the contents of the tarball:"
-          tar -tf *.tgz
+          tar -tf $PACK_FILENAME
+          echo "Dry run: Outputting the package.json inside of the tarball:"
+          tar -Oxf $PACK_FILENAME package/package.json
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
