@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use color_eyre::eyre;
 
+use crate::backends::get_active_backend;
+
 mod fs;
 
 mod backend_cmd;
@@ -83,7 +85,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
-    let backend = crate::backends::Backend::default();
+    let active_backend = get_active_backend();
+    let backend = crate::backends::Backend::new(active_backend);
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
