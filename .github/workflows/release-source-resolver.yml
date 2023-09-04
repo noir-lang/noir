@@ -49,7 +49,8 @@ jobs:
           git config user.email kevtheappdev@gmail.com
 
       - name: Commit updates
-        run: echo 'chore: Update source-resolver to ${{ env.NEW_VERSION }}'
+        run: |
+          echo "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
         # run: |
         # git add crates/source-resolver/package-lock.json
         # git add crates/source-resolver/package.json
