@@ -29,7 +29,7 @@ fi
 cd acir_tests
 
 # Convert them to array
-skip_array=(diamond_deps_0 workspace workspace_default_member double_verify_proof)
+skip_array=(diamond_deps_0 workspace workspace_default_member)
 
 function test() {
   echo -n "Testing $1... "
