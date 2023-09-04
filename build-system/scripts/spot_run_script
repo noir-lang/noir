@@ -23,7 +23,7 @@ IP=$(request_spot $CONTENT_HASH:$JOB_NAME $SPEC)
 
 # Run script remotely on spot instance, capturing success or failure.
 set +e
-remote_run_script $IP $CONTENT_HASH $@
+remote_run_script $IP $@
 CODE=$?
 
 # Shutdown spot.

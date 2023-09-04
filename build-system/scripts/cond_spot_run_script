@@ -22,7 +22,7 @@ SUCCESS_TAG=$1
 shift
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "Content hash: $CONTENT_HASH"
+echo "Content hash tag: cache-$CONTENT_HASH-$SUCCESS_TAG"
 
 if ! check_rebuild cache-$CONTENT_HASH-$SUCCESS_TAG $REPOSITORY; then
   init_submodules $REPOSITORY

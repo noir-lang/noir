@@ -6,7 +6,7 @@ set -eu
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 REPOSITORY=barretenberg-x86_64-linux-clang-assert
 # use the image rebuild patterns to compute a content hash, use this to get a URI
-IMAGE_URI="278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPOSITORY:cache-$CONTENT_HASH"
+IMAGE_URI=$($(git rev-parse --show-toplevel)/build-system/scripts/calculate_image_uri $REPOSITORY)
 docker pull $IMAGE_URI
 
 TESTS=(

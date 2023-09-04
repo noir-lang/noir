@@ -9,7 +9,7 @@ shift
 DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "Content hash: $CONTENT_HASH"
+echo "Content hash tag: cache-$CONTENT_HASH"
 
 cd $(query_manifest buildDir $REPOSITORY)
 

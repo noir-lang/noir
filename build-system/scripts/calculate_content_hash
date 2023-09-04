@@ -9,9 +9,10 @@ COMMIT_HASH=${2:-$COMMIT_HASH}
 REBUILD_PATTERNS=$(query_manifest rebuildPatterns $REPOSITORY)
 
 AWK_PATTERN=$(echo $REBUILD_PATTERNS | sed 's/ /|/g')
+cd "$(git rev-parse --show-toplevel)"
 # an example line is
 #   100644 da9ae2e020ea7fe3505488bbafb39adc7191559b 0       yarn-project/world-state/tsconfig.json
 # this format is beneficial as it grabs the hashes from git efficiently
 # we will next filter by our rebuild patterns 
 # then we pipe the hash portion of each file to git hash-object to produce our content hash
-git ls-tree -r HEAD | awk -v pattern="($AWK_PATTERN)" '$4 ~ pattern {print $3}' | git hash-object --stdin
+git ls-tree -r $COMMIT_HASH | awk -v pattern="($AWK_PATTERN)" '$4 ~ pattern {print $3}' | git hash-object --stdin

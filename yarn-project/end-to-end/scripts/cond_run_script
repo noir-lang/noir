@@ -25,10 +25,10 @@ SCRIPT_TO_RUN=$1
 shift
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "Content hash: $CONTENT_HASH"
+echo "Content hash tag: cache-$CONTENT_HASH-$SUCCESS_TAG"
 echo "Script to run is $SCRIPT_TO_RUN $@"
 
 if ! check_rebuild cache-$CONTENT_HASH-$SUCCESS_TAG $REPOSITORY; then
-  CONTENT_HASH="$CONTENT_HASH" "$SCRIPT_TO_RUN" "$@"
+  "$SCRIPT_TO_RUN" "$@"
   tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$SUCCESS_TAG
 fi

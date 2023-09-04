@@ -14,7 +14,7 @@ fi
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-IMAGE_URI="278380418400.dkr.ecr.us-east-2.amazonaws.com/$IMAGE:cache-$CONTENT_HASH"
+IMAGE_URI=$($(git rev-parse --show-toplevel)/build-system/scripts/calculate_image_uri $IMAGE)
 docker pull $IMAGE_URI
 docker tag $IMAGE_URI aztecprotocol/canary:latest
 

@@ -1,0 +1,10 @@
+#!/bin/bash
+set -eu
+
+REPOSITORY=$1
+# Assume we might be calling this directly without build system in path
+export ROOT_PATH=$(git rev-parse --show-toplevel)
+export PATH="$PATH:$ROOT_PATH/build-system/scripts:$ROOT_PATH/build-system/bin"
+export LD_LIBRARY_PATH="$ROOT_PATH/build-system/lib"
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPOSITORY:cache-$CONTENT_HASH"
