@@ -7,6 +7,5 @@ impl AccountContractInterface {
         AccountContractInterface { address }
     }
 
-      fn send_rewards(_self: Self, _rewards: u8) {
-    }
+    fn send_rewards(_self: Self, _rewards: u8) {}
 }

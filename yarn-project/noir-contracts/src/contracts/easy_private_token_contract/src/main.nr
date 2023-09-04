@@ -2,6 +2,7 @@
 mod storage;
 
 contract EasyPrivateToken {
+    use dep::std::option::Option;
     use dep::aztec::abi::Hasher;
     use dep::value_note::{
             balance_utils,
@@ -31,10 +32,10 @@ contract EasyPrivateToken {
         initial_supply: u120, 
         owner: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let balances = storage.balances;
 
-        balances.at(owner).add(&mut context, initial_supply, owner);
+        balances.at(owner).add(initial_supply, owner);
     }
 
     // Mints `amount` of tokens to `owner`.
@@ -43,10 +44,10 @@ contract EasyPrivateToken {
         amount: u120, 
         owner: Field,
     )  {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let balances = storage.balances;
 
-        balances.at(owner).add(&mut context, amount, owner);
+        balances.at(owner).add(amount, owner);
     }
 
     // Transfers `amount` of tokens from `sender` to a `recipient`.
@@ -56,18 +57,18 @@ contract EasyPrivateToken {
         sender: Field, 
         recipient: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let balances = storage.balances;
 
-        balances.at(sender).sub(&mut context, amount, sender);
-        balances.at(recipient).add(&mut context, amount, recipient);
+        balances.at(sender).sub(amount, sender);
+        balances.at(recipient).add(amount, recipient);
     }
 
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     unconstrained fn getBalance(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         let balances = storage.balances;
 
         // Return the sum of all notes in the set.

@@ -1,9 +1,11 @@
+use dep::aztec::context::{PrivateContext, PublicContext};
 use dep::aztec::state_vars::map::Map;
 use dep::aztec::state_vars::public_state::PublicState;
 use dep::aztec::types::type_serialisation::TypeSerialisationInterface;
 use dep::aztec::types::type_serialisation::field_serialisation::FieldSerialisationMethods;
 use dep::aztec::types::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
 use dep::std::hash::pedersen;
+use dep::std::option::Option;
 
 struct Asset {
     price: u120,
@@ -38,9 +40,24 @@ struct Storage {
 }
 
 impl Storage {
-    fn init() -> Self {
+    fn init(
+        private_context: Option<&mut PrivateContext>,
+        public_context: Option<&mut PublicContext>,
+    ) -> Self {
         Storage {
-            assets: Map::new(1, |slot| PublicState::new(slot, AssetSerialisationMethods)),
+            assets: Map::new(
+                private_context,
+                public_context,
+                1,
+                |private_context, public_context, slot| {
+                    PublicState::new(
+                        private_context,
+                        public_context,
+                        slot,
+                        AssetSerialisationMethods,
+                    )
+                },
+            ),
         }
     }
 }

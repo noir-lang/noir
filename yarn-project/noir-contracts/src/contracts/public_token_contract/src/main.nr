@@ -5,6 +5,7 @@ contract PublicToken {
     // docs:start:unencrypted_import
     use dep::aztec::oracle::logs::emit_unencrypted_log;
     // docs:end:unencrypted_import
+    use dep::std::option::Option;
 
     use crate::storage::Storage;
 
@@ -19,7 +20,7 @@ contract PublicToken {
         recipient: Field,
     ) -> Field {
 
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
         let recipient_balance = storage.balances.at(recipient);
         let new_amount = recipient_balance.read() + amount;
         // docs:start:unencrypted_log
@@ -37,7 +38,7 @@ contract PublicToken {
         amount: Field,
         recipient: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
         let sender = context.msg_sender();
 
         let sender_balance = storage.balances.at(sender);
@@ -66,7 +67,7 @@ contract PublicToken {
     unconstrained fn publicBalanceOf(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         storage.balances.at(owner).read()
     }
 }

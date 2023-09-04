@@ -8,6 +8,8 @@ use dep::aztec::state_vars::{
     },
     // highlight-end:PublicState
 };
+use dep::std::option::Option;
+use dep::aztec::context::{PrivateContext, PublicContext};
 
 struct Storage {
     // highlight-next-line:PublicState
@@ -15,7 +17,10 @@ struct Storage {
 }
 
 impl Storage {
-    fn init() -> Self {
+    fn init(
+        private_context: Option<&mut PrivateContext>,
+        public_context: Option<&mut PublicContext>,
+    ) -> Self {
         Storage {
             // highlight-next-line:PublicState
             a: PublicState::new(1, FieldSerialisationMethods),

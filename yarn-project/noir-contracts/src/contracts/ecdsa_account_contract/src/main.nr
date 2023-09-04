@@ -5,6 +5,7 @@ mod ecdsa_public_key_note;
 // The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaAccount {
     use dep::std;
+    use dep::std::option::Option;
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;
     use dep::aztec::abi::CallContext;
@@ -32,8 +33,8 @@ contract EcdsaAccount {
         signature: pub [u8;64],
     ) {
         // Load public key from storage
-        let storage = Storage::init();
-        let public_key = storage.public_key.get_note(&mut context);
+        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let public_key = storage.public_key.get_note();
 
         // Verify payload signature using Ethereum's signing scheme
         // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
@@ -59,11 +60,11 @@ contract EcdsaAccount {
         signing_pub_key_x: pub [u8;32],
         signing_pub_key_y: pub [u8;32],
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        storage.public_key.initialise(&mut context, &mut pub_key_note);
+        storage.public_key.initialise(&mut pub_key_note);
         
         emit_encrypted_log(
             &mut context,

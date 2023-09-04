@@ -1,28 +1,16 @@
 mod transparent_note;
 
-use crate::transparent_note::{
-    TransparentNote,
-    TransparentNoteMethods,
-    TRANSPARENT_NOTE_LEN,
-};
+use crate::transparent_note::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN};
 
-use dep::value_note::value_note::{
-    ValueNote,
-    ValueNoteMethods,
-    VALUE_NOTE_LEN,
-};
-
+use dep::aztec::context::{PrivateContext, PublicContext};
 use dep::aztec::{
-    state_vars::{
-        map::Map,
-        set::Set,
-        public_state::PublicState,
-    },
+    state_vars::{map::Map, public_state::PublicState, set::Set},
     types::type_serialisation::field_serialisation::{
-        FIELD_SERIALISED_LEN,
-        FieldSerialisationMethods,
+        FieldSerialisationMethods, FIELD_SERIALISED_LEN,
     },
 };
+use dep::std::option::Option;
+use dep::value_note::value_note::{ValueNote, ValueNoteMethods, VALUE_NOTE_LEN};
 
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
@@ -33,11 +21,33 @@ struct Storage {
 }
 
 impl Storage {
-    fn init() -> Self {
+    fn init(
+        private_context: Option<&mut PrivateContext>,
+        public_context: Option<&mut PublicContext>,
+    ) -> Self {
         Storage {
-            balances: Map::new(1, |s| Set::new(s, ValueNoteMethods)),
-            pending_shields: Set::new(2, TransparentNoteMethods),
-            public_balances: Map::new(3, |s| PublicState::new(s, FieldSerialisationMethods)),
+            balances: Map::new(
+                private_context,
+                public_context,
+                1, // Storage slot
+                |private_context, public_context, slot| {
+                    Set::new(private_context, public_context, slot, ValueNoteMethods)
+                },
+            ),
+            pending_shields: Set::new(private_context, public_context, 2, TransparentNoteMethods),
+            public_balances: Map::new(
+                private_context,
+                public_context,
+                3,
+                |private_context, public_context, slot| {
+                    PublicState::new(
+                        private_context,
+                        public_context,
+                        slot,
+                        FieldSerialisationMethods,
+                    )
+                },
+            ),
         }
     }
 }

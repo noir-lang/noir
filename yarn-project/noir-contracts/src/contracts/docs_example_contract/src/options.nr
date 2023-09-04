@@ -1,7 +1,7 @@
-use dep::std::option::Option;
+use crate::types::card_note::{CardNote, CARD_NOTE_LEN};
 use dep::aztec::constants_gen::MAX_READ_REQUESTS_PER_CALL;
 use dep::aztec::note::note_getter_options::{NoteGetterOptions, Sort, SortOrder};
-use crate::types::card_note::{CardNote, CARD_NOTE_LEN};
+use dep::std::option::Option;
 
 // docs:start:state_vars-NoteGetterOptionsSelectSortOffset
 fn create_account_card_getter_options(
@@ -57,7 +57,9 @@ fn create_account_cards_with_min_points_getter_options(
 // docs:end:state_vars-NoteGetterOptionsFilter
 
 // docs:start:state_vars-NoteGetterOptionsPickOne
-fn create_largest_account_card_getter_options(account_address: Field) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
+fn create_largest_account_card_getter_options(
+    account_address: Field,
+) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
     NoteGetterOptions::new()
         .select(2, account_address)
         .sort(0, SortOrder.DESC)

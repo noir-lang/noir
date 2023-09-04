@@ -5,6 +5,7 @@ mod public_key_note;
 // The signing key is stored in an immutable private note and should be different from the encryption/nullifying key.
 contract SchnorrAccount {
     use dep::std;
+    use dep::std::option::Option;
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;
     use dep::aztec::abi::CallContext;
@@ -32,8 +33,8 @@ contract SchnorrAccount {
         signature: pub [u8;64], // schnorr signature of the payload hash
     ) {
         // Load public key from storage
-        let storage = Storage::init();
-        let public_key = storage.signing_public_key.get_note(&mut context);
+        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let public_key = storage.signing_public_key.get_note();
 
         // Verify payload signature
         let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
@@ -61,11 +62,11 @@ contract SchnorrAccount {
         signing_pub_key_x: pub Field,
         signing_pub_key_y: pub Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         
         let this = context.this_address();
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        storage.signing_public_key.initialise(&mut context, &mut pub_key_note);
+        storage.signing_public_key.initialise(&mut pub_key_note);
         
         emit_encrypted_log(
             &mut context,

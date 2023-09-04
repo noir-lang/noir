@@ -12,8 +12,9 @@ mod interfaces;
 // - Liquidations
 contract Lending {
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use crate::storage::{Storage, Asset};
     use dep::safe_math::SafeU120;
+    use dep::std::option::Option;
+    use crate::storage::{Storage, Asset};
     use crate::interest_math::compute_multiplier;
     use crate::helpers::{covered_by_collateral, DebtReturn, debt_updates, debt_value, compute_identifier};
     use crate::interfaces::{Token, Lending, PriceFeed};
@@ -36,7 +37,7 @@ contract Lending {
         collateral_asset: Field,
         stable_coin: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
         let asset_loc = storage.assets.at(0);
         let asset = asset_loc.read();
 
@@ -61,7 +62,7 @@ contract Lending {
     // keccak256("update_accumulator()") >> 224 -> 0x1873b536
     #[aztec(public)]
     fn update_accumulator() -> Asset {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
 
         let asset_loc = storage.assets.at(0);
         let mut asset = asset_loc.read();
@@ -120,7 +121,7 @@ contract Lending {
         collateral_asset: Field,
     ) -> Field {
         let _asset = Lending::at(context.this_address()).update_accumulator(context);
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
 
         let coll_asset = storage.collateral_asset.read();
         assert(coll_asset == collateral_asset);
@@ -163,7 +164,7 @@ contract Lending {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle_address).get_price(context);
         
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
 
         let coll_loc = storage.collateral.at(owner);
         let collateral: Field = coll_loc.read();
@@ -219,7 +220,7 @@ contract Lending {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle_address).get_price(context);
         
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
 
         // Fetch collateral and static_debt, compute health of current position
         let collateral = storage.collateral.at(owner).read() as u120;
@@ -273,7 +274,7 @@ contract Lending {
         stable_coin: Field,
     ) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
 
         // To ensure that private is using the correct token.
         assert(stable_coin == storage.stable_coin.read());
@@ -289,14 +290,14 @@ contract Lending {
     unconstrained fn get_asset(
         assetId: Field,
     ) -> Asset {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         storage.assets.at(assetId).read()
     }
 
     unconstrained fn get_position(
         owner: Field,
     ) -> Position {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         let collateral = storage.collateral.at(owner).read();
         let static_debt = storage.static_debt.at(owner).read();
         let asset = storage.assets.at(0).read();
@@ -305,7 +306,7 @@ contract Lending {
     }
 
     unconstrained fn get_assets() -> [Field; 2] {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         [storage.collateral_asset.read(), storage.stable_coin.read()]
     }
 }

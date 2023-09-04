@@ -1,22 +1,20 @@
+use dep::aztec::context::{PrivateContext, PublicContext};
 use dep::aztec::state_vars::{
-    immutable_singleton::ImmutableSingleton,
-    map::Map,
-    public_state::PublicState,
-    set::Set,
+    immutable_singleton::ImmutableSingleton, map::Map, public_state::PublicState, set::Set,
     singleton::Singleton,
 };
+use dep::std::option::Option;
 // docs:start:state_vars-PublicStateBoolImport
 use dep::aztec::types::type_serialisation::bool_serialisation::{
-    BOOL_SERIALISED_LEN,
-    BoolSerialisationMethods,
+    BoolSerialisationMethods, BOOL_SERIALISED_LEN,
 };
 // docs:end:state_vars-PublicStateBoolImport
 
 use crate::types::{
-    card_note::{CardNote, CARD_NOTE_LEN, CardNoteMethods},
-    profile_note::{ProfileNote, PROFILE_NOTE_LEN, ProfileNoteMethods},
-    queen::{Queen, QUEEN_SERIALISED_LEN, QueenSerialisationMethods},
-    rules_note::{RulesNote, RULES_NOTE_LEN, RulesNoteMethods},
+    card_note::{CardNote, CardNoteMethods, CARD_NOTE_LEN},
+    profile_note::{ProfileNote, ProfileNoteMethods, PROFILE_NOTE_LEN},
+    queen::{Queen, QueenSerialisationMethods, QUEEN_SERIALISED_LEN},
+    rules_note::{RulesNote, RulesNoteMethods, RULES_NOTE_LEN},
 };
 
 // docs:start:storage-declaration
@@ -36,20 +34,35 @@ struct Storage {
 // docs:start:state_vars-Set
 // docs:start:state_vars-MapSingleton
 impl Storage {
-    fn init() -> Self {
+    fn init(
+        private_context: Option<&mut PrivateContext>,
+        public_context: Option<&mut PublicContext>,
+    ) -> Self {
         Storage {
             // highlight-next-line:state_vars-PublicState
-            locked: PublicState::new(1, BoolSerialisationMethods),
+            locked: PublicState::new(private_context, public_context, 1, BoolSerialisationMethods),
             // highlight-next-line:state_vars-PublicStateCustomStruct
-            queen: PublicState::new(2, QueenSerialisationMethods),
+            queen: PublicState::new(
+                private_context,
+                public_context,
+                2,
+                QueenSerialisationMethods,
+            ),
             // highlight-next-line:state_vars-ImmutableSingleton
-            game_rules: ImmutableSingleton::new(3, RulesNoteMethods),
+            game_rules: ImmutableSingleton::new(private_context, 3, RulesNoteMethods),
             // highlight-next-line:state_vars-Singleton
-            legendary_card: Singleton::new(4, CardNoteMethods),
+            legendary_card: Singleton::new(private_context, public_context, 4, CardNoteMethods),
             // highlight-next-line:state_vars-Set
-            cards: Set::new(5, CardNoteMethods),
+            cards: Set::new(private_context, public_context, 5, CardNoteMethods),
             // highlight-next-line:state_vars-MapSingleton
-            profiles: Map::new(6, |slot| Singleton::new(slot, ProfileNoteMethods)),
+            profiles: Map::new(
+                private_context,
+                public_context,
+                6,
+                |private_context, public_context, slot| {
+                    Singleton::new(private_context, public_context, slot, ProfileNoteMethods)
+                },
+            ),
         }
     }
 }

@@ -2,6 +2,7 @@ mod storage;
 
 contract PrivateToken {
     // Libs
+    use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement},
@@ -22,11 +23,11 @@ contract PrivateToken {
         initial_supply: Field, 
         owner: Field
     )  {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
         if (initial_supply != 0) {
-            increment(&mut context, owner_balance, initial_supply, owner);
+            increment(owner_balance, initial_supply, owner);
         }
     }
     // docs:end:constructor
@@ -38,11 +39,11 @@ contract PrivateToken {
         amount: Field, 
         owner: Field
     )  {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
-        increment(&mut context, owner_balance, amount, owner);
+        increment(owner_balance, amount, owner);
     }
     // docs:end:mint
 
@@ -53,16 +54,16 @@ contract PrivateToken {
         amount: Field, 
         recipient: Field,
     )  {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let sender = context.msg_sender();
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);
-        decrement(&mut context, sender_balance, amount, sender);
+        decrement(sender_balance, amount, sender);
 
         // Creates new note for the recipient.
         let recipient_balance = storage.balances.at(recipient);
-        increment(&mut context, recipient_balance, amount, recipient);
+        increment(recipient_balance, amount, recipient);
     }
     // docs:end:transfer
 
@@ -71,7 +72,7 @@ contract PrivateToken {
     unconstrained fn getBalance(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
 
         // Get the set of notes owned by the user.
         let owner_balance = storage.balances.at(owner);

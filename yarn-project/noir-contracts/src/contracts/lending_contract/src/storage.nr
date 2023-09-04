@@ -1,13 +1,15 @@
+use dep::aztec::context::{PrivateContext, PublicContext};
 use dep::aztec::state_vars::map::Map;
 use dep::aztec::state_vars::public_state::PublicState;
-use dep::aztec::types::type_serialisation::TypeSerialisationInterface;
 use dep::aztec::types::type_serialisation::field_serialisation::FieldSerialisationMethods;
 use dep::aztec::types::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
+use dep::aztec::types::type_serialisation::TypeSerialisationInterface;
+use dep::std::option::Option;
 
 // Struct to be used to represent "totals". Generally, there should be one per asset.
 // It stores the global values that are shared among all users, such as an accumulator
 // and last time it was updated.
-// In practice, it should also point to an oracle and have more fields related to 
+// In practice, it should also point to an oracle and have more fields related to
 // loan to value ratios and other things, but we did not have enough reads/writes for this.
 struct Asset {
     interest_accumulator: u120,
@@ -30,12 +32,16 @@ fn deserialiseAsset(fields: [Field; ASSET_SERIALISED_LEN]) -> Asset {
 }
 
 fn serialiseAsset(asset: Asset) -> [Field; ASSET_SERIALISED_LEN] {
-    [asset.interest_accumulator as Field, asset.last_updated_ts as Field, asset.loan_to_value as Field, asset.oracle_address]
+    [
+        asset.interest_accumulator as Field,
+        asset.last_updated_ts as Field,
+        asset.loan_to_value as Field,
+        asset.oracle_address,
+    ]
 }
 
 impl Asset {
-    // TODO(Maddiaa): Rename all serialise -> serialize
-    fn serialize (self: Self) -> [Field; ASSET_SERIALISED_LEN] {
+    fn serialize(self: Self) -> [Field; ASSET_SERIALISED_LEN] {
         serialiseAsset(self)
     }
 }
@@ -55,13 +61,62 @@ struct Storage {
 }
 
 impl Storage {
-    fn init() -> Self {
+    fn init(
+        private_context: Option<&mut PrivateContext>,
+        public_context: Option<&mut PublicContext>,
+    ) -> Self {
         Storage {
-            collateral_asset: PublicState::new(1, FieldSerialisationMethods),
-            stable_coin: PublicState::new(2, FieldSerialisationMethods),
-            assets: Map::new(3, |slot| PublicState::new(slot, AssetSerialisationMethods)),
-            collateral: Map::new(4, |slot| PublicState::new(slot, FieldSerialisationMethods)),
-            static_debt: Map::new(5, |slot| PublicState::new(slot, FieldSerialisationMethods)),
+            collateral_asset: PublicState::new(
+                private_context,
+                public_context,
+                1,
+                FieldSerialisationMethods,
+            ),
+            stable_coin: PublicState::new(
+                private_context,
+                public_context,
+                2,
+                FieldSerialisationMethods,
+            ),
+            assets: Map::new(
+                private_context,
+                public_context,
+                3,
+                |private_context, public_context, slot| {
+                    PublicState::new(
+                        private_context,
+                        public_context,
+                        slot,
+                        AssetSerialisationMethods,
+                    )
+                },
+            ),
+            collateral: Map::new(
+                private_context,
+                public_context,
+                4,
+                |private_context, public_context, slot| {
+                    PublicState::new(
+                        private_context,
+                        public_context,
+                        slot,
+                        FieldSerialisationMethods,
+                    )
+                },
+            ),
+            static_debt: Map::new(
+                private_context,
+                public_context,
+                5,
+                |private_context, public_context, slot| {
+                    PublicState::new(
+                        private_context,
+                        public_context,
+                        slot,
+                        FieldSerialisationMethods,
+                    )
+                },
+            ),
         }
     }
 }

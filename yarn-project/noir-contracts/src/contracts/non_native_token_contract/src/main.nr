@@ -18,6 +18,7 @@ mod transparent_note;
 // 3. At this point a recipient can spend the note in a private function assuming he/she knows the secret.
 contract NonNativeToken {
     // Libs
+    use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement},
@@ -48,10 +49,10 @@ contract NonNativeToken {
         initial_supply: Field,
         owner: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
 
         let balance = storage.balances.at(owner);
-        increment(&mut context, balance, initial_supply, owner);
+        increment(balance, initial_supply, owner);
     }
 
     // Mint Private Function
@@ -66,7 +67,7 @@ contract NonNativeToken {
         secret: Field,
         canceller: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
 
         let content_hash = get_mint_content_hash(amount, owner, canceller);
 
@@ -74,7 +75,7 @@ contract NonNativeToken {
         context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
 
         let balance = storage.balances.at(owner);
-        increment(&mut context, balance, amount, owner);
+        increment(balance, amount, owner);
     }
 
     // Withdraws using user's private balance.
@@ -87,10 +88,10 @@ contract NonNativeToken {
         recipient: Field, // ethereum address in the field
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
 
         let sender_balance = storage.balances.at(sender);
-        decrement(&mut context, sender_balance, amount, sender);
+        decrement(sender_balance, amount, sender);
 
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
         context.message_portal(content);
@@ -108,7 +109,7 @@ contract NonNativeToken {
         secret: Field,
         canceller: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
         let public_balances = storage.public_balances;
 
         let content_hash = get_mint_content_hash(amount, owner_address, canceller);
@@ -133,7 +134,7 @@ contract NonNativeToken {
         recipient: Field,
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
         let public_balances = storage.public_balances;
 
         let sender = context.msg_sender();
@@ -161,15 +162,15 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let sender = context.msg_sender();
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = storage.balances.at(sender);
-        decrement(&mut context, sender_balance, amount, sender);
+        decrement(sender_balance, amount, sender);
 
         let balance = storage.balances.at(recipient);
-        increment(&mut context, balance, amount, recipient);
+        increment(balance, amount, recipient);
     }
 
     // Shield creates a way for a user to move tokens from the public context into the private context.
@@ -178,7 +179,7 @@ contract NonNativeToken {
         amount: Field,
         secretHash: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
         let public_balances = storage.public_balances;
         let pending_shields = storage.pending_shields;
 
@@ -196,7 +197,7 @@ contract NonNativeToken {
         // and insert it into the set of "pending_shields" and therefore
         // (eventually) the private data tree.
         let mut note = TransparentNote::new(amount, secretHash);
-        pending_shields.insert_from_public(&mut context, &mut note);
+        pending_shields.insert_from_public(&mut note);
     }
 
     // The shield function takes a public balance, and creates a commitment containing the amount of tokens
@@ -207,17 +208,17 @@ contract NonNativeToken {
         secret: Field,
         owner: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let pending_shields = storage.pending_shields;
 
         let public_note = TransparentNote::new_from_secret(amount, secret);
 
         // Ensure that the note exists in the tree and remove it.
-        pending_shields.assert_contains_and_remove(&mut context, public_note);
+        pending_shields.assert_contains_and_remove(public_note);
 
         // Mint the tokens
         let balance = storage.balances.at(owner);
-        increment(&mut context, balance, amount, owner);
+        increment(balance, amount, owner);
     }
 
     #[aztec(private)]
@@ -225,12 +226,12 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let owner = context.msg_sender();
 
         // Remove user balance
         let sender_balance = storage.balances.at(owner);
-        decrement(&mut context, sender_balance, amount, owner);
+        decrement(sender_balance, amount, owner);
 
         // enqueue a public function to perform the public state update.
         let thisAddress = context.this_address();
@@ -246,7 +247,7 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
     ) {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::some(&mut context));
 
         let recipient_balance = storage.public_balances.at(recipient);
         let current_balance = recipient_balance.read();
@@ -257,7 +258,7 @@ contract NonNativeToken {
     unconstrained fn getBalance(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         let owner_balance = storage.balances.at(owner);
 
         balance_utils::get_balance(owner_balance)
@@ -278,7 +279,7 @@ contract NonNativeToken {
     unconstrained fn publicBalanceOf(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init();
+        let storage = Storage::init(Option::none(), Option::none());
         storage.public_balances.at(owner).read()
     }
 }

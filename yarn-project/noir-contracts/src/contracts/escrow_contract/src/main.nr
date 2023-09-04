@@ -16,6 +16,8 @@ contract Escrow {
         utils as note_utils,
     };
 
+    use dep::std::option::Option;
+
     use crate::address_note::{
         AddressNote,
         AddressNoteMethods,
@@ -33,9 +35,9 @@ contract Escrow {
     ) {
         let this = context.this_address();
         
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         let mut note = AddressNote::new(owner, this);
-        storage.owners.insert(&mut context, &mut note);
+        storage.owners.insert(&mut note);
         emit_encrypted_log(
             &mut context,
             this,
@@ -54,11 +56,11 @@ contract Escrow {
     ) {
         let this = context.this_address();
         let sender = context.msg_sender();
-        let storage = Storage::init();
+        let storage = Storage::init(Option::some(&mut context), Option::none());
         
         // We don't remove note from the owners set. If a note exists, the owner and recipient are legit.
         let options = NoteGetterOptions::new().select(0, sender).select(1, this).set_limit(1);
-        let notes = storage.owners.get_notes(&mut context, options);
+        let notes = storage.owners.get_notes(options);
         let note = notes[0].unwrap_unchecked();
         // Filter is not constrained. We still need to check if the note is what we expected.
         assert(note.address == sender);

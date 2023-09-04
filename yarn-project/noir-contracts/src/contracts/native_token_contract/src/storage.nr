@@ -1,28 +1,17 @@
-use dep::value_note::value_note::{
-    ValueNote,
-    ValueNoteMethods,
-    VALUE_NOTE_LEN,
+use dep::value_note::value_note::{ValueNote, ValueNoteMethods, VALUE_NOTE_LEN};
+
+use dep::non_native::transparent_note::{
+    TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN,
 };
 
-use dep::non_native::{
-    transparent_note::{
-        TransparentNote,
-        TransparentNoteMethods,
-        TRANSPARENT_NOTE_LEN,
-    },
-};
-
+use dep::aztec::context::{PrivateContext, PublicContext};
 use dep::aztec::{
-    state_vars::{
-        map::Map,
-        set::Set,
-        public_state::PublicState,
-    },
+    state_vars::{map::Map, public_state::PublicState, set::Set},
     types::type_serialisation::field_serialisation::{
-        FIELD_SERIALISED_LEN,
-        FieldSerialisationMethods,
+        FieldSerialisationMethods, FIELD_SERIALISED_LEN,
     },
 };
+use dep::std::option::Option;
 
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
@@ -33,13 +22,59 @@ struct Storage {
 }
 
 impl Storage {
-    fn init() -> Self {
+    fn init(
+        private_context: Option<&mut PrivateContext>,
+        public_context: Option<&mut PublicContext>,
+    ) -> Self {
         Storage {
-            balances: Map::new(1, |s| Set::new(s, ValueNoteMethods)),
-            total_supply: PublicState::new(2, FieldSerialisationMethods),
-            pending_shields: Set::new(3, TransparentNoteMethods),
-            public_balances: Map::new(4, |s| PublicState::new(s, FieldSerialisationMethods)),
-            public_allowances: Map::new(5, |s1| Map::new(s1, |s2| PublicState::new(s2, FieldSerialisationMethods)))
+            balances: Map::new(
+                private_context,
+                public_context,
+                1, // Storage slot
+                |private_context, public_context, slot| {
+                    Set::new(private_context, public_context, slot, ValueNoteMethods)
+                },
+            ),
+            total_supply: PublicState::new(
+                private_context,
+                public_context,
+                2,
+                FieldSerialisationMethods,
+            ),
+            pending_shields: Set::new(private_context, public_context, 3, TransparentNoteMethods),
+            public_balances: Map::new(
+                private_context,
+                public_context,
+                4,
+                |private_context, public_context, slot| {
+                    PublicState::new(
+                        private_context,
+                        public_context,
+                        slot,
+                        FieldSerialisationMethods,
+                    )
+                },
+            ),
+            public_allowances: Map::new(
+                private_context,
+                public_context,
+                5,
+                |private_context, public_context, s1| {
+                    Map::new(
+                        private_context,
+                        public_context,
+                        s1,
+                        |private_context, public_context, s2| {
+                            PublicState::new(
+                                private_context,
+                                public_context,
+                                s2,
+                                FieldSerialisationMethods,
+                            )
+                        },
+                    )
+                },
+            ),
         }
     }
 }
