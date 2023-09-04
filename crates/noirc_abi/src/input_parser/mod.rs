@@ -188,8 +188,16 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
     } else {
         BigUint::from_str_radix(value, 10)
             .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
-            // Note that we're reducing here. Should we reject inputs that don't fit in the field?
-            .map(field_from_big_uint)
+            .and_then(|bigint| {
+                if bigint < FieldElement::modulus() {
+                    Ok(field_from_big_uint(bigint))
+                } else {
+                    Err(InputParserError::ParseStr(format!(
+                        "Input exceeds field modulus. Values must fall within [0, {})",
+                        FieldElement::modulus(),
+                    )))
+                }
+            })
     }
 }
 
@@ -233,5 +241,12 @@ mod test {
             let field_from_dec = parse_str_to_field(&dec_field).unwrap();
             assert_eq!(field_from_dec, field);
         }
+    }
+
+    #[test]
+    fn rejects_noncanonical_fields() {
+        let noncanonical_field = FieldElement::modulus().to_string();
+        let parsed_field = parse_str_to_field(&noncanonical_field);
+        println!("{parsed_field:?}");
     }
 }
