@@ -100,7 +100,6 @@ fn extract_opcode_error_from_nargo_error(
         NargoError::ExecutionError(err) => err,
         _ => return None,
     };
-    //send back here a execution error instead
 
     match execution_error {
         ExecutionError::AssertionFailed(_, location) => Some((*location, execution_error)),

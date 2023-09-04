@@ -15,7 +15,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(blackbox_solver, circuit.opcodes, initial_witness);
 
-    // Assert messages are not a map due to serde-reflect issues
+    // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
     let get_assert_message = |opcode_location| {
         circuit
             .assert_messages
