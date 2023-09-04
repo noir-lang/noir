@@ -4,7 +4,7 @@ use crate::{backends::set_active_backend, errors::CliError};
 
 use super::ls_cmd::get_available_backends;
 
-/// Checks the constraint system for errors
+/// Select the currently active backend
 #[derive(Debug, Clone, Args)]
 pub(crate) struct UseCommand {
     backend: String,
