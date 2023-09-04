@@ -2278,6 +2278,8 @@ dependencies = [
  "acvm",
  "iter-extended",
  "noirc_frontend",
+ "num-bigint",
+ "num-traits",
  "serde",
  "serde_json",
  "strum",
