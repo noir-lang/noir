@@ -108,23 +108,18 @@ fn compile_success_empty_{test_name}() {{
     // We use a mocked backend for this test as we do not rely on the returned circuit size
     // but we must call a backend as part of querying the number of opcodes in the circuit.
 
-    // Install mocked backend
-    let home_directory = dirs::home_dir().unwrap();
-    let mock_backend_directory = home_directory.join(".nargo/backends/mock_backend");
-    std::fs::create_dir_all(&mock_backend_directory).unwrap();
-    std::fs::copy(path_to_mock_backend(), mock_backend_directory.join("backend_binary")).unwrap();
-
-    // Switch to mocked backend
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("backend").arg("use").arg("mock_backend");
-
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
 
     let output = cmd.output().expect("Failed to execute command");
+
+    if !output.status.success() {{
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap());
+    }}
 
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("JSON was not well-formatted");

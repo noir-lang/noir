@@ -52,9 +52,13 @@ impl Backend {
     }
 
     fn binary_path(&self) -> PathBuf {
-        const BINARY_NAME: &str = "backend_binary";
+        if let Some(binary_path) = std::env::var_os("NARGO_BACKEND_PATH") {
+            PathBuf::from(binary_path)
+        } else {
+            const BINARY_NAME: &str = "backend_binary";
 
-        self.backend_directory().join(BINARY_NAME)
+            self.backend_directory().join(BINARY_NAME)
+        }
     }
 }
 
