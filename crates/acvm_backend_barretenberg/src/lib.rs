@@ -17,7 +17,7 @@ pub fn backends_directory() -> PathBuf {
 
 #[cfg(test)]
 fn get_bb() -> Backend {
-    let bb = Backend::default();
+    let bb = Backend::new("acvm-backend-barretenberg".to_string());
     crate::assert_binary_exists(&bb);
     bb
 }
@@ -36,12 +36,6 @@ pub struct Backend {
     name: String,
 }
 
-impl Default for Backend {
-    fn default() -> Self {
-        Self { name: "acvm-backend-barretenberg".to_string() }
-    }
-}
-
 impl Backend {
     pub fn new(name: String) -> Backend {
         Backend { name }
@@ -52,9 +46,13 @@ impl Backend {
     }
 
     fn binary_path(&self) -> PathBuf {
-        const BINARY_NAME: &str = "backend_binary";
+        if let Some(binary_path) = std::env::var_os("NARGO_BACKEND_PATH") {
+            PathBuf::from(binary_path)
+        } else {
+            const BINARY_NAME: &str = "backend_binary";
 
-        self.backend_directory().join(BINARY_NAME)
+            self.backend_directory().join(BINARY_NAME)
+        }
     }
 }
 
