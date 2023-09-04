@@ -147,8 +147,8 @@
         ];
 
         buildInputs = [
-          pkgs.llvmPackages.openmp
-          pkgs.barretenberg
+          # pkgs.llvmPackages.openmp
+          # pkgs.barretenberg
         ] ++ extraBuildInputs;
       };
 
@@ -291,6 +291,12 @@
           wasm-bindgen-cli
           jq
           binaryen
+          yarn
+          rust-bin.stable."1.66.1".default
+          rust-analyzer
+          rustup
+          # playwright
+          nodejs-18_x 
         ];
 
         shellHook = ''
