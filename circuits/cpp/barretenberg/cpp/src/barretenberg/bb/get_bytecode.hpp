@@ -6,12 +6,6 @@
  */
 inline std::vector<uint8_t> get_bytecode(const std::string& bytecodePath)
 {
-// base64 on mac is different from linux
-#ifdef __APPLE__
-    std::string command = "base64 -D -i " + bytecodePath + " | gunzip";
-#else
-    std::string command = "base64 -d " + bytecodePath + " | gunzip";
-#endif
-
+    std::string command = "cat " + bytecodePath + " | base64 -d | gunzip";
     return exec_pipe(command);
 }

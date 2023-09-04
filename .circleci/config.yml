@@ -1239,6 +1239,7 @@ circuits-x86_64-test: &circuits-x86_64-test
   requires:
     - circuits-x86_64-linux-clang-assert
   <<: *defaults
+
 workflows:
   system:
     when:
