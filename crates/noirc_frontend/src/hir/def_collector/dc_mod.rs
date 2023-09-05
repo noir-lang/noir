@@ -4,7 +4,7 @@ use noirc_errors::{FileDiagnostic, Location};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{StructId, TraitId},
+    node_interner::TraitId,
     parser::SubModule,
     FunctionDefinition, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct,
     NoirTrait, NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
@@ -60,7 +60,7 @@ pub fn collect_defs(
 
     collector.collect_traits(ast.traits, crate_id, errors);
 
-    collector.collect_structs(ast.types, crate_id, errors);
+    collector.collect_structs(context, ast.types, crate_id, errors);
 
     collector.collect_type_aliases(context, ast.type_aliases, errors);
 
@@ -377,6 +377,7 @@ impl<'a> ModCollector<'a> {
     /// Returns a vector of errors if any structs were already defined.
     fn collect_structs(
         &mut self,
+        context: &mut Context,
         types: Vec<NoirStruct>,
         krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
@@ -384,9 +385,15 @@ impl<'a> ModCollector<'a> {
         for struct_definition in types {
             let name = struct_definition.name.clone();
 
+            let unresolved = UnresolvedStruct {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                struct_def: struct_definition,
+            };
+
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false, errors) {
-                Some(local_id) => StructId(ModuleId { krate, local_id }),
+                Some(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id),
                 None => continue,
             };
 
@@ -404,11 +411,6 @@ impl<'a> ModCollector<'a> {
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
-            let unresolved = UnresolvedStruct {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                struct_def: struct_definition,
-            };
             self.def_collector.collected_types.insert(id, unresolved);
         }
     }

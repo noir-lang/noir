@@ -19,9 +19,9 @@
 //!
 //! This algorithm will remember each join point found in `find_join_point_of_branches` and
 //! the resulting map from each split block to each join block is returned.
-use std::collections::HashMap;
 
 use crate::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
+use fxhash::FxHashMap as HashMap;
 
 /// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
 /// their corresponding blocks that end the branch.
@@ -61,7 +61,7 @@ struct Context<'cfg> {
 
 impl<'cfg> Context<'cfg> {
     fn new(cfg: &'cfg ControlFlowGraph) -> Self {
-        Self { cfg, branch_ends: HashMap::new() }
+        Self { cfg, branch_ends: HashMap::default() }
     }
 
     fn find_join_point_of_branches(
@@ -113,9 +113,9 @@ impl<'cfg> Context<'cfg> {
 mod test {
 
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{cfg::ControlFlowGraph, function::RuntimeType, map::Id, types::Type},
         opt::flatten_cfg::branch_analysis::find_branch_ends,
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

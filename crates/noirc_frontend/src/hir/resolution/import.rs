@@ -151,7 +151,7 @@ fn resolve_name_in_module(
             ModuleDefId::ModuleId(id) => id,
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
-            ModuleDefId::TypeId(id) => id.0,
+            ModuleDefId::TypeId(id) => id.module_id(),
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
             ModuleDefId::TraitId(id) => id.0,
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),

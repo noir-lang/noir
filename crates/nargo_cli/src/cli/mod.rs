@@ -5,8 +5,11 @@ use std::path::PathBuf;
 
 use color_eyre::eyre;
 
+use crate::backends::get_active_backend;
+
 mod fs;
 
+mod backend_cmd;
 mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
@@ -47,6 +50,8 @@ pub(crate) struct NargoConfig {
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
+    #[command(hide = true)] // Hidden while dynamic backends feature is being built out.
+    Backend(backend_cmd::BackendCommand),
     Check(check_cmd::CheckCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     #[command(alias = "build")]
@@ -70,11 +75,18 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     }
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_)) {
+    if !matches!(
+        command,
+        NargoCommand::New(_)
+            | NargoCommand::Init(_)
+            | NargoCommand::Lsp(_)
+            | NargoCommand::Backend(_)
+    ) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
-    let backend = crate::backends::ConcreteBackend;
+    let active_backend = get_active_backend();
+    let backend = crate::backends::Backend::new(active_backend);
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
@@ -87,6 +99,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
         NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+        NargoCommand::Backend(args) => backend_cmd::run(args),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
     }?;
 

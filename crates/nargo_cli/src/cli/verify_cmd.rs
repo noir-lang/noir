@@ -3,12 +3,10 @@ use super::{
     compile_cmd::compile_package,
     fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file},
 };
-use crate::errors::CliError;
+use crate::{backends::Backend, errors::CliError};
 
-use acvm::Backend;
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
-use nargo::ops::verify_proof;
 use nargo::{artifacts::program::PreprocessedProgram, package::Package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
@@ -38,11 +36,11 @@ pub(crate) struct VerifyCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: VerifyCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -68,14 +66,14 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn verify_package<B: Backend>(
-    backend: &B,
+fn verify_package(
+    backend: &Backend,
     package: &Package,
     proof_path: &Path,
     circuit_build_path: PathBuf,
     verifier_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
@@ -98,8 +96,7 @@ fn verify_package<B: Backend>(
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
     let proof = load_hex_data(proof_path)?;
 
-    let valid_proof = verify_proof(backend, &bytecode, &proof, public_inputs)
-        .map_err(CliError::ProofSystemCompilerError)?;
+    let valid_proof = backend.verify(&proof, public_inputs, &bytecode, false)?;
 
     if valid_proof {
         Ok(())

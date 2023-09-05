@@ -6,15 +6,13 @@ use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
-use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
-    circuit::brillig::{BrilligInputs, BrilligOutputs},
-};
 use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
 use acvm::{
     acir::{
+        brillig::Opcode as BrilligOpcode,
         circuit::opcodes::FunctionInput,
         native_types::{Expression, Witness},
         BlackBoxFunc,
@@ -22,8 +20,8 @@ use acvm::{
     FieldElement,
 };
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
+use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
-use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -315,9 +313,14 @@ impl AcirContext {
     }
 
     // Constrains `var` to be equal to the constant value `1`
-    pub(crate) fn assert_eq_one(&mut self, var: AcirVar) -> Result<(), RuntimeError> {
+    pub(crate) fn assert_eq_one(
+        &mut self,
+        var: AcirVar,
+        assert_message: Option<String>,
+    ) -> Result<(), RuntimeError> {
         let one = self.add_constant(FieldElement::one());
-        self.assert_eq_var(var, one)
+        self.assert_eq_var(var, one, assert_message)?;
+        Ok(())
     }
 
     // Constrains `var` to be equal to predicate if the predicate is true
@@ -330,7 +333,7 @@ impl AcirContext {
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
         let pred_mul_var = self.mul_var(var, predicate)?;
-        self.assert_eq_var(pred_mul_var, predicate)
+        self.assert_eq_var(pred_mul_var, predicate, None)
     }
 
     // Returns the variable from the results, assuming it is the only result
@@ -416,7 +419,12 @@ impl AcirContext {
     }
 
     /// Constrains the `lhs` and `rhs` to be equal.
-    pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<(), RuntimeError> {
+    pub(crate) fn assert_eq_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        assert_message: Option<String>,
+    ) -> Result<(), RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
@@ -435,11 +443,15 @@ impl AcirContext {
                     lhs: Box::new(lhs_expr),
                     rhs: Box::new(rhs_expr),
                     call_stack: self.get_call_stack(),
+                    assert_message,
                 });
             };
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
+        if let Some(message) = assert_message {
+            self.acir_ir.assert_messages.insert(self.acir_ir.last_acir_opcode_location(), message);
+        }
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())
@@ -952,7 +964,6 @@ impl AcirContext {
         }
 
         // Otherwise we must generate ACIR for it and execute at runtime.
-
         let mut b_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
             AcirType::NumericType(_) => {
@@ -1159,7 +1170,7 @@ impl AcirContext {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
 
         Ok(value_read_var)
     }
@@ -1180,7 +1191,7 @@ impl AcirContext {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
 
         Ok(())
     }

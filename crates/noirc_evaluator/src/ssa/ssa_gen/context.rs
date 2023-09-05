@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
@@ -9,6 +8,7 @@ use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
 
+use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -16,9 +16,9 @@ use crate::ssa::ir::instruction::{BinaryOp, Endian, Intrinsic};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
-use crate::ssa::ssa_builder::FunctionBuilder;
 
 use super::value::{Tree, Value, Values};
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -94,7 +94,7 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let builder = FunctionBuilder::new(function_name, function_id, runtime);
-        let mut this = Self { definitions: HashMap::new(), builder, shared_context };
+        let mut this = Self { definitions: HashMap::default(), builder, shared_context };
         this.add_parameters_to_scope(parameters);
         this
     }
