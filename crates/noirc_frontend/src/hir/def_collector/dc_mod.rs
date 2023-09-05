@@ -145,7 +145,6 @@ impl<'a> ModCollector<'a> {
                             errors,
                         );
 
-
                         for (_, func_id, noir_function) in &unresolved_functions.functions {
                             let name = noir_function.name().to_owned();
 
