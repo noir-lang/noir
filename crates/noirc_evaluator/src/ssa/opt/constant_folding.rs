@@ -135,21 +135,19 @@ impl Context {
         // This allows us to reach a stable final `ValueId` for each instruction input as we add more
         // constraints to the cache.
         fn resolve_cache(
-            dfg_resolver: impl Fn(ValueId) -> ValueId,
+            dfg: &DataFlowGraph,
             cache: &HashMap<ValueId, ValueId>,
             value_id: ValueId,
         ) -> ValueId {
-            let resolved_id = dfg_resolver(value_id);
+            let resolved_id = dfg.resolve(value_id);
             match cache.get(&resolved_id) {
-                Some(cached_value) => resolve_cache(dfg_resolver, cache, *cached_value),
+                Some(cached_value) => resolve_cache(dfg, cache, *cached_value),
                 None => resolved_id,
             }
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| {
-            resolve_cache(|value_id| dfg.resolve(value_id), constrained_values, value_id)
-        })
+        instruction.map_values(|value_id| resolve_cache(dfg, constrained_values, value_id))
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
