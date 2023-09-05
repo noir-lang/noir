@@ -26,33 +26,37 @@ jobs:
           nix_path: nixpkgs=channel:nixos-23.05
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore nix store cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ runner.os }}-flake-abi-wasm-${{ hashFiles('*.lock') }}
+      # - name: Restore nix store cache
+      #   uses: actions/cache/restore@v3
+      #   id: cache
+      #   with:
+      #     path: ${{ env.CACHED_PATH }}
+      #     key: ${{ runner.os }}-flake-abi-wasm-${{ hashFiles('*.lock') }}
 
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
-      - name: Copy cache into nix store
-        if: steps.cache.outputs.cache-hit == 'true'
-        # We don't check the signature because we're the one that created the cache
-        run: |
-          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
-            path=$(head -n 1 "$narinfo" | awk '{print $2}')
-            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
-          done
+      # - name: Copy cache into nix store
+      #   if: steps.cache.outputs.cache-hit == 'true'
+      #   # We don't check the signature because we're the one that created the cache
+      #   run: |
+      #     for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
+      #       path=$(head -n 1 "$narinfo" | awk '{print $2}')
+      #       nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
+      #     done
 
       - name: Build noirc_abi_wasm
         run: |
           nix build -L .#noirc_abi_wasm
 
+      - name: Discover Build Output Path
+        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result)" >> $GITHUB_ENV
+
       - name: Verify Build Output
         run: |
-          ls -l ./result
+          ls -l ${{ env.BUILD_OUTPUT_PATH }}
+          # Other commands to verify the build, if needed
 
       - name: Publish to NPM
-        working-directory: ./result
+        working-directory: ${{ env.BUILD_OUTPUT_PATH }}
         run: |
           npm pack
           tarball_name=$(ls *.tgz)
