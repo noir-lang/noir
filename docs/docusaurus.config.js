@@ -41,7 +41,12 @@ const config = {
         docs: {
           path: "processed-docs",
           sidebarPath: require.resolve("./sidebars.js"),
-          editUrl: "https://github.com/AztecProtocol/docs/edit/main/",
+          editUrl: (params) => {
+            return (
+              `https://github.com/AztecProtocol/aztec-packages/edit/master/docs/docs/` +
+              params.docPath
+            );
+          },
           routeBasePath: "/",
           remarkPlugins: [math],
           rehypePlugins: [katex],
