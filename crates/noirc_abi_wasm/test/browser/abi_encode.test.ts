@@ -1,9 +1,9 @@
 import { expect } from "@esm-bundle/chai";
-import initACVM, { abiEncode, abiDecode, WitnessMap } from "../../../../result";
+import initNoirAbi, { abiEncode, abiDecode, WitnessMap } from "../../../../result";
 import { DecodedInputs } from "../types";
 
 beforeEach(async () => {
-  await initACVM();
+  await initNoirAbi();
 });
 
 it("recovers original inputs when abi encoding and decoding", async () => {
