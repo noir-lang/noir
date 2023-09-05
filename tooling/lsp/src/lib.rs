@@ -207,12 +207,12 @@ fn on_test_run_request(
                 return future::ready(Ok(result));
             };
 
-            let test_funcs = context.get_all_test_functions_in_crate_matching(
+            let test_functions = context.get_all_test_functions_in_crate_matching(
                 &crate_id,
                 FunctionNameMatch::Exact(function_name),
             );
 
-            match test_funcs.into_iter().next() {
+            match test_functions.into_iter().next() {
                 Some((_, test_function)) => {
                     #[allow(deprecated)]
                     let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
