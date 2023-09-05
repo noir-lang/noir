@@ -225,7 +225,7 @@ impl GeneratedAcir {
                         AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
                     )
                 });
-                
+
                 let input_aggregation_object =
                     if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
 

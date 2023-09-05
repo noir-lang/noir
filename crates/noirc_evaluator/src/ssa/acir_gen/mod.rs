@@ -29,8 +29,8 @@ use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
-use im::Vector;
 use fxhash::FxHashMap as HashMap;
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 

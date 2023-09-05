@@ -164,23 +164,17 @@ pub(crate) fn display_instruction(
             writeln!(f, "array_get {}, index {}", show(*array), show(*index))
         }
         Instruction::ArraySet { array, index, value, length } => {
+            write!(
+                f,
+                "array_set {}, index {}, value {}",
+                show(*array),
+                show(*index),
+                show(*value)
+            )?;
             if let Some(length) = length {
-                writeln!(
-                    f,
-                    "array_set {}, index {}, value {}, length {}",
-                    show(*array),
-                    show(*index),
-                    show(*value),
-                    show(*length),
-                )
+                writeln!(f, ", length {}", show(*length))
             } else {
-                writeln!(
-                    f,
-                    "array_set {}, index {}, value {}",
-                    show(*array),
-                    show(*index),
-                    show(*value)
-                )
+                writeln!(f)
             }
         }
     }
