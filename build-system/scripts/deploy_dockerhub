@@ -9,7 +9,6 @@ fi
 REPOSITORY=$1
 IMAGE_TAG=$COMMIT_TAG_VERSION
 IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
-IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$IMAGE_TAG
 IMAGE_LATEST_URI=aztecprotocol/$REPOSITORY:latest
 
 # Check if it's a repo-specific tag
@@ -27,6 +26,8 @@ if [[ "$COMMIT_TAG" == *"/"* ]]; then
 else
   COMMIT_TAG_VERSION=$COMMIT_TAG
 fi
+IMAGE_TAG=$COMMIT_TAG_VERSION
+IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$IMAGE_TAG
 
 # Check it's a valid semver.
 VERSION=$(npx semver $COMMIT_TAG_VERSION)
