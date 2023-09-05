@@ -289,14 +289,14 @@ fn create_apply_function(
                 function_id_to_field(*function_id),
                 Type::Numeric(NumericType::NativeField),
             );
-            let condition =
-                function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
 
             // If it's not the last function to dispatch, create an if statement
             if !is_last {
                 next_function_block = Some(function_builder.insert_block());
                 let executor_block = function_builder.insert_block();
 
+                let condition =
+                    function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
                 function_builder.terminate_with_jmpif(
                     condition,
                     executor_block,
@@ -305,7 +305,7 @@ fn create_apply_function(
                 function_builder.switch_to_block(executor_block);
             } else {
                 // Else just constrain the condition
-                function_builder.insert_constrain(condition);
+                function_builder.insert_constrain(target_id, function_id_constant);
             }
             // Find the target block or build it if necessary
             let current_block = function_builder.current_block();

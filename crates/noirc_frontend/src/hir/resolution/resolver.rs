@@ -26,7 +26,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -34,9 +34,10 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
-    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
+    Path, Pattern, Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -46,7 +47,7 @@ use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
 };
 use crate::hir_def::{
-    function::{FuncMeta, HirFunction, Param},
+    function::{FuncMeta, HirFunction},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
@@ -331,9 +332,11 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
-        match typ {
-            UnresolvedType::FieldElement => Type::FieldElement,
-            UnresolvedType::Array(size, elem) => {
+        use UnresolvedTypeData::*;
+
+        match typ.typ {
+            FieldElement => Type::FieldElement,
+            Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 let size = if size.is_none() {
                     Type::NotConstant
@@ -342,32 +345,51 @@ impl<'a> Resolver<'a> {
                 };
                 Type::Array(Box::new(size), elem)
             }
-            UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
-            UnresolvedType::Integer(sign, bits) => Type::Integer(sign, bits),
-            UnresolvedType::Bool => Type::Bool,
-            UnresolvedType::String(size) => {
+            Expression(expr) => self.convert_expression_type(expr),
+            Integer(sign, bits) => Type::Integer(sign, bits),
+            Bool => Type::Bool,
+            String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
             }
-            UnresolvedType::FormatString(size, fields) => {
+            FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size);
                 let fields = self.resolve_type_inner(*fields, new_variables);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            UnresolvedType::Unit => Type::Unit,
-            UnresolvedType::Unspecified => Type::Error,
-            UnresolvedType::Error => Type::Error,
-            UnresolvedType::Named(path, args) => self.resolve_named_type(path, args, new_variables),
-            UnresolvedType::Tuple(fields) => {
+            Unit => Type::Unit,
+            Unspecified => Type::Error,
+            Error => Type::Error,
+            Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
-            UnresolvedType::Function(args, ret) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
-                let env = Box::new(Type::Unit);
-                Type::Function(args, ret, env)
+
+                // expect() here is valid, because the only places we don't have a span are omitted types
+                // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
+                // To get an invalid env type, the user must explicitly specify the type, which will have a span
+                let env_span =
+                    env.span.expect("Unexpected missing span for closure environment type");
+
+                let env = Box::new(self.resolve_type_inner(*env, new_variables));
+
+                match *env {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                        Type::Function(args, ret, env)
+                    }
+                    _ => {
+                        self.push_err(ResolverError::InvalidClosureEnvironment {
+                            typ: *env,
+                            span: env_span,
+                        });
+                        Type::Error
+                    }
+                }
             }
-            UnresolvedType::MutableReference(element) => {
+            MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
         }
@@ -576,9 +598,9 @@ impl<'a> Resolver<'a> {
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
-        match typ {
-            UnresolvedType::Unspecified => self.interner.next_type_variable(),
-            other => self.resolve_type_inner(other, &mut vec![]),
+        match &typ.typ {
+            UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
+            _ => self.resolve_type_inner(typ, &mut vec![]),
         }
     }
 
@@ -661,7 +683,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
+            if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
                     position: PubPosition::Parameter,
@@ -671,7 +693,7 @@ impl<'a> Resolver<'a> {
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
 
-            parameters.push(Param(pattern, typ.clone(), visibility));
+            parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
 
@@ -679,8 +701,7 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
-        {
+        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
@@ -690,18 +711,18 @@ impl<'a> Resolver<'a> {
         // 'pub_allowed' also implies 'pub' is required on return types
         if self.pub_allowed(func)
             && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility != noirc_abi::AbiVisibility::Public
+            && func.def.return_visibility != Visibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
 
         if !self.distinct_allowed(func)
-            && func.def.return_distinctness != noirc_abi::AbiDistinctness::DuplicationAllowed
+            && func.def.return_distinctness != Distinctness::DuplicationAllowed
         {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if attributes == Some(Attribute::Test) && !parameters.is_empty() {
+        if matches!(attributes, Some(Attribute::Test { .. })) && !parameters.is_empty() {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
             });
@@ -1297,6 +1318,10 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
+    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
+        self.interner.get_trait(type_id)
+    }
+
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1512,7 +1537,7 @@ mod test {
         src: &str,
     ) -> (ParsedModule, NodeInterner, HashMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
         let (program, errors) = parse_program(src);
-        if !errors.is_empty() {
+        if errors.iter().any(|e| e.is_error()) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
         }
 

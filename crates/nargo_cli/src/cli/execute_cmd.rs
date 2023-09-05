@@ -1,5 +1,6 @@
-use acvm::acir::circuit::OpcodeLabel;
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
+use acvm::pwg::ErrorLocation;
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
@@ -81,7 +82,6 @@ fn execute_package<B: Backend>(
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
-
     let solved_witness =
         execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
     let public_abi = abi.public_abi();
@@ -90,36 +90,68 @@ fn execute_package<B: Backend>(
     Ok((return_value, solved_witness))
 }
 
-fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Option<usize> {
+/// There are certain errors that contain an [acvm::pwg::ErrorLocation].
+/// We need to determine whether the error location has been resolving during execution.
+/// If the location has been resolved we return the contained [OpcodeLocation].
+fn extract_opcode_error_from_nargo_error(
+    nargo_err: &NargoError,
+) -> Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)> {
     let solving_err = match nargo_err {
         nargo::NargoError::SolvingError(err) => err,
         _ => return None,
     };
 
     match solving_err {
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_label } => {
-            match opcode_label {
-                OpcodeLabel::Unresolved => {
-                    unreachable!("Cannot resolve index for unsatisfied constraint")
-                }
-                OpcodeLabel::Resolved(opcode_index) => Some(*opcode_index as usize),
-            }
+        acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+            opcode_location: error_location,
+            ..
         }
+        | acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain {
+            opcode_location: error_location,
+        } => match error_location {
+            ErrorLocation::Unresolved => {
+                unreachable!("Cannot resolve index for unsatisfied constraint")
+            }
+            ErrorLocation::Resolved(opcode_location) => Some((*opcode_location, solving_err)),
+        },
         _ => None,
     }
 }
 
-fn report_unsatisfied_constraint_error(
-    opcode_idx: Option<usize>,
+/// Resolve an [OpcodeLocation] using debug information generated during compilation
+/// to determine an opcode's call stack. Then report the error using the resolved
+/// call stack and any other relevant error information returned from the ACVM.
+fn report_error_with_opcode_location(
+    opcode_err_info: Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)>,
     debug: &DebugInfo,
     context: &Context,
 ) {
-    if let Some(opcode_index) = opcode_idx {
-        if let Some(locations) = debug.opcode_location(opcode_index) {
+    if let Some((opcode_location, opcode_err)) = opcode_err_info {
+        if let Some(locations) = debug.opcode_location(&opcode_location) {
             // The location of the error itself will be the location at the top
             // of the call stack (the last item in the Vec).
             if let Some(location) = locations.last() {
-                let message = "Failed constraint".into();
+                let message = match opcode_err {
+                    acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+                        index,
+                        array_size,
+                        ..
+                    } => {
+                        format!(
+                            "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
+                        )
+                    }
+                    acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
+                        "Failed constraint".into()
+                    }
+                    _ => {
+                        // All other errors that do not have corresponding opcode locations
+                        // should not be reported in this method.
+                        // If an error with an opcode location is not handled in this match statement
+                        // the basic message attached to the original error from the ACVM should be reported.
+                        return;
+                    }
+                };
                 CustomDiagnostic::simple_error(message, String::new(), location.span)
                     .in_file(location.file)
                     .with_call_stack(locations)
@@ -142,8 +174,8 @@ pub(crate) fn execute_program<B: Backend>(
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
             if let Some((debug, context)) = debug_data {
-                let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(opcode_idx, &debug, &context);
+                let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
+                report_error_with_opcode_location(opcode_err_info, &debug, &context);
             }
 
             Err(crate::errors::CliError::NargoError(err))

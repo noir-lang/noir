@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
-use crate::{token::Attribute, FunctionReturnType, Ident, Pattern};
+use noirc_errors::Span;
 
-use super::{FunctionDefinition, UnresolvedType};
+use crate::{token::Attribute, FunctionReturnType, Ident, Pattern, Visibility};
+
+use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
 
 // A NoirFunction can be either a foreign low level function or a function definition
 // A closure / function definition will be stored under a name, so we do not differentiate between their variants
@@ -42,7 +44,9 @@ impl NoirFunction {
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
-            FunctionReturnType::Default(_) => UnresolvedType::Unit,
+            FunctionReturnType::Default(_) => {
+                UnresolvedType::without_span(UnresolvedTypeData::Unit)
+            }
             FunctionReturnType::Ty(ty, _) => ty.clone(),
         }
     }
@@ -52,7 +56,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)> {
+    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, Visibility)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {
@@ -66,6 +70,9 @@ impl NoirFunction {
     }
     pub fn number_of_statements(&self) -> usize {
         self.def.body.0.len()
+    }
+    pub fn span(&self) -> Span {
+        self.def.span
     }
 
     pub fn foreign(&self) -> Option<&FunctionDefinition> {
@@ -83,9 +90,10 @@ impl From<FunctionDefinition> for NoirFunction {
         let kind = match fd.attribute {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(Attribute::Test) => FunctionKind::Normal,
+            Some(Attribute::Test { .. }) => FunctionKind::Normal,
             Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
             Some(Attribute::Deprecated(_)) | None => FunctionKind::Normal,
+            Some(Attribute::Custom(_)) => FunctionKind::Normal,
         };
 
         NoirFunction { def: fd, kind }

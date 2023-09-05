@@ -316,6 +316,36 @@ impl IntType {
     }
 }
 
+/// TestScope is used to specify additional annotations for test functions
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum TestScope {
+    /// If a test has a scope of ShouldFail, then it is expected to fail
+    ShouldFail,
+    /// No scope is applied and so the test must pass
+    None,
+}
+
+impl TestScope {
+    fn lookup_str(string: &str) -> Option<TestScope> {
+        match string {
+            "should_fail" => Some(TestScope::ShouldFail),
+            _ => None,
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            TestScope::ShouldFail => "should_fail",
+            TestScope::None => "",
+        }
+    }
+}
+
+impl fmt::Display for TestScope {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({})", self.as_str())
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
@@ -325,18 +355,20 @@ pub enum Attribute {
     Builtin(String),
     Oracle(String),
     Deprecated(Option<String>),
-    Test,
+    Test(TestScope),
+    Custom(String),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Test => write!(f, "#[test]"),
+            Attribute::Test(scope) => write!(f, "#[test{}]", scope),
             Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
             Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
+            Attribute::Custom(ref k) => write!(f, "#[{k}]"),
         }
     }
 }
@@ -389,9 +421,19 @@ impl Attribute {
 
                 Attribute::Deprecated(name.trim_matches('"').to_string().into())
             }
-            ["test"] => Attribute::Test,
-            _ => {
-                return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+            ["test"] => Attribute::Test(TestScope::None),
+            ["test", name] => {
+                validate(name)?;
+                let malformed_scope =
+                    LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
+                match TestScope::lookup_str(name) {
+                    Some(scope) => Attribute::Test(scope),
+                    None => return Err(malformed_scope),
+                }
+            }
+            tokens => {
+                tokens.iter().try_for_each(|token| validate(token))?;
+                Attribute::Custom(word.to_owned())
             }
         };
 
@@ -428,7 +470,8 @@ impl AsRef<str> for Attribute {
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
             Attribute::Deprecated(Some(string)) => string,
-            Attribute::Test | Attribute::Deprecated(None) => "",
+            Attribute::Test { .. } | Attribute::Deprecated(None) => "",
+            Attribute::Custom(string) => string,
         }
     }
 }
@@ -441,6 +484,7 @@ impl AsRef<str> for Attribute {
 pub enum Keyword {
     As,
     Assert,
+    AssertEq,
     Bool,
     Char,
     CompTime,
@@ -480,6 +524,7 @@ impl fmt::Display for Keyword {
         match *self {
             Keyword::As => write!(f, "as"),
             Keyword::Assert => write!(f, "assert"),
+            Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
             Keyword::CompTime => write!(f, "comptime"),
@@ -522,6 +567,7 @@ impl Keyword {
         let keyword = match word {
             "as" => Keyword::As,
             "assert" => Keyword::Assert,
+            "assert_eq" => Keyword::AssertEq,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,

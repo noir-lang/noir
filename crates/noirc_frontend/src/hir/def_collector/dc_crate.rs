@@ -3,6 +3,7 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
+use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
@@ -10,11 +11,11 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTypeAlias, ParsedModule, Shared, StructType, Type, TypeBinding, UnresolvedGenerics,
-    UnresolvedType,
+    ExpressionKind, FunctionReturnType, Generics, Ident, LetStatement, Literal, NoirFunction,
+    NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem,
+    TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -22,6 +23,7 @@ use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::vec;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -39,6 +41,12 @@ pub struct UnresolvedStruct {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub struct_def: NoirStruct,
+}
+
+pub struct UnresolvedTrait {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub trait_def: NoirTrait,
 }
 
 #[derive(Clone)]
@@ -63,8 +71,10 @@ pub struct DefCollector {
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
     pub(crate) collected_type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
+    pub(crate) collected_traits: HashMap<TraitId, UnresolvedTrait>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
+    pub(crate) collected_traits_impls: ImplMap,
 }
 
 /// Maps the type and the module id in which the impl is defined to the functions contained in that
@@ -81,7 +91,9 @@ impl DefCollector {
             collected_functions: vec![],
             collected_types: HashMap::new(),
             collected_type_aliases: HashMap::new(),
+            collected_traits: HashMap::new(),
             collected_impls: HashMap::new(),
+            collected_traits_impls: HashMap::new(),
             collected_globals: vec![],
         }
     }
@@ -173,6 +185,7 @@ impl DefCollector {
 
         resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id, errors);
 
+        resolve_traits(context, def_collector.collected_traits, crate_id, errors);
         // Must resolve structs before we resolve globals.
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
@@ -187,6 +200,8 @@ impl DefCollector {
         // done before resolution since we need to be able to resolve the type of the
         // impl since that determines the module we should collect into.
         collect_impls(context, crate_id, &def_collector.collected_impls, errors);
+
+        collect_impls(context, crate_id, &def_collector.collected_traits_impls, errors);
 
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_free_functions(
@@ -206,10 +221,19 @@ impl DefCollector {
             errors,
         );
 
+        let file_trait_impls_ids = resolve_impls(
+            &mut context.def_interner,
+            crate_id,
+            &context.def_maps,
+            def_collector.collected_traits_impls,
+            errors,
+        );
+
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
 
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
+        type_check_functions(&mut context.def_interner, file_trait_impls_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
     }
 }
@@ -372,6 +396,119 @@ fn resolve_structs(
     }
 }
 
+fn resolve_trait_types(
+    _context: &mut Context,
+    _crate_id: CrateId,
+    _unresolved_trait: &UnresolvedTrait,
+    _errors: &mut [FileDiagnostic],
+) -> Vec<TraitItemType> {
+    // TODO
+    vec![]
+}
+fn resolve_trait_constants(
+    _context: &mut Context,
+    _crate_id: CrateId,
+    _unresolved_trait: &UnresolvedTrait,
+    _errors: &mut [FileDiagnostic],
+) -> Vec<TraitItemType> {
+    // TODO
+    vec![]
+}
+
+fn resolve_trait_methods(
+    context: &mut Context,
+    crate_id: CrateId,
+    unresolved_trait: &UnresolvedTrait,
+    errors: &mut Vec<FileDiagnostic>,
+) -> Vec<TraitItemType> {
+    let interner = &mut context.def_interner;
+    let def_maps = &mut context.def_maps;
+
+    let path_resolver = StandardPathResolver::new(ModuleId {
+        local_id: unresolved_trait.module_id,
+        krate: crate_id,
+    });
+    let file = def_maps[&crate_id].file_id(unresolved_trait.module_id);
+
+    let mut res = vec![];
+
+    for item in &unresolved_trait.trait_def.items {
+        if let TraitItem::Function {
+            name,
+            generics: _,
+            parameters,
+            return_type,
+            where_clause: _,
+            body: _,
+        } = item
+        {
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
+            let resolved_return_type = match return_type {
+                FunctionReturnType::Default(_) => None,
+                FunctionReturnType::Ty(unresolved_type, _span) => {
+                    Some(resolver.resolve_type(unresolved_type.clone()))
+                }
+            };
+            let name = name.clone();
+            // TODO
+            let generics: Generics = vec![];
+            let span: Span = name.span();
+            let f = TraitItemType::Function {
+                name,
+                generics,
+                arguments,
+                return_type: resolved_return_type,
+                span,
+            };
+            res.push(f);
+            let new_errors = take_errors_filter_self_not_resolved(resolver);
+            extend_errors(errors, file, new_errors);
+        }
+    }
+    res
+}
+
+fn take_errors_filter_self_not_resolved(resolver: Resolver<'_>) -> Vec<ResolverError> {
+    resolver
+        .take_errors()
+        .iter()
+        .cloned()
+        .filter(|resolution_error| match resolution_error {
+            ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
+                &ident.0.contents != "Self"
+            }
+            _ => true,
+        })
+        .collect()
+}
+
+/// Create the mappings from TypeId -> TraitType
+/// so that expressions can access the elements of traits
+fn resolve_traits(
+    context: &mut Context,
+    traits: HashMap<TraitId, UnresolvedTrait>,
+    crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    for (trait_id, unresolved_trait) in &traits {
+        context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
+    }
+    for (trait_id, unresolved_trait) in traits {
+        let mut items: Vec<TraitItemType> = vec![];
+        // Resolve order
+        // 1. Trait Types ( Trait contants can have a trait type, therefore types before constants)
+        items.append(&mut resolve_trait_types(context, crate_id, &unresolved_trait, errors));
+        // 2. Trait Constants ( Trait's methods can use trait types & constants, threfore they should be after)
+        items.append(&mut resolve_trait_constants(context, crate_id, &unresolved_trait, errors));
+        // 3. Trait Methods
+        items.append(&mut resolve_trait_methods(context, crate_id, &unresolved_trait, errors));
+        context.def_interner.update_trait(trait_id, |trait_def| {
+            trait_def.set_items(items);
+        });
+    }
+}
+
 fn resolve_struct_fields(
     context: &mut Context,
     krate: CrateId,
@@ -442,7 +579,6 @@ fn resolve_impls(
                 generics,
                 errors,
             );
-
             if self_type != Type::Error {
                 for (file_id, method_id) in &file_func_ids {
                     let method_name = interner.function_name(method_id).to_owned();

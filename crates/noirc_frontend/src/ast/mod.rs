@@ -31,7 +31,7 @@ use iter_extended::vecmap;
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum UnresolvedType {
+pub enum UnresolvedTypeData {
     FieldElement,
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(Signedness, u32),                                     // u32 = Integer(unsigned, 32)
@@ -50,10 +50,24 @@ pub enum UnresolvedType {
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
-    Function(/*args:*/ Vec<UnresolvedType>, /*ret:*/ Box<UnresolvedType>),
+    Function(
+        /*args:*/ Vec<UnresolvedType>,
+        /*ret:*/ Box<UnresolvedType>,
+        /*env:*/ Box<UnresolvedType>,
+    ),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct UnresolvedType {
+    pub typ: UnresolvedTypeData,
+
+    // The span is None in the cases where the User omitted a type:
+    //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
+    //  let x = 100; --- type is UnresolvedType::Unspecified without a span
+    pub span: Option<Span>,
 }
 
 /// The precursor to TypeExpression, this is the type that the parser allows
@@ -72,14 +86,14 @@ pub enum UnresolvedTypeExpression {
 }
 
 impl Recoverable for UnresolvedType {
-    fn error(_: Span) -> Self {
-        UnresolvedType::Error
+    fn error(span: Span) -> Self {
+        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
     }
 }
 
-impl std::fmt::Display for UnresolvedType {
+impl std::fmt::Display for UnresolvedTypeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use UnresolvedType::*;
+        use UnresolvedTypeData::*;
         match self {
             FieldElement => write!(f, "Field"),
             Array(len, typ) => match len {
@@ -91,7 +105,7 @@ impl std::fmt::Display for UnresolvedType {
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
             Named(s, args) => {
-                let args = vecmap(args, ToString::to_string);
+                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
                 if args.is_empty() {
                     write!(f, "{s}")
                 } else {
@@ -109,15 +123,31 @@ impl std::fmt::Display for UnresolvedType {
                 Some(len) => write!(f, "str<{len}>"),
             },
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {ret}", args.join(", "))
+
+                match &env.as_ref().typ {
+                    UnresolvedTypeData::Unit => {
+                        write!(f, "fn({}) -> {ret}", args.join(", "))
+                    }
+                    UnresolvedTypeData::Tuple(env_types) => {
+                        let env_types = vecmap(env_types, |arg| ToString::to_string(&arg.typ));
+                        write!(f, "fn[{}]({}) -> {ret}", env_types.join(", "), args.join(", "))
+                    }
+                    _ => unreachable!(),
+                }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
         }
+    }
+}
+
+impl std::fmt::Display for UnresolvedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.typ.fmt(f)
     }
 }
 
@@ -134,12 +164,26 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
-    pub fn from_int_token(token: IntType) -> UnresolvedType {
-        use {IntType::*, UnresolvedType::Integer};
+    pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
+        UnresolvedType { typ, span: None }
+    }
+
+    pub fn unspecified() -> UnresolvedType {
+        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
+    }
+}
+
+impl UnresolvedTypeData {
+    pub fn from_int_token(token: IntType) -> UnresolvedTypeData {
+        use {IntType::*, UnresolvedTypeData::Integer};
         match token {
             Signed(num_bits) => Integer(Signedness::Signed, num_bits),
             Unsigned(num_bits) => Integer(Signedness::Unsigned, num_bits),
         }
+    }
+
+    pub fn with_span(&self, span: Span) -> UnresolvedType {
+        UnresolvedType { typ: self.clone(), span: Some(span) }
     }
 }
 
@@ -212,5 +256,46 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Divide
                 | BinaryOpKind::Modulo
         )
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Represents whether the parameter is public or known only to the prover.
+pub enum Visibility {
+    Public,
+    // Constants are not allowed in the ABI for main at the moment.
+    // Constant,
+    Private,
+}
+
+impl std::fmt::Display for Visibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Public => write!(f, "pub"),
+            Self::Private => write!(f, "priv"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Represents whether the return value should compromise of unique witness indices such that no
+/// index occurs within the program's abi more than once.
+///
+/// This is useful for application stacks that require an uniform abi across across multiple
+/// circuits. When index duplication is allowed, the compiler may identify that a public input
+/// reaches the output unaltered and is thus referenced directly, causing the input and output
+/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
+/// optimized away.
+pub enum Distinctness {
+    Distinct,
+    DuplicationAllowed,
+}
+
+impl std::fmt::Display for Distinctness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Distinct => write!(f, "distinct"),
+            Self::DuplicationAllowed => write!(f, "duplication-allowed"),
+        }
     }
 }

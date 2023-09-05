@@ -9,10 +9,10 @@ use crate::{
     node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_abi::AbiType;
 use noirc_errors::Span;
+use noirc_printable_type::PrintableType;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{node_interner::StructId, node_interner::TraitId, Ident, Signedness};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -123,6 +123,39 @@ pub struct StructType {
     pub span: Span,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TraitItemType {
+    /// A function declaration in a trait.
+    Function {
+        name: Ident,
+        generics: Generics,
+        arguments: Vec<Type>,
+        return_type: Option<Type>,
+        span: Span,
+    },
+
+    /// A constant declaration in a trait.
+    Constant { name: Ident, ty: Type, span: Span },
+
+    /// A type declaration in a trait.
+    Type { name: Ident, ty: Type, span: Span },
+}
+/// Represents a trait type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Trait variants that represent
+/// the same trait type.
+#[derive(Debug, Eq)]
+pub struct Trait {
+    /// A unique id representing this trait type. Used to check if two
+    /// struct traits are equal.
+    pub id: TraitId,
+
+    pub items: Vec<TraitItemType>,
+
+    pub name: Ident,
+    pub generics: Generics,
+    pub span: Span,
+}
+
 /// Corresponds to generic lists such as `<T, U>` in the source
 /// program. The `TypeVariableId` portion is used to match two
 /// type variables to check for equality, while the `TypeVariable` is
@@ -138,6 +171,40 @@ impl std::hash::Hash for StructType {
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl std::hash::Hash for Trait {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for Trait {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Trait {
+    pub fn new(
+        id: TraitId,
+        name: Ident,
+        span: Span,
+        items: Vec<TraitItemType>,
+        generics: Generics,
+    ) -> Trait {
+        Trait { id, name, span, items, generics }
+    }
+
+    pub fn set_items(&mut self, items: Vec<TraitItemType>) {
+        self.items = items;
+    }
+}
+
+impl std::fmt::Display for Trait {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 
@@ -884,35 +951,6 @@ impl Type {
         }
     }
 
-    /// Similar to try_unify() but allows non-matching capture groups for function types
-    pub fn try_unify_allow_incompat_lambdas(&self, other: &Type) -> Result<(), UnificationError> {
-        use Type::*;
-        use TypeVariableKind::*;
-
-        match (self, other) {
-            (TypeVariable(binding, Normal), other) | (other, TypeVariable(binding, Normal)) => {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.try_unify_allow_incompat_lambdas(other);
-                }
-
-                other.try_bind_to(binding)
-            }
-            (Function(params_a, ret_a, _), Function(params_b, ret_b, _)) => {
-                if params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b.iter()) {
-                        a.try_unify_allow_incompat_lambdas(b)?;
-                    }
-
-                    // no check for environments here!
-                    ret_b.try_unify_allow_incompat_lambdas(ret_a)
-                } else {
-                    Err(UnificationError)
-                }
-            }
-            _ => self.try_unify(other),
-        }
-    }
-
     /// Similar to `unify` but if the check fails this will attempt to coerce the
     /// argument to the target type. When this happens, the given expression is wrapped in
     /// a new expression to convert its type. E.g. `array` -> `array.as_slice()`
@@ -975,58 +1013,6 @@ impl Type {
             Type::Array(len, _elem) => len.evaluate_to_u64(),
             Type::Constant(x) => Some(*x),
             _ => None,
-        }
-    }
-
-    // Note; use strict_eq instead of partial_eq when comparing field types
-    // in this method, you most likely want to distinguish between public and private
-    pub fn as_abi_type(&self) -> AbiType {
-        match self {
-            Type::FieldElement => AbiType::Field,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u64()
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                AbiType::Array { length, typ: Box::new(typ.as_abi_type()) }
-            }
-            Type::Integer(sign, bit_width) => {
-                let sign = match sign {
-                    Signedness::Unsigned => noirc_abi::Sign::Unsigned,
-                    Signedness::Signed => noirc_abi::Sign::Signed,
-                };
-
-                AbiType::Integer { sign, width: *bit_width }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.as_abi_type(),
-                    TypeBinding::Unbound(_) => Type::default_int_type().as_abi_type(),
-                }
-            }
-            Type::Bool => AbiType::Boolean,
-            Type::String(size) => {
-                let size = size
-                    .evaluate_to_u64()
-                    .expect("Cannot have variable sized strings as a parameter to main");
-                AbiType::String { length: size }
-            }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-            Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
-            Type::Constant(_) => unreachable!(),
-            Type::Struct(def, args) => {
-                let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args);
-                let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
-                AbiType::Struct { fields, name: struct_type.name.to_string() }
-            }
-            Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
-            Type::TypeVariable(_, _) => unreachable!(),
-            Type::NamedGeneric(..) => unreachable!(),
-            Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
-            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-            Type::NotConstant => unreachable!(),
         }
     }
 
@@ -1297,6 +1283,59 @@ impl TypeVariableKind {
         match self {
             TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
             TypeVariableKind::Constant(length) => Type::Constant(*length),
+        }
+    }
+}
+
+impl From<Type> for PrintableType {
+    fn from(value: Type) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&Type> for PrintableType {
+    fn from(value: &Type) -> Self {
+        // Note; use strict_eq instead of partial_eq when comparing field types
+        // in this method, you most likely want to distinguish between public and private
+        match value {
+            Type::FieldElement => PrintableType::Field,
+            Type::Array(size, typ) => {
+                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
+                let typ = typ.as_ref();
+                PrintableType::Array { length, typ: Box::new(typ.into()) }
+            }
+            Type::Integer(sign, bit_width) => match sign {
+                Signedness::Unsigned => PrintableType::UnsignedInteger { width: *bit_width },
+                Signedness::Signed => PrintableType::SignedInteger { width: *bit_width },
+            },
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(typ) => typ.into(),
+                    TypeBinding::Unbound(_) => Type::default_int_type().into(),
+                }
+            }
+            Type::Bool => PrintableType::Boolean,
+            Type::String(size) => {
+                let size = size.evaluate_to_u64().expect("Cannot print variable sized strings");
+                PrintableType::String { length: size }
+            }
+            Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
+            Type::Error => unreachable!(),
+            Type::Unit => unreachable!(),
+            Type::Constant(_) => unreachable!(),
+            Type::Struct(def, ref args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
+                PrintableType::Struct { fields, name: struct_type.name.to_string() }
+            }
+            Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
+            Type::TypeVariable(_, _) => unreachable!(),
+            Type::NamedGeneric(..) => unreachable!(),
+            Type::Forall(..) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
+            Type::MutableReference(_) => unreachable!("cannot print &mut"),
+            Type::NotConstant => unreachable!(),
         }
     }
 }
