@@ -282,6 +282,12 @@ impl std::ops::Index<CrateId> for CrateGraph {
         &self.arena[&crate_id]
     }
 }
+impl std::ops::Index<&CrateId> for CrateGraph {
+    type Output = CrateData;
+    fn index(&self, crate_id: &CrateId) -> &CrateData {
+        &self.arena[crate_id]
+    }
+}
 
 /// XXX: This is bare-bone for two reasons:
 // There are no display names currently

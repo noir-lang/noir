@@ -1,8 +1,8 @@
+use crate::backends::Backend;
 use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
 use super::{NargoConfig, CARGO_PKG_VERSION};
-use acvm::Backend;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::PackageType;
@@ -62,12 +62,12 @@ fn test_my_util() {
 }
 "#;
 
-pub(crate) fn run<B: Backend>(
+pub(crate) fn run(
     // Backend is currently unused, but we might want to use it to inform the "new" template in the future
-    _backend: &B,
+    _backend: &Backend,
     args: InitCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
+) -> Result<(), CliError> {
     let package_name = match args.name {
         Some(name) => name,
         None => {

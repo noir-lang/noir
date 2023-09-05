@@ -4,6 +4,7 @@ use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::{Abi, AbiParameter, AbiType};
 use noirc_frontend::{
+    hir::Context,
     hir_def::{
         function::{FunctionSignature, Param},
         stmt::HirPattern,
@@ -22,12 +23,12 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
     }
 }
 
-pub fn into_abi_params(params: Vec<Param>, interner: &NodeInterner) -> Vec<AbiParameter> {
+pub fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
     vecmap(params, |(pattern, typ, vis)| {
-        let param_name = get_param_name(&pattern, interner)
+        let param_name = get_param_name(&pattern, &context.def_interner)
             .expect("Abi for tuple and struct parameters is unimplemented")
             .to_owned();
-        let as_abi = AbiType::from_type(&typ);
+        let as_abi = AbiType::from_type(context, &typ);
         AbiParameter { name: param_name, typ: as_abi, visibility: vis.into() }
     })
 }
@@ -35,14 +36,14 @@ pub fn into_abi_params(params: Vec<Param>, interner: &NodeInterner) -> Vec<AbiPa
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
 pub(crate) fn gen_abi(
-    interner: &NodeInterner,
+    context: &Context,
     func_sig: FunctionSignature,
     input_witnesses: &[Witness],
     return_witnesses: Vec<Witness>,
 ) -> Abi {
     let (parameters, return_type) = func_sig;
-    let parameters = into_abi_params(parameters, interner);
-    let return_type = return_type.map(|typ| AbiType::from_type(&typ));
+    let parameters = into_abi_params(context, parameters);
+    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
     Abi { parameters, return_type, param_witnesses, return_witnesses }
 }

@@ -4,9 +4,9 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::graph::{CrateGraph, CrateId};
+use crate::graph::{CrateGraph, CrateId, Dependency};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use std::collections::HashMap;
@@ -89,6 +89,36 @@ impl Context {
             name.into()
         } else {
             format!("{parent}::{name}")
+        }
+    }
+
+    /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
+    /// account for the crate names of dependencies.
+    ///
+    /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
+    /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
+    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
+        let module_id = id.module_id();
+        let child_id = module_id.local_id.0;
+        let def_map =
+            self.def_map(&module_id.krate).expect("The local crate should be analyzed already");
+
+        let module = self.module(module_id);
+
+        let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
+
+        if &module_id.krate == crate_id {
+            module_path
+        } else {
+            let crate_name = &self.crate_graph[crate_id]
+                .dependencies
+                .iter()
+                .find_map(|dep| match dep {
+                    Dependency { name, crate_id } if crate_id == &module_id.krate => Some(name),
+                    _ => None,
+                })
+                .expect("The Struct was supposed to be defined in a dependency");
+            format!("{crate_name}::{module_path}")
         }
     }
 
