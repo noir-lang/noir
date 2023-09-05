@@ -214,7 +214,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, assert_message) => {
                 let condition = self.brillig_context.allocate_register();
 
                 self.convert_ssa_binary(
@@ -223,7 +223,7 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
 
-                self.brillig_context.constrain_instruction(condition);
+                self.brillig_context.constrain_instruction(condition, assert_message.clone());
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {

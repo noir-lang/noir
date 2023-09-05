@@ -1,6 +1,7 @@
 use super::proof_system::{serialize_circuit, write_to_file};
 use crate::{
-    bb::{ContractCommand, WriteVkCommand},
+    assert_binary_exists,
+    cli::{ContractCommand, WriteVkCommand},
     proof_system::read_bytes_from_file,
     Backend, BackendError,
 };
@@ -22,25 +23,25 @@ impl Backend {
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");
+
+        let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             verbose: false,
-            crs_path: temp_directory_path.clone(),
+            crs_path: self.crs_directory(),
             is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run()
-        .expect("write vk command failed");
+        .run(&binary_path)?;
 
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
             verbose: false,
-            crs_path: temp_directory_path,
+            crs_path: self.crs_directory(),
             vk_path,
             contract_path: contract_path.clone(),
         }
-        .run()
-        .expect("contract command failed");
+        .run(&binary_path)?;
 
         let verification_key_library_bytes = read_bytes_from_file(&contract_path).unwrap();
         let verification_key_library = String::from_utf8(verification_key_library_bytes).unwrap();
@@ -59,11 +60,11 @@ mod tests {
         native_types::{Expression, Witness},
     };
 
+    use crate::get_bb;
+
     #[test]
     #[serial_test::serial]
     fn test_smart_contract() {
-        use crate::Backend;
-
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
         let constraint = Opcode::Arithmetic(expression);
 
@@ -73,11 +74,10 @@ mod tests {
             private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
         };
 
-        let bb = Backend::default();
-
-        let contract = bb.eth_contract(&circuit).unwrap();
+        let contract = get_bb().eth_contract(&circuit).unwrap();
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));
