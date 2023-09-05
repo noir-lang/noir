@@ -749,11 +749,11 @@ fn check_methods_signatures(
                     method.arguments.iter().zip(&meta.parameters.0).enumerate()
                 {
                     expected.unify(&actual, &mut typecheck_errors, || {
-                        TypeCheckError::TraitMethodArgMismatch {
+                        TypeCheckError::TraitMethodParameterTypeMismatch {
                             method_name: func_name.to_string(),
                             expected_typ: expected.to_string(),
                             actual_typ: actual.to_string(),
-                            expr_span: hir_pattern.span(),
+                            parameter_span: hir_pattern.span(),
                             parameter_index: parameter_index + 1,
                         }
                     });

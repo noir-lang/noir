@@ -101,11 +101,11 @@ pub enum TypeCheckError {
     #[error("Unused expression result of type {expr_type}")]
     UnusedResultError { expr_type: Type, expr_span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {actual_typ:?}")]
-    TraitMethodArgMismatch {
+    TraitMethodParameterTypeMismatch {
         method_name: String,
         expected_typ: String,
         actual_typ: String,
-        expr_span: Span,
+        parameter_span: Span,
         parameter_index: usize,
     },
 }
@@ -141,11 +141,11 @@ impl From<TypeCheckError> for Diagnostic {
                     expr_span,
                 )
             }
-            TypeCheckError::TraitMethodArgMismatch { method_name, expected_typ, actual_typ, parameter_index, expr_span } => {
+            TypeCheckError::TraitMethodParameterTypeMismatch { method_name, expected_typ, actual_typ, parameter_index, parameter_span } => {
                 Diagnostic::simple_error(
                     format!("Parameter #{parameter_index} of method `{method_name}` must be of type {expected_typ}, not {actual_typ}"),
                     String::new(),
-                    expr_span,
+                    parameter_span,
                 )
             }
             TypeCheckError::NonHomogeneousArray {
