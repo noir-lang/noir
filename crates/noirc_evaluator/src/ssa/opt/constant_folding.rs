@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use iter_extended::vecmap;
 
@@ -12,6 +12,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -56,7 +57,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
 
         // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::new();
+        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
 
         for instruction_id in instructions {
             self.push_instruction(function, block, instruction_id, &mut cached_instruction_results);

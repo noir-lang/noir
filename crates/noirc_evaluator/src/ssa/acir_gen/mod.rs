@@ -1,7 +1,7 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 mod acir_ir;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
@@ -30,6 +30,7 @@ use acvm::{
     FieldElement,
 };
 use im::Vector;
+use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -148,11 +149,11 @@ impl Context {
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
-            ssa_values: HashMap::new(),
+            ssa_values: HashMap::default(),
             current_side_effects_enabled_var,
             acir_context,
             initialized_arrays: HashSet::new(),
-            memory_blocks: HashMap::new(),
+            memory_blocks: HashMap::default(),
             max_block_id: 0,
         }
     }
@@ -1447,7 +1448,7 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
