@@ -67,7 +67,7 @@ async function main() {
   const hdAccount = mnemonicToAccount(MNEMONIC);
   const privKey = hdAccount.getHdKey().privateKey;
   const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
-  const version: string = JSON.parse(readFileSync(packageJsonPath).toString()).version;
+  const version = JSON.parse(readFileSync(packageJsonPath).toString()).version;
 
   logger.info(`Setting up Aztec Sandbox v${version}, please stand by...`);
   logger.info('Deploying rollup contracts to L1...');

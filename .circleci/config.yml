@@ -596,7 +596,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: build aztec-sandbox
+          command: force_deploy_build aztec-sandbox
 
   circuits-js:
     machine:

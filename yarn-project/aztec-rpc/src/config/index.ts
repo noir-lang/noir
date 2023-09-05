@@ -29,5 +29,6 @@ export function getConfigEnvVars(): RpcServerConfig {
 export function getPackageInfo() {
   const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json');
   const { version, name } = JSON.parse(readFileSync(packageJsonPath).toString());
+
   return { version, name };
 }

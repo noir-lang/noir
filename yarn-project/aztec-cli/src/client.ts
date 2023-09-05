@@ -60,7 +60,7 @@ export async function checkServerVersion(rpc: AztecRPC, expectedVersionRange: st
     throw new VersionMismatchError(`Couldn't determine ${serverName} version. You may run into issues.`);
   }
   const version = client.split('@')[1];
-  logger?.debug(`Comparing server version ${version} against CLI expected ${expectedVersionRange}`);
+  logger?.warn(`Comparing server version ${version} against CLI expected ${expectedVersionRange}`);
   if (!version || !valid(version)) {
     throw new VersionMismatchError(`Missing or invalid version identifier for ${serverName} (${version ?? 'empty'}).`);
   } else if (!satisfies(version, expectedVersionRange)) {

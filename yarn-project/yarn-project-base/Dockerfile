@@ -44,7 +44,7 @@ COPY types/package.json types/package.json
 COPY world-state/package.json world-state/package.json
 COPY yarn-project-base/package.json yarn-project-base/package.json
 
-# Copy root files
+# Copy root files.
 COPY package.json package.*.json tsconfig.json yarn.lock .yarnrc.yml ./
 COPY .yarn .yarn
 

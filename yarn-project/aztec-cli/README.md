@@ -435,6 +435,20 @@ Syntax:
 aztec-cli example-contracts
 ```
 
+### get-node-info
+
+Gets information of an Aztec node at the specified URL.
+
+Syntax:
+
+```shel
+aztec-cli get-node-info
+```
+
+Options:
+
+- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+
 ## Conclusion
 
 That covers the available commands and their usage in the `aztec-cli`. You can now use these commands to interact with Aztec and perform various actions such as deploying contracts, creating accounts, executing functions, and retrieving blockchain data.
