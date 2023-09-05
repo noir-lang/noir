@@ -440,7 +440,7 @@ fn resolve_trait_methods(
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let resolved_return_type = match return_type {
                 FunctionReturnType::Default(_) => None,
-                FunctionReturnType::Ty(unresolved_type, _span) => {
+                FunctionReturnType::Ty(unresolved_type) => {
                     Some(resolver.resolve_type(unresolved_type.clone()))
                 }
             };
