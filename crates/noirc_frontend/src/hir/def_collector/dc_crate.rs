@@ -724,7 +724,7 @@ fn check_methods_signatures(
     trait_id: TraitId,
     errors: &mut Vec<FileDiagnostic>,
 ) {
-    let the_trait_shared = resolver.interner.get_trait(trait_id).clone();
+    let the_trait_shared = resolver.interner.get_trait(trait_id);
     let the_trait = the_trait_shared.borrow();
 
     let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
