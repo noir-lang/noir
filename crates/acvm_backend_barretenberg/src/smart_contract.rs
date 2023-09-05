@@ -26,7 +26,6 @@ impl Backend {
 
         let binary_path = assert_binary_exists(self);
         WriteVkCommand {
-            verbose: false,
             crs_path: self.backend_directory(),
             is_recursive: false,
             bytecode_path,
@@ -36,7 +35,6 @@ impl Backend {
 
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
-            verbose: false,
             crs_path: self.backend_directory(),
             vk_path,
             contract_path: contract_path.clone(),
@@ -60,7 +58,7 @@ mod tests {
         native_types::{Expression, Witness},
     };
 
-    use crate::get_bb;
+    use crate::get_mock_backend;
 
     #[test]
     #[serial_test::serial]
@@ -77,7 +75,7 @@ mod tests {
             assert_messages: Default::default(),
         };
 
-        let contract = get_bb().eth_contract(&circuit).unwrap();
+        let contract = get_mock_backend().eth_contract(&circuit).unwrap();
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));

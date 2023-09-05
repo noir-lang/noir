@@ -16,7 +16,12 @@ pub fn backends_directory() -> PathBuf {
 }
 
 #[cfg(test)]
-fn get_bb() -> Backend {
+test_binary::build_test_binary_once!(mock_backend, "test-binaries");
+
+#[cfg(test)]
+fn get_mock_backend() -> Backend {
+    std::env::set_var("NARGO_BACKEND_PATH", path_to_mock_backend());
+
     let bb = Backend::new("acvm-backend-barretenberg".to_string());
     crate::assert_binary_exists(&bb);
     bb
