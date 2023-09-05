@@ -115,21 +115,21 @@ for STAGE in $STAGES; do
       STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
     fi
   fi
-  
+
   echo "Building stage: $STAGE"
   STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
   # Build our dockerfile, add timing information
-  
+
   # Check if there is a commit tag
   if [[ -n "$COMMIT_TAG" ]]; then
-    
+
     # Check if it's a repo-specific tag
     if [[ "$COMMIT_TAG" == *"/"* ]]; then
       REPO_NAME="${COMMIT_TAG%%/*}"
       COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
       echo "Tag was made for: $REPO_NAME"
       echo "Version: $COMMIT_TAG_VERSION"
-      
+
       # Check if REPO_NAME is equal to REPOSITORY
       if [ "$REPO_NAME" != "$REPOSITORY" ]; then
         echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Ignoring..."
@@ -138,25 +138,25 @@ for STAGE in $STAGES; do
     else
       COMMIT_TAG_VERSION=$COMMIT_TAG
     fi
-    
+
     # We are building a tagged commit. Check it's a valid semver.
     VERSION=$(npx semver $COMMIT_TAG_VERSION)
     if [ -z "$VERSION" ]; then
       COMMIT_TAG_VERSION=""
     fi
-    
+
     # Pass commit tag as build argument if it exists
-    docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg ARG_CONTENT_HASH=$CONTENT_HASH DOCKER_TAG=${COMMIT_TAG_VERSION#v} . \
+    docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg ARG_CONTENT_HASH=$CONTENT_HASH --build-arg DOCKER_TAG=${COMMIT_TAG_VERSION#v} . \
     | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
   else
     docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
     | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
-    
+
   fi
-  
+
   # We don't want to have redo this stages work when building the final image. Use it as a layer cache.
   CACHE_FROM="--cache-from $STAGE_IMAGE_COMMIT_URI $CACHE_FROM"
-  
+
   echo "Pushing stage: $STAGE"
   docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
   echo
