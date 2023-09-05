@@ -54,7 +54,7 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub the_trait: UnresolvedTrait, // TODO(vitkov) this should be an ID
+    pub the_trait: UnresolvedTrait,
     pub methods: UnresolvedFunctions,
     pub trait_impl_ident: Ident, // for error reporting
 }
@@ -322,7 +322,7 @@ fn collect_trait_impls(
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
 
-    // TODO(vitkov): To follow the semantics of Rust, we must allow the impl if either
+    // TODO: To follow the semantics of Rust, we must allow the impl if either
     //     1. The type is a struct and it's defined in the current crate
     //     2. The trait is defined in the current crate
     for ((unresolved_type, module_id, _), trait_impl) in collected_impls {
@@ -679,7 +679,6 @@ fn resolve_trait_impls(
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
 
-        // TODO(vitkov): Handle Type::Error
         let self_type = {
             let mut resolver =
                 Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
