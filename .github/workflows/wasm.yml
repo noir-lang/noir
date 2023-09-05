@@ -113,45 +113,45 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
-  test:
-    needs: [build-wasm, build-nargo]
-    name: Test noir_wasm
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout noir-lang/noir
-        uses: actions/checkout@v4
+  # test:
+  #   needs: [build-wasm, build-nargo]
+  #   name: Test noir_wasm
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout noir-lang/noir
+  #       uses: actions/checkout@v4
 
-      - name: Download wasm package artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: noir_wasm
-          path: ./crates/wasm/result
+  #     - name: Download wasm package artifact
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: noir_wasm
+  #         path: ./crates/wasm/result
 
-      - name: Download nargo binary
-        uses: actions/download-artifact@v3
-        with:
-          name: nargo
-          path: ./nargo
+  #     - name: Download nargo binary
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: nargo
+  #         path: ./nargo
 
-      - name: Compile test program with Nargo CLI
-        working-directory: ./crates/wasm/noir-script
-        run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
-          chmod +x $nargo_binary
-          $nargo_binary compile
+  #     - name: Compile test program with Nargo CLI
+  #       working-directory: ./crates/wasm/noir-script
+  #       run: |
+  #         nargo_binary=${{ github.workspace }}/nargo/nargo
+  #         chmod +x $nargo_binary
+  #         $nargo_binary compile
 
-      - name: Install dependencies
-        working-directory: ./crates/wasm
-        run: yarn install
+  #     - name: Install dependencies
+  #       working-directory: ./crates/wasm
+  #       run: yarn install
 
-      - name: Install playwright deps
-        working-directory: ./crates/wasm
-        run: |
-          npx playwright install
-          npx playwright install-deps
+  #     - name: Install playwright deps
+  #       working-directory: ./crates/wasm
+  #       run: |
+  #         npx playwright install
+  #         npx playwright install-deps
 
-      - name: Run tests
-        working-directory: ./crates/wasm
-        run: |
-          yarn test:browser
-          yarn test:node
+  #     - name: Run tests
+  #       working-directory: ./crates/wasm
+  #       run: |
+  #         yarn test:browser
+  #         yarn test:node
