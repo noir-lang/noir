@@ -4,7 +4,7 @@ import createDebug from 'debug';
 import { readFileSync, writeFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { Command } from 'commander';
-
+import acvmInfoJson from './info.json' assert { type: 'json' };
 createDebug.log = console.error.bind(console);
 const debug = createDebug('bb.js');
 
@@ -129,6 +129,17 @@ export async function gateCount(bytecodePath: string) {
     process.stdout.write(`${await getGates(bytecodePath, api)}`);
   } finally {
     await api.destroy();
+  }
+}
+
+export function acvmInfo(outputPath: string) {
+  const stringifiedJson = JSON.stringify(acvmInfoJson, null, 2);
+  if (outputPath === '-') {
+    process.stdout.write(stringifiedJson);
+    debug(`info written to stdout`);
+  } else {
+    writeFileSync(outputPath, stringifiedJson);
+    debug(`info written to: ${outputPath}`);
   }
 }
 
@@ -331,6 +342,15 @@ program
   .action(async ({ vkPath, outputPath }) => {
     handleGlobalOptions();
     await vkAsFields(vkPath, outputPath);
+  });
+
+program
+  .command('info')
+  .description('Return ACVM related metadata about the backend')
+  .requiredOption('-o, --output-path <path>', 'Specify the path to write the JSON information to')
+  .action(({ outputPath }) => {
+    handleGlobalOptions();
+    acvmInfo(outputPath);
   });
 
 program.name('bb.js').parse(process.argv);

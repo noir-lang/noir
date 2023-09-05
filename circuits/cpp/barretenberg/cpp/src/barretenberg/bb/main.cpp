@@ -269,6 +269,39 @@ void vkAsFields(const std::string& vk_path, const std::string& output_path)
     }
 }
 
+/**
+ * @brief Returns ACVM related backend information
+ *
+ * Communication:
+ * - stdout: The json string is written to stdout
+ * - Filesystem: The json string is written to the path specified
+ *
+ * @param output_path Path to write the information to
+ */
+void acvmInfo(const std::string& output_path)
+{
+
+    const char* jsonData = R"({
+    "language": {
+        "name" : "PLONK-CSAT",
+        "width" : 3
+    },
+    "opcodes_supported" : ["arithmetic", "directive", "brillig", "memory_init", "memory_op"],
+    "black_box_functions_supported" : ["and", "xor", "range", "sha256", "blake2s", "keccak256", "schnorr_verify", "pedersen", "hash_to_field_128_security", "ecdsa_secp256k1", "ecdsa_secp256r1", "fixed_base_scalar_mul", "recursive_aggregation"]
+    })";
+
+    size_t length = strlen(jsonData);
+    std::vector<uint8_t> data(jsonData, jsonData + length);
+
+    if (output_path == "-") {
+        writeRawBytesToStdout(data);
+        vinfo("info written to stdout");
+    } else {
+        write_file(output_path, data);
+        vinfo("info written to: ", output_path);
+    }
+}
+
 bool flagPresent(std::vector<std::string>& args, const std::string& flag)
 {
     return std::find(args.begin(), args.end(), flag) != args.end();
@@ -322,6 +355,9 @@ int main(int argc, char* argv[])
         } else if (command == "vk_as_fields") {
             std::string output_path = getOption(args, "-o", vk_path + "_fields.json");
             vkAsFields(vk_path, output_path);
+        } else if (command == "info") {
+            std::string output_path = getOption(args, "-o", "info.json");
+            acvmInfo(output_path);
         } else {
             std::cerr << "Unknown command: " << command << "\n";
             return 1;
