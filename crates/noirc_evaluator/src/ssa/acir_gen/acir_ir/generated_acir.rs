@@ -149,58 +149,30 @@ impl GeneratedAcir {
                 BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::SHA256 => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
-                BlackBoxFuncCall::SHA256 { inputs, outputs }
-            }
+            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: inputs[0].clone(), outputs },
             BlackBoxFunc::Blake2s => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
-                BlackBoxFuncCall::Blake2s { inputs, outputs }
+                BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
-            BlackBoxFunc::HashToField128Security => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
-                BlackBoxFuncCall::HashToField128Security { inputs, output: outputs[0] }
-            }
+            BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
+                inputs: inputs[0].clone(),
+                output: outputs[0],
+            },
             BlackBoxFunc::SchnorrVerify => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let message = if inputs.len() > 4 { inputs[4].clone() } else { inputs[3].clone() };
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
                     public_key_y: inputs[1][0],
                     // Schnorr signature is an r & s, 32 bytes each
                     signature: inputs[2].clone(),
-                    message,
+                    message: inputs[3].clone(),
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::Pedersen => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
-                BlackBoxFuncCall::Pedersen {
-                    inputs,
-                    outputs: (outputs[0], outputs[1]),
-                    domain_separator: constants[0].to_u128() as u32,
-                }
-            }
+            BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
+                inputs: inputs[0].clone(),
+                outputs: (outputs[0], outputs[1]),
+                domain_separator: constants[0].to_u128() as u32,
+            },
             BlackBoxFunc::EcdsaSecp256k1 => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let hashed_message =
-                    if inputs.len() > 4 { inputs[4].clone() } else { inputs[3].clone() };
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
                     public_key_x: inputs[0].clone(),
@@ -208,16 +180,11 @@ impl GeneratedAcir {
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
                     signature: inputs[2].clone(),
-                    hashed_message,
+                    hashed_message: inputs[3].clone(),
                     output: outputs[0],
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                let hashed_message =
-                    if inputs.len() > 4 { inputs[4].clone() } else { inputs[3].clone() };
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     // 32 bytes for each public key co-ordinate
                     public_key_x: inputs[0].clone(),
@@ -225,7 +192,7 @@ impl GeneratedAcir {
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
                     signature: inputs[2].clone(),
-                    hashed_message,
+                    hashed_message: inputs[3].clone(),
                     output: outputs[0],
                 }
             }
@@ -245,34 +212,12 @@ impl GeneratedAcir {
                     }
                 };
 
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the number of inputs to differentiate between arrays and slices
-                // and make sure that we pass the correct inputs to the function call.
-                // `inputs` is cloned into a vector before being popped to find the `var_message_size`
-                // so we still check `inputs` against its original size passed into `call_black_box`
-                let inputs = if inputs.len() > 2 { inputs[1].clone() } else { inputs[0].clone() };
-                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+                BlackBoxFuncCall::Keccak256VariableLength {
+                    inputs: inputs[0].clone(),
+                    var_message_size,
+                    outputs,
+                }
             }
-            // BlackBoxFunc::RecursiveAggregation => {
-            //     let has_previous_aggregation = self.opcodes.iter().any(|op| {
-            //         matches!(
-            //             op,
-            //             AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
-            //         )
-            //     });
-
-            //     let input_aggregation_object =
-            //         if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
-
-            //     BlackBoxFuncCall::RecursiveAggregation {
-            //         verification_key: inputs[0].clone(),
-            //         proof: inputs[1].clone(),
-            //         public_inputs: inputs[2].clone(),
-            //         key_hash: inputs[3][0],
-            //         input_aggregation_object,
-            //         output_aggregation_object: outputs,
-            //     }
-            // }
             BlackBoxFunc::RecursiveAggregation => {
                 let has_previous_aggregation = self.opcodes.iter().any(|op| {
                     matches!(
@@ -281,18 +226,14 @@ impl GeneratedAcir {
                     )
                 });
 
-                // Slices are represented as a tuple of (length, slice contents).
-                // All inputs to the `RecursiveAggregation` black box func are slices,
-                // thus we must make sure to only fetch the slice contents rather than
-                // the slice length when setting up the inputs.
                 let input_aggregation_object =
-                    if !has_previous_aggregation { None } else { Some(inputs[7].clone()) };
+                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
 
                 BlackBoxFuncCall::RecursiveAggregation {
-                    verification_key: inputs[1].clone(),
-                    proof: inputs[3].clone(),
-                    public_inputs: inputs[5].clone(),
-                    key_hash: inputs[6][0],
+                    verification_key: inputs[0].clone(),
+                    proof: inputs[1].clone(),
+                    public_inputs: inputs[2].clone(),
+                    key_hash: inputs[3][0],
                     input_aggregation_object,
                     output_aggregation_object: outputs,
                 }

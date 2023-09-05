@@ -14,7 +14,6 @@ fn main(
     // let proof_b : [Field] = proof_b;
     // let public_inputs : [Field] = public_inputs;
 
-
     // let output_aggregation_object_a = std::verify_proof(
     //     verification_key, 
     //     proof, 
@@ -31,7 +30,7 @@ fn main(
     //     output_aggregation_object_a
     // );
 
-        let output_aggregation_object_a = std::verify_proof(
+    let output_aggregation_object_a = std::verify_proof(
         verification_key.as_slice(), 
         proof.as_slice(), 
         public_inputs.as_slice(), 
