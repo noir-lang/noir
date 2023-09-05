@@ -299,7 +299,7 @@ mod test {
 
         let v1 = builder.insert_cast(v0, Type::unsigned(32));
         let v2 = builder.insert_cast(v0, Type::unsigned(32));
-        builder.insert_constrain(v1, v2);
+        builder.insert_constrain(v1, v2, None);
 
         let mut ssa = builder.finish();
         let main = ssa.main_mut();
