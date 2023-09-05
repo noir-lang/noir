@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-noirc-abi-wasm:
+  noirc-abi-wasm-build:
     runs-on: ubuntu-latest
     env:
       CACHED_PATH: /tmp/nix-cache
@@ -43,12 +43,12 @@ jobs:
 
       - name: Build noirc_abi_wasm
         run: |
-          nix build .#noirc_abi_wasm
+          nix build -L .#noirc_abi_wasm
 
       - name: Export cache from nix store
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         run: |
-          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noir-abi-wasm-cargo-artifacts
+          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noirc-abi-wasm-cargo-artifacts
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
@@ -67,8 +67,8 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
-  test-node:
-    needs: [build-noirc-abi-wasm]
+  noirc-abi-wasm-test-node:
+    needs: [noirc-abi-wasm-build]
     name: Node.js Tests
     runs-on: ubuntu-latest
 
@@ -91,8 +91,8 @@ jobs:
         working-directory: ./crates/noirc_abi_wasm
         run: yarn test
 
-  test-browser:
-    needs: [build-noirc-abi-wasm]
+  noirc-abi-wasm-test-browser:
+    needs: [noirc-abi-wasm-build]
     name: Browser Tests
     runs-on: ubuntu-latest
 

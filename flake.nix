@@ -316,6 +316,7 @@
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
         inherit noir-wasm-cargo-artifacts;
+        inherit noirc-abi-wasm-cargo-artifacts;
       };
 
       # TODO(#1197): Look into installable apps with Nix flakes
