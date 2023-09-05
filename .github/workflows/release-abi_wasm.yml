@@ -1,0 +1,61 @@
+name: Release ABI Wasm
+
+on:
+  # workflow_dispatch:
+  push:
+    branches:
+      - jb/abi-wasm-publishing
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  noirc-abi-wasm-build:
+    runs-on: ubuntu-latest
+    env:
+      CACHED_PATH: /tmp/nix-cache
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-23.05
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore nix store cache
+        uses: actions/cache/restore@v3
+        id: cache
+        with:
+          path: ${{ env.CACHED_PATH }}
+          key: ${{ runner.os }}-flake-abi-wasm-${{ hashFiles('*.lock') }}
+
+      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
+      - name: Copy cache into nix store
+        if: steps.cache.outputs.cache-hit == 'true'
+        # We don't check the signature because we're the one that created the cache
+        run: |
+          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
+            path=$(head -n 1 "$narinfo" | awk '{print $2}')
+            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
+          done
+
+      - name: Build noirc_abi_wasm
+        run: |
+          nix build -L .#noirc_abi_wasm
+
+      - name: Verify Build Output
+        run: |
+          ls -l ./result
+
+      - name: Publish to NPM
+        working-directory: ./result
+        run: |
+          npm pack
+          tarball_name=$(ls *.tgz)
+          tar -tzf $tarball_name
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
