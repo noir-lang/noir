@@ -23,7 +23,7 @@ pub(super) fn get_available_backends() -> Vec<String> {
         .filter_map(|entry| {
             let path = entry.ok()?.path();
             if path.is_dir() {
-                path.file_name().map(|name| name.to_string_lossy().to_string())
+                Some(path.to_str().unwrap().to_string())
             } else {
                 None
             }

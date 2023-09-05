@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 use crate::errors::CliError;
 
 mod ls_cmd;
+mod rm_all_cmd;
 mod use_cmd;
 
 #[non_exhaustive]
@@ -17,6 +18,7 @@ pub(crate) struct BackendCommand {
 pub(crate) enum BackendCommands {
     Ls(ls_cmd::LsCommand),
     Use(use_cmd::UseCommand),
+    RmAll(rm_all_cmd::RmAllCommand),
 }
 
 pub(crate) fn run(cmd: BackendCommand) -> Result<(), CliError> {
@@ -25,6 +27,7 @@ pub(crate) fn run(cmd: BackendCommand) -> Result<(), CliError> {
     match command {
         BackendCommands::Ls(args) => ls_cmd::run(args),
         BackendCommands::Use(args) => use_cmd::run(args),
+        BackendCommands::RmAll(args) => rm_all_cmd::run(args),
     }?;
 
     Ok(())

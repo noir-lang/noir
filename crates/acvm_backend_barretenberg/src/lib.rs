@@ -15,8 +15,7 @@ pub fn backends_directory() -> PathBuf {
     home_directory.join(BACKENDS_DIR)
 }
 
-#[cfg(test)]
-fn get_bb() -> Backend {
+pub fn get_bb() -> Backend {
     let bb = Backend::new("acvm-backend-barretenberg".to_string());
     crate::assert_binary_exists(&bb);
     bb

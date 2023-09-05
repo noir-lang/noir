@@ -13,7 +13,14 @@ pub(crate) struct UseCommand {
 pub(crate) fn run(args: UseCommand) -> Result<(), CliError> {
     let backends = get_available_backends();
 
-    assert!(backends.contains(&args.backend), "backend doesn't exist");
+    if !backends.contains(&args.backend) {
+        // If its bb we re-download it
+        if args.backend == "acvm-backend-barretenberg" {
+            acvm_backend_barretenberg::get_bb();
+        } else {
+            return Err(CliError::Generic(format!("backend {} doesn't exist", args.backend)));
+        }
+    }
 
     set_active_backend(&args.backend);
 
