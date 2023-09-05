@@ -117,15 +117,18 @@ pub(crate) struct InitializeResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
-pub(crate) struct NargoTestId(CrateName, String);
+pub(crate) struct NargoTestId {
+    package: CrateName,
+    fully_qualified_path: String,
+}
 
 impl TryFrom<String> for NargoTestId {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        if let Some((crate_name, func_name)) = value.split_once('/') {
+        if let Some((crate_name, function_name)) = value.split_once('/') {
             let crate_name = crate_name.parse()?;
-            Ok(Self(crate_name, func_name.to_string()))
+            Ok(Self { package: crate_name, fully_qualified_path: function_name.to_string() })
         } else {
             Err("NargoTestId should be serialized as package_name/fully_qualified_path".to_string())
         }
@@ -134,21 +137,21 @@ impl TryFrom<String> for NargoTestId {
 
 impl From<NargoTestId> for String {
     fn from(value: NargoTestId) -> Self {
-        format!("{}/{}", value.0, value.1)
+        format!("{}/{}", value.package, value.fully_qualified_path)
     }
 }
 
 impl NargoTestId {
-    pub(crate) fn new(crate_name: CrateName, func_name: String) -> Self {
-        Self(crate_name, func_name)
+    pub(crate) fn new(crate_name: CrateName, function_name: String) -> Self {
+        Self { package: crate_name, fully_qualified_path: function_name }
     }
 
     pub(crate) fn crate_name(&self) -> &CrateName {
-        &self.0
+        &self.package
     }
 
     pub(crate) fn function_name(&self) -> &String {
-        &self.1
+        &self.fully_qualified_path
     }
 }
 
