@@ -2,10 +2,10 @@
 set -eu
 
 readonly REPOSITORY=$1
-readonly STANDALONE=$2
+readonly STANDALONE=${2:-}
 
 # Only publish tagged commits to npm.
-[ -n "$COMMIT_TAG" ] || { echo "Will only publish tagged commits to npm. Skipping." && exit 0; }
+[ -n "${COMMIT_TAG:-}" ] || { echo "Will only publish tagged commits to npm. Skipping." && exit 0; }
 
 extract_repo $REPOSITORY /usr/src project
 

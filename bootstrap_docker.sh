@@ -21,7 +21,7 @@
 
 set -e
 
-PROJECT_NAME=$1
+PROJECT_NAME=${1:-}
 COMMIT_HASH=$(git rev-parse HEAD)
 ONLY_TARGET=${ONLY_TARGET:-}
 

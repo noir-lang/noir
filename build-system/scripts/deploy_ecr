@@ -18,7 +18,7 @@ docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_COMMIT_URI
 docker push $IMAGE_DEPLOY_COMMIT_URI
 
 # Tag image with full version if we have one. Allows deployment of precise image version if rollback needed.
-if [ -n "$COMMIT_TAG" ]; then
+if [ -n "${COMMIT_TAG:-}" ]; then
   tag_remote_image $REPOSITORY $COMMIT_HASH $PROJECT-$COMMIT_TAG $ECR_DEPLOY_REGION
 fi
 

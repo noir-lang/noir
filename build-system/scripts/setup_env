@@ -25,7 +25,7 @@ echo "JOB_NAME=$JOB_NAME"
 echo "GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL"
 echo "BRANCH=$BRANCH"
 
-if [ -n "$COMMIT_TAG" ]; then
+if [ -n "${COMMIT_TAG:-}" ]; then
   # We're tagged e.g. v2.1.123 or v2.1.123-testnet.0.
   # First we sanity check that the tag matches the VERSION file.
   echo "Extracting commit tag version..."

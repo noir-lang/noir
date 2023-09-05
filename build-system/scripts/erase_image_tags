@@ -6,7 +6,7 @@ set -eu
 REPOSITORY=$1
 TILL_COMMIT_HASH=$2
 
-if [ -n "$3" ]; then
+if [ -n "${3:-}" ]; then
   TAG_POSTFIX=-$3
 fi
 

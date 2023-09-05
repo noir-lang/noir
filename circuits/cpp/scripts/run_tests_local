@@ -28,7 +28,7 @@ ARCH=$1
 # 3. or a file containing a list of test
 TESTS=$2
 # GTEST_FILTER: optional pattern like "*native*" to filter gtests
-GTEST_FILTER=$3
+GTEST_FILTER=${3:-}
 
 # Shift away the args
 shift

@@ -27,7 +27,7 @@ TESTS=$1
 BUILD_DIR="build-coverage"
 
 # If the clean file is set, wipe all existing coverage data
-if [ -n "$CLEAN" ]; then
+if [ -n "${CLEAN:-}" ]; then
   echo "The CLEAN environment variable is set. Clearing existing coverage data."
   rm -rf ./$BUILD_DIR || true
 fi
@@ -47,7 +47,7 @@ elif [ -f "$TESTS" ]; then
 fi
 
 # if just the CLEAR_COV env var is set then we will clear existing coveage report information
-if [ -n "$CLEAR_COV" ]; then
+if [ -n "${CLEAR_COV:-}" ]; then
   echo "The CLEAR_COV environment variable is set. Clearing existing coverage data."
   rm ./$BUILD_DIR/lcov.info || true
   rm ./$BUILD_DIR/merged_profdata/default.profdata || true
