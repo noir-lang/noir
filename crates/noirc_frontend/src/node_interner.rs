@@ -357,7 +357,6 @@ impl NodeInterner {
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.trait_def.span,
-                Vec::new(),
                 vecmap(&typ.trait_def.generics, |_| {
                     // Temporary type variable ids before the trait is resolved to its actual ids.
                     // This lets us record how many arguments the type expects so that other types

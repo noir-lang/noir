@@ -124,22 +124,28 @@ pub struct StructType {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum TraitItemType {
-    /// A function declaration in a trait.
-    Function {
-        name: Ident,
-        generics: Generics,
-        arguments: Vec<Type>,
-        return_type: Type,
-        span: Span,
-    },
-
-    /// A constant declaration in a trait.
-    Constant { name: Ident, ty: Type, span: Span },
-
-    /// A type declaration in a trait.
-    Type { name: Ident, ty: Type, span: Span },
+pub struct TraitFunction {
+    pub name: Ident,
+    pub generics: Generics,
+    pub arguments: Vec<Type>,
+    pub return_type: Type,
+    pub span: Span,
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TraitConstant {
+    pub name: Ident,
+    pub ty: Type,
+    pub span: Span,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TraitType {
+    pub name: Ident,
+    pub ty: Type,
+    pub span: Span,
+}
+
 /// Represents a trait type in the type system. Each instance of this
 /// rust struct will be shared across all Type::Trait variants that represent
 /// the same trait type.
@@ -149,7 +155,9 @@ pub struct Trait {
     /// struct traits are equal.
     pub id: TraitId,
 
-    pub items: Vec<TraitItemType>,
+    pub methods: Vec<TraitFunction>,
+    pub constants: Vec<TraitConstant>,
+    pub types: Vec<TraitType>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -197,16 +205,23 @@ impl Trait {
         id: TraitId,
         name: Ident,
         span: Span,
-        items: Vec<TraitItemType>,
         generics: Generics,
         self_type_typevar: TypeVariable,
     ) -> Trait {
-        
-        Trait { id, name, span, items, generics, self_type_typevar }
+        Trait {
+            id,
+            name,
+            span,
+            methods: Vec::new(),
+            constants: Vec::new(),
+            types: Vec::new(),
+            generics,
+            self_type_typevar,
+        }
     }
 
-    pub fn set_items(&mut self, items: Vec<TraitItemType>) {
-        self.items = items;
+    pub fn set_methods(&mut self, methods: Vec<TraitFunction>) {
+        self.methods = methods;
     }
 }
 

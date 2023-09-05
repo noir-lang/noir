@@ -15,7 +15,7 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, Type
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction,
     NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem,
-    TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType, TypeVariableKind,
+    Type, TypeBinding, UnresolvedGenerics, UnresolvedType, TypeVariableKind, TraitType, TraitConstant, TraitFunction,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -454,7 +454,7 @@ fn resolve_trait_types(
     _crate_id: CrateId,
     _unresolved_trait: &UnresolvedTrait,
     _errors: &mut [FileDiagnostic],
-) -> Vec<TraitItemType> {
+) -> Vec<TraitType> {
     // TODO
     vec![]
 }
@@ -463,7 +463,7 @@ fn resolve_trait_constants(
     _crate_id: CrateId,
     _unresolved_trait: &UnresolvedTrait,
     _errors: &mut [FileDiagnostic],
-) -> Vec<TraitItemType> {
+) -> Vec<TraitConstant> {
     // TODO
     vec![]
 }
@@ -474,7 +474,7 @@ fn resolve_trait_methods(
     crate_id: CrateId,
     unresolved_trait: &UnresolvedTrait,
     errors: &mut Vec<FileDiagnostic>,
-) -> Vec<TraitItemType> {
+) -> Vec<TraitFunction> {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
 
@@ -509,7 +509,7 @@ fn resolve_trait_methods(
             // TODO
             let generics: Generics = vec![];
             let span: Span = name.span();
-            let f = TraitItemType::Function {
+            let f = TraitFunction {
                 name,
                 generics,
                 arguments,
@@ -550,16 +550,17 @@ fn resolve_traits(
         context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
     }
     for (trait_id, unresolved_trait) in traits {
-        let mut items: Vec<TraitItemType> = vec![];
+
         // Resolve order
         // 1. Trait Types ( Trait contants can have a trait type, therefore types before constants)
-        items.append(&mut resolve_trait_types(context, crate_id, &unresolved_trait, errors));
+        let _ = resolve_trait_types(context, crate_id, &unresolved_trait, errors);
         // 2. Trait Constants ( Trait's methods can use trait types & constants, threfore they should be after)
-        items.append(&mut resolve_trait_constants(context, crate_id, &unresolved_trait, errors));
+        let _ = resolve_trait_constants(context, crate_id, &unresolved_trait, errors);
         // 3. Trait Methods
-        items.append(&mut resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, errors));
+        let methods = resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, errors);
+
         context.def_interner.update_trait(trait_id, |trait_def| {
-            trait_def.set_items(items);
+            trait_def.set_methods(methods);
         });
     }
 }
@@ -738,36 +739,23 @@ fn check_methods_signatures(
         let meta = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id);
 
-        for item in &the_trait.items {
-            if let TraitItemType::Function {
-                name,
-                generics: _,
-                arguments: _,
-                return_type,
-                span: _,
-            } = item
-            {
-                if name.0.contents == func_name {
-                    // TODO(vitkov): Check args
-                    // TODO(vitkov): handle Self
+        for method in &the_trait.methods {
+            if method.name.0.contents == func_name {
+                // TODO(vitkov): Check args
+                let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
 
-                    println!("{}", meta.return_type.get_type());
-                    let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
-                    println!("resolved {}", resolved_return_type);
-
-                    if resolved_return_type != *return_type {
-                        let err = DefCollectorErrorKind::TraitMethodWrongReturnType {
-                            trait_name: the_trait.name.clone(),
-                            method_name: name.clone(),
-                            span: meta.return_type.get_type().span.unwrap(),
-                            expected_type: return_type.to_string(),
-                            actual_type: resolved_return_type.to_string(),
-                        };
-                        errors.push(err.into_file_diagnostic(*file_id));
-                    }
-
-                    break;
+                if resolved_return_type != method.return_type {
+                    let err = DefCollectorErrorKind::TraitMethodWrongReturnType {
+                        trait_name: the_trait.name.clone(),
+                        method_name: method.name.clone(),
+                        span: meta.return_type.get_type().span.unwrap(),
+                        expected_type: method.return_type.to_string(),
+                        actual_type: resolved_return_type.to_string(),
+                    };
+                    errors.push(err.into_file_diagnostic(*file_id));
                 }
+
+                break;
             }
         }
     }
