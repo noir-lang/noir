@@ -57,7 +57,6 @@ pub struct UnresolvedTraitImpl {
     pub the_trait: UnresolvedTrait, // TODO(vitkov) this should be an ID
     pub methods: UnresolvedFunctions,
     pub trait_impl_ident: Ident, // for error reporting
-    pub func_id_to_name: HashMap<FuncId, String>,
 }
 
 #[derive(Clone)]
@@ -692,7 +691,6 @@ fn resolve_trait_impls(
         check_methods_signatures(
             &mut new_resolver,
             &impl_methods,
-            &trait_impl.func_id_to_name,
             trait_id,
             errors,
         );
@@ -721,7 +719,6 @@ fn resolve_trait_impls(
 fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
-    func_id_to_name: &HashMap<FuncId, String>,
     trait_id: TraitId,
     errors: &mut Vec<FileDiagnostic>,
 ) {
@@ -729,8 +726,8 @@ fn check_methods_signatures(
     let the_trait = the_trait.borrow();
 
     for (file_id, func_id) in impl_methods {
-        let func_name = func_id_to_name[func_id].clone();
         let meta = resolver.interner.function_meta(func_id);
+        let func_name = resolver.interner.function_name(func_id);
 
         for item in &the_trait.items {
             if let TraitItemType::Function {
