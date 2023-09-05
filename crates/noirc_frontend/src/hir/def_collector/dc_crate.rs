@@ -15,7 +15,7 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, Type
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction,
     NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem,
-    TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
+    TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType, TypeVariableKind,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -470,6 +470,7 @@ fn resolve_trait_constants(
 
 fn resolve_trait_methods(
     context: &mut Context,
+    trait_id: TraitId,
     crate_id: CrateId,
     unresolved_trait: &UnresolvedTrait,
     errors: &mut Vec<FileDiagnostic>,
@@ -495,7 +496,12 @@ fn resolve_trait_methods(
             body: _,
         } = item
         {
+            let the_trait = interner.get_trait(trait_id);
+            let self_type = Type::TypeVariable(the_trait.borrow().self_type_typevar.clone(), TypeVariableKind::Normal);
+
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.set_self_type(Some(self_type));
+
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let resolved_return_type = resolver.resolve_type(return_type.get_type());
 
@@ -551,7 +557,7 @@ fn resolve_traits(
         // 2. Trait Constants ( Trait's methods can use trait types & constants, threfore they should be after)
         items.append(&mut resolve_trait_constants(context, crate_id, &unresolved_trait, errors));
         // 3. Trait Methods
-        items.append(&mut resolve_trait_methods(context, crate_id, &unresolved_trait, errors));
+        items.append(&mut resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, errors));
         context.def_interner.update_trait(trait_id, |trait_def| {
             trait_def.set_items(items);
         });
@@ -725,6 +731,9 @@ fn check_methods_signatures(
     let the_trait = resolver.interner.get_trait(trait_id).clone();
     let the_trait = the_trait.borrow();
 
+    let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
+    the_trait.self_type_typevar.borrow_mut().force_bind_to(self_type);
+
     for (file_id, func_id) in impl_methods {
         let meta = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id);
@@ -742,7 +751,9 @@ fn check_methods_signatures(
                     // TODO(vitkov): Check args
                     // TODO(vitkov): handle Self
 
+                    println!("{}", meta.return_type.get_type());
                     let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
+                    println!("resolved {}", resolved_return_type);
 
                     if resolved_return_type != *return_type {
                         let err = DefCollectorErrorKind::TraitMethodWrongReturnType {

@@ -349,6 +349,8 @@ impl NodeInterner {
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        let self_type_typevar = Shared::new(TypeBinding::Unbound(self.next_type_variable_id()));
+
         self.traits.insert(
             type_id,
             Shared::new(Trait::new(
@@ -364,6 +366,7 @@ impl NodeInterner {
                     let id = TypeVariableId(0);
                     (id, Shared::new(TypeBinding::Unbound(id)))
                 }),
+                self_type_typevar,
             )),
         );
     }

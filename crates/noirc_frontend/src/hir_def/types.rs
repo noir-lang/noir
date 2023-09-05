@@ -154,6 +154,12 @@ pub struct Trait {
     pub name: Ident,
     pub generics: Generics,
     pub span: Span,
+
+    /// When resolving the types of Trait elements, all references to `Self` resolve
+    /// to this TypeVariable. Then when we check if the types of trait impl elements
+    /// match the definition in the trait, we bind this TypeVariable to whatever
+    /// the correct Self type is for that particular impl block.
+    pub self_type_typevar: TypeVariable,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source
@@ -193,8 +199,10 @@ impl Trait {
         span: Span,
         items: Vec<TraitItemType>,
         generics: Generics,
+        self_type_typevar: TypeVariable,
     ) -> Trait {
-        Trait { id, name, span, items, generics }
+        
+        Trait { id, name, span, items, generics, self_type_typevar }
     }
 
     pub fn set_items(&mut self, items: Vec<TraitItemType>) {
@@ -461,6 +469,11 @@ impl TypeBinding {
                 }
             }
         }
+    }
+
+    /// Same as bind_to, but allows rebinding
+    pub fn force_bind_to(&mut self, typ: Type) {
+        *self = TypeBinding::Bound(typ);
     }
 }
 
