@@ -7,6 +7,7 @@ if [ -z "$COMMIT_TAG" ]; then
 fi
 
 REPOSITORY=$1
+IMAGE_TAG=$COMMIT_TAG_VERSION
 IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
 IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$IMAGE_TAG
 IMAGE_LATEST_URI=aztecprotocol/$REPOSITORY:latest
@@ -33,9 +34,6 @@ if [ -z "$VERSION" ]; then
   echo "$COMMIT_TAG_VERSION is not a semantic version."
   exit 1
 fi
-
-IMAGE_TAG=$COMMIT_TAG_VERSION
-
 
 echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
 
