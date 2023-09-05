@@ -22,7 +22,6 @@ global MIMC_FEISTEL_ROUNDS = 218;
 fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;
-    //generated from seed "mimc" using keccak256 
     
 
     let mut r = 0;
