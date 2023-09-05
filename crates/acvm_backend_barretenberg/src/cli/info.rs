@@ -1,4 +1,7 @@
-use acvm::acir::circuit::opcodes::Opcode;
+use acvm::acir::circuit::{
+    black_box_functions::BlackBoxFunc,
+    opcodes::{BlackBoxFuncCall, Opcode},
+};
 use acvm::Language;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -79,4 +82,9 @@ fn info_command() {
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
     assert!(is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
+
+    assert!(!is_opcode_supported(&Opcode::BlackBoxFuncCall(
+        #[allow(deprecated)]
+        BlackBoxFuncCall::dummy(BlackBoxFunc::Keccak256)
+    )));
 }
