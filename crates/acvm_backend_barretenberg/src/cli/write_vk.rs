@@ -55,7 +55,6 @@ fn write_vk_command() {
         WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
 
     let vk_written = write_vk_command.run(&backend.binary_path());
-    println!("{vk_written:?}");
     assert!(vk_written.is_ok());
     drop(temp_directory);
 }
