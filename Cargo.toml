@@ -13,6 +13,7 @@ members = [
     "crates/fm",
     "crates/arena",
     "crates/noirc_abi",
+    "crates/noirc_abi_wasm",
     "crates/iter-extended",
     "crates/wasm",
 ]
@@ -28,7 +29,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.24.1"
+acvm = "0.25.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

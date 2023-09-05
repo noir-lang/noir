@@ -47,7 +47,19 @@ impl Backend {
     }
 
     fn backend_directory(&self) -> PathBuf {
-        backends_directory().join(&self.name)
+        // If an explicit path to a backend binary has been provided then place CRS, etc. in same directory.
+        if let Some(binary_path) = std::env::var_os("NARGO_BACKEND_PATH") {
+            PathBuf::from(binary_path)
+                .parent()
+                .expect("backend binary should have a parent directory")
+                .to_path_buf()
+        } else {
+            backends_directory().join(&self.name)
+        }
+    }
+
+    fn crs_directory(&self) -> PathBuf {
+        self.backend_directory().join("crs")
     }
 
     fn binary_path(&self) -> PathBuf {

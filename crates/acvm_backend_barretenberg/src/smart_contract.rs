@@ -26,7 +26,7 @@ impl Backend {
 
         let binary_path = assert_binary_exists(self);
         WriteVkCommand {
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
@@ -35,7 +35,7 @@ impl Backend {
 
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             vk_path,
             contract_path: contract_path.clone(),
         }
