@@ -167,8 +167,6 @@
         ];
 
         buildInputs = [
-          # pkgs.llvmPackages.openmp
-          # pkgs.barretenberg
         ] ++ extraBuildInputs;
       };
 
@@ -185,7 +183,7 @@
         doCheck = false;
       };
 
-      # Combine the environmnet with cargo args needed to build wasm package
+      # Combine the environment with cargo args needed to build wasm package
       noirc_abi_WasmArgs = sharedEnvironment // sharedArgs // {
         pname = "noirc_abi_wasm";
 
@@ -345,7 +343,6 @@
           rust-bin.stable."1.66.1".default
           rust-analyzer
           rustup
-          # playwright
           nodejs-18_x 
         ];
 
