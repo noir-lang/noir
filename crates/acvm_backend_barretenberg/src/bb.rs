@@ -10,7 +10,7 @@ const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
 const API_URL: &str =
     formatcp!("https://github.com/{}/{}/releases/download/{}", USERNAME, REPO, TAG);
 
-fn get_mock_backend_download_url() -> String {
+fn get_bb_download_url() -> String {
     if let Ok(path) = std::env::var("BB_BINARY_URL") {
         return path;
     }
@@ -40,9 +40,8 @@ pub(crate) fn download_bb_binary(binary_path: &Path) {
     std::fs::create_dir_all(binary_path.parent().unwrap()).unwrap();
 
     // Download sources
-    let compressed_file: Cursor<Vec<u8>> =
-        download_binary_from_url(&get_mock_backend_download_url())
-            .unwrap_or_else(|error| panic!("\n\nDownload error: {error}\n\n"));
+    let compressed_file: Cursor<Vec<u8>> = download_binary_from_url(&get_bb_download_url())
+        .unwrap_or_else(|error| panic!("\n\nDownload error: {error}\n\n"));
 
     // Unpack the tarball
     let gz_decoder = GzDecoder::new(compressed_file);
