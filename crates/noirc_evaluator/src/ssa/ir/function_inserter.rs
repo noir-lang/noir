@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use iter_extended::vecmap;
 
 use super::{
@@ -9,6 +7,7 @@ use super::{
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionInserter can be used to help modify existing Functions
 /// and map old values to new values after re-inserting optimized versions
@@ -21,7 +20,7 @@ pub(crate) struct FunctionInserter<'f> {
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::new() }
+        Self { function, values: HashMap::default() }
     }
 
     /// Resolves a ValueId to its new, updated value.

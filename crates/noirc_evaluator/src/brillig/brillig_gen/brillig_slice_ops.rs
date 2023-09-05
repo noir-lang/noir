@@ -311,7 +311,6 @@ impl<'block> BrilligBlock<'block> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::vec;
 
     use acvm::acir::brillig::{HeapVector, Value};
@@ -323,11 +322,12 @@ mod tests {
     use crate::brillig::brillig_ir::tests::{create_and_run_vm, create_context};
     use crate::brillig::brillig_ir::BrilligContext;
     use crate::ssa::ir::map::Id;
+    use fxhash::FxHashMap as HashMap;
 
     fn create_test_environment() -> (FunctionContext, BrilligContext) {
         let function_context = FunctionContext {
             function_id: Id::test_new(0),
-            ssa_value_to_brillig_variable: HashMap::new(),
+            ssa_value_to_brillig_variable: HashMap::default(),
         };
         let brillig_context = create_context();
         (function_context, brillig_context)

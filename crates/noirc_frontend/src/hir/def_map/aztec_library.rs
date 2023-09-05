@@ -382,7 +382,7 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
 /// Similarly; Structs will be pushed to the context, after serialize() is called on them.
 /// Arrays will be iterated over and each element will be pushed to the context.
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
-fn abstract_return_values(func: &mut NoirFunction) -> Option<Statement> {
+fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
     let len = func.def.body.len();
     let last_statement = &func.def.body.0[len - 1];
@@ -459,7 +459,13 @@ fn make_struct_return_type(expression: Expression) -> Statement {
 fn make_array_return_type(expression: Expression) -> Statement {
     let inner_cast_expression =
         cast(index_array_variable(expression.clone(), "i"), UnresolvedTypeData::FieldElement);
-    create_loop_over(expression.clone(), vec![inner_cast_expression])
+    let assignment = Statement::Semi(method_call(
+        context_return_values(), // variable
+        "push",                  // method name
+        vec![inner_cast_expression],
+    ));
+
+    create_loop_over(expression.clone(), vec![assignment])
 }
 
 /// Castable return type
@@ -549,7 +555,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
     ))
 }
 
-fn create_loop_over(var: Expression, loop_body: Vec<Expression>) -> Statement {
+fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // If this is an array of primitive types (integers / fields) we can add them each to the hasher
     // casted to a field
 
@@ -562,12 +568,7 @@ fn create_loop_over(var: Expression, loop_body: Vec<Expression>) -> Statement {
 
     // What will be looped over
     // - `hasher.add({ident}[i] as Field)`
-    let for_loop_block =
-        expression(ExpressionKind::Block(BlockExpression(vec![Statement::Semi(method_call(
-            variable("hasher"), // variable
-            "add",              // method name
-            loop_body,
-        ))])));
+    let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
 
     // `for i in 0..{ident}.len()`
     Statement::Expression(expression(ExpressionKind::For(Box::new(ForExpression {
@@ -590,7 +591,13 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
         index_array(identifier.clone(), "i"), // lhs - `ident[i]`
         UnresolvedTypeData::FieldElement,     // cast to - `as Field`
     );
-    create_loop_over(variable_ident(identifier.clone()), vec![cast_expression])
+    let block_statement = Statement::Semi(method_call(
+        variable("hasher"), // variable
+        "add",              // method name
+        vec![cast_expression],
+    ));
+
+    create_loop_over(variable_ident(identifier.clone()), vec![block_statement])
 }
 
 fn add_field_to_hasher(identifier: &Ident) -> Statement {

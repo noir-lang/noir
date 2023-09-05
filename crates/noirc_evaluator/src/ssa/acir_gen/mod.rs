@@ -1,7 +1,7 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 mod acir_ir;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
@@ -29,6 +29,7 @@ use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
+use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -147,11 +148,11 @@ impl Context {
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
-            ssa_values: HashMap::new(),
+            ssa_values: HashMap::default(),
             current_side_effects_enabled_var,
             acir_context,
             initialized_arrays: HashSet::new(),
-            memory_blocks: HashMap::new(),
+            memory_blocks: HashMap::default(),
             max_block_id: 0,
         }
     }
@@ -328,7 +329,7 @@ impl Context {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, assert_message) => {
                 let lhs = self.convert_value(*lhs, dfg);
                 let rhs = self.convert_value(*rhs, dfg);
 
@@ -384,7 +385,7 @@ impl Context {
                 for (lhs, rhs) in
                     get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
                 {
-                    self.acir_context.assert_eq_var(lhs, rhs)?;
+                    self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
                 }
             }
             Instruction::Cast(value_id, typ) => {
@@ -1221,7 +1222,7 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
 
         let expected_opcodes = vec![
             Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1))),

@@ -377,7 +377,7 @@ pub enum FunctionReturnType {
     /// Returns type is not specified.
     Default(Span),
     /// Everything else.
-    Ty(UnresolvedType, Span),
+    Ty(UnresolvedType),
 }
 
 /// Describes the types of smart contract functions that are allowed.
@@ -692,7 +692,7 @@ impl FunctionReturnType {
     pub fn get_type(&self) -> &UnresolvedTypeData {
         match self {
             FunctionReturnType::Default(_span) => &UnresolvedTypeData::Unit,
-            FunctionReturnType::Ty(typ, _span) => &typ.typ,
+            FunctionReturnType::Ty(typ) => &typ.typ,
         }
     }
 }
@@ -701,7 +701,7 @@ impl Display for FunctionReturnType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FunctionReturnType::Default(_) => f.write_str(""),
-            FunctionReturnType::Ty(ty, _) => write!(f, "{ty}"),
+            FunctionReturnType::Ty(ty) => write!(f, "{ty}"),
         }
     }
 }

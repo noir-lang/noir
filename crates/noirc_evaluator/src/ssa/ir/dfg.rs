@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use crate::ssa::ir::instruction::SimplifyResult;
 
@@ -14,6 +14,7 @@ use super::{
 };
 
 use acvm::FieldElement;
+use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 

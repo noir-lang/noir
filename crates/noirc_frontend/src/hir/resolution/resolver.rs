@@ -19,7 +19,7 @@ use crate::hir_def::expr::{
 };
 use crate::token::Attribute;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -75,7 +75,7 @@ pub struct LambdaContext {
 pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
-    def_maps: &'a HashMap<CrateId, CrateDefMap>,
+    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
     file: FileId,
@@ -107,7 +107,7 @@ impl<'a> Resolver<'a> {
     pub fn new(
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
-        def_maps: &'a HashMap<CrateId, CrateDefMap>,
+        def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         file: FileId,
     ) -> Resolver<'a> {
         Self {
@@ -438,7 +438,16 @@ impl<'a> Resolver<'a> {
                 type_alias_string
             });
 
-            return self.interner.get_type_alias(id).get_type(&args);
+            let result = self.interner.get_type_alias(id).get_type(&args);
+
+            // Because there is no ordering to when type aliases (and other globals) are resolved,
+            // it is possible for one to refer to an Error type and issue no error if it is set
+            // equal to another type alias. Fixing this fully requires an analysis to create a DFG
+            // of definition ordering, but for now we have an explicit check here so that we at
+            // least issue an error that the type was not found instead of silently passing.
+            if result != Type::Error {
+                return result;
+            }
         }
 
         match self.lookup_struct_or_error(path) {
@@ -828,7 +837,7 @@ impl<'a> Resolver<'a> {
         parameters: &[Type],
         return_type: &Type,
     ) -> Vec<(String, TypeVariable)> {
-        let mut found = HashMap::new();
+        let mut found = BTreeMap::new();
         for parameter in parameters {
             Self::find_numeric_generics_in_type(parameter, &mut found);
         }
@@ -836,7 +845,10 @@ impl<'a> Resolver<'a> {
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(typ: &Type, found: &mut HashMap<String, Shared<TypeBinding>>) {
+    fn find_numeric_generics_in_type(
+        typ: &Type,
+        found: &mut BTreeMap<String, Shared<TypeBinding>>,
+    ) {
         match typ {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -919,7 +931,8 @@ impl<'a> Resolver<'a> {
             }
             Statement::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
-                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
+                let assert_message = constrain_stmt.1;
+                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, assert_message))
             }
             Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
             Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
@@ -1507,7 +1520,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
 mod test {
 
     use core::panic;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use fm::FileId;
     use iter_extended::vecmap;
@@ -1535,7 +1548,8 @@ mod test {
     // and functions can be forward declared
     fn init_src_code_resolution(
         src: &str,
-    ) -> (ParsedModule, NodeInterner, HashMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
+    ) -> (ParsedModule, NodeInterner, BTreeMap<CrateId, CrateDefMap>, FileId, TestPathResolver)
+    {
         let (program, errors) = parse_program(src);
         if errors.iter().any(|e| e.is_error()) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
@@ -1543,14 +1557,14 @@ mod test {
 
         let interner: NodeInterner = NodeInterner::default();
 
-        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps: BTreeMap<CrateId, CrateDefMap> = BTreeMap::new();
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 
-        let path_resolver = TestPathResolver(HashMap::new());
+        let path_resolver = TestPathResolver(BTreeMap::new());
 
         def_maps.insert(
             CrateId::dummy_id(),
@@ -1558,7 +1572,7 @@ mod test {
                 root: path_resolver.local_module_id(),
                 modules,
                 krate: CrateId::dummy_id(),
-                extern_prelude: HashMap::new(),
+                extern_prelude: BTreeMap::new(),
             },
         );
 
@@ -1991,12 +2005,12 @@ mod test {
         }
     }
 
-    struct TestPathResolver(HashMap<String, ModuleDefId>);
+    struct TestPathResolver(BTreeMap<String, ModuleDefId>);
 
     impl PathResolver for TestPathResolver {
         fn resolve(
             &self,
-            _def_maps: &HashMap<CrateId, CrateDefMap>,
+            _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
         ) -> Result<ModuleDefId, PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing

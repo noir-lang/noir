@@ -9,7 +9,7 @@ use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
 
@@ -19,12 +19,12 @@ use self::def_map::TestFunction;
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
-    pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
+    pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
 
     /// Maps a given (contract) module id to the next available storage slot
     /// for that contract.
-    pub storage_slots: HashMap<def_map::ModuleId, StorageSlot>,
+    pub storage_slots: BTreeMap<def_map::ModuleId, StorageSlot>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -40,10 +40,10 @@ impl Context {
     pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
         Context {
             def_interner: NodeInterner::default(),
-            def_maps: HashMap::new(),
+            def_maps: BTreeMap::new(),
             crate_graph,
             file_manager,
-            storage_slots: HashMap::new(),
+            storage_slots: BTreeMap::new(),
         }
     }
 
