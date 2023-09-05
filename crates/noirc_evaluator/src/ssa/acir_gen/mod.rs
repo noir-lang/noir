@@ -1034,7 +1034,28 @@ impl Context {
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
-                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the inputs to determine if there are slices
+                // and make sure that we pass the correct inputs to the black box function call.
+                // The loop below only keeps the slice contents, so that
+                // setting up a black box function with slice inputs matches the expected
+                // number of arguments specified in the function signature.
+                let mut arguments_no_slice_len = Vec::new();
+                for (i, arg) in arguments.iter().enumerate() {
+                    if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
+                        if i < arguments.len() - 1 {
+                            if !matches!(dfg.type_of_value(arguments[i + 1]), Type::Slice(_)) {
+                                arguments_no_slice_len.push(*arg);
+                            }
+                        } else {
+                            arguments_no_slice_len.push(*arg);
+                        }
+                    } else {
+                        arguments_no_slice_len.push(*arg);
+                    }
+                }
+
+                let inputs = vecmap(&arguments_no_slice_len, |arg| self.convert_value(*arg, dfg));
 
                 let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
                     sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
