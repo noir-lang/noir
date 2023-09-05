@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+EXISTING_TAG=$2
+REGION=${3:-$ECR_REGION}
+
+IMAGE_TAGS=$(aws ecr describe-images --repository-name $REPOSITORY --image-ids "imageTag=$EXISTING_TAG" | jq -r '.imageDetails[0].imageTags[]')
+TAGS_COUNT=$(echo "$IMAGE_TAGS" | wc -l)
+
+echo "Found $TAGS_COUNT for $REPOSITORY:$EXISTING_TAG"
+
+if [ $TAGS_COUNT -le 500 ]; then
+  echo "Less than 500 tags found, nothing to do here."
+  exit 0
+else
+  echo "Pruning stale images"
+fi
+
+# Collect all the commits ids in the repository and remove the remote for faster lookups
+# See warning in https://github.blog/2020-12-21-get-up-to-speed-with-partial-clone-and-shallow-clone/
+git config fetch.recurseSubmodules false 
+git fetch --filter=tree:0 origin
+ORIGIN_URL=$(git remote get-url origin)
+git remote remove origin
+
+# Loop over all tags and, if they are no longer in the repo, kill them
+# This happens for all commits tagged for PRs that then get squashed and merged
+IFS=$'\n'
+for TAG in $IMAGE_TAGS; do
+    if [[ $TAG =~ ^cache-[0-9a-fA-F]+-builder$ ]]; then      
+      TAG_COMMIT=$(echo "$TAG" | cut -d '-' -f 2)
+      if git cat-file -e $TAG_COMMIT; then
+        echo "Commit for $TAG found"
+      else
+        echo "Removing $TAG since commit was not found."
+        untag_remote_image $REPOSITORY $TAG
+      fi
+    fi
+done
+
+# Reinstate the remote
+git remote add origin $ORIGIN_URL || git remote set-url origin $ORIGIN_URL

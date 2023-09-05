@@ -27,9 +27,22 @@ NEW_TAG_MANIFEST=$(aws ecr batch-get-image \
 
 if [ "$EXISTING_TAG_MANIFEST" != "$NEW_TAG_MANIFEST" ]; then
   echo "Tagging $1:$EXISTING_TAG as $1:$NEW_TAG..."
-  aws ecr put-image \
+  TAG_RESULT=$(aws ecr put-image \
     --region $REGION \
     --repository-name $REPOSITORY \
     --image-tag $NEW_TAG \
-    --image-manifest "$EXISTING_TAG_MANIFEST" > /dev/null 2>&1
+    --image-manifest "$EXISTING_TAG_MANIFEST" 2>&1)
+  TAG_EXIT_CODE=$?
+  
+  # If we failed to tag due to too many tags on this image, then clean some of them up and try again
+  if [ $TAG_EXIT_CODE -ne 0 ] && $(echo $TAG_RESULT | grep -q LimitExceededException); then
+    echo "Failed to tag due to limit exceeded. Starting tag cleanup."
+    clean_image_tags $REPOSITORY $EXISTING_TAG $REGION
+
+    aws ecr put-image \
+      --region $REGION \
+      --repository-name $REPOSITORY \
+      --image-tag $NEW_TAG \
+      --image-manifest "$EXISTING_TAG_MANIFEST"
+  fi
 fi
