@@ -264,7 +264,7 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::MakeArray { elements, typ: _ } => {
                 let array = self.inserter.function.dfg.instruction_results(instruction)[0];
-                self.check_array_aliasing(references, array, elements);
+                self.handle_make_array(references, array, elements);
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -313,7 +313,7 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn check_array_aliasing(
+    fn handle_make_array(
         &self,
         references: &mut Block,
         array: ValueId,
@@ -325,14 +325,11 @@ impl<'f> PerFunctionContext<'f> {
         });
 
         if contains_references {
-            // TODO: Check if type directly holds references or holds arrays that hold references
             let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
             references.expressions.insert(array, expr.clone());
-            let aliases = references.aliases.entry(expr).or_default();
 
-            for element in elements {
-                aliases.insert(*element);
-            }
+            let aliases = references.collect_all_aliases(elements.clone());
+            references.aliases.insert(expr, aliases);
         }
     }
 
