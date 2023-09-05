@@ -95,7 +95,7 @@ export class FileCrs {
     const g1Start = 28;
     const g1Length = this.numPoints * 64;
 
-    const g2Start = 28 + 5040000 * 64;
+    const g2Start = 28 + 5040001 * 64;
     const g2Length = 128;
     // Lazily seek our data
     const fileHandle = await open(this.path, 'r');
