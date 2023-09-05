@@ -22,9 +22,11 @@ test_binary::build_test_binary_once!(mock_backend, "test-binaries");
 fn get_mock_backend() -> Backend {
     std::env::set_var("NARGO_BACKEND_PATH", path_to_mock_backend());
 
-    let bb = Backend::new("acvm-backend-barretenberg".to_string());
-    crate::assert_binary_exists(&bb);
-    bb
+    let mock_backend = Backend::new("mock_backend".to_string());
+    if !mock_backend.binary_path().is_file() {
+        panic!("Mock backend binary does not exist at expected path");
+    }
+    mock_backend
 }
 
 fn assert_binary_exists(backend: &Backend) -> PathBuf {
