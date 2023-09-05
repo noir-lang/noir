@@ -396,9 +396,9 @@ mod test {
     fn constrained_value_replacement() {
         // fn main f0 {
         //   b0(v0: Field):
-        //     constrain v0 10
+        //     constrain v0 == Field 10
         //     v1 = add v0, Field 1
-        //     constrain v1 11
+        //     constrain v1 == Field 11
         // }
         //
         // After constructing this IR, we run constant folding which should replace references to `v0`
@@ -428,7 +428,7 @@ mod test {
         //
         // fn main f0 {
         //   b0(v0: Field):
-        //     constrain v0 10
+        //     constrain v0 == Field 10
         // }
         let ssa = ssa.fold_constants();
         let main = ssa.main();
