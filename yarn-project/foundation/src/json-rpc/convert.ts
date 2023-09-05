@@ -96,8 +96,9 @@ export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map((x: any) => convertFromJsonObj(cc, x));
   }
+
   // Is this a dictionary?
-  if (obj.constructor === Object) {
+  if (typeof obj === 'object') {
     const newObj: any = {};
     for (const key of Object.keys(obj)) {
       newObj[key] = convertFromJsonObj(cc, obj[key]);
@@ -119,6 +120,7 @@ export function convertToJsonObj(cc: ClassConverter, obj: any): any {
   if (!obj) {
     return obj; // Primitive type
   }
+
   // Is this a Node buffer?
   if (obj instanceof Buffer) {
     return { type: 'Buffer', data: obj.toString('base64') };
@@ -135,22 +137,26 @@ export function convertToJsonObj(cc: ClassConverter, obj: any): any {
   if (cc.isRegisteredClass(obj.constructor)) {
     return cc.toJsonObj(obj);
   }
+
   // Is this an array?
   if (Array.isArray(obj)) {
     return obj.map((x: any) => convertToJsonObj(cc, x));
   }
-  // Is this a dictionary?
-  if (obj.constructor === Object) {
-    const newObj: any = {};
-    for (const key of Object.keys(obj)) {
-      newObj[key] = convertToJsonObj(cc, obj[key]);
+
+  if (typeof obj === 'object') {
+    // Is this a dictionary?
+    if (isPlainObject(obj)) {
+      const newObj: any = {};
+      for (const key of Object.keys(obj)) {
+        newObj[key] = convertToJsonObj(cc, obj[key]);
+      }
+      return newObj;
+    } else {
+      // Throw if this is a non-primitive class that was not registered
+      throw new Error(`Object ${obj.constructor.name} not registered for serialisation`);
     }
-    return newObj;
   }
-  // Throw if this is a non-primitive class that was not registered
-  if (typeof obj === 'object' && !isPlainObject(obj)) {
-    throw new Error(`Object ${obj.constructor.name} not registered for serialisation`);
-  }
+
   // Leave alone, assume JSON primitive
   return obj;
 }
