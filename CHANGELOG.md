@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha51](https://github.com/AztecProtocol/aztec-packages/compare/v0.1.0-alpha50...v0.1.0-alpha51) (2023-09-05)
+
+
+### Bug Fixes
+
+* build script ([#2017](https://github.com/AztecProtocol/aztec-packages/issues/2017)) ([23fce27](https://github.com/AztecProtocol/aztec-packages/commit/23fce277c44a06777ea168085ac498d62016b36e))
+
 ## [0.1.0-alpha50](https://github.com/AztecProtocol/aztec-packages/compare/v0.1.0-alpha49...v0.1.0-alpha50) (2023-09-05)
 
 
