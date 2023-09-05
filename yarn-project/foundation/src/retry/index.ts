@@ -40,6 +40,7 @@ export function* makeBackoff(retries: number[]) {
  * @param name - The optional name of the operation, used for logging purposes.
  * @param backoff - The optional backoff generator providing the intervals in seconds between retries. Defaults to a predefined series.
  * @param log - Logger to use for logging.
+ * @param failSilently - Do not log errors while retrying.
  * @returns A Promise that resolves with the successful result of the provided function, or rejects if backoff generator ends.
  * @throws If `NoRetryError` is thrown by the `fn`, it is rethrown.
  */
@@ -48,6 +49,7 @@ export async function retry<Result>(
   name = 'Operation',
   backoff = backoffGenerator(),
   log = createDebugLogger('aztec:foundation:retry'),
+  failSilently = false,
 ) {
   while (true) {
     try {
@@ -62,7 +64,7 @@ export async function retry<Result>(
         throw err;
       }
       log(`${name} failed. Will retry in ${s}s...`);
-      log.error(err);
+      !failSilently && log.error(err);
       await sleep(s * 1000);
       continue;
     }

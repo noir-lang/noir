@@ -79,6 +79,7 @@ export function makeFetch(retries: number[], noRetry: boolean, log?: DebugLogger
       'JsonRpcClient request',
       makeBackoff(retries),
       log,
+      true,
     );
   };
 }
