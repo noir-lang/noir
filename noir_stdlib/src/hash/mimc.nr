@@ -127,7 +127,7 @@ fn MiMCSponge<N,M>(plaintext : [Field;N], k: Field) ->  [Field;M]{
 
 }
 
-
+//generated from seed "mimc" using keccak256 
 global mimc_bn254_constants: [Field; MIMC_BN254_ROUNDS] = [
         0, 
         20888961410941983456478427210666206549300505294776164667214940546594746570981,
