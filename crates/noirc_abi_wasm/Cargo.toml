@@ -1,0 +1,33 @@
+[package]
+name = "noirc_abi_wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+acvm.workspace = true
+noirc_abi.workspace = true
+iter-extended.workspace = true
+wasm-bindgen.workspace = true
+serde.workspace = true
+
+console_error_panic_hook = "0.1.7"
+gloo-utils = { version = "0.1", features = ["serde"] }
+
+js-sys = "0.3.62"
+
+# This is an unused dependency, we are adding it
+# so that we can enable the js feature in getrandom.
+getrandom = { version = "*", features = ["js"] }
+
+[build-dependencies]
+build-data = "0.1.3"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.36"

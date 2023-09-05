@@ -27,7 +27,7 @@ impl Backend {
         let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             verbose: false,
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             is_recursive: false,
             bytecode_path,
             vk_path_output: vk_path.clone(),
@@ -37,7 +37,7 @@ impl Backend {
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
             verbose: false,
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             vk_path,
             contract_path: contract_path.clone(),
         }
@@ -74,6 +74,7 @@ mod tests {
             private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
         };
 
         let contract = get_bb().eth_contract(&circuit).unwrap();

@@ -18,7 +18,7 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use iter_extended::vecmap;
 
@@ -32,6 +32,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -73,7 +74,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
 
         // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::new();
+        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
 
         for instruction_id in instructions {
             Self::fold_constants_into_instruction(

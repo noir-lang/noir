@@ -62,5 +62,5 @@ fn gate_command() {
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
     let output = gate_command.run(&backend.binary_path()).unwrap();
-    assert_eq!(output, 2775);
+    assert_eq!(output, 2788);
 }
