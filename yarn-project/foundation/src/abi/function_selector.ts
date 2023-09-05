@@ -1,4 +1,4 @@
-import { ABIParameter } from '@aztec/foundation/abi';
+import { ABIParameter, decodeFunctionSignature } from '@aztec/foundation/abi';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { keccak } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -97,8 +97,11 @@ export class FunctionSelector {
    * @returns A Buffer containing the 4-byte function selector.
    */
   static fromNameAndParameters(name: string, parameters: ABIParameter[]) {
-    const signature = name === 'constructor' ? name : `${name}(${parameters.map(p => p.type.kind).join(',')})`;
-    return FunctionSelector.fromSignature(signature);
+    const signature = decodeFunctionSignature(name, parameters);
+    const selector = FunctionSelector.fromSignature(signature);
+    // If using the debug logger here it kill the typing in the `server_world_state_synchroniser` and jest tests.
+    // console.log(`Function selector for ${signature} is ${selector}`);
+    return selector;
   }
 
   /**

@@ -28,7 +28,7 @@ impl PrivateTokenPrivateContextInterface {
     serialised_args[0] = amount;
     serialised_args[1] = owner;
 
-    context.call_private_function(self.address, 0x1dc9c3c0, serialised_args)
+    context.call_private_function(self.address, 0x1535439c, serialised_args)
   }
   
 
@@ -42,7 +42,7 @@ impl PrivateTokenPrivateContextInterface {
     serialised_args[0] = amount;
     serialised_args[1] = recipient;
 
-    context.call_private_function(self.address, 0x61dd7032, serialised_args)
+    context.call_private_function(self.address, 0xc0888d22, serialised_args)
   }
   
 }

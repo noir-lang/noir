@@ -43,6 +43,7 @@ contract NonNativeToken {
     };
 
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
+    use dep::aztec::oracle::compute_selector::compute_selector;
 
     #[aztec(private)]
     fn constructor(
@@ -236,10 +237,8 @@ contract NonNativeToken {
         // enqueue a public function to perform the public state update.
         let thisAddress = context.this_address();
 
-        // addUnshieldedBalance selector (in decimal)
-        // recompute by: `cast keccak addUnshieldedBalance(field,field)` -> convert to decimal
-        let pubEntryPointSelector = 753269941;
-        let _callStackItem1 = context.call_public_function(thisAddress, pubEntryPointSelector, [amount, recipient]);
+        let addUnshieldedBalance = compute_selector("addUnshieldedBalance(Field,Field)");
+        let _callStackItem1 = context.call_public_function(thisAddress, addUnshieldedBalance, [amount, recipient]);
     }
 
     #[aztec(public)]

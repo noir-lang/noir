@@ -78,10 +78,13 @@ export class PublicExecutor {
     // We use this cache to hold the packed arguments.
     const packedArgs = await PackedArgsCache.create([]);
     const { partialWitness } = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, {
+      computeSelector: (...args) => {
+        const signature = oracleDebugCallToFormattedStr(args);
+        return Promise.resolve(toACVMField(FunctionSelector.fromSignature(signature).toField()));
+      },
       packArguments: async args => {
         return toACVMField(await packedArgs.pack(args.map(fromACVMField)));
       },
-
       debugLog: (...args) => {
         this.log(oracleDebugCallToFormattedStr(args));
         return Promise.resolve(ZERO_ACVM_FIELD);

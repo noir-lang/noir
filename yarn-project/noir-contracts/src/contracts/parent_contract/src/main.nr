@@ -1,5 +1,6 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
+    use dep::aztec::oracle::compute_selector::compute_selector;
 
     #[aztec(private)]
     fn constructor() {}
@@ -60,7 +61,7 @@ contract Parent {
         targetContract: Field,
         targetSelector: Field,
     ) {
-        let enqueueCallToChildSelector = 0x94015a34;
+        let enqueueCallToChildSelector = compute_selector("enqueueCallToChild(Field,Field,Field)");
         let _ret = context.call_private_function(context.this_address(), enqueueCallToChildSelector, [targetContract, targetSelector, 10]);
         context.call_public_function(targetContract, targetSelector, [20]);
     }
@@ -74,7 +75,7 @@ contract Parent {
         targetSelector: Field,
     ) {
         context.call_public_function(targetContract, targetSelector, [20]);
-        let enqueueCallToChildSelector = 0x94015a34;
+        let enqueueCallToChildSelector = compute_selector("enqueueCallToChild(Field,Field,Field)");
         let _ret = context.call_private_function(context.this_address(), enqueueCallToChildSelector, [targetContract, targetSelector, 10]);
     }
 
@@ -98,7 +99,7 @@ contract Parent {
         targetSelector: Field,
         targetValue: Field,
     ) {
-        let pubEntryPointSelector = 3221316504;
+        let pubEntryPointSelector = compute_selector("pubEntryPoint(Field,Field,Field)");
         let thisAddress = context.this_address();
         let _void = context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue]);
     }
@@ -110,7 +111,7 @@ contract Parent {
         targetSelector: Field,
         targetValue: Field,
     ) {
-        let pubEntryPointSelector = 3221316504;
+        let pubEntryPointSelector = compute_selector("pubEntryPoint(Field,Field,Field)");
         let thisAddress = context.this_address();
         
         context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue]);

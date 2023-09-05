@@ -54,7 +54,7 @@ describe('e2e_lending_contract', () => {
       logger(`Tx sent with hash ${await tx.getTxHash()}`);
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
-      logger(`Debt asset deployed to ${receipt.contractAddress}`);
+      logger(`Stable coin asset deployed to ${receipt.contractAddress}`);
       stableCoin = await NativeTokenContract.at(receipt.contractAddress!, wallet);
     }
 
