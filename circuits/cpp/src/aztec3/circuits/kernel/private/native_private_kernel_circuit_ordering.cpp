@@ -10,7 +10,7 @@
 #include "aztec3/utils/circuit_errors.hpp"
 #include "aztec3/utils/dummy_circuit_builder.hpp"
 
-#include <cstddef>
+#include <barretenberg/numeric/uint256/uint256.hpp>
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
@@ -34,9 +34,6 @@ void initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-// TODO(https://github.com/AztecProtocol/aztec-packages/issues/892): optimized based on hints
-// regarding matching a read request to a commitment
-// i.e., we get pairs i,j such that read_requests[i] == new_commitments[j]
 void match_reads_to_commitments(DummyCircuitBuilder& builder,
                                 std::array<NT::fr, MAX_READ_REQUESTS_PER_TX> const& read_requests,
                                 std::array<NT::fr, MAX_READ_REQUESTS_PER_TX> const& hint_to_commitments,
@@ -46,16 +43,14 @@ void match_reads_to_commitments(DummyCircuitBuilder& builder,
     for (size_t rr_idx = 0; rr_idx < MAX_READ_REQUESTS_PER_TX; rr_idx++) {
         const auto& read_request = read_requests[rr_idx];
         const auto& hint_to_commitment = hint_to_commitments[rr_idx];
+        const auto hint_pos = static_cast<size_t>(uint64_t(hint_to_commitment));
 
         if (read_request != 0) {
             size_t match_pos = MAX_NEW_COMMITMENTS_PER_TX;
-            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/892): inefficient
-            // O(n^2) inner loop will be optimized via matching hints
-            for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {
-                match_pos = (read_request == new_commitments[c_idx]) ? c_idx : match_pos;
+            if (hint_pos < MAX_NEW_COMMITMENTS_PER_TX) {
+                match_pos = read_request == new_commitments[hint_pos] ? hint_pos : match_pos;
             }
 
-            // Transient reads MUST match a pending commitment
             builder.do_assert(
                 match_pos != MAX_NEW_COMMITMENTS_PER_TX,
                 format("read_request at position [",

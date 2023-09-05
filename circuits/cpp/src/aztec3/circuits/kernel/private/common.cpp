@@ -22,7 +22,6 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::ReadRequestMembershipWitness;
 
-using aztec3::utils::array_length;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;

@@ -3,6 +3,7 @@ import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
   Fr,
+  MAX_NEW_COMMITMENTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
@@ -19,7 +20,7 @@ import {
   makeEmptyProof,
   makeTuple,
 } from '@aztec/circuits.js';
-import { assertLength } from '@aztec/foundation/serialize';
+import { Tuple, assertLength } from '@aztec/foundation/serialize';
 
 import { KernelProofCreator, ProofCreator, ProofOutput, ProofOutputFinal } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
@@ -84,9 +85,6 @@ export class KernelProver {
       publicInputs: PrivateKernelPublicInputs.empty(),
       proof: makeEmptyProof(),
     };
-
-    //TODO(#892): Dealing with this ticket we will fill the following hint array with the correct hints.
-    const hintToCommitments = makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero);
 
     while (executionStack.length) {
       const currentExecution = executionStack.pop()!;
@@ -169,6 +167,10 @@ export class KernelProver {
       assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
     );
 
+    const hintToCommitments = this.getReadRequestHints(
+      output.publicInputs.end.readRequests,
+      output.publicInputs.end.newCommitments,
+    );
     const privateInputs = new PrivateKernelInputsOrdering(previousKernelData, hintToCommitments);
     const outputFinal = await this.proofCreator.createProofOrdering(privateInputs);
 
@@ -238,5 +240,24 @@ export class KernelProver {
       data,
       commitment: newCommitments[i],
     }));
+  }
+
+  private getReadRequestHints(
+    readRequests: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
+    commitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
+  ): Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX> {
+    const hints = makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero);
+    for (let i = 0; i < MAX_READ_REQUESTS_PER_TX && !readRequests[i].isZero(); i++) {
+      const equalToRR = (cmt: Fr) => cmt.equals(readRequests[i]);
+      const result = commitments.findIndex(equalToRR);
+      if (result == -1) {
+        throw new Error(
+          `The read request at index ${i} with value ${readRequests[i].toString()} does not match to any commitment.`,
+        );
+      } else {
+        hints[i] = new Fr(result);
+      }
+    }
+    return hints;
   }
 }
