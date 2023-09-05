@@ -1,3 +1,23 @@
+//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][Instruction::simplify()].
+//!
+//! The pass works as follows:
+//! - Re-insert each instruction in order to apply the instruction simplification performed
+//!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
+//! - Check whether the instruction is [pure][Instruction::is_pure()]
+//!   and there exists a duplicate instruction earlier in the same block.
+//!   If so, the instruction can be replaced with the results of this previous instruction.
+//!
+//! These operations are done in parallel so that they can each benefit from each other
+//! without the need for multiple passes.
+//!
+//! Other passes perform a certain amount of constant folding automatically as they insert instructions
+//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value`] or
+//! [`DataFlowGraph::set_value_from_id`] are used on a value which enables instructions dependent on the value to
+//! now be simplified.
+//!
+//! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
+//! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::collections::HashSet;
 
 use iter_extended::vecmap;
@@ -5,7 +25,7 @@ use iter_extended::vecmap;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::InsertInstructionResult,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
         value::ValueId,
@@ -17,10 +37,7 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
-    /// This is generally done automatically but this pass can become needed
-    /// if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
-    /// used on a value which enables instructions dependent on the value to
-    /// now be simplified.
+    /// See [`constant_folding`][self] module for more information.
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);
@@ -60,57 +77,88 @@ impl Context {
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
 
         for instruction_id in instructions {
-            self.push_instruction(function, block, instruction_id, &mut cached_instruction_results);
+            Self::fold_constants_into_instruction(
+                &mut function.dfg,
+                block,
+                instruction_id,
+                &mut cached_instruction_results,
+            );
         }
         self.block_queue.extend(function.dfg[block].successors());
     }
 
-    fn push_instruction(
-        &mut self,
-        function: &mut Function,
+    fn fold_constants_into_instruction(
+        dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         id: InstructionId,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
     ) {
-        let instruction = function.dfg[id].clone();
-        let old_results = function.dfg.instruction_results(id).to_vec();
+        let instruction = Self::resolve_instruction(id, dfg);
+        let old_results = dfg.instruction_results(id).to_vec();
 
-        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        let instruction = instruction.map_values(|value_id| function.dfg.resolve(value_id));
-
-        // If a copy of this instruction exists earlier in the block then reuse the previous results.
+        // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cached_results) = instruction_result_cache.get(&instruction) {
-            for (old_result, new_result) in old_results.iter().zip(cached_results) {
-                function.dfg.set_value_from_id(*old_result, *new_result);
-            }
+            Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
+        // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
+        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
 
-        let call_stack = function.dfg.get_call_stack(id);
-        let new_results = match function.dfg.insert_instruction_and_results(
-            instruction.clone(),
-            block,
-            ctrl_typevars,
-            call_stack,
-        ) {
-            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
-            InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
-            InsertInstructionResult::InstructionRemoved => vec![],
-        };
-        assert_eq!(old_results.len(), new_results.len());
-
-        // If the instruction doesn't have side-effects, cache the results so we can reuse them if
+        // If the instruction is pure then we cache the results so we can reuse them if
         // the same instruction appears again later in the block.
-        if instruction.is_pure(&function.dfg) {
+        if instruction.is_pure(dfg) {
             instruction_result_cache.insert(instruction, new_results.clone());
         }
+        Self::replace_result_ids(dfg, &old_results, &new_results);
+    }
+
+    /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
+    fn resolve_instruction(instruction_id: InstructionId, dfg: &DataFlowGraph) -> Instruction {
+        let instruction = dfg[instruction_id].clone();
+
+        // Resolve any inputs to ensure that we're comparing like-for-like instructions.
+        instruction.map_values(|value_id| dfg.resolve(value_id))
+    }
+
+    /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
+    /// based on newly resolved values for its inputs.
+    ///
+    /// This may result in the [`Instruction`] being optimized away or replaced with a constant value.
+    fn push_instruction(
+        id: InstructionId,
+        instruction: Instruction,
+        old_results: &[ValueId],
+        block: BasicBlockId,
+        dfg: &mut DataFlowGraph,
+    ) -> Vec<ValueId> {
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
+
+        let call_stack = dfg.get_call_stack(id);
+        let new_results =
+            match dfg.insert_instruction_and_results(instruction, block, ctrl_typevars, call_stack)
+            {
+                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+                InsertInstructionResult::Results(_, new_results) => new_results.to_vec(),
+                InsertInstructionResult::InstructionRemoved => vec![],
+            };
+        // Optimizations while inserting the instruction should not change the number of results.
+        assert_eq!(old_results.len(), new_results.len());
+
+        new_results
+    }
+
+    /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
+    fn replace_result_ids(
+        dfg: &mut DataFlowGraph,
+        old_results: &[ValueId],
+        new_results: &[ValueId],
+    ) {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
-            function.dfg.set_value_from_id(*old_result, new_result);
+            dfg.set_value_from_id(*old_result, *new_result);
         }
     }
 }
@@ -123,10 +171,10 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
-            instruction::{BinaryOp, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::Value,
+            value::{Value, ValueId},
         },
     };
 
@@ -227,5 +275,50 @@ mod test {
         };
         // The return element is expected to refer to the new add instruction result.
         assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
+    }
+
+    #[test]
+    fn instruction_deduplication() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = cast v0 as u32
+        //     v2 = cast v0 as u32
+        //     constrain v1 v2
+        // }
+        //
+        // After constructing this IR, we run constant folding which should replace the second cast
+        // with a reference to the results to the first. This then allows us to optimize away
+        // the constrain instruction as both inputs are known to be equal.
+        //
+        // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::field());
+
+        let v1 = builder.insert_cast(v0, Type::unsigned(32));
+        let v2 = builder.insert_cast(v0, Type::unsigned(32));
+        builder.insert_constrain(v1, v2, None);
+
+        let mut ssa = builder.finish();
+        let main = ssa.main_mut();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 3);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = cast v0 as u32
+        // }
+        let ssa = ssa.fold_constants();
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+
+        assert_eq!(instructions.len(), 1);
+        let instruction = &main.dfg[instructions[0]];
+
+        assert_eq!(instruction, &Instruction::Cast(ValueId::test_new(0), Type::unsigned(32)));
     }
 }
