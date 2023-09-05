@@ -2,7 +2,7 @@ use iter_extended::partition_results;
 use noirc_errors::CustomDiagnostic;
 
 use crate::graph::CrateId;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::{Ident, Path, PathKind};
@@ -52,7 +52,7 @@ impl From<PathResolutionError> for CustomDiagnostic {
 pub fn resolve_imports(
     crate_id: CrateId,
     imports_to_resolve: Vec<ImportDirective>,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> (Vec<ResolvedImport>, Vec<(PathResolutionError, LocalModuleId)>) {
     let def_map = &def_maps[&crate_id];
 
@@ -71,7 +71,7 @@ pub fn resolve_imports(
 }
 
 pub(super) fn allow_referencing_contracts(
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     krate: CrateId,
     local_id: LocalModuleId,
 ) -> bool {
@@ -81,7 +81,7 @@ pub(super) fn allow_referencing_contracts(
 pub fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     def_map: &CrateDefMap,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
 ) -> PathResolution {
     let import_path = &import_directive.path.segments;
@@ -111,7 +111,7 @@ pub fn resolve_path_to_ns(
 fn resolve_path_from_crate_root(
     def_map: &CrateDefMap,
     import_path: &[Ident],
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
 ) -> PathResolution {
     resolve_name_in_module(def_map, import_path, def_map.root, def_maps, allow_contracts)
@@ -121,7 +121,7 @@ fn resolve_name_in_module(
     def_map: &CrateDefMap,
     import_path: &[Ident],
     starting_mod: LocalModuleId,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
 ) -> PathResolution {
     let mut current_mod = &def_map.modules[starting_mod.0];
@@ -185,7 +185,7 @@ fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
 fn resolve_external_dep(
     current_def_map: &CrateDefMap,
     directive: &ImportDirective,
-    def_maps: &HashMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
 ) -> PathResolution {
     // Use extern_prelude to get the dep

@@ -2,7 +2,7 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashSet};
 
 use iter_extended::{btree_map, vecmap};
 
@@ -17,6 +17,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use fxhash::FxHashMap as HashMap;
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -189,9 +190,9 @@ impl<'function> PerFunctionContext<'function> {
         Self {
             context,
             source_function,
-            blocks: HashMap::new(),
-            instructions: HashMap::new(),
-            values: HashMap::new(),
+            blocks: HashMap::default(),
+            instructions: HashMap::default(),
+            values: HashMap::default(),
             inlining_entry: false,
         }
     }

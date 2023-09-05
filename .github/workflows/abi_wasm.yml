@@ -65,7 +65,7 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ${{ env.UPLOAD_PATH }}
-          retention-days: 3
+          retention-days: 10
 
   noirc-abi-wasm-test-node:
     needs: [noirc-abi-wasm-build]
@@ -86,7 +86,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           working-directory: ./crates/noirc_abi_wasm
-        
+
       - name: Run node tests
         working-directory: ./crates/noirc_abi_wasm
         run: yarn test
@@ -110,7 +110,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           working-directory: ./crates/noirc_abi_wasm
-        
+
       - name: Install playwright deps
         working-directory: ./crates/noirc_abi_wasm
         run: |
