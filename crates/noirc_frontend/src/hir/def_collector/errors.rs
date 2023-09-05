@@ -130,7 +130,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 span,
             } => {
                 let primary_message = format!(
-                    "method `{method_name}` of trait `{trait_name}` needs {expected_num_parameters} parameters, but has {actual_num_parameters}");
+                    "Method `{method_name}` of trait `{trait_name}` needs {expected_num_parameters} parameters, but has {actual_num_parameters}");
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {
@@ -148,7 +148,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let trait_name = trait_name.0.contents;
                 let impl_method_name = method_name.0.contents;
                 let primary_message = format!(
-                    "method `{impl_method_name}` from trait `{trait_name}` is not implemented"
+                    "Method `{impl_method_name}` from trait `{trait_name}` is not implemented"
                 );
                 Diagnostic::simple_error(
                     primary_message,
