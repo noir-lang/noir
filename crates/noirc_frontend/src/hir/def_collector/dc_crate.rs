@@ -740,6 +740,7 @@ fn check_methods_signatures(
 
         let mut typecheck_errors = Vec::new();
 
+        // `method` is none in the case where the impl block has a method that's not part of the Trait
         if let Some(method) =
             the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
         {

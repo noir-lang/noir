@@ -137,7 +137,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let trait_name = trait_name.0.contents;
                 let impl_method_span = impl_method.span();
                 let impl_method_name = impl_method.0.contents;
-                let primary_message = format!("Method with name {impl_method_name} is not part of trait {trait_name}, therefore it can't be implemented");
+                let primary_message = format!("Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented");
                 Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_span)
             }
             DefCollectorErrorKind::TraitMissedMethodImplementation {
