@@ -10,7 +10,8 @@ import { AztecNode, FunctionCall, TxExecutionRequest } from '@aztec/types';
 
 import { WasmBlackBoxFunctionSolver, createBlackBoxSolver } from 'acvm_js';
 
-import { PackedArgsCache } from '../packed_args_cache.js';
+import { createSimulationError } from '../common/errors.js';
+import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle, FunctionAbiWithDebugMetadata } from './db_oracle.js';
 import { ExecutionResult } from './execution_result.js';
@@ -101,7 +102,11 @@ export class AcirSimulator {
       curve,
     );
 
-    return execution.run();
+    try {
+      return await execution.run();
+    } catch (err) {
+      throw createSimulationError(err instanceof Error ? err : new Error('Unknown error during private execution'));
+    }
   }
 
   /**
@@ -151,7 +156,11 @@ export class AcirSimulator {
       callContext,
     );
 
-    return execution.run(aztecNode);
+    try {
+      return await execution.run(aztecNode);
+    } catch (err) {
+      throw createSimulationError(err instanceof Error ? err : new Error('Unknown error during private execution'));
+    }
   }
 
   /**

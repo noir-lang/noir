@@ -14,6 +14,8 @@ import {
   executeCircuitWithBlackBoxSolver,
 } from 'acvm_js';
 
+import { traverseCauseChain } from '../common/errors.js';
+
 /**
  * The format for fields on the ACVM.
  */
@@ -127,6 +129,7 @@ export async function acvm(
   callback: ACIRCallback,
 ): Promise<ACIRExecutionResult> {
   const logger = createDebugLogger('aztec:simulator:acvm');
+
   const partialWitness = await executeCircuitWithBlackBoxSolver(
     solver,
     acir,
@@ -152,7 +155,18 @@ export async function acvm(
         throw typedError;
       }
     },
-  );
+  ).catch((err: Error) => {
+    // Wasm callbacks act as a boundary for stack traces, so we capture it here and complete the error if it happens.
+    const stack = new Error().stack;
+
+    traverseCauseChain(err, cause => {
+      if (cause.stack) {
+        cause.stack += stack;
+      }
+    });
+
+    throw err;
+  });
 
   return { partialWitness };
 }

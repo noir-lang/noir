@@ -11,9 +11,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
-import { FunctionL2Logs, NotePreimage, NoteSpendingInfo, SimulationError } from '@aztec/types';
-
-import { ExecutionError } from 'acvm_js';
+import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
 
 import { extractPrivateCircuitPublicInputs, frToAztecAddress } from '../acvm/deserialize.js';
 import {
@@ -27,6 +25,7 @@ import {
   toAcvmCallPrivateStackItem,
   toAcvmEnqueuePublicFunctionResult,
 } from '../acvm/index.js';
+import { ExecutionError } from '../common/errors.js';
 import {
   AcirSimulator,
   ExecutionResult,
@@ -194,12 +193,15 @@ export class PrivateFunctionExecution {
         const portalContactAddress = await this.context.db.getPortalContractAddress(contractAddress);
         return Promise.resolve(toACVMField(portalContactAddress));
       },
-    }).catch((err: Error | ExecutionError) => {
-      throw SimulationError.fromError(
-        this.contractAddress,
-        selector,
-        err.cause instanceof Error ? err.cause : err,
+    }).catch((err: Error) => {
+      throw new ExecutionError(
+        err.message,
+        {
+          contractAddress: this.contractAddress,
+          functionSelector: selector,
+        },
         extractCallStack(err, this.abi.debug),
+        { cause: err },
       );
     });
 

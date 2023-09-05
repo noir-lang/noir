@@ -65,7 +65,7 @@ export function isNoirCallStackUnresolved(callStack: NoirCallStack): callStack i
  * An error during the simulation of a function call.
  */
 export class SimulationError extends Error {
-  private constructor(
+  constructor(
     private originalMessage: string,
     private functionErrorStack: FailingFunction[],
     private noirErrorStack?: NoirCallStack,
@@ -104,56 +104,6 @@ export class SimulationError extends Error {
       return `${this.originalMessage} '${this.noirErrorStack[this.noirErrorStack.length - 1].locationText}'`;
     }
     return this.originalMessage;
-  }
-
-  private addCaller(failingFunction: FailingFunction) {
-    this.functionErrorStack.unshift(failingFunction);
-  }
-
-  /**
-   * Creates a new simulation error
-   * @param message - The error message
-   * @param failingContract - The address of the contract that failed.
-   * @param failingSelector - The selector of the function that failed.
-   * @param callStack - The noir call stack of the error.
-   * @returns - The simulation error.
-   */
-  static new(
-    message: string,
-    failingContract: AztecAddress,
-    failingSelector: FunctionSelector,
-    callStack?: NoirCallStack,
-  ) {
-    const failingFunction = { contractAddress: failingContract, functionSelector: failingSelector };
-    return new SimulationError(message, [failingFunction], callStack);
-  }
-
-  /**
-   * Creates a new simulation error from an error thrown during simulation.
-   * @param failingContract - The address of the contract that failed.
-   * @param failingSelector - The selector of the function that failed.
-   * @param err - The error that was thrown.
-   * @param callStack - The noir call stack of the error.
-   * @returns - The simulation error.
-   */
-  static fromError(
-    failingContract: AztecAddress,
-    failingSelector: FunctionSelector,
-    err: Error,
-    callStack?: NoirCallStack,
-  ) {
-    const failingFunction = { contractAddress: failingContract, functionSelector: failingSelector };
-    if (err instanceof SimulationError) {
-      return SimulationError.extendPreviousSimulationError(failingFunction, err);
-    }
-    return new SimulationError(err.message, [failingFunction], callStack, {
-      cause: err,
-    });
-  }
-
-  private static extendPreviousSimulationError(failingFunction: FailingFunction, previousError: SimulationError) {
-    previousError.addCaller(failingFunction);
-    return previousError;
   }
 
   /**

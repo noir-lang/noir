@@ -83,7 +83,7 @@ describe('ACIR public execution simulator', () => {
         publicState.storageRead.mockResolvedValue(previousBalance);
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        const result = await executor.execute(execution, GlobalVariables.empty());
+        const result = await executor.simulate(execution, GlobalVariables.empty());
 
         const expectedBalance = new Fr(160n);
         expect(result.returnValues[0]).toEqual(expectedBalance);
@@ -150,7 +150,7 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const result = await executor.execute(execution, GlobalVariables.empty());
+        const result = await executor.simulate(execution, GlobalVariables.empty());
 
         const expectedRecipientBalance = new Fr(160n);
         const expectedSenderBalance = new Fr(60n);
@@ -180,7 +180,7 @@ describe('ACIR public execution simulator', () => {
         const recipientBalance = new Fr(20n);
         mockStore(senderBalance, recipientBalance);
 
-        const result = await executor.execute(execution, GlobalVariables.empty());
+        const result = await executor.simulate(execution, GlobalVariables.empty());
         expect(result.returnValues[0]).toEqual(recipientBalance);
 
         expect(result.contractStorageReads).toEqual(
@@ -247,11 +247,11 @@ describe('ACIR public execution simulator', () => {
         const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
 
         if (isInternal === undefined) {
-          await expect(executor.execute(execution, globalVariables)).rejects.toThrowError(
+          await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError(
             /ContractsDb don't contain isInternal for/,
           );
         } else {
-          const result = await executor.execute(execution, globalVariables);
+          const result = await executor.simulate(execution, globalVariables);
 
           expect(result.returnValues[0]).toEqual(
             new Fr(
@@ -301,7 +301,7 @@ describe('ACIR public execution simulator', () => {
       publicState.storageRead.mockResolvedValue(amount);
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution, GlobalVariables.empty());
+      const result = await executor.simulate(execution, GlobalVariables.empty());
 
       // Assert the commitment was created
       expect(result.newCommitments.length).toEqual(1);
@@ -331,7 +331,7 @@ describe('ACIR public execution simulator', () => {
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicAbi.bytecode, 'base64'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution, GlobalVariables.empty());
+      const result = await executor.simulate(execution, GlobalVariables.empty());
 
       // Assert the l2 to l1 message was created
       expect(result.newL2ToL1Messages.length).toEqual(1);
@@ -393,7 +393,7 @@ describe('ACIR public execution simulator', () => {
       });
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution, GlobalVariables.empty());
+      const result = await executor.simulate(execution, GlobalVariables.empty());
 
       expect(result.newNullifiers.length).toEqual(1);
     });
@@ -415,7 +415,7 @@ describe('ACIR public execution simulator', () => {
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicAbi.bytecode, 'base64'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-      const result = await executor.execute(execution, GlobalVariables.empty());
+      const result = await executor.simulate(execution, GlobalVariables.empty());
 
       // Assert the l2 to l1 message was created
       expect(result.newNullifiers.length).toEqual(1);

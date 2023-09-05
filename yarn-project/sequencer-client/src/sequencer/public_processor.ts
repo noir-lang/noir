@@ -177,7 +177,7 @@ export class PublicProcessor {
       while (executionStack.length) {
         const current = executionStack.pop()!;
         const isExecutionRequest = !isPublicExecutionResult(current);
-        const result = isExecutionRequest ? await this.publicExecutor.execute(current, this.globalVariables) : current;
+        const result = isExecutionRequest ? await this.publicExecutor.simulate(current, this.globalVariables) : current;
         newUnencryptedFunctionLogs.push(result.unencryptedLogs);
         const functionSelector = result.execution.functionData.selector.toString();
         this.log(

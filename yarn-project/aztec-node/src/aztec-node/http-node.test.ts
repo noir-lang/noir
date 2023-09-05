@@ -503,7 +503,9 @@ describe('HttpNode', () => {
 
     it('should fetch a simulation error', async () => {
       const tx = mockTx();
-      const simulationError = SimulationError.new('Fake simulation error', AztecAddress.ZERO, FunctionSelector.empty());
+      const simulationError = new SimulationError('test error', [
+        { contractAddress: AztecAddress.ZERO, functionSelector: FunctionSelector.empty() },
+      ]);
 
       const response = {
         simulationError: simulationError.toJSON(),

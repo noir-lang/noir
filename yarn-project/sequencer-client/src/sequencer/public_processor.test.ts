@@ -118,7 +118,7 @@ describe('public_processor', () => {
     });
 
     it('returns failed txs without aborting entire operation', async function () {
-      publicExecutor.execute.mockRejectedValue(new Error(`Failed`));
+      publicExecutor.simulate.mockRejectedValue(new Error(`Failed`));
 
       const tx = mockTx();
       const [processed, failed] = await processor.process([tx]);
@@ -170,7 +170,7 @@ describe('public_processor', () => {
         ExtendedContractData.random(),
       ]);
 
-      publicExecutor.execute.mockImplementation(execution => {
+      publicExecutor.simulate.mockImplementation(execution => {
         for (const request of callRequests) {
           if (execution.contractAddress.equals(request.contractAddress)) {
             return Promise.resolve(makePublicExecutionResultFromRequest(request));
@@ -184,7 +184,7 @@ describe('public_processor', () => {
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([await expectedTxByHash(tx)]);
       expect(failed).toHaveLength(0);
-      expect(publicExecutor.execute).toHaveBeenCalledTimes(2);
+      expect(publicExecutor.simulate).toHaveBeenCalledTimes(2);
     });
 
     it('runs a tx with an enqueued public call with nested execution', async function () {
@@ -213,14 +213,14 @@ describe('public_processor', () => {
           args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
         }),
       ];
-      publicExecutor.execute.mockResolvedValue(publicExecutionResult);
+      publicExecutor.simulate.mockResolvedValue(publicExecutionResult);
 
       const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([await expectedTxByHash(tx)]);
       expect(failed).toHaveLength(0);
-      expect(publicExecutor.execute).toHaveBeenCalledTimes(1);
+      expect(publicExecutor.simulate).toHaveBeenCalledTimes(1);
     });
   });
 });

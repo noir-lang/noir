@@ -3,7 +3,7 @@ import { DecodedReturn, decodeReturnValues } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecNode, SimulationError } from '@aztec/types';
+import { AztecNode } from '@aztec/types';
 
 import { extractReturnWitness, frToAztecAddress } from '../acvm/deserialize.js';
 import {
@@ -15,6 +15,7 @@ import {
   toACVMField,
   toACVMWitness,
 } from '../acvm/index.js';
+import { ExecutionError } from '../common/errors.js';
 import { AcirSimulator } from '../index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { FunctionAbiWithDebugMetadata } from './db_oracle.js';
@@ -106,11 +107,14 @@ export class UnconstrainedFunctionExecution {
         return Promise.resolve(toACVMField(portalContactAddress));
       },
     }).catch((err: Error) => {
-      throw SimulationError.fromError(
-        this.contractAddress,
-        this.functionData.selector,
-        err.cause instanceof Error ? err.cause : err,
+      throw new ExecutionError(
+        err.message,
+        {
+          contractAddress: this.contractAddress,
+          functionSelector: this.functionData.selector,
+        },
         extractCallStack(err, this.abi.debug),
+        { cause: err },
       );
     });
 

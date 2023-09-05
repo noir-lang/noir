@@ -11,7 +11,7 @@ import {
   toAcvmCommitmentLoadOracleInputs,
   toAcvmL1ToL2MessageLoadOracleInputs,
 } from '../acvm/index.js';
-import { PackedArgsCache } from '../packed_args_cache.js';
+import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { DBOracle, PendingNoteData } from './db_oracle.js';
 import { pickNotes } from './pick_notes.js';
 
