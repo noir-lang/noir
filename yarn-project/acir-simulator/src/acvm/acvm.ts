@@ -1,11 +1,12 @@
-import { FunctionDebugMetadata } from '@aztec/foundation/abi';
+import { FunctionDebugMetadata, OpcodeLocation } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { NoirCallStack } from '@aztec/types';
+import { NoirCallStack, SourceCodeLocation } from '@aztec/types';
 
 import {
+  ExecutionError,
   ForeignCallInput,
   ForeignCallOutput,
   WasmBlackBoxFunctionSolver,
@@ -71,17 +72,13 @@ export interface ACIRExecutionResult {
 }
 
 /**
- * Extracts the opcode location from an ACVM error string.
- */
-function extractOpcodeLocationFromError(err: string): string | undefined {
-  const match = err.match(/^Cannot satisfy constraint (?<opcodeLocation>[0-9]+(?:\.[0-9]+)?)/);
-  return match?.groups?.opcodeLocation;
-}
-
-/**
  * Extracts the call stack from the location of a failing opcode and the debug metadata.
+ * One opcode can point to multiple calls due to inlining.
  */
-function getCallStackFromOpcodeLocation(opcodeLocation: string, debug: FunctionDebugMetadata): NoirCallStack {
+function getSourceCodeLocationsFromOpcodeLocation(
+  opcodeLocation: string,
+  debug: FunctionDebugMetadata,
+): SourceCodeLocation[] {
   const { debugSymbols, files } = debug;
 
   const callStack = debugSymbols.locations[opcodeLocation] || [];
@@ -92,11 +89,15 @@ function getCallStackFromOpcodeLocation(opcodeLocation: string, debug: FunctionD
 
     const locationText = source.substring(span.start, span.end + 1);
     const precedingText = source.substring(0, span.start);
-    const line = precedingText.split('\n').length;
+    const previousLines = precedingText.split('\n');
+    // Lines and columns in stacks are one indexed.
+    const line = previousLines.length;
+    const column = previousLines[previousLines.length - 1].length + 1;
 
     return {
       filePath: path,
       line,
+      column,
       fileSource: source,
       locationText,
     };
@@ -104,33 +105,16 @@ function getCallStackFromOpcodeLocation(opcodeLocation: string, debug: FunctionD
 }
 
 /**
- * Extracts source code locations from an ACVM error if possible.
- * @param errMessage - The ACVM error.
+ * Extracts the source code locations for an array of opcode locations
+ * @param opcodeLocations - The opcode locations that caused the error.
  * @param debug - The debug metadata of the function.
- * @returns The source code locations or undefined if they couldn't be extracted from the error.
+ * @returns The source code locations.
  */
-export function processAcvmError(errMessage: string, debug: FunctionDebugMetadata): NoirCallStack | undefined {
-  const opcodeLocation = extractOpcodeLocationFromError(errMessage);
-  if (!opcodeLocation) {
-    return undefined;
-  }
-
-  return getCallStackFromOpcodeLocation(opcodeLocation, debug);
-}
-
-/**
- * An error thrown by the ACVM during simulation. Optionally contains a noir call stack.
- */
-export class ACVMError extends Error {
-  constructor(
-    message: string,
-    /**
-     * The noir call stack of the error, if it could be extracted.
-     */
-    public callStack?: NoirCallStack,
-  ) {
-    super(message);
-  }
+export function resolveOpcodeLocations(
+  opcodeLocations: OpcodeLocation[],
+  debug: FunctionDebugMetadata,
+): SourceCodeLocation[] {
+  return opcodeLocations.flatMap(opcodeLocation => getSourceCodeLocationsFromOpcodeLocation(opcodeLocation, debug));
 }
 
 /**
@@ -141,13 +125,8 @@ export async function acvm(
   acir: Buffer,
   initialWitness: ACVMWitness,
   callback: ACIRCallback,
-  debug?: FunctionDebugMetadata,
 ): Promise<ACIRExecutionResult> {
   const logger = createDebugLogger('aztec:simulator:acvm');
-  // This is a workaround to avoid the ACVM removing the information about the underlying error.
-  // We should probably update the ACVM to let proper errors through.
-  let oracleError: Error | undefined = undefined;
-
   const partialWitness = await executeCircuitWithBlackBoxSolver(
     solver,
     acir,
@@ -169,31 +148,34 @@ export async function acvm(
         } else {
           typedError = new Error(`Error in oracle callback ${err}`);
         }
-        oracleError = typedError;
-        logger.error(`Error in oracle callback ${name}:`, typedError.message, typedError.stack);
+        logger.error(`Error in oracle callback ${name}`);
         throw typedError;
       }
     },
-  ).catch((acvmErrorString: string) => {
-    if (oracleError) {
-      throw oracleError;
-    }
+  );
 
-    if (debug) {
-      const callStack = processAcvmError(acvmErrorString, debug);
+  return { partialWitness };
+}
 
-      if (callStack) {
-        throw new ACVMError(
-          `Assertion failed: '${callStack[callStack.length - 1]?.locationText ?? 'Unknown'}'`,
-          callStack,
-        );
-      }
-    }
-    // If we cannot find a callstack, throw the original error.
-    throw new ACVMError(acvmErrorString);
-  });
+/**
+ * Extracts the call stack from an thrown by the acvm.
+ * @param error - The error to extract from.
+ * @param debug - The debug metadata of the function called.
+ * @returns The call stack, if available.
+ */
+export function extractCallStack(
+  error: Error | ExecutionError,
+  debug?: FunctionDebugMetadata,
+): NoirCallStack | undefined {
+  if (!('callStack' in error) || !error.callStack) {
+    return undefined;
+  }
+  const { callStack } = error;
+  if (!debug) {
+    return callStack;
+  }
 
-  return Promise.resolve({ partialWitness });
+  return resolveOpcodeLocations(callStack, debug);
 }
 
 /**

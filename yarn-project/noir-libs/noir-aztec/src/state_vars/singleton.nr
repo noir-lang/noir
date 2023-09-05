@@ -23,7 +23,7 @@ impl<Note, N> Singleton<Note, N> {
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
     ) -> Self {
-        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
+        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Singleton {
             context,
             storage_slot,

@@ -16,6 +16,7 @@ import {
   ZERO_ACVM_FIELD,
   acvm,
   convertACVMFieldToBuffer,
+  extractCallStack,
   extractPublicCircuitPublicInputs,
   frToAztecAddress,
   fromACVMField,
@@ -140,7 +141,12 @@ export class PublicExecutor {
         return Promise.resolve(toACVMField(portalContactAddress));
       },
     }).catch((err: Error) => {
-      throw SimulationError.fromError(execution.contractAddress, selector, err);
+      throw SimulationError.fromError(
+        execution.contractAddress,
+        selector,
+        err.cause instanceof Error ? err.cause : err,
+        extractCallStack(err),
+      );
     });
 
     const {

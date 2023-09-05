@@ -24,7 +24,7 @@ impl EasyPrivateUint {
         public_context: Option<&mut PublicContext>,
         storage_slot: Field,
     ) -> Self {
-        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
+        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         let set = Set {
             private_context,
             public_context,

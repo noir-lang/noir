@@ -19,7 +19,7 @@ impl<V> Map<V> {
             Field,
         ) -> V,
     ) -> Map<V> {
-        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
+        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Map {
             private_context,
             public_context,

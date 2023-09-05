@@ -22,7 +22,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
     ) -> Self {
-        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
+        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         ImmutableSingleton {
             context,
             storage_slot,

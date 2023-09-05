@@ -52,7 +52,7 @@ describe('e2e_nested_contract', () => {
         parentContract.methods
           .entryPoint(childContract.address, childContract.methods.valueInternal.selector.toField())
           .simulate(),
-      ).rejects.toThrowError(/Assertion failed: '.*'/);
+      ).rejects.toThrowError(/Assertion failed: Sender must be this contract '.*'/);
     }, 100_000);
 
     it('performs public nested calls', async () => {
@@ -75,7 +75,7 @@ describe('e2e_nested_contract', () => {
         parentContract.methods
           .enqueueCallToChild(childContract.address, childContract.methods.pubIncValueInternal.selector.toField(), 42n)
           .simulate(),
-      ).rejects.toThrowError(/Assertion failed in public execution: '.*'/);
+      ).rejects.toThrowError(/Assertion failed: Sender must be this contract '.*'/);
     }, 100_000);
 
     it('enqueues multiple public calls', async () => {

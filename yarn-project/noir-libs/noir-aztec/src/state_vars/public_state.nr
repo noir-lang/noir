@@ -17,7 +17,7 @@ impl<T, T_SERIALISED_LEN> PublicState<T, T_SERIALISED_LEN> {
         storage_slot: Field,
         serialisation_methods: TypeSerialisationInterface<T, T_SERIALISED_LEN>,
     ) -> Self {
-        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
+        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         PublicState {
             storage_slot,
             serialisation_methods,

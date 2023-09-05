@@ -25,7 +25,7 @@ impl<Note, N> Set<Note, N> {
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
     ) -> Self {
-        assert(storage_slot != 0); // Storage slot 0 not allowed. Storage slots must start from 1.
+        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Set {
             private_context,
             public_context,

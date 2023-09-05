@@ -1,4 +1,5 @@
 import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
+import { OpcodeLocation } from '@aztec/foundation/abi';
 
 /**
  * Address and selector of a function that failed during simulation.
@@ -35,6 +36,10 @@ export interface SourceCodeLocation {
    */
   line: number;
   /**
+   * The column number of the call.
+   */
+  column: number;
+  /**
    * The source code of the file.
    */
   fileSource: string;
@@ -47,49 +52,106 @@ export interface SourceCodeLocation {
 /**
  * A stack of noir source code locations.
  */
-export type NoirCallStack = SourceCodeLocation[];
+export type NoirCallStack = SourceCodeLocation[] | OpcodeLocation[];
+
+/**
+ * Checks if a call stack is unresolved.
+ */
+export function isNoirCallStackUnresolved(callStack: NoirCallStack): callStack is OpcodeLocation[] {
+  return typeof callStack[0] === 'string';
+}
 
 /**
  * An error during the simulation of a function call.
  */
 export class SimulationError extends Error {
-  private functionErrorStack: FailingFunction[];
-
-  // We want to maintain a public constructor for proper printing.
-  constructor(
-    message: string,
-    failingFunction: FailingFunction,
+  private constructor(
+    private originalMessage: string,
+    private functionErrorStack: FailingFunction[],
     private noirErrorStack?: NoirCallStack,
     options?: ErrorOptions,
   ) {
-    super(message, options);
-    this.functionErrorStack = [failingFunction];
+    super(originalMessage, options);
+    Object.defineProperties(this, {
+      message: {
+        configurable: false,
+        enumerable: true,
+        /**
+         * Getter for the custom error message. It has to be defined here because JS errors have the message property defined
+         * in the error itself, not its prototype. Thus if we define it as a class getter will be shadowed.
+         * @returns The message.
+         */
+        get() {
+          return this.getMessage();
+        },
+      },
+      stack: {
+        configurable: false,
+        enumerable: true,
+        /**
+         * Getter for the custom error stack. It has to be defined here due to the same issue as the message.
+         * @returns The stack.
+         */
+        get() {
+          return this.getStack();
+        },
+      },
+    });
+  }
+
+  getMessage() {
+    if (this.noirErrorStack && !isNoirCallStackUnresolved(this.noirErrorStack) && this.noirErrorStack.length) {
+      return `${this.originalMessage} '${this.noirErrorStack[this.noirErrorStack.length - 1].locationText}'`;
+    }
+    return this.originalMessage;
   }
 
   private addCaller(failingFunction: FailingFunction) {
     this.functionErrorStack.unshift(failingFunction);
   }
 
+  /**
+   * Creates a new simulation error
+   * @param message - The error message
+   * @param failingContract - The address of the contract that failed.
+   * @param failingSelector - The selector of the function that failed.
+   * @param callStack - The noir call stack of the error.
+   * @returns - The simulation error.
+   */
+  static new(
+    message: string,
+    failingContract: AztecAddress,
+    failingSelector: FunctionSelector,
+    callStack?: NoirCallStack,
+  ) {
+    const failingFunction = { contractAddress: failingContract, functionSelector: failingSelector };
+    return new SimulationError(message, [failingFunction], callStack);
+  }
+
+  /**
+   * Creates a new simulation error from an error thrown during simulation.
+   * @param failingContract - The address of the contract that failed.
+   * @param failingSelector - The selector of the function that failed.
+   * @param err - The error that was thrown.
+   * @param callStack - The noir call stack of the error.
+   * @returns - The simulation error.
+   */
   static fromError(
     failingContract: AztecAddress,
-    failingselector: FunctionSelector,
-    err: Error & {
-      /**
-       * The noir call stack.
-       */
-      callStack?: NoirCallStack;
-    },
+    failingSelector: FunctionSelector,
+    err: Error,
+    callStack?: NoirCallStack,
   ) {
-    const failingFunction = { contractAddress: failingContract, functionSelector: failingselector };
+    const failingFunction = { contractAddress: failingContract, functionSelector: failingSelector };
     if (err instanceof SimulationError) {
       return SimulationError.extendPreviousSimulationError(failingFunction, err);
     }
-    return new SimulationError(err.message, failingFunction, err?.callStack, {
+    return new SimulationError(err.message, [failingFunction], callStack, {
       cause: err,
     });
   }
 
-  static extendPreviousSimulationError(failingFunction: FailingFunction, previousError: SimulationError) {
+  private static extendPreviousSimulationError(failingFunction: FailingFunction, previousError: SimulationError) {
     previousError.addCaller(failingFunction);
     return previousError;
   }
@@ -124,40 +186,25 @@ export class SimulationError extends Error {
     });
   }
 
-  /**
-   * Returns a string representation of the error.
-   * @returns The string.
-   */
-  toString() {
+  getStack() {
     const functionCallStack = this.getCallStack();
     const noirCallStack = this.getNoirCallStack();
 
     // Try to resolve the contract and function names of the stack of failing functions.
     const stackLines: string[] = [
       ...functionCallStack.map(failingFunction => {
-        return `  at ${failingFunction.contractName ?? failingFunction.contractAddress.toString()}.${
+        return `at ${failingFunction.contractName ?? failingFunction.contractAddress.toString()}.${
           failingFunction.functionName ?? failingFunction.functionSelector.toString()
         }`;
       }),
-      ...noirCallStack.map(
-        sourceCodeLocation =>
-          `  at ${sourceCodeLocation.filePath}:${sourceCodeLocation.line} '${sourceCodeLocation.locationText}'`,
+      ...noirCallStack.map(errorLocation =>
+        typeof errorLocation === 'string'
+          ? `at opcode ${errorLocation}`
+          : `at ${errorLocation.locationText} (${errorLocation.filePath}:${errorLocation.line}:${errorLocation.column})`,
       ),
     ];
 
     return [`Simulation error: ${this.message}`, ...stackLines.reverse()].join('\n');
-  }
-
-  /**
-   * Updates the error message. This is needed because in some engines the stack also contains the message.
-   * @param newMessage - The new message of this error.
-   */
-  updateMessage(newMessage: string) {
-    const oldMessage = this.message;
-    this.message = newMessage;
-    if (this.stack?.startsWith(`Error: ${oldMessage}`)) {
-      this.stack = this.stack?.replace(`Error: ${oldMessage}`, `Error: ${newMessage}`);
-    }
   }
 
   /**
@@ -185,15 +232,13 @@ export class SimulationError extends Error {
 
   toJSON() {
     return {
-      message: this.message,
+      originalMessage: this.originalMessage,
       functionErrorStack: this.functionErrorStack,
       noirErrorStack: this.noirErrorStack,
     };
   }
 
-  static fromJSON(obj: any) {
-    const error = new SimulationError(obj.message, obj.functionErrorStack[0], obj.noirErrorStack);
-    error.functionErrorStack = obj.functionErrorStack;
-    return error;
+  static fromJSON(obj: ReturnType<SimulationError['toJSON']>) {
+    return new SimulationError(obj.originalMessage, obj.functionErrorStack, obj.noirErrorStack);
   }
 }

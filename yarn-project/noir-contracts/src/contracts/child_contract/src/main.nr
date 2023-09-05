@@ -3,7 +3,10 @@ mod storage;
 // A contract used along with `Parent` contract to test nested calls.
 contract Child {
     use crate::storage::Storage;
-    use dep::aztec::oracle::logs::emit_unencrypted_log;
+    use dep::aztec::{
+        abi::CallContext,
+        oracle::logs::emit_unencrypted_log,
+    };
     use dep::std::option::Option;
 
     #[aztec(private)]
@@ -17,13 +20,17 @@ contract Child {
         input + context.chain_id() + context.version()
     }
 
+    fn check_sender(call_context: CallContext) {
+        assert_eq(call_context.msg_sender, call_context.storage_contract_address, "Sender must be this contract");
+    }
+
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values. 
     // Can only be called from this contract.
     #[aztec(private)]
     fn valueInternal(
         input: Field,
     ) -> Field {
-        assert(inputs.call_context.msg_sender == inputs.call_context.storage_contract_address);
+        check_sender(inputs.call_context);
         input + context.chain_id() + context.version()
     }
 
@@ -60,7 +67,7 @@ contract Child {
     #[aztec(public)] 
     fn pubIncValueInternal(new_value: Field) -> Field {
         let storage = Storage::init(Option::none(), Option::some(&mut context));
-        assert(inputs.call_context.msg_sender == inputs.call_context.storage_contract_address);
+        check_sender(inputs.call_context);
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
         let _hash = emit_unencrypted_log(new_value);

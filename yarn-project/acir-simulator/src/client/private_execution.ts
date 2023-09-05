@@ -13,11 +13,14 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { FunctionL2Logs, NotePreimage, NoteSpendingInfo, SimulationError } from '@aztec/types';
 
+import { ExecutionError } from 'acvm_js';
+
 import { extractPrivateCircuitPublicInputs, frToAztecAddress } from '../acvm/deserialize.js';
 import {
   ZERO_ACVM_FIELD,
   acvm,
   convertACVMFieldToBuffer,
+  extractCallStack,
   fromACVMField,
   toACVMField,
   toACVMWitness,
@@ -69,136 +72,135 @@ export class PrivateFunctionExecution {
     const encryptedLogs = new FunctionL2Logs([]);
     const unencryptedLogs = new FunctionL2Logs([]);
 
-    const { partialWitness } = await acvm(
-      await AcirSimulator.getSolver(),
-      acir,
-      initialWitness,
-      {
-        packArguments: async args => {
-          return toACVMField(await this.context.packedArgsCache.pack(args.map(fromACVMField)));
-        },
-        getSecretKey: ([ownerX], [ownerY]) => this.context.getSecretKey(this.contractAddress, ownerX, ownerY),
-        getPublicKey: async ([acvmAddress]) => {
-          const address = frToAztecAddress(fromACVMField(acvmAddress));
-          const { publicKey, partialAddress } = await this.context.db.getCompleteAddress(address);
-          return [publicKey.x, publicKey.y, partialAddress].map(toACVMField);
-        },
-        getNotes: ([slot], [numSelects], selectBy, selectValues, sortBy, sortOrder, [limit], [offset], [returnSize]) =>
-          this.context.getNotes(
-            this.contractAddress,
-            slot,
-            +numSelects,
-            selectBy,
-            selectValues,
-            sortBy,
-            sortOrder,
-            +limit,
-            +offset,
-            +returnSize,
-          ),
-        getRandomField: () => Promise.resolve(toACVMField(Fr.random())),
-        notifyCreatedNote: ([storageSlot], preimage, [innerNoteHash]) => {
-          this.context.pushNewNote(
-            this.contractAddress,
-            fromACVMField(storageSlot),
-            preimage.map(f => fromACVMField(f)),
-            fromACVMField(innerNoteHash),
-          );
-
-          // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1040): remove newNotePreimages
-          // as it is redundant with pendingNoteData. Consider renaming pendingNoteData->pendingNotePreimages.
-          newNotePreimages.push({
-            storageSlot: fromACVMField(storageSlot),
-            preimage: preimage.map(f => fromACVMField(f)),
-          });
-          return Promise.resolve(ZERO_ACVM_FIELD);
-        },
-        notifyNullifiedNote: async ([slot], [nullifier], acvmPreimage, [innerNoteHash]) => {
-          newNullifiers.push({
-            preimage: acvmPreimage.map(f => fromACVMField(f)),
-            storageSlot: fromACVMField(slot),
-            nullifier: fromACVMField(nullifier),
-          });
-          await this.context.pushNewNullifier(fromACVMField(nullifier), this.contractAddress);
-          this.context.nullifyPendingNotes(fromACVMField(innerNoteHash), this.contractAddress, fromACVMField(slot));
-          return Promise.resolve(ZERO_ACVM_FIELD);
-        },
-        callPrivateFunction: async ([acvmContractAddress], [acvmFunctionSelector], [acvmArgsHash]) => {
-          const contractAddress = fromACVMField(acvmContractAddress);
-          const functionSelector = fromACVMField(acvmFunctionSelector);
-          this.log(
-            `Calling private function ${contractAddress.toString()}:${functionSelector} from ${this.callContext.storageContractAddress.toString()}`,
-          );
-
-          const childExecutionResult = await this.callPrivateFunction(
-            frToAztecAddress(contractAddress),
-            FunctionSelector.fromField(functionSelector),
-            fromACVMField(acvmArgsHash),
-            this.callContext,
-            this.curve,
-          );
-
-          nestedExecutionContexts.push(childExecutionResult);
-
-          return toAcvmCallPrivateStackItem(childExecutionResult.callStackItem);
-        },
-        getL1ToL2Message: ([msgKey]) => {
-          return this.context.getL1ToL2Message(fromACVMField(msgKey));
-        },
-        getCommitment: ([commitment]) => this.context.getCommitment(this.contractAddress, commitment),
-        debugLog: (...args) => {
-          this.log(oracleDebugCallToFormattedStr(args));
-          return Promise.resolve(ZERO_ACVM_FIELD);
-        },
-        debugLogWithPrefix: (arg0, ...args) => {
-          this.log(`${acvmFieldMessageToString(arg0)}: ${oracleDebugCallToFormattedStr(args)}`);
-          return Promise.resolve(ZERO_ACVM_FIELD);
-        },
-        enqueuePublicFunctionCall: async ([acvmContractAddress], [acvmFunctionSelector], [acvmArgsHash]) => {
-          const enqueuedRequest = await this.enqueuePublicFunctionCall(
-            frToAztecAddress(fromACVMField(acvmContractAddress)),
-            FunctionSelector.fromField(fromACVMField(acvmFunctionSelector)),
-            this.context.packedArgsCache.unpack(fromACVMField(acvmArgsHash)),
-            this.callContext,
-          );
-
-          this.log(
-            `Enqueued call to public function (with side-effect counter #${enqueuedRequest.sideEffectCounter}) ${acvmContractAddress}:${acvmFunctionSelector}`,
-          );
-          enqueuedPublicFunctionCalls.push(enqueuedRequest);
-          return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
-        },
-        emitUnencryptedLog: message => {
-          // https://github.com/AztecProtocol/aztec-packages/issues/885
-          const log = Buffer.concat(message.map(charBuffer => convertACVMFieldToBuffer(charBuffer).subarray(-1)));
-          unencryptedLogs.logs.push(log);
-          this.log(`Emitted unencrypted log: "${log.toString('ascii')}"`);
-          return Promise.resolve(ZERO_ACVM_FIELD);
-        },
-        emitEncryptedLog: ([acvmContractAddress], [acvmStorageSlot], [encPubKeyX], [encPubKeyY], acvmPreimage) => {
-          const contractAddress = AztecAddress.fromBuffer(convertACVMFieldToBuffer(acvmContractAddress));
-          const storageSlot = fromACVMField(acvmStorageSlot);
-          const preimage = acvmPreimage.map(f => fromACVMField(f));
-
-          const notePreimage = new NotePreimage(preimage);
-          const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, storageSlot);
-          const ownerPublicKey = new Point(fromACVMField(encPubKeyX), fromACVMField(encPubKeyY));
-
-          const encryptedNotePreimage = noteSpendingInfo.toEncryptedBuffer(ownerPublicKey, this.curve);
-
-          encryptedLogs.logs.push(encryptedNotePreimage);
-
-          return Promise.resolve(ZERO_ACVM_FIELD);
-        },
-        getPortalContractAddress: async ([aztecAddress]) => {
-          const contractAddress = AztecAddress.fromString(aztecAddress);
-          const portalContactAddress = await this.context.db.getPortalContractAddress(contractAddress);
-          return Promise.resolve(toACVMField(portalContactAddress));
-        },
+    const { partialWitness } = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, {
+      packArguments: async args => {
+        return toACVMField(await this.context.packedArgsCache.pack(args.map(fromACVMField)));
       },
-      this.abi.debug,
-    ).catch((err: Error) => {
-      throw SimulationError.fromError(this.contractAddress, selector, err);
+      getSecretKey: ([ownerX], [ownerY]) => this.context.getSecretKey(this.contractAddress, ownerX, ownerY),
+      getPublicKey: async ([acvmAddress]) => {
+        const address = frToAztecAddress(fromACVMField(acvmAddress));
+        const { publicKey, partialAddress } = await this.context.db.getCompleteAddress(address);
+        return [publicKey.x, publicKey.y, partialAddress].map(toACVMField);
+      },
+      getNotes: ([slot], [numSelects], selectBy, selectValues, sortBy, sortOrder, [limit], [offset], [returnSize]) =>
+        this.context.getNotes(
+          this.contractAddress,
+          slot,
+          +numSelects,
+          selectBy,
+          selectValues,
+          sortBy,
+          sortOrder,
+          +limit,
+          +offset,
+          +returnSize,
+        ),
+      getRandomField: () => Promise.resolve(toACVMField(Fr.random())),
+      notifyCreatedNote: ([storageSlot], preimage, [innerNoteHash]) => {
+        this.context.pushNewNote(
+          this.contractAddress,
+          fromACVMField(storageSlot),
+          preimage.map(f => fromACVMField(f)),
+          fromACVMField(innerNoteHash),
+        );
+
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1040): remove newNotePreimages
+        // as it is redundant with pendingNoteData. Consider renaming pendingNoteData->pendingNotePreimages.
+        newNotePreimages.push({
+          storageSlot: fromACVMField(storageSlot),
+          preimage: preimage.map(f => fromACVMField(f)),
+        });
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      notifyNullifiedNote: async ([slot], [nullifier], acvmPreimage, [innerNoteHash]) => {
+        newNullifiers.push({
+          preimage: acvmPreimage.map(f => fromACVMField(f)),
+          storageSlot: fromACVMField(slot),
+          nullifier: fromACVMField(nullifier),
+        });
+        await this.context.pushNewNullifier(fromACVMField(nullifier), this.contractAddress);
+        this.context.nullifyPendingNotes(fromACVMField(innerNoteHash), this.contractAddress, fromACVMField(slot));
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      callPrivateFunction: async ([acvmContractAddress], [acvmFunctionSelector], [acvmArgsHash]) => {
+        const contractAddress = fromACVMField(acvmContractAddress);
+        const functionSelector = fromACVMField(acvmFunctionSelector);
+        this.log(
+          `Calling private function ${contractAddress.toString()}:${functionSelector} from ${this.callContext.storageContractAddress.toString()}`,
+        );
+
+        const childExecutionResult = await this.callPrivateFunction(
+          frToAztecAddress(contractAddress),
+          FunctionSelector.fromField(functionSelector),
+          fromACVMField(acvmArgsHash),
+          this.callContext,
+          this.curve,
+        );
+
+        nestedExecutionContexts.push(childExecutionResult);
+
+        return toAcvmCallPrivateStackItem(childExecutionResult.callStackItem);
+      },
+      getL1ToL2Message: ([msgKey]) => {
+        return this.context.getL1ToL2Message(fromACVMField(msgKey));
+      },
+      getCommitment: ([commitment]) => this.context.getCommitment(this.contractAddress, commitment),
+      debugLog: (...args) => {
+        this.log(oracleDebugCallToFormattedStr(args));
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      debugLogWithPrefix: (arg0, ...args) => {
+        this.log(`${acvmFieldMessageToString(arg0)}: ${oracleDebugCallToFormattedStr(args)}`);
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      enqueuePublicFunctionCall: async ([acvmContractAddress], [acvmFunctionSelector], [acvmArgsHash]) => {
+        const enqueuedRequest = await this.enqueuePublicFunctionCall(
+          frToAztecAddress(fromACVMField(acvmContractAddress)),
+          FunctionSelector.fromField(fromACVMField(acvmFunctionSelector)),
+          this.context.packedArgsCache.unpack(fromACVMField(acvmArgsHash)),
+          this.callContext,
+        );
+
+        this.log(
+          `Enqueued call to public function (with side-effect counter #${enqueuedRequest.sideEffectCounter}) ${acvmContractAddress}:${acvmFunctionSelector}`,
+        );
+        enqueuedPublicFunctionCalls.push(enqueuedRequest);
+        return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
+      },
+      emitUnencryptedLog: message => {
+        // https://github.com/AztecProtocol/aztec-packages/issues/885
+        const log = Buffer.concat(message.map(charBuffer => convertACVMFieldToBuffer(charBuffer).subarray(-1)));
+        unencryptedLogs.logs.push(log);
+        this.log(`Emitted unencrypted log: "${log.toString('ascii')}"`);
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      emitEncryptedLog: ([acvmContractAddress], [acvmStorageSlot], [encPubKeyX], [encPubKeyY], acvmPreimage) => {
+        const contractAddress = AztecAddress.fromBuffer(convertACVMFieldToBuffer(acvmContractAddress));
+        const storageSlot = fromACVMField(acvmStorageSlot);
+        const preimage = acvmPreimage.map(f => fromACVMField(f));
+
+        const notePreimage = new NotePreimage(preimage);
+        const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, storageSlot);
+        const ownerPublicKey = new Point(fromACVMField(encPubKeyX), fromACVMField(encPubKeyY));
+
+        const encryptedNotePreimage = noteSpendingInfo.toEncryptedBuffer(ownerPublicKey, this.curve);
+
+        encryptedLogs.logs.push(encryptedNotePreimage);
+
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      getPortalContractAddress: async ([aztecAddress]) => {
+        const contractAddress = AztecAddress.fromString(aztecAddress);
+        const portalContactAddress = await this.context.db.getPortalContractAddress(contractAddress);
+        return Promise.resolve(toACVMField(portalContactAddress));
+      },
+    }).catch((err: Error | ExecutionError) => {
+      throw SimulationError.fromError(
+        this.contractAddress,
+        selector,
+        err.cause instanceof Error ? err.cause : err,
+        extractCallStack(err, this.abi.debug),
+      );
     });
 
     const publicInputs = extractPrivateCircuitPublicInputs(partialWitness, acir);
