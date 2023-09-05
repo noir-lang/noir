@@ -111,7 +111,7 @@ template <typename Curve> class GeminiProver_ {
                                                                    const Fr& r_challenge);
 }; // namespace proof_system::honk::pcs::gemini
 
-template <typename Curve> class GeminiVerifier_ {
+template <typename Curve, bool goblin_flag = false> class GeminiVerifier_ {
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
@@ -232,21 +232,31 @@ template <typename Curve> class GeminiVerifier_ {
                                                                                Fr r)
     {
         // C₀ᵣ₊ = [F] + r⁻¹⋅[G]
-        GroupElement C0_r_pos = batched_f;
+        GroupElement C0_r_pos;
         // C₀ᵣ₋ = [F] - r⁻¹⋅[G]
-        GroupElement C0_r_neg = batched_f;
-        Fr r_inv = r.invert();
+        GroupElement C0_r_neg;
+        Fr r_inv = r.invert(); // r⁻¹
 
-        // TODO(luke): reinstate some kind of !batched_g.is_point_at_infinity() check for stdlib types? This is mostly
-        // relevant for Gemini unit tests since in practice batched_g != zero (i.e. we will always have shifted polys).
-        bool batched_g_is_point_at_infinity = false;
-        if constexpr (!Curve::is_stdlib_type) { // Note: required for Gemini tests with no shifts
-            batched_g_is_point_at_infinity = batched_g.is_point_at_infinity();
-        }
-        if (!batched_g_is_point_at_infinity) {
-            batched_g = batched_g * r_inv;
-            C0_r_pos += batched_g;
-            C0_r_neg -= batched_g;
+        // If in a recursive setting, perform a batch mul. Otherwise, accumulate directly.
+        // TODO(#673): The following if-else represents the stldib/native code paths. Once the "native" verifier is
+        // achieved through a builder Simulator, the stdlib codepath should become the only codepath.
+        if constexpr (Curve::is_stdlib_type) {
+            std::vector<GroupElement> commitments = { batched_f, batched_g };
+            auto builder = r.get_context();
+            auto one = Fr(builder, 1);
+            // TODO(#707): these batch muls include the use of 1 as a scalar. This is handled appropriately as a non-mul
+            // (add-accumulate) in the goblin batch_mul but is done inefficiently as a scalar mul in the conventional
+            // emulated batch mul.
+            C0_r_pos = GroupElement::template batch_mul<goblin_flag>(commitments, { one, r_inv });
+            C0_r_neg = GroupElement::template batch_mul<goblin_flag>(commitments, { one, -r_inv });
+        } else {
+            C0_r_pos = batched_f;
+            C0_r_neg = batched_f;
+            if (!batched_g.is_point_at_infinity()) {
+                batched_g = batched_g * r_inv;
+                C0_r_pos += batched_g;
+                C0_r_neg -= batched_g;
+            }
         }
 
         return { C0_r_pos, C0_r_neg };

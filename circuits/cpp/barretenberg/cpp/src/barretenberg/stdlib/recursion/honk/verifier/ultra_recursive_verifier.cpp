@@ -7,50 +7,34 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 
 namespace proof_system::plonk::stdlib::recursion::honk {
-template <typename Flavor>
-UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(Builder* builder,
-                                                         std::shared_ptr<typename Flavor::VerificationKey> verifier_key)
+
+template <typename Flavor, bool goblin_flag>
+UltraRecursiveVerifier_<Flavor, goblin_flag>::UltraRecursiveVerifier_(Builder* builder,
+                                                                      std::shared_ptr<VerificationKey> verifier_key)
     : key(verifier_key)
     , builder(builder)
 {}
-
-template <typename Flavor>
-UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(UltraRecursiveVerifier_&& other) noexcept
-    : key(std::move(other.key))
-    , pcs_verification_key(std::move(other.pcs_verification_key))
-{}
-
-template <typename Flavor>
-UltraRecursiveVerifier_<Flavor>& UltraRecursiveVerifier_<Flavor>::operator=(UltraRecursiveVerifier_&& other) noexcept
-{
-    key = other.key;
-    pcs_verification_key = (std::move(other.pcs_verification_key));
-    commitments.clear();
-    pcs_fr_elements.clear();
-    return *this;
-}
 
 /**
  * @brief This function constructs a recursive verifier circuit for an Ultra Honk proof of a given flavor.
  *
  */
-template <typename Flavor>
-std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
+template <typename Flavor, bool goblin_flag>
+std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor, goblin_flag>::verify_proof(
+    const plonk::proof& proof)
 {
-    using FF = typename Flavor::FF;
-    using GroupElement = typename Flavor::GroupElement;
-    using Commitment = typename Flavor::Commitment;
     using Sumcheck = ::proof_system::honk::sumcheck::SumcheckVerifier<Flavor>;
     using Curve = typename Flavor::Curve;
-    using Gemini = ::proof_system::honk::pcs::gemini::GeminiVerifier_<Curve>;
-    using Shplonk = ::proof_system::honk::pcs::shplonk::ShplonkVerifier_<Curve>;
-    using PCS = typename Flavor::PCS; // note: This can only be KZG
+    using Gemini = ::proof_system::honk::pcs::gemini::GeminiVerifier_<Curve, goblin_flag>;
+    using Shplonk = ::proof_system::honk::pcs::shplonk::ShplonkVerifier_<Curve, goblin_flag>;
+    using KZG = ::proof_system::honk::pcs::kzg::KZG<Curve, goblin_flag>; // note: This can only be KZG
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationParams = ::proof_system::honk::sumcheck::RelationParameters<FF>;
 
     RelationParams relation_parameters;
 
+    info("Initial: num gates = ", builder->get_num_gates());
     size_t prev_num_gates = builder->get_num_gates();
 
     transcript = Transcript<Builder>{ builder, proof.proof_data };
@@ -67,7 +51,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     ASSERT(static_cast<uint32_t>(public_input_size.get_value()) == key->num_public_inputs);
 
     std::vector<FF> public_inputs;
-    for (size_t i = 0; i < static_cast<uint32_t>(public_input_size.get_value()); ++i) {
+    for (size_t i = 0; i < key->num_public_inputs; ++i) {
         auto public_input_i = transcript.template receive_from_prover<FF>("public_input_" + std::to_string(i));
         public_inputs.emplace_back(public_input_i);
     }
@@ -115,11 +99,11 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     commitments.z_lookup = transcript.template receive_from_prover<Commitment>(commitment_labels.z_lookup);
 
     // Execute Sumcheck Verifier
-    auto sumcheck = Sumcheck(static_cast<uint32_t>(circuit_size.get_value()));
+    auto sumcheck = Sumcheck(key->circuit_size);
 
     std::optional sumcheck_output = sumcheck.verify(relation_parameters, transcript);
 
-    info("Sumcheck: num gates = ", builder->get_num_gates() - prev_num_gates);
+    info("Sumcheck: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
     prev_num_gates = builder->get_num_gates();
 
     // If Sumcheck does not return an output, sumcheck verification has failed
@@ -140,7 +124,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
         ++evaluation_idx;
     }
 
-    info("Batched eval: num gates = ", builder->get_num_gates() - prev_num_gates);
+    info("Batched eval: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
     prev_num_gates = builder->get_num_gates();
 
     // Compute batched commitments needed for input to Gemini.
@@ -163,15 +147,16 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     scalars_unshifted[0] = FF::from_witness(builder, 1);
 
     // Batch the commitments to the unshifted and to-be-shifted polynomials using powers of rho
-    auto batched_commitment_unshifted = GroupElement::batch_mul(commitments.get_unshifted(), scalars_unshifted);
+    auto batched_commitment_unshifted =
+        GroupElement::template batch_mul<goblin_flag>(commitments.get_unshifted(), scalars_unshifted);
 
-    info("Batch mul (unshifted): num gates = ", builder->get_num_gates() - prev_num_gates);
+    info("Batch mul (unshifted): num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
     prev_num_gates = builder->get_num_gates();
 
     auto batched_commitment_to_be_shifted =
-        GroupElement::batch_mul(commitments.get_to_be_shifted(), scalars_to_be_shifted);
+        GroupElement::template batch_mul<goblin_flag>(commitments.get_to_be_shifted(), scalars_to_be_shifted);
 
-    info("Batch mul (to-be-shited): num gates = ", builder->get_num_gates() - prev_num_gates);
+    info("Batch mul (to-be-shited): num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
     prev_num_gates = builder->get_num_gates();
 
     // Produce a Gemini claim consisting of:
@@ -183,23 +168,25 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
                                                     batched_commitment_to_be_shifted,
                                                     transcript);
 
-    info("Gemini: num gates = ", builder->get_num_gates() - prev_num_gates);
+    info("Gemini: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
     prev_num_gates = builder->get_num_gates();
 
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
     auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, gemini_claim, transcript);
 
-    info("Shplonk: num gates = ", builder->get_num_gates() - prev_num_gates);
+    info("Shplonk: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
     prev_num_gates = builder->get_num_gates();
 
-    info("Total: num gates = ", builder->get_num_gates());
-
     // Constuct the inputs to the final KZG pairing check
-    auto pairing_points = PCS::compute_pairing_points(shplonk_claim, transcript);
+    auto pairing_points = KZG::compute_pairing_points(shplonk_claim, transcript);
+
+    info("KZG: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
 
     return pairing_points;
 }
 
-template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive>;
+using UltraRecursiveFlavor = proof_system::honk::flavor::UltraRecursive;
+template class UltraRecursiveVerifier_<UltraRecursiveFlavor, /*goblin_flag*/ false>;
+template class UltraRecursiveVerifier_<UltraRecursiveFlavor, /*goblin_flag*/ true>;
 
 } // namespace proof_system::plonk::stdlib::recursion::honk

@@ -8,20 +8,22 @@
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 
 namespace proof_system::plonk::stdlib::recursion::honk {
-template <typename Flavor> class UltraRecursiveVerifier_ {
+template <typename Flavor, bool goblin_flag = false> class UltraRecursiveVerifier_ {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
+    using GroupElement = typename Flavor::GroupElement;
     using VerificationKey = typename Flavor::VerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Builder = typename Flavor::CircuitBuilder;
-    using PairingPoints = std::array<typename Flavor::GroupElement, 2>;
+    using PairingPoints = std::array<GroupElement, 2>;
 
   public:
     explicit UltraRecursiveVerifier_(Builder* builder, std::shared_ptr<VerificationKey> verifier_key = nullptr);
-    UltraRecursiveVerifier_(UltraRecursiveVerifier_&& other) noexcept;
+    UltraRecursiveVerifier_(UltraRecursiveVerifier_&& other) = delete;
     UltraRecursiveVerifier_(const UltraRecursiveVerifier_& other) = delete;
     UltraRecursiveVerifier_& operator=(const UltraRecursiveVerifier_& other) = delete;
-    UltraRecursiveVerifier_& operator=(UltraRecursiveVerifier_&& other) noexcept;
+    UltraRecursiveVerifier_& operator=(UltraRecursiveVerifier_&& other) = delete;
+    ~UltraRecursiveVerifier_() = default;
 
     // TODO(luke): Eventually this will return something like aggregation_state but I'm simplifying for now until we
     // determine the exact interface. Simply returns the two pairing points.
@@ -35,8 +37,10 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     Transcript<Builder> transcript;
 };
 
-extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive>;
+extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive, /*goblin_flag*/ false>;
+extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive, /*goblin_flag*/ true>;
 
-using UltraRecursiveVerifier = UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive>;
+using UltraRecursiveVerifier =
+    UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive, /*goblin_flag*/ false>;
 
 } // namespace proof_system::plonk::stdlib::recursion::honk

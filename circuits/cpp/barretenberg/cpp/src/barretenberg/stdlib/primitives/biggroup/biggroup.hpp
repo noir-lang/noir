@@ -176,9 +176,13 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     // only works with Plookup!
     template <size_t max_num_bits = 0>
     static element wnaf_batch_mul(const std::vector<element>& points, const std::vector<Fr>& scalars);
+    template <bool use_goblin = false>
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
                              const size_t max_num_bits = 0);
+    static element goblin_batch_mul(const std::vector<element>& points,
+                                    const std::vector<Fr>& scalars,
+                                    const size_t max_num_bits = 0);
 
     // we want to conditionally compile this method iff our curve params are the BN254 curve.
     // This is a bit tricky to do with `std::enable_if`, because `bn254_endo_batch_mul` is a member function of a class
@@ -892,6 +896,7 @@ inline std::ostream& operator<<(std::ostream& os, element<C, Fq, Fr, G> const& v
 
 #include "biggroup_batch_mul.hpp"
 #include "biggroup_bn254.hpp"
+#include "biggroup_goblin.hpp"
 #include "biggroup_impl.hpp"
 #include "biggroup_nafs.hpp"
 #include "biggroup_secp256k1.hpp"

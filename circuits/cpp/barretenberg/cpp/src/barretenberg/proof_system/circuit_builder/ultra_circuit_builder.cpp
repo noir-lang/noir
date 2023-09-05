@@ -500,86 +500,60 @@ template <typename FF> uint32_t UltraCircuitBuilder_<FF>::put_constant_variable(
  */
 
 /**
- * @brief Add gates corresponding to a batched mul
- *
- * @param points
- * @param scalars
- * @return g1::affine_element Result of batched mul
- */
-template <typename FF>
-g1::affine_element UltraCircuitBuilder_<FF>::batch_mul(const std::vector<g1::affine_element>& points,
-                                                       const std::vector<fr>& scalars)
-{
-    // TODO(luke): Do we necessarily want to check accum == 0? Other checks?
-    ASSERT(op_queue.get_accumulator().is_point_at_infinity());
-
-    size_t num_muls = points.size();
-    for (size_t idx = 0; idx < num_muls; ++idx) {
-        queue_ecc_mul_accum(points[idx], scalars[idx]);
-    }
-    return op_queue.get_accumulator();
-}
-
-/**
  * @brief Add gates for simple point addition without scalar and compute corresponding op natively
  *
  * @param point
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::queue_ecc_add_accum(const barretenberg::g1::affine_element& point)
+template <typename FF>
+ecc_op_tuple UltraCircuitBuilder_<FF>::queue_ecc_add_accum(const barretenberg::g1::affine_element& point)
 {
     // Add raw op to queue
     op_queue.add_accumulate(point);
 
     // Add ecc op gates
-    add_ecc_op_gates(EccOpCode::ADD_ACCUM, point);
+    auto op_tuple = make_ecc_op_tuple(EccOpCode::ADD_ACCUM, point);
+    populate_ecc_op_wires(op_tuple);
+
+    return op_tuple;
 }
 
 /**
  * @brief Add gates for point mul and add and compute corresponding op natively
  *
+ * @tparam FF
  * @param point
  * @param scalar
+ * @return ecc_op_tuple encoding the point and scalar inputs to the mul accum
  */
 template <typename FF>
-void UltraCircuitBuilder_<FF>::queue_ecc_mul_accum(const barretenberg::g1::affine_element& point,
-                                                   const barretenberg::fr& scalar)
+ecc_op_tuple UltraCircuitBuilder_<FF>::queue_ecc_mul_accum(const barretenberg::g1::affine_element& point,
+                                                           const barretenberg::fr& scalar)
 {
     // Add raw op to op queue
     op_queue.mul_accumulate(point, scalar);
 
     // Add ecc op gates
-    add_ecc_op_gates(EccOpCode::MUL_ACCUM, point, scalar);
+    auto op_tuple = make_ecc_op_tuple(EccOpCode::MUL_ACCUM, point, scalar);
+    populate_ecc_op_wires(op_tuple);
+
+    return op_tuple;
 }
 
 /**
  * @brief Add point equality gates
  *
- * @return point to which equality has been asserted
+ * @return ecc_op_tuple encoding the point to which equality has been asserted
  */
-template <typename FF> barretenberg::g1::affine_element UltraCircuitBuilder_<FF>::queue_ecc_eq()
+template <typename FF> ecc_op_tuple UltraCircuitBuilder_<FF>::queue_ecc_eq()
 {
     // Add raw op to op queue
     auto point = op_queue.eq();
 
     // Add ecc op gates
-    add_ecc_op_gates(EccOpCode::EQUALITY, point);
+    auto op_tuple = make_ecc_op_tuple(EccOpCode::EQUALITY, point);
+    populate_ecc_op_wires(op_tuple);
 
-    return point;
-}
-
-/**
- * @brief Add ecc op gates given an op code and its operands
- *
- * @param op Op code
- * @param point
- * @param scalar
- */
-template <typename FF>
-void UltraCircuitBuilder_<FF>::add_ecc_op_gates(uint32_t op, const g1::affine_element& point, const fr& scalar)
-{
-    auto op_tuple = make_ecc_op_tuple(op, point, scalar);
-
-    record_ecc_op(op_tuple);
+    return op_tuple;
 }
 
 /**
@@ -624,7 +598,7 @@ ecc_op_tuple UltraCircuitBuilder_<FF>::make_ecc_op_tuple(uint32_t op, const g1::
  * num_ecc_op_gates. E.g. in the composer we can reconstruct q_ecc_op as the indicator on the first num_ecc_op_gates
  * indices. All other selectors are simply 0 on this domain.
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::record_ecc_op(const ecc_op_tuple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::populate_ecc_op_wires(const ecc_op_tuple& in)
 {
     ecc_op_wire_1.emplace_back(in.op);
     ecc_op_wire_2.emplace_back(in.x_lo);
@@ -633,8 +607,8 @@ template <typename FF> void UltraCircuitBuilder_<FF>::record_ecc_op(const ecc_op
 
     ecc_op_wire_1.emplace_back(in.op); // TODO(luke): second op val is sort of a dummy. use "op" again?
     ecc_op_wire_2.emplace_back(in.y_hi);
-    ecc_op_wire_3.emplace_back(in.z_lo);
-    ecc_op_wire_4.emplace_back(in.z_hi);
+    ecc_op_wire_3.emplace_back(in.z_1);
+    ecc_op_wire_4.emplace_back(in.z_2);
 
     num_ecc_op_gates += 2;
 };

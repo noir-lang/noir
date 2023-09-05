@@ -11,7 +11,7 @@
 
 namespace proof_system::honk::pcs::kzg {
 
-template <typename Curve> class KZG {
+template <typename Curve, bool goblin_flag = false> class KZG {
     using CK = CommitmentKey<Curve>;
     using VK = VerifierCommitmentKey<Curve>;
     using Fr = typename Curve::ScalarField;
@@ -72,31 +72,34 @@ template <typename Curve> class KZG {
      *
      * @param claim OpeningClaim ({r, v}, C)
      * @return  {P₀, P₁} where
-     *      - P₀ = C − v⋅[1]₁ + r⋅[x]₁
-     *      - P₁ = [Q(x)]₁
+     *      - P₀ = C − v⋅[1]₁ + r⋅[W(x)]₁
+     *      - P₁ = [W(x)]₁
      */
     static std::array<GroupElement, 2> compute_pairing_points(const OpeningClaim<Curve>& claim,
                                                               auto& verifier_transcript)
     {
         auto quotient_commitment = verifier_transcript.template receive_from_prover<Commitment>("KZG:W");
 
-        auto lhs = claim.commitment + (quotient_commitment * claim.opening_pair.challenge);
-        // Add the evaluation point contribution v⋅[1]₁.
+        GroupElement P_0;
         // Note: In the recursive setting, we only add the contribution if it is not the point at infinity (i.e. if the
         // evaluation is not equal to zero).
-        // TODO(luke): What is the proper way to handle this? Contraints to show scalar (evaluation) is zero?
         if constexpr (Curve::is_stdlib_type) {
-            if (!claim.opening_pair.evaluation.get_value().is_zero()) {
-                auto ctx = verifier_transcript.builder;
-                lhs -= GroupElement::one(ctx) * claim.opening_pair.evaluation;
-            }
+            auto builder = verifier_transcript.builder;
+            auto one = Fr(builder, 1);
+            std::vector<GroupElement> commitments = { claim.commitment, quotient_commitment };
+            std::vector<Fr> scalars = { one, claim.opening_pair.challenge };
+            P_0 = GroupElement::template batch_mul<goblin_flag>(commitments, scalars);
+            // Note: This implementation assumes the evaluation is zero (as is the case for shplonk).
+            ASSERT(claim.opening_pair.evaluation.get_value() == 0);
         } else {
-            lhs -= GroupElement::one() * claim.opening_pair.evaluation;
+            P_0 = claim.commitment;
+            P_0 += quotient_commitment * claim.opening_pair.challenge;
+            P_0 -= GroupElement::one() * claim.opening_pair.evaluation;
         }
 
-        auto rhs = -quotient_commitment;
+        auto P_1 = -quotient_commitment;
 
-        return { lhs, rhs };
+        return { P_0, P_1 };
     };
 };
 } // namespace proof_system::honk::pcs::kzg

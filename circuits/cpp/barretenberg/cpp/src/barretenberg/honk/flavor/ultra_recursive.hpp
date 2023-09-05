@@ -41,7 +41,6 @@ class UltraRecursive {
   public:
     using CircuitBuilder = UltraCircuitBuilder;
     using Curve = plonk::stdlib::bn254<CircuitBuilder>;
-    using PCS = pcs::kzg::KZG<Curve>;
     using GroupElement = Curve::Element;
     using Commitment = Curve::Element;
     using CommitmentHandle = Curve::Element;

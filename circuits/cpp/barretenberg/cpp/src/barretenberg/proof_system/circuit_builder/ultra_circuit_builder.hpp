@@ -705,15 +705,14 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
 
     /**
      * ** Goblin Methods ** (methods for add ecc op queue gates)
+     * TODO(#705): Consider isolating/modularizing the goblin builder functionality
      **/
-    void queue_ecc_add_accum(const g1::affine_element& point);
-    void queue_ecc_mul_accum(const g1::affine_element& point, const fr& scalar);
-    g1::affine_element queue_ecc_eq();
-    g1::affine_element batch_mul(const std::vector<g1::affine_element>& points, const std::vector<fr>& scalars);
+    ecc_op_tuple queue_ecc_add_accum(const g1::affine_element& point);
+    ecc_op_tuple queue_ecc_mul_accum(const g1::affine_element& point, const fr& scalar);
+    ecc_op_tuple queue_ecc_eq();
 
   private:
-    void record_ecc_op(const ecc_op_tuple& in);
-    void add_ecc_op_gates(uint32_t op, const g1::affine_element& point, const fr& scalar = fr::zero());
+    void populate_ecc_op_wires(const ecc_op_tuple& in);
     ecc_op_tuple make_ecc_op_tuple(uint32_t op, const g1::affine_element& point, const fr& scalar = fr::zero());
 
   public:
@@ -834,7 +833,7 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
         size_t ramcount = 0;
         size_t nnfcount = 0;
         get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
-        return count + romcount + ramcount + rangecount + nnfcount;
+        return count + romcount + ramcount + rangecount + nnfcount + num_ecc_op_gates;
     }
 
     /**
@@ -873,9 +872,9 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
         size_t nnfcount = 0;
         get_num_gates_split_into_components(count, rangecount, romcount, ramcount, nnfcount);
 
-        size_t total = count + romcount + ramcount + rangecount;
+        size_t total = count + romcount + ramcount + rangecount + num_ecc_op_gates;
         std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount
-                  << ", range " << rangecount << ", non native field gates " << nnfcount
+                  << ", range " << rangecount << ", non native field gates " << nnfcount << ", goblin ecc op gates " << num_ecc_op_gates
                   << "), pubinp = " << this->public_inputs.size() << std::endl;
     }
     // /**

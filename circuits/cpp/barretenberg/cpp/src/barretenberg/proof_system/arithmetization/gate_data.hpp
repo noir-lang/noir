@@ -67,8 +67,8 @@ struct ecc_op_tuple {
     uint32_t x_hi;
     uint32_t y_lo;
     uint32_t y_hi;
-    uint32_t z_lo;
-    uint32_t z_hi;
+    uint32_t z_1;
+    uint32_t z_2;
 };
 
 template <typename B, typename FF> inline void read(B& buf, poly_triple_<FF>& constraint)

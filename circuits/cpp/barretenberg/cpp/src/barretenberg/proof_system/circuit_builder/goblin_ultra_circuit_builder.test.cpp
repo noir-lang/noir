@@ -18,6 +18,8 @@ namespace proof_system {
  */
 TEST(UltraCircuitBuilder, GoblinSimple)
 {
+    const size_t CHUNK_SIZE = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
+
     auto builder = UltraCircuitBuilder();
 
     // Compute a simple point accumulation natively
@@ -31,10 +33,17 @@ TEST(UltraCircuitBuilder, GoblinSimple)
     builder.queue_ecc_mul_accum(P2, z);
 
     // Add equality op gates based on the internal accumulator
-    auto P_result = builder.queue_ecc_eq();
+    auto eq_op_tuple = builder.queue_ecc_eq();
 
-    // Check that value returned from internal accumulator is correct
-    EXPECT_EQ(P_result, P_expected);
+    // Check that we can reconstruct the coordinates of P_expected from the data in variables
+    auto P_result_x_lo = uint256_t(builder.variables[eq_op_tuple.x_lo]);
+    auto P_result_x_hi = uint256_t(builder.variables[eq_op_tuple.x_hi]);
+    auto P_result_x = P_result_x_lo + (P_result_x_hi << CHUNK_SIZE);
+    auto P_result_y_lo = uint256_t(builder.variables[eq_op_tuple.y_lo]);
+    auto P_result_y_hi = uint256_t(builder.variables[eq_op_tuple.y_hi]);
+    auto P_result_y = P_result_y_lo + (P_result_y_hi << CHUNK_SIZE);
+    EXPECT_EQ(P_result_x, uint256_t(P_expected.x));
+    EXPECT_EQ(P_result_y, uint256_t(P_expected.y));
 
     // Check that the accumulator in the op queue has been reset to 0
     auto accumulator = builder.op_queue.get_accumulator();
@@ -49,64 +58,23 @@ TEST(UltraCircuitBuilder, GoblinSimple)
     EXPECT_EQ(builder.ecc_op_wire_1[4], EccOpCode::EQUALITY);
 
     // Check that we can reconstruct the coordinates of P1 from the op_wires
-    auto chunk_size = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
     auto P1_x_lo = uint256_t(builder.variables[builder.ecc_op_wire_2[0]]);
     auto P1_x_hi = uint256_t(builder.variables[builder.ecc_op_wire_3[0]]);
-    auto P1_x = P1_x_lo + (P1_x_hi << chunk_size);
+    auto P1_x = P1_x_lo + (P1_x_hi << CHUNK_SIZE);
     EXPECT_EQ(P1_x, uint256_t(P1.x));
     auto P1_y_lo = uint256_t(builder.variables[builder.ecc_op_wire_4[0]]);
     auto P1_y_hi = uint256_t(builder.variables[builder.ecc_op_wire_2[1]]);
-    auto P1_y = P1_y_lo + (P1_y_hi << chunk_size);
+    auto P1_y = P1_y_lo + (P1_y_hi << CHUNK_SIZE);
     EXPECT_EQ(P1_y, uint256_t(P1.y));
 
     // Check that we can reconstruct the coordinates of P2 from the op_wires
     auto P2_x_lo = uint256_t(builder.variables[builder.ecc_op_wire_2[2]]);
     auto P2_x_hi = uint256_t(builder.variables[builder.ecc_op_wire_3[2]]);
-    auto P2_x = P2_x_lo + (P2_x_hi << chunk_size);
+    auto P2_x = P2_x_lo + (P2_x_hi << CHUNK_SIZE);
     EXPECT_EQ(P2_x, uint256_t(P2.x));
     auto P2_y_lo = uint256_t(builder.variables[builder.ecc_op_wire_4[2]]);
     auto P2_y_hi = uint256_t(builder.variables[builder.ecc_op_wire_2[3]]);
-    auto P2_y = P2_y_lo + (P2_y_hi << chunk_size);
+    auto P2_y = P2_y_lo + (P2_y_hi << CHUNK_SIZE);
     EXPECT_EQ(P2_y, uint256_t(P2.y));
-
-    // Check that we can reconstruct the coordinates of P_result from the op_wires
-    auto P_expected_x_lo = uint256_t(builder.variables[builder.ecc_op_wire_2[4]]);
-    auto P_expected_x_hi = uint256_t(builder.variables[builder.ecc_op_wire_3[4]]);
-    auto P_expected_x = P_expected_x_lo + (P_expected_x_hi << chunk_size);
-    EXPECT_EQ(P_expected_x, uint256_t(P_expected.x));
-    auto P_expected_y_lo = uint256_t(builder.variables[builder.ecc_op_wire_4[4]]);
-    auto P_expected_y_hi = uint256_t(builder.variables[builder.ecc_op_wire_2[5]]);
-    auto P_expected_y = P_expected_y_lo + (P_expected_y_hi << chunk_size);
-    EXPECT_EQ(P_expected_y, uint256_t(P_expected.y));
 }
-
-/**
- * @brief Test correctness of native ecc batch mul performed behind the scenes when adding ecc op gates for a batch mul
- *
- */
-TEST(UltraCircuitBuilder, GoblinBatchMul)
-{
-    using Point = g1::affine_element;
-    using Scalar = fr;
-
-    auto builder = UltraCircuitBuilder();
-    const size_t num_muls = 3;
-
-    // Compute some random points and scalars to batch multiply
-    std::vector<Point> points;
-    std::vector<Scalar> scalars;
-    auto batched_expected = Point::infinity();
-    for (size_t i = 0; i < num_muls; ++i) {
-        points.emplace_back(Point::random_element());
-        scalars.emplace_back(Scalar::random_element());
-        batched_expected = batched_expected + points[i] * scalars[i];
-    }
-
-    // Populate the batch mul operands in the op wires and natively compute the result
-    auto batched_result = builder.batch_mul(points, scalars);
-
-    // Extract current accumulator point from the op queue and check the result
-    EXPECT_EQ(batched_result, batched_expected);
-}
-
 } // namespace proof_system

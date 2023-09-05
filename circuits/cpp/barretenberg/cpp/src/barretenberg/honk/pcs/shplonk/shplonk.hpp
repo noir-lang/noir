@@ -145,7 +145,7 @@ template <typename Curve> class ShplonkProver_ {
  * @brief Shplonk Verifier
  *
  */
-template <typename Curve> class ShplonkVerifier_ {
+template <typename Curve, bool goblin_flag = false> class ShplonkVerifier_ {
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
@@ -174,84 +174,101 @@ template <typename Curve> class ShplonkVerifier_ {
 
         const Fr z_challenge = transcript.get_challenge("Shplonk:z");
 
+        // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
+        //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
+        GroupElement G_commitment;
+
         // compute simulated commitment to [G] as a linear combination of
         // [Q], { [fⱼ] }, [1]:
         //  [G] = [Q] - ∑ⱼ (1/zⱼ(r))[Bⱼ]  + ( ∑ⱼ (1/zⱼ(r)) Tⱼ(r) )[1]
         //      = [Q] - ∑ⱼ (1/zⱼ(r))[Bⱼ]  +                    G₀ [1]
-
         // G₀ = ∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ )
         auto G_commitment_constant = Fr(0);
 
-        // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
-        //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
-        GroupElement G_commitment = Q_commitment;
-
-        // Compute {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
-        std::vector<Fr> vanishing_evals;
-        vanishing_evals.reserve(num_claims);
-        for (const auto& claim : claims) {
-            vanishing_evals.emplace_back(z_challenge - claim.opening_pair.challenge);
-        }
-        // If recursion, invert elements individually, otherwise batch invert. (Inversion is cheap in circuits since we
-        // need only prove the correctness of a known inverse, we do not emulate its computation. Hence no need for
-        // batch inversion).
-        std::vector<Fr> inverse_vanishing_evals;
+        // TODO(#673): The recursive and non-recursive (native) logic is completely separated via the following
+        // conditional. Much of the logic could be shared, but I've chosen to do it this way since soon the "else"
+        // branch should be removed in its entirety, and "native" verification will utilize the recursive code paths
+        // using a builder Simulator.
         if constexpr (Curve::is_stdlib_type) {
-            for (const auto& val : vanishing_evals) {
-                inverse_vanishing_evals.emplace_back(val.invert());
+            auto builder = nu.get_context();
+
+            // Containers for the inputs to the final batch mul
+            std::vector<Commitment> commitments;
+            std::vector<Fr> scalars;
+
+            // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
+            //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
+            commitments.emplace_back(Q_commitment);
+            scalars.emplace_back(Fr(builder, 1)); // Fr(1)
+
+            // Compute {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
+            std::vector<Fr> inverse_vanishing_evals;
+            inverse_vanishing_evals.reserve(num_claims);
+            for (const auto& claim : claims) {
+                // Note: no need for batch inversion; emulated inverison is cheap. (just show known inverse is valid)
+                inverse_vanishing_evals.emplace_back((z_challenge - claim.opening_pair.challenge).invert());
             }
-        } else {
-            Fr::batch_invert(vanishing_evals);
-            inverse_vanishing_evals = vanishing_evals;
-        }
 
-        auto current_nu = Fr(1);
-        // Note: commitments and scalars vectors used only in recursion setting for batch mul
-        std::vector<Commitment> commitments;
-        std::vector<Fr> scalars;
-        for (size_t j = 0; j < num_claims; ++j) {
-            // (Cⱼ, xⱼ, vⱼ)
-            const auto& [opening_pair, commitment] = claims[j];
+            auto current_nu = Fr(1);
+            // Note: commitments and scalars vectors used only in recursion setting for batch mul
+            for (size_t j = 0; j < num_claims; ++j) {
+                // (Cⱼ, xⱼ, vⱼ)
+                const auto& [opening_pair, commitment] = claims[j];
 
-            Fr scaling_factor = current_nu * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
+                Fr scaling_factor = current_nu * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
 
-            // G₀ += ρʲ / ( r − xⱼ ) ⋅ vⱼ
-            G_commitment_constant += scaling_factor * opening_pair.evaluation;
+                // G₀ += ρʲ / ( r − xⱼ ) ⋅ vⱼ
+                G_commitment_constant += scaling_factor * opening_pair.evaluation;
 
-            // If recursion, store MSM inputs for batch mul, otherwise accumulate directly
-            if constexpr (Curve::is_stdlib_type) {
+                current_nu *= nu;
+
+                // Store MSM inputs for batch mul
                 commitments.emplace_back(commitment);
-                scalars.emplace_back(scaling_factor);
-            } else {
+                scalars.emplace_back(-scaling_factor);
+            }
+
+            commitments.emplace_back(GroupElement::one(builder));
+            scalars.emplace_back(G_commitment_constant);
+
+            // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
+            G_commitment = GroupElement::template batch_mul<goblin_flag>(commitments, scalars);
+
+        } else {
+            // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
+            //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
+            G_commitment = Q_commitment;
+
+            // Compute {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
+            std::vector<Fr> inverse_vanishing_evals;
+            inverse_vanishing_evals.reserve(num_claims);
+            for (const auto& claim : claims) {
+                inverse_vanishing_evals.emplace_back(z_challenge - claim.opening_pair.challenge);
+            }
+            Fr::batch_invert(inverse_vanishing_evals);
+
+            auto current_nu = Fr(1);
+            // Note: commitments and scalars vectors used only in recursion setting for batch mul
+            for (size_t j = 0; j < num_claims; ++j) {
+                // (Cⱼ, xⱼ, vⱼ)
+                const auto& [opening_pair, commitment] = claims[j];
+
+                Fr scaling_factor = current_nu * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
+
+                // G₀ += ρʲ / ( r − xⱼ ) ⋅ vⱼ
+                G_commitment_constant += scaling_factor * opening_pair.evaluation;
+
                 // [G] -= ρʲ / ( r − xⱼ )⋅[fⱼ]
                 G_commitment -= commitment * scaling_factor;
+
+                current_nu *= nu;
             }
 
-            current_nu *= nu;
+            // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
+            G_commitment += vk->srs->get_first_g1() * G_commitment_constant;
         }
-
-        // If recursion, do batch mul to compute [G] -= ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ]
-        if constexpr (Curve::is_stdlib_type) {
-            G_commitment -= GroupElement::batch_mul(commitments, scalars);
-        }
-
-        // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
-        Fr evaluation_zero;     // 0 \in Fr
-        GroupElement group_one; // [1]
-        if constexpr (Curve::is_stdlib_type) {
-            auto ctx = transcript.builder;
-            evaluation_zero = Fr::from_witness(ctx, 0);
-            group_one = GroupElement::one(ctx);
-        } else {
-            //  GroupElement sort_of_one{ x, y };
-            evaluation_zero = Fr(0);
-            group_one = vk->srs->get_first_g1();
-        }
-
-        G_commitment += group_one * G_commitment_constant;
 
         // Return opening pair (z, 0) and commitment [G]
-        return { { z_challenge, evaluation_zero }, G_commitment };
+        return { { z_challenge, Fr(0) }, G_commitment };
     };
 };
 } // namespace proof_system::honk::pcs::shplonk
