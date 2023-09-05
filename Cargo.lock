@@ -2372,6 +2372,7 @@ name = "noirc_evaluator"
 version = "0.10.5"
 dependencies = [
  "acvm",
+ "fxhash",
  "im",
  "iter-extended",
  "noirc_abi",
