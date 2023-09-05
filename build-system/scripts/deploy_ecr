@@ -2,11 +2,7 @@
 set -eu
 
 REPOSITORY=$1
-<<<<<<< HEAD
-IMAGE_COMMIT_URI=$($(git rev-parse --show-toplevel)/build-system/scripts/calculate_image_uri $REPOSITORY)
-=======
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
->>>>>>> 6b93483312a1a65ddc941579c9322732c2774175
 
 # Login to build region and pull the build.
 retry_10 ensure_repo $REPOSITORY $ECR_REGION
