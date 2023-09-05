@@ -253,6 +253,26 @@ impl GeneratedAcir {
                 let inputs = if inputs.len() > 2 { inputs[1].clone() } else { inputs[0].clone() };
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
             }
+            // BlackBoxFunc::RecursiveAggregation => {
+            //     let has_previous_aggregation = self.opcodes.iter().any(|op| {
+            //         matches!(
+            //             op,
+            //             AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
+            //         )
+            //     });
+
+            //     let input_aggregation_object =
+            //         if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
+
+            //     BlackBoxFuncCall::RecursiveAggregation {
+            //         verification_key: inputs[0].clone(),
+            //         proof: inputs[1].clone(),
+            //         public_inputs: inputs[2].clone(),
+            //         key_hash: inputs[3][0],
+            //         input_aggregation_object,
+            //         output_aggregation_object: outputs,
+            //     }
+            // }
             BlackBoxFunc::RecursiveAggregation => {
                 let has_previous_aggregation = self.opcodes.iter().any(|op| {
                     matches!(
@@ -261,14 +281,18 @@ impl GeneratedAcir {
                     )
                 });
 
+                // Slices are represented as a tuple of (length, slice contents).
+                // All inputs to the `RecursiveAggregation` black box func are slices,
+                // thus we must make sure to only fetch the slice contents rather than
+                // the slice length when setting up the inputs.
                 let input_aggregation_object =
-                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
+                    if !has_previous_aggregation { None } else { Some(inputs[7].clone()) };
 
                 BlackBoxFuncCall::RecursiveAggregation {
-                    verification_key: inputs[0].clone(),
-                    proof: inputs[1].clone(),
-                    public_inputs: inputs[2].clone(),
-                    key_hash: inputs[3][0],
+                    verification_key: inputs[1].clone(),
+                    proof: inputs[3].clone(),
+                    public_inputs: inputs[5].clone(),
+                    key_hash: inputs[6][0],
                     input_aggregation_object,
                     output_aggregation_object: outputs,
                 }
