@@ -1,5 +1,5 @@
 import { expect } from "@esm-bundle/chai";
-import initACVM, { abiEncode, abiDecode, WitnessMap } from "../../../../result/";
+import initACVM, { abiEncode, abiDecode, WitnessMap } from "../../../../result";
 import { DecodedInputs } from "../types";
 
 beforeEach(async () => {
