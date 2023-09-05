@@ -10,7 +10,6 @@ use crate::BackendError;
 ///
 /// The proof will be written to the specified output file.
 pub(crate) struct ProveCommand {
-    pub(crate) verbose: bool,
     pub(crate) crs_path: PathBuf,
     pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
@@ -33,9 +32,6 @@ impl ProveCommand {
             .arg("-o")
             .arg(self.proof_path);
 
-        if self.verbose {
-            command.arg("-v");
-        }
         if self.is_recursive {
             command.arg("-r");
         }
@@ -54,7 +50,7 @@ impl ProveCommand {
 fn prove_command() {
     use tempfile::tempdir;
 
-    let backend = crate::get_bb();
+    let backend = crate::get_mock_backend();
 
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
     let witness_path = PathBuf::from("./src/witness.tr");
@@ -63,14 +59,8 @@ fn prove_command() {
     let proof_path = temp_directory.path().join("1_mul").with_extension("proof");
 
     let crs_path = backend.backend_directory();
-    let prove_command = ProveCommand {
-        verbose: true,
-        crs_path,
-        bytecode_path,
-        witness_path,
-        is_recursive: false,
-        proof_path,
-    };
+    let prove_command =
+        ProveCommand { crs_path, bytecode_path, witness_path, is_recursive: false, proof_path };
 
     let proof_created = prove_command.run(&backend.binary_path());
     assert!(proof_created.is_ok());

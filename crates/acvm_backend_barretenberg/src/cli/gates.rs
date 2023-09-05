@@ -54,7 +54,7 @@ impl GatesCommand {
 #[test]
 #[serial_test::serial]
 fn gate_command() {
-    let backend = crate::get_bb();
+    let backend = crate::get_mock_backend();
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
     let crs_path = backend.backend_directory();
@@ -62,5 +62,6 @@ fn gate_command() {
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
     let output = gate_command.run(&backend.binary_path()).unwrap();
-    assert_eq!(output, 2788);
+    // Mock backend always returns zero gates.
+    assert_eq!(output, 0);
 }
