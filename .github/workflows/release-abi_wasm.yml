@@ -3,10 +3,6 @@ name: Release ABI Wasm
 on:
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
-  cancel-in-progress: true
-
 jobs:
   noirc-abi-wasm-build:
     runs-on: ubuntu-latest
