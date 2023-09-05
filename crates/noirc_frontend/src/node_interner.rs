@@ -149,6 +149,7 @@ impl FuncId {
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct StructId(ModuleId);
 
+
 impl StructId {
     //dummy id for error reporting
     // This can be anything, as the program will ultimately fail

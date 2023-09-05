@@ -340,7 +340,7 @@ fn collect_trait_impls(
             // Add the method to the struct's namespace
             if let Some(struct_type) = get_struct_type(&typ) {
                 let struct_type = struct_type.borrow();
-                let type_module = struct_type.id.0.local_id;
+                let type_module = struct_type.id.local_module_id();
 
                 let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
 
