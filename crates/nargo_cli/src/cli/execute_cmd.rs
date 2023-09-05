@@ -127,9 +127,9 @@ fn extract_opcode_error_from_nargo_error(
     }
 }
 
-/// Resolve an [OpcodeLocation] using debug information generated during compilation
-/// to determine an opcode's call stack. Then report the error using the resolved
-/// call stack and any other relevant error information returned from the ACVM.
+/// Resolve the vector of [OpcodeLocation] that caused an execution error using the debug information
+/// generated during compilation to determine the complete call stack for an error. Then report the error using
+/// the resolved call stack and any other relevant error information returned from the ACVM.
 fn report_error_with_opcode_locations(
     opcode_err_info: Option<(Vec<OpcodeLocation>, &ExecutionError)>,
     debug: &DebugInfo,
