@@ -121,7 +121,7 @@ for STAGE in $STAGES; do
   # Build our dockerfile, add timing information
 
   # Check if there is a commit tag
-  if [[ -n "$COMMIT_TAG" ]]; then
+  if [[ -n "${COMMIT_TAG:-}" ]]; then
 
     # Check if it's a repo-specific tag
     if [[ "$COMMIT_TAG" == *"/"* ]]; then

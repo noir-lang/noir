@@ -2,10 +2,10 @@
 set -eu
 
 readonly REPOSITORY=$1
-readonly STANDALONE=$2
+readonly STANDALONE=${2:-}
 
 # Only publish tagged commits to npm.
-[ -n "$COMMIT_TAG" ] || { echo "Will only publish tagged commits to npm. Skipping." && exit 0; }
+[ -n "${COMMIT_TAG:-}" ] || { echo "Will only publish tagged commits to npm. Skipping." && exit 0; }
 
 extract_repo $REPOSITORY /usr/src project
 
@@ -38,11 +38,12 @@ fi
 
 # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
 TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
+TAG_ARG=""
 if [ -n "$TAG" ]; then
   TAG_ARG="--tag $TAG"
 fi
 
-readonly PUBLISHED_VERSION=$(npm show . version $TAG_ARG 2> /dev/null)
+readonly PUBLISHED_VERSION=$(npm show . version ${TAG_ARG:-} 2> /dev/null)
 readonly HIGHER_VERSION=$(npx semver ${VERSION} ${PUBLISHED_VERSION} | tail -1)
 
 # If there is already a published package equal to given version, assume this is a re-run of a deploy, and early out.

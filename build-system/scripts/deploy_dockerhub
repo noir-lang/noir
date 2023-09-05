@@ -8,9 +8,8 @@ fi
 
 REPOSITORY=$1
 IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
-IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$IMAGE_TAG
 IMAGE_LATEST_URI=aztecprotocol/$REPOSITORY:latest
-
+COMMIT_TAG_VERSION=$COMMIT_TAG # default unless repo-specific
 # Check if it's a repo-specific tag
 if [[ "$COMMIT_TAG" == *"/"* ]]; then
   REPO_NAME="${COMMIT_TAG%%/*}"
@@ -23,9 +22,9 @@ if [[ "$COMMIT_TAG" == *"/"* ]]; then
     echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Exiting..."
     exit 1
   fi
-else
-  COMMIT_TAG_VERSION=$COMMIT_TAG
 fi
+IMAGE_TAG=$COMMIT_TAG_VERSION
+IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$IMAGE_TAG
 
 # Check it's a valid semver.
 VERSION=$(npx semver $COMMIT_TAG_VERSION)
@@ -33,9 +32,6 @@ if [ -z "$VERSION" ]; then
   echo "$COMMIT_TAG_VERSION is not a semantic version."
   exit 1
 fi
-
-IMAGE_TAG=$COMMIT_TAG_VERSION
-
 
 echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
 
