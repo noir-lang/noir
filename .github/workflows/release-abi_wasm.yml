@@ -55,8 +55,13 @@ jobs:
           ls -l ${{ env.BUILD_OUTPUT_PATH }}
           # Other commands to verify the build, if needed
 
+      - name: Copy Build Output to Temporary Directory
+        run: |
+          mkdir temp_publish_dir
+          cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
+
       - name: Publish to NPM
-        working-directory: ${{ env.BUILD_OUTPUT_PATH }}
+        working-directory: ./temp_publish_dir
         run: |
           npm pack
           tarball_name=$(ls *.tgz)
