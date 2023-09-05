@@ -748,7 +748,7 @@ fn check_methods_signatures(
                 for (parameter_index, (expected, (hir_pattern, actual, _))) in
                     method.arguments.iter().zip(&meta.parameters.0).enumerate()
                 {
-                    expected.unify(&actual, &mut typecheck_errors, || {
+                    expected.unify(actual, &mut typecheck_errors, || {
                         TypeCheckError::TraitMethodParameterTypeMismatch {
                             method_name: func_name.to_string(),
                             expected_typ: expected.to_string(),
@@ -768,7 +768,7 @@ fn check_methods_signatures(
                         span: meta.location.span,
                     }
                     .into_file_diagnostic(*file_id),
-                )
+                );
             }
 
             // Check that impl method return type matches trait return type:

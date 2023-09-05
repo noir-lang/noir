@@ -692,7 +692,7 @@ impl FunctionReturnType {
     pub fn get_type(&self) -> UnresolvedType {
         match self {
             FunctionReturnType::Default(span) => {
-                UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(span.clone()) }
+                UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) }
             }
             FunctionReturnType::Ty(typ) => typ.clone(),
         }

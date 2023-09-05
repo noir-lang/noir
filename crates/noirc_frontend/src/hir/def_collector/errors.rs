@@ -107,17 +107,19 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => Diagnostic::simple_error(
-                format!("Only struct types may implement trait `{}`", trait_ident),
-                "Only struct types may implement traits".into(),
-                span,
-            ),
+            DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => {
+                Diagnostic::simple_error(
+                    format!("Only struct types may implement trait `{}`", trait_ident),
+                    "Only struct types may implement traits".into(),
+                    span,
+                )
+            }
             DefCollectorErrorKind::ForeignImpl { span, type_name } => Diagnostic::simple_error(
                 "Cannot `impl` a type that was defined outside the current crate".into(),
                 format!("{type_name} was defined outside the current crate"),
                 span,
             ),
-            DefCollectorErrorKind::TraitNotFound { trait_ident} => Diagnostic::simple_error(
+            DefCollectorErrorKind::TraitNotFound { trait_ident } => Diagnostic::simple_error(
                 format!("Trait {} not found", trait_ident),
                 "".to_string(),
                 trait_ident.span(),
