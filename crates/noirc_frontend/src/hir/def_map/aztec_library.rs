@@ -506,7 +506,7 @@ pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
     let return_path = chained_path!("aztec", "abi", ty);
 
     let ty = make_type(UnresolvedTypeData::Named(return_path, vec![]));
-    FunctionReturnType::Ty(ty, Span::default())
+    FunctionReturnType::Ty(ty)
 }
 
 /// Create Context Finish

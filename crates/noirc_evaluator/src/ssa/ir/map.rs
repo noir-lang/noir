@@ -1,5 +1,5 @@
+use fxhash::FxHashMap as HashMap;
 use std::{
-    collections::HashMap,
     hash::Hash,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -218,7 +218,7 @@ impl<T> SparseMap<T> {
 
 impl<T> Default for SparseMap<T> {
     fn default() -> Self {
-        Self { storage: HashMap::new() }
+        Self { storage: HashMap::default() }
     }
 }
 
@@ -272,7 +272,7 @@ impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
 
 impl<K, V> Default for TwoWayMap<K, V> {
     fn default() -> Self {
-        Self { key_to_value: HashMap::new(), value_to_key: HashMap::new() }
+        Self { key_to_value: HashMap::default(), value_to_key: HashMap::default() }
     }
 }
 
