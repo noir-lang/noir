@@ -335,10 +335,11 @@ fn collect_trait_impls(
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(&ast.def.generics);
             let typ = resolver.resolve_type(unresolved_type.clone());
-            extend_errors(errors, trait_impl.file_id, resolver.take_errors());
 
             // Add the method to the struct's namespace
             if let Some(struct_type) = get_struct_type(&typ) {
+                extend_errors(errors, trait_impl.file_id, resolver.take_errors());
+
                 let struct_type = struct_type.borrow();
                 let type_module = struct_type.id.local_module_id();
 
@@ -355,7 +356,10 @@ fn collect_trait_impls(
                     errors.push(err.into_file_diagnostic(trait_impl.file_id));
                 }
             } else {
-                todo!();
+                let span = trait_impl.trait_impl_ident.span();
+                let trait_ident = trait_impl.the_trait.trait_def.name.clone();
+                let error = DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span };
+                errors.push(error.into_file_diagnostic(trait_impl.file_id));
             }
         }
     }

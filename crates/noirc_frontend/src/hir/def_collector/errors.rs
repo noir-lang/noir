@@ -30,6 +30,8 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
+    #[error("Non-struct type used in trait impl")]
+    NonStructTraitImpl { trait_ident: Ident, span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
     #[error("Mismatch signature of trait")]
@@ -53,7 +55,7 @@ pub enum DefCollectorErrorKind {
     #[error("Only traits can be implemented")]
     NotATrait { not_a_trait_name: Ident },
     #[error("Trait not found")]
-    TraitNotFound { trait_name: String, span: Span },
+    TraitNotFound { trait_ident: Ident },
     #[error("Missing Trait method implementation")]
     TraitMissedMethodImplementation { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
     #[error("Trait method wrong return type")]
@@ -122,15 +124,20 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
+            DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => Diagnostic::simple_error(
+                format!("Only struct types may implement trait `{}`", trait_ident),
+                "Only struct types may implement traits".into(),
+                span,
+            ),
             DefCollectorErrorKind::ForeignImpl { span, type_name } => Diagnostic::simple_error(
                 "Cannot `impl` a type that was defined outside the current crate".into(),
                 format!("{type_name} was defined outside the current crate"),
                 span,
             ),
-            DefCollectorErrorKind::TraitNotFound { trait_name, span } => Diagnostic::simple_error(
-                format!("Trait {} not found", trait_name),
+            DefCollectorErrorKind::TraitNotFound { trait_ident} => Diagnostic::simple_error(
+                format!("Trait {} not found", trait_ident),
                 "".to_string(),
-                span,
+                trait_ident.span(),
             ),
             DefCollectorErrorKind::MismatchTraitImplementationReturnType {
                 trait_name,

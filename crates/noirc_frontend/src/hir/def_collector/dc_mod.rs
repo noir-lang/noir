@@ -176,10 +176,7 @@ impl<'a> ModCollector<'a> {
                     }
                 }
                 None => {
-                    let error = DefCollectorErrorKind::TraitNotFound {
-                        trait_name: trait_name.to_string(),
-                        span: trait_name.span(),
-                    };
+                    let error = DefCollectorErrorKind::TraitNotFound { trait_ident: trait_name };
                     errors.push(error.into_file_diagnostic(self.file_id));
                 }
             }
