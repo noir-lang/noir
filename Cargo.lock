@@ -57,6 +57,8 @@ dependencies = [
  "dirs",
  "flate2",
  "reqwest",
+ "serde",
+ "serde_json",
  "serial_test",
  "tar",
  "tempfile",

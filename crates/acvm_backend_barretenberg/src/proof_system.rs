@@ -8,7 +8,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::cli::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
 use crate::{assert_binary_exists, Backend, BackendError};
 
 impl Backend {
@@ -28,6 +28,13 @@ impl Backend {
         let binary_path = assert_binary_exists(self);
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(&binary_path)
+    }
+
+    pub fn get_backend_info(
+        &self,
+    ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
+        let binary_path = assert_binary_exists(self);
+        InfoCommand.run(&binary_path)
     }
 
     pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
