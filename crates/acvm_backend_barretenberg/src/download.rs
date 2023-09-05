@@ -8,7 +8,7 @@ use std::{io::Cursor, path::Path};
 /// - `backend_url` must serve a gzipped tarball.
 /// - The tarball must only contain the backend's binary.
 /// - The binary file must be located at the archive root.
-pub(super) fn download_backend(backend_url: &str, destination_path: &Path) {
+pub fn download_backend(backend_url: &str, destination_path: &Path) {
     use flate2::read::GzDecoder;
     use tar::Archive;
     use tempfile::tempdir;

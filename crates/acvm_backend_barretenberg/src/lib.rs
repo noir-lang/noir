@@ -9,9 +9,10 @@ mod download;
 mod proof_system;
 mod smart_contract;
 
-use download::download_backend;
+pub use download::download_backend;
 
 const BACKENDS_DIR: &str = ".nargo/backends";
+pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 
 pub fn backends_directory() -> PathBuf {
     let home_directory = dirs::home_dir().unwrap();
