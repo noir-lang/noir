@@ -140,7 +140,7 @@ impl FuncId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct StructId(pub ModuleId);
+pub struct StructId(ModuleId);
 
 impl StructId {
     //dummy id for error reporting
@@ -148,6 +148,18 @@ impl StructId {
     // after resolution
     pub fn dummy_id() -> StructId {
         StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+    }
+
+    pub fn module_id(self) -> ModuleId {
+        self.0
+    }
+
+    pub fn krate(self) -> CrateId {
+        self.0.krate
+    }
+
+    pub fn local_module_id(self) -> LocalModuleId {
+        self.0.local_id
     }
 }
 
@@ -347,24 +359,29 @@ impl NodeInterner {
         );
     }
 
-    pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
-        self.structs.insert(
-            type_id,
-            Shared::new(StructType::new(
-                type_id,
-                typ.struct_def.name.clone(),
-                typ.struct_def.span,
-                Vec::new(),
-                vecmap(&typ.struct_def.generics, |_| {
-                    // Temporary type variable ids before the struct is resolved to its actual ids.
-                    // This lets us record how many arguments the type expects so that other types
-                    // can refer to it with generic arguments before the generic parameters themselves
-                    // are resolved.
-                    let id = TypeVariableId(0);
-                    (id, Shared::new(TypeBinding::Unbound(id)))
-                }),
-            )),
-        );
+    pub fn new_struct(
+        &mut self,
+        typ: &UnresolvedStruct,
+        krate: CrateId,
+        local_id: LocalModuleId,
+    ) -> StructId {
+        let struct_id = StructId(ModuleId { krate, local_id });
+        let name = typ.struct_def.name.clone();
+
+        // Fields will be filled in later
+        let no_fields = Vec::new();
+        let generics = vecmap(&typ.struct_def.generics, |_| {
+            // Temporary type variable ids before the struct is resolved to its actual ids.
+            // This lets us record how many arguments the type expects so that other types
+            // can refer to it with generic arguments before the generic parameters themselves
+            // are resolved.
+            let id = TypeVariableId(0);
+            (id, Shared::new(TypeBinding::Unbound(id)))
+        });
+
+        let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
+        self.structs.insert(struct_id, Shared::new(new_struct));
+        struct_id
     }
 
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {

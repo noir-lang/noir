@@ -214,7 +214,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, assert_message) => {
                 let condition = self.brillig_context.allocate_register();
 
                 self.convert_ssa_binary(
@@ -223,7 +223,7 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
 
-                self.brillig_context.constrain_instruction(condition);
+                self.brillig_context.constrain_instruction(condition, assert_message.clone());
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {
@@ -350,7 +350,7 @@ impl<'block> BrilligBlock<'block> {
                 ) => {
                     self.convert_ssa_slice_intrinsic_call(
                         dfg,
-                        &dfg[*func],
+                        &dfg[dfg.resolve(*func)],
                         instruction_id,
                         arguments,
                     );
@@ -937,13 +937,13 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
-        let value = &dfg[value_id];
+        let value = &dfg[dfg.resolve(value_id)];
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.function_context.get_variable(value_id)
+                self.function_context.get_variable(value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
