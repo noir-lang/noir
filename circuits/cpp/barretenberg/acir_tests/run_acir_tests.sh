@@ -30,10 +30,10 @@ if [ ! -d acir_tests ]; then
     git clone -b $BRANCH --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
     cd noir
     git sparse-checkout init --cone
-    git sparse-checkout set crates/nargo_cli/tests/execution_success
+    git sparse-checkout set crates/nargo_cli/tests/acir_artifacts
     git checkout
     cd ..
-    mv noir/crates/nargo_cli/tests/execution_success acir_tests
+    mv noir/crates/nargo_cli/tests/acir_artifacts acir_tests
     rm -rf noir
   fi
 fi
@@ -73,7 +73,7 @@ else
       continue
     fi
 
-    if [[ ! -f ./$TEST_NAME/target/$TEST_NAME.bytecode || ! -f ./$TEST_NAME/target/witness.tr ]]; then
+    if [[ ! -f ./$TEST_NAME/target/acir.gz || ! -f ./$TEST_NAME/target/witness.gz ]]; then
       echo -e "\033[33mSKIPPED\033[0m (uncompiled)"
       continue
     fi

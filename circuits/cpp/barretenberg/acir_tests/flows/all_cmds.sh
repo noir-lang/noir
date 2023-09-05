@@ -1,15 +1,13 @@
 #!/bin/sh
 set -eu
 
-NAME=$(basename $PWD)
-
 if [ -n "${VERBOSE:-}" ]; then
   VFLAG="-v"
 else
   VFLAG=""
 fi
 
-BFLAG="-b ./target/${NAME}.bytecode"
+BFLAG="-b ./target/acir.gz"
 FLAGS="-c $CRS_PATH $VFLAG"
 
 # Test we can perform the proof/verify flow.

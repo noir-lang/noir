@@ -38,8 +38,8 @@ function formatAndPrintLog(message: string): void {
 }
 
 const readBytecodeFile = (path: string): Uint8Array => {
-  const data = fs.readFileSync(path, "ascii");
-  const buffer = gunzipSync(Buffer.from(data, "base64"));
+  const data = fs.readFileSync(path);
+  const buffer = gunzipSync(data);
   return buffer;
 };
 
@@ -60,13 +60,13 @@ program
   )
   .option(
     "-b, --bytecode-path <path>",
-    "Specify the bytecode path",
-    "./target/main.bytecode"
+    "Specify the path to the gzip encoded ACIR bytecode",
+    "./target/acir.gz"
   )
   .option(
     "-w, --witness-path <path>",
-    "Specify the witness path",
-    "./target/witness.tr"
+    "Specify the path to the gzip encoded ACIR witness",
+    "./target/witness.gz"
   )
   .action(async ({ bytecodePath, witnessPath, recursive }) => {
     const acir = readBytecodeFile(bytecodePath);

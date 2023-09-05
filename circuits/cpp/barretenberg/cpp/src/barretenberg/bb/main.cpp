@@ -293,8 +293,8 @@ int main(int argc, char* argv[])
 
         std::string command = args[0];
 
-        std::string bytecode_path = getOption(args, "-b", "./target/main.bytecode");
-        std::string witness_path = getOption(args, "-w", "./target/witness.tr");
+        std::string bytecode_path = getOption(args, "-b", "./target/acir.gz");
+        std::string witness_path = getOption(args, "-w", "./target/witness.gz");
         std::string proof_path = getOption(args, "-p", "./proofs/proof");
         std::string vk_path = getOption(args, "-k", "./target/vk");
         CRS_PATH = getOption(args, "-c", "./crs");
