@@ -738,33 +738,54 @@ fn check_methods_signatures(
         let meta = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id);
 
-        for method in &the_trait.methods {
-            if method.name.0.contents == func_name {
-                // -----------------------------
-                // TODO(vitkov): Check args here
-                // -----------------------------
+        let mut typecheck_errors = Vec::new();
 
-                // Check that impl method return type matches trait return type:
-                let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
-
-                let mut typecheck_errors = Vec::new();
-                method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
-                    let ret_type_span = meta
-                        .return_type
-                        .get_type()
-                        .span
-                        .expect("return type must always have a span");
-
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: method.return_type.to_string(),
-                        expr_typ: meta.return_type().to_string(),
-                        expr_span: ret_type_span,
+        if let Some(method) =
+            the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
+        {
+            if method.arguments.len() == meta.parameters.0.len() {
+                // Check the parameters of the impl method against the parameters of the trait method
+                for (parameter_index, (expected, (hir_pattern, actual, _))) in
+                    method.arguments.iter().zip(&meta.parameters.0).enumerate()
+                {
+                    expected.unify(&actual, &mut typecheck_errors, || {
+                        TypeCheckError::TraitMethodArgMismatch {
+                            method_name: func_name.to_string(),
+                            expected_typ: expected.to_string(),
+                            actual_typ: actual.to_string(),
+                            expr_span: hir_pattern.span(),
+                            parameter_index: parameter_index + 1,
+                        }
+                    });
+                }
+            } else {
+                errors.push(
+                    DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
+                        actual_num_parameters: meta.parameters.0.len(),
+                        expected_num_parameters: method.arguments.len(),
+                        trait_name: the_trait.name.to_string(),
+                        method_name: func_name.to_string(),
+                        span: meta.location.span,
                     }
-                });
-
-                extend_errors(errors, *file_id, typecheck_errors);
-                break;
+                    .into_file_diagnostic(*file_id),
+                )
             }
+
+            // Check that impl method return type matches trait return type:
+            let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
+
+            method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
+                let ret_type_span =
+                    meta.return_type.get_type().span.expect("return type must always have a span");
+
+                TypeCheckError::TypeMismatch {
+                    expected_typ: method.return_type.to_string(),
+                    expr_typ: meta.return_type().to_string(),
+                    expr_span: ret_type_span,
+                }
+            });
+
+            extend_errors(errors, *file_id, typecheck_errors);
         }
     }
 }
