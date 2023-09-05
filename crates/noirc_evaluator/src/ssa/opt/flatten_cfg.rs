@@ -236,7 +236,7 @@ fn flatten_function_cfg(function: &mut Function) {
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
-        outer_block_stores: HashMap::new(),
+        outer_block_stores: HashMap::default(),
     };
     context.flatten();
 }
