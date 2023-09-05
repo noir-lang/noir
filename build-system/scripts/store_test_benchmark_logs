@@ -24,7 +24,7 @@ cat /tmp/csv/new.csv | sort | sed "s_ _%_g" | sed "s_^\(.*\),\(.*\)\$_\2 \1_" | 
 # If there actually were any logs, update the information in the benchmark repository
 if [ -s /tmp/csv/trimmed.csv ]; then
     cd /tmp
-    git clone --depth 1 git@github.com-logs:AztecProtocol/benchmark-archive.git
+    git clone --depth 1 git@github.com:AztecProtocol/benchmark-archive.git
 
     cd benchmark-archive
     git config user.email "circleci@bot"
