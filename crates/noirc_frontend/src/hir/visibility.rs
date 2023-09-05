@@ -2,10 +2,13 @@ use std::collections::HashSet;
 
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
+use crate::hir::Context;
 use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{DefinitionKind, ExprId, FuncId, NodeInterner},
 };
+
+use super::def_map::{ModuleData, ModuleId};
 
 #[derive(Default)]
 pub struct FunctionVisibility {
@@ -78,17 +81,16 @@ impl FunctionVisibility {
                 }
             }
             HirExpression::Lambda(lambda) => self.lookup_function_calls(interner, lambda.body),
-            HirExpression::MethodCall(_) => {
-                unreachable!("Encountered HirExpression::MethodCall")
-            }
+            HirExpression::MethodCall(_) => (),
             HirExpression::Error => (),
         }
     }
 
     /// Checks that the input function is only calling functions with 'pub' modifier outside its module
     /// recursively checks the calling functions, if they are not already checked.
-    pub fn check_visibility(&mut self, interner: &NodeInterner, func_id: &FuncId) {
+    pub fn check_visibility(&mut self, context: &Context, func_id: &FuncId) {
         if !self.processed_functions.contains(func_id) {
+            let interner = &context.def_interner;
             let meta = interner.function_meta(func_id);
 
             //Retrieve the called functions
@@ -115,10 +117,24 @@ impl FunctionVisibility {
             for id in &self.called_functions {
                 let callee_meta = interner.function_meta(&id.0);
                 if callee_meta.module_id != meta.module_id && !callee_meta.is_public {
+                    //we allow calling private function if if is inside a sub-module
+                    if meta.module_id.krate == callee_meta.module_id.krate {
+                        let crate_id = meta.module_id.krate;
+                        if let Some(crate_map) = context.def_map(&crate_id) {
+                            let module_data = &crate_map.modules()[meta.module_id.local_id.0];
+                            if lookup_module_descendant(
+                                module_data,
+                                callee_meta.module_id,
+                                crate_map.modules(),
+                            ) {
+                                continue;
+                            }
+                        }
+                    }
                     let primary_message =
-                        format!("function `{}` is private", interner.function_name(&id.0));
+                    format!("function `{}` is private. Calling private functions will be deprecated in future versions", interner.function_name(&id.0));
                     let secondary_message = "private function".to_string();
-                    let diagnostic = CustomDiagnostic::simple_error(
+                    let diagnostic = CustomDiagnostic::simple_warning(
                         primary_message,
                         secondary_message,
                         id.1.span,
@@ -129,8 +145,23 @@ impl FunctionVisibility {
             }
             self.processed_functions.insert(*func_id);
             for id in &self.called_functions.clone() {
-                self.check_visibility(interner, &id.0);
+                self.check_visibility(context, &id.0);
             }
         }
     }
+}
+
+// Returns true if module_id is a descendant of module
+fn lookup_module_descendant(
+    module: &ModuleData,
+    module_id: ModuleId,
+    modules: &arena::Arena<ModuleData>,
+) -> bool {
+    for child in module.children.values() {
+        if *child == module_id.local_id {
+            return true;
+        }
+        lookup_module_descendant(&modules[child.0], module_id, modules);
+    }
+    false
 }

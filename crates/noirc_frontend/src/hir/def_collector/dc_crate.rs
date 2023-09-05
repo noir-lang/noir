@@ -10,6 +10,7 @@ use crate::hir::resolution::{
     path_resolver::StandardPathResolver,
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
+use crate::hir::visibility::FunctionVisibility;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
@@ -228,6 +229,18 @@ impl DefCollector {
             def_collector.collected_traits_impls,
             errors,
         );
+        // check that a function is calling a pub function if from another module.
+        let mut visibility = FunctionVisibility::default();
+        for (_, func_id) in &file_func_ids {
+            visibility.check_visibility(context, func_id);
+        }
+        for (_, func_id) in &file_method_ids {
+            visibility.check_visibility(context, func_id);
+        }
+        for (_, func_id) in &file_trait_impls_ids {
+            visibility.check_visibility(context, func_id);
+        }
+        errors.extend(visibility.errors);
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
 

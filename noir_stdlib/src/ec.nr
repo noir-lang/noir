@@ -148,7 +148,7 @@ global C5 = 19103219067921713944291392827692070036145651957329286315305642004821
 //}
 
 // TODO: Make this built-in.
-fn safe_inverse(x: Field) -> Field {
+pub fn safe_inverse(x: Field) -> Field {
     if x == 0 {
         0
     } else {
