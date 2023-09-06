@@ -63,7 +63,7 @@ Instead of creating new accounts in our test suite, we can use the ones already 
 
 ### Running Sandbox in the nodejs process
 
-Instead of connecting to a local running Sandbox instance, you can also start your own Sandbox within the nodejs process running your tests, for an easier setup. To do this, import the `@aztec/aztec-sandbox` package in your project, and run `createSandbox` during setup. Note that this will still require you to run a local Ethereum node like Anvil locally.
+Instead of connecting to a local running Sandbox instance, you can also start your own Sandbox within the nodejs process running your tests, for an easier setup. To do this, import the `@aztec/aztec-sandbox` package in your project, and run `createSandbox` during setup. Note that this will still require you to run a local Ethereum development node like [Anvil](https://book.getfoundry.sh/anvil/), [Hardhat Network](https://hardhat.org/hardhat-network/docs/overview), or [Ganache](https://trufflesuite.com/ganache/).
 
 #include_code in-proc-sandbox /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
