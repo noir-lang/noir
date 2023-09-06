@@ -140,7 +140,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId),
+    Constrain(ValueId, ValueId, Option<String>),
 
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
@@ -189,7 +189,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_, _)
+            Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
@@ -218,7 +218,7 @@ impl Instruction {
             Truncate { .. } => false,
 
             // These either have side-effects or interact with memory
-            Constrain(_, _) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
+            Constrain(..) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
                 false
             }
 
@@ -242,7 +242,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(_, _) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(..) | Store { .. } | EnableSideEffects { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -278,7 +278,9 @@ impl Instruction {
                 bit_size: *bit_size,
                 max_bit_size: *max_bit_size,
             },
-            Instruction::Constrain(lhs, rhs) => Instruction::Constrain(f(*lhs), f(*rhs)),
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                Instruction::Constrain(f(*lhs), f(*rhs), assert_message.clone())
+            }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -319,7 +321,7 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, _) => {
                 f(*lhs);
                 f(*rhs);
             }
@@ -374,7 +376,7 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, ..) => {
                 if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
                     // Remove trivial case `assert_eq(x, x)`
                     SimplifyResult::Remove

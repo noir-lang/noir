@@ -10,7 +10,7 @@ use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CrateId {
     Root(usize),
     Crate(usize),

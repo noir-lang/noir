@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
@@ -73,7 +73,7 @@ jobs:
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
-      
+
       - name: Package artifacts
         run: |
           mkdir dist
@@ -120,15 +120,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          [
-            x86_64-unknown-linux-gnu,
-            x86_64-unknown-linux-musl,
-          ]
+        target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 

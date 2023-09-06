@@ -12,7 +12,7 @@
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify cfg pass.
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::{
     errors::RuntimeError,
@@ -31,6 +31,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Unroll all loops in each SSA function.
@@ -307,9 +308,9 @@ impl<'f> LoopIteration<'f> {
             loop_,
             insert_block,
             source_block,
-            blocks: HashMap::new(),
-            original_blocks: HashMap::new(),
-            visited_blocks: HashSet::new(),
+            blocks: HashMap::default(),
+            original_blocks: HashMap::default(),
+            visited_blocks: HashSet::default(),
             induction_value: None,
         }
     }
@@ -536,7 +537,7 @@ mod tests {
         builder.switch_to_block(b5);
         let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
         let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5, one);
+        builder.insert_constrain(v5, one, None);
         let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
         builder.terminate_with_jmp(b4, vec![v6]);
 

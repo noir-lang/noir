@@ -1,9 +1,10 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
 };
+use fxhash::FxHashMap as HashMap;
 
 /// A container for the successors and predecessors of some Block.
 #[derive(Clone, Default)]
@@ -33,7 +34,8 @@ impl ControlFlowGraph {
         // it later comes to describe any edges after calling compute.
         let entry_block = func.entry_block();
         let empty_node = CfgNode { predecessors: BTreeSet::new(), successors: BTreeSet::new() };
-        let data = HashMap::from([(entry_block, empty_node)]);
+        let mut data = HashMap::default();
+        data.insert(entry_block, empty_node);
 
         let mut cfg = ControlFlowGraph { data };
         cfg.compute(func);

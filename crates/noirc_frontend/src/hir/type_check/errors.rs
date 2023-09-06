@@ -205,8 +205,9 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
                     Source::BinOp => format!("Unsupported types for binary operation: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_span) => {
-                        let ret_ty_span = match ret_ty {
-                            FunctionReturnType::Default(span) | FunctionReturnType::Ty(_, span) => span
+                        let ret_ty_span = match ret_ty.clone() {
+                            FunctionReturnType::Default(span) => span,
+                            FunctionReturnType::Ty(ty) => ty.span.unwrap(),
                         };
 
                         let mut diagnostic = Diagnostic::simple_error(format!("expected type {expected}, found type {actual}"), format!("expected {expected} because of return type"), ret_ty_span);

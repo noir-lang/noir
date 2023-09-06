@@ -131,7 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::collections::{BTreeMap, HashMap, HashSet};
+use fxhash::FxHashMap as HashMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -218,7 +219,7 @@ fn flatten_function_cfg(function: &mut Function) {
     let mut context = Context {
         inserter: FunctionInserter::new(function),
         cfg,
-        store_values: HashMap::new(),
+        store_values: HashMap::default(),
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
@@ -587,7 +588,7 @@ impl<'f> Context<'f> {
                 // args that will be merged by inline_branch_end. Since jmpifs don't have
                 // block arguments, it is safe to use the jmpif block here.
                 last_block: jmpif_block,
-                store_values: HashMap::new(),
+                store_values: HashMap::default(),
                 local_allocations: HashSet::new(),
             }
         } else {
@@ -766,7 +767,7 @@ impl<'f> Context<'f> {
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(lhs, rhs) => {
+                Instruction::Constrain(lhs, rhs, message) => {
                     // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
 
                     // Condition needs to be cast to argument type in order to multiply them together.
@@ -784,7 +785,7 @@ impl<'f> Context<'f> {
                         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
                         call_stack,
                     );
-                    Instruction::Constrain(lhs, rhs)
+                    Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
                     self.remember_store(address, value);
@@ -901,7 +902,7 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        builder.insert_constrain(v1, v_true);
+        builder.insert_constrain(v1, v_true, None);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
@@ -1360,7 +1361,7 @@ mod test {
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
-        builder.insert_constrain(v_false, v_true); // should not be removed
+        builder.insert_constrain(v_false, v_true, None); // should not be removed
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1368,7 +1369,7 @@ mod test {
 
         // Assert we have not incorrectly removed a constraint:
         use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_, _)));
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(..)));
         assert_eq!(constrain_count, 1);
     }
 
@@ -1443,7 +1444,7 @@ mod test {
         builder.switch_to_block(b3);
         let v_true = builder.numeric_constant(true, Type::bool());
         let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
-        builder.insert_constrain(v12, v_true);
+        builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1452,7 +1453,7 @@ mod test {
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(lhs, rhs) = main.dfg[*instruction] {
+            if let Instruction::Constrain(lhs, rhs, ..) = main.dfg[*instruction] {
                 if let (Some(lhs), Some(rhs)) =
                     (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
                 {
