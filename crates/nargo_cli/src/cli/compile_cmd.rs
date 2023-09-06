@@ -229,9 +229,9 @@ pub(crate) fn report_errors<T>(
     deny_warnings: bool,
 ) -> Result<T, CompileError> {
     let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(file_manager, &errors, deny_warnings)
+        noirc_errors::reporter::report_all(file_manager.as_file_map(), &errors, deny_warnings)
     })?;
 
-    noirc_errors::reporter::report_all(file_manager, &warnings, deny_warnings);
+    noirc_errors::reporter::report_all(file_manager.as_file_map(), &warnings, deny_warnings);
     Ok(t)
 }
