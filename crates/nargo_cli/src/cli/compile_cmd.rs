@@ -120,10 +120,9 @@ pub(super) fn optimize_circuit(
     backend: &Backend,
     circuit: Circuit,
 ) -> Result<(Circuit, AcirTransformationMap), CliError> {
-    let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
-        backend.supports_opcode(opcode)
-    })
-    .map_err(|_| NargoError::CompilationError)?;
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let result = acvm::compiler::compile(circuit, np_language, is_opcode_supported)
+        .map_err(|_| NargoError::CompilationError)?;
 
     Ok(result)
 }
