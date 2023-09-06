@@ -1,6 +1,7 @@
 import { ExecutionResult, NewNoteData } from '@aztec/acir-simulator';
 import {
   KernelCircuitPublicInputs,
+  MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
@@ -12,6 +13,7 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
+  makeTuple,
 } from '@aztec/circuits.js';
 import { makeTxRequest } from '@aztec/circuits.js/factories';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -46,10 +48,14 @@ describe('Kernel Prover', () => {
 
   const createExecutionResult = (fnName: string, newNoteIndices: number[] = []): ExecutionResult => {
     const publicInputs = PrivateCircuitPublicInputs.empty();
-    publicInputs.newCommitments = newNoteIndices.map(idx => generateFakeCommitment(notes[idx]));
+    publicInputs.newCommitments = makeTuple(
+      MAX_NEW_COMMITMENTS_PER_CALL,
+      i => (i < newNoteIndices.length ? generateFakeCommitment(notes[newNoteIndices[i]]) : Fr.ZERO),
+      0,
+    );
     return {
       // Replace `FunctionData` with `string` for easier testing.
-      callStackItem: new PrivateCallStackItem(AztecAddress.ZERO, fnName as any, publicInputs),
+      callStackItem: new PrivateCallStackItem(AztecAddress.ZERO, fnName as any, publicInputs, false),
       nestedExecutions: (dependencies[fnName] || []).map(name => createExecutionResult(name)),
       vk: VerificationKey.makeFake().toBuffer(),
       preimages: { newNotes: newNoteIndices.map(idx => notes[idx]), nullifiedNotes: [] },
@@ -79,9 +85,11 @@ describe('Kernel Prover', () => {
   };
 
   const expectExecution = (fns: string[]) => {
-    const callStackItemsInit = proofCreator.createProofInit.mock.calls.map(args => args[1].callStackItem.functionData);
+    const callStackItemsInit = proofCreator.createProofInit.mock.calls.map(
+      args => args[0].privateCall.callStackItem.functionData,
+    );
     const callStackItemsInner = proofCreator.createProofInner.mock.calls.map(
-      args => args[1].callStackItem.functionData,
+      args => args[0].privateCall.callStackItem.functionData,
     );
 
     expect(proofCreator.createProofInit).toHaveBeenCalledTimes(Math.min(1, fns.length));

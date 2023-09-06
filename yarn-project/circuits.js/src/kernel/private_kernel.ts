@@ -2,19 +2,11 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { Buffer } from 'buffer';
 
-import {
-  FUNCTION_TREE_HEIGHT,
-  Fr,
-  KernelCircuitPublicInputs,
-  PreviousKernelData,
-  PrivateCallData,
-  TxRequest,
-} from '../index.js';
-import { handleCircuitOutput } from '../utils/call_wasm.js';
+import { FUNCTION_TREE_HEIGHT, Fr, PreviousKernelData, PrivateCallData, TxRequest } from '../index.js';
 import { serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
 
-export { privateKernelSimOrdering } from '../cbind/circuits.gen.js';
+export { privateKernelSimOrdering, privateKernelSimInit, privateKernelSimInner } from '../cbind/circuits.gen.js';
 
 /**
  * Computes contract's function tree from the given leaves.
@@ -93,94 +85,4 @@ export function privateKernelProve(
   wasm.call('bbfree', proofOutputAddressPtr);
   wasm.call('bbfree', address);
   return proof;
-}
-
-/**
- * Computes the public inputs of the private kernel first iteration without computing the proof.
- * @param wasm - The circuits wasm instance.
- * @param txRequest - The signed transaction request.
- * @param privateCallData - The private call data.
- * @returns The public inputs of the private kernel.
- */
-export function privateKernelSimInit(
-  wasm: CircuitsWasm,
-  txRequest: TxRequest,
-  privateCallData: PrivateCallData,
-): KernelCircuitPublicInputs {
-  wasm.call('pedersen__init');
-  const txRequestBuffer = txRequest.toBuffer();
-  const privateCallDataBuffer = privateCallData.toBuffer();
-  const privateCallDataOffset = txRequestBuffer.length;
-  wasm.writeMemory(0, txRequestBuffer);
-  wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-  const outputBufSizePtr = wasm.call('bbmalloc', 4);
-  const outputBufPtrPtr = wasm.call('bbmalloc', 4);
-  // Run and read outputs
-  const circuitFailureBufPtr = wasm.call(
-    'private_kernel__sim_init',
-    0,
-    privateCallDataOffset,
-    outputBufSizePtr,
-    outputBufPtrPtr,
-  );
-  try {
-    // Try deserializing the output to `KernelCircuitPublicInputs` and throw if it fails
-    return handleCircuitOutput(
-      wasm,
-      outputBufSizePtr,
-      outputBufPtrPtr,
-      circuitFailureBufPtr,
-      KernelCircuitPublicInputs,
-    );
-  } finally {
-    // Free memory
-    wasm.call('bbfree', outputBufSizePtr);
-    wasm.call('bbfree', outputBufPtrPtr);
-    wasm.call('bbfree', circuitFailureBufPtr);
-  }
-}
-
-/**
- * Computes the public inputs of a private kernel inner iteration without computing the proof.
- * @param wasm - The circuits wasm instance.
- * @param previousKernel - The previous kernel data (dummy if this is the first kernel in the chain).
- * @param privateCallData - The private call data.
- * @returns The public inputs of the private kernel.
- */
-export function privateKernelSimInner(
-  wasm: CircuitsWasm,
-  previousKernel: PreviousKernelData,
-  privateCallData: PrivateCallData,
-): KernelCircuitPublicInputs {
-  wasm.call('pedersen__init');
-  const previousKernelBuffer = previousKernel.toBuffer();
-  const privateCallDataBuffer = privateCallData.toBuffer();
-  const privateCallDataOffset = previousKernelBuffer.length;
-  wasm.writeMemory(0, previousKernelBuffer);
-  wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-  const outputBufSizePtr = wasm.call('bbmalloc', 4);
-  const outputBufPtrPtr = wasm.call('bbmalloc', 4);
-  // Run and read outputs
-  const circuitFailureBufPtr = wasm.call(
-    'private_kernel__sim_inner',
-    0,
-    privateCallDataOffset,
-    outputBufSizePtr,
-    outputBufPtrPtr,
-  );
-  try {
-    // Try deserializing the output to `KernelCircuitPublicInputs` and throw if it fails
-    return handleCircuitOutput(
-      wasm,
-      outputBufSizePtr,
-      outputBufPtrPtr,
-      circuitFailureBufPtr,
-      KernelCircuitPublicInputs,
-    );
-  } finally {
-    // Free memory
-    wasm.call('bbfree', outputBufSizePtr);
-    wasm.call('bbfree', outputBufPtrPtr);
-    wasm.call('bbfree', circuitFailureBufPtr);
-  }
 }

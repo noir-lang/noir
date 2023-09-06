@@ -1,4 +1,3 @@
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { Tuple } from '@aztec/foundation/serialize';
 
 import {
@@ -32,7 +31,7 @@ export class PrivateCallData {
     /**
      * Other private call stack items to be processed.
      */
-    public privateCallStackPreimages: PrivateCallStackItem[],
+    public privateCallStackPreimages: Tuple<PrivateCallStackItem, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * The proof of the execution of this private call.
      */
@@ -53,11 +52,11 @@ export class PrivateCallData {
     /**
      * The membership witnesses for read requests created by the function being invoked.
      */
-    public readRequestMembershipWitnesses: ReadRequestMembershipWitness[],
+    public readRequestMembershipWitnesses: Tuple<ReadRequestMembershipWitness, typeof MAX_READ_REQUESTS_PER_CALL>,
     /**
      * The address of the portal contract corresponding to the contract on which the function is being invoked.
      */
-    public portalContractAddress: EthAddress,
+    public portalContractAddress: Fr,
     /**
      * The hash of the ACIR of the function being invoked.
      */

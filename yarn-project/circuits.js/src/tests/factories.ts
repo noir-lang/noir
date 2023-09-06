@@ -607,10 +607,12 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
     vk: makeVerificationKey(),
     functionLeafMembershipWitness: makeMembershipWitness(FUNCTION_TREE_HEIGHT, seed + 0x30),
     contractLeafMembershipWitness: makeMembershipWitness(CONTRACT_TREE_HEIGHT, seed + 0x20),
-    readRequestMembershipWitnesses: range(MAX_READ_REQUESTS_PER_CALL, seed + 0x70).map(x =>
-      makeReadRequestMembershipWitness(x),
+    readRequestMembershipWitnesses: makeTuple(
+      MAX_READ_REQUESTS_PER_CALL,
+      makeReadRequestMembershipWitness,
+      seed + 0x70,
     ),
-    portalContractAddress: makeEthAddress(seed + 0x40),
+    portalContractAddress: makeEthAddress(seed + 0x40).toField(),
     acirHash: fr(seed + 0x60),
   });
 }
@@ -625,6 +627,7 @@ export function makePrivateCallStackItem(seed = 1): PrivateCallStackItem {
     makeAztecAddress(seed),
     new FunctionData(makeSelector(seed + 0x1), false, true, true),
     makePrivateCircuitPublicInputs(seed + 0x10),
+    false,
   );
 }
 

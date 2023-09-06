@@ -218,7 +218,7 @@ export class PrivateFunctionExecution {
     publicInputs.unencryptedLogsHash = to2Fields(unencryptedLogs.hash());
     publicInputs.unencryptedLogPreimagesLength = new Fr(unencryptedLogs.getSerializedLength());
 
-    const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs);
+    const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs, false);
     const returnValues = decodeReturnValues(this.abi, publicInputs.returnValues);
 
     this.log(`Returning from call to ${this.contractAddress.toString()}:${selector}`);

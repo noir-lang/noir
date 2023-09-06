@@ -11,6 +11,8 @@ import {
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
+  PrivateKernelInputsInit,
+  PrivateKernelInputsInner,
   PrivateKernelInputsOrdering,
   PrivateKernelPublicInputs,
   ReadRequestMembershipWitness,
@@ -130,7 +132,7 @@ export class KernelProver {
       const privateCallData = await this.createPrivateCallData(
         currentExecution,
         readRequestMembershipWitnesses,
-        privateCallStackPreimages,
+        makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, i => privateCallStackPreimages[i], 0),
       );
 
       if (firstIteration) {
@@ -139,7 +141,7 @@ export class KernelProver {
         privateCallData.callStackItem.publicInputs.historicBlockData.privateDataTreeRoot =
           await this.oracle.getPrivateDataRoot();
 
-        output = await this.proofCreator.createProofInit(txRequest, privateCallData);
+        output = await this.proofCreator.createProofInit(new PrivateKernelInputsInit(txRequest, privateCallData));
       } else {
         const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(previousVerificationKey);
         const previousKernelData = new PreviousKernelData(
@@ -149,7 +151,9 @@ export class KernelProver {
           Number(previousVkMembershipWitness.leafIndex),
           assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
         );
-        output = await this.proofCreator.createProofInner(previousKernelData, privateCallData);
+        output = await this.proofCreator.createProofInner(
+          new PrivateKernelInputsInner(previousKernelData, privateCallData),
+        );
       }
       (await this.getNewNotes(currentExecution)).forEach(n => {
         newNotes[n.commitment.toString()] = n;
@@ -184,7 +188,7 @@ export class KernelProver {
   private async createPrivateCallData(
     { callStackItem, vk }: ExecutionResult,
     readRequestMembershipWitnesses: ReadRequestMembershipWitness[],
-    privateCallStackPreimages: PrivateCallStackItem[],
+    privateCallStackPreimages: Tuple<PrivateCallStackItem, typeof MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
   ) {
     const { contractAddress, functionData, publicInputs } = callStackItem;
     const { portalContractAddress } = publicInputs.callContext;
@@ -212,8 +216,8 @@ export class KernelProver {
       VerificationKey.fromBuffer(vk),
       functionLeafMembershipWitness,
       contractLeafMembershipWitness,
-      readRequestMembershipWitnesses,
-      portalContractAddress,
+      makeTuple(MAX_READ_REQUESTS_PER_CALL, i => readRequestMembershipWitnesses[i], 0),
+      portalContractAddress.toField(),
       acirHash,
     );
   }

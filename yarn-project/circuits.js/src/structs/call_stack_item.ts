@@ -12,11 +12,6 @@ import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
  * @see cpp/src/aztec3/circuits/abis/call_stack_item.hpp.
  */
 export class PrivateCallStackItem {
-  /**
-   * Whether the current callstack item should be considered a public fn execution request.
-   */
-  public readonly isExecutionRequest = false;
-
   constructor(
     /**
      * Address of the contract on which the function is invoked.
@@ -30,7 +25,15 @@ export class PrivateCallStackItem {
      * Public inputs to the private kernel circuit.
      */
     public publicInputs: PrivateCircuitPublicInputs,
-  ) {}
+    /**
+     * Whether the current callstack item should be considered a public fn execution request.
+     */
+    public readonly isExecutionRequest: boolean,
+  ) {
+    if (isExecutionRequest) {
+      throw new Error('boolean isExecutionRequest must be set to true for a PrivateCallStackItem object');
+    }
+  }
 
   toBuffer() {
     return serializeToBuffer(this.contractAddress, this.functionData, this.publicInputs, this.isExecutionRequest);
@@ -45,6 +48,7 @@ export class PrivateCallStackItem {
       AztecAddress.ZERO,
       FunctionData.empty({ isPrivate: true }),
       PrivateCircuitPublicInputs.empty(),
+      false,
     );
   }
 }

@@ -2,6 +2,46 @@
 // Can either export things directly or handle
 // naming differences with the 'as' syntax
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { Fr } from '@aztec/foundation/fields';
+import { Tuple } from '@aztec/foundation/serialize';
+
+import { MembershipWitness } from '../structs/membership_witness.js';
+
+/**
+ * Alias for msgpack which expects a MembershipWitness + N name.
+ */
+export class MembershipWitness16 extends MembershipWitness<16> {
+  constructor(
+    /**
+     * Index of a leaf in the Merkle tree.
+     */
+    leafIndex: Fr,
+    /**
+     * Sibling path of the leaf in the Merkle tree.
+     */
+    siblingPath: Tuple<Fr, 16>,
+  ) {
+    super(16, leafIndex.toBigInt(), siblingPath);
+  }
+}
+
+/**
+ * Alias for msgpack which expects a MembershipWitness + N name.
+ */
+export class MembershipWitness4 extends MembershipWitness<4> {
+  constructor(
+    /**
+     * Index of a leaf in the Merkle tree.
+     */
+    leafIndex: Fr,
+    /**
+     * Sibling path of the leaf in the Merkle tree.
+     */
+    siblingPath: Tuple<Fr, 4>,
+  ) {
+    super(4, leafIndex.toBigInt(), siblingPath);
+  }
+}
 
 /**
  * Coerce a variety of types to a buffer.
@@ -53,6 +93,12 @@ export {
   Coordinate,
   GlobalVariables,
   PrivateKernelInputsOrdering,
+  PrivateCallData,
+  PrivateCallStackItem,
+  PrivateCircuitPublicInputs,
+  PrivateKernelInputsInit,
+  PrivateKernelInputsInner,
+  TxRequest,
 } from '../structs/index.js';
 export { FunctionSelector } from '@aztec/foundation/abi';
 

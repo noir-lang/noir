@@ -26,11 +26,18 @@ import {
   HistoricBlockData,
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
+  MembershipWitness4,
+  MembershipWitness16,
   NativeAggregationState,
   NewContractData,
   OptionallyRevealedData,
   Point,
   PreviousKernelData,
+  PrivateCallData,
+  PrivateCallStackItem,
+  PrivateCircuitPublicInputs,
+  PrivateKernelInputsInit,
+  PrivateKernelInputsInner,
   PrivateKernelInputsOrdering,
   Proof,
   PublicCallData,
@@ -39,7 +46,9 @@ import {
   PublicDataRead,
   PublicDataUpdateRequest,
   PublicKernelInputs,
+  ReadRequestMembershipWitness,
   TxContext,
+  TxRequest,
   VerificationKeyData,
   isCircuitError,
   toBuffer,
@@ -1029,34 +1038,582 @@ export function fromPreviousKernelData(o: PreviousKernelData): MsgpackPreviousKe
   };
 }
 
-interface MsgpackPrivateKernelInputsOrdering {
-  previous_kernel: MsgpackPreviousKernelData;
-  hint_to_commitments: Tuple<Buffer, 16>;
+interface MsgpackTxRequest {
+  origin: Buffer;
+  function_data: MsgpackFunctionData;
+  args_hash: Buffer;
+  tx_context: MsgpackTxContext;
 }
 
-export function toPrivateKernelInputsOrdering(o: MsgpackPrivateKernelInputsOrdering): PrivateKernelInputsOrdering {
-  if (o.previous_kernel === undefined) {
-    throw new Error('Expected previous_kernel in PrivateKernelInputsOrdering deserialization');
+export function toTxRequest(o: MsgpackTxRequest): TxRequest {
+  if (o.origin === undefined) {
+    throw new Error('Expected origin in TxRequest deserialization');
   }
-  if (o.hint_to_commitments === undefined) {
-    throw new Error('Expected hint_to_commitments in PrivateKernelInputsOrdering deserialization');
+  if (o.function_data === undefined) {
+    throw new Error('Expected function_data in TxRequest deserialization');
   }
-  return new PrivateKernelInputsOrdering(
-    toPreviousKernelData(o.previous_kernel),
-    mapTuple(o.hint_to_commitments, (v: Buffer) => Fr.fromBuffer(v)),
+  if (o.args_hash === undefined) {
+    throw new Error('Expected args_hash in TxRequest deserialization');
+  }
+  if (o.tx_context === undefined) {
+    throw new Error('Expected tx_context in TxRequest deserialization');
+  }
+  return new TxRequest(
+    Address.fromBuffer(o.origin),
+    toFunctionData(o.function_data),
+    Fr.fromBuffer(o.args_hash),
+    toTxContext(o.tx_context),
   );
 }
 
-export function fromPrivateKernelInputsOrdering(o: PrivateKernelInputsOrdering): MsgpackPrivateKernelInputsOrdering {
-  if (o.previousKernel === undefined) {
-    throw new Error('Expected previousKernel in PrivateKernelInputsOrdering serialization');
+export function fromTxRequest(o: TxRequest): MsgpackTxRequest {
+  if (o.origin === undefined) {
+    throw new Error('Expected origin in TxRequest serialization');
   }
-  if (o.hintToCommitments === undefined) {
-    throw new Error('Expected hintToCommitments in PrivateKernelInputsOrdering serialization');
+  if (o.functionData === undefined) {
+    throw new Error('Expected functionData in TxRequest serialization');
+  }
+  if (o.argsHash === undefined) {
+    throw new Error('Expected argsHash in TxRequest serialization');
+  }
+  if (o.txContext === undefined) {
+    throw new Error('Expected txContext in TxRequest serialization');
   }
   return {
-    previous_kernel: fromPreviousKernelData(o.previousKernel),
-    hint_to_commitments: mapTuple(o.hintToCommitments, (v: Fr) => toBuffer(v)),
+    origin: toBuffer(o.origin),
+    function_data: fromFunctionData(o.functionData),
+    args_hash: toBuffer(o.argsHash),
+    tx_context: fromTxContext(o.txContext),
+  };
+}
+
+interface MsgpackCallContext {
+  msg_sender: Buffer;
+  storage_contract_address: Buffer;
+  portal_contract_address: Buffer;
+  is_delegate_call: boolean;
+  is_static_call: boolean;
+  is_contract_deployment: boolean;
+}
+
+export function toCallContext(o: MsgpackCallContext): CallContext {
+  if (o.msg_sender === undefined) {
+    throw new Error('Expected msg_sender in CallContext deserialization');
+  }
+  if (o.storage_contract_address === undefined) {
+    throw new Error('Expected storage_contract_address in CallContext deserialization');
+  }
+  if (o.portal_contract_address === undefined) {
+    throw new Error('Expected portal_contract_address in CallContext deserialization');
+  }
+  if (o.is_delegate_call === undefined) {
+    throw new Error('Expected is_delegate_call in CallContext deserialization');
+  }
+  if (o.is_static_call === undefined) {
+    throw new Error('Expected is_static_call in CallContext deserialization');
+  }
+  if (o.is_contract_deployment === undefined) {
+    throw new Error('Expected is_contract_deployment in CallContext deserialization');
+  }
+  return new CallContext(
+    Address.fromBuffer(o.msg_sender),
+    Address.fromBuffer(o.storage_contract_address),
+    Fr.fromBuffer(o.portal_contract_address),
+    o.is_delegate_call,
+    o.is_static_call,
+    o.is_contract_deployment,
+  );
+}
+
+export function fromCallContext(o: CallContext): MsgpackCallContext {
+  if (o.msgSender === undefined) {
+    throw new Error('Expected msgSender in CallContext serialization');
+  }
+  if (o.storageContractAddress === undefined) {
+    throw new Error('Expected storageContractAddress in CallContext serialization');
+  }
+  if (o.portalContractAddress === undefined) {
+    throw new Error('Expected portalContractAddress in CallContext serialization');
+  }
+  if (o.isDelegateCall === undefined) {
+    throw new Error('Expected isDelegateCall in CallContext serialization');
+  }
+  if (o.isStaticCall === undefined) {
+    throw new Error('Expected isStaticCall in CallContext serialization');
+  }
+  if (o.isContractDeployment === undefined) {
+    throw new Error('Expected isContractDeployment in CallContext serialization');
+  }
+  return {
+    msg_sender: toBuffer(o.msgSender),
+    storage_contract_address: toBuffer(o.storageContractAddress),
+    portal_contract_address: toBuffer(o.portalContractAddress),
+    is_delegate_call: o.isDelegateCall,
+    is_static_call: o.isStaticCall,
+    is_contract_deployment: o.isContractDeployment,
+  };
+}
+
+interface MsgpackPrivateCircuitPublicInputs {
+  call_context: MsgpackCallContext;
+  args_hash: Buffer;
+  return_values: Tuple<Buffer, 4>;
+  read_requests: Tuple<Buffer, 4>;
+  new_commitments: Tuple<Buffer, 4>;
+  new_nullifiers: Tuple<Buffer, 4>;
+  nullified_commitments: Tuple<Buffer, 4>;
+  private_call_stack: Tuple<Buffer, 4>;
+  public_call_stack: Tuple<Buffer, 4>;
+  new_l2_to_l1_msgs: Tuple<Buffer, 2>;
+  encrypted_logs_hash: Tuple<Buffer, 2>;
+  unencrypted_logs_hash: Tuple<Buffer, 2>;
+  encrypted_log_preimages_length: Buffer;
+  unencrypted_log_preimages_length: Buffer;
+  historic_block_data: MsgpackHistoricBlockData;
+  contract_deployment_data: MsgpackContractDeploymentData;
+  chain_id: Buffer;
+  version: Buffer;
+}
+
+export function toPrivateCircuitPublicInputs(o: MsgpackPrivateCircuitPublicInputs): PrivateCircuitPublicInputs {
+  if (o.call_context === undefined) {
+    throw new Error('Expected call_context in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.args_hash === undefined) {
+    throw new Error('Expected args_hash in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.return_values === undefined) {
+    throw new Error('Expected return_values in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.read_requests === undefined) {
+    throw new Error('Expected read_requests in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.new_commitments === undefined) {
+    throw new Error('Expected new_commitments in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.new_nullifiers === undefined) {
+    throw new Error('Expected new_nullifiers in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.nullified_commitments === undefined) {
+    throw new Error('Expected nullified_commitments in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.private_call_stack === undefined) {
+    throw new Error('Expected private_call_stack in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.public_call_stack === undefined) {
+    throw new Error('Expected public_call_stack in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.new_l2_to_l1_msgs === undefined) {
+    throw new Error('Expected new_l2_to_l1_msgs in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.encrypted_logs_hash === undefined) {
+    throw new Error('Expected encrypted_logs_hash in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.unencrypted_logs_hash === undefined) {
+    throw new Error('Expected unencrypted_logs_hash in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.encrypted_log_preimages_length === undefined) {
+    throw new Error('Expected encrypted_log_preimages_length in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.unencrypted_log_preimages_length === undefined) {
+    throw new Error('Expected unencrypted_log_preimages_length in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.historic_block_data === undefined) {
+    throw new Error('Expected historic_block_data in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.contract_deployment_data === undefined) {
+    throw new Error('Expected contract_deployment_data in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.chain_id === undefined) {
+    throw new Error('Expected chain_id in PrivateCircuitPublicInputs deserialization');
+  }
+  if (o.version === undefined) {
+    throw new Error('Expected version in PrivateCircuitPublicInputs deserialization');
+  }
+  return new PrivateCircuitPublicInputs(
+    toCallContext(o.call_context),
+    Fr.fromBuffer(o.args_hash),
+    mapTuple(o.return_values, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.read_requests, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.new_commitments, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.new_nullifiers, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.nullified_commitments, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.private_call_stack, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.public_call_stack, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.new_l2_to_l1_msgs, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.encrypted_logs_hash, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.unencrypted_logs_hash, (v: Buffer) => Fr.fromBuffer(v)),
+    Fr.fromBuffer(o.encrypted_log_preimages_length),
+    Fr.fromBuffer(o.unencrypted_log_preimages_length),
+    toHistoricBlockData(o.historic_block_data),
+    toContractDeploymentData(o.contract_deployment_data),
+    Fr.fromBuffer(o.chain_id),
+    Fr.fromBuffer(o.version),
+  );
+}
+
+export function fromPrivateCircuitPublicInputs(o: PrivateCircuitPublicInputs): MsgpackPrivateCircuitPublicInputs {
+  if (o.callContext === undefined) {
+    throw new Error('Expected callContext in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.argsHash === undefined) {
+    throw new Error('Expected argsHash in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.returnValues === undefined) {
+    throw new Error('Expected returnValues in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.readRequests === undefined) {
+    throw new Error('Expected readRequests in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.newCommitments === undefined) {
+    throw new Error('Expected newCommitments in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.newNullifiers === undefined) {
+    throw new Error('Expected newNullifiers in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.nullifiedCommitments === undefined) {
+    throw new Error('Expected nullifiedCommitments in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.privateCallStack === undefined) {
+    throw new Error('Expected privateCallStack in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.publicCallStack === undefined) {
+    throw new Error('Expected publicCallStack in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.newL2ToL1Msgs === undefined) {
+    throw new Error('Expected newL2ToL1Msgs in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.encryptedLogsHash === undefined) {
+    throw new Error('Expected encryptedLogsHash in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.unencryptedLogsHash === undefined) {
+    throw new Error('Expected unencryptedLogsHash in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.encryptedLogPreimagesLength === undefined) {
+    throw new Error('Expected encryptedLogPreimagesLength in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.unencryptedLogPreimagesLength === undefined) {
+    throw new Error('Expected unencryptedLogPreimagesLength in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.historicBlockData === undefined) {
+    throw new Error('Expected historicBlockData in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.contractDeploymentData === undefined) {
+    throw new Error('Expected contractDeploymentData in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.chainId === undefined) {
+    throw new Error('Expected chainId in PrivateCircuitPublicInputs serialization');
+  }
+  if (o.version === undefined) {
+    throw new Error('Expected version in PrivateCircuitPublicInputs serialization');
+  }
+  return {
+    call_context: fromCallContext(o.callContext),
+    args_hash: toBuffer(o.argsHash),
+    return_values: mapTuple(o.returnValues, (v: Fr) => toBuffer(v)),
+    read_requests: mapTuple(o.readRequests, (v: Fr) => toBuffer(v)),
+    new_commitments: mapTuple(o.newCommitments, (v: Fr) => toBuffer(v)),
+    new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => toBuffer(v)),
+    nullified_commitments: mapTuple(o.nullifiedCommitments, (v: Fr) => toBuffer(v)),
+    private_call_stack: mapTuple(o.privateCallStack, (v: Fr) => toBuffer(v)),
+    public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => toBuffer(v)),
+    new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => toBuffer(v)),
+    encrypted_logs_hash: mapTuple(o.encryptedLogsHash, (v: Fr) => toBuffer(v)),
+    unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => toBuffer(v)),
+    encrypted_log_preimages_length: toBuffer(o.encryptedLogPreimagesLength),
+    unencrypted_log_preimages_length: toBuffer(o.unencryptedLogPreimagesLength),
+    historic_block_data: fromHistoricBlockData(o.historicBlockData),
+    contract_deployment_data: fromContractDeploymentData(o.contractDeploymentData),
+    chain_id: toBuffer(o.chainId),
+    version: toBuffer(o.version),
+  };
+}
+
+interface MsgpackPrivateCallStackItem {
+  contract_address: Buffer;
+  function_data: MsgpackFunctionData;
+  public_inputs: MsgpackPrivateCircuitPublicInputs;
+  is_execution_request: boolean;
+}
+
+export function toPrivateCallStackItem(o: MsgpackPrivateCallStackItem): PrivateCallStackItem {
+  if (o.contract_address === undefined) {
+    throw new Error('Expected contract_address in PrivateCallStackItem deserialization');
+  }
+  if (o.function_data === undefined) {
+    throw new Error('Expected function_data in PrivateCallStackItem deserialization');
+  }
+  if (o.public_inputs === undefined) {
+    throw new Error('Expected public_inputs in PrivateCallStackItem deserialization');
+  }
+  if (o.is_execution_request === undefined) {
+    throw new Error('Expected is_execution_request in PrivateCallStackItem deserialization');
+  }
+  return new PrivateCallStackItem(
+    Address.fromBuffer(o.contract_address),
+    toFunctionData(o.function_data),
+    toPrivateCircuitPublicInputs(o.public_inputs),
+    o.is_execution_request,
+  );
+}
+
+export function fromPrivateCallStackItem(o: PrivateCallStackItem): MsgpackPrivateCallStackItem {
+  if (o.contractAddress === undefined) {
+    throw new Error('Expected contractAddress in PrivateCallStackItem serialization');
+  }
+  if (o.functionData === undefined) {
+    throw new Error('Expected functionData in PrivateCallStackItem serialization');
+  }
+  if (o.publicInputs === undefined) {
+    throw new Error('Expected publicInputs in PrivateCallStackItem serialization');
+  }
+  if (o.isExecutionRequest === undefined) {
+    throw new Error('Expected isExecutionRequest in PrivateCallStackItem serialization');
+  }
+  return {
+    contract_address: toBuffer(o.contractAddress),
+    function_data: fromFunctionData(o.functionData),
+    public_inputs: fromPrivateCircuitPublicInputs(o.publicInputs),
+    is_execution_request: o.isExecutionRequest,
+  };
+}
+
+interface MsgpackMembershipWitness4 {
+  leaf_index: Buffer;
+  sibling_path: Tuple<Buffer, 4>;
+}
+
+export function toMembershipWitness4(o: MsgpackMembershipWitness4): MembershipWitness4 {
+  if (o.leaf_index === undefined) {
+    throw new Error('Expected leaf_index in MembershipWitness4 deserialization');
+  }
+  if (o.sibling_path === undefined) {
+    throw new Error('Expected sibling_path in MembershipWitness4 deserialization');
+  }
+  return new MembershipWitness4(
+    Fr.fromBuffer(o.leaf_index),
+    mapTuple(o.sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromMembershipWitness4(o: MembershipWitness4): MsgpackMembershipWitness4 {
+  if (o.leafIndex === undefined) {
+    throw new Error('Expected leafIndex in MembershipWitness4 serialization');
+  }
+  if (o.siblingPath === undefined) {
+    throw new Error('Expected siblingPath in MembershipWitness4 serialization');
+  }
+  return {
+    leaf_index: toBuffer(o.leafIndex),
+    sibling_path: mapTuple(o.siblingPath, (v: Fr) => toBuffer(v)),
+  };
+}
+
+interface MsgpackMembershipWitness16 {
+  leaf_index: Buffer;
+  sibling_path: Tuple<Buffer, 16>;
+}
+
+export function toMembershipWitness16(o: MsgpackMembershipWitness16): MembershipWitness16 {
+  if (o.leaf_index === undefined) {
+    throw new Error('Expected leaf_index in MembershipWitness16 deserialization');
+  }
+  if (o.sibling_path === undefined) {
+    throw new Error('Expected sibling_path in MembershipWitness16 deserialization');
+  }
+  return new MembershipWitness16(
+    Fr.fromBuffer(o.leaf_index),
+    mapTuple(o.sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromMembershipWitness16(o: MembershipWitness16): MsgpackMembershipWitness16 {
+  if (o.leafIndex === undefined) {
+    throw new Error('Expected leafIndex in MembershipWitness16 serialization');
+  }
+  if (o.siblingPath === undefined) {
+    throw new Error('Expected siblingPath in MembershipWitness16 serialization');
+  }
+  return {
+    leaf_index: toBuffer(o.leafIndex),
+    sibling_path: mapTuple(o.siblingPath, (v: Fr) => toBuffer(v)),
+  };
+}
+
+interface MsgpackReadRequestMembershipWitness {
+  leaf_index: Buffer;
+  sibling_path: Tuple<Buffer, 32>;
+  is_transient: boolean;
+  hint_to_commitment: Buffer;
+}
+
+export function toReadRequestMembershipWitness(o: MsgpackReadRequestMembershipWitness): ReadRequestMembershipWitness {
+  if (o.leaf_index === undefined) {
+    throw new Error('Expected leaf_index in ReadRequestMembershipWitness deserialization');
+  }
+  if (o.sibling_path === undefined) {
+    throw new Error('Expected sibling_path in ReadRequestMembershipWitness deserialization');
+  }
+  if (o.is_transient === undefined) {
+    throw new Error('Expected is_transient in ReadRequestMembershipWitness deserialization');
+  }
+  if (o.hint_to_commitment === undefined) {
+    throw new Error('Expected hint_to_commitment in ReadRequestMembershipWitness deserialization');
+  }
+  return new ReadRequestMembershipWitness(
+    Fr.fromBuffer(o.leaf_index),
+    mapTuple(o.sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+    o.is_transient,
+    Fr.fromBuffer(o.hint_to_commitment),
+  );
+}
+
+export function fromReadRequestMembershipWitness(o: ReadRequestMembershipWitness): MsgpackReadRequestMembershipWitness {
+  if (o.leafIndex === undefined) {
+    throw new Error('Expected leafIndex in ReadRequestMembershipWitness serialization');
+  }
+  if (o.siblingPath === undefined) {
+    throw new Error('Expected siblingPath in ReadRequestMembershipWitness serialization');
+  }
+  if (o.isTransient === undefined) {
+    throw new Error('Expected isTransient in ReadRequestMembershipWitness serialization');
+  }
+  if (o.hintToCommitment === undefined) {
+    throw new Error('Expected hintToCommitment in ReadRequestMembershipWitness serialization');
+  }
+  return {
+    leaf_index: toBuffer(o.leafIndex),
+    sibling_path: mapTuple(o.siblingPath, (v: Fr) => toBuffer(v)),
+    is_transient: o.isTransient,
+    hint_to_commitment: toBuffer(o.hintToCommitment),
+  };
+}
+
+interface MsgpackPrivateCallData {
+  call_stack_item: MsgpackPrivateCallStackItem;
+  private_call_stack_preimages: Tuple<MsgpackPrivateCallStackItem, 4>;
+  proof: Buffer;
+  vk: MsgpackVerificationKeyData;
+  function_leaf_membership_witness: MsgpackMembershipWitness4;
+  contract_leaf_membership_witness: MsgpackMembershipWitness16;
+  read_request_membership_witnesses: Tuple<MsgpackReadRequestMembershipWitness, 4>;
+  portal_contract_address: Buffer;
+  acir_hash: Buffer;
+}
+
+export function toPrivateCallData(o: MsgpackPrivateCallData): PrivateCallData {
+  if (o.call_stack_item === undefined) {
+    throw new Error('Expected call_stack_item in PrivateCallData deserialization');
+  }
+  if (o.private_call_stack_preimages === undefined) {
+    throw new Error('Expected private_call_stack_preimages in PrivateCallData deserialization');
+  }
+  if (o.proof === undefined) {
+    throw new Error('Expected proof in PrivateCallData deserialization');
+  }
+  if (o.vk === undefined) {
+    throw new Error('Expected vk in PrivateCallData deserialization');
+  }
+  if (o.function_leaf_membership_witness === undefined) {
+    throw new Error('Expected function_leaf_membership_witness in PrivateCallData deserialization');
+  }
+  if (o.contract_leaf_membership_witness === undefined) {
+    throw new Error('Expected contract_leaf_membership_witness in PrivateCallData deserialization');
+  }
+  if (o.read_request_membership_witnesses === undefined) {
+    throw new Error('Expected read_request_membership_witnesses in PrivateCallData deserialization');
+  }
+  if (o.portal_contract_address === undefined) {
+    throw new Error('Expected portal_contract_address in PrivateCallData deserialization');
+  }
+  if (o.acir_hash === undefined) {
+    throw new Error('Expected acir_hash in PrivateCallData deserialization');
+  }
+  return new PrivateCallData(
+    toPrivateCallStackItem(o.call_stack_item),
+    mapTuple(o.private_call_stack_preimages, (v: MsgpackPrivateCallStackItem) => toPrivateCallStackItem(v)),
+    Proof.fromMsgpackBuffer(o.proof),
+    toVerificationKeyData(o.vk),
+    toMembershipWitness4(o.function_leaf_membership_witness),
+    toMembershipWitness16(o.contract_leaf_membership_witness),
+    mapTuple(o.read_request_membership_witnesses, (v: MsgpackReadRequestMembershipWitness) =>
+      toReadRequestMembershipWitness(v),
+    ),
+    Fr.fromBuffer(o.portal_contract_address),
+    Fr.fromBuffer(o.acir_hash),
+  );
+}
+
+export function fromPrivateCallData(o: PrivateCallData): MsgpackPrivateCallData {
+  if (o.callStackItem === undefined) {
+    throw new Error('Expected callStackItem in PrivateCallData serialization');
+  }
+  if (o.privateCallStackPreimages === undefined) {
+    throw new Error('Expected privateCallStackPreimages in PrivateCallData serialization');
+  }
+  if (o.proof === undefined) {
+    throw new Error('Expected proof in PrivateCallData serialization');
+  }
+  if (o.vk === undefined) {
+    throw new Error('Expected vk in PrivateCallData serialization');
+  }
+  if (o.functionLeafMembershipWitness === undefined) {
+    throw new Error('Expected functionLeafMembershipWitness in PrivateCallData serialization');
+  }
+  if (o.contractLeafMembershipWitness === undefined) {
+    throw new Error('Expected contractLeafMembershipWitness in PrivateCallData serialization');
+  }
+  if (o.readRequestMembershipWitnesses === undefined) {
+    throw new Error('Expected readRequestMembershipWitnesses in PrivateCallData serialization');
+  }
+  if (o.portalContractAddress === undefined) {
+    throw new Error('Expected portalContractAddress in PrivateCallData serialization');
+  }
+  if (o.acirHash === undefined) {
+    throw new Error('Expected acirHash in PrivateCallData serialization');
+  }
+  return {
+    call_stack_item: fromPrivateCallStackItem(o.callStackItem),
+    private_call_stack_preimages: mapTuple(o.privateCallStackPreimages, (v: PrivateCallStackItem) =>
+      fromPrivateCallStackItem(v),
+    ),
+    proof: o.proof.toMsgpackBuffer(),
+    vk: fromVerificationKeyData(o.vk),
+    function_leaf_membership_witness: fromMembershipWitness4(o.functionLeafMembershipWitness),
+    contract_leaf_membership_witness: fromMembershipWitness16(o.contractLeafMembershipWitness),
+    read_request_membership_witnesses: mapTuple(o.readRequestMembershipWitnesses, (v: ReadRequestMembershipWitness) =>
+      fromReadRequestMembershipWitness(v),
+    ),
+    portal_contract_address: toBuffer(o.portalContractAddress),
+    acir_hash: toBuffer(o.acirHash),
+  };
+}
+
+interface MsgpackPrivateKernelInputsInit {
+  tx_request: MsgpackTxRequest;
+  private_call: MsgpackPrivateCallData;
+}
+
+export function toPrivateKernelInputsInit(o: MsgpackPrivateKernelInputsInit): PrivateKernelInputsInit {
+  if (o.tx_request === undefined) {
+    throw new Error('Expected tx_request in PrivateKernelInputsInit deserialization');
+  }
+  if (o.private_call === undefined) {
+    throw new Error('Expected private_call in PrivateKernelInputsInit deserialization');
+  }
+  return new PrivateKernelInputsInit(toTxRequest(o.tx_request), toPrivateCallData(o.private_call));
+}
+
+export function fromPrivateKernelInputsInit(o: PrivateKernelInputsInit): MsgpackPrivateKernelInputsInit {
+  if (o.txRequest === undefined) {
+    throw new Error('Expected txRequest in PrivateKernelInputsInit serialization');
+  }
+  if (o.privateCall === undefined) {
+    throw new Error('Expected privateCall in PrivateKernelInputsInit serialization');
+  }
+  return {
+    tx_request: fromTxRequest(o.txRequest),
+    private_call: fromPrivateCallData(o.privateCall),
   };
 }
 
@@ -1085,6 +1642,65 @@ export function fromCircuitError(o: CircuitError): MsgpackCircuitError {
   return {
     code: o.code,
     message: o.message,
+  };
+}
+
+interface MsgpackPrivateKernelInputsInner {
+  previous_kernel: MsgpackPreviousKernelData;
+  private_call: MsgpackPrivateCallData;
+}
+
+export function toPrivateKernelInputsInner(o: MsgpackPrivateKernelInputsInner): PrivateKernelInputsInner {
+  if (o.previous_kernel === undefined) {
+    throw new Error('Expected previous_kernel in PrivateKernelInputsInner deserialization');
+  }
+  if (o.private_call === undefined) {
+    throw new Error('Expected private_call in PrivateKernelInputsInner deserialization');
+  }
+  return new PrivateKernelInputsInner(toPreviousKernelData(o.previous_kernel), toPrivateCallData(o.private_call));
+}
+
+export function fromPrivateKernelInputsInner(o: PrivateKernelInputsInner): MsgpackPrivateKernelInputsInner {
+  if (o.previousKernel === undefined) {
+    throw new Error('Expected previousKernel in PrivateKernelInputsInner serialization');
+  }
+  if (o.privateCall === undefined) {
+    throw new Error('Expected privateCall in PrivateKernelInputsInner serialization');
+  }
+  return {
+    previous_kernel: fromPreviousKernelData(o.previousKernel),
+    private_call: fromPrivateCallData(o.privateCall),
+  };
+}
+
+interface MsgpackPrivateKernelInputsOrdering {
+  previous_kernel: MsgpackPreviousKernelData;
+  hint_to_commitments: Tuple<Buffer, 16>;
+}
+
+export function toPrivateKernelInputsOrdering(o: MsgpackPrivateKernelInputsOrdering): PrivateKernelInputsOrdering {
+  if (o.previous_kernel === undefined) {
+    throw new Error('Expected previous_kernel in PrivateKernelInputsOrdering deserialization');
+  }
+  if (o.hint_to_commitments === undefined) {
+    throw new Error('Expected hint_to_commitments in PrivateKernelInputsOrdering deserialization');
+  }
+  return new PrivateKernelInputsOrdering(
+    toPreviousKernelData(o.previous_kernel),
+    mapTuple(o.hint_to_commitments, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromPrivateKernelInputsOrdering(o: PrivateKernelInputsOrdering): MsgpackPrivateKernelInputsOrdering {
+  if (o.previousKernel === undefined) {
+    throw new Error('Expected previousKernel in PrivateKernelInputsOrdering serialization');
+  }
+  if (o.hintToCommitments === undefined) {
+    throw new Error('Expected hintToCommitments in PrivateKernelInputsOrdering serialization');
+  }
+  return {
+    previous_kernel: fromPreviousKernelData(o.previousKernel),
+    hint_to_commitments: mapTuple(o.hintToCommitments, (v: Fr) => toBuffer(v)),
   };
 }
 
@@ -1261,73 +1877,6 @@ export function fromKernelCircuitPublicInputsFinal(
     end: fromFinalAccumulatedData(o.end),
     constants: fromCombinedConstantData(o.constants),
     is_private: o.isPrivate,
-  };
-}
-
-interface MsgpackCallContext {
-  msg_sender: Buffer;
-  storage_contract_address: Buffer;
-  portal_contract_address: Buffer;
-  is_delegate_call: boolean;
-  is_static_call: boolean;
-  is_contract_deployment: boolean;
-}
-
-export function toCallContext(o: MsgpackCallContext): CallContext {
-  if (o.msg_sender === undefined) {
-    throw new Error('Expected msg_sender in CallContext deserialization');
-  }
-  if (o.storage_contract_address === undefined) {
-    throw new Error('Expected storage_contract_address in CallContext deserialization');
-  }
-  if (o.portal_contract_address === undefined) {
-    throw new Error('Expected portal_contract_address in CallContext deserialization');
-  }
-  if (o.is_delegate_call === undefined) {
-    throw new Error('Expected is_delegate_call in CallContext deserialization');
-  }
-  if (o.is_static_call === undefined) {
-    throw new Error('Expected is_static_call in CallContext deserialization');
-  }
-  if (o.is_contract_deployment === undefined) {
-    throw new Error('Expected is_contract_deployment in CallContext deserialization');
-  }
-  return new CallContext(
-    Address.fromBuffer(o.msg_sender),
-    Address.fromBuffer(o.storage_contract_address),
-    Fr.fromBuffer(o.portal_contract_address),
-    o.is_delegate_call,
-    o.is_static_call,
-    o.is_contract_deployment,
-  );
-}
-
-export function fromCallContext(o: CallContext): MsgpackCallContext {
-  if (o.msgSender === undefined) {
-    throw new Error('Expected msgSender in CallContext serialization');
-  }
-  if (o.storageContractAddress === undefined) {
-    throw new Error('Expected storageContractAddress in CallContext serialization');
-  }
-  if (o.portalContractAddress === undefined) {
-    throw new Error('Expected portalContractAddress in CallContext serialization');
-  }
-  if (o.isDelegateCall === undefined) {
-    throw new Error('Expected isDelegateCall in CallContext serialization');
-  }
-  if (o.isStaticCall === undefined) {
-    throw new Error('Expected isStaticCall in CallContext serialization');
-  }
-  if (o.isContractDeployment === undefined) {
-    throw new Error('Expected isContractDeployment in CallContext serialization');
-  }
-  return {
-    msg_sender: toBuffer(o.msgSender),
-    storage_contract_address: toBuffer(o.storageContractAddress),
-    portal_contract_address: toBuffer(o.portalContractAddress),
-    is_delegate_call: o.isDelegateCall,
-    is_static_call: o.isStaticCall,
-    is_contract_deployment: o.isContractDeployment,
   };
 }
 
@@ -1733,6 +2282,24 @@ export function abisComputePublicDataTreeIndex(wasm: IWasmModule, arg0: Fr, arg1
 }
 export function privateKernelDummyPreviousKernel(wasm: IWasmModule): PreviousKernelData {
   return toPreviousKernelData(callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
+}
+export function privateKernelSimInit(
+  wasm: IWasmModule,
+  arg0: PrivateKernelInputsInit,
+): CircuitError | KernelCircuitPublicInputs {
+  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
+    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+    callCbind(wasm, 'private_kernel__sim_init', [fromPrivateKernelInputsInit(arg0)]),
+  );
+}
+export function privateKernelSimInner(
+  wasm: IWasmModule,
+  arg0: PrivateKernelInputsInner,
+): CircuitError | KernelCircuitPublicInputs {
+  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
+    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+    callCbind(wasm, 'private_kernel__sim_inner', [fromPrivateKernelInputsInner(arg0)]),
+  );
 }
 export function privateKernelSimOrdering(
   wasm: IWasmModule,
