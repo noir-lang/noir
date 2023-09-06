@@ -5,10 +5,14 @@ use std::path::PathBuf;
 
 mod bb;
 mod cli;
+mod download;
 mod proof_system;
 mod smart_contract;
 
+pub use download::download_backend;
+
 const BACKENDS_DIR: &str = ".nargo/backends";
+pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 
 pub fn backends_directory() -> PathBuf {
     let home_directory = dirs::home_dir().unwrap();
@@ -33,7 +37,7 @@ fn assert_binary_exists(backend: &Backend) -> PathBuf {
     let binary_path = backend.binary_path();
 
     if !binary_path.is_file() {
-        bb::download_bb_binary(&binary_path)
+        download_backend(&bb::get_bb_download_url(), &binary_path)
     }
     binary_path
 }

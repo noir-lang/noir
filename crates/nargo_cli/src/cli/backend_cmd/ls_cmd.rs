@@ -18,6 +18,7 @@ pub(crate) fn run(_args: LsCommand) -> Result<(), CliError> {
 pub(super) fn get_available_backends() -> Vec<String> {
     let backend_directory_contents = std::fs::read_dir(backends_directory()).unwrap();
 
+    // TODO: Highlight the currently active backend.
     backend_directory_contents
         .into_iter()
         .filter_map(|entry| {
