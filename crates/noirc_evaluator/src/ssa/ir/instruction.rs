@@ -773,8 +773,8 @@ impl Binary {
             Type::Numeric(NumericType::NativeField) => {
                 self.operator.get_field_function()?(lhs, rhs)
             }
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-            // Type::Numeric(NumericType::Unsigned { .. }) => {
+            // Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            Type::Numeric(NumericType::Unsigned { .. }) => {
                 let function = self.operator.get_u128_function();
                 // dbg!(self.operator);
                 // let lhs = truncate(lhs.try_into_u128()?, *bit_size);

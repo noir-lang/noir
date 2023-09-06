@@ -1,0 +1,7 @@
+[package]
+name = "overflowing_shr"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.5"
+
+[dependencies]
