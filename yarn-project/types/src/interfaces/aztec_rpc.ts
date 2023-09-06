@@ -5,6 +5,7 @@ import {
   ContractData,
   ExtendedContractData,
   L2BlockL2Logs,
+  NotePreimage,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -164,6 +165,17 @@ export interface AztecRPC {
    * @returns A receipt of the transaction.
    */
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
+
+  /**
+   * Retrieves the private storage data at a specified contract address and storage slot.
+   * The returned data is data at the storage slot or throws an error if the contract is not deployed.
+   *
+   * @param owner - The address for whom the private data is encrypted.
+   * @param contract - The AztecAddress of the target contract.
+   * @param storageSlot - The Fr representing the storage slot to be fetched.
+   * @returns A set of note preimages for the owner in that contract and slot.
+   */
+  getPrivateStorageAt(owner: AztecAddress, contract: AztecAddress, storageSlot: Fr): Promise<NotePreimage[]>;
 
   /**
    * Retrieves the public storage data at a specified contract address and storage slot.

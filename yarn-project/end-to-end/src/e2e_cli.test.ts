@@ -1,6 +1,6 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer } from '@aztec/aztec-rpc';
-import { startHttpRpcServer } from '@aztec/aztec-sandbox/http';
+import { startHttpRpcServer } from '@aztec/aztec-sandbox';
 import { createDebugLogger } from '@aztec/aztec.js';
 import { getProgram } from '@aztec/cli';
 import { AztecRPC, CompleteAddress } from '@aztec/types';

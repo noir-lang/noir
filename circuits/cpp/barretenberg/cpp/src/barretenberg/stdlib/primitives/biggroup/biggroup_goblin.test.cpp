@@ -37,14 +37,14 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     /**
      * @brief Test goblin-style batch mul
      * @details Check that 1) Goblin-style batch mul returns correct value, and 2) resulting circuit is correct
-     * 
+     *
      */
     static void test_goblin_style_batch_mul()
     {
         const bool goblin_flag = true; // used to indicate goblin-style in batch_mul
         const size_t num_points = 5;
         Builder builder;
-        
+
         std::vector<affine_element> points;
         std::vector<fr> scalars;
         for (size_t i = 0; i < num_points; ++i) {

@@ -1,3 +1,4 @@
+import { AztecAddress } from '../aztec-address/index.js';
 import { toBigIntBE, toBufferBE, toHex } from '../bigint-buffer/index.js';
 import { randomBytes } from '../crypto/index.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
@@ -18,8 +19,8 @@ export class Fr {
    */
   public readonly value: bigint;
 
-  constructor(value: bigint | number | Fr) {
-    const isFr = (value: bigint | number | Fr): value is Fr => !!(value as Fr).toBigInt;
+  constructor(value: bigint | number | Fr | AztecAddress) {
+    const isFr = (value: bigint | number | Fr | AztecAddress): value is Fr | AztecAddress => !!(value as Fr).toBigInt;
     this.value = isFr(value) ? value.toBigInt() : BigInt(value);
     if (this.value > Fr.MAX_VALUE) {
       throw new Error(`Fr out of range ${value}.`);

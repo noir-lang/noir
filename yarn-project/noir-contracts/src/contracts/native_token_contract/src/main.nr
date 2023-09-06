@@ -26,16 +26,18 @@ contract NativeToken {
 
     use crate::storage::Storage;
 
-    use dep::aztec::types::point::Point;
     use dep::aztec::{
         note::{
             note_header::NoteHeader,
             utils as note_utils,
         },
+        oracle::{
+            logs::emit_unencrypted_log,
+            compute_selector::compute_selector
+        },
+        public_call_stack_item::PublicCallStackItem,
+        types::point::Point
     };
-
-    use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::oracle::compute_selector::compute_selector;
 
     #[aztec(private)]
     fn constructor(
@@ -57,7 +59,8 @@ contract NativeToken {
         let new_balance = storage.public_balances.at(to).read() + amount;
         storage.public_balances.at(to).write(new_balance);
         storage.total_supply.write(storage.total_supply.read() + amount);
-        
+        let _hash = emit_unencrypted_log("Coins minted");
+
         1
     }
 
@@ -190,7 +193,7 @@ contract NativeToken {
         let sender = context.msg_sender();
         let sender_balance = storage.public_balances.at(sender);
         let current_sender_balance: Field = sender_balance.read();
-        assert(current_sender_balance as u120 >= amount as u120);
+        assert(current_sender_balance as u120 >= amount as u120, "Balance too low");
 
         let to_balance = storage.public_balances.at(to);
         let current_to_balance: Field = to_balance.read();
@@ -198,6 +201,8 @@ contract NativeToken {
         // User has sufficient balance so we decrement it by `amount`
         sender_balance.write(current_sender_balance - amount);
         to_balance.write(current_to_balance + amount);
+
+        let _hash = emit_unencrypted_log("Coins transferred");
     }
 
     #[aztec(public)]

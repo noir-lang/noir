@@ -970,6 +970,17 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local guides/writing_an_account_contract.test.ts
           working_directory: yarn-project/end-to-end
 
+  guides-dapp-testing:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end guides/dapp_testing.test.ts docker-compose-e2e-sandbox.yml
+
   e2e-canary-test:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1407,6 +1418,7 @@ workflows:
       - e2e-browser-sandbox: *e2e_test
       - aztec-rpc-sandbox: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
+      - guides-dapp-testing: *e2e_test
 
       - e2e-end:
           requires:
@@ -1437,6 +1449,7 @@ workflows:
             - e2e-canary-test
             - aztec-rpc-sandbox
             - guides-writing-an-account-contract
+            - guides-dapp-testing
           <<: *defaults
 
       - deploy-dockerhub:

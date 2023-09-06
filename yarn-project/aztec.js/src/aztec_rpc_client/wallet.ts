@@ -7,6 +7,7 @@ import {
   FunctionCall,
   L2BlockL2Logs,
   NodeInfo,
+  NotePreimage,
   PackedArguments,
   SyncStatus,
   Tx,
@@ -63,6 +64,9 @@ export abstract class BaseWallet implements Wallet {
   }
   getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     return this.rpc.getTxReceipt(txHash);
+  }
+  getPrivateStorageAt(owner: AztecAddress, contract: AztecAddress, storageSlot: Fr): Promise<NotePreimage[]> {
+    return this.rpc.getPrivateStorageAt(owner, contract, storageSlot);
   }
   getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any> {
     return this.rpc.getPublicStorageAt(contract, storageSlot);
@@ -172,6 +176,11 @@ export class AccountWallet extends EntrypointWallet {
   /** Returns the complete address of the account that implements this wallet. */
   public getCompleteAddress() {
     return this.address;
+  }
+
+  /** Returns the address of the account that implements this wallet. */
+  public getAddress() {
+    return this.address.address;
   }
 }
 

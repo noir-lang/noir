@@ -45,7 +45,7 @@ fn decrement(
     owner: Field,
 ) {
     let sum = decrement_by_at_most(balance, amount, owner);
-    assert(sum == amount);
+    assert(sum == amount, "Balance too low");
 }
 
 // Similar to `decrement`, except that it doesn't fail if the decremented amount is less than max_amount.

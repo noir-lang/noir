@@ -198,7 +198,7 @@ __metadata:
     winston: ^3.10.0
     winston-daily-rotate-file: ^4.7.1
   bin:
-    aztec-sandbox: ./dest/index.js
+    aztec-sandbox: ./dest/bin/index.js
   languageName: unknown
   linkType: soft
 
@@ -214,6 +214,7 @@ __metadata:
     "@types/jest": ^29.5.0
     "@types/lodash.every": ^4.6.7
     "@types/lodash.partition": ^4.6.0
+    "@types/lodash.zip": ^4.2.7
     "@types/node": ^18.7.23
     buffer: ^6.0.3
     crypto-browserify: ^3.12.0
@@ -221,6 +222,7 @@ __metadata:
     jest-mock-extended: ^3.0.3
     lodash.every: ^4.6.0
     lodash.partition: ^4.6.0
+    lodash.zip: ^4.2.0
     process: ^0.11.10
     resolve-typescript-plugin: ^2.0.1
     stream-browserify: ^3.0.0

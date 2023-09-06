@@ -103,7 +103,11 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor, gob
 
     std::optional sumcheck_output = sumcheck.verify(relation_parameters, transcript);
 
-    info("Sumcheck: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    info("Sumcheck: num gates = ",
+         builder->get_num_gates() - prev_num_gates,
+         ", (total = ",
+         builder->get_num_gates(),
+         ")");
     prev_num_gates = builder->get_num_gates();
 
     // If Sumcheck does not return an output, sumcheck verification has failed
@@ -124,7 +128,11 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor, gob
         ++evaluation_idx;
     }
 
-    info("Batched eval: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    info("Batched eval: num gates = ",
+         builder->get_num_gates() - prev_num_gates,
+         ", (total = ",
+         builder->get_num_gates(),
+         ")");
     prev_num_gates = builder->get_num_gates();
 
     // Compute batched commitments needed for input to Gemini.
@@ -150,13 +158,21 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor, gob
     auto batched_commitment_unshifted =
         GroupElement::template batch_mul<goblin_flag>(commitments.get_unshifted(), scalars_unshifted);
 
-    info("Batch mul (unshifted): num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    info("Batch mul (unshifted): num gates = ",
+         builder->get_num_gates() - prev_num_gates,
+         ", (total = ",
+         builder->get_num_gates(),
+         ")");
     prev_num_gates = builder->get_num_gates();
 
     auto batched_commitment_to_be_shifted =
         GroupElement::template batch_mul<goblin_flag>(commitments.get_to_be_shifted(), scalars_to_be_shifted);
 
-    info("Batch mul (to-be-shited): num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    info("Batch mul (to-be-shited): num gates = ",
+         builder->get_num_gates() - prev_num_gates,
+         ", (total = ",
+         builder->get_num_gates(),
+         ")");
     prev_num_gates = builder->get_num_gates();
 
     // Produce a Gemini claim consisting of:
@@ -168,13 +184,21 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor, gob
                                                     batched_commitment_to_be_shifted,
                                                     transcript);
 
-    info("Gemini: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    info("Gemini: num gates = ",
+         builder->get_num_gates() - prev_num_gates,
+         ", (total = ",
+         builder->get_num_gates(),
+         ")");
     prev_num_gates = builder->get_num_gates();
 
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
     auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, gemini_claim, transcript);
 
-    info("Shplonk: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    info("Shplonk: num gates = ",
+         builder->get_num_gates() - prev_num_gates,
+         ", (total = ",
+         builder->get_num_gates(),
+         ")");
     prev_num_gates = builder->get_num_gates();
 
     // Constuct the inputs to the final KZG pairing check

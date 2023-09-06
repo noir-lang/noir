@@ -2,8 +2,10 @@ import { Fr, PrivateKey } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { sleep } from '@aztec/foundation/sleep';
 
+import zip from 'lodash.zip';
+
 import SchnorrAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
-import { AztecRPC, getAccountWallets, getSchnorrAccount } from '../index.js';
+import { AccountWallet, AztecRPC, EntrypointWallet, getAccountWallets, getSchnorrAccount } from '../index.js';
 
 export const INITIAL_SANDBOX_ENCRYPTION_KEYS = [
   new PrivateKey(Buffer.from('b2803ec899f76f6b2ac011480d24028f1a29587f8a3a92f7ee9d48d8c085c284', 'hex')),
@@ -18,17 +20,30 @@ export const INITIAL_SANDBOX_SALTS = [Fr.ZERO, Fr.ZERO, Fr.ZERO];
 export const INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI = SchnorrAccountContractAbi;
 
 /**
- * Gets a wallet for the Aztec accounts that are initially stored in the sandbox.
+ * Gets a single wallet that manages all the Aztec accounts that are initially stored in the sandbox.
  * @param aztecRpc - An instance of the Aztec RPC interface.
- * @returns An AccountWallet implementation that includes all the accounts found.
+ * @returns An AccountWallet implementation that includes all the initial accounts.
  */
-export async function getSandboxAccountsWallet(aztecRpc: AztecRPC) {
+export async function getSandboxAccountsWallet(aztecRpc: AztecRPC): Promise<EntrypointWallet> {
   return await getAccountWallets(
     aztecRpc,
     INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI as unknown as ContractAbi,
     INITIAL_SANDBOX_ENCRYPTION_KEYS,
     INITIAL_SANDBOX_SIGNING_KEYS,
     INITIAL_SANDBOX_SALTS,
+  );
+}
+
+/**
+ * Gets a collection of wallets for the Aztec accounts that are initially stored in the sandbox.
+ * @param aztecRpc - An instance of the Aztec RPC interface.
+ * @returns A set of AccountWallet implementations for each of the initial accounts.
+ */
+export function getSandboxAccountsWallets(aztecRpc: AztecRPC): Promise<AccountWallet[]> {
+  return Promise.all(
+    zip(INITIAL_SANDBOX_ENCRYPTION_KEYS, INITIAL_SANDBOX_SIGNING_KEYS, INITIAL_SANDBOX_SALTS).map(
+      ([encryptionKey, signingKey, salt]) => getSchnorrAccount(aztecRpc, encryptionKey!, signingKey!, salt).getWallet(),
+    ),
   );
 }
 
@@ -71,7 +86,7 @@ export async function deployInitialSandboxAccounts(aztecRpc: AztecRPC) {
  * Function to wait until the sandbox becomes ready for use.
  * @param rpcServer - The rpc client connected to the sandbox.
  */
-export const waitForSandbox = async (rpcServer: AztecRPC) => {
+export async function waitForSandbox(rpcServer: AztecRPC) {
   while (true) {
     try {
       await rpcServer.getNodeInfo();
@@ -80,4 +95,4 @@ export const waitForSandbox = async (rpcServer: AztecRPC) => {
       await sleep(1000);
     }
   }
-};
+}

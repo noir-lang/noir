@@ -3,10 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./dest/index.js",
-    "./http": "./dest/server.js"
+    ".": "./dest/index.js"
   },
-  "bin": "./dest/index.js",
+  "bin": "./dest/bin/index.js",
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"
@@ -17,7 +16,7 @@
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "build": "yarn clean && tsc -b",
-    "start": "node --no-warnings ./dest",
+    "start": "node --no-warnings ./dest/bin",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",

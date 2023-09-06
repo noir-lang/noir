@@ -177,6 +177,18 @@ export class AztecRPCServer implements AztecRPC {
     return await this.node.getPublicStorageAt(contract, storageSlot.value);
   }
 
+  public async getPrivateStorageAt(owner: AztecAddress, contract: AztecAddress, storageSlot: Fr) {
+    if ((await this.getContractData(contract)) === undefined) {
+      throw new Error(`Contract ${contract.toString()} is not deployed`);
+    }
+    const notes = await this.db.getNoteSpendingInfo(contract, storageSlot);
+    const ownerCompleteAddress = await this.db.getCompleteAddress(owner);
+    if (!ownerCompleteAddress) throw new Error(`Owner ${owner} not registered in RPC server`);
+    const { publicKey: ownerPublicKey } = ownerCompleteAddress;
+    const ownerNotes = notes.filter(n => n.publicKey.equals(ownerPublicKey));
+    return ownerNotes.map(n => n.notePreimage);
+  }
+
   public async getBlock(blockNumber: number): Promise<L2Block | undefined> {
     // If a negative block number is provided the current block number is fetched.
     if (blockNumber < 0) {

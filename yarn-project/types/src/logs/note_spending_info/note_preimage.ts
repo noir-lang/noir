@@ -34,4 +34,22 @@ export class NotePreimage extends Vector<Fr> {
     const items = Array.from({ length: numItems }, () => Fr.random());
     return new NotePreimage(items);
   }
+
+  /**
+   * Returns a hex representation of this preimage.
+   * @returns A hex string with the vector length as first element.
+   */
+  toString() {
+    return '0x' + this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Creates a new NotePreimage instance from a hex string.
+   * @param str - Hex representation.
+   * @returns A NotePreimage instance.
+   */
+  static fromString(str: string) {
+    const hex = str.replace(/^0x/, '');
+    return NotePreimage.fromBuffer(Buffer.from(hex, 'hex'));
+  }
 }

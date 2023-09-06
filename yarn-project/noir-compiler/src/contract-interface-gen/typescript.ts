@@ -182,10 +182,6 @@ ${abiStatement}
 export class ${input.name}Contract extends ContractBase {
   ${ctor}
 
-  get address() {
-    return this.completeAddress.address;
-  }
-
   ${at}
 
   ${deploy}
