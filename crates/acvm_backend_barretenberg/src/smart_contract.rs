@@ -19,7 +19,7 @@ impl Backend {
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory_path.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
+        write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");

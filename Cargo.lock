@@ -51,7 +51,6 @@ name = "acvm-backend-barretenberg"
 version = "0.11.0"
 dependencies = [
  "acvm",
- "base64",
  "build-target",
  "const_format",
  "dirs",
