@@ -127,6 +127,8 @@ if [[ -n "$COMMIT_TAG" ]]; then
   VERSION=$(npx semver $COMMIT_TAG_VERSION)
   if [ -z "$VERSION" ]; then
     COMMIT_TAG_VERSION=""
+  else
+    COMMIT_TAG_VERSION=$VERSION
   fi
 else
   COMMIT_TAG_VERSION=""

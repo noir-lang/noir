@@ -33,7 +33,7 @@ export async function createCompatibleClient(rpcUrl: string, logger: DebugLogger
   const expectedVersionRange = packageJsonContents.version; // During sandbox, we'll expect exact matches
 
   try {
-    await checkServerVersion(client, expectedVersionRange, logger);
+    await checkServerVersion(client, expectedVersionRange);
   } catch (err) {
     if (err instanceof VersionMismatchError) {
       logger.debug(err.message);
@@ -53,14 +53,13 @@ class VersionMismatchError extends Error {}
  * @param rpc - RPC server connection.
  * @param expectedVersionRange - Expected version by CLI.
  */
-export async function checkServerVersion(rpc: AztecRPC, expectedVersionRange: string, logger?: DebugLogger) {
+export async function checkServerVersion(rpc: AztecRPC, expectedVersionRange: string) {
   const serverName = 'Aztec Sandbox';
   const { client } = await rpc.getNodeInfo();
   if (!client) {
     throw new VersionMismatchError(`Couldn't determine ${serverName} version. You may run into issues.`);
   }
   const version = client.split('@')[1];
-  logger?.warn(`Comparing server version ${version} against CLI expected ${expectedVersionRange}`);
   if (!version || !valid(version)) {
     throw new VersionMismatchError(`Missing or invalid version identifier for ${serverName} (${version ?? 'empty'}).`);
   } else if (!satisfies(version, expectedVersionRange)) {
