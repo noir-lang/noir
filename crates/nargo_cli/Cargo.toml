@@ -19,6 +19,7 @@ toml.workspace = true
 
 [dependencies]
 clap.workspace = true
+fm.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 nargo_toml.workspace = true
