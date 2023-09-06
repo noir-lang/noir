@@ -18,8 +18,8 @@ cd ../../sol
 
 echo "Building c++ binaries..."
 cd ../cpp
-cmake --preset clang15
-cmake --build --preset clang15 --target solidity_key_gen solidity_proof_gen
+cmake --preset clang16
+cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen
 cd ../sol
 
 echo "Generating keys..."

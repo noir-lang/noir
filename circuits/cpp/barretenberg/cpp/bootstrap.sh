@@ -35,7 +35,7 @@ if [ "$OS" == "macos" ]; then
   PRESET=default
 else
   if [ "$(which clang++-15)" != "" ]; then
-    PRESET=clang15
+    PRESET=clang16
   else
     PRESET=default
   fi
