@@ -444,10 +444,6 @@ impl<'block> BrilligBlock<'block> {
 
                     self.brillig_context.deallocate_register(radix);
                 }
-                Value::Intrinsic(Intrinsic::AssertConstant) => {
-                    // Do nothing here as Brillig should be able to handle
-                    // runtime values everywhere including loop bounds and array indices
-                }
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }

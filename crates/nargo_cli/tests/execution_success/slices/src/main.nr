@@ -141,7 +141,7 @@ fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
         slice = slice.push_back(x);
     } else {
         slice = slice.push_back(x);
-    };
+    }
     slice
 }
 
