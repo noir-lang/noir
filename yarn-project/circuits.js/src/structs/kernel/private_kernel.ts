@@ -3,6 +3,7 @@ import { Tuple } from '@aztec/foundation/serialize';
 import {
   CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
+  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
@@ -159,7 +160,11 @@ export class PrivateKernelInputsOrdering {
     /**
      * Contains hints for the transient read requests to localize corresponding commitments.
      */
-    public hintToCommitments: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
+    public readCommitmentHints: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
+    /**
+     * Contains hints for the transient nullifiers to localize corresponding commitments.
+     */
+    public nullifierCommitmentHints: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {}
 
   /**
@@ -167,6 +172,6 @@ export class PrivateKernelInputsOrdering {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.previousKernel, this.hintToCommitments);
+    return serializeToBuffer(this.previousKernel, this.readCommitmentHints);
   }
 }

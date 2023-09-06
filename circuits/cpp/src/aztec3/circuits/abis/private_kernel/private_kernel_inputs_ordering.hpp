@@ -3,6 +3,7 @@
 #include "private_call_data.hpp"
 #include "../previous_kernel_data.hpp"
 
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/native_types.hpp"
 
@@ -20,10 +21,11 @@ template <typename NCT> struct PrivateKernelInputsOrdering {
 
     PreviousKernelData<NCT> previous_kernel{};
 
-    std::array<fr, MAX_READ_REQUESTS_PER_TX> hint_to_commitments{};
+    std::array<fr, MAX_READ_REQUESTS_PER_TX> read_commitment_hints{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> nullifier_commitment_hints{};
 
     // For serialization, update with new fields
-    MSGPACK_FIELDS(previous_kernel, hint_to_commitments);
+    MSGPACK_FIELDS(previous_kernel, read_commitment_hints, nullifier_commitment_hints);
     boolean operator==(PrivateKernelInputsOrdering<NCT> const& other) const
     {
         return msgpack_derived_equals<boolean>(*this, other);
@@ -36,7 +38,8 @@ template <typename NCT> struct PrivateKernelInputsOrdering {
 
         PrivateKernelInputsOrdering<CircuitTypes<Builder>> private_inputs = {
             previous_kernel.to_circuit_type(builder),
-            hint_to_commitments.to_circuit_type(builder),
+            read_commitment_hints.to_circuit_type(builder),
+            nullifier_commitment_hints.to_circuit_type(builder),
         };
 
         return private_inputs;

@@ -222,6 +222,8 @@ TEST_F(native_private_kernel_ordering_tests, native_squash_one_of_one_transient_
     previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
     previous_kernel.public_inputs.end.nullified_commitments = nullifier_commitments;
 
+    // Correct nullifier_commitment hint for new_nullifiers[0] == 0 is correct due to the default
+    // initialization of the array.
     PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel };
 
     DummyBuilder builder =
@@ -254,7 +256,9 @@ TEST_F(native_private_kernel_ordering_tests, native_squash_one_of_two_transient_
     previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
     previous_kernel.public_inputs.end.nullified_commitments = nullifier_commitments;
 
-    PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel };
+    PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel,
+                                                    .nullifier_commitment_hints =
+                                                        std::array<fr, MAX_NEW_NULLIFIERS_PER_TX>{ 1 } };
 
     DummyBuilder builder =
         DummyBuilder("native_private_kernel_ordering_tests__native_squash_one_of_two_transient_matches_works");
@@ -289,7 +293,9 @@ TEST_F(native_private_kernel_ordering_tests, native_squash_two_of_two_transient_
     previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
     previous_kernel.public_inputs.end.nullified_commitments = nullifier_commitments;
 
-    PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel };
+    PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel,
+                                                    .nullifier_commitment_hints =
+                                                        std::array<fr, MAX_NEW_NULLIFIERS_PER_TX>{ 1 } };
 
     DummyBuilder builder =
         DummyBuilder("native_private_kernel_ordering_tests__native_squash_two_of_two_transient_matches_works");

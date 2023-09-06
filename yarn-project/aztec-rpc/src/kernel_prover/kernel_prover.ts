@@ -4,6 +4,7 @@ import {
   CONTRACT_TREE_HEIGHT,
   Fr,
   MAX_NEW_COMMITMENTS_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
@@ -22,6 +23,7 @@ import {
   makeEmptyProof,
   makeTuple,
 } from '@aztec/circuits.js';
+import { EMPTY_NULLIFIED_COMMITMENT } from '@aztec/circuits.js';
 import { Tuple, assertLength } from '@aztec/foundation/serialize';
 
 import { KernelProofCreator, ProofCreator, ProofOutput, ProofOutputFinal } from './proof_creator.js';
@@ -171,11 +173,21 @@ export class KernelProver {
       assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
     );
 
-    const hintToCommitments = this.getReadRequestHints(
+    const readCommitmentHints = this.getReadRequestHints(
       output.publicInputs.end.readRequests,
       output.publicInputs.end.newCommitments,
     );
-    const privateInputs = new PrivateKernelInputsOrdering(previousKernelData, hintToCommitments);
+
+    const nullifierCommitmentHints = this.getNullifierHints(
+      output.publicInputs.end.nullifiedCommitments,
+      output.publicInputs.end.newCommitments,
+    );
+
+    const privateInputs = new PrivateKernelInputsOrdering(
+      previousKernelData,
+      readCommitmentHints,
+      nullifierCommitmentHints,
+    );
     const outputFinal = await this.proofCreator.createProofOrdering(privateInputs);
 
     // Only return the notes whose commitment is in the commitments of the final proof.
@@ -246,6 +258,16 @@ export class KernelProver {
     }));
   }
 
+  /**
+   * Performs the matching between an array of read request and an array of commitments. This produces
+   * hints for the private kernel ordering circuit to efficiently match a read request with the corresponding
+   * commitment.
+   *
+   * @param readRequests - The array of read requests.
+   * @param commitments - The array of commitments.
+   * @returns An array of hints where each element is the index of the commitment in commitments array
+   *  corresponding to the read request. In other words we have readRequests[i] == commitments[hints[i]].
+   */
   private getReadRequestHints(
     readRequests: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
     commitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
@@ -260,6 +282,39 @@ export class KernelProver {
         );
       } else {
         hints[i] = new Fr(result);
+      }
+    }
+    return hints;
+  }
+
+  /**
+   *  Performs the matching between an array of nullified commitments and an array of commitments. This produces
+   * hints for the private kernel ordering circuit to efficiently match a nullifier with the corresponding
+   * commitment.
+   *
+   * @param nullifiedCommitments - The array of nullified commitments.
+   * @param commitments - The array of commitments.
+   * @returns An array of hints where each element is the index of the commitment in commitments array
+   *  corresponding to the nullified commitments. In other words we have nullifiedCommitments[i] == commitments[hints[i]].
+   */
+  private getNullifierHints(
+    nullifiedCommitments: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    commitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
+  ): Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX> {
+    const hints = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero);
+    for (let i = 0; i < MAX_NEW_NULLIFIERS_PER_TX; i++) {
+      if (!nullifiedCommitments[i].isZero() && !nullifiedCommitments[i].equals(new Fr(EMPTY_NULLIFIED_COMMITMENT))) {
+        const equalToCommitment = (cmt: Fr) => cmt.equals(nullifiedCommitments[i]);
+        const result = commitments.findIndex(equalToCommitment);
+        if (result == -1) {
+          throw new Error(
+            `The nullified commitment at index ${i} with value ${nullifiedCommitments[
+              i
+            ].toString()} does not match to any commitment.`,
+          );
+        } else {
+          hints[i] = new Fr(result);
+        }
       }
     }
     return hints;
