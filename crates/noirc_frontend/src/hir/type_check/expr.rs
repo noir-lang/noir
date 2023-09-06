@@ -139,6 +139,11 @@ impl<'interner> TypeChecker<'interner> {
                     (typ, *arg, self.interner.expr_span(arg))
                 });
                 let span = self.interner.expr_span(expr_id);
+
+                if let Some(function_id) = self.try_find_func_id(&call_expr.func) {
+                    self.check_unconstrained_function_args(&function_id, &function);
+                }
+
                 self.bind_function_type(function, args, span)
             }
             HirExpression::MethodCall(mut method_call) => {
@@ -291,6 +296,40 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.push_expr_type(expr_id, typ.clone());
         typ
+    }
+
+    /// Issue an error if we're passing any types to an unconstrained function that are banned.
+    /// This notably includes references and slices.
+    ///
+    /// Note that this check won't catch all cases:
+    /// - If the unconstrained function is passed around first-class we will not know it is unconstrained.
+    /// - We allow generic arguments, but generic arguments that later resolve to a banned type
+    /// during monomorphization will not be caught.
+    fn check_unconstrained_function_args(&self, func: &FuncId, function_type: &Type) {
+        if self.interner.function_meta(func).is_unconstrained {
+            if let Type::Function(args, return_type, environment) = function_type {
+                for arg in args {
+                    if !arg.can_pass_to_unconstrained_function() {
+                        todo!("error")
+                    }
+                }
+
+                if !return_type.can_pass_to_unconstrained_function() {
+                    todo!("error");
+                }
+            }
+        }
+    }
+
+    /// Return the function id associated with this expression, if it has one
+    fn try_find_func_id(&self, expr: &ExprId) -> Option<FuncId> {
+        match self.interner.expression(expr) {
+            HirExpression::Ident(ident) => match self.interner.definition(ident.id).kind {
+                DefinitionKind::Function(id) => Some(id),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     /// Check if the given method type requires a mutable reference to the object type, and check
@@ -477,6 +516,7 @@ impl<'interner> TypeChecker<'interner> {
             self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
             self.interner.push_expr_type(function_ident_id, function_type.clone());
 
+            self.check_unconstrained_function_args(func_id, &function_type);
             self.bind_function_type(function_type, arguments, span)
         }
     }

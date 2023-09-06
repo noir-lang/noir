@@ -573,6 +573,42 @@ impl Type {
             }
         }
     }
+
+    /// True if we can pass or return this function from an Acir function to a Brillig function.
+    /// This means this type contains no references or slices.
+    pub(crate) fn can_pass_to_unconstrained_function(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Error
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::FmtString(_, _) => true,
+            Type::Array(element, length) => {
+                element.can_pass_to_unconstrained_function()
+                    && length.can_pass_to_unconstrained_function()
+            }
+            Type::Struct(definition, generics) => {
+                let fields = definition.borrow().get_fields(generics);
+                fields.into_iter().all(|(_, field)| field.can_pass_to_unconstrained_function())
+            }
+            Type::Tuple(fields) => {
+                fields.iter().all(|field| field.can_pass_to_unconstrained_function())
+            }
+            Type::TypeVariable(binding, _) | Type::NamedGeneric(binding, _) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.can_pass_to_unconstrained_function(),
+                    TypeBinding::Unbound(_) => true,
+                }
+            }
+            Type::Function(_, _, env) => env.can_pass_to_unconstrained_function(),
+            Type::NotConstant => false,
+            Type::MutableReference(_) => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
