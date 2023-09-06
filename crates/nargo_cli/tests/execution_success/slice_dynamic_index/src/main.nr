@@ -15,6 +15,7 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     dynamic_slice_index_set_nested_if_else_else(slice, x, y);
     dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
     dynamic_slice_index_if(slice, x);
+    dynamic_array_index_if([0, 1, 2, 3, 4], x);
     dynamic_slice_index_else(slice, x);
 
     dynamic_slice_merge_if(slice, x);
@@ -64,6 +65,16 @@ fn dynamic_slice_index_if(mut slice: [Field], x: Field) {
         assert(slice[x] == 0);
     }
     assert(slice[4] == 2);
+}
+
+fn dynamic_array_index_if(mut array: [Field; 5], x: Field) {
+    if x as u32 < 10 {
+        assert(array[x] == 4);
+        array[x] = array[x] - 2;
+    } else {
+        assert(array[x] == 0);
+    }
+    assert(array[4] == 2);
 }
 
 // This tests the case of missing a store instruction in the then branch
@@ -145,8 +156,12 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
         slice[x] = slice[x] - 2;
         slice = slice.push_back(10);
     }
-
+    assert(slice.len() == 6);
     assert(slice[slice.len() - 1] == 10);
+
+    slice = slice.push_back(20);
+    assert(slice.len() == 7);
+    assert(slice[slice.len() - 1] == 20);
 }
 
 fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
@@ -165,6 +180,8 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: 
                 assert(slice[x] == 22);
             } else {
                 slice[x] = 10;
+                slice = slice.push_back(15);
+                assert(slice.len() == 6);
             }
             assert(slice[4] == 10);
         }
@@ -172,6 +189,12 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: 
         slice[x] = 0;
     }
     assert(slice[4] == 10);
+    assert(slice.len() == 6);
+    assert(slice[slice.len() - 1] == 15);
+
+    slice = slice.push_back(20);
+    assert(slice.len() == 7);
+    assert(slice[slice.len() - 1] == 20);
 }
 
 fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Field) {
