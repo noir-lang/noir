@@ -56,6 +56,14 @@ pub enum DefCollectorErrorKind {
     TraitNotFound { trait_name: String, span: Span },
     #[error("Missing Trait method implementation")]
     TraitMissedMethodImplementation { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    #[error("Trait method wrong return type")]
+    TraitMethodWrongReturnType {
+        trait_name: Ident,
+        method_name: Ident,
+        span: Span,
+        expected_type: String,
+        actual_type: String,
+    },
 }
 
 impl DefCollectorErrorKind {
@@ -189,6 +197,19 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let name = &not_a_trait_name.0.contents;
                 Diagnostic::simple_error(
                     format!("{name} is not a trait, therefore it can't be implemented"),
+                    String::new(),
+                    span,
+                )
+            }
+            DefCollectorErrorKind::TraitMethodWrongReturnType {
+                trait_name,
+                method_name,
+                span,
+                expected_type,
+                actual_type,
+            } => {
+                Diagnostic::simple_error(
+                    format!("Method `{method_name}` from trait `{trait_name}` must return {expected_type}, not {actual_type}"),
                     String::new(),
                     span,
                 )

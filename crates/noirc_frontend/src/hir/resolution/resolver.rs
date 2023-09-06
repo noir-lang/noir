@@ -76,7 +76,7 @@ pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
-    interner: &'a mut NodeInterner,
+    pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
     file: FileId,
 

@@ -130,7 +130,7 @@ pub enum TraitItemType {
         name: Ident,
         generics: Generics,
         arguments: Vec<Type>,
-        return_type: Option<Type>,
+        return_type: Type,
         span: Span,
     },
 

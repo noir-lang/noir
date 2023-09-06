@@ -13,7 +13,7 @@ use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
-    ExpressionKind, FunctionReturnType, Generics, Ident, LetStatement, Literal, NoirFunction,
+    ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction,
     NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem,
     TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
@@ -57,6 +57,7 @@ pub struct UnresolvedTraitImpl {
     pub the_trait: UnresolvedTrait, // TODO(vitkov) this should be an ID
     pub methods: UnresolvedFunctions,
     pub trait_impl_ident: Ident, // for error reporting
+    pub func_id_to_name: HashMap<FuncId, String>,
 }
 
 #[derive(Clone)]
@@ -497,12 +498,8 @@ fn resolve_trait_methods(
         {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
-            let resolved_return_type = match return_type {
-                FunctionReturnType::Default(_) => None,
-                FunctionReturnType::Ty(unresolved_type) => {
-                    Some(resolver.resolve_type(unresolved_type.clone()))
-                }
-            };
+            let resolved_return_type = resolver.resolve_type(return_type.get_type());
+
             let name = name.clone();
             // TODO
             let generics: Generics = vec![];
@@ -670,11 +667,13 @@ fn resolve_trait_impls(
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
 
-        let mut resolver =
-            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
 
-        // TODO(vitkov); Handle Type::Error
-        let self_type = resolver.resolve_type(unresolved_type.clone());
+        // TODO(vitkov): Handle Type::Error
+        let self_type = {
+            let mut resolver =
+                Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+            resolver.resolve_type(unresolved_type.clone())
+        };
 
         let mut impl_methods = resolve_function_set(
             interner,
@@ -683,6 +682,18 @@ fn resolve_trait_impls(
             trait_impl.methods.clone(),
             Some(self_type.clone()),
             vec![], // TODO
+            errors,
+        );
+
+        let mut new_resolver =
+            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+        new_resolver.set_self_type(Some(self_type.clone()));
+
+        check_methods_signatures(
+            &mut new_resolver,
+            &impl_methods,
+            &trait_impl.func_id_to_name,
+            trait_id,
             errors,
         );
 
@@ -700,16 +711,58 @@ fn resolve_trait_impls(
                 interner.add_trait_implementaion(&key, trait_definition_ident, &trait_impl.methods);
         }
 
-        ////////////////////////////////////////
-        //                                    //
-        //  TODO(vitkov): TheChecks™ go here  //
-        //                                    //
-        ////////////////////////////////////////
-
         methods.append(&mut impl_methods);
     }
 
     methods
+}
+
+ 
+fn check_methods_signatures(
+    resolver: &mut Resolver,
+    impl_methods: &Vec<(FileId, FuncId)>,
+    func_id_to_name: &HashMap<FuncId, String>,
+    trait_id: TraitId,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    let the_trait = resolver.interner.get_trait(trait_id).clone();
+    let the_trait = the_trait.borrow();
+
+    for (file_id, func_id) in impl_methods {
+        let func_name = func_id_to_name[func_id].clone();
+        let meta = resolver.interner.function_meta(func_id);
+
+        for item in &the_trait.items {
+            if let TraitItemType::Function {
+                name,
+                generics: _,
+                arguments: _,
+                return_type,
+                span: _,
+            } = item
+            {
+                if name.0.contents == func_name {
+                    // TODO(vitkov): Check args
+                    // TODO(vitkov): handle Self
+
+                    let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
+
+                    if resolved_return_type != *return_type {
+                        let err = DefCollectorErrorKind::TraitMethodWrongReturnType {
+                            trait_name: the_trait.name.clone(),
+                            method_name: name.clone(),
+                            span: meta.return_type.get_type().span.unwrap(),
+                            expected_type: return_type.to_string(),
+                            actual_type: resolved_return_type.to_string(),
+                        };
+                        errors.push(err.into_file_diagnostic(*file_id));
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
 }
 
 fn resolve_free_functions(

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use fm::FileId;
 use noirc_errors::{FileDiagnostic, Location};
 
@@ -145,11 +147,13 @@ impl<'a> ModCollector<'a> {
                             errors,
                         );
 
-                        for (_, _, noir_function) in &unresolved_functions.functions {
-                            let name = noir_function.name().to_owned();
-                            let func_id = context.def_interner.push_empty_fn();
+                        let mut func_id_to_name = HashMap::new();
 
-                            context.def_interner.push_function_definition(name, func_id);
+                        for (_, func_id, noir_function) in &unresolved_functions.functions {
+                            let name = noir_function.name().to_owned();
+
+                            func_id_to_name.insert(*func_id, name.clone());
+                            context.def_interner.push_function_definition(name, *func_id);
                         }
 
                         let unresolved_trait_impl = UnresolvedTraitImpl {
@@ -158,6 +162,7 @@ impl<'a> ModCollector<'a> {
                             the_trait: collected_trait,
                             methods: unresolved_functions,
                             trait_impl_ident: trait_impl.trait_name.clone(),
+                            func_id_to_name,
                         };
 
                         let trait_id = match module_def_id {
