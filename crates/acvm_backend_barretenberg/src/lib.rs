@@ -5,10 +5,14 @@ use std::path::PathBuf;
 
 mod bb;
 mod cli;
+mod download;
 mod proof_system;
 mod smart_contract;
 
+pub use download::download_backend;
+
 const BACKENDS_DIR: &str = ".nargo/backends";
+pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 
 pub fn backends_directory() -> PathBuf {
     let home_directory = dirs::home_dir().unwrap();
@@ -16,17 +20,24 @@ pub fn backends_directory() -> PathBuf {
 }
 
 #[cfg(test)]
-fn get_bb() -> Backend {
-    let bb = Backend::new("acvm-backend-barretenberg".to_string());
-    crate::assert_binary_exists(&bb);
-    bb
+test_binary::build_test_binary_once!(mock_backend, "test-binaries");
+
+#[cfg(test)]
+fn get_mock_backend() -> Backend {
+    std::env::set_var("NARGO_BACKEND_PATH", path_to_mock_backend());
+
+    let mock_backend = Backend::new("mock_backend".to_string());
+    if !mock_backend.binary_path().is_file() {
+        panic!("Mock backend binary does not exist at expected path");
+    }
+    mock_backend
 }
 
 fn assert_binary_exists(backend: &Backend) -> PathBuf {
     let binary_path = backend.binary_path();
 
     if !binary_path.is_file() {
-        bb::download_bb_binary(&binary_path)
+        download_backend(&bb::get_bb_download_url(), &binary_path)
     }
     binary_path
 }

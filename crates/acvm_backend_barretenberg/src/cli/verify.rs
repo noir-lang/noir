@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 /// VerifyCommand will call the barretenberg binary
 /// to verify a proof
 pub(crate) struct VerifyCommand {
-    pub(crate) verbose: bool,
     pub(crate) crs_path: PathBuf,
     pub(crate) is_recursive: bool,
     pub(crate) proof_path: PathBuf,
@@ -23,9 +22,6 @@ impl VerifyCommand {
             .arg("-k")
             .arg(self.vk_path);
 
-        if self.verbose {
-            command.arg("-v");
-        }
         if self.is_recursive {
             command.arg("-r");
         }
@@ -44,7 +40,7 @@ fn verify_command() {
 
     use super::{ProveCommand, WriteVkCommand};
 
-    let backend = crate::get_bb();
+    let backend = crate::get_mock_backend();
 
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
     let witness_path = PathBuf::from("./src/witness.tr");
@@ -57,7 +53,6 @@ fn verify_command() {
     let crs_path = backend.backend_directory();
 
     let write_vk_command = WriteVkCommand {
-        verbose: true,
         bytecode_path: bytecode_path.clone(),
         crs_path: crs_path.clone(),
         is_recursive: false,
@@ -68,7 +63,6 @@ fn verify_command() {
     assert!(vk_written.is_ok());
 
     let prove_command = ProveCommand {
-        verbose: true,
         crs_path: crs_path.clone(),
         is_recursive: false,
         bytecode_path,
@@ -77,13 +71,8 @@ fn verify_command() {
     };
     prove_command.run(&backend.binary_path()).unwrap();
 
-    let verify_command = VerifyCommand {
-        verbose: true,
-        crs_path,
-        is_recursive: false,
-        proof_path,
-        vk_path: vk_path_output,
-    };
+    let verify_command =
+        VerifyCommand { crs_path, is_recursive: false, proof_path, vk_path: vk_path_output };
 
     let verified = verify_command.run(&backend.binary_path());
     assert!(verified);

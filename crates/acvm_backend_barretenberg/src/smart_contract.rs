@@ -19,14 +19,13 @@ impl Backend {
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory_path.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
+        write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");
 
         let binary_path = assert_binary_exists(self);
         WriteVkCommand {
-            verbose: false,
             crs_path: self.crs_directory(),
             is_recursive: false,
             bytecode_path,
@@ -36,7 +35,6 @@ impl Backend {
 
         let contract_path = temp_directory_path.join("contract");
         ContractCommand {
-            verbose: false,
             crs_path: self.crs_directory(),
             vk_path,
             contract_path: contract_path.clone(),
@@ -60,7 +58,7 @@ mod tests {
         native_types::{Expression, Witness},
     };
 
-    use crate::get_bb;
+    use crate::get_mock_backend;
 
     #[test]
     #[serial_test::serial]
@@ -77,7 +75,7 @@ mod tests {
             assert_messages: Default::default(),
         };
 
-        let contract = get_bb().eth_contract(&circuit).unwrap();
+        let contract = get_mock_backend().eth_contract(&circuit).unwrap();
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));

@@ -10,7 +10,6 @@ use crate::BackendError;
 /// to verify a proof. See acvm_interop/contract.sol for the
 /// remaining logic that is missing.
 pub(crate) struct ContractCommand {
-    pub(crate) verbose: bool,
     pub(crate) crs_path: PathBuf,
     pub(crate) vk_path: PathBuf,
     pub(crate) contract_path: PathBuf,
@@ -29,10 +28,6 @@ impl ContractCommand {
             .arg("-o")
             .arg(self.contract_path);
 
-        if self.verbose {
-            command.arg("-v");
-        }
-
         let output = command.output().expect("Failed to execute command");
         if output.status.success() {
             Ok(())
@@ -47,7 +42,7 @@ impl ContractCommand {
 fn contract_command() {
     use tempfile::tempdir;
 
-    let backend = crate::get_bb();
+    let backend = crate::get_mock_backend();
 
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
@@ -59,7 +54,6 @@ fn contract_command() {
     let crs_path = backend.backend_directory();
 
     let write_vk_command = super::WriteVkCommand {
-        verbose: true,
         bytecode_path,
         vk_path_output: vk_path.clone(),
         is_recursive: false,
@@ -68,7 +62,7 @@ fn contract_command() {
 
     assert!(write_vk_command.run(&backend.binary_path()).is_ok());
 
-    let contract_command = ContractCommand { verbose: true, vk_path, crs_path, contract_path };
+    let contract_command = ContractCommand { vk_path, crs_path, contract_path };
 
     assert!(contract_command.run(&backend.binary_path()).is_ok());
     drop(temp_directory);

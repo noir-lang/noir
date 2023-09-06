@@ -10,8 +10,7 @@ use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    compile_contracts, compile_main, CompileOptions, CompiledContract, CompiledProgram,
-    ErrorsAndWarnings, Warnings,
+    compile_main, CompileOptions, CompiledContract, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
 use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
@@ -66,15 +65,10 @@ pub(crate) fn run(
     let circuit_dir = workspace.target_directory_path();
 
     for package in &workspace {
-        let (mut context, crate_id) = prepare_package(package);
         // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
         if package.is_contract() {
-            let result = compile_contracts(&mut context, crate_id, &args.compile_options);
-            let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
-            let optimized_contracts =
-                try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
-
-            save_contracts(&context, optimized_contracts, package, &circuit_dir, args.output_debug);
+            let (context, contracts) = compile_contracts(backend, package, &args.compile_options)?;
+            save_contracts(&context, contracts, package, &circuit_dir, args.output_debug);
         } else {
             let (context, program) = compile_package(backend, package, &args.compile_options)?;
             save_program(&context, program, package, &circuit_dir, args.output_debug);
@@ -105,6 +99,20 @@ pub(crate) fn compile_package(
     program.debug.update_acir(location_map);
 
     Ok((context, program))
+}
+
+pub(crate) fn compile_contracts(
+    backend: &Backend,
+    package: &Package,
+    compile_options: &CompileOptions,
+) -> Result<(Context, Vec<CompiledContract>), CliError> {
+    let (mut context, crate_id) = prepare_package(package);
+    let result = noirc_driver::compile_contracts(&mut context, crate_id, compile_options);
+    let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
+
+    let optimized_contracts =
+        try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
+    Ok((context, optimized_contracts))
 }
 
 pub(super) fn optimize_circuit(
