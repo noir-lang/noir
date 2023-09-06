@@ -53,7 +53,7 @@ if(FUZZING)
     endif()
 
     if(UNDEFINED_BEHAVIOUR_SANITIZER)
-        set(SANITIZER_OPTIONS ${SANITIZER_OPTIONS} -fsanitize=undefined  -fno-sanitize=alignment)
+        set(SANITIZER_OPTIONS ${SANITIZER_OPTIONS} -fsanitize=undefined -fno-sanitize=alignment)
     endif()
 
     add_compile_options(-fsanitize=fuzzer-no-link ${SANITIZER_OPTIONS})
@@ -81,15 +81,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "10")
-        message(WARNING "Clang <10 is not supported")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "14")
+        message(WARNING "Clang <14 is not supported")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "10")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "10")
         message(WARNING "GCC <10 is not supported")
     endif()
 else()
-    message(WARNING "Unsuported compiler, use Clang >10 or GCC >10")
+    message(WARNING "Unsuported compiler, use Clang >14 or GCC >10")
 endif()
 
 if(COVERAGE)
@@ -105,6 +105,7 @@ if(COVERAGE)
     # Find llvm-profdata
     set(PROFDATA_EXECUTABLE_NAME "llvm-profdata-${CLANG_VERSION_MAJOR}")
     find_program(PROFDATA_EXECUTABLE ${PROFDATA_EXECUTABLE_NAME})
+
     if(PROFDATA_EXECUTABLE MATCHES "NOTFOUND")
         message(FATAL_ERROR "Couldn't find ${PROFDATA_EXECUTABLE_NAME}")
     endif()
@@ -112,6 +113,7 @@ if(COVERAGE)
     # Find llvm-cov
     set(COV_EXECUTABLE_NAME "llvm-cov-${CLANG_VERSION_MAJOR}")
     find_program(COV_EXECUTABLE ${COV_EXECUTABLE_NAME})
+
     if(COV_EXECUTABLE MATCHES "NOTFOUND")
         message(FATAL_ERROR "Couldn't find ${COV_EXECUTABLE_NAME}")
     endif()
@@ -121,11 +123,10 @@ if(COVERAGE)
 
     # Add a custom target for creating the report
     add_custom_target(create_full_coverage_report
-    COMMAND "${CMAKE_SOURCE_DIR}/scripts/collect_coverage_information.sh" ${PROFDATA_EXECUTABLE} ${COV_EXECUTABLE}
-    VERBATIM
+        COMMAND "${CMAKE_SOURCE_DIR}/scripts/collect_coverage_information.sh" ${PROFDATA_EXECUTABLE} ${COV_EXECUTABLE}
+        VERBATIM
     )
 endif()
-
 
 include(cmake/build.cmake)
 include(GNUInstallDirs)
