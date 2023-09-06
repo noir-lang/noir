@@ -92,11 +92,11 @@ impl Block {
     pub(super) fn set_aliases_unknown(&mut self, aliases: &AliasSet) {
         if aliases.is_unknown() {
             // We don't know which alias this refers to so we have to set all known references to unknown.
-            for (_, reference) in &mut self.references {
+            for reference in self.references.values_mut() {
                 *reference = ReferenceValue::Unknown;
             }
         } else {
-            aliases.for_each(|alias| self.set_unknown(alias))
+            aliases.for_each(|alias| self.set_unknown(alias));
         }
     }
 

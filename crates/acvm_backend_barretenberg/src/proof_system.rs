@@ -199,7 +199,7 @@ fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Ve
     let public_inputs_bytes =
         public_inputs.into_iter().flat_map(|assignment| assignment.to_be_bytes());
 
-    public_inputs_bytes.chain(proof.into_iter()).collect()
+    public_inputs_bytes.chain(proof).collect()
 }
 
 // TODO: See nargo/src/artifacts/mod.rs

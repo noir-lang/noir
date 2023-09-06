@@ -21,11 +21,11 @@ impl PerNs {
     }
 
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
-        self.types.map(|it| it.0).into_iter().chain(self.values.map(|it| it.0).into_iter())
+        self.types.map(|it| it.0).into_iter().chain(self.values.map(|it| it.0))
     }
 
     pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility)> {
-        self.types.into_iter().chain(self.values.into_iter())
+        self.types.into_iter().chain(self.values)
     }
 
     pub fn is_none(&self) -> bool {
