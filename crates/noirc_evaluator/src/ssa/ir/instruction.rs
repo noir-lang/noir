@@ -773,16 +773,17 @@ impl Binary {
             Type::Numeric(NumericType::NativeField) => {
                 self.operator.get_field_function()?(lhs, rhs)
             }
-            // Type::Numeric(NumericType::Unsigned { bit_size }) => {
-            Type::Numeric(NumericType::Unsigned { .. }) => {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            // Type::Numeric(NumericType::Unsigned { .. }) => {
                 let function = self.operator.get_u128_function();
                 // dbg!(self.operator);
                 // let lhs = truncate(lhs.try_into_u128()?, *bit_size);
                 // let rhs = truncate(rhs.try_into_u128()?, *bit_size);
                 let lhs = lhs.try_into_u128()?;
-                // dbg!(lhs);
+                dbg!(lhs);
                 let rhs = rhs.try_into_u128()?;
-                // dbg!(rhs);
+                dbg!(rhs);
+
                 // The divisor is being truncated into the type of the operand, which can potentially
                 // lead to the rhs being zero.
                 // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
@@ -836,11 +837,6 @@ impl BinaryOp {
             BinaryOp::Mul => u128::wrapping_mul,
             BinaryOp::Div => u128::wrapping_div,
             BinaryOp::Mod => u128::wrapping_rem,
-            // BinaryOp::Add => u128::saturating_add,
-            // BinaryOp::Sub => u128::saturating_sub,
-            // BinaryOp::Mul => u128::saturating_mul,
-            // BinaryOp::Div => u128::saturating_div,
-            // BinaryOp::Mod => u128::wrapping_rem,
             BinaryOp::And => |x, y| x & y,
             BinaryOp::Or => |x, y| x | y,
             BinaryOp::Xor => |x, y| x ^ y,

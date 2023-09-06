@@ -242,8 +242,14 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
     fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let lhs_const = self.builder.current_function.dfg.get_numeric_constant(lhs);
+        dbg!(lhs_const);
+        let rhs_const = self.builder.current_function.dfg.get_numeric_constant(rhs);
+        dbg!(rhs_const);
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
+        let pow_const = self.builder.current_function.dfg.get_numeric_constant(pow);
+        dbg!(pow_const);
         self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
         // let result = self.builder.insert_binary(lhs, BinaryOp::Mul, pow);
         // // `pow` returns a Field so we must cast the result to make sure it has the correct type
@@ -257,7 +263,7 @@ impl<'a> FunctionContext<'a> {
         let pow = self.pow(base, rhs);
         self.builder.insert_binary(lhs, BinaryOp::Div, pow)
         // let result = self.builder.insert_binary(lhs, BinaryOp::Div, pow);
-        // // `pow` returns a Field so we must cast the result to make sure it has the correct type
+        // `pow` returns a Field so we must cast the result to make sure it has the correct type
         // let result_type = self.builder.current_function.dfg.type_of_value(lhs);
         // self.builder.insert_cast(result, result_type)
     }
@@ -338,7 +344,7 @@ impl<'a> FunctionContext<'a> {
         };
 
         match operator {
-            BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
+            BinaryOpKind::ShiftRight => {
                 let zero = self.builder.field_constant(FieldElement::zero());
                 let is_lhs_zero = self.builder.insert_binary(lhs, BinaryOp::Eq, zero);
                 let is_result_zero = self.builder.insert_binary(result, BinaryOp::Eq, zero);
@@ -354,6 +360,8 @@ impl<'a> FunctionContext<'a> {
                 // dbg!("handle the other ops differently");
                 // Do nothing
                 let max = self.max_value(result);
+                let max_const = self.builder.current_function.dfg.get_numeric_constant(max);
+                dbg!(max_const);
                 let result_type = self.builder.current_function.dfg.type_of_value(result);
                 match result_type {
                     Type::Numeric(NumericType::NativeField) => {
@@ -364,6 +372,8 @@ impl<'a> FunctionContext<'a> {
                     _ => {
                         let is_value_less_than_max =
                             self.builder.insert_binary(result, BinaryOp::Lt, max);
+                        let result_const = self.builder.current_function.dfg.get_numeric_constant(result);
+                        dbg!(result_const);
                         let one = self.builder.field_constant(FieldElement::one());
                         self.builder
                             .set_location(location)
@@ -381,30 +391,24 @@ impl<'a> FunctionContext<'a> {
         //         // dbg!("result is field do not compare");
         //         // self.builder.insert_cast(max, Type::unsigned(127))
         //     }
-        //     _ => {
-        //         let is_value_less_than_max =
-        //             self.builder.insert_binary(result, BinaryOp::Lt, max);
-        //         let one = self.builder.field_constant(FieldElement::one());
-        //         self.builder.set_location(location).insert_constrain(is_value_less_than_max, one);
-        //     }
         // }
 
-        if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
-            operator,
-            lhs,
-            rhs,
-            &self.builder.current_function.dfg,
-        ) {
-            let result_type = self.builder.current_function.dfg.type_of_value(result);
-            let bit_size = match result_type {
-                Type::Numeric(NumericType::Signed { bit_size })
-                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                _ => {
-                    unreachable!("ICE: Truncation attempted on non-integer");
-                }
-            };
-            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
-        }
+        // if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
+        //     operator,
+        //     lhs,
+        //     rhs,
+        //     &self.builder.current_function.dfg,
+        // ) {
+        //     let result_type = self.builder.current_function.dfg.type_of_value(result);
+        //     let bit_size = match result_type {
+        //         Type::Numeric(NumericType::Signed { bit_size })
+        //         | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+        //         _ => {
+        //             unreachable!("ICE: Truncation attempted on non-integer");
+        //         }
+        //     };
+        //     result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+        // }
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
