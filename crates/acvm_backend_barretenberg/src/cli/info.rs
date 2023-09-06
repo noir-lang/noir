@@ -1,7 +1,4 @@
-use acvm::acir::circuit::{
-    black_box_functions::BlackBoxFunc,
-    opcodes::{BlackBoxFuncCall, Opcode},
-};
+use acvm::acir::circuit::opcodes::Opcode;
 use acvm::Language;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -74,6 +71,9 @@ impl InfoCommand {
 #[test]
 #[serial_test::serial]
 fn info_command() {
+    use acvm::acir::circuit::black_box_functions::BlackBoxFunc;
+    use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, Opcode};
+
     use acvm::acir::native_types::Expression;
 
     let backend = crate::get_mock_backend();
