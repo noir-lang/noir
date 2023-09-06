@@ -14,5 +14,5 @@ pub(crate) struct GatesCommand {
 pub(crate) fn run(args: GatesCommand) {
     assert!(args.bytecode_path.is_file(), "Could not find bytecode file at provided path");
 
-    std::io::stdout().write_all(&0u64.to_be_bytes()).unwrap();
+    std::io::stdout().write_all(&0u64.to_le_bytes()).unwrap();
 }

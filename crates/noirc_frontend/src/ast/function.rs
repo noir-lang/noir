@@ -47,7 +47,7 @@ impl NoirFunction {
             FunctionReturnType::Default(_) => {
                 UnresolvedType::without_span(UnresolvedTypeData::Unit)
             }
-            FunctionReturnType::Ty(ty, _) => ty.clone(),
+            FunctionReturnType::Ty(ty) => ty.clone(),
         }
     }
     pub fn name(&self) -> &str {

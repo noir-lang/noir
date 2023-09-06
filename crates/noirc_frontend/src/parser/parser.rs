@@ -268,7 +268,7 @@ fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), Functi
         .then(spanned(parse_type()))
         .or_not()
         .map_with_span(|ret, span| match ret {
-            Some((head, (ty, span))) => (head, FunctionReturnType::Ty(ty, span)),
+            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
             None => (
                 (Distinctness::DuplicationAllowed, Visibility::Private),
                 FunctionReturnType::Default(span),

@@ -1327,7 +1327,7 @@ fn undo_instantiation_bindings(bindings: TypeBindings) {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     use fm::FileId;
     use iter_extended::vecmap;
@@ -1372,7 +1372,7 @@ mod tests {
             path_resolver.insert_func(name.to_owned(), id);
         }
 
-        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
@@ -1385,7 +1385,7 @@ mod tests {
                 root: path_resolver.local_module_id(),
                 modules,
                 krate: CrateId::dummy_id(),
-                extern_prelude: HashMap::new(),
+                extern_prelude: BTreeMap::new(),
             },
         );
 
@@ -1424,7 +1424,7 @@ mod tests {
     impl PathResolver for TestPathResolver {
         fn resolve(
             &self,
-            _def_maps: &HashMap<CrateId, CrateDefMap>,
+            _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: crate::Path,
         ) -> Result<ModuleDefId, PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
