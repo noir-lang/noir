@@ -296,7 +296,7 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    fn max_value(&mut self, lhs: ValueId) -> ValueId {
+    fn max_value(&mut self, lhs: ValueId, location: Location) -> ValueId {
         let operand_type = self.builder.current_function.dfg.type_of_value(lhs);
         let bit_size = match operand_type {
             Type::Numeric(NumericType::Signed { bit_size })
@@ -307,7 +307,7 @@ impl<'a> FunctionContext<'a> {
             }
         };
         let bit_size_value =
-            self.builder.numeric_constant(bit_size as u128, Type::unsigned(bit_size));
+            self.builder.set_location(location).numeric_constant(bit_size as u128, Type::unsigned(bit_size));
         // let bit_size_value = self.builder.field_constant(FieldElement::from(bit_size as u128));
         let one = self.builder.field_constant(FieldElement::one());
         // let one = self.builder.numeric_constant(1_u128, Type::unsigned(bit_size));
@@ -355,12 +355,11 @@ impl<'a> FunctionContext<'a> {
                 // 3. The lhs is zero where the result is not zero is a compiler error as this scenario should never happen
                 let shift_overflow =
                     self.builder.insert_binary(is_lhs_zero, BinaryOp::Xor, is_result_zero);
-                self.builder.set_location(location).insert_constrain(shift_overflow, zero);
+                // TODO: add more description assert message
+                self.builder.set_location(location).insert_constrain(shift_overflow, zero, Some("overflow operation".to_owned()));
             }
             _ => {
-                // dbg!("handle the other ops differently");
-                // Do nothing
-                let max = self.max_value(result);
+                let max = self.max_value(result, location);
                 let max_const = self.builder.current_function.dfg.get_numeric_constant(max);
                 dbg!(max_const);
                 let result_type = self.builder.current_function.dfg.type_of_value(result);
@@ -372,28 +371,18 @@ impl<'a> FunctionContext<'a> {
                     }
                     _ => {
                         let is_value_less_than_max =
-                            self.builder.insert_binary(result, BinaryOp::Lt, max);
+                            self.builder.set_location(location).insert_binary(result, BinaryOp::Lt, max);
                         let result_const =
                             self.builder.current_function.dfg.get_numeric_constant(result);
                         dbg!(result_const);
                         let one = self.builder.field_constant(FieldElement::one());
                         self.builder
                             .set_location(location)
-                            .insert_constrain(is_value_less_than_max, one);
+                            .insert_constrain(is_value_less_than_max, one, Some("overflow operation".to_owned()));
                     }
                 }
             }
         }
-
-        // let max = self.max_value(result);
-        // let result_type = self.builder.current_function.dfg.type_of_value(result);
-        // match result_type {
-        //     Type::Numeric(NumericType::NativeField) => {
-        //         // do nothing
-        //         // dbg!("result is field do not compare");
-        //         // self.builder.insert_cast(max, Type::unsigned(127))
-        //     }
-        // }
 
         // if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
         //     operator,

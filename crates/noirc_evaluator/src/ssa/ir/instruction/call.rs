@@ -216,6 +216,13 @@ pub(super) fn simplify_call(
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
+        Intrinsic::IntegerOp(typ) => {
+            dbg!(typ);
+            dbg!("should do nothing on integer op call simplfication");
+            // Perhaps I should simplify to a binary op here???
+            // or should I just do it directly in codegen
+            SimplifyResult::None
+        }
     }
 }
 

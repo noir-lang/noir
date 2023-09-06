@@ -106,6 +106,7 @@ impl<'a> FunctionContext<'a> {
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
+                dbg!(name);
                 match self.builder.import_intrinsic(name) {
                     Some(builtin) => builtin.into(),
                     None => panic!("No builtin function named '{name}' found"),

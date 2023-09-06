@@ -34,6 +34,7 @@ pub(crate) enum Intrinsic {
     Sort,
     ArrayLen,
     AssertConstant,
+    IntegerOp(IntegerOpType),
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -52,6 +53,8 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
+            Intrinsic::IntegerOp(IntegerOpType::WrappingAdd) => write!(f, "u32_wrapping_add"),
+            Intrinsic::IntegerOp(IntegerOpType::WrappingSub) => write!(f, "u32_wrapping_sub"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -78,6 +81,7 @@ impl Intrinsic {
 
             Intrinsic::Sort
             | Intrinsic::ArrayLen
+            | Intrinsic::IntegerOp(_)
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
             | Intrinsic::SlicePopBack
@@ -100,6 +104,8 @@ impl Intrinsic {
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "u32_wrapping_add" => Some(Intrinsic::IntegerOp(IntegerOpType::WrappingAdd)),
+            "u32_wrapping_sub" => Some(Intrinsic::IntegerOp(IntegerOpType::WrappingSub)),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),
@@ -114,6 +120,17 @@ impl Intrinsic {
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum IntegerOpType {
+    WrappingAdd,
+    WrappingSub,
+    // WrappingDiv,
+    // WrappingMul,
+    // WrappingShl,
+    // WrappingShr,
+    // WrappingMod,
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
@@ -782,9 +799,9 @@ impl Binary {
                 // let lhs = truncate(lhs.try_into_u128()?, *bit_size);
                 // let rhs = truncate(rhs.try_into_u128()?, *bit_size);
                 let lhs = lhs.try_into_u128()?;
-                dbg!(lhs);
+                // dbg!(lhs);
                 let rhs = rhs.try_into_u128()?;
-                dbg!(rhs);
+                // dbg!(rhs);
 
                 // The divisor is being truncated into the type of the operand, which can potentially
                 // lead to the rhs being zero.
