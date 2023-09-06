@@ -330,12 +330,7 @@ impl<'f> PerFunctionContext<'f> {
         array: ValueId,
         elements: &im::Vector<ValueId>,
     ) {
-        let contains_references = elements.front().map_or(false, |element| {
-            let element_type = self.inserter.function.dfg.type_of_value(*element);
-            Self::contains_references(&element_type)
-        });
-
-        if contains_references {
+        if self.value_contains_references(array) {
             let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
             references.expressions.insert(array, expr.clone());
 
