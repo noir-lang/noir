@@ -5,8 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use fm::FileId;
-use noirc_frontend::hir::Context;
+use fm::{FileId, FileManager};
 
 /// For a given file, we store the source code and the path to the file
 /// so consumers of the debug artifact can reconstruct the original source code structure.
@@ -25,7 +24,7 @@ pub struct DebugArtifact {
 }
 
 impl DebugArtifact {
-    pub fn new(debug_symbols: Vec<DebugInfo>, compilation_context: &Context) -> Self {
+    pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
         let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
@@ -39,13 +38,13 @@ impl DebugArtifact {
             .collect();
 
         for file_id in files_with_debug_symbols {
-            let file_source = compilation_context.file_manager.fetch_file(file_id).source();
+            let file_source = file_manager.fetch_file(file_id).source();
 
             file_map.insert(
                 file_id,
                 DebugFile {
                     source: file_source.to_string(),
-                    path: compilation_context.file_manager.path(file_id).to_path_buf(),
+                    path: file_manager.path(file_id).to_path_buf(),
                 },
             );
         }

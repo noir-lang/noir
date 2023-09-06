@@ -634,7 +634,8 @@ impl Binary {
             // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
             // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
             // and division by zero should be handled by laying down constraints during ACIR generation.
-            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
+            if matches!(self.operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero()
+            {
                 return SimplifyResult::None;
             }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
