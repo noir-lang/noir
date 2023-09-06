@@ -89,6 +89,17 @@ impl Block {
         self.set_value(address, ReferenceValue::Unknown);
     }
 
+    pub(super) fn set_aliases_unknown(&mut self, aliases: &AliasSet) {
+        if aliases.is_unknown() {
+            // We don't know which alias this refers to so we have to set all known references to unknown.
+            for (_, reference) in &mut self.references {
+                *reference = ReferenceValue::Unknown;
+            }
+        } else {
+            aliases.for_each(|alias| self.set_unknown(alias))
+        }
+    }
+
     fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(expression.clone()).or_default();

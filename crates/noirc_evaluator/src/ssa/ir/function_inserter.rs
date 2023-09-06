@@ -71,17 +71,9 @@ impl<'f> FunctionInserter<'f> {
 
     /// Push a new instruction to the given block and return its new InstructionId.
     /// If the instruction was simplified out of the program, None is returned.
-    pub(crate) fn push_instruction(
-        &mut self,
-        id: InstructionId,
-        block: BasicBlockId,
-    ) -> Option<InstructionId> {
+    pub(crate) fn push_instruction(&mut self, id: InstructionId, block: BasicBlockId) {
         let (instruction, location) = self.map_instruction(id);
-
-        match self.push_instruction_value(instruction, id, block, location) {
-            InsertInstructionResult::Results(new_id, _) => Some(new_id),
-            _ => None,
-        }
+        self.push_instruction_value(instruction, id, block, location);
     }
 
     pub(crate) fn push_instruction_value(
@@ -123,7 +115,9 @@ impl<'f> FunctionInserter<'f> {
                 values.insert(old_results[0], *new_result);
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
+                println!("SimplifiedToMultiple");
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    println!("{} -> {}", old_result, new_result);
                     values.insert(*old_result, *new_result);
                 }
             }

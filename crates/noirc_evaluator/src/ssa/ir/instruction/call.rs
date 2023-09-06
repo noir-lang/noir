@@ -89,7 +89,8 @@ pub(super) fn simplify_call(
                     elements.push_back(*elem);
                 }
 
-                let (length, array) = update_slice(elements, typ, arguments[0], dfg, BinaryOp::Add);
+                let (length, array) =
+                    update_slice(elements, typ, arguments[0], block, dfg, BinaryOp::Add);
                 SimplifyResult::SimplifiedToMultiple(vec![length, array])
             } else {
                 SimplifyResult::None
@@ -101,7 +102,8 @@ pub(super) fn simplify_call(
                     elements.push_front(*elem);
                 }
 
-                let (length, array) = update_slice(elements, typ, arguments[0], dfg, BinaryOp::Add);
+                let (length, array) =
+                    update_slice(elements, typ, arguments[0], block, dfg, BinaryOp::Add);
                 SimplifyResult::SimplifiedToMultiple(vec![length, array])
             } else {
                 SimplifyResult::None
@@ -120,7 +122,8 @@ pub(super) fn simplify_call(
                     results.push_front(elem);
                 }
 
-                let (array, length) = update_slice(slice, typ, arguments[0], dfg, BinaryOp::Sub);
+                let (length, array) =
+                    update_slice(slice, typ, arguments[0], block, dfg, BinaryOp::Sub);
                 results.push_front(array);
                 results.push_front(length);
 
@@ -139,7 +142,8 @@ pub(super) fn simplify_call(
                 });
 
                 // The slice is the last item returned for pop_front
-                let (length, array) = update_slice(slice, typ, arguments[0], dfg, BinaryOp::Sub);
+                let (length, array) =
+                    update_slice(slice, typ, arguments[0], block, dfg, BinaryOp::Sub);
                 results.push(length);
                 results.push(array);
                 SimplifyResult::SimplifiedToMultiple(results)
@@ -159,7 +163,8 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                let (length, array) = update_slice(slice, typ, arguments[0], dfg, BinaryOp::Add);
+                let (length, array) =
+                    update_slice(slice, typ, arguments[0], block, dfg, BinaryOp::Add);
                 SimplifyResult::SimplifiedToMultiple(vec![length, array])
             } else {
                 SimplifyResult::None
@@ -177,7 +182,8 @@ pub(super) fn simplify_call(
                     results.push(slice.remove(index));
                 }
 
-                let (length, array) = update_slice(slice, typ, arguments[0], dfg, BinaryOp::Sub);
+                let (length, array) =
+                    update_slice(slice, typ, arguments[0], block, dfg, BinaryOp::Sub);
                 results.insert(0, array);
                 results.insert(0, length);
 
@@ -213,11 +219,11 @@ fn update_slice(
     elements: im::Vector<ValueId>,
     typ: Type,
     slice_len: ValueId,
+    block: BasicBlockId,
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
 ) -> (ValueId, ValueId) {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
-    let block = dfg.make_block();
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
     let length =

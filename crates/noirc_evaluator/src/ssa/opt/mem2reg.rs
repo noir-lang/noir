@@ -212,21 +212,32 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
+    /// Pushes an instruction, applies any simplifications, and analyzes the result to see if any
+    /// load or store instructions can be optimized out. This will also keep track of any reference aliases
+    /// being passed around in arrays or function calls.
     fn analyze_instruction(
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        mut instruction: InstructionId,
+        instruction: InstructionId,
     ) {
-        // If the instruction was simplified and optimized out of the program we shouldn't analyze
-        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
-        // call that used to hold references but has since been optimized out to a known result.
-        if let Some(new_id) = self.inserter.push_instruction(instruction, block_id) {
-            instruction = new_id;
-        } else {
-            return;
-        }
+        let old_instruction_count = self.inserter.function.dfg[block_id].instructions().len();
+        self.inserter.push_instruction(instruction, block_id);
+        let new_instruction_count = self.inserter.function.dfg[block_id].instructions().len();
 
+        // Pushing an instruction will not always result in exactly 1 instruction being pushed.
+        // If the instruction is simplified, there may be 0 new instructions, or there may even be
+        // multiple simpler instructions inserted to replace the original. This later case often
+        // happens when simplifying calls to intrinsic functions with known arguments.
+        for i in old_instruction_count..new_instruction_count {
+            let instruction = self.inserter.function.dfg[block_id].instructions()[i];
+            self.analyze_pushed_instruction(references, instruction);
+        }
+    }
+
+    /// Analyze an already pushed instruction. This is the inner worker function for `analyze_instruction` and
+    /// expects the former function to be called first.
+    fn analyze_pushed_instruction(&mut self, references: &mut Block, instruction: InstructionId) {
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
                 let address = self.inserter.function.dfg.resolve(*address);
@@ -353,12 +364,20 @@ impl<'f> PerFunctionContext<'f> {
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
-            if self.inserter.function.dfg.value_is_reference(*value) {
+            if self.value_contains_references(*value) {
                 let value = self.inserter.function.dfg.resolve(*value);
-                references.set_unknown(value);
+                let aliases = references.get_aliases_for_value(value).into_owned();
+                references.set_aliases_unknown(&aliases);
                 references.mark_value_used(value, self.inserter.function);
             }
         }
+    }
+
+    /// True if the value may contain 1 or more references.
+    /// This is true for any reference type or array containing references.
+    fn value_contains_references(&self, value: ValueId) -> bool {
+        let typ = self.inserter.function.dfg.type_of_value(value);
+        Self::contains_references(&typ)
     }
 
     /// Remove any instructions in `self.instructions_to_remove` from the current function.

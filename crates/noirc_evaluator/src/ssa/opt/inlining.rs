@@ -203,12 +203,19 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
+        let id = self.context.builder.current_function.dfg.resolve(id);
         if let Some(value) = self.values.get(&id) {
             return *value;
         }
 
         let new_value = match &self.source_function.dfg[id] {
-            value @ Value::Instruction { .. } => {
+            value @ Value::Instruction { instruction, .. } => {
+                println!("Inlined fn: \n{}", self.context.builder.current_function);
+                println!("Instruction in source: {:?}", self.source_function.dfg[*instruction]);
+                println!(
+                    "Instruction in destin: {:?}",
+                    self.context.builder.current_function.dfg[*instruction]
+                );
                 unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
             }
             value @ Value::Param { .. } => {
@@ -387,6 +394,7 @@ impl<'function> PerFunctionContext<'function> {
     /// Push the given instruction from the source_function into the current block of the
     /// function being inlined into.
     fn push_instruction(&mut self, id: InstructionId) {
+        println!("Pushing instruction {:?}", self.source_function.dfg[id]);
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
 
         let mut call_stack = self.context.call_stack.clone();
@@ -401,7 +409,9 @@ impl<'function> PerFunctionContext<'function> {
 
         self.context.builder.set_call_stack(call_stack);
 
+        println!("Inserting instruction {:?}", instruction);
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
+        println!("  Got {} new_results and {} old results", new_results.len(), results.len());
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
@@ -416,15 +426,20 @@ impl<'function> PerFunctionContext<'function> {
 
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
+                println!("{} -> {}", old_results[0], new_result);
                 values.insert(old_results[0], new_result);
             }
             InsertInstructionResult::SimplifiedToMultiple(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    println!("{} -> {}", old_result, new_result);
+
                     values.insert(*old_result, new_result);
                 }
             }
             InsertInstructionResult::Results(_, new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    println!("{} -> {}", old_result, new_result);
+
                     values.insert(*old_result, *new_result);
                 }
             }
