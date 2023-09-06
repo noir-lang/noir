@@ -34,7 +34,7 @@ pub(crate) enum Intrinsic {
     Sort,
     ArrayLen,
     AssertConstant,
-    IntegerOp(IntegerOpType),
+    IntegerOp(IntegerOpKind),
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -53,8 +53,8 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
-            Intrinsic::IntegerOp(IntegerOpType::WrappingAdd) => write!(f, "u32_wrapping_add"),
-            Intrinsic::IntegerOp(IntegerOpType::WrappingSub) => write!(f, "u32_wrapping_sub"),
+            Intrinsic::IntegerOp(IntegerOpKind::WrappingAdd) => write!(f, "u32_wrapping_add"),
+            Intrinsic::IntegerOp(IntegerOpKind::WrappingSub) => write!(f, "u32_wrapping_sub"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -104,8 +104,8 @@ impl Intrinsic {
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
-            "u32_wrapping_add" => Some(Intrinsic::IntegerOp(IntegerOpType::WrappingAdd)),
-            "u32_wrapping_sub" => Some(Intrinsic::IntegerOp(IntegerOpType::WrappingSub)),
+            "u32_wrapping_add" => Some(Intrinsic::IntegerOp(IntegerOpKind::WrappingAdd)),
+            "u32_wrapping_sub" => Some(Intrinsic::IntegerOp(IntegerOpKind::WrappingSub)),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),
@@ -123,7 +123,7 @@ impl Intrinsic {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum IntegerOpType {
+pub(crate) enum IntegerOpKind {
     WrappingAdd,
     WrappingSub,
     // WrappingDiv,
@@ -192,8 +192,8 @@ pub(crate) enum Instruction {
 
 impl Instruction {
     /// Returns a binary instruction with the given operator, lhs, and rhs
-    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId) -> Instruction {
-        Instruction::Binary(Binary { lhs, operator, rhs })
+    pub(crate) fn binary(operator: BinaryOp, lhs: ValueId, rhs: ValueId, wrapping: bool) -> Instruction {
+        Instruction::Binary(Binary { lhs, operator, rhs, wrapping })
     }
 
     /// Returns the type that this instruction will return.
@@ -287,6 +287,7 @@ impl Instruction {
                 lhs: f(binary.lhs),
                 rhs: f(binary.rhs),
                 operator: binary.operator,
+                wrapping: binary.wrapping,
             }),
             Instruction::Cast(value, typ) => Instruction::Cast(f(*value), typ.clone()),
             Instruction::Not(value) => Instruction::Not(f(*value)),
@@ -630,6 +631,8 @@ pub(crate) struct Binary {
     pub(crate) rhs: ValueId,
     /// The binary operation to apply
     pub(crate) operator: BinaryOp,
+    /// TODO: make this generalizable for multiple kind of binary ops
+    pub(crate) wrapping: bool,
 }
 
 impl Binary {
@@ -646,9 +649,10 @@ impl Binary {
         let lhs = dfg.get_numeric_constant(self.lhs);
         let rhs = dfg.get_numeric_constant(self.rhs);
         let operand_type = dfg.type_of_value(self.lhs);
-        // dbg!(self.operator);
-        // dbg!(lhs);
-        // dbg!(rhs);
+        dbg!(self.operator);
+        dbg!(lhs);
+        dbg!(rhs);
+        dbg!(self.wrapping);
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
             // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
@@ -656,7 +660,7 @@ impl Binary {
             if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
                 return SimplifyResult::None;
             }
-            return match self.eval_constants(dfg, lhs, rhs, operand_type) {
+            return match self.eval_constants(dfg, lhs, rhs, operand_type, self.wrapping) {
                 Some(value) => SimplifyResult::SimplifiedTo(value),
                 None => SimplifyResult::None,
             };
@@ -748,7 +752,7 @@ impl Binary {
                 }
                 if operand_type == Type::bool() {
                     // Boolean AND is equivalent to multiplication, which is a cheaper operation.
-                    let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
+                    let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs, false);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
             }
@@ -787,33 +791,40 @@ impl Binary {
         lhs: FieldElement,
         rhs: FieldElement,
         mut operand_type: Type,
+        wrapping: bool,
     ) -> Option<Id<Value>> {
         let value = match &operand_type {
             Type::Numeric(NumericType::NativeField) => {
                 self.operator.get_field_function()?(lhs, rhs)
             }
-            // Type::Numeric(NumericType::Unsigned { bit_size }) => {
-            Type::Numeric(NumericType::Unsigned { .. }) => {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+            // Type::Numeric(NumericType::Unsigned { .. }) => {
                 let function = self.operator.get_u128_function();
+
+                if wrapping {
+                    let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+                    let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+                    let result = function(lhs, rhs);
+                    truncate(result, *bit_size).into()
+                } else {
+                    let lhs = lhs.try_into_u128()?;
+                    // dbg!(lhs);
+                    let rhs = rhs.try_into_u128()?;
+                    // dbg!(rhs);
+                    let result = function(lhs, rhs);
+                    result.into()
+                }
                 // dbg!(self.operator);
-                // let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-                // let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-                let lhs = lhs.try_into_u128()?;
-                // dbg!(lhs);
-                let rhs = rhs.try_into_u128()?;
-                // dbg!(rhs);
 
                 // The divisor is being truncated into the type of the operand, which can potentially
                 // lead to the rhs being zero.
                 // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
                 // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
                 // and the operation should be handled by ACIR generation.
-                if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
-                    return None;
-                }
+                // if matches!(self.operator, BinaryOp::Div) && rhs == 0 {
+                //     return None;
+                // }
 
-                let result = function(lhs, rhs);
-                result.into()
                 // truncate(result, *bit_size).into()
             }
             _ => return None,

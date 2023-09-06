@@ -209,7 +209,7 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
-        let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
+        let instruction = Instruction::Binary(Binary { lhs, rhs, operator, wrapping: false });
         self.insert_instruction(instruction, None).first()
     }
 

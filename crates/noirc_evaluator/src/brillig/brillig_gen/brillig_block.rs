@@ -218,7 +218,7 @@ impl<'block> BrilligBlock<'block> {
                 let condition = self.brillig_context.allocate_register();
 
                 self.convert_ssa_binary(
-                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
+                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq, wrapping: false },
                     dfg,
                     condition,
                 );

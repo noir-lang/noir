@@ -313,7 +313,7 @@ impl<'f> Context<'f> {
         let end_block = self.branch_ends[&start_block];
 
         if let Some((_, previous_condition)) = self.conditions.last() {
-            let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
+            let and = Instruction::binary(BinaryOp::And, *previous_condition, condition, false);
             let new_condition = self.insert_instruction(and, CallStack::new());
             self.conditions.push((end_block, new_condition));
         } else {
@@ -538,7 +538,7 @@ impl<'f> Context<'f> {
         let else_condition =
             self.insert_instruction(Instruction::Cast(else_condition, else_type), else_call_stack);
 
-        let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
+        let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value, false);
         let then_value = self
             .inserter
             .function
@@ -546,7 +546,7 @@ impl<'f> Context<'f> {
             .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
-        let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
+        let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value, false);
         let else_value = self
             .inserter
             .function
@@ -554,7 +554,7 @@ impl<'f> Context<'f> {
             .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
-        let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
+        let add = Instruction::binary(BinaryOp::Add, then_value, else_value, false);
         self.inserter
             .function
             .dfg
@@ -778,11 +778,11 @@ impl<'f> Context<'f> {
                     );
 
                     let lhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
+                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition, false),
                         call_stack.clone(),
                     );
                     let rhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
+                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition, false),
                         call_stack,
                     );
                     Instruction::Constrain(lhs, rhs, message)

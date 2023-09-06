@@ -360,8 +360,8 @@ impl<'a> FunctionContext<'a> {
             }
             _ => {
                 let max = self.max_value(result, location);
-                let max_const = self.builder.current_function.dfg.get_numeric_constant(max);
-                dbg!(max_const);
+                // let max_const = self.builder.current_function.dfg.get_numeric_constant(max);
+                // dbg!(max_const);
                 let result_type = self.builder.current_function.dfg.type_of_value(result);
                 match result_type {
                     Type::Numeric(NumericType::NativeField) => {
@@ -372,9 +372,9 @@ impl<'a> FunctionContext<'a> {
                     _ => {
                         let is_value_less_than_max =
                             self.builder.set_location(location).insert_binary(result, BinaryOp::Lt, max);
-                        let result_const =
-                            self.builder.current_function.dfg.get_numeric_constant(result);
-                        dbg!(result_const);
+                        // let result_const =
+                            // self.builder.current_function.dfg.get_numeric_constant(result);
+                        // dbg!(result_const);
                         let one = self.builder.field_constant(FieldElement::one());
                         self.builder
                             .set_location(location)

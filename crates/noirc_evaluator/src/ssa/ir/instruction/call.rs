@@ -6,7 +6,7 @@ use num_bigint::BigUint;
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    instruction::Intrinsic,
+    instruction::{Intrinsic, IntegerOpKind},
     map::Id,
     types::Type,
     value::{Value, ValueId},
@@ -216,12 +216,23 @@ pub(super) fn simplify_call(
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
-        Intrinsic::IntegerOp(typ) => {
-            dbg!(typ);
-            dbg!("should do nothing on integer op call simplfication");
+        Intrinsic::IntegerOp(op_kind) => {
+            dbg!(op_kind);
+            let instruction = match op_kind {
+                IntegerOpKind::WrappingAdd => {
+                    let instruction = Instruction::binary(BinaryOp::Add, arguments[0], arguments[1], true);
+                    instruction
+                }
+                IntegerOpKind::WrappingSub => {
+                    let instruction = Instruction::binary(BinaryOp::Sub, arguments[0], arguments[1], true);
+                    instruction
+                }
+            };
+            return SimplifyResult::SimplifiedToInstruction(instruction);
+
             // Perhaps I should simplify to a binary op here???
             // or should I just do it directly in codegen
-            SimplifyResult::None
+            // SimplifyResult::None
         }
     }
 }
@@ -236,7 +247,7 @@ pub(super) fn simplify_call(
 fn update_slice_length(slice_len: ValueId, dfg: &mut DataFlowGraph, operator: BinaryOp) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
     let block = dfg.make_block();
-    let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
+    let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one, wrapping: false });
     let call_stack = dfg.get_value_call_stack(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
