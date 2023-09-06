@@ -100,7 +100,7 @@ pub(crate) fn prove_package(
             abi: program.abi,
             bytecode: program.circuit,
         };
-        (preprocessed_program, Some((program.debug, context)))
+        (preprocessed_program, Some(context))
     };
 
     let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;

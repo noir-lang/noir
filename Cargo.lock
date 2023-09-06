@@ -2185,6 +2185,7 @@ version = "0.10.5"
 dependencies = [
  "acvm",
  "base64",
+ "codespan-reporting",
  "fm",
  "iter-extended",
  "noirc_abi",

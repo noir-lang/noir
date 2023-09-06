@@ -1,11 +1,12 @@
+use codespan_reporting::files::{Error, Files};
+use fm::{FileId, FileManager, PathString};
 use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    ops::Range,
     path::PathBuf,
 };
-
-use fm::{FileId, FileManager};
 
 /// For a given file, we store the source code and the path to the file
 /// so consumers of the debug artifact can reconstruct the original source code structure.
@@ -50,5 +51,33 @@ impl DebugArtifact {
         }
 
         Self { debug_symbols, file_map }
+    }
+}
+
+impl<'a> Files<'a> for DebugArtifact {
+    type FileId = FileId;
+    type Name = PathString;
+    type Source = &'a str;
+
+    fn name(&self, file_id: Self::FileId) -> Result<Self::Name, Error> {
+        self.file_map
+            .get(&file_id)
+            .map(|debug_file| debug_file.path.into())
+            .ok_or(Error::FileMissing)
+    }
+
+    fn source(&'a self, file_id: Self::FileId) -> Result<Self::Source, Error> {
+        self.file_map
+            .get(&file_id)
+            .map(|debug_file| debug_file.source.as_str())
+            .ok_or(Error::FileMissing)
+    }
+
+    fn line_index(&self, file_id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
+        self.0.get(file_id.as_usize())?.line_index((), byte_index)
+    }
+
+    fn line_range(&self, file_id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
+        self.0.get(file_id.as_usize())?.line_range((), line_index)
     }
 }

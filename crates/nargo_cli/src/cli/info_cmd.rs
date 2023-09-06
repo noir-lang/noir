@@ -172,9 +172,9 @@ fn count_opcodes_and_gates_in_contracts(
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<Vec<ContractInfo>, CliError> {
-    let (_, contracts) = compile_contracts(backend, package, compile_options)?;
+    let contracts_with_debug = compile_contracts(backend, package, compile_options)?;
 
-    try_vecmap(contracts, |contract| {
+    try_vecmap(contracts_with_debug, |(_, contract)| {
         let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
             Ok(FunctionInfo {
                 name: function.name,

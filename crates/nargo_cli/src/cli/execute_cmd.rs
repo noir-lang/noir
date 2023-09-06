@@ -3,6 +3,7 @@ use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
 use clap::Args;
 use fm::FileManager;
+use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::{ExecutionError, NargoError};
 use nargo::package::Package;
@@ -76,14 +77,14 @@ fn execute_package(
     prover_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (debug_artifact, compiled_program) = compile_package(backend, package, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
     let solved_witness =
-        execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
+        execute_program(backend, circuit, &abi, &inputs_map, Some(debug_artifact))?;
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
@@ -183,7 +184,7 @@ pub(crate) fn execute_program(
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
-    debug_data: Option<(DebugInfo, FileManager)>,
+    debug_data: Option<DebugArtifact>,
 ) -> Result<WitnessMap, CliError> {
     #[allow(deprecated)]
     let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
@@ -195,9 +196,13 @@ pub(crate) fn execute_program(
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
-            if let Some((debug, file_manager)) = debug_data {
+            if let Some(debug_data) = debug_data {
                 let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
-                report_error_with_opcode_locations(opcode_err_info, &debug, &file_manager);
+                report_error_with_opcode_locations(
+                    opcode_err_info,
+                    &debug_data.debug_symbols[0],
+                    &file_manager,
+                );
             }
 
             Err(crate::errors::CliError::NargoError(err))

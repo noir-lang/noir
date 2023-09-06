@@ -13,7 +13,6 @@ use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelec
 use noirc_driver::{
     compile_main, CompileOptions, CompiledContract, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
-use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
@@ -67,12 +66,13 @@ pub(crate) fn run(
     for package in &workspace {
         // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
         if package.is_contract() {
-            let (file_manager, contracts) =
+            let contracts_with_debug_info =
                 compile_contracts(backend, package, &args.compile_options)?;
-            save_contracts(&file_manager, contracts, package, &circuit_dir, args.output_debug);
+            save_contracts(contracts_with_debug_info, package, &circuit_dir, args.output_debug);
         } else {
-            let (file_manager, program) = compile_package(backend, package, &args.compile_options)?;
-            save_program(&file_manager, program, package, &circuit_dir, args.output_debug);
+            let (debug_artifact, program) =
+                compile_package(backend, package, &args.compile_options)?;
+            save_program(&debug_artifact, program, package, &circuit_dir, args.output_debug);
         }
     }
 
@@ -83,7 +83,7 @@ pub(crate) fn compile_package(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-) -> Result<(FileManager, CompiledProgram), CompileError> {
+) -> Result<(DebugArtifact, CompiledProgram), CompileError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()));
     }
@@ -99,21 +99,29 @@ pub(crate) fn compile_package(
     program.circuit = optimized_circuit;
     program.debug.update_acir(location_map);
 
-    Ok((context.file_manager, program))
+    let debug_artifact = DebugArtifact::new(vec![program.debug.clone()], &context.file_manager);
+    Ok((debug_artifact, program))
 }
 
 pub(crate) fn compile_contracts(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-) -> Result<(FileManager, Vec<CompiledContract>), CliError> {
+) -> Result<Vec<(DebugArtifact, CompiledContract)>, CliError> {
     let (mut context, crate_id) = prepare_package(package);
     let result = noirc_driver::compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
 
     let optimized_contracts =
         try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
-    Ok((context.file_manager, optimized_contracts))
+    let contracts_with_debug: Vec<(DebugArtifact, CompiledContract)> =
+        vecmap(contracts, |contract| {
+            let debug_infos = vecmap(contract.functions, |func| func.debug);
+            let debug_artifact = DebugArtifact::new(debug_infos, &context.file_manager);
+
+            (debug_artifact, contract)
+        });
+    Ok(contracts_with_debug)
 }
 
 pub(super) fn optimize_circuit(
@@ -143,7 +151,7 @@ pub(super) fn optimize_contract(
 }
 
 fn save_program(
-    file_manager: &FileManager,
+    debug_artifact: &DebugArtifact,
     program: CompiledProgram,
     package: &Package,
     circuit_dir: &Path,
@@ -158,52 +166,44 @@ fn save_program(
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
     if output_debug {
-        let debug_artifact = DebugArtifact::new(vec![program.debug], file_manager);
         let circuit_name: String = (&package.name).into();
         save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
     }
 }
 
 fn save_contracts(
-    file_manager: &FileManager,
-    contracts: Vec<CompiledContract>,
+    contracts: Vec<(DebugArtifact, CompiledContract)>,
     package: &Package,
     circuit_dir: &Path,
     output_debug: bool,
 ) {
+    let (debug_infos, contracts): (Vec<DebugArtifact>, Vec<CompiledContract>) =
+        contracts.into_iter().unzip();
+
     // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
     // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
     // are compiled via nargo-core and then the PreprocessedContract is constructed here.
     // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-    let preprocessed_contracts: Vec<(PreprocessedContract, Vec<DebugInfo>)> =
-        vecmap(contracts, |contract| {
-            let preprocess_result = vecmap(contract.functions, |func| {
-                (
-                    PreprocessedContractFunction {
-                        name: func.name,
-                        function_type: func.function_type,
-                        is_internal: func.is_internal,
-                        abi: func.abi,
+    let preprocessed_contracts: Vec<PreprocessedContract> =
+        vecmap(contracts, |contract: CompiledContract| {
+            let preprocessed_contract_functions =
+                vecmap(contract.functions, |func| PreprocessedContractFunction {
+                    name: func.name,
+                    function_type: func.function_type,
+                    is_internal: func.is_internal,
+                    abi: func.abi,
 
-                        bytecode: func.bytecode,
-                    },
-                    func.debug,
-                )
-            });
+                    bytecode: func.bytecode,
+                });
 
-            let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
-                preprocess_result.into_iter().unzip();
-
-            (
-                PreprocessedContract {
-                    name: contract.name,
-                    backend: String::from(BACKEND_IDENTIFIER),
-                    functions: preprocessed_contract_functions,
-                },
-                debug_infos,
-            )
+            PreprocessedContract {
+                name: contract.name,
+                backend: String::from(BACKEND_IDENTIFIER),
+                functions: preprocessed_contract_functions,
+            }
         });
-    for (contract, debug_infos) in preprocessed_contracts {
+
+    for (contract, debug_artifact) in preprocessed_contracts.into_iter().zip(debug_infos) {
         save_contract_to_file(
             &contract,
             &format!("{}-{}", package.name, contract.name),
@@ -211,7 +211,6 @@ fn save_contracts(
         );
 
         if output_debug {
-            let debug_artifact = DebugArtifact::new(debug_infos, file_manager);
             save_debug_artifact_to_file(
                 &debug_artifact,
                 &format!("{}-{}", package.name, contract.name),
