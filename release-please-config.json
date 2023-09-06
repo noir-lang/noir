@@ -21,7 +21,5 @@
       ]
     }
   },
-  "plugins": [
-    "sentence-case"
-  ]
+  "plugins": ["sentence-case"]
 }

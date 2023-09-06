@@ -167,7 +167,7 @@ impl<'interner> TypeChecker<'interner> {
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
     use std::vec;
 
     use fm::FileId;
@@ -365,7 +365,7 @@ mod test {
     impl PathResolver for TestPathResolver {
         fn resolve(
             &self,
-            _def_maps: &HashMap<CrateId, CrateDefMap>,
+            _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
         ) -> Result<ModuleDefId, PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
@@ -415,7 +415,7 @@ mod test {
             path_resolver.insert_func(name.to_owned(), id);
         }
 
-        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
@@ -428,7 +428,7 @@ mod test {
                 root: path_resolver.local_module_id(),
                 modules,
                 krate: CrateId::dummy_id(),
-                extern_prelude: HashMap::new(),
+                extern_prelude: BTreeMap::new(),
             },
         );
 

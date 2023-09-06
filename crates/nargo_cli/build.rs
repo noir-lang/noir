@@ -104,15 +104,23 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             r#"
 #[test]
 fn compile_success_empty_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
+    
+    // We use a mocked backend for this test as we do not rely on the returned circuit size
+    // but we must call a backend as part of querying the number of opcodes in the circuit.
 
+    let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
 
     let output = cmd.output().expect("Failed to execute command");
-    
+
+    if !output.status.success() {{
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap());
+    }}
+
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("JSON was not well-formatted");
     let num_opcodes = &json["programs"][0]["acir_opcodes"];

@@ -26,7 +26,7 @@ impl Backend {
         write_to_file(serialized_circuit.as_bytes(), &circuit_path);
 
         let binary_path = assert_binary_exists(self);
-        GatesCommand { crs_path: self.backend_directory(), bytecode_path: circuit_path }
+        GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(&binary_path)
     }
 
@@ -81,8 +81,7 @@ impl Backend {
         let binary_path = assert_binary_exists(self);
         // Create proof and store it in the specified path
         ProveCommand {
-            verbose: true,
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             is_recursive,
             bytecode_path,
             witness_path,
@@ -140,8 +139,7 @@ impl Backend {
 
         let binary_path = assert_binary_exists(self);
         WriteVkCommand {
-            verbose: false,
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             is_recursive,
             bytecode_path,
             vk_path_output: vk_path.clone(),
@@ -149,14 +147,9 @@ impl Backend {
         .run(&binary_path)?;
 
         // Verify the proof
-        let valid_proof = VerifyCommand {
-            verbose: false,
-            crs_path: self.backend_directory(),
-            is_recursive,
-            proof_path,
-            vk_path,
-        }
-        .run(&binary_path);
+        let valid_proof =
+            VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
+                .run(&binary_path);
 
         Ok(valid_proof)
     }

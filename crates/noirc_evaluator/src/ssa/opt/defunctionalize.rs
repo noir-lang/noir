@@ -4,7 +4,7 @@
 //! with a non-literal target can be replaced with a call to an apply function.
 //! The apply function is a dispatch function that takes the function id as a parameter
 //! and dispatches to the correct target.
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -20,6 +20,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use fxhash::FxHashMap as HashMap;
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -245,7 +246,7 @@ fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: BTreeMap<Signature, Vec<FunctionId>>,
 ) -> HashMap<Signature, ApplyFunction> {
-    let mut apply_functions = HashMap::new();
+    let mut apply_functions = HashMap::default();
     for (signature, variants) in variants_map.into_iter() {
         assert!(
             !variants.is_empty(),

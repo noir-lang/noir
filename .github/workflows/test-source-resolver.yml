@@ -1,0 +1,29 @@
+name: Test Source Resolver
+
+on:
+  push:
+    paths:
+      - "crates/source-resolver/**"
+  pull_request:
+    paths:
+      - "crates/source-resolver/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        working-directory: ./crates/source-resolver
+        run: npm install
+
+      - name: Build noir-source-resolver
+        working-directory: ./crates/source-resolver
+        run: npm run build
+
+      - name: Run tests
+        working-directory: ./crates/source-resolver
+        run: npm run test

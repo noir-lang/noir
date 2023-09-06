@@ -1,7 +1,7 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 mod acir_ir;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
@@ -29,6 +29,7 @@ use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
+use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -147,11 +148,11 @@ impl Context {
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
-            ssa_values: HashMap::new(),
+            ssa_values: HashMap::default(),
             current_side_effects_enabled_var,
             acir_context,
             initialized_arrays: HashSet::new(),
-            memory_blocks: HashMap::new(),
+            memory_blocks: HashMap::default(),
             max_block_id: 0,
         }
     }
@@ -1060,7 +1061,28 @@ impl Context {
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
-                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                // Slices are represented as a tuple of (length, slice contents).
+                // We must check the inputs to determine if there are slices
+                // and make sure that we pass the correct inputs to the black box function call.
+                // The loop below only keeps the slice contents, so that
+                // setting up a black box function with slice inputs matches the expected
+                // number of arguments specified in the function signature.
+                let mut arguments_no_slice_len = Vec::new();
+                for (i, arg) in arguments.iter().enumerate() {
+                    if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
+                        if i < arguments.len() - 1 {
+                            if !matches!(dfg.type_of_value(arguments[i + 1]), Type::Slice(_)) {
+                                arguments_no_slice_len.push(*arg);
+                            }
+                        } else {
+                            arguments_no_slice_len.push(*arg);
+                        }
+                    } else {
+                        arguments_no_slice_len.push(*arg);
+                    }
+                }
+
+                let inputs = vecmap(&arguments_no_slice_len, |arg| self.convert_value(*arg, dfg));
 
                 let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
                     sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
@@ -1254,7 +1276,7 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];

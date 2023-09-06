@@ -124,17 +124,17 @@ impl std::fmt::Display for UnresolvedTypeData {
             },
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env) => {
-                let args = vecmap(args, ToString::to_string);
+                let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {
                     UnresolvedTypeData::Unit => {
-                        write!(f, "fn({}) -> {ret}", args.join(", "))
+                        write!(f, "fn({args}) -> {ret}")
                     }
                     UnresolvedTypeData::Tuple(env_types) => {
-                        let env_types = vecmap(env_types, |arg| ToString::to_string(&arg.typ));
-                        write!(f, "fn[{}]({}) -> {ret}", env_types.join(", "), args.join(", "))
+                        let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
+                        write!(f, "fn[{env_types}]({args}) -> {ret}")
                     }
-                    _ => unreachable!(),
+                    other => write!(f, "fn[{other}]({args}) -> {ret}"),
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
