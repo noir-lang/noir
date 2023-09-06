@@ -6,6 +6,7 @@ import { Entrypoint } from '../index.js';
 export * from './ecdsa_account_contract.js';
 export * from './schnorr_account_contract.js';
 export * from './single_key_account_contract.js';
+export * from './auth_witness_account_contract.js';
 
 // docs:start:account-contract-interface
 /**

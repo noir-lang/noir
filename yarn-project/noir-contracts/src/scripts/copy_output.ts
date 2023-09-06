@@ -20,6 +20,7 @@ const PROJECT_CONTRACTS = [
   { name: 'SchnorrSingleKeyAccount', target: '../aztec.js/src/abis/', exclude: [] },
   { name: 'SchnorrAccount', target: '../aztec.js/src/abis/', exclude: [] },
   { name: 'EcdsaAccount', target: '../aztec.js/src/abis/', exclude: [] },
+  { name: 'SchnorrAuthWitnessAccount', target: '../aztec.js/src/abis/', exclude: [] },
 ];
 
 const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'test'];

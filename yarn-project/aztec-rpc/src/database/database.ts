@@ -11,6 +11,20 @@ import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
  */
 export interface Database extends ContractDatabase {
   /**
+   * Add a auth witness to the database.
+   * @param messageHash - The message hash.
+   * @param witness - An array of field elements representing the auth witness.
+   */
+  addAuthWitness(messageHash: Fr, witness: Fr[]): Promise<void>;
+
+  /**
+   * Fetching the auth witness for a given message hash.
+   * @param messageHash - The message hash.
+   * @returns A Promise that resolves to an array of field elements representing the auth witness.
+   */
+  getAuthWitness(messageHash: Fr): Promise<Fr[]>;
+
+  /**
    * Get auxiliary transaction data based on contract address and storage slot.
    * It searches for matching NoteSpendingInfoDao objects in the MemoryDB's noteSpendingInfoTable
    * where both the contractAddress and storageSlot properties match the given inputs.

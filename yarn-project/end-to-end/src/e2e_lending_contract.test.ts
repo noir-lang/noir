@@ -1,8 +1,17 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, CheatCodes, Fr, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
-import { CircuitsWasm, CompleteAddress } from '@aztec/circuits.js';
-import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import {
+  Account,
+  AuthWitnessAccountContract,
+  AuthWitnessAccountEntrypoint,
+  AuthWitnessEntrypointWallet,
+  AztecAddress,
+  CheatCodes,
+  Fr,
+  computeMessageSecretHash,
+} from '@aztec/aztec.js';
+import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex, PrivateKey } from '@aztec/circuits.js';
+import { pedersenPlookupCommitInputs, pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { LendingContract, NativeTokenContract, PriceFeedContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
@@ -12,7 +21,7 @@ import { setup } from './fixtures/utils.js';
 describe('e2e_lending_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
-  let wallet: Wallet;
+  let wallet: AuthWitnessEntrypointWallet;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
 
@@ -71,7 +80,17 @@ describe('e2e_lending_contract', () => {
   };
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, wallet, accounts, logger, cheatCodes: cc } = await setup());
+    ({ aztecNode, aztecRpcServer, logger, cheatCodes: cc } = await setup(0));
+
+    const privateKey = PrivateKey.random();
+    const account = new Account(aztecRpcServer, privateKey, new AuthWitnessAccountContract(privateKey));
+    const entryPoint = (await account.getEntrypoint()) as unknown as AuthWitnessAccountEntrypoint;
+
+    const deployTx = await account.deploy();
+    await deployTx.wait({ interval: 0.1 });
+
+    wallet = new AuthWitnessEntrypointWallet(aztecRpcServer, entryPoint);
+    accounts = await wallet.getAccounts();
   }, 100_000);
 
   afterEach(async () => {
@@ -81,12 +100,20 @@ describe('e2e_lending_contract', () => {
     }
   });
 
+  const hashPayload = async (payload: Fr[]) => {
+    return pedersenPlookupCompressWithHashIndex(
+      await CircuitsWasm.get(),
+      payload.map(fr => fr.toBuffer()),
+      GeneratorIndex.SIGNATURE_PAYLOAD,
+    );
+  };
+
   // Fetch a storage snapshot from the contract that we can use to compare between transitions.
   const getStorageSnapshot = async (
     lendingContract: LendingContract,
     collateralAsset: NativeTokenContract,
     stableCoin: NativeTokenContract,
-    account: Account,
+    account: LendingAccount,
   ) => {
     logger('Fetching storage snapshot 📸 ');
     const accountKey = await account.key();
@@ -115,7 +142,7 @@ describe('e2e_lending_contract', () => {
 
   // Convenience struct to hold an account's address and secret that can easily be passed around.
   // Contains utilities to compute the "key" for private holdings in the public state.
-  class Account {
+  class LendingAccount {
     public readonly address: AztecAddress;
     public readonly secret: Fr;
 
@@ -173,7 +200,7 @@ describe('e2e_lending_contract', () => {
 
     private key: Fr = Fr.ZERO;
 
-    constructor(private cc: CheatCodes, private account: Account, private rate: bigint) {}
+    constructor(private cc: CheatCodes, private account: LendingAccount, private rate: bigint) {}
 
     async prepare() {
       this.key = await this.account.key();
@@ -258,12 +285,13 @@ describe('e2e_lending_contract', () => {
   }
 
   it('Full lending run-through', async () => {
-    const recipientIdx = 0;
+    // Gotta use the actual auth witness account here and not the standard wallet.
+    const recipientFull = accounts[0];
+    const recipient = recipientFull.address;
 
-    const recipient = accounts[recipientIdx].address;
     const { lendingContract, priceFeedContract, collateralAsset, stableCoin } = await deployContracts(recipient);
 
-    const account = new Account(recipient, new Fr(42));
+    const lendingAccount = new LendingAccount(recipient, new Fr(42));
 
     const storageSnapshots: { [key: string]: { [key: string]: Fr } } = {};
 
@@ -277,7 +305,7 @@ describe('e2e_lending_contract', () => {
 
     {
       // Minting some collateral in public so we got it at hand.
-      const tx = collateralAsset.methods.owner_mint_pub(account.address, 10000n).send({ origin: recipient });
+      const tx = collateralAsset.methods.owner_mint_pub(lendingAccount.address, 10000n).send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
 
@@ -304,10 +332,10 @@ describe('e2e_lending_contract', () => {
 
     // Also specified in `noir-contracts/src/contracts/lending_contract/src/main.nr`
     const rate = 1268391679n;
-    const lendingSim = new LendingSimulator(cc, account, rate);
+    const lendingSim = new LendingSimulator(cc, lendingAccount, rate);
     await lendingSim.prepare();
     // To handle initial mint (we use these funds to refund privately without shielding first).
-    lendingSim.mintStable(await account.key(), 10000n);
+    lendingSim.mintStable(await lendingAccount.key(), 10000n);
 
     {
       // Initialize the contract values, setting the interest accumulator to 1e9 and the last updated timestamp to now.
@@ -317,15 +345,28 @@ describe('e2e_lending_contract', () => {
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
-      storageSnapshots['initial'] = await getStorageSnapshot(lendingContract, collateralAsset, stableCoin, account);
+      storageSnapshots['initial'] = await getStorageSnapshot(
+        lendingContract,
+        collateralAsset,
+        stableCoin,
+        lendingAccount,
+      );
 
       lendingSim.check(storageSnapshots['initial']);
     }
 
     {
       const depositAmount = 420n;
+
+      const messageHash = await hashPayload([
+        FunctionSelector.fromSignature('unshieldTokens(Field,Field,Field)').toField(),
+        recipientFull.address.toField(),
+        lendingContract.address.toField(),
+        new Fr(depositAmount),
+      ]);
+      await wallet.signAndAddAuthWitness(messageHash);
       await lendingSim.progressTime(10);
-      lendingSim.deposit(await account.key(), depositAmount);
+      lendingSim.deposit(await lendingAccount.key(), depositAmount);
 
       // Make a private deposit of funds into own account.
       // This should:
@@ -334,7 +375,7 @@ describe('e2e_lending_contract', () => {
       // - increase the private collateral.
       logger('Depositing 🥸 : 💰 -> 🏦');
       const tx = lendingContract.methods
-        .deposit_private(account.secret, account.address, 0n, depositAmount, collateralAsset.address)
+        .deposit_private(lendingAccount.secret, lendingAccount.address, 0n, depositAmount, collateralAsset.address)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -342,14 +383,22 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['private_deposit']);
     }
 
     {
-      const depositAmount = 420n;
+      const depositAmount = 421n;
+      const messageHash = await hashPayload([
+        FunctionSelector.fromSignature('unshieldTokens(Field,Field,Field)').toField(),
+        recipientFull.address.toField(),
+        lendingContract.address.toField(),
+        new Fr(depositAmount),
+      ]);
+      await wallet.signAndAddAuthWitness(messageHash);
+
       await lendingSim.progressTime(10);
       lendingSim.deposit(recipient.toField(), depositAmount);
       // Make a private deposit of funds into another account, in this case, a public account.
@@ -359,7 +408,7 @@ describe('e2e_lending_contract', () => {
       // - increase the public collateral.
       logger('Depositing 🥸 on behalf of recipient: 💰 -> 🏦');
       const tx = lendingContract.methods
-        .deposit_private(0n, account.address, recipient.toField(), depositAmount, collateralAsset.address)
+        .deposit_private(0n, lendingAccount.address, recipient.toField(), depositAmount, collateralAsset.address)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -367,7 +416,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['private_deposit_on_behalf']);
@@ -386,7 +435,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Depositing: 💰 -> 🏦');
       const tx = lendingContract.methods
-        .deposit_public(account.address, depositAmount, collateralAsset.address)
+        .deposit_public(lendingAccount.address, depositAmount, collateralAsset.address)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -394,7 +443,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
       lendingSim.check(storageSnapshots['public_deposit']);
     }
@@ -402,7 +451,7 @@ describe('e2e_lending_contract', () => {
     {
       const borrowAmount = 69n;
       await lendingSim.progressTime(10);
-      lendingSim.borrow(await account.key(), account.address.toField(), borrowAmount);
+      lendingSim.borrow(await lendingAccount.key(), lendingAccount.address.toField(), borrowAmount);
 
       // Make a private borrow using the private account
       // This should:
@@ -412,7 +461,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Borrow 🥸 : 🏦 -> 🍌');
       const tx = lendingContract.methods
-        .borrow_private(account.secret, account.address, borrowAmount)
+        .borrow_private(lendingAccount.secret, lendingAccount.address, borrowAmount)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -420,7 +469,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['private_borrow']);
@@ -429,7 +478,7 @@ describe('e2e_lending_contract', () => {
     {
       const borrowAmount = 69n;
       await lendingSim.progressTime(10);
-      lendingSim.borrow(recipient.toField(), account.address.toField(), borrowAmount);
+      lendingSim.borrow(recipient.toField(), lendingAccount.address.toField(), borrowAmount);
 
       // Make a public borrow using the private account
       // This should:
@@ -438,14 +487,16 @@ describe('e2e_lending_contract', () => {
       // - increase the public debt.
 
       logger('Borrow: 🏦 -> 🍌');
-      const tx = lendingContract.methods.borrow_public(account.address, borrowAmount).send({ origin: recipient });
+      const tx = lendingContract.methods
+        .borrow_public(lendingAccount.address, borrowAmount)
+        .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_borrow'] = await getStorageSnapshot(
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['public_borrow']);
@@ -453,8 +504,16 @@ describe('e2e_lending_contract', () => {
 
     {
       const repayAmount = 20n;
+      const messageHash = await hashPayload([
+        FunctionSelector.fromSignature('unshieldTokens(Field,Field,Field)').toField(),
+        recipientFull.address.toField(),
+        lendingContract.address.toField(),
+        new Fr(repayAmount),
+      ]);
+      await wallet.signAndAddAuthWitness(messageHash);
+
       await lendingSim.progressTime(10);
-      lendingSim.repay(await account.key(), await account.key(), repayAmount);
+      lendingSim.repay(await lendingAccount.key(), await lendingAccount.key(), repayAmount);
 
       // Make a private repay of the debt in the private account
       // This should:
@@ -464,7 +523,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Repay 🥸 : 🍌 -> 🏦');
       const tx = lendingContract.methods
-        .repay_private(account.secret, account.address, 0n, repayAmount, stableCoin.address)
+        .repay_private(lendingAccount.secret, lendingAccount.address, 0n, repayAmount, stableCoin.address)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -472,16 +531,24 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['private_repay']);
     }
 
     {
-      const repayAmount = 20n;
+      const repayAmount = 21n;
+      const messageHash = await hashPayload([
+        FunctionSelector.fromSignature('unshieldTokens(Field,Field,Field)').toField(),
+        recipientFull.address.toField(),
+        lendingContract.address.toField(),
+        new Fr(repayAmount),
+      ]);
+      await wallet.signAndAddAuthWitness(messageHash);
+
       await lendingSim.progressTime(10);
-      lendingSim.repay(await account.key(), account.address.toField(), repayAmount);
+      lendingSim.repay(await lendingAccount.key(), lendingAccount.address.toField(), repayAmount);
 
       // Make a private repay of the debt in the public account
       // This should:
@@ -491,7 +558,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Repay 🥸  on behalf of public: 🍌 -> 🏦');
       const tx = lendingContract.methods
-        .repay_private(0n, account.address, recipient.toField(), repayAmount, stableCoin.address)
+        .repay_private(0n, lendingAccount.address, recipient.toField(), repayAmount, stableCoin.address)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -499,7 +566,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['private_repay_on_behalf']);
@@ -508,7 +575,7 @@ describe('e2e_lending_contract', () => {
     {
       const repayAmount = 20n;
       await lendingSim.progressTime(10);
-      lendingSim.repay(account.address.toField(), account.address.toField(), repayAmount);
+      lendingSim.repay(lendingAccount.address.toField(), lendingAccount.address.toField(), repayAmount);
 
       // Make a public repay of the debt in the public account
       // This should:
@@ -526,7 +593,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['public_repay']);
@@ -562,7 +629,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['public_withdraw']);
@@ -571,7 +638,7 @@ describe('e2e_lending_contract', () => {
     {
       const withdrawAmount = 42n;
       await lendingSim.progressTime(10);
-      lendingSim.withdraw(await account.key(), withdrawAmount);
+      lendingSim.withdraw(await lendingAccount.key(), withdrawAmount);
 
       // Withdraw funds from the private account
       // This should:
@@ -581,7 +648,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Withdraw 🥸 : 🏦 -> 💰');
       const tx = lendingContract.methods
-        .withdraw_private(account.secret, account.address, withdrawAmount)
+        .withdraw_private(lendingAccount.secret, lendingAccount.address, withdrawAmount)
         .send({ origin: recipient });
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -589,7 +656,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
 
       lendingSim.check(storageSnapshots['private_withdraw']);
@@ -612,7 +679,7 @@ describe('e2e_lending_contract', () => {
         lendingContract,
         collateralAsset,
         stableCoin,
-        account,
+        lendingAccount,
       );
       expect(storageSnapshots['private_withdraw']).toEqual(storageSnapshots['attempted_internal_deposit']);
     }

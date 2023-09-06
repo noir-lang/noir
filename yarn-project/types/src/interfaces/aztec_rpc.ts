@@ -69,6 +69,13 @@ export type SyncStatus = {
  */
 export interface AztecRPC {
   /**
+   * Insert a witness for a given message hash.
+   * @param messageHash - The message hash to insert witness at
+   * @param witness - The witness to insert
+   */
+  addAuthWitness(messageHash: Fr, witness: Fr[]): Promise<void>;
+
+  /**
    * Registers an account in the Aztec RPC server.
    *
    * @param privKey - Private key of the corresponding user master public key.

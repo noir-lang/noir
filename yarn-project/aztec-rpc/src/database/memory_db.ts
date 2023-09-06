@@ -19,9 +19,29 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private globalVariablesHash: Fr | undefined;
   private addresses: CompleteAddress[] = [];
+  private authWitnesses: Record<string, Fr[]> = {};
 
   constructor(logSuffix?: string) {
     super(createDebugLogger(logSuffix ? 'aztec:memory_db_' + logSuffix : 'aztec:memory_db'));
+  }
+
+  /**
+   * Add a auth witness to the database.
+   * @param messageHash - The message hash.
+   * @param witness - An array of field elements representing the auth witness.
+   */
+  public addAuthWitness(messageHash: Fr, witness: Fr[]): Promise<void> {
+    this.authWitnesses[messageHash.toString()] = witness;
+    return Promise.resolve();
+  }
+
+  /**
+   * Fetching the auth witness for a given message hash.
+   * @param messageHash - The message hash.
+   * @returns A Promise that resolves to an array of field elements representing the auth witness.
+   */
+  public getAuthWitness(messageHash: Fr): Promise<Fr[]> {
+    return Promise.resolve(this.authWitnesses[messageHash.toString()]);
   }
 
   public addNoteSpendingInfo(noteSpendingInfoDao: NoteSpendingInfoDao) {

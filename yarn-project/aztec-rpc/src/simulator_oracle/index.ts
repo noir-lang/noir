@@ -46,6 +46,12 @@ export class SimulatorOracle implements DBOracle {
     return completeAddress;
   }
 
+  async getAuthWitness(messageHash: Fr): Promise<Fr[]> {
+    const witness = await this.db.getAuthWitness(messageHash);
+    if (!witness) throw new Error(`Unknown auth witness for message hash ${messageHash.toString()}`);
+    return witness;
+  }
+
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr) {
     const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot);
     return noteDaos.map(({ contractAddress, storageSlot, nonce, notePreimage, siloedNullifier, index }) => ({
