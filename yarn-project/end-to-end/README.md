@@ -1,7 +1,7 @@
 # End to End
 
 This package includes end-to-end tests that cover Aztec's main milestones.
-These can be run locally either by starting anvil on a different terminal
+These can be run locally either by starting anvil on a different terminal.
 
 ```
 anvil -p 8545 --host 0.0.0.0 --chain-id 31337

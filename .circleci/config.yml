@@ -725,26 +725,26 @@ jobs:
           working_directory: yarn-project/end-to-end
 
   e2e-sandbox-example:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_sandbox_example.test.ts docker-compose-e2e-sandbox.yml
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_sandbox_example.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
 
   e2e-multi-transfer-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_multi_transfer.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_multi_transfer.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-block-building:
     machine:
@@ -831,15 +831,15 @@ jobs:
           working_directory: yarn-project/end-to-end
 
   e2e-escrow-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_escrow_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_escrow_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-pending-commitments-contract:
     machine:
@@ -926,37 +926,37 @@ jobs:
           working_directory: yarn-project/end-to-end
 
   e2e-p2p:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_p2p_network.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_p2p_network.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-browser-sandbox:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_aztec_js_browser.test.ts docker-compose-e2e-sandbox.yml
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_aztec_js_browser.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
 
   aztec-rpc-sandbox:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end aztec_rpc_sandbox.test.ts docker-compose-e2e-sandbox.yml
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local aztec_rpc_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
 
   guides-writing-an-account-contract:
     machine:
@@ -971,26 +971,26 @@ jobs:
           working_directory: yarn-project/end-to-end
 
   guides-dapp-testing:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end guides/dapp_testing.test.ts docker-compose-e2e-sandbox.yml
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local guides/dapp_testing.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
 
   e2e-canary-test:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_test_script ./scripts/run_tests canary-build uniswap_trade_on_l1_from_l2.test.ts canary-build docker-compose-e2e-sandbox.yml
+          command: ./scripts/cond_run_script canary-build $JOB_NAME ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts canary-build ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
 
   build-docs:
     machine:
@@ -1191,7 +1191,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary uniswap_trade_on_l1_from_l2.test.ts canary docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary uniswap_trade_on_l1_from_l2.test.ts canary ./scripts/docker-compose.yml
 
   run-deployment-canary-browser:
     docker:
@@ -1202,7 +1202,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary aztec_js_browser.test.ts canary docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary aztec_js_browser.test.ts canary ./scripts/docker-compose.yml
 
   run-deployment-canary-cli:
     docker:
@@ -1213,7 +1213,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary cli.test.ts canary docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary cli.test.ts canary ./scripts/docker-compose.yml
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /^v.*/
