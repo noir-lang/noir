@@ -157,6 +157,42 @@ const sidebars = {
         },
       ],
     },
+    {
+      label: "DApp Development",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/dapps/main",
+      },
+      items: [
+        {
+          label: "API",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "dev_docs/dapps/api/main",
+          },
+          items: [
+            "dev_docs/dapps/api/aztec_rpc",
+            "dev_docs/dapps/api/contract_interaction",
+          ],
+        },
+        {
+          label: "Tutorials",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "dev_docs/dapps/tutorials/main",
+          },
+          items: [
+            "dev_docs/dapps/tutorials/rpc_server",
+            "dev_docs/dapps/tutorials/creating_accounts",
+            "dev_docs/dapps/tutorials/contract_deployment",
+            "dev_docs/dapps/tutorials/contract_interaction",
+          ],
+        },
+      ],
+    },
 
     {
       label: "Sandbox",
