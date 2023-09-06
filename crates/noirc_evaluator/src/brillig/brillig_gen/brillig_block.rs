@@ -214,7 +214,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, assert_message) => {
                 let condition = self.brillig_context.allocate_register();
 
                 self.convert_ssa_binary(
@@ -223,7 +223,7 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
 
-                self.brillig_context.constrain_instruction(condition);
+                self.brillig_context.constrain_instruction(condition, assert_message.clone());
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {
@@ -308,8 +308,29 @@ impl<'block> BrilligBlock<'block> {
                     self.convert_ssa_function_call(*func_id, arguments, dfg, instruction_id);
                 }
                 Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
+                    // Slices are represented as a tuple of (length, slice contents).
+                    // We must check the inputs to determine if there are slices
+                    // and make sure that we pass the correct inputs to the black box function call.
+                    // The loop below only keeps the slice contents, so that
+                    // setting up a black box function with slice inputs matches the expected
+                    // number of arguments specified in the function signature.
+                    let mut arguments_no_slice_len = Vec::new();
+                    for (i, arg) in arguments.iter().enumerate() {
+                        if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
+                            if i < arguments.len() - 1 {
+                                if !matches!(dfg.type_of_value(arguments[i + 1]), Type::Slice(_)) {
+                                    arguments_no_slice_len.push(*arg);
+                                }
+                            } else {
+                                arguments_no_slice_len.push(*arg);
+                            }
+                        } else {
+                            arguments_no_slice_len.push(*arg);
+                        }
+                    }
+
                     let function_arguments =
-                        vecmap(arguments, |arg| self.convert_ssa_value(*arg, dfg));
+                        vecmap(&arguments_no_slice_len, |arg| self.convert_ssa_value(*arg, dfg));
                     let function_results = dfg.instruction_results(instruction_id);
                     let function_results = vecmap(function_results, |result| {
                         self.allocate_external_call_result(*result, dfg)
@@ -350,7 +371,7 @@ impl<'block> BrilligBlock<'block> {
                 ) => {
                     self.convert_ssa_slice_intrinsic_call(
                         dfg,
-                        &dfg[*func],
+                        &dfg[dfg.resolve(*func)],
                         instruction_id,
                         arguments,
                     );
@@ -937,13 +958,13 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
-        let value = &dfg[value_id];
+        let value = &dfg[dfg.resolve(value_id)];
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.function_context.get_variable(value_id)
+                self.function_context.get_variable(value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and

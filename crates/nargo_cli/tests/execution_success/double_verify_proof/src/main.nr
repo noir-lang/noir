@@ -23,7 +23,7 @@ fn main(
         key_hash,
         output_aggregation_object_a
     );
-
+    
     let mut output = [0; 16];
     for i in 0..16 {
         output[i] = output_aggregation_object[i];

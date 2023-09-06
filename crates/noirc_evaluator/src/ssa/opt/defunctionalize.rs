@@ -4,12 +4,13 @@
 //! with a non-literal target can be replaced with a call to an apply function.
 //! The apply function is a dispatch function that takes the function id as a parameter
 //! and dispatches to the correct target.
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::ssa::{
+    function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
@@ -17,9 +18,9 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
 };
+use fxhash::FxHashMap as HashMap;
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -245,7 +246,7 @@ fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: BTreeMap<Signature, Vec<FunctionId>>,
 ) -> HashMap<Signature, ApplyFunction> {
-    let mut apply_functions = HashMap::new();
+    let mut apply_functions = HashMap::default();
     for (signature, variants) in variants_map.into_iter() {
         assert!(
             !variants.is_empty(),
@@ -305,7 +306,7 @@ fn create_apply_function(
                 function_builder.switch_to_block(executor_block);
             } else {
                 // Else just constrain the condition
-                function_builder.insert_constrain(target_id, function_id_constant);
+                function_builder.insert_constrain(target_id, function_id_constant, None);
             }
             // Find the target block or build it if necessary
             let current_block = function_builder.current_block();

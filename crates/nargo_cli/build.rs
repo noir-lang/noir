@@ -104,19 +104,27 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             r#"
 #[test]
 fn compile_success_empty_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
+    
+    // We use a mocked backend for this test as we do not rely on the returned circuit size
+    // but we must call a backend as part of querying the number of opcodes in the circuit.
 
+    let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
+    cmd.arg("--json");
+
+    let output = cmd.output().expect("Failed to execute command");
+
+    if !output.status.success() {{
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap());
+    }}
 
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
-    cmd.assert().stdout(predicate::str::contains("| Package")
-        .and(predicate::str::contains("| Language"))
-        .and(predicate::str::contains("| ACIR Opcodes | Backend Circuit Size |"))
-        .and(predicate::str::contains("| PLONKCSat {{ width: 3 }} |"))
-        // This currently matches on there being zero acir opcodes due to the width of the cell.
-        .and(predicate::str::contains("| 0            |")));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("JSON was not well-formatted");
+    let num_opcodes = &json["programs"][0]["acir_opcodes"];
+    assert_eq!(num_opcodes.as_u64().unwrap(), 0);
 }}
             "#,
             test_dir = test_dir.display(),
@@ -190,7 +198,7 @@ fn compile_failure_{test_name}() {{
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute");
 
-    cmd.assert().failure();
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
             "#,
             test_dir = test_dir.display(),

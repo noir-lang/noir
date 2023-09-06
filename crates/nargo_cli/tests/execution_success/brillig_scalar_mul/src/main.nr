@@ -16,7 +16,7 @@ unconstrained fn main(
           pub_x = b_pub_x;
           pub_y = b_pub_y;
      }
-     let res = std::scalar_mul::fixed_base(priv_key);
+     let res = std::scalar_mul::fixed_base_embedded_curve(priv_key);
      assert(res[0] == pub_x);
      assert(res[1] == pub_y);
 }

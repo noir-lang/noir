@@ -9,7 +9,7 @@ use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
 
@@ -19,12 +19,12 @@ use self::def_map::TestFunction;
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
-    pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
+    pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
 
     /// Maps a given (contract) module id to the next available storage slot
     /// for that contract.
-    pub storage_slots: HashMap<def_map::ModuleId, StorageSlot>,
+    pub storage_slots: BTreeMap<def_map::ModuleId, StorageSlot>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -40,10 +40,10 @@ impl Context {
     pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
         Context {
             def_interner: NodeInterner::default(),
-            def_maps: HashMap::new(),
+            def_maps: BTreeMap::new(),
             crate_graph,
             file_manager,
-            storage_slots: HashMap::new(),
+            storage_slots: BTreeMap::new(),
         }
     }
 
@@ -98,7 +98,7 @@ impl Context {
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
     /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
     pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
-        let module_id = id.0;
+        let module_id = id.module_id();
         let child_id = module_id.local_id.0;
         let def_map =
             self.def_map(&module_id.krate).expect("The local crate should be analyzed already");

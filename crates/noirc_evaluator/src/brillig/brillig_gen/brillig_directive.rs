@@ -33,6 +33,7 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
             },
             BrilligOpcode::Stop,
         ],
+        assert_messages: Default::default(),
         locations: Default::default(),
     }
 }
@@ -101,6 +102,7 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             },
             BrilligOpcode::Stop,
         ],
+        assert_messages: Default::default(),
         locations: Default::default(),
     }
 }

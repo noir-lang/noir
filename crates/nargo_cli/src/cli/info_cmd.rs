@@ -1,11 +1,13 @@
+use acvm::Language;
 use acvm_backend_barretenberg::BackendError;
 use clap::Args;
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use nargo::{package::Package, prepare_package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{compile_contracts, CompileOptions};
 use noirc_frontend::graph::CrateName;
-use prettytable::{row, Table};
+use prettytable::{row, table, Row};
+use serde::Serialize;
 
 use crate::backends::Backend;
 use crate::{cli::compile_cmd::compile_package, errors::CliError};
@@ -30,6 +32,10 @@ pub(crate) struct InfoCommand {
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
+    /// Output a JSON formatted report. Changes to this format are not currently considered breaking.
+    #[clap(long, hide = true)]
+    json: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -45,99 +51,145 @@ pub(crate) fn run(
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
-    let mut package_table = Table::new();
-    package_table.add_row(
-        row![Fm->"Package", Fm->"Language", Fm->"ACIR Opcodes", Fm->"Backend Circuit Size"],
-    );
-    let mut contract_table = Table::new();
-    contract_table.add_row(row![
-        Fm->"Contract",
-        Fm->"Function",
-        Fm->"Language",
-        Fm->"ACIR Opcodes",
-        Fm->"Backend Circuit Size"
-    ]);
+    let mut info_report = InfoReport::default();
 
     for package in &workspace {
         if package.is_contract() {
-            count_opcodes_and_gates_in_contracts(
-                backend,
-                package,
-                &args.compile_options,
-                &mut contract_table,
-            )?;
+            let contract_info =
+                count_opcodes_and_gates_in_contracts(backend, package, &args.compile_options)?;
+            info_report.contracts.extend(contract_info);
         } else {
-            count_opcodes_and_gates_in_package(
-                backend,
-                package,
-                &args.compile_options,
-                &mut package_table,
-            )?;
+            let program_info =
+                count_opcodes_and_gates_in_program(backend, package, &args.compile_options)?;
+            info_report.programs.push(program_info);
         }
     }
 
-    if package_table.len() > 1 {
-        package_table.printstd();
-    }
-    if contract_table.len() > 1 {
-        contract_table.printstd();
+    if args.json {
+        // Expose machine-readable JSON data.
+        println!("{}", serde_json::to_string(&info_report).unwrap());
+    } else {
+        // Otherwise print human-readable table.
+        if !info_report.programs.is_empty() {
+            let mut program_table = table!([Fm->"Package", Fm->"Language", Fm->"ACIR Opcodes", Fm->"Backend Circuit Size"]);
+
+            for program in info_report.programs {
+                program_table.add_row(program.into());
+            }
+            program_table.printstd();
+        }
+        if !info_report.contracts.is_empty() {
+            let mut contract_table = table!([
+                Fm->"Contract",
+                Fm->"Function",
+                Fm->"Language",
+                Fm->"ACIR Opcodes",
+                Fm->"Backend Circuit Size"
+            ]);
+            for contract_info in info_report.contracts {
+                let contract_rows: Vec<Row> = contract_info.into();
+                for row in contract_rows {
+                    contract_table.add_row(row);
+                }
+            }
+
+            contract_table.printstd();
+        }
     }
 
     Ok(())
 }
 
-fn count_opcodes_and_gates_in_package(
+#[derive(Debug, Default, Serialize)]
+struct InfoReport {
+    programs: Vec<ProgramInfo>,
+    contracts: Vec<ContractInfo>,
+}
+
+#[derive(Debug, Serialize)]
+struct ProgramInfo {
+    name: String,
+    #[serde(skip)]
+    language: Language,
+    acir_opcodes: usize,
+    circuit_size: u32,
+}
+
+impl From<ProgramInfo> for Row {
+    fn from(program_info: ProgramInfo) -> Self {
+        row![
+            Fm->format!("{}", program_info.name),
+            format!("{:?}", program_info.language),
+            Fc->format!("{}", program_info.acir_opcodes),
+            Fc->format!("{}", program_info.circuit_size),
+        ]
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ContractInfo {
+    name: String,
+    #[serde(skip)]
+    language: Language,
+    functions: Vec<FunctionInfo>,
+}
+
+#[derive(Debug, Serialize)]
+struct FunctionInfo {
+    name: String,
+    acir_opcodes: usize,
+    circuit_size: u32,
+}
+
+impl From<ContractInfo> for Vec<Row> {
+    fn from(contract_info: ContractInfo) -> Self {
+        vecmap(contract_info.functions, |function| {
+            row![
+                Fm->format!("{}", contract_info.name),
+                Fc->format!("{}", function.name),
+                format!("{:?}", contract_info.language),
+                Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", function.circuit_size),
+            ]
+        })
+    }
+}
+
+fn count_opcodes_and_gates_in_program(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-    table: &mut Table,
-) -> Result<(), CliError> {
+) -> Result<ProgramInfo, CliError> {
     let (_, compiled_program) = compile_package(backend, package, compile_options)?;
 
-    let num_opcodes = compiled_program.circuit.opcodes.len();
-    let exact_circuit_size = backend.get_exact_circuit_size(&compiled_program.circuit)?;
-
-    table.add_row(row![
-        Fm->format!("{}", package.name),
-        format!("{:?}", backend.np_language()),
-        Fc->format!("{}", num_opcodes),
-        Fc->format!("{}", exact_circuit_size),
-    ]);
-
-    Ok(())
+    Ok(ProgramInfo {
+        name: package.name.to_string(),
+        language: backend.np_language(),
+        acir_opcodes: compiled_program.circuit.opcodes.len(),
+        circuit_size: backend.get_exact_circuit_size(&compiled_program.circuit)?,
+    })
 }
 
 fn count_opcodes_and_gates_in_contracts(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-    table: &mut Table,
-) -> Result<(), CliError> {
+) -> Result<Vec<ContractInfo>, CliError> {
     let (mut context, crate_id) = prepare_package(package);
     let result = compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
     let optimized_contracts =
         try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
 
-    for contract in optimized_contracts {
-        let function_info: Vec<(String, usize, u32)> =
-            try_vecmap(contract.functions, |function| {
-                let num_opcodes = function.bytecode.opcodes.len();
-                let exact_circuit_size = backend.get_exact_circuit_size(&function.bytecode)?;
+    try_vecmap(optimized_contracts, |contract| {
+        let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
+            Ok(FunctionInfo {
+                name: function.name,
+                acir_opcodes: function.bytecode.opcodes.len(),
+                circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
+            })
+        })?;
 
-                Ok::<_, BackendError>((function.name, num_opcodes, exact_circuit_size))
-            })?;
-
-        for info in function_info {
-            table.add_row(row![
-                Fm->format!("{}", contract.name),
-                Fc->format!("{}", info.0),
-                format!("{:?}", backend.np_language()),
-                Fc->format!("{}", info.1),
-                Fc->format!("{}", info.2),
-            ]);
-        }
-    }
-
-    Ok(())
+        Ok(ContractInfo { name: contract.name, language: backend.np_language(), functions })
+    })
 }
