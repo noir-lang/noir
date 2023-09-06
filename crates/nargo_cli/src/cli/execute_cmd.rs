@@ -173,7 +173,7 @@ fn report_error_with_opcode_locations(
             CustomDiagnostic::simple_error(message, String::new(), location.span)
                 .in_file(location.file)
                 .with_call_stack(source_locations)
-                .report(file_manager.as_simple_files(), false);
+                .report(file_manager.as_file_map(), false);
         }
     }
 }

@@ -37,6 +37,10 @@ impl FileManager {
         }
     }
 
+    pub fn as_file_map(&self) -> &FileMap {
+        &self.file_map
+    }
+
     pub fn add_file(&mut self, file_name: &Path) -> Option<FileId> {
         // Handle both relative file paths and std/lib virtual paths.
         let resolved_path: PathBuf = if is_stdlib_asset(file_name) {
