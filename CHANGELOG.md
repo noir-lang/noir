@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.0-alpha62](https://github.com/AztecProtocol/aztec-packages/compare/v0.1.0-alpha61...v0.1.0-alpha62) (2023-09-06)
+
+
+### Features
+
+* **circuits:** hints nullifier transient commitments ([#2056](https://github.com/AztecProtocol/aztec-packages/issues/2056)) ([725b550](https://github.com/AztecProtocol/aztec-packages/commit/725b550a368494abd15a38e95b15b1379bc926bc))
+* **docs:** Testing guide and getPrivateStorage method ([#1992](https://github.com/AztecProtocol/aztec-packages/issues/1992)) ([5a8c571](https://github.com/AztecProtocol/aztec-packages/commit/5a8c5719753549f71ceeec9114d69b8d1d640376))
+
+
+### Bug Fixes
+
+* **build:** Use semver version in docker version tag ([#2065](https://github.com/AztecProtocol/aztec-packages/issues/2065)) ([b3db0d0](https://github.com/AztecProtocol/aztec-packages/commit/b3db0d0ae6d6b7d8a6d7338a556e2b9507e2631a))
+
+
+### Documentation
+
+* Link to local ethereum nodes in testing guide ([#2061](https://github.com/AztecProtocol/aztec-packages/issues/2061)) ([e29148b](https://github.com/AztecProtocol/aztec-packages/commit/e29148b379a435a9fefd846cc5fe78af6be7021d))
+
 ## [0.1.0-alpha61](https://github.com/AztecProtocol/aztec-packages/compare/v0.1.0-alpha60...v0.1.0-alpha61) (2023-09-06)
 
 
