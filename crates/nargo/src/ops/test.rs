@@ -56,7 +56,11 @@ fn test_status_program_compile_fail(
         return TestStatus::CompileError(diag);
     }
 
-    let expected_failure_message = test_function.failure_reason().unwrap_or_default();
+    let expected_failure_message = match test_function.failure_reason() {
+        Some(reason) => reason,
+        None => return TestStatus::Pass,
+    };
+
     // Now check to see if it is the expected failure message
     if diag.diagnostic.message == expected_failure_message {
         return TestStatus::Pass;
@@ -106,9 +110,15 @@ fn test_status_program_compile_pass(
     // #[test(should_fail)] will not produce any message
     // #[test(should_fail_with = "reason")] will produce a message
     //
-    let expected_failure_message = test_function.failure_reason().unwrap_or_default();
+    let expected_failure_message = match test_function.failure_reason() {
+        Some(reason) => reason,
+        None => return TestStatus::Pass,
+    };
+
+    let failure_message_in_assert_method =
+        circuit_execution_err.user_defined_failure_message().unwrap_or_default();
     let expected_failure_message_matches =
-        circuit_execution_err.to_string() == expected_failure_message;
+        failure_message_in_assert_method == expected_failure_message;
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
@@ -117,7 +127,7 @@ fn test_status_program_compile_pass(
     return TestStatus::Fail {
         message: format!(
             "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
-            expected_failure_message,
+            test_function.failure_reason().unwrap_or_default(),
             circuit_execution_err.to_string().trim_matches('\'')
         ),
     };
