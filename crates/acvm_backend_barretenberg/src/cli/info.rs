@@ -35,7 +35,7 @@ impl InfoCommand {
         let output = command.output()?;
 
         if !output.status.success() {
-            return Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()));
+            return Err(BackendError::CommandFailed(output.stderr));
         }
 
         let backend_info: InfoResponse =

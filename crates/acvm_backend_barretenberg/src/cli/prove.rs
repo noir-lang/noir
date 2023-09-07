@@ -39,7 +39,7 @@ impl ProveCommand {
         if output.status.success() {
             Ok(output.stdout)
         } else {
-            Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }

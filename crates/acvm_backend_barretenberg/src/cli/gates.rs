@@ -21,15 +21,13 @@ impl GatesCommand {
             .output()?;
 
         if !output.status.success() {
-            return Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()));
+            return Err(BackendError::CommandFailed(output.stderr));
         }
         // Note: barretenberg includes the newline, so that subsequent prints to stdout
         // are not on the same line as the gates output.
 
-        let output_len = output.stdout.len();
-        let gates_bytes: [u8; 8] = output.stdout.try_into().map_err(|_| {
-            BackendError::BinaryError(format!("Unexpected 8 bytes, received {}", output_len))
-        })?;
+        let gates_bytes: [u8; 8] =
+            output.stdout.try_into().map_err(BackendError::MalformedResponse)?;
 
         // Convert bytes to u64 in little-endian format
         let value = u64::from_le_bytes(gates_bytes);

@@ -30,9 +30,10 @@ impl ContractCommand {
         let output = command.output()?;
 
         if output.status.success() {
-            Ok(String::from_utf8(output.stdout).unwrap())
+            String::from_utf8(output.stdout)
+                .map_err(|error| BackendError::MalformedResponse(error.into_bytes()))
         } else {
-            Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }
