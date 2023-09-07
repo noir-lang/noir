@@ -106,9 +106,8 @@ fn check_expected_failure_message(test_function: TestFunction, got_error: &str) 
         None => return TestStatus::Pass,
     };
 
-    let failure_message_in_assert_method = got_error;
     let expected_failure_message_matches =
-        failure_message_in_assert_method == expected_failure_message;
+        got_error == expected_failure_message;
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
