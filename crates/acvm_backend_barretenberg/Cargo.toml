@@ -19,7 +19,6 @@ serde_json.workspace = true
 tempfile = "3.6.0"
 
 ## bb binary downloading
-const_format = "0.2.30"
 tar = "~0.4.15"
 flate2 = "~1.0.1"
 reqwest = { version = "0.11.16", default-features = false, features = [
@@ -33,3 +32,4 @@ test-binary = "3.0.1"
 
 [build-dependencies]
 build-target = "0.4.0"
+const_format = "0.2.30"
