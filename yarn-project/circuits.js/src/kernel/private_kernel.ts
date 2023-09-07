@@ -2,8 +2,8 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { Buffer } from 'buffer';
 
-import { FUNCTION_TREE_HEIGHT, Fr, PreviousKernelData, PrivateCallData, TxRequest } from '../index.js';
-import { serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
+import { FUNCTION_TREE_HEIGHT, Fr } from '../index.js';
+import { serializeBufferArrayToVector } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
 
 export { privateKernelSimOrdering, privateKernelSimInit, privateKernelSimInner } from '../cbind/circuits.gen.js';
@@ -39,50 +39,4 @@ export function computeFunctionTree(wasm: CircuitsWasm, leaves: Fr[]): Fr[] {
   wasm.call('bbfree', inputBufPtr);
 
   return output;
-}
-
-/**
- * Computes proof of the private kernel.
- * @param wasm - The circuits wasm instance.
- * @param txRequest - The signed transaction request.
- * @param previousKernel - The previous kernel data (dummy if this is the first kernel in the chain).
- * @param privateCallData - The private call data.
- * @param firstIteration - Whether this is the first iteration of the private kernel.
- * @returns The proof of the private kernel.
- */
-export function privateKernelProve(
-  wasm: CircuitsWasm,
-  txRequest: TxRequest,
-  previousKernel: PreviousKernelData,
-  privateCallData: PrivateCallData,
-  firstIteration: boolean,
-): Buffer {
-  wasm.call('pedersen__init');
-  const txRequestBuffer = txRequest.toBuffer();
-  const previousKernelBuffer = previousKernel.toBuffer();
-  const privateCallDataBuffer = privateCallData.toBuffer();
-  const previousKernelBufferOffset = txRequestBuffer.length;
-  const privateCallDataOffset = previousKernelBufferOffset + previousKernelBuffer.length;
-  // This is an unused pointer argument at the moment.
-  const provingKeyOffset = privateCallDataOffset + privateCallDataBuffer.length;
-  wasm.writeMemory(0, txRequestBuffer);
-  wasm.writeMemory(previousKernelBufferOffset, previousKernelBuffer);
-  wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-
-  const proofOutputAddressPtr = wasm.call('bbmalloc', 4);
-  const proofSize = wasm.call(
-    'private_kernel__prove',
-    0,
-    previousKernelBufferOffset,
-    privateCallDataOffset,
-    provingKeyOffset,
-    firstIteration,
-    proofOutputAddressPtr,
-  );
-  // for whenever we actually use this method, we need to do proper error handling in C++ via bberg.
-  const address = uint8ArrayToNum(wasm.getMemorySlice(proofOutputAddressPtr, proofOutputAddressPtr + 4));
-  const proof = Buffer.from(wasm.getMemorySlice(address, address + proofSize));
-  wasm.call('bbfree', proofOutputAddressPtr);
-  wasm.call('bbfree', address);
-  return proof;
 }

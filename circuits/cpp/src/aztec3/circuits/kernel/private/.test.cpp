@@ -1,4 +1,3 @@
-#include "c_bind.h"
 #include "index.hpp"
 #include "init.hpp"
 #include "testing_harness.hpp"
@@ -93,19 +92,6 @@ TEST_F(private_kernel_tests, circuit_cbinds)
                                                                        true);
    DummyBuilder builder = DummyBuilder("private_kernel_tests__circuit_create_proof_cbinds");
    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
-
-   // ***************************************************************************
-   //  Now run the simulate/prove cbinds to make sure their outputs match
-   // ***************************************************************************
-   // TODO(david): might be able to get rid of proving key buffer
-   uint8_t const* pk_buf = nullptr;
-   private_kernel__init_proving_key(&pk_buf);
-   // info("Proving key size: ", pk_size);
-
-   // TODO(david): might be able to get rid of verification key buffer
-   // uint8_t const* vk_buf;
-   // size_t vk_size = private_kernel__init_verification_key(pk_buf, &vk_buf);
-   // info("Verification key size: ", vk_size);
 
    auto exp_result = builder.result_or_error(public_inputs);
    // Does not compile. See https://github.com/AztecProtocol/aztec-packages/issues/1998
