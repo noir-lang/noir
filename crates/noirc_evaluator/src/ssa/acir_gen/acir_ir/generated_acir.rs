@@ -197,7 +197,8 @@ impl GeneratedAcir {
                 }
             }
             BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                input: inputs[0][0],
+                low: inputs[0][0],
+                high: inputs[1][0],
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::Keccak256 => {
