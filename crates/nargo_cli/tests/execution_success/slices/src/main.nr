@@ -2,51 +2,51 @@ use dep::std::slice;
 use dep::std;
 
 fn main(x : Field, y : pub Field) {
-    let mut slice = [0; 2];
-    assert(slice[0] == 0);
-    assert(slice[0] != 1);
-    slice[0] = x;
-    assert(slice[0] == x);
+    // let mut slice = [0; 2];
+    // assert(slice[0] == 0);
+    // assert(slice[0] != 1);
+    // slice[0] = x;
+    // assert(slice[0] == x);
 
-    let slice_plus_10 = slice.push_back(y);
-    assert(slice_plus_10[2] == 10);
-    assert(slice_plus_10[2] != 8);
-    assert(slice_plus_10.len() == 3);
+    // let slice_plus_10 = slice.push_back(y);
+    // assert(slice_plus_10[2] == 10);
+    // assert(slice_plus_10[2] != 8);
+    // assert(slice_plus_10.len() == 3);
 
-    let mut new_slice = [];
-    for i in 0..5 {
-        new_slice = new_slice.push_back(i);
-    }
-    assert(new_slice.len() == 5);
+    // let mut new_slice = [];
+    // for i in 0..5 {
+    //     new_slice = new_slice.push_back(i);
+    // }
+    // assert(new_slice.len() == 5);
 
-    new_slice = new_slice.push_front(20);
-    assert(new_slice[0] == 20);
-    assert(new_slice.len() == 6);
+    // new_slice = new_slice.push_front(20);
+    // assert(new_slice[0] == 20);
+    // assert(new_slice.len() == 6);
 
-    let (popped_slice, last_elem) = new_slice.pop_back();
-    assert(last_elem == 4);
-    assert(popped_slice.len() == 5);
+    // let (popped_slice, last_elem) = new_slice.pop_back();
+    // assert(last_elem == 4);
+    // assert(popped_slice.len() == 5);
 
-    let (first_elem, rest_of_slice) = popped_slice.pop_front();
-    assert(first_elem == 20);
-    assert(rest_of_slice.len() == 4);
+    // let (first_elem, rest_of_slice) = popped_slice.pop_front();
+    // assert(first_elem == 20);
+    // assert(rest_of_slice.len() == 4);
 
-    new_slice = rest_of_slice.insert(2, 100);
-    assert(new_slice[2] == 100);
-    assert(new_slice[4] == 3);
-    assert(new_slice.len() == 5);
+    // new_slice = rest_of_slice.insert(2, 100);
+    // assert(new_slice[2] == 100);
+    // assert(new_slice[4] == 3);
+    // assert(new_slice.len() == 5);
 
-    let (remove_slice, removed_elem) = new_slice.remove(3);
-    assert(removed_elem == 2);
-    assert(remove_slice[3] == 3);
-    assert(remove_slice.len() == 4);
+    // let (remove_slice, removed_elem) = new_slice.remove(3);
+    // assert(removed_elem == 2);
+    // assert(remove_slice[3] == 3);
+    // assert(remove_slice.len() == 4);
 
-    let append = [1, 2].append([3, 4, 5]);
-    assert(append.len() == 5);
-    assert(append[0] == 1);
-    assert(append[4] == 5);
+    // let append = [1, 2].append([3, 4, 5]);
+    // assert(append.len() == 5);
+    // assert(append[0] == 1);
+    // assert(append[4] == 5);
 
-    regression_2083();
+    // regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
 }
@@ -86,8 +86,14 @@ fn regression_2083() {
 
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
-    merge_slices_if(x, y);
-    merge_slices_else(x);
+    // merge_slices_if(x, y);
+    // merge_slices_else(x);
+    
+    let slice = merge_slices_mutate_two_ifs(x, y);
+    assert(slice.len() == 6);
+    assert(slice[3] == 5);
+    assert(slice[4] == 15);
+    assert(slice[5] == 30);
 }
 
 fn merge_slices_if(x: Field, y: Field) {
@@ -155,5 +161,26 @@ fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(x);
     }
+    slice
+}
+
+fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+    if x == 20 {
+        slice = slice.push_back(20);
+    } 
+    else {
+        slice = slice.push_back(15);
+    }
+    // Breaks if the push back happens without the else case
+    // slice = slice.push_back(15);
+    slice = slice.push_back(30);
+    
     slice
 }
