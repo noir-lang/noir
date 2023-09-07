@@ -391,7 +391,7 @@ Gets all the unencrypted logs from L2 blocks in the specified range.
 Syntax:
 
 ```shell
-aztec-cli get-logs <from> <limit> [options]
+aztec-cli get-logs --from <number> --limit <number> [options]
 ```
 
 - `from`: Block number to start fetching logs from.
@@ -406,7 +406,7 @@ This command retrieves and displays all the unencrypted logs from L2 blocks in t
 Example usage:
 
 ```shell
-aztec-cli get-logs 1000 10
+aztec-cli get-logs --from 1000 --limit 10
 ```
 
 ### block-number
