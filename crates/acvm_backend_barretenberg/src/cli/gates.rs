@@ -52,7 +52,6 @@ impl GatesCommand {
 }
 
 #[test]
-#[serial_test::serial]
 fn gate_command() {
     let backend = crate::get_mock_backend();
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");

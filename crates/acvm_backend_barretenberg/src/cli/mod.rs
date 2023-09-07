@@ -15,7 +15,6 @@ pub(crate) use verify::VerifyCommand;
 pub(crate) use write_vk::WriteVkCommand;
 
 #[test]
-#[serial_test::serial]
 fn no_command_provided_works() {
     // This is a simple test to check that the binaries work
 
