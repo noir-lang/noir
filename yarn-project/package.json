@@ -18,12 +18,12 @@
   "workspaces": [
     "acir-simulator",
     "archiver",
-    "aztec-cli",
     "aztec-rpc",
     "aztec-sandbox",
     "aztec.js",
     "canary",
     "circuits.js",
+    "cli",
     "docs",
     "end-to-end",
     "ethereum",

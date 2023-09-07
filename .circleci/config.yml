@@ -422,7 +422,7 @@ jobs:
           name: "Build and test"
           command: build aztec.js
 
-  aztec-cli:
+  cli:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -431,7 +431,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: build aztec-cli
+          command: build cli
 
   types:
     machine:
@@ -1082,11 +1082,11 @@ jobs:
             deploy_ecr noir-contracts
             deploy_npm noir-contracts
       - run:
-          name: "aztec-cli"
-          working_directory: aztec-cli
+          name: "cli"
+          working_directory: cli
           command: |
-            deploy_ecr aztec-cli
-            deploy_npm aztec-cli
+            deploy_ecr cli
+            deploy_npm cli
       # Aztec Sandbox and dependencies
       - run:
           name: "aztec-rpc"
@@ -1349,7 +1349,7 @@ workflows:
       - archiver: *yarn_project
       - aztec-rpc: *yarn_project
       - aztec-node: *yarn_project
-      - aztec-cli: *yarn_project
+      - cli: *yarn_project
       - key-store: *yarn_project
       - merkle-tree: *yarn_project
       - p2p: *yarn_project
@@ -1375,7 +1375,7 @@ workflows:
             - archiver
             - aztec-rpc
             - aztec-node
-            - aztec-cli
+            - cli
             - key-store
             - merkle-tree
             - p2p

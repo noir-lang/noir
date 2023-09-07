@@ -313,9 +313,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/cli@workspace:^, @aztec/cli@workspace:aztec-cli":
+"@aztec/cli@workspace:^, @aztec/cli@workspace:cli":
   version: 0.0.0-use.local
-  resolution: "@aztec/cli@workspace:aztec-cli"
+  resolution: "@aztec/cli@workspace:cli"
   dependencies:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"

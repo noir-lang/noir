@@ -180,11 +180,11 @@
       "types"
     ]
   },
-  "aztec-cli": {
+  "cli": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/aztec-cli",
-    "dockerfile": "aztec-cli/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-cli/"],
+    "projectDir": "yarn-project/cli",
+    "dockerfile": "cli/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/cli/"],
     "dependencies": [
       "aztec.js",
       "ethereum",
@@ -272,6 +272,7 @@
       "aztec-sandbox",
       "aztec.js",
       "circuits.js",
+      "cli",
       "ethereum",
       "foundation",
       "l1-artifacts",

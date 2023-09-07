@@ -23,7 +23,7 @@
       "path": "../aztec.js"
     },
     {
-      "path": "../aztec-cli"
+      "path": "../cli"
     },
     {
       "path": "../foundation"

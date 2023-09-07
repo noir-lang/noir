@@ -18,7 +18,7 @@ To run the compiler as a CLI tool, first install the package and then run:
 yarn aztec-compile compile --help
 ```
 
-You can also run the compiler from the [main Aztec CLI](../aztec-cli/README.md), which includes several other features for interacting with the Aztec Network:
+You can also run the compiler from the [main Aztec CLI](../cli/README.md), which includes several other features for interacting with the Aztec Network:
 
 ```bash
 yarn add @aztec/cli

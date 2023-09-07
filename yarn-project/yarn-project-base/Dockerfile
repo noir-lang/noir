@@ -17,7 +17,7 @@ WORKDIR /usr/src/yarn-project
 # We only want to copy the package.json's, to ensure we only rebuild this image if project dependencies changed.
 COPY acir-simulator/package.json acir-simulator/package.json
 COPY archiver/package.json archiver/package.json
-COPY aztec-cli/package.json aztec-cli/package.json
+COPY cli/package.json cli/package.json
 COPY aztec-rpc/package.json aztec-rpc/package.json
 COPY aztec-node/package.json aztec-node/package.json
 COPY aztec-sandbox/package.json aztec-sandbox/package.json
@@ -78,12 +78,12 @@ RUN cp build_manifest.json ../
 # Copy tsconfig to check dependencies
 COPY acir-simulator/tsconfig.json acir-simulator/tsconfig.json
 COPY archiver/tsconfig.json archiver/tsconfig.json
-COPY aztec-cli/tsconfig.json aztec-cli/tsconfig.json
 COPY aztec-rpc/tsconfig.json aztec-rpc/tsconfig.json
 COPY aztec-node/tsconfig.json aztec-node/tsconfig.json
 COPY aztec-sandbox/tsconfig.json aztec-sandbox/tsconfig.json
 COPY aztec.js/tsconfig.json aztec.js/tsconfig.json
 COPY canary/tsconfig.json canary/tsconfig.json
+COPY cli/tsconfig.json cli/tsconfig.json
 COPY end-to-end/tsconfig.json end-to-end/tsconfig.json
 COPY ethereum/tsconfig.json ethereum/tsconfig.json
 COPY foundation/tsconfig.json foundation/tsconfig.json
