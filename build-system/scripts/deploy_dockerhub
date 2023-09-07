@@ -36,20 +36,20 @@ fi
 echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
 
 # Login.
-retry_10 ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
-
-# Pull image.
-docker pull $IMAGE_COMMIT_URI
+retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 
 # Login to dockerhub.
 echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin
 
+# Pull image.
+retry docker pull $IMAGE_COMMIT_URI
+
 # Tag with commit tag
-docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
+retry docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
 # Tag with :latest
-docker tag $IMAGE_COMMIT_URI $IMAGE_LATEST_URI
+retry docker tag $IMAGE_COMMIT_URI $IMAGE_LATEST_URI
 
 # Push tagged image to dockerhub.
-docker push $IMAGE_DEPLOY_URI
+retry docker push $IMAGE_DEPLOY_URI
 # Push :latest image to dockerhub
-docker push $IMAGE_LATEST_URI
+retry docker push $IMAGE_LATEST_URI

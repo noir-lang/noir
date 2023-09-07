@@ -8,11 +8,11 @@ export COMPOSE_FILE=${2:-docker-compose.yml}
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-BS=$(git rev-parse --show-toplevel)/build-system/scripts
+export PATH="$PATH:$(git rev-parse --show-toplevel)/build-system/scripts"
 
 for REPO in aztec.js end-to-end aztec-sandbox; do
-  docker pull $($BS/calculate_image_uri $REPO)
-  docker tag $($BS/calculate_image_uri $REPO) aztecprotocol/$REPO:latest
+  retry docker pull $($calculate_image_uri $REPO)
+  retry docker tag $($calculate_image_uri $REPO) aztecprotocol/$REPO:latest
 done
 
 docker-compose rm -f

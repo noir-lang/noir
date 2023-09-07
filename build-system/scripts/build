@@ -35,7 +35,18 @@ echo "Working directory: $PWD"
 echo "Dockerfile: $DOCKERFILE"
 echo "Build directory: $BUILD_DIR"
 
+# Fetch images with retries
 function fetch_image() {
+  echo "Pulling: $1"
+  if ! retry docker pull $1 > /dev/null 2>&1; then
+    echo "Image not found: $1"
+    return 1
+  fi
+  return 0
+}
+
+# Fetch images, but don't assume this will work
+function try_fetch_image() {
   echo "Pulling: $1"
   if ! docker pull $1 > /dev/null 2>&1; then
     echo "Image not found: $1"
@@ -44,8 +55,10 @@ function fetch_image() {
   return 0
 }
 
+echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin
+
 # Ensure ECR repository exists.
-retry_10 ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
+retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
 echo "Content hash: $CONTENT_HASH"
@@ -78,7 +91,6 @@ if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
 fi
 
 # Pull latest parents that are not ours. We also do not want to pull images suffixed by _, this is how we scope intermediate build images.
-echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin
 PARENTS=$(cat $DOCKERFILE | sed -n -e 's/^FROM \([^[:space:]]\+\).*/\1/p' | sed '/_$/d' | grep -v $ECR_DEPLOY_URL  | sort | uniq)
 for PARENT in $PARENTS; do
   fetch_image $PARENT
@@ -99,7 +111,7 @@ for PARENT in $PARENTS; do
   echo "Pulling dependency $PARENT_REPO..."
   fetch_image $PARENT_IMAGE_URI
   # Tag it to look like an official release as that's what we use in Dockerfiles.
-  docker tag $PARENT_IMAGE_URI $ECR_DEPLOY_URL/$PARENT
+  retry docker tag $PARENT_IMAGE_URI $ECR_DEPLOY_URL/$PARENT
 done
 
 
@@ -159,7 +171,7 @@ for STAGE in $STAGES; do
   CACHE_FROM="--cache-from $STAGE_IMAGE_COMMIT_URI $CACHE_FROM"
   
   echo "Pushing stage: $STAGE"
-  docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
+  retry docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
   echo
 done
 
@@ -167,7 +179,7 @@ done
 if [ -n "$CONTENT_HASH" ]; then
   LAST_SUCCESSFUL_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
   echo "Pulling previous build of $REPOSITORY..."
-  fetch_image $LAST_SUCCESSFUL_URI || true
+  try_fetch_image $LAST_SUCCESSFUL_URI || true
   CACHE_FROM="--cache-from $LAST_SUCCESSFUL_URI $CACHE_FROM"
   echo
 fi
@@ -179,5 +191,5 @@ echo "Building image: $IMAGE_COMMIT_URI"
 docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
 | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
 echo "Pushing image: $IMAGE_COMMIT_URI"
-docker push $IMAGE_COMMIT_URI > /dev/null 2>&1
+retry docker push $IMAGE_COMMIT_URI > /dev/null 2>&1
 untag_remote_image $REPOSITORY tainted

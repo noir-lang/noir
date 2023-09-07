@@ -32,18 +32,18 @@ checkout: &checkout
   run:
     name: "Checkout code"
     command: |
-      function retry_10() {
-        # Retries up to 10 times with 10 second intervals
-        for i in $(seq 1 10); do
+      function retry() {
+        # Retries up to 3 times with 10 second intervals
+        for i in $(seq 1 3); do
           "$@" && return || sleep 10
         done
-        echo "$@ failed after 10 attempts"
+        echo "$@ failed after 3 attempts"
         exit 1
       }
       cd $HOME
       mkdir -p .ssh
       chmod 0700 .ssh
-      retry_10 ssh-keyscan -t rsa github.com >> .ssh/known_hosts
+      retry ssh-keyscan -t rsa github.com >> .ssh/known_hosts
 
       # A read only key for cloning the repository.
       echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
@@ -57,7 +57,7 @@ checkout: &checkout
       git remote add origin $CIRCLE_REPOSITORY_URL
 
       # Only download metadata when fetching.
-      retry_10 git fetch --depth 1 --filter=blob:none origin $CIRCLE_SHA1
+      retry git fetch --depth 1 --filter=blob:none origin $CIRCLE_SHA1
       git checkout FETCH_HEAD
 
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.

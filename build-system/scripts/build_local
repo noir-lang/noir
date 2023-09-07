@@ -50,7 +50,7 @@ for E in ${PROJECTS[@]}; do
   echo
 
   time docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $ECR_DEPLOY_URL/$REPO:latest .
-  docker tag $ECR_DEPLOY_URL/$REPO:latest aztecprotocol/$REPO:latest
+  retry docker tag $ECR_DEPLOY_URL/$REPO:latest aztecprotocol/$REPO:latest
 
   if [ -n "$LAUNCH" ]; then
     docker run -ti --rm aztecprotocol/$REPO:latest

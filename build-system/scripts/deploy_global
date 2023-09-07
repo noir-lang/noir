@@ -22,4 +22,4 @@ deploy_terraform "" ./terraform
 deploy_service $REPOSITORY
 
 # Tag the image as deployed.
-tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$DEPLOY_TAG-deployed
+retry tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$DEPLOY_TAG-deployed

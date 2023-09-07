@@ -19,9 +19,10 @@ shift # to aztec's circuits `run_tests_local`
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
+export PATH="$PATH:$(git rev-parse --show-toplevel)/build-system/scripts"
 REPOSITORY="barretenberg-circuits-${ARCH}-linux-clang-builder-runner"
-IMAGE_URI=$($(git rev-parse --show-toplevel)/build-system/scripts/calculate_image_uri $REPOSITORY)
-docker pull $IMAGE_URI
+IMAGE_URI=$(calculate_image_uri $REPOSITORY)
+retry docker pull $IMAGE_URI
 
 if [ "$ARCH" != "wasm" ]; then
   # x86_64 / anything other than wasm

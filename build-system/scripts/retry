@@ -1,0 +1,8 @@
+set -eu
+ATTEMPTS=3
+# Retries up to 3 times with 10 second intervals
+for i in $(seq 1 $ATTEMPTS); do
+    "$@" && exit || sleep 10
+done
+echo "$@ failed after $ATTEMPTS attempts"
+exit 1

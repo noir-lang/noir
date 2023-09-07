@@ -8,7 +8,7 @@ EXTRACT_TO=${3:-./}
 IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
 
 echo "Pulling $IMAGE_COMMIT_URI..."
-docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
+retry docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
 TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI)
 
 echo "Extracting $EXTRACT_FROM from $REPOSITORY to $EXTRACT_TO..."
