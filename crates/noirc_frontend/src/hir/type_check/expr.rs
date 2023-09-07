@@ -375,7 +375,7 @@ impl<'interner> TypeChecker<'interner> {
             self.interner.push_expr_type(&object, element.as_ref().clone());
             self.interner.push_expr_location(object, location.span, location.file);
 
-            // Recursively derference to allow for converting &mut &mut T to T
+            // Recursively dereference to allow for converting &mut &mut T to T
             self.insert_auto_dereferences(object, *element)
         } else {
             (object, typ)
