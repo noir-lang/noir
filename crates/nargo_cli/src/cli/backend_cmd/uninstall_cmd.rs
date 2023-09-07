@@ -41,14 +41,14 @@ pub(crate) fn run(args: UninstallCommand) -> Result<(), CliError> {
             };
 
         if let Some(backend) = new_active_backend {
-            set_active_backend(backend)
+            set_active_backend(backend);
         } else {
             // We've deleted the last backend. Clear the active backend file to be recreated once we install a new one.
-            clear_active_backend()
+            clear_active_backend();
         }
     }
 
-    std::fs::remove_dir_all(&backends_directory().join(args.backend))
+    std::fs::remove_dir_all(backends_directory().join(args.backend))
         .expect("backend directory should be deleted");
 
     Ok(())

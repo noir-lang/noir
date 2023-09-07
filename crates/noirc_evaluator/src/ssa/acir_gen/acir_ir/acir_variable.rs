@@ -240,7 +240,7 @@ impl AcirContext {
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
-    fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
+    pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {

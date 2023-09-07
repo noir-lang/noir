@@ -116,7 +116,8 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                let location = self.call_stack().back().expect("Expected RuntimeError to have a location");
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }
