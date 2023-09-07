@@ -1,4 +1,5 @@
 use clap::Args;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Args)]
@@ -20,5 +21,5 @@ pub(crate) fn run(args: ProveCommand) {
     assert!(args.bytecode_path.is_file(), "Could not find bytecode file at provided path");
     assert!(args.witness_path.is_file(), "Could not find witness file at provided path");
 
-    std::fs::write(args.proof_path, "proof").unwrap();
+    std::io::stdout().write_all(b"proof").unwrap();
 }

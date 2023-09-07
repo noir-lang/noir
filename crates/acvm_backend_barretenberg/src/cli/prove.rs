@@ -14,11 +14,10 @@ pub(crate) struct ProveCommand {
     pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
     pub(crate) witness_path: PathBuf,
-    pub(crate) proof_path: PathBuf,
 }
 
 impl ProveCommand {
-    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+    pub(crate) fn run(self, binary_path: &Path) -> Result<Vec<u8>, BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
         command
@@ -30,7 +29,7 @@ impl ProveCommand {
             .arg("-w")
             .arg(self.witness_path)
             .arg("-o")
-            .arg(self.proof_path);
+            .arg("-");
 
         if self.is_recursive {
             command.arg("-r");
@@ -38,7 +37,7 @@ impl ProveCommand {
 
         let output = command.output().expect("Failed to execute command");
         if output.status.success() {
-            Ok(())
+            Ok(output.stdout)
         } else {
             Err(BackendError(String::from_utf8(output.stderr).unwrap()))
         }
@@ -56,16 +55,14 @@ fn prove_command() {
     let temp_directory_path = temp_directory.path();
     let bytecode_path = temp_directory_path.join("acir.gz");
     let witness_path = temp_directory_path.join("witness.tr");
-    let proof_path = temp_directory_path.join("1_mul.proof");
 
     std::fs::File::create(&bytecode_path).expect("file should be created");
     std::fs::File::create(&witness_path).expect("file should be created");
 
     let crs_path = backend.backend_directory();
-    let prove_command =
-        ProveCommand { crs_path, bytecode_path, witness_path, is_recursive: false, proof_path };
+    let prove_command = ProveCommand { crs_path, bytecode_path, witness_path, is_recursive: false };
 
-    let proof_created = prove_command.run(&backend.binary_path());
-    assert!(proof_created.is_ok());
+    let proof = prove_command.run(&backend.binary_path()).unwrap();
+    assert_eq!(proof, "proof".as_bytes());
     drop(temp_directory);
 }

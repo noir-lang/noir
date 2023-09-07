@@ -39,6 +39,7 @@ fn verify_command() {
     use tempfile::tempdir;
 
     use super::{ProveCommand, WriteVkCommand};
+    use crate::proof_system::write_to_file;
 
     let backend = crate::get_mock_backend();
 
@@ -69,9 +70,10 @@ fn verify_command() {
         is_recursive: false,
         bytecode_path,
         witness_path,
-        proof_path: proof_path.clone(),
     };
-    prove_command.run(&backend.binary_path()).unwrap();
+    let proof = prove_command.run(&backend.binary_path()).unwrap();
+
+    write_to_file(&proof, &proof_path);
 
     let verify_command =
         VerifyCommand { crs_path, is_recursive: false, proof_path, vk_path: vk_path_output };
