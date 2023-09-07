@@ -56,23 +56,7 @@ fn test_status_program_compile_fail(
         return TestStatus::CompileError(diag);
     }
 
-    let expected_failure_message = match test_function.failure_reason() {
-        Some(reason) => reason,
-        None => return TestStatus::Pass,
-    };
-
-    // Now check to see if it is the expected failure message
-    if diag.diagnostic.message == expected_failure_message {
-        return TestStatus::Pass;
-    }
-
-    TestStatus::Fail {
-        message: format!(
-            "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
-            expected_failure_message,
-            diag.diagnostic.message.trim_start_matches("Failed constraint: ").trim_matches('\'')
-        ),
-    }
+    check_expected_failure_message(test_function, &diag.diagnostic.message)
 }
 
 /// The test function compiled successfully.
@@ -105,6 +89,13 @@ fn test_status_program_compile_pass(
         return TestStatus::Fail { message: circuit_execution_err.to_string() };
     }
 
+    check_expected_failure_message(
+        test_function,
+        circuit_execution_err.user_defined_failure_message().unwrap_or_default(),
+    )
+}
+
+fn check_expected_failure_message(test_function: TestFunction, got_error: &str) -> TestStatus {
     // Extract the expected failure message, if there was one
     //
     // #[test(should_fail)] will not produce any message
@@ -115,8 +106,7 @@ fn test_status_program_compile_pass(
         None => return TestStatus::Pass,
     };
 
-    let failure_message_in_assert_method =
-        circuit_execution_err.user_defined_failure_message().unwrap_or_default();
+    let failure_message_in_assert_method = got_error;
     let expected_failure_message_matches =
         failure_message_in_assert_method == expected_failure_message;
     if expected_failure_message_matches {
@@ -128,7 +118,7 @@ fn test_status_program_compile_pass(
         message: format!(
             "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
             test_function.failure_reason().unwrap_or_default(),
-            circuit_execution_err.to_string().trim_matches('\'')
+            got_error.trim_matches('\'')
         ),
     };
 }
