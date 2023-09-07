@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.10.5",
+  "version": "0.11.0",
   "license": "(MIT OR Apache-2.0)",
   "main": "./nodejs/noir_wasm.js",
   "types": "./web/noir_wasm.d.ts",
