@@ -38,7 +38,6 @@ impl ContractCommand {
 }
 
 #[test]
-#[serial_test::serial]
 fn contract_command() {
     use tempfile::tempdir;
 

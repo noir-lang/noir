@@ -5,18 +5,19 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::ir::{
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     instruction::Intrinsic,
     map::Id,
     types::Type,
-    value::{Value, ValueId}, basic_block::BasicBlockId,
+    value::{Value, ValueId},
 };
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
 
 /// Try to simplify this call instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
-/// 
+///
 /// The `block` parameter indicates the block any new instructions that are part of a call's
 /// simplification will be inserted into. For example, all slice intrinsics require updates
 /// to the slice length, which requires inserting a binary instruction. This update instruction
@@ -232,7 +233,12 @@ pub(super) fn simplify_call(
 /// The binary operation performed on the slice length is always an addition or subtraction of `1`.
 /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
 /// and not a flattened length used internally to represent arrays of tuples.
-fn update_slice_length(slice_len: ValueId, dfg: &mut DataFlowGraph, operator: BinaryOp, block: BasicBlockId) -> ValueId {
+fn update_slice_length(
+    slice_len: ValueId,
+    dfg: &mut DataFlowGraph,
+    operator: BinaryOp,
+    block: BasicBlockId,
+) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);

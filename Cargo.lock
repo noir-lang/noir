@@ -58,7 +58,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "serial_test",
  "tar",
  "tempfile",
  "test-binary",
@@ -217,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "arena"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "generational-arena",
 ]
@@ -1437,7 +1436,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "cfg-if",
  "codespan-reporting",
@@ -1483,7 +1482,6 @@ checksum = "23342abe12aba583913b2e62f22225ff9c950774065e4bfb61a19cd9770fec40"
 dependencies = [
  "futures-channel",
  "futures-core",
- "futures-executor",
  "futures-io",
  "futures-sink",
  "futures-task",
@@ -1505,17 +1503,6 @@ name = "futures-core"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bca583b7e26f571124fe5b7561d49cb2868d79116cfa0eefce955557c6fee8c"
-
-[[package]]
-name = "futures-executor"
-version = "0.3.28"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccecee823288125bd88b4d7f565c9e58e41858e47ab72e8ea2d64e93624386e0"
-dependencies = [
- "futures-core",
- "futures-task",
- "futures-util",
-]
 
 [[package]]
 name = "futures-io"
@@ -1988,7 +1975,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.11.0"
+version = "0.11.1"
 
 [[package]]
 name = "itertools"
@@ -2183,7 +2170,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "base64",
@@ -2201,7 +2188,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "acvm-backend-barretenberg",
@@ -2244,7 +2231,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "dirs",
  "fm",
@@ -2270,7 +2257,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2291,7 +2278,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "build-data",
@@ -2309,7 +2296,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2326,7 +2313,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "build-data",
@@ -2343,7 +2330,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "base64",
@@ -2358,7 +2345,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "chumsky",
@@ -2371,7 +2358,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "fxhash",
@@ -2386,7 +2373,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "arena",
@@ -2407,7 +2394,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3410,31 +3397,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9197f1ad0e3c173a0222d3c4404fb04c3afe87e962bcb327af73e8301fa203c7"
 dependencies = [
  "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.26",
-]
-
-[[package]]
-name = "serial_test"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e56dd856803e253c8f298af3f4d7eb0ae5e23a737252cd90bb4f3b435033b2d"
-dependencies = [
- "dashmap",
- "futures",
- "lazy_static",
- "log",
- "parking_lot",
- "serial_test_derive",
-]
-
-[[package]]
-name = "serial_test_derive"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91d129178576168c589c9ec973feedf7d3126c01ac2bf08795109aa35b69fb8f"
-dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.26",

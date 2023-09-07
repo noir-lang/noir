@@ -34,7 +34,6 @@ impl VerifyCommand {
 }
 
 #[test]
-#[serial_test::serial]
 fn verify_command() {
     use tempfile::tempdir;
 
