@@ -42,15 +42,17 @@ fn verify_command() {
 
     let backend = crate::get_mock_backend();
 
-    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
-    let witness_path = PathBuf::from("./src/witness.tr");
-
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
-    let proof_path = temp_directory_path.join("1_mul").with_extension("proof");
+    let bytecode_path = temp_directory_path.join("acir.gz");
+    let witness_path = temp_directory_path.join("witness.tr");
+    let proof_path = temp_directory_path.join("1_mul.proof");
     let vk_path_output = temp_directory_path.join("vk");
 
     let crs_path = backend.backend_directory();
+
+    std::fs::File::create(&bytecode_path).expect("file should be created");
+    std::fs::File::create(&witness_path).expect("file should be created");
 
     let write_vk_command = WriteVkCommand {
         bytecode_path: bytecode_path.clone(),

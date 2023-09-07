@@ -52,11 +52,14 @@ fn prove_command() {
 
     let backend = crate::get_mock_backend();
 
-    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
-    let witness_path = PathBuf::from("./src/witness.tr");
-
     let temp_directory = tempdir().expect("could not create a temporary directory");
-    let proof_path = temp_directory.path().join("1_mul").with_extension("proof");
+    let temp_directory_path = temp_directory.path();
+    let bytecode_path = temp_directory_path.join("acir.gz");
+    let witness_path = temp_directory_path.join("witness.tr");
+    let proof_path = temp_directory_path.join("1_mul.proof");
+
+    std::fs::File::create(&bytecode_path).expect("file should be created");
+    std::fs::File::create(&witness_path).expect("file should be created");
 
     let crs_path = backend.backend_directory();
     let prove_command =
