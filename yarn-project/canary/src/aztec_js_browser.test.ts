@@ -1,8 +1,5 @@
 /* eslint-disable no-console */
 import * as AztecJs from '@aztec/aztec.js';
-import { AztecAddress, GrumpkinScalar } from '@aztec/circuits.js';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { fileURLToPath } from '@aztec/foundation/url';
 import { PrivateTokenContractAbi } from '@aztec/noir-contracts/artifacts';
 
 import { Server } from 'http';
@@ -17,15 +14,15 @@ declare global {
   }
 }
 
-const __filename = fileURLToPath(import.meta.url);
+const __filename = AztecJs.fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const PORT = 3000;
+const PORT = 3033;
 
 const { SANDBOX_URL } = process.env;
 
 const conditionalDescribe = () => (SANDBOX_URL ? describe : describe.skip);
-const privKey = GrumpkinScalar.random();
+const privKey = AztecJs.GrumpkinScalar.random();
 
 /**
  * This test is a bit of a special case as it's relying on sandbox and web browser and not only on anvil and node.js.
@@ -45,10 +42,10 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
   const initialBalance = 33n;
   const transferAmount = 3n;
 
-  let contractAddress: AztecAddress;
+  let contractAddress: AztecJs.AztecAddress;
 
-  let logger: DebugLogger;
-  let pageLogger: DebugLogger;
+  let logger: AztecJs.DebugLogger;
+  let pageLogger: AztecJs.DebugLogger;
   let app: Koa;
   let testClient: AztecJs.AztecRPC;
   let server: Server;
@@ -59,15 +56,15 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
   beforeAll(async () => {
     testClient = AztecJs.createAztecRpcClient(SANDBOX_URL!, AztecJs.makeFetch([1, 2, 3], true));
     await AztecJs.waitForSandbox(testClient);
-
+    const pathRes = path.resolve(__dirname, './web');
     app = new Koa();
-    app.use(serve(path.resolve(__dirname, './web')));
+    app.use(serve(pathRes));
     server = app.listen(PORT, () => {
       logger(`Server started at http://localhost:${PORT}`);
     });
 
-    logger = createDebugLogger('aztec:aztec.js:web');
-    pageLogger = createDebugLogger('aztec:aztec.js:web:page');
+    logger = AztecJs.createDebugLogger('aztec:aztec.js:web');
+    pageLogger = AztecJs.createDebugLogger('aztec:aztec.js:web:page');
 
     browser = await launch({
       executablePath: process.env.CHROME_BIN,
@@ -86,12 +83,12 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
     });
     page = await browser.newPage();
     page.on('console', msg => {
-      pageLogger(msg.text());
+      pageLogger('PAGE MSG', msg.text());
     });
     page.on('pageerror', err => {
-      pageLogger.error(err.toString());
+      pageLogger.error('PAGE ERROR', err.toString());
     });
-    await page.goto(`http://localhost:${PORT}/index.html`);
+    await page.goto(`http://localhost:${PORT}`);
   }, 120_000);
 
   afterAll(async () => {

@@ -27,5 +27,6 @@ export {
   emptyFunctionCall,
 } from '@aztec/types';
 
-export { createDebugLogger } from '@aztec/foundation/log';
+export { createDebugLogger, DebugLogger } from '@aztec/foundation/log';
+export { fileURLToPath } from '@aztec/foundation/url';
 export { sleep } from '@aztec/foundation/sleep';
