@@ -1,5 +1,6 @@
 use dep::std::slice;
 use dep::std;
+
 fn main(x : Field, y : pub Field) {
     let mut slice = [0; 2];
     assert(slice[0] == 0);
