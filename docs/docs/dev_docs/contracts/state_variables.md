@@ -225,7 +225,7 @@ We can also remove a note from a set:
 
 #include_code state_vars-SetRemove /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
-Note that the transaction won't fail if the note we are removing does not exist in the set. As a best practice, we should fetch the notes by calling [`get_notes`](#get_notes), which does a membership check under the hood to make sure the notes exist, and then feed the returned notes to the `remove` function.
+Note that the proof will fail if the note we are removing does not exist. To avoid this, it's advisable to first retrieve the notes using [`get_notes`](#get_notes), which does a membership check under the hood to make sure the notes exist, and then we can safely provide these notes as input to the `remove` function.
 
 ### `.get_notes`
 

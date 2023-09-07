@@ -1,15 +1,15 @@
+use dep::std::option::Option;
 use crate::abi::PublicContextInputs;
 use crate::constants_gen::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL};
 use crate::context::{PrivateContext, PublicContext};
-use crate::note::lifecycle::{create_note, create_note_hash_from_public, destroy_note};
 use crate::note::{
+    lifecycle::{create_note, create_note_hash_from_public, destroy_note},
     note_getter::{ensure_note_exists, ensure_note_hash_exists, get_notes, view_notes},
     note_getter_options::NoteGetterOptions,
     note_interface::NoteInterface,
     note_viewer_options::NoteViewerOptions,
-    utils::compute_inner_note_hash,
+    utils::compute_note_hash_for_read_or_nullify,
 };
-use dep::std::option::Option;
 
 struct Set<Note, N> {
     private_context: Option<&mut PrivateContext>,
@@ -62,7 +62,12 @@ impl<Note, N> Set<Note, N> {
             self.note_interface,
             &mut note_with_header,
         );
-        self.remove(note_with_header);
+        destroy_note(
+            self.private_context.unwrap(),
+            self.storage_slot,
+            note_with_header,
+            self.note_interface,
+        );
     }
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386):
@@ -88,11 +93,20 @@ impl<Note, N> Set<Note, N> {
         // this hack once public kernel injects nonces.
         header.nonce = 1;
         set_header(&mut note_with_header, header);
-
-        self.remove(note_with_header);
+        destroy_note(
+            self.private_context.unwrap(),
+            self.storage_slot,
+            note_with_header,
+            self.note_interface,
+        );
     }
 
     fn remove(self, note: Note) {
+        let note_hash = compute_note_hash_for_read_or_nullify(self.note_interface, note);
+        let read_requests = self.private_context.unwrap_unchecked().read_requests;
+        let has_been_read = read_requests.any(|r| r == note_hash);
+        assert(has_been_read, "Can only remove a note that has been read from the set.");
+
         destroy_note(
             self.private_context.unwrap(),
             self.storage_slot,
