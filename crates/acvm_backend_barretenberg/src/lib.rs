@@ -22,24 +22,23 @@ pub fn backends_directory() -> PathBuf {
 test_binary::build_test_binary_once!(mock_backend, "test-binaries");
 
 #[cfg(test)]
-fn get_mock_backend() -> Backend {
+fn get_mock_backend() -> Result<Backend, BackendError> {
     std::env::set_var("NARGO_BACKEND_PATH", path_to_mock_backend());
 
     let mock_backend = Backend::new("mock_backend".to_string());
-    if !mock_backend.binary_path().is_file() {
-        panic!("Mock backend binary does not exist at expected path");
-    }
-    mock_backend
+    mock_backend.assert_binary_exists().map(|_| mock_backend)
 }
 
-fn assert_binary_exists(backend: &Backend) -> PathBuf {
-    let binary_path = backend.binary_path();
+#[derive(Debug, thiserror::Error)]
+pub enum BackendError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 
-    if !binary_path.is_file() {
-        let bb_url = std::env::var("BB_BINARY_URL").unwrap_or(env!("BB_BINARY_URL").to_string());
-        download_backend(&bb_url, &binary_path)
-    }
-    binary_path
+    #[error("Backend binary does not exist")]
+    MissingBinary,
+
+    #[error("{0}")]
+    BinaryError(String),
 }
 
 #[derive(Debug)]
@@ -52,16 +51,27 @@ impl Backend {
         Backend { name }
     }
 
-    fn backend_directory(&self) -> PathBuf {
-        // If an explicit path to a backend binary has been provided then place CRS, etc. in same directory.
-        if let Some(binary_path) = std::env::var_os("NARGO_BACKEND_PATH") {
-            PathBuf::from(binary_path)
-                .parent()
-                .expect("backend binary should have a parent directory")
-                .to_path_buf()
+    fn assert_binary_exists(&self) -> Result<PathBuf, BackendError> {
+        let binary_path = self.binary_path();
+        if binary_path.is_file() {
+            Ok(binary_path)
         } else {
-            backends_directory().join(&self.name)
+            if self.name == ACVM_BACKEND_BARRETENBERG {
+                // If we're trying to use barretenberg, automatically go and install it.
+                let bb_url =
+                    std::env::var("BB_BINARY_URL").unwrap_or(env!("BB_BINARY_URL").to_string());
+                download_backend(&bb_url, &binary_path);
+                return Ok(binary_path);
+            }
+            Err(BackendError::MissingBinary)
         }
+    }
+
+    fn backend_directory(&self) -> PathBuf {
+        self.binary_path()
+            .parent()
+            .expect("backend binary should have a parent directory")
+            .to_path_buf()
     }
 
     fn crs_directory(&self) -> PathBuf {
@@ -79,11 +89,16 @@ impl Backend {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum BackendError {
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+#[cfg(test)]
+mod backend {
+    use crate::{Backend, BackendError};
 
-    #[error("{0}")]
-    BinaryError(String),
+    #[test]
+    fn raises_error_on_missing_binary() {
+        let bad_backend = Backend::new("i_dont_exist".to_string());
+
+        let binary_path = bad_backend.assert_binary_exists();
+
+        assert!(matches!(binary_path, Err(BackendError::MissingBinary)));
+    }
 }

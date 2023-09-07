@@ -9,10 +9,12 @@ use acvm::Language;
 use tempfile::tempdir;
 
 use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{assert_binary_exists, Backend, BackendError};
+use crate::{Backend, BackendError};
 
 impl Backend {
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
@@ -21,7 +23,6 @@ impl Backend {
         let serialized_circuit = serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &circuit_path);
 
-        let binary_path = assert_binary_exists(self);
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(&binary_path)
     }
@@ -29,7 +30,7 @@ impl Backend {
     pub fn get_backend_info(
         &self,
     ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
-        let binary_path = assert_binary_exists(self);
+        let binary_path = self.assert_binary_exists()?;
         InfoCommand { crs_path: self.crs_directory() }.run(&binary_path)
     }
 
@@ -39,6 +40,8 @@ impl Backend {
         witness_values: WitnessMap,
         is_recursive: bool,
     ) -> Result<Vec<u8>, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
@@ -54,7 +57,6 @@ impl Backend {
         let serialized_circuit = serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
-        let binary_path = assert_binary_exists(self);
         // Create proof and store it in the specified path
         let proof_with_public_inputs = ProveCommand {
             crs_path: self.crs_directory(),
@@ -83,6 +85,8 @@ impl Backend {
         circuit: &Circuit,
         is_recursive: bool,
     ) -> Result<bool, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
@@ -110,7 +114,6 @@ impl Backend {
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");
 
-        let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             crs_path: self.crs_directory(),
             is_recursive,

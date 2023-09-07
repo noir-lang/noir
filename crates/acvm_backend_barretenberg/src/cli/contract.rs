@@ -41,7 +41,7 @@ impl ContractCommand {
 fn contract_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();

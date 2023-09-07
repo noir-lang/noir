@@ -77,7 +77,7 @@ fn info_command() -> Result<(), BackendError> {
 
     use acvm::acir::native_types::Expression;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
     let (language, is_opcode_supported) = InfoCommand { crs_path }.run(&backend.binary_path())?;

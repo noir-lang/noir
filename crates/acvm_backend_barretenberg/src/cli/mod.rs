@@ -15,10 +15,10 @@ pub(crate) use verify::VerifyCommand;
 pub(crate) use write_vk::WriteVkCommand;
 
 #[test]
-fn no_command_provided_works() {
+fn no_command_provided_works() -> Result<(), crate::BackendError> {
     // This is a simple test to check that the binaries work
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
 
     let output = std::process::Command::new(backend.binary_path())
         .output()
@@ -27,4 +27,6 @@ fn no_command_provided_works() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     // Assert help message is printed due to no command being provided.
     assert!(stderr.contains("Usage: mock_backend <COMMAND>"));
+
+    Ok(())
 }
