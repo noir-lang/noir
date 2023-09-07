@@ -348,15 +348,13 @@ impl TestScope {
 
 impl fmt::Display for TestScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let test_scope_as_string = match self {
-            TestScope::None => String::new(),
+        match self {
+            TestScope::None => write!(f, ""),
             TestScope::ShouldFailWith { reason } => match reason {
-                Some(failure_reason) => format!("should_fail_with = ({})", failure_reason),
-                None => "should_fail".to_owned(),
+                Some(failure_reason) => write!(f, "(should_fail_with = ({}))", failure_reason),
+                None => write!(f, "should_fail"),
             },
-        };
-
-        write!(f, "({})", test_scope_as_string)
+        }
     }
 }
 
