@@ -66,7 +66,7 @@ impl InfoCommand {
             }
         };
 
-        return Ok((language, Box::new(is_opcode_supported)));
+        Ok((language, Box::new(is_opcode_supported)))
     }
 }
 
