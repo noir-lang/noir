@@ -10,6 +10,7 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     }
     assert(slice.len() == 5);
     
+
     dynamic_slice_index_set_if(slice, x, y);
     dynamic_slice_index_set_else(slice, x, y);
     dynamic_slice_index_set_nested_if_else_else(slice, x, y);
@@ -20,6 +21,8 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
 
     dynamic_slice_merge_if(slice, x);
     dynamic_slice_merge_else(slice, x);
+    dynamic_slice_merge_two_ifs(slice, x);
+
 }
 
 fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
@@ -161,6 +164,35 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
 
     slice = slice.push_back(20);
     assert(slice.len() == 7);
+    assert(slice[slice.len() - 1] == 20);
+}
+
+fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
+    if x as u32 > 10 {
+        assert(slice[x] == 0);
+        slice[x] = 2;
+    } else {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice = slice.push_back(10);
+    }
+
+    assert(slice.len() == 6);
+    assert(slice[slice.len() - 1] == 10);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    } else {
+        slice = slice.push_back(15);
+    }
+    // Breaks if the push back happens without the else case
+    // slice = slice.push_back(15);
+
+    assert(slice.len() == 7);
+    assert(slice[slice.len() - 1] == 15);
+
+    slice = slice.push_back(20);
+    assert(slice.len() == 8);
     assert(slice[slice.len() - 1] == 20);
 }
 
