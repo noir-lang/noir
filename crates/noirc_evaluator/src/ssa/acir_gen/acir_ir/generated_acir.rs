@@ -902,8 +902,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => None,
         // Inputs for fixed based scalar multiplication
-        // is just a scalar
-        BlackBoxFunc::FixedBaseScalarMul => Some(1),
+        // is the low and high limbs of the scalar
+        BlackBoxFunc::FixedBaseScalarMul => Some(2),
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
     }

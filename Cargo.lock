@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "acir_field",
  "bincode",
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -65,7 +65,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "acir",
  "blake2",
@@ -88,7 +88,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "acir",
 ]
@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "acir_field",
  "serde",
@@ -501,7 +501,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#3ae5c393b40d2bc90c87e379ad023c21d7dff28f"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
