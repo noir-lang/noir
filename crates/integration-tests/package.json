@@ -1,0 +1,34 @@
+{
+    "name": "integration-tests",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+      "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
+      "test:browser": "web-test-runner",
+      "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
+      "test:integration:browser": "web-test-runner test//integration/browser/**/*.test.ts",
+      "test:integration:browser:watch": "web-test-runner test/integration/browser/**/*.test.ts --watch"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+      "@aztec/bb.js": "/Users/koby/git/aztecprotocol/aztec-packages/circuits/cpp/barretenberg/ts",
+      "@esm-bundle/chai": "^4.3.4-fix.0",
+      "@noir-lang/acvm_js": "./../../.packages/acvm_js",
+      "@noir-lang/noir-source-resolver": "^1.1.4",
+      "@noir-lang/noir_wasm": "./../../.packages/noir_wasm",
+      "@noir-lang/noirc_abi": "./../../.packages/noirc_abi_wasm",
+      "@web/dev-server-esbuild": "^0.3.6",
+      "@web/test-runner": "^0.15.3",
+      "@web/test-runner-playwright": "^0.10.0",
+      "chai": "^4.3.7",
+      "fflate": "^0.8.0",
+      "mocha": "^10.2.0",
+      "smol-toml": "^1.1.2",
+      "ts-node": "^10.9.1",
+      "typescript": "^5.0.4"
+    }
+  }
+  
