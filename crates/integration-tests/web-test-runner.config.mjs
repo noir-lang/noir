@@ -7,7 +7,17 @@ export default {
     playwrightLauncher({ product: "chromium" }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
-  ],
+    webdriverLauncher({
+      automationProtocol: 'webdriver',
+      capabilities: {
+        browserName: 'firefox',
+        'moz:firefoxOptions': {
+          args: ['-headless'],
+        },
+      },
+    }),
+  
+],
   plugins: [
     esbuildPlugin({
       ts: true,
