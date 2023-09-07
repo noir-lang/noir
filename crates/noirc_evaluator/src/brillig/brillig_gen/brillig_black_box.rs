@@ -129,12 +129,13 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::FixedBaseScalarMul => {
             if let (
-                [RegisterOrMemory::RegisterIndex(scalar)],
+                [RegisterOrMemory::RegisterIndex(low), RegisterOrMemory::RegisterIndex(high)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::FixedBaseScalarMul {
-                    input: *scalar,
+                    low: *low,
+                    high: *high,
                     result: *result_array,
                 });
             } else {
