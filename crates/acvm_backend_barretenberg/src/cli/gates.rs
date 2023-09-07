@@ -18,8 +18,7 @@ impl GatesCommand {
             .arg(self.crs_path)
             .arg("-b")
             .arg(self.bytecode_path)
-            .output()
-            .expect("Failed to execute command");
+            .output()?;
 
         if !output.status.success() {
             return Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()));
@@ -27,25 +26,13 @@ impl GatesCommand {
         // Note: barretenberg includes the newline, so that subsequent prints to stdout
         // are not on the same line as the gates output.
 
-        // Ensure we got the expected number of bytes
-        if output.stdout.len() != 8 {
-            return Err(BackendError::BinaryError(format!(
-                "Unexpected 8 bytes, received {}",
-                output.stdout.len()
-            )));
-        }
+        let output_len = output.stdout.len();
+        let gates_bytes: [u8; 8] = output.stdout.try_into().map_err(|_| {
+            BackendError::BinaryError(format!("Unexpected 8 bytes, received {}", output_len))
+        })?;
 
         // Convert bytes to u64 in little-endian format
-        let value = u64::from_le_bytes([
-            output.stdout[0],
-            output.stdout[1],
-            output.stdout[2],
-            output.stdout[3],
-            output.stdout[4],
-            output.stdout[5],
-            output.stdout[6],
-            output.stdout[7],
-        ]);
+        let value = u64::from_le_bytes(gates_bytes);
 
         Ok(value as u32)
     }

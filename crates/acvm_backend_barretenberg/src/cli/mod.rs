@@ -20,9 +20,7 @@ fn no_command_provided_works() -> Result<(), crate::BackendError> {
 
     let backend = crate::get_mock_backend()?;
 
-    let output = std::process::Command::new(backend.binary_path())
-        .output()
-        .expect("Failed to execute command");
+    let output = std::process::Command::new(backend.binary_path()).output()?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     // Assert help message is printed due to no command being provided.
