@@ -13,6 +13,8 @@ license = "MIT OR Apache-2.0"
 acvm.workspace = true
 dirs.workspace = true
 thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 tempfile = "3.6.0"
 

@@ -8,7 +8,11 @@ const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
 const API_URL: &str =
     formatcp!("https://github.com/{}/{}/releases/download/{}", USERNAME, REPO, TAG);
 
-pub(crate) fn get_bb_download_url() -> String {
+pub(super) fn get_bb_download_url() -> String {
+    if let Ok(path) = std::env::var("BB_BINARY_URL") {
+        return path;
+    }
+
     let target_os = env!("TARGET_OS");
     let target_arch = env!("TARGET_ARCH");
 

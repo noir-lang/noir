@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 mod contract_cmd;
 mod gates_cmd;
+mod info_cmd;
 mod prove_cmd;
 mod verify_cmd;
 mod write_vk_cmd;
@@ -20,6 +21,7 @@ struct BackendCli {
 
 #[derive(Subcommand, Clone, Debug)]
 enum BackendCommand {
+    Info(info_cmd::InfoCommand),
     Contract(contract_cmd::ContractCommand),
     Gates(gates_cmd::GatesCommand),
     Prove(prove_cmd::ProveCommand),
@@ -32,6 +34,7 @@ fn main() {
     let BackendCli { command } = BackendCli::parse();
 
     match command {
+        BackendCommand::Info(args) => info_cmd::run(args),
         BackendCommand::Contract(args) => contract_cmd::run(args),
         BackendCommand::Gates(args) => gates_cmd::run(args),
         BackendCommand::Prove(args) => prove_cmd::run(args),

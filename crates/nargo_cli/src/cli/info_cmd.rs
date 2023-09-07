@@ -158,10 +158,11 @@ fn count_opcodes_and_gates_in_program(
     compile_options: &CompileOptions,
 ) -> Result<ProgramInfo, CliError> {
     let (_, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (language, _) = backend.get_backend_info()?;
 
     Ok(ProgramInfo {
         name: package.name.to_string(),
-        language: backend.np_language(),
+        language,
         acir_opcodes: compiled_program.circuit.opcodes.len(),
         circuit_size: backend.get_exact_circuit_size(&compiled_program.circuit)?,
     })
@@ -173,6 +174,7 @@ fn count_opcodes_and_gates_in_contracts(
     compile_options: &CompileOptions,
 ) -> Result<Vec<ContractInfo>, CliError> {
     let (_, contracts) = compile_contracts(backend, package, compile_options)?;
+    let (language, _) = backend.get_backend_info()?;
 
     try_vecmap(contracts, |contract| {
         let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
@@ -183,6 +185,6 @@ fn count_opcodes_and_gates_in_contracts(
             })
         })?;
 
-        Ok(ContractInfo { name: contract.name, language: backend.np_language(), functions })
+        Ok(ContractInfo { name: contract.name, language, functions })
     })
 }

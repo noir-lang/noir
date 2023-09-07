@@ -3,19 +3,15 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 use acvm::acir::circuit::Opcode;
-use acvm::acir::{circuit::Circuit, native_types::WitnessMap, BlackBoxFunc};
+use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::cli::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
 use crate::{assert_binary_exists, Backend, BackendError};
 
 impl Backend {
-    pub fn np_language(&self) -> Language {
-        Language::PLONKCSat { width: 3 }
-    }
-
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
@@ -30,29 +26,11 @@ impl Backend {
             .run(&binary_path)
     }
 
-    pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
-        match opcode {
-            Opcode::Arithmetic(_) => true,
-            Opcode::Directive(_) => true,
-            Opcode::Brillig(_) => true,
-            Opcode::MemoryInit { .. } => true,
-            Opcode::MemoryOp { .. } => true,
-            Opcode::BlackBoxFuncCall(func) => match func.get_black_box_func() {
-                BlackBoxFunc::AND
-                | BlackBoxFunc::XOR
-                | BlackBoxFunc::RANGE
-                | BlackBoxFunc::SHA256
-                | BlackBoxFunc::Blake2s
-                | BlackBoxFunc::Keccak256
-                | BlackBoxFunc::SchnorrVerify
-                | BlackBoxFunc::Pedersen
-                | BlackBoxFunc::HashToField128Security
-                | BlackBoxFunc::EcdsaSecp256k1
-                | BlackBoxFunc::EcdsaSecp256r1
-                | BlackBoxFunc::FixedBaseScalarMul
-                | BlackBoxFunc::RecursiveAggregation => true,
-            },
-        }
+    pub fn get_backend_info(
+        &self,
+    ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
+        let binary_path = assert_binary_exists(self);
+        InfoCommand { crs_path: self.crs_directory() }.run(&binary_path)
     }
 
     pub fn prove(
