@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c0287862805552930d12b43d087b82bda06d9d1ab52b25b9973adeb312416a4"
+checksum = "73be19aa7187beec9846bfbf1a14ffe6e2734d93beec2cdee484ee9a73f0c3b2"
 dependencies = [
  "acir_field",
  "bincode",
@@ -18,9 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08d349495b437a995f6803986630b28efc019f8900ff62adbdbd2ecb10ddced5"
+checksum = "2789ab2ac86557428d542e6777a9b8f6f4538f15c1a771a9949d3d848e544286"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64f1bcac4479888319caf3fab4e3b74f587ab34d4e1a50706364dec2d4c60b1b"
+checksum = "7c8a26353bf5b2f71bad4fb66a3577bba079e4fa532526991fb97495f34a5746"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -51,7 +51,6 @@ name = "acvm-backend-barretenberg"
 version = "0.11.0"
 dependencies = [
  "acvm",
- "base64",
  "build-target",
  "const_format",
  "dirs",
@@ -60,14 +59,15 @@ dependencies = [
  "serial_test",
  "tar",
  "tempfile",
+ "test-binary",
  "thiserror",
 ]
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f9fb9004713c582ce85fce85267526c973ead882338775e294463131a03c67b"
+checksum = "26e6fa3c9a3ce14707362eec74f7293ee91f144669a617624ae503cd2260d782"
 dependencies = [
  "acir",
  "blake2",
@@ -89,9 +89,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34406915c37eee16ae9278ac99031a087a934dd8607f845aceb83d49fdfa7727"
+checksum = "a97848b040795cccc1dec010256d34fc4e767bbc26af4080d784b7b3392c522f"
 dependencies = [
  "acir",
 ]
@@ -494,9 +494,9 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b49b33f6c76f183a5a0ac9700f96e9f0cbe70cd7cc7f9f8bc5cadc639e3e2162"
+checksum = "551dbdf6d26e0f0ebdd89cd4f2134360ef79f83e05f12f19766fab7dcbf62ea6"
 dependencies = [
  "acir_field",
  "serde",
@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1537b96605a5e2e12ff9bfecb8275a2ba5c01adc870dc81635636639463720d0"
+checksum = "5de41cbba0e6b35fa4963470f117a809c32d2818d92d67810b1bd5cc31fdfa6f"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -587,6 +587,38 @@ name = "bytes"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
+
+[[package]]
+name = "camino"
+version = "1.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c59e92b5a388f549b863a7bea62612c09f24c8393560709a54558a9abdfb3b9c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cfa25e60aea747ec7e1124f238816749faa93759c6ff5b31f1ccdda137f4479"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.15.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eee4243f1f26fc7a42710e7439c149e2b10b05472f88090acce52632f231a73a"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
 
 [[package]]
 name = "cast"
@@ -2179,6 +2211,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "criterion",
+ "dirs",
  "fm",
  "hex",
  "iai",
@@ -2199,6 +2232,7 @@ dependencies = [
  "serde_json",
  "tempdir",
  "termcolor",
+ "test-binary",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -2278,12 +2312,31 @@ dependencies = [
  "acvm",
  "iter-extended",
  "noirc_frontend",
+ "num-bigint",
+ "num-traits",
  "serde",
  "serde_json",
  "strum",
  "strum_macros",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "noirc_abi_wasm"
+version = "0.10.5"
+dependencies = [
+ "acvm",
+ "build-data",
+ "console_error_panic_hook",
+ "getrandom",
+ "gloo-utils",
+ "iter-extended",
+ "js-sys",
+ "noirc_abi",
+ "serde",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -2319,6 +2372,7 @@ name = "noirc_evaluator"
 version = "0.10.5"
 dependencies = [
  "acvm",
+ "fxhash",
  "im",
  "iter-extended",
  "noirc_abi",
@@ -3206,6 +3260,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoped-tls"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3246,6 +3306,9 @@ name = "semver"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0293b4b29daaf487284529cc2f5675b8e57c61f70167ba415a463651fd6a918"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "serde"
@@ -3684,6 +3747,19 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
+
+[[package]]
+name = "test-binary"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb28771e7854f02e5705f2a1b09451d932a273f5a4ec1c9fa4c65882b8b7b6ca"
+dependencies = [
+ "camino",
+ "cargo_metadata",
+ "once_cell",
+ "paste",
+ "thiserror",
+]
 
 [[package]]
 name = "thiserror"
@@ -4172,6 +4248,30 @@ name = "wasm-bindgen-shared"
 version = "0.2.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed9d5b4305409d1fc9482fee2d7f9bcbf24b3972bf59817ef757e23982242a93"
+
+[[package]]
+name = "wasm-bindgen-test"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9e636f3a428ff62b3742ebc3c70e254dfe12b8c2b469d688ea59cdd4abcf502"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "scoped-tls",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test-macro",
+]
+
+[[package]]
+name = "wasm-bindgen-test-macro"
+version = "0.3.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f18c1fad2f7c4958e7bcce014fa212f59a65d5e3721d0f77e6c0b27ede936ba3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
 
 [[package]]
 name = "wasm-encoder"

@@ -5,7 +5,6 @@ use crate::BackendError;
 /// WriteCommand will call the barretenberg binary
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
-    pub(crate) verbose: bool,
     pub(crate) crs_path: PathBuf,
     pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
@@ -25,9 +24,6 @@ impl WriteVkCommand {
             .arg("-o")
             .arg(self.vk_path_output);
 
-        if self.verbose {
-            command.arg("-v");
-        }
         if self.is_recursive {
             command.arg("-r");
         }
@@ -46,7 +42,7 @@ impl WriteVkCommand {
 fn write_vk_command() {
     use tempfile::tempdir;
 
-    let backend = crate::get_bb();
+    let backend = crate::get_mock_backend();
 
     let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
 
@@ -55,13 +51,8 @@ fn write_vk_command() {
 
     let crs_path = backend.backend_directory();
 
-    let write_vk_command = WriteVkCommand {
-        verbose: true,
-        bytecode_path,
-        crs_path,
-        is_recursive: false,
-        vk_path_output,
-    };
+    let write_vk_command =
+        WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
 
     let vk_written = write_vk_command.run(&backend.binary_path());
     assert!(vk_written.is_ok());

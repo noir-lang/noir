@@ -15,7 +15,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(blackbox_solver, circuit.opcodes, initial_witness);
 
-    // Assert messages are not a map due to serde-reflect issues
+    // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
     let get_assert_message = |opcode_location| {
         circuit
             .assert_messages
@@ -33,17 +33,28 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
                 unreachable!("Execution should not stop while in `InProgress` state.")
             }
             ACVMStatus::Failure(error) => {
-                return Err(NargoError::ExecutionError(match error {
+                let call_stack = match &error {
                     OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: ErrorLocation::Resolved(opcode_location),
-                    } => match get_assert_message(&opcode_location) {
-                        Some(assert_message) => {
-                            ExecutionError::AssertionFailed(assert_message, opcode_location)
+                    } => Some(vec![*opcode_location]),
+                    OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
+                        Some(call_stack.clone())
+                    }
+                    _ => None,
+                };
+
+                return Err(NargoError::ExecutionError(match call_stack {
+                    Some(call_stack) => {
+                        if let Some(assert_message) = get_assert_message(
+                            call_stack.last().expect("Call stacks should not be empty"),
+                        ) {
+                            ExecutionError::AssertionFailed(assert_message, call_stack)
+                        } else {
+                            ExecutionError::SolvingError(error)
                         }
-                        None => ExecutionError::SolvingError(error),
-                    },
-                    _ => ExecutionError::SolvingError(error),
-                }))
+                    }
+                    None => ExecutionError::SolvingError(error),
+                }));
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;

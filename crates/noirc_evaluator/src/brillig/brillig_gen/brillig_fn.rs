@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
 use iter_extended::vecmap;
 
@@ -15,6 +13,7 @@ use crate::{
         value::ValueId,
     },
 };
+use fxhash::FxHashMap as HashMap;
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,

@@ -172,5 +172,5 @@ pub(crate) fn check_crate_and_report_errors(
     deny_warnings: bool,
 ) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, deny_warnings).map(|warnings| ((), warnings));
-    super::compile_cmd::report_errors(result, context, deny_warnings)
+    super::compile_cmd::report_errors(result, &context.file_manager, deny_warnings)
 }

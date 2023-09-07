@@ -167,8 +167,6 @@
         ];
 
         buildInputs = [
-          pkgs.llvmPackages.openmp
-          pkgs.barretenberg
         ] ++ extraBuildInputs;
       };
 
@@ -185,6 +183,19 @@
         doCheck = false;
       };
 
+      # Combine the environment with cargo args needed to build wasm package
+      noirc_abi_WasmArgs = sharedEnvironment // sharedArgs // {
+        pname = "noirc_abi_wasm";
+
+        src = ./.;
+
+        cargoExtraArgs = "--package noirc_abi_wasm --target wasm32-unknown-unknown";
+
+        buildInputs = [ ] ++ extraBuildInputs;
+
+        doCheck = false;
+      };
+      
       # Conditionally download the binary based on whether it is linux or mac
       bb_binary = let
         platformSpecificUrl = if stdenv.hostPlatform.isLinux then
@@ -255,6 +266,7 @@
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       native-cargo-artifacts = craneLib.buildDepsOnly nativeArgs;
       noir-wasm-cargo-artifacts = craneLib.buildDepsOnly noirWasmArgs;
+      noirc-abi-wasm-cargo-artifacts = craneLib.buildDepsOnly noirc_abi_WasmArgs;
 
       noir-native = craneLib.buildPackage (nativeArgs // {
         inherit GIT_COMMIT GIT_DIRTY;
@@ -302,6 +314,7 @@
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
         inherit noir-wasm-cargo-artifacts;
+        inherit noirc-abi-wasm-cargo-artifacts;
       };
 
       # TODO(#1197): Look into installable apps with Nix flakes
@@ -325,6 +338,12 @@
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
           jq
+          binaryen
+          yarn
+          rust-bin.stable."1.66.1".default
+          rust-analyzer
+          rustup
+          nodejs-18_x 
         ];
 
         shellHook = ''
@@ -366,6 +385,42 @@
         '';
 
       });
+
+      # TODO: This fails with a "section too large" error on MacOS so we should limit to linux targets
+      # or fix the failure
+      packages.noirc_abi_wasm = craneLib.buildPackage (noirc_abi_WasmArgs // {
+
+        inherit GIT_COMMIT;
+        inherit GIT_DIRTY;
+        doCheck = false;
+
+        cargoArtifacts = noirc-abi-wasm-cargo-artifacts;
+
+        COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
+        VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
+        PKG_PATH = "./pkg";
+        CARGO_TARGET_DIR = "./target";
+
+        nativeBuildInputs = with pkgs; [
+          which
+          git
+          jq
+          rustToolchain
+          wasm-bindgen-cli
+          binaryen
+          toml2json
+        ];
+
+        buildPhaseCargoCommand = ''
+          bash crates/noirc_abi_wasm/buildPhaseCargoCommand.sh release
+        '';
+
+        installPhase = ''
+          bash crates/noirc_abi_wasm/installPhase.sh
+        '';
+
+      });
+
     });
 }
 

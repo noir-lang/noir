@@ -117,7 +117,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
             }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
-                    &context.file_manager,
+                    context.file_manager.as_file_map(),
                     &[err],
                     compile_options.deny_warnings,
                 );

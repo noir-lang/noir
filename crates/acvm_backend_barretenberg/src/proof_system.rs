@@ -23,10 +23,10 @@ impl Backend {
         // Create a temporary file for the circuit
         let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &circuit_path);
+        write_to_file(&serialized_circuit, &circuit_path);
 
         let binary_path = assert_binary_exists(self);
-        GatesCommand { crs_path: self.backend_directory(), bytecode_path: circuit_path }
+        GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(&binary_path)
     }
 
@@ -74,15 +74,14 @@ impl Backend {
         //
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
+        write_to_file(&serialized_circuit, &bytecode_path);
 
         let proof_path = temp_directory.join("proof").with_extension("proof");
 
         let binary_path = assert_binary_exists(self);
         // Create proof and store it in the specified path
         ProveCommand {
-            verbose: true,
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             is_recursive,
             bytecode_path,
             witness_path,
@@ -133,15 +132,14 @@ impl Backend {
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
+        write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");
 
         let binary_path = assert_binary_exists(self);
         WriteVkCommand {
-            verbose: false,
-            crs_path: self.backend_directory(),
+            crs_path: self.crs_directory(),
             is_recursive,
             bytecode_path,
             vk_path_output: vk_path.clone(),
@@ -149,14 +147,9 @@ impl Backend {
         .run(&binary_path)?;
 
         // Verify the proof
-        let valid_proof = VerifyCommand {
-            verbose: false,
-            crs_path: self.backend_directory(),
-            is_recursive,
-            proof_path,
-            vk_path,
-        }
-        .run(&binary_path);
+        let valid_proof =
+            VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
+                .run(&binary_path);
 
         Ok(valid_proof)
     }
@@ -211,9 +204,8 @@ fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Ve
 
 // TODO: See nargo/src/artifacts/mod.rs
 // TODO: This method should live in ACVM and be the default method for serializing/deserializing circuits
-pub(super) fn serialize_circuit(circuit: &Circuit) -> String {
-    use base64::Engine;
+pub(super) fn serialize_circuit(circuit: &Circuit) -> Vec<u8> {
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
-    base64::engine::general_purpose::STANDARD.encode(circuit_bytes)
+    circuit_bytes
 }
