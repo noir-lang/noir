@@ -1,20 +1,41 @@
-mod storage;
-
 contract PrivateToken {
-    // Libs
     use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
+        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
+    };
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        note::{
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
+        state_vars::{map::Map, set::Set},
     };
 
-    use dep::aztec::note::{
-        note_header::NoteHeader,
-        utils as note_utils,
-    };
+    struct Storage {
+        // maps an aztec address to its balance
+        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+    }
 
-    use crate::storage::Storage;
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    1, // Storage slot
+                    |private_context, public_context, slot| {
+                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    },
+                ),
+            }
+        }
+    }
 
     // docs:start:constructor
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.

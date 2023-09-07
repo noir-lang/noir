@@ -1,6 +1,5 @@
 mod claim_note;
 mod interface;
-mod storage;
 
 contract PrivateTokenAirdrop {
     // Libs
@@ -8,19 +7,46 @@ contract PrivateTokenAirdrop {
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement, decrement_by_at_most},
-        value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
+        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
+    };
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        state_vars::{map::Map, set::Set},
+        note::{
+            note_getter_options::NoteGetterOptions,
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
+        log::emit_unencrypted_log,
     };
 
-    use dep::aztec::note::{
-        note_getter_options::NoteGetterOptions,
-        note_header::NoteHeader,
-        utils as note_utils,
-    };
-    use dep::aztec::log::emit_unencrypted_log;
-
-    use crate::storage::Storage;
-    use crate::claim_note::{ClaimNote, ClaimNoteMethods};
+    use crate::claim_note::{ClaimNote, ClaimNoteMethods, CLAIM_NOTE_LEN};
     use crate::interface::PrivateTokenAirdropPrivateContextInterface;
+
+
+    struct Storage {
+        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+        claims: Set<ClaimNote, CLAIM_NOTE_LEN>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    1, // Storage slot
+                    |private_context, public_context, slot| {
+                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    },
+                ),
+                claims: Set::new(private_context, public_context, 2, ClaimNoteMethods),
+            }
+        }
+    }
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
     #[aztec(private)]

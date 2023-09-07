@@ -9,6 +9,7 @@ Public state is persistent state that is _publicly visible_ to anyone in the wor
 For developers coming from other blockchain ecosystems (such as Ethereum), this will be a familiar concept, because there, _all_ state is _publicly visible_.
 
 Aztec public state follows an account-based model. That is, each state occupies a leaf in an account-based merkle tree: the _public state tree_ (INSERT LINK HERE). See _here_ (INSERT LINK HERE) for more of the technical details.
+
 <!-- TODO: Insert links in the italics above -->
 
 The `PublicState<T, T_SERIALISED_LEN>` struct serves as a wrapper around conventional Noir types `T`, allowing these types to be written to and read from the public state tree.
@@ -19,11 +20,11 @@ To declare a type `T` as a persistent, public state variable, use the `PublicSta
 
 In the following example, we define a public state with a boolean type:
 
-#include_code state_vars-PublicState /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-PublicState /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 The BoolSerialisationMethods is part of the Aztec stdlib:
 
-#include_code state_vars-PublicStateBoolImport /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-PublicStateBoolImport /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 It contains methods that instruct its PublicState wrapper how to serialise and deserialise a boolean to and from a Field, which is the data type being saved in the public state tree.
 
@@ -47,7 +48,7 @@ First, define how to serialise and deserialise the custom type:
 
 And then initialise the PublicState with it:
 
-#include_code state_vars-PublicStateCustomStruct /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-PublicStateCustomStruct /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 ### `.read`
 
@@ -92,9 +93,11 @@ For example, the following function calls the account contract before it updates
 In contrast to public state, private state is persistent state that is _not_ visible to the whole world. Depending on the logic of the smart contract, a _private_ state variable's current value will only be known to one entity, or a closed group of entities.
 
 The value of a private state variable can either be shared via an _encrypted log_ (INSERT_LINK_HERE), or offchain via web2, or completely offline: it's up to the app developer.
+
 <!-- TODO: insert link in italics above -->
 
 Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the _private state tree_ (INSERT_LINK_HERE).
+
 <!-- TODO: insert link in italics above -->
 
 To greatly simplify the experience of writing private state, Aztec.nr provides three different types of private state variable:
@@ -140,7 +143,7 @@ Singleton is a private state variable that is unique in a way. When a Singleton 
 
 Here we define a Singleton for storing a `CardNote`:
 
-#include_code state_vars-Singleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-Singleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 ### `.initialise`
 
@@ -178,7 +181,7 @@ ImmutableSingleton represents a unique private state variable that, as the name 
 
 In the following example, we define an ImmutableSingleton that utilises the `RulesMethods` struct as its underlying note type:
 
-#include_code state_vars-ImmutableSingleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-ImmutableSingleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 ### `.initialise`
 
@@ -208,7 +211,7 @@ The `new` method creates a Set that employs a specific note type. When a new Set
 
 In the following example, we define a set whose underlying note type is `CardNote`:
 
-#include_code state_vars-Set /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-Set /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 ### `.insert`
 
@@ -231,6 +234,7 @@ This function returns the notes the account has access to:
 #include_code state_vars-SetGet /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
 There's a limit on the maxinum number of notes this function can return at a time. Check _here_ (INSERT_LINK_HERE) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
+
 <!-- TODO: insert link in italics above -->
 
 Because of this limit, we should always consider using the second argument `NoteGetterOptions` to target the notes we need, and to reduce the time required to recursively call this function.
@@ -291,7 +295,7 @@ The process of applying the options to get the final notes is not constrained. I
 
 The following declares a mapping from a `Field` to a `Singleton`:
 
-#include_code state_vars-MapSingleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/storage.nr rust
+#include_code state_vars-MapSingleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
 The second argument `|slot| Singleton::new(slot, ProfileMethods)` is a Noir closure function. It teaches this instance of `Map` how to create a new instance of a `Singleton` whenever the `.at` method is called to access a state variable at a particular mapping key. The `slot` argument will be derived when `.at` is called, based on the lookup key provided.
 

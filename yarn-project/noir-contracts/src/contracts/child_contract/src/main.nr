@@ -1,16 +1,37 @@
-mod storage;
-
 // A contract used along with `Parent` contract to test nested calls.
 contract Child {
-    use crate::storage::Storage;
+    use dep::std::option::Option;
+
     use dep::aztec::{
         abi::CallContext,
+        context::{PrivateContext, PublicContext},
         oracle::{
             logs::emit_unencrypted_log,
             compute_selector::compute_selector,
-        }
+        },
+        state_vars::public_state::PublicState,
+        types::type_serialisation::field_serialisation::{FieldSerialisationMethods, FIELD_SERIALISED_LEN},
     };
-    use dep::std::option::Option;
+
+    struct Storage {
+        current_value: PublicState<Field, FIELD_SERIALISED_LEN>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                current_value: PublicState::new(
+                    private_context,
+                    public_context,
+                    1,
+                    FieldSerialisationMethods,
+                ),
+            }
+        }
+    }
 
     #[aztec(private)]
     fn constructor()  {}

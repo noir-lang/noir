@@ -30,12 +30,9 @@ There are a number of tools to make writing Noir Contracts more pleasant. See [h
 Starter kit
 :::
 
-
 ## Example Noir Contract
 
 In keeping with the origins of blockchain, here's an example of a simple private token contract. Everyone's balances are private.
-
-#include_code easy_private_token_storage /yarn-project/noir-contracts/src/contracts/easy_private_token_contract/src/storage.nr rust
 
 #include_code easy_private_token_contract /yarn-project/noir-contracts/src/contracts/easy_private_token_contract/src/main.nr rust
 

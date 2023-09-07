@@ -1,22 +1,21 @@
 mod address_note;
-mod storage;
 mod private_token_contract_interface;
 
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
-    use dep::std;
-    use dep::aztec::abi::CallContext;
-    use dep::aztec::private_call_stack_item::PrivateCallStackItem;
-    use dep::aztec::log::emit_encrypted_log;
-    use dep::aztec::oracle::get_public_key::get_public_key;
-
-    use dep::aztec::note::{
-        note_getter_options::NoteGetterOptions,
-        note_header::{NoteHeader},
-        utils as note_utils,
-    };
-
     use dep::std::option::Option;
+
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        log::emit_encrypted_log,
+        note::{
+            note_getter_options::NoteGetterOptions,
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
+        oracle::get_public_key::get_public_key,
+        state_vars::set::Set,
+    };
 
     use crate::address_note::{
         AddressNote,
@@ -24,9 +23,22 @@ contract Escrow {
         ADDRESS_NOTE_LEN,
     };
 
-    use crate::storage::Storage;
-
     use crate::private_token_contract_interface::PrivateTokenPrivateContextInterface;
+
+    struct Storage {
+        owners: Set<AddressNote, ADDRESS_NOTE_LEN>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                owners: Set::new(private_context, public_context, 1, AddressNoteMethods),
+            }
+        }
+    }
 
     // Creates a new instance
     #[aztec(private)]

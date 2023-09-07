@@ -2,15 +2,14 @@
 contract Test {
     use dep::aztec::{
         abi,
-        types::vec::BoundedVec,
         abi::PrivateContextInputs,
-    };
-    use dep::aztec::context::PrivateContext;
-
-    use dep::aztec::oracle::{
-        get_public_key::get_public_key,
-        context::get_portal_address,
-        rand::rand,
+        context::PrivateContext,
+        oracle::{
+            get_public_key::get_public_key,
+            context::get_portal_address,
+            rand::rand,
+        },
+        types::vec::BoundedVec,
     };
 
     #[aztec(private)]

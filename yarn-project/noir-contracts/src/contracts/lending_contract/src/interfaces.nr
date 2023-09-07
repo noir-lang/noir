@@ -1,11 +1,9 @@
-mod storage;
-
 use dep::aztec::context::{
     PrivateContext,
     PublicContext
 };
 
-use crate::storage::Asset;
+use crate::asset::Asset;
 use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;
 use dep::aztec::oracle::compute_selector::compute_selector;
 

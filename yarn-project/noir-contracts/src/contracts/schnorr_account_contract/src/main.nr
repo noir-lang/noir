@@ -1,4 +1,3 @@
-mod storage;
 mod public_key_note;
 
 // Account contract that uses Schnorr signatures for authentication.
@@ -6,25 +5,32 @@ mod public_key_note;
 contract SchnorrAccount {
     use dep::std;
     use dep::std::option::Option;
-    use dep::aztec::entrypoint;
-    use dep::aztec::entrypoint::EntrypointPayload;
-    use dep::aztec::abi::CallContext;
-    use dep::aztec::private_call_stack_item::PrivateCallStackItem;
-    use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::log::emit_encrypted_log;
-    use dep::aztec::oracle::get_public_key::get_public_key;
-    use dep::aztec::types::vec::BoundedVec;
-    use dep::aztec::types::point::Point;
-    use dep::aztec::note::utils as note_utils;
-    use dep::aztec::note::note_header::NoteHeader;
-    use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;
-    use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
-    use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
+    use dep::aztec::{
+        constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
+        context::{PrivateContext, PublicContext},
+        entrypoint::{ENTRYPOINT_PAYLOAD_SIZE, EntrypointPayload},
+        log::emit_encrypted_log,
+        note::{
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
+        oracle::get_public_key::get_public_key,
+        state_vars::immutable_singleton::ImmutableSingleton,
+    };
 
-    use crate::storage::Storage;
-    use crate::public_key_note::PublicKeyNote;
-    use crate::public_key_note::PublicKeyNoteMethods;
-    use crate::public_key_note::PUBLIC_KEY_NOTE_LEN;
+    use crate::public_key_note::{PublicKeyNote, PublicKeyNoteMethods, PUBLIC_KEY_NOTE_LEN};
+
+    struct Storage {
+        signing_public_key: ImmutableSingleton<PublicKeyNote, PUBLIC_KEY_NOTE_LEN>,
+    }
+
+    impl Storage {
+        fn init(private_context: Option<&mut PrivateContext>, _: Option<&mut PublicContext>) -> pub Self {
+            Storage {
+                signing_public_key: ImmutableSingleton::new(private_context, 1, PublicKeyNoteMethods),
+            }
+        }
+    }
 
     // docs:start:entrypoint
     #[aztec(private)]
@@ -37,7 +43,7 @@ contract SchnorrAccount {
         let public_key = storage.signing_public_key.get_note();
 
         // Verify payload signature
-        let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
+        let payload_fields: [Field; ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
         let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];
         // TODO workaround for https://github.com/noir-lang/noir/issues/2421
         let message_bytes_slice = message_field.to_be_bytes(32);

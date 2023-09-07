@@ -1,9 +1,14 @@
 // docs:start:easy_private_token_contract
-mod storage;
-
 contract EasyPrivateToken {
     use dep::std::option::Option;
-    use dep::aztec::abi::Hasher;
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        note::{
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
+        state_vars::map::Map,
+    };
     use dep::value_note::{
             balance_utils,
             value_note::{
@@ -11,18 +16,29 @@ contract EasyPrivateToken {
                 VALUE_NOTE_LEN,
             },
     };
+    use dep::easy_private_state::easy_private_state::EasyPrivateUint;
 
-    use dep::aztec::{
-        abi,
-        abi::PrivateContextInputs,
-        context::PrivateContext,
-        note::{
-            note_header::NoteHeader,
-            utils as note_utils,
-        },
-    };
+    struct Storage {
+        balances: Map<EasyPrivateUint>,
+    }
 
-    use crate::storage::Storage;
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    1,
+                    |private_context, public_context, slot| {
+                        EasyPrivateUint::new(private_context, public_context, slot)
+                    },
+                ),
+            }
+        }
+    }
 
     /**
      * Initialise the contract's initial state variables.

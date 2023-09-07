@@ -1,5 +1,3 @@
-mod storage;
-
 // Test contract to confirm that notes can be inserted and then later
 // read (eventually even nullified) in the same TX. This contract
 // also contains some "bad" test cases to ensure that notes cannot
@@ -12,17 +10,40 @@ contract PendingCommitments {
         filter::filter_notes_min_sum,
         value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
     };
-
-    use crate::storage::Storage;
-
-    use dep::aztec::constants_gen::ARGS_LENGTH;
-    use dep::aztec::note::{
-        note_getter::NoteGetterOptions,
-        note_header::NoteHeader,
-        utils as note_utils,
+    use dep::aztec::{
+        constants_gen::ARGS_LENGTH,
+        context::{PrivateContext, PublicContext},
+        log::emit_encrypted_log,
+        note::{
+            note_getter::NoteGetterOptions,
+            note_header::NoteHeader,
+            utils as note_utils,
+        },
+        oracle::get_public_key::get_public_key,
+        state_vars::{map::Map, set::Set},
     };
-    use dep::aztec::log::emit_encrypted_log;
-    use dep::aztec::oracle::get_public_key::get_public_key;
+
+    struct Storage {
+        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    1, // Storage slot
+                    |private_context, public_context, slot| {
+                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    },
+                ),
+            }
+        }
+    }
 
     // TODO(dbanks12): consolidate code into internal helper functions
     // (once Noir's support for this is more robust)

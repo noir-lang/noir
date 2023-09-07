@@ -1,8 +1,0 @@
-[package]
-name = "example_public_state_increment_contract"
-authors = [""]
-compiler_version = "0.1"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../../noir-libs/noir-aztec" }

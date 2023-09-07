@@ -1,4 +1,3 @@
-mod storage;
 mod address_note;
 
 contract PokeableToken {
@@ -9,16 +8,44 @@ contract PokeableToken {
         utils::increment,
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
     };
-    use dep::aztec::note::{
-        note_getter::NoteGetterOptions,
-        note_header::{NoteHeader},
-        utils as note_utils,
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        log::emit_encrypted_log,
+        note::{
+            note_getter::NoteGetterOptions,
+            note_header::{NoteHeader},
+            utils as note_utils,
+        },
+        state_vars::{immutable_singleton::ImmutableSingleton, map::Map, set::Set},
+        types::point::Point,
     };
-    use dep::aztec::types::point::Point;
-    use dep::aztec::log::emit_encrypted_log;
+    use crate::address_note::{AddressNote, AddressNoteMethods, ADDRESS_NOTE_LEN};
 
-    use crate::storage::Storage;
-    use crate::address_note::{AddressNote, AddressNoteMethods};
+    struct Storage {
+        sender: ImmutableSingleton<AddressNote, ADDRESS_NOTE_LEN>,
+        recipient: ImmutableSingleton<AddressNote, ADDRESS_NOTE_LEN>,
+        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                sender: ImmutableSingleton::new(private_context, 1, AddressNoteMethods),
+                recipient: ImmutableSingleton::new(private_context, 2, AddressNoteMethods),
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    3,
+                    |private_context, public_context, slot| {
+                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    },
+                ),
+            }
+        }
+    }
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `sender`.
     #[aztec(private)]

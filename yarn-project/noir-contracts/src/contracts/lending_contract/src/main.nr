@@ -1,4 +1,4 @@
-mod storage;
+mod asset;
 mod interest_math;
 mod helpers;
 mod interfaces;
@@ -11,14 +11,94 @@ mod interfaces;
 // - A way to repay all debt at once
 // - Liquidations
 contract Lending {
-    use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use dep::safe_math::SafeU120;
     use dep::std::option::Option;
-    use crate::storage::{Storage, Asset};
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        oracle::compute_selector::compute_selector,
+        state_vars::{
+            map::Map,
+            public_state::PublicState,
+        },
+        types::type_serialisation::{
+            field_serialisation::{FieldSerialisationMethods, FIELD_SERIALISED_LEN},
+            TypeSerialisationInterface,
+        },
+    };
+    use crate::asset::{ASSET_SERIALISED_LEN, Asset, AssetSerialisationMethods};
     use crate::interest_math::compute_multiplier;
     use crate::helpers::{covered_by_collateral, DebtReturn, debt_updates, debt_value, compute_identifier};
     use crate::interfaces::{Token, Lending, PriceFeed};
-    use dep::aztec::oracle::compute_selector::compute_selector;
+
+    // Storage structure, containing all storage, and specifying what slots they use.
+    struct Storage {
+        collateral_asset: PublicState<Field, 1>,
+        stable_coin: PublicState<Field, 1>,
+        assets: Map<PublicState<Asset, ASSET_SERIALISED_LEN>>,
+        collateral: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+        static_debt: Map<PublicState<Field, FIELD_SERIALISED_LEN>>, // abusing keys very heavily
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                collateral_asset: PublicState::new(
+                    private_context,
+                    public_context,
+                    1,
+                    FieldSerialisationMethods,
+                ),
+                stable_coin: PublicState::new(
+                    private_context,
+                    public_context,
+                    2,
+                    FieldSerialisationMethods,
+                ),
+                assets: Map::new(
+                    private_context,
+                    public_context,
+                    3,
+                    |private_context, public_context, slot| {
+                        PublicState::new(
+                            private_context,
+                            public_context,
+                            slot,
+                            AssetSerialisationMethods,
+                        )
+                    },
+                ),
+                collateral: Map::new(
+                    private_context,
+                    public_context,
+                    4,
+                    |private_context, public_context, slot| {
+                        PublicState::new(
+                            private_context,
+                            public_context,
+                            slot,
+                            FieldSerialisationMethods,
+                        )
+                    },
+                ),
+                static_debt: Map::new(
+                    private_context,
+                    public_context,
+                    5,
+                    |private_context, public_context, slot| {
+                        PublicState::new(
+                            private_context,
+                            public_context,
+                            slot,
+                            FieldSerialisationMethods,
+                        )
+                    },
+                ),
+            }
+        }
+    }
 
     struct Position {
         collateral: Field,

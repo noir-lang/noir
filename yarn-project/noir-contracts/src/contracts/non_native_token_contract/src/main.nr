@@ -1,5 +1,4 @@
 mod hash;
-mod storage;
 mod transparent_note;
 
 // Represents an ERC20 token bridged from L1 to L2 via `l1-contracts/test/portals/TokenPortal.sol`. The bridged user
@@ -22,7 +21,7 @@ contract NonNativeToken {
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
+        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
     };
 
     use crate::transparent_note::{
@@ -31,19 +30,58 @@ contract NonNativeToken {
         TRANSPARENT_NOTE_LEN,
     };
 
-    use crate::storage::Storage;
     use crate::hash::{get_mint_content_hash, get_withdraw_content_hash};
 
-    use dep::aztec::types::point::Point;
     use dep::aztec::{
+        context::{PrivateContext, PublicContext},
         note::{
             note_header::NoteHeader,
             utils as note_utils,
         },
+        oracle::compute_selector::compute_selector,
+        state_vars::{map::Map, public_state::PublicState, set::Set},
+        types::type_serialisation::field_serialisation::{
+            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
+        },
     };
 
-    use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::oracle::compute_selector::compute_selector;
+    struct Storage {
+        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+        pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
+        public_balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    1, // Storage slot
+                    |private_context, public_context, slot| {
+                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    },
+                ),
+                pending_shields: Set::new(private_context, public_context, 2, TransparentNoteMethods),
+                public_balances: Map::new(
+                    private_context,
+                    public_context,
+                    3,
+                    |private_context, public_context, slot| {
+                        PublicState::new(
+                            private_context,
+                            public_context,
+                            slot,
+                            FieldSerialisationMethods,
+                        )
+                    },
+                ),
+            }
+        }
+    }
 
     #[aztec(private)]
     fn constructor(

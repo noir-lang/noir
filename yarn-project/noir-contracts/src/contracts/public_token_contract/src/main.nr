@@ -1,13 +1,47 @@
-mod storage;
-
 contract PublicToken {
+    use dep::std::option::Option;
 
     // docs:start:unencrypted_import
     use dep::aztec::oracle::logs::emit_unencrypted_log;
     // docs:end:unencrypted_import
-    use dep::std::option::Option;
 
-    use crate::storage::Storage;
+    use dep::aztec::{
+        context::{PrivateContext, PublicContext},
+        state_vars::{
+            map::Map,
+            public_state::PublicState,
+        },
+        types::type_serialisation::field_serialisation::{
+            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
+        },
+    };
+
+    struct Storage {
+        balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+    }
+
+    impl Storage {
+        fn init(
+            private_context: Option<&mut PrivateContext>,
+            public_context: Option<&mut PublicContext>,
+        ) -> pub Self {
+            Storage {
+                balances: Map::new(
+                    private_context,
+                    public_context,
+                    1,
+                    |private_context, public_context, slot| {
+                        PublicState::new(
+                            private_context,
+                            public_context,
+                            slot,
+                            FieldSerialisationMethods,
+                        )
+                    },
+                ),
+            }
+        }
+    }
 
     // Constructs the contract.
     #[aztec(private)]
