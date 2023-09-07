@@ -1,13 +1,11 @@
 #pragma once
-#include "../polynomials/univariate.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
 /**
- * @brief LookupRelationBase defines the algebra for the lookup polynomial:
+ * @brief LookupRelationImpl defines the algebra for the lookup polynomial:
  *
  *                       ∏ (1 + β) ⋅ (q_lookup*f_k + γ) ⋅ (t_k + βt_{k+1} + γ(1 + β))
  *  Z_lookup(g^j) = --------------------------------------------------------------------------
@@ -21,15 +19,17 @@ namespace proof_system::honk::sumcheck {
  *
  * @tparam FF parametrises the prime field class being used
  */
-template <typename FF> class LookupRelationBase {
+template <typename FF_> class LookupRelationImpl {
   public:
+    using FF = FF_;
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6; // deg(z_lookup * column_selector * wire * q_lookup * table) = 5
 
     static constexpr size_t LEN_1 = 6; // grand product construction sub-relation
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
     template <typename T> using Accumulator = typename std::tuple_element<0, typename T::Accumulators>::type;
 
     /**
@@ -161,10 +161,10 @@ template <typename FF> class LookupRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
-                                                  const auto& extended_edges,
-                                                  const RelationParameters<FF>& relation_parameters,
-                                                  const FF& scaling_factor)
+    inline static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                                  const auto& extended_edges,
+                                  const RelationParameters<FF>& relation_parameters,
+                                  const FF& scaling_factor)
     {
         const auto& grand_product_delta = relation_parameters.lookup_grand_product_delta;
 
@@ -197,6 +197,6 @@ template <typename FF> class LookupRelationBase {
     };
 };
 
-template <typename FF> using LookupRelation = RelationWrapper<FF, LookupRelationBase>;
+template <typename FF> using LookupRelation = Relation<LookupRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system

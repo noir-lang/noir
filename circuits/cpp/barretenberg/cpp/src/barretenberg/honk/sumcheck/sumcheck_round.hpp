@@ -1,15 +1,9 @@
 #pragma once
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/common/thread.hpp"
-#include "barretenberg/honk/flavor/ultra.hpp"
-#include "polynomials/barycentric_data.hpp"
-#include "polynomials/pow.hpp"
-#include "polynomials/univariate.hpp"
-#include "relations/relation_parameters.hpp"
-#include <algorithm>
-#include <array>
-#include <functional>
-#include <tuple>
+#include "barretenberg/polynomials/barycentric.hpp"
+#include "barretenberg/polynomials/pow.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 
 namespace proof_system::honk::sumcheck {
 
@@ -75,7 +69,7 @@ template <typename Flavor> class SumcheckProverRound {
     RelationUnivariates univariate_accumulators;
 
     // TODO(#224)(Cody): this should go away
-    BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max = BarycentricData<FF, 2, MAX_RELATION_LENGTH>();
+    barretenberg::BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max;
 
     // Prover constructor
     SumcheckProverRound(size_t initial_round_size)
@@ -91,13 +85,13 @@ template <typename Flavor> class SumcheckProverRound {
      *
      * @tparam T : In practice, this is a Univariate<FF, MAX_NUM_RELATIONS>.
      */
-    Univariate<FF, MAX_RANDOM_RELATION_LENGTH> batch_over_relations(FF challenge,
-                                                                    const PowUnivariate<FF>& pow_univariate)
+    barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH> batch_over_relations(
+        FF challenge, const barretenberg::PowUnivariate<FF>& pow_univariate)
     {
         FF running_challenge = 1;
         scale_univariates(univariate_accumulators, challenge, running_challenge);
 
-        auto result = Univariate<FF, MAX_RANDOM_RELATION_LENGTH>(0);
+        auto result = barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>(0);
         extend_and_batch_univariates(univariate_accumulators, pow_univariate, result);
 
         // Reset all univariate accumulators to 0 before beginning accumulation in the next round
@@ -116,7 +110,7 @@ template <typename Flavor> class SumcheckProverRound {
     {
         size_t univariate_idx = 0; // TODO(#391) zip
         for (auto& poly : multivariates) {
-            auto edge = Univariate<FF, 2>({ poly[edge_idx], poly[edge_idx + 1] });
+            auto edge = barretenberg::Univariate<FF, 2>({ poly[edge_idx], poly[edge_idx + 1] });
             extended_edges[univariate_idx] = barycentric_2_to_max.extend(edge);
             ++univariate_idx;
         }
@@ -127,9 +121,9 @@ template <typename Flavor> class SumcheckProverRound {
      * values. Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12. At the end, reset all
      * univariate accumulators to be zero.
      */
-    Univariate<FF, MAX_RANDOM_RELATION_LENGTH> compute_univariate(auto& polynomials,
-                                                                  const RelationParameters<FF>& relation_parameters,
-                                                                  const PowUnivariate<FF>& pow_univariate,
+    barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH> compute_univariate(auto& polynomials,
+                                                                  const proof_system::RelationParameters<FF>& relation_parameters,
+                                                                  const barretenberg::PowUnivariate<FF>& pow_univariate,
                                                                   const FF alpha)
     {
         // Precompute the vector of required powers of zeta
@@ -211,7 +205,7 @@ template <typename Flavor> class SumcheckProverRound {
     template <size_t relation_idx = 0>
     void accumulate_relation_univariates(RelationUnivariates& univariate_accumulators,
                                          const auto& extended_edges,
-                                         const RelationParameters<FF>& relation_parameters,
+                                         const proof_system::RelationParameters<FF>& relation_parameters,
                                          const FF& scaling_factor)
     {
         std::get<relation_idx>(relations).add_edge_contribution(
@@ -241,20 +235,21 @@ template <typename Flavor> class SumcheckProverRound {
      */
     template <size_t extended_size>
     static void extend_and_batch_univariates(auto& tuple,
-                                             const PowUnivariate<FF>& pow_univariate,
-                                             Univariate<FF, extended_size>& result)
+                                             const barretenberg::PowUnivariate<FF>& pow_univariate,
+                                             barretenberg::Univariate<FF, extended_size>& result)
     {
         // Random poly R(X) = (1-X) + X.zeta_pow
-        auto random_poly_edge = Univariate<FF, 2>({ 1, pow_univariate.zeta_pow });
-        BarycentricData<FF, 2, extended_size> pow_zeta_univariate_extender = BarycentricData<FF, 2, extended_size>();
-        Univariate<FF, extended_size> extended_random_polynomial_edge =
+        auto random_poly_edge = barretenberg::Univariate<FF, 2>({ 1, pow_univariate.zeta_pow });
+        barretenberg::BarycentricData<FF, 2, extended_size> pow_zeta_univariate_extender =
+            barretenberg::BarycentricData<FF, 2, extended_size>();
+        barretenberg::Univariate<FF, extended_size> extended_random_polynomial_edge =
             pow_zeta_univariate_extender.extend(random_poly_edge);
 
         auto extend_and_sum = [&]<size_t relation_idx, size_t subrelation_idx, typename Element>(Element& element) {
             using Relation = typename std::tuple_element<relation_idx, Relations>::type;
 
             // TODO(#224)(Cody): this barycentric stuff should be more built-in?
-            BarycentricData<FF, Element::LENGTH, extended_size> barycentric_utils;
+            barretenberg::BarycentricData<FF, Element::LENGTH, extended_size> barycentric_utils;
             auto extended = barycentric_utils.extend(element);
 
             const bool is_subrelation_linearly_independent =
@@ -400,8 +395,8 @@ template <typename Flavor> class SumcheckVerifierRound {
      * checked against the final value of the target total sum, defined as sigma_d.
      */
     FF compute_full_honk_relation_purported_value(ClaimedEvaluations purported_evaluations,
-                                                  const RelationParameters<FF>& relation_parameters,
-                                                  const PowUnivariate<FF>& pow_univariate,
+                                                  const proof_system::RelationParameters<FF>& relation_parameters,
+                                                  const barretenberg::PowUnivariate<FF>& pow_univariate,
                                                   const FF alpha)
     {
         accumulate_relation_evaluations<>(
@@ -418,7 +413,7 @@ template <typename Flavor> class SumcheckVerifierRound {
      *
      * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
      */
-    bool check_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate)
+    bool check_sum(barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate)
     {
         // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
         // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
@@ -445,11 +440,12 @@ template <typename Flavor> class SumcheckVerifierRound {
      * @param round_challenge u_l
      * @return FF sigma_{l+1} = S^l(u_l)
      */
-    FF compute_next_target_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, FF& round_challenge)
+    FF compute_next_target_sum(barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, FF& round_challenge)
     {
         // IMPROVEMENT(Cody): Use barycentric static method, maybe implement evaluation as member
         // function on Univariate.
-        auto barycentric = BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
+        auto barycentric =
+            barretenberg::BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
         // Evaluate T^{l}(u_{l})
         target_total_sum = barycentric.evaluate(univariate, round_challenge);
 
@@ -469,7 +465,7 @@ template <typename Flavor> class SumcheckVerifierRound {
     template <size_t relation_idx = 0>
     // TODO(#224)(Cody): Input should be an array?
     void accumulate_relation_evaluations(ClaimedEvaluations purported_evaluations,
-                                         const RelationParameters<FF>& relation_parameters,
+                                         const proof_system::RelationParameters<FF>& relation_parameters,
                                          const FF& partial_evaluation_constant)
     {
         std::get<relation_idx>(relations).add_full_relation_value_contribution(

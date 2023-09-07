@@ -4,10 +4,8 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "evaluation_domain.hpp"
 #include "polynomial_arithmetic.hpp"
-#include <concepts>
-#include <cstddef>
 #include <fstream>
-#include <span>
+
 namespace barretenberg {
 template <typename Fr> class Polynomial {
   public:

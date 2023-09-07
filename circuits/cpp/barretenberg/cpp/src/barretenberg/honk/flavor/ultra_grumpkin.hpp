@@ -2,14 +2,15 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/ipa/ipa.hpp"
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
-#include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
+#include "barretenberg/polynomials/barycentric.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
+
+#include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
+#include "barretenberg/proof_system/relations/elliptic_relation.hpp"
+#include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
+#include "barretenberg/proof_system/relations/lookup_relation.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
+#include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -51,14 +52,15 @@ class UltraGrumpkin {
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 11;
 
-    using GrandProductRelations = std::tuple<sumcheck::UltraPermutationRelation<FF>, sumcheck::LookupRelation<FF>>;
+    using GrandProductRelations =
+        std::tuple<proof_system::UltraPermutationRelation<FF>, proof_system::LookupRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<sumcheck::UltraArithmeticRelation<FF>,
-                                 sumcheck::UltraPermutationRelation<FF>,
-                                 sumcheck::LookupRelation<FF>,
-                                 sumcheck::GenPermSortRelation<FF>,
-                                 sumcheck::EllipticRelation<FF>,
-                                 sumcheck::AuxiliaryRelation<FF>>;
+    using Relations = std::tuple<proof_system::UltraArithmeticRelation<FF>,
+                                 proof_system::UltraPermutationRelation<FF>,
+                                 proof_system::LookupRelation<FF>,
+                                 proof_system::GenPermSortRelation<FF>,
+                                 proof_system::EllipticRelation<FF>,
+                                 proof_system::AuxiliaryRelation<FF>>;
 
     static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
 
@@ -302,8 +304,8 @@ class UltraGrumpkin {
      * @todo TODO(#390): Simplify this by moving MAX_RELATION_LENGTH?
      */
     template <size_t MAX_RELATION_LENGTH>
-    using ExtendedEdges =
-        AllEntities<sumcheck::Univariate<FF, MAX_RELATION_LENGTH>, sumcheck::Univariate<FF, MAX_RELATION_LENGTH>>;
+    using ExtendedEdges = AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>,
+                                      barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
 
     /**
      * @brief A container for the polynomials evaluations produced during sumcheck, which are purported to be the

@@ -5,7 +5,7 @@
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
 #include "barretenberg/honk/proof_system/work_queue.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
@@ -47,7 +47,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     std::vector<FF> public_inputs;
     size_t pub_inputs_offset; // offset of the PI relative to 0th index in the wire polynomials
 
-    sumcheck::RelationParameters<FF> relation_parameters;
+    proof_system::RelationParameters<FF> relation_parameters;
 
     std::shared_ptr<ProvingKey> key;
 

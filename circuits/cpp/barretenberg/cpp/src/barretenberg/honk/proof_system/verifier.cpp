@@ -97,7 +97,7 @@ template <typename Flavor> bool StandardVerifier_<Flavor>::verify_proof(const pl
 
     const FF public_input_delta = compute_public_input_delta<Flavor>(public_inputs, beta, gamma, circuit_size);
 
-    sumcheck::RelationParameters<FF> relation_parameters{
+    proof_system::RelationParameters<FF> relation_parameters{
         .beta = beta,
         .gamma = gamma,
         .public_input_delta = public_input_delta,

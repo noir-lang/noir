@@ -30,7 +30,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor, gob
     using KZG = ::proof_system::honk::pcs::kzg::KZG<Curve, goblin_flag>; // note: This can only be KZG
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
-    using RelationParams = ::proof_system::honk::sumcheck::RelationParameters<FF>;
+    using RelationParams = ::proof_system::RelationParameters<FF>;
 
     RelationParams relation_parameters;
 

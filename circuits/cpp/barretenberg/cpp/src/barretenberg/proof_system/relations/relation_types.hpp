@@ -1,11 +1,8 @@
 #pragma once
-#include <array>
-#include <tuple>
-
-#include "../polynomials/univariate.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 template <typename T> concept HasSubrelationLinearlyIndependentMember = requires(T)
 {
     T::Relation::SUBRELATION_LINEARLY_INDEPENDENT;
@@ -23,16 +20,14 @@ template <typename T> concept HasSubrelationLinearlyIndependentMember = requires
  * std::tuple<UnivariateView>. For the verifier, who accumulates FFs, both types are simply aliases for std::array<FF>
  * (since no "view" type is necessary). The containers std::tuple and std::array are needed to accommodate multiple
  * sub-relations within each relation, where, for efficiency, each sub-relation has its own specified degree.
+ *
+ * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/720)
+ *
  */
 
 /**
  * @brief Getter method that will return `input[index]` iff `input` is a std::span container
  *
- * @tparam FF
- * @tparam TypeMuncher
- * @tparam T
- * @param input
- * @param index
  * @return requires
  */
 template <typename FF, typename AccumulatorTypes, typename T>
@@ -46,11 +41,6 @@ requires std::is_same<std::span<FF>, T>::value inline
 /**
  * @brief Getter method that will return `input[index]` iff `input` is not a std::span container
  *
- * @tparam FF
- * @tparam TypeMuncher
- * @tparam T
- * @param input
- * @param index
  * @return requires
  */
 template <typename FF, typename AccumulatorTypes, typename T>
@@ -65,43 +55,48 @@ inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorView
  * a given relation to the corresponding accumulator.
  *
  * @tparam FF
- * @tparam RelationBase Base class that implements the arithmetic for a given relation (or set of sub-relations)
+ * @tparam RelationImpl Base class that implements the arithmetic for a given relation (or set of sub-relations)
  */
-template <typename FF, template <typename> typename RelationBase> class RelationWrapper : public RelationBase<FF> {
+template <typename RelationImpl> class Relation : public RelationImpl {
   private:
-    template <size_t... Values> struct UnivariateAccumulatorTypes {
-        using Accumulators = std::tuple<Univariate<FF, Values>...>;
-        using AccumulatorViews = std::tuple<UnivariateView<FF, Values>...>;
+    using FF = typename RelationImpl::FF;
+    template <size_t... subrelation_lengths> struct UnivariateAccumulatorsAndViewsTemplate {
+        using Accumulators = std::tuple<barretenberg::Univariate<FF, subrelation_lengths>...>;
+        using AccumulatorViews = std::tuple<barretenberg::UnivariateView<FF, subrelation_lengths>...>;
     };
-    template <size_t... Values> struct ValueAccumulatorTypes {
-        using Accumulators = std::array<FF, sizeof...(Values)>;
-        using AccumulatorViews = std::array<FF, sizeof...(Values)>; // there is no "view" type here
+    template <size_t... subrelation_lengths> struct ValueAccumulatorsAndViewsTemplate {
+        using Accumulators = std::array<FF, sizeof...(subrelation_lengths)>;
+        using AccumulatorViews = std::array<FF, sizeof...(subrelation_lengths)>; // there is no "view" type here
     };
 
   public:
-    using Relation = RelationBase<FF>;
-    using UnivariateAccumTypes = typename Relation::template AccumulatorTypesBase<UnivariateAccumulatorTypes>;
-    using ValueAccumTypes = typename Relation::template AccumulatorTypesBase<ValueAccumulatorTypes>;
+    // Each `RelationImpl` defines a template `GetAccumulatorTypes` that supplies the `subrelation_lengths` parameters
+    // of the different `AccumulatorsAndViewsTemplate`s.
+    using UnivariateAccumulatorsAndViews =
+        typename RelationImpl::template GetAccumulatorTypes<UnivariateAccumulatorsAndViewsTemplate>;
+    // In the case of the value accumulator types, only the number of subrelations (not their lengths) has an effect.
+    using ValueAccumulatorsAndViews =
+        typename RelationImpl::template GetAccumulatorTypes<ValueAccumulatorsAndViewsTemplate>;
 
-    using RelationUnivariates = typename UnivariateAccumTypes::Accumulators;
-    using RelationValues = typename ValueAccumTypes::Accumulators;
-    static constexpr size_t RELATION_LENGTH = Relation::RELATION_LENGTH;
+    using RelationUnivariates = typename UnivariateAccumulatorsAndViews::Accumulators;
+    using RelationValues = typename ValueAccumulatorsAndViews::Accumulators;
+    static constexpr size_t RELATION_LENGTH = RelationImpl::RELATION_LENGTH;
 
-    inline void add_edge_contribution(auto& accumulator,
-                                      const auto& input,
-                                      const RelationParameters<FF>& relation_parameters,
-                                      const FF& scaling_factor) const
+    static inline void add_edge_contribution(RelationUnivariates& accumulator,
+                                             const auto& input,
+                                             const RelationParameters<FF>& relation_parameters,
+                                             const FF& scaling_factor)
     {
-        Relation::template add_edge_contribution_impl<UnivariateAccumTypes>(
+        Relation::template accumulate<UnivariateAccumulatorsAndViews>(
             accumulator, input, relation_parameters, scaling_factor);
     }
 
-    void add_full_relation_value_contribution(RelationValues& accumulator,
-                                              auto& input,
-                                              const RelationParameters<FF>& relation_parameters,
-                                              const FF& scaling_factor = 1) const
+    static void add_full_relation_value_contribution(RelationValues& accumulator,
+                                                     auto& input,
+                                                     const RelationParameters<FF>& relation_parameters,
+                                                     const FF& scaling_factor = 1)
     {
-        Relation::template add_edge_contribution_impl<ValueAccumTypes>(
+        Relation::template accumulate<ValueAccumulatorsAndViews>(
             accumulator, input, relation_parameters, scaling_factor);
     }
 
@@ -131,4 +126,4 @@ template <typename FF, template <typename> typename RelationBase> class Relation
     }
 };
 
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system

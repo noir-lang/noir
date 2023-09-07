@@ -2,6 +2,7 @@
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/common/constexpr_utils.hpp"
 #include <typeinfo>
 
 namespace proof_system::honk::grand_product_library {
@@ -47,11 +48,11 @@ namespace proof_system::honk::grand_product_library {
 template <typename Flavor, typename GrandProdRelation>
 void compute_grand_product(const size_t circuit_size,
                            auto& full_polynomials,
-                           sumcheck::RelationParameters<typename Flavor::FF>& relation_parameters)
+                           proof_system::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using FF = typename Flavor::FF;
     using Polynomial = typename Flavor::Polynomial;
-    using ValueAccumTypes = typename GrandProdRelation::ValueAccumTypes;
+    using ValueAccumulatorsAndViews = typename GrandProdRelation::ValueAccumulatorsAndViews;
 
     // Allocate numerator/denominator polynomials that will serve as scratch space
     // TODO(zac) we can re-use the permutation polynomial as the numerator polynomial. Reduces readability
@@ -71,9 +72,9 @@ void compute_grand_product(const size_t circuit_size,
             for (size_t k = 0; k < Flavor::NUM_ALL_ENTITIES; ++k) {
                 evaluations[k] = full_polynomials[k].size() > i ? full_polynomials[k][i] : 0;
             }
-            numerator[i] = GrandProdRelation::template compute_grand_product_numerator<ValueAccumTypes>(
+            numerator[i] = GrandProdRelation::template compute_grand_product_numerator<ValueAccumulatorsAndViews>(
                 evaluations, relation_parameters, i);
-            denominator[i] = GrandProdRelation::template compute_grand_product_denominator<ValueAccumTypes>(
+            denominator[i] = GrandProdRelation::template compute_grand_product_denominator<ValueAccumulatorsAndViews>(
                 evaluations, relation_parameters, i);
         }
     });
@@ -140,7 +141,7 @@ void compute_grand_product(const size_t circuit_size,
 template <typename Flavor>
 void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
                             typename Flavor::ProverPolynomials& full_polynomials,
-                            sumcheck::RelationParameters<typename Flavor::FF>& relation_parameters)
+                            proof_system::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using GrandProductRelations = typename Flavor::GrandProductRelations;
     using FF = typename Flavor::FF;

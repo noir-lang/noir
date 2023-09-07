@@ -1,10 +1,11 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/ipa/ipa.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
-#include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
+#include "barretenberg/polynomials/barycentric.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
+
+#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -45,9 +46,9 @@ class StandardGrumpkin {
     static constexpr size_t NUM_WITNESS_ENTITIES = 4;
 
     // define the tuple of Relations that require grand products
-    using GrandProductRelations = std::tuple<sumcheck::PermutationRelation<FF>>;
+    using GrandProductRelations = std::tuple<proof_system::PermutationRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<sumcheck::ArithmeticRelation<FF>, sumcheck::PermutationRelation<FF>>;
+    using Relations = std::tuple<proof_system::ArithmeticRelation<FF>, proof_system::PermutationRelation<FF>>;
 
     static constexpr size_t MAX_RELATION_LENGTH = get_max_relation_length<Relations>();
 
@@ -226,7 +227,7 @@ class StandardGrumpkin {
      */
     template <size_t MAX_RELATION_LENGTH>
     using ExtendedEdges =
-        AllEntities<sumcheck::Univariate<FF, MAX_RELATION_LENGTH>, sumcheck::Univariate<FF, MAX_RELATION_LENGTH>>;
+        AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>, barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
 
     /**
      * @brief A container for the polynomials evaluations produced during sumcheck, which are purported to be the

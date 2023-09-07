@@ -1,22 +1,20 @@
 #pragma once
-#include <array>
-#include <tuple>
-
-#include "../polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
-template <typename FF> class EllipticRelationBase {
+template <typename FF_> class EllipticRelationImpl {
   public:
+    using FF = FF_;
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6; // degree(q_elliptic * q_beta * x^3) = 5
 
     static constexpr size_t LEN_1 = 6; // x-coordinate sub-relation
     static constexpr size_t LEN_2 = 5; // y-coordinate sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
@@ -29,10 +27,10 @@ template <typename FF> class EllipticRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
-                                           const auto& extended_edges,
-                                           const RelationParameters<FF>&,
-                                           const FF& scaling_factor){
+    static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                           const auto& extended_edges,
+                           const RelationParameters<FF>&,
+                           const FF& scaling_factor){
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
         // TODO(luke): Formatter doesnt properly handle explicit scoping below so turning off. Whats up?
@@ -100,6 +98,6 @@ template <typename FF> class EllipticRelationBase {
 };
 
 template <typename FF>
-using EllipticRelation = RelationWrapper<FF, EllipticRelationBase>;
+using EllipticRelation = Relation<EllipticRelationImpl<FF>>;
 // clang-format on
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system

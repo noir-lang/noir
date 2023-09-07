@@ -1,16 +1,14 @@
 #pragma once
-#include <array>
-#include <tuple>
-
-#include "../polynomials/univariate.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
-template <typename FF> class AuxiliaryRelationBase {
+template <typename FF_> class AuxiliaryRelationImpl {
   public:
+    using FF = FF_;
+    
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6;
 
@@ -20,8 +18,8 @@ template <typename FF> class AuxiliaryRelationBase {
     static constexpr size_t LEN_4 = 6; // RAM consistency sub-relation 1
     static constexpr size_t LEN_5 = 6; // RAM consistency sub-relation 2
     static constexpr size_t LEN_6 = 6; // RAM consistency sub-relation 3
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -58,10 +56,10 @@ template <typename FF> class AuxiliaryRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
-                                                  const auto& extended_edges,
-                                                  const RelationParameters<FF>& relation_parameters,
-                                                  const FF& scaling_factor)
+    inline static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                                  const auto& extended_edges,
+                                  const RelationParameters<FF>& relation_parameters,
+                                  const FF& scaling_factor)
     {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
@@ -295,5 +293,5 @@ template <typename FF> class AuxiliaryRelationBase {
     };
 };
 
-template <typename FF> using AuxiliaryRelation = RelationWrapper<FF, AuxiliaryRelationBase>;
-} // namespace proof_system::honk::sumcheck
+template <typename FF> using AuxiliaryRelation = Relation<AuxiliaryRelationImpl<FF>>;
+} // namespace proof_system

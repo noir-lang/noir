@@ -1,18 +1,17 @@
-#include <gtest/gtest.h>
-
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
-#include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ecc_op_queue_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
+#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
+#include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
+#include "barretenberg/proof_system/relations/ecc_op_queue_relation.hpp"
+#include "barretenberg/proof_system/relations/elliptic_relation.hpp"
+#include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
+#include "barretenberg/proof_system/relations/lookup_relation.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
+#include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
+#include <gtest/gtest.h>
 
 using namespace proof_system::honk;
 
@@ -239,7 +238,7 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     auto public_input_delta =
         honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<FF> params{
+    proof_system::RelationParameters<FF> params{
         .beta = beta,
         .gamma = gamma,
         .public_input_delta = public_input_delta,
@@ -272,7 +271,8 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     grand_product_library::compute_grand_products<honk::flavor::Standard>(prover.key, prover_polynomials, params);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<FF>(), honk::sumcheck::PermutationRelation<FF>());
+    auto relations =
+        std::tuple(proof_system::ArithmeticRelation<FF>(), proof_system::PermutationRelation<FF>());
 
     // Check that each relation is satisfied across each row of the prover polynomials
     check_relation<Flavor>(std::get<0>(relations), circuit_size, prover_polynomials, params);
@@ -325,7 +325,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
     auto lookup_grand_product_delta =
         honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<FF> params{
+    proof_system::RelationParameters<FF> params{
         .eta = eta,
         .beta = beta,
         .gamma = gamma,
@@ -392,12 +392,12 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
     ensure_non_zero(prover.key->q_aux);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations = std::tuple(honk::sumcheck::UltraArithmeticRelation<FF>(),
-                                honk::sumcheck::UltraPermutationRelation<FF>(),
-                                honk::sumcheck::LookupRelation<FF>(),
-                                honk::sumcheck::GenPermSortRelation<FF>(),
-                                honk::sumcheck::EllipticRelation<FF>(),
-                                honk::sumcheck::AuxiliaryRelation<FF>());
+    auto relations = std::tuple(proof_system::UltraArithmeticRelation<FF>(),
+                                proof_system::UltraPermutationRelation<FF>(),
+                                proof_system::LookupRelation<FF>(),
+                                proof_system::GenPermSortRelation<FF>(),
+                                proof_system::EllipticRelation<FF>(),
+                                proof_system::AuxiliaryRelation<FF>());
 
     // Check that each relation is satisfied across each row of the prover polynomials
     check_relation<Flavor>(std::get<0>(relations), circuit_size, prover_polynomials, params);
@@ -449,7 +449,7 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     auto lookup_grand_product_delta =
         honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<FF> params{
+    proof_system::RelationParameters<FF> params{
         .eta = eta,
         .beta = beta,
         .gamma = gamma,
@@ -522,13 +522,13 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     ensure_non_zero(prover.key->q_aux);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations = std::tuple(honk::sumcheck::UltraArithmeticRelation<FF>(),
-                                honk::sumcheck::UltraPermutationRelation<FF>(),
-                                honk::sumcheck::LookupRelation<FF>(),
-                                honk::sumcheck::GenPermSortRelation<FF>(),
-                                honk::sumcheck::EllipticRelation<FF>(),
-                                honk::sumcheck::AuxiliaryRelation<FF>(),
-                                honk::sumcheck::EccOpQueueRelation<FF>());
+    auto relations = std::tuple(proof_system::UltraArithmeticRelation<FF>(),
+                                proof_system::UltraPermutationRelation<FF>(),
+                                proof_system::LookupRelation<FF>(),
+                                proof_system::GenPermSortRelation<FF>(),
+                                proof_system::EllipticRelation<FF>(),
+                                proof_system::AuxiliaryRelation<FF>(),
+                                proof_system::EccOpQueueRelation<FF>());
 
     // Check that each relation is satisfied across each row of the prover polynomials
     check_relation<Flavor>(std::get<0>(relations), circuit_size, prover_polynomials, params);

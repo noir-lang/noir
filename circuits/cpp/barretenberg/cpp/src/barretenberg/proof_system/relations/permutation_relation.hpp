@@ -1,21 +1,22 @@
 #pragma once
-#include "../polynomials/univariate.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 // TODO(luke): change name of this file to permutation_grand_product_relation(s).hpp and move 'init' relation into it.
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
-template <typename FF> class PermutationRelationBase {
+template <typename FF_> class PermutationRelationImpl {
   public:
+    using FF = FF_;
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 5;
 
     static constexpr size_t LEN_1 = 5; // grand product construction sub-relation
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    static constexpr std::tuple<size_t, size_t> SUBRELATION_LENGTHS = {LEN_1, LEN_2};
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
     template <typename T> using Accumulator = typename std::tuple_element<0, typename T::Accumulators>::type;
 
     inline static auto& get_grand_product_polynomial(auto& input) { return input.z_perm; }
@@ -74,10 +75,10 @@ template <typename FF> class PermutationRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulator,
-                                                  const auto& input,
-                                                  const RelationParameters<FF>& relation_parameters,
-                                                  const FF& scaling_factor)
+    inline static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                                  const auto& input,
+                                  const RelationParameters<FF>& relation_parameters,
+                                  const FF& scaling_factor)
     {
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
@@ -89,7 +90,7 @@ template <typename FF> class PermutationRelationBase {
             auto lagrange_last = View(input.lagrange_last);
 
             // Contribution (1)
-            std::get<0>(accumulator) +=
+            std::get<0>(accumulators) +=
                 (((z_perm + lagrange_first) *
                   compute_grand_product_numerator<AccumulatorTypes>(input, relation_parameters, 0)) -
                  ((z_perm_shift + lagrange_last * public_input_delta) *
@@ -102,22 +103,24 @@ template <typename FF> class PermutationRelationBase {
             auto lagrange_last = View(input.lagrange_last);
 
             // Contribution (2)
-            std::get<1>(accumulator) += (lagrange_last * z_perm_shift) * scaling_factor;
+            std::get<1>(accumulators) += (lagrange_last * z_perm_shift) * scaling_factor;
         }
     };
 };
 
 // TODO(luke): With Cody's Flavor work it should be easier to create a simple templated relation
 // for handling arbitrary width. For now I'm duplicating the width 3 logic for width 4.
-template <typename FF> class UltraPermutationRelationBase {
+template <typename FF_> class UltraPermutationRelationImpl {
   public:
+    using FF = FF_;
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6;
 
     static constexpr size_t LEN_1 = 6; // grand product construction sub-relation
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
     template <typename T> using Accumulator = typename std::tuple_element<0, typename T::Accumulators>::type;
 
     inline static auto& get_grand_product_polynomial(auto& input) { return input.z_perm; }
@@ -176,10 +179,10 @@ template <typename FF> class UltraPermutationRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    inline static void add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
-                                                  const auto& extended_edges,
-                                                  const RelationParameters<FF>& relation_parameters,
-                                                  const FF& scaling_factor)
+    inline static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                                  const auto& extended_edges,
+                                  const RelationParameters<FF>& relation_parameters,
+                                  const FF& scaling_factor)
     {
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
@@ -210,7 +213,7 @@ template <typename FF> class UltraPermutationRelationBase {
     };
 };
 
-template <typename FF> using PermutationRelation = RelationWrapper<FF, PermutationRelationBase>;
+template <typename FF> using PermutationRelation = Relation<PermutationRelationImpl<FF>>;
+template <typename FF> using UltraPermutationRelation = Relation<UltraPermutationRelationImpl<FF>>;
 
-template <typename FF> using UltraPermutationRelation = RelationWrapper<FF, UltraPermutationRelationBase>;
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system

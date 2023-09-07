@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# This script is used to compare the honk benchmarks between baseline (default: master) and
+# This script is used to compare a suite of benchmarks between baseline (default: master) and
 # the branch from which the script is run. Simply check out the branch of interest, ensure 
 # it is up to date with local master, and run the script.
 
 # Specify the benchmark suite and the "baseline" branch against which to compare
-BENCH_TARGET="ultra_honk_bench"
+BENCH_TARGET=${1:?"Please provide the name of a benchmark target."}
 BASELINE_BRANCH="master"
 
 echo -e "\nComparing $BENCH_TARGET between $BASELINE_BRANCH and current branch:"

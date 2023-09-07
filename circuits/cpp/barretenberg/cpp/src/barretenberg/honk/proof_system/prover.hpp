@@ -51,7 +51,7 @@ template <StandardFlavor Flavor> class StandardProver_ {
 
     std::vector<FF> public_inputs;
 
-    sumcheck::RelationParameters<FF> relation_parameters;
+    proof_system::RelationParameters<FF> relation_parameters;
 
     std::shared_ptr<ProvingKey> key;
 

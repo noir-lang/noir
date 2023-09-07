@@ -1,7 +1,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "polynomials/univariate.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "sumcheck_round.hpp"
 
 #include <tuple>
@@ -18,6 +18,11 @@
 
 using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
+using namespace proof_system;
+
+using barretenberg::Univariate;
+using barretenberg::PowUnivariate;
+using barretenberg::BarycentricData;
 
 using Flavor = flavor::Standard;
 using FF = typename Flavor::FF;

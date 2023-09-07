@@ -1,24 +1,11 @@
 #include "ultra_prover.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp" // will go away
-#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/transcript/transcript_wrappers.hpp"
-#include <algorithm>
-#include <array>
-#include <cstddef>
-#include <memory>
-#include <span>
-#include <string>
-#include <utility>
-#include <vector>
 
 namespace proof_system::honk {
 

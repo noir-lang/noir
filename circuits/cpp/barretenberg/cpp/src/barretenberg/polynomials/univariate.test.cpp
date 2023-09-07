@@ -1,26 +1,12 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barycentric_data.hpp"
-#include "univariate.hpp"
-
-#include "barretenberg/numeric/random/engine.hpp"
+#include "barycentric.hpp"
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk::sumcheck;
-namespace test_univariate {
+namespace barretenberg::test_univariate {
 
 template <typename FF> class UnivariateTest : public testing::Test {
   public:
     template <size_t view_length> using UnivariateView = UnivariateView<FF, view_length>;
-
-    // IMPROVEMENT(Cody) this is not used anywhere? Move to memeber function of U/snivariate?
-    template <size_t length> Univariate<FF, length> random_univariate()
-    {
-        auto output = Univariate<FF, length>();
-        for (size_t i = 0; i != length; ++i) {
-            output.value_at(i) = FF::random_element();
-        }
-        return output;
-    };
 };
 
 using FieldTypes = testing::Types<barretenberg::fr>;
@@ -173,4 +159,4 @@ TYPED_TEST(UnivariateTest, Serialization)
     }
 }
 
-} // namespace test_univariate
+} // namespace barretenberg::test_univariate

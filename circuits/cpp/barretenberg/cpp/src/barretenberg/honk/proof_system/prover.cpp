@@ -107,7 +107,7 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_grand_pro
 
     auto public_input_delta = compute_public_input_delta<Flavor>(public_inputs, beta, gamma, key->circuit_size);
 
-    relation_parameters = sumcheck::RelationParameters<FF>{
+    relation_parameters = proof_system::RelationParameters<FF>{
         .beta = beta,
         .gamma = gamma,
         .public_input_delta = public_input_delta,

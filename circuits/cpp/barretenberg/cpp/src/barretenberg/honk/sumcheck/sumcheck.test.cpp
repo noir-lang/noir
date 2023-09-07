@@ -1,31 +1,17 @@
+#include "sumcheck.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
-#include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/transcript/manifest.hpp"
-#include "barretenberg/transcript/transcript_wrappers.hpp"
-#include "relations/arithmetic_relation.hpp"
-#include "relations/permutation_relation.hpp"
-#include "sumcheck.hpp"
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <gtest/internal/gtest-internal.h>
-
+#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
+#include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
+#include "barretenberg/proof_system/relations/elliptic_relation.hpp"
+#include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
+#include "barretenberg/proof_system/relations/lookup_relation.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
+#include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
 #include <gtest/gtest.h>
-#include <initializer_list>
-#include <optional>
-#include <string>
-#include <sys/types.h>
-#include <vector>
 
 using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
@@ -315,7 +301,7 @@ TEST_F(SumcheckTests, ProverAndVerifier)
                                                        lagrange_first,
                                                        lagrange_last);
     // Set aribitrary random relation parameters
-    sumcheck::RelationParameters<FF> relation_parameters{
+    proof_system::RelationParameters<FF> relation_parameters{
         .beta = FF::random_element(),
         .gamma = FF::random_element(),
         .public_input_delta = FF::one(),
@@ -389,7 +375,7 @@ TEST_F(SumcheckTests, ProverAndVerifierLonger)
                                                            lagrange_last);
 
         // Set aribitrary random relation parameters
-        sumcheck::RelationParameters<FF> relation_parameters{
+        proof_system::RelationParameters<FF> relation_parameters{
             .beta = FF::random_element(),
             .gamma = FF::random_element(),
             .public_input_delta = FF::one(),
@@ -453,7 +439,7 @@ TEST_F(SumcheckTests, RealCircuitStandard)
     auto public_input_delta =
         honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<FF> relation_parameters{
+    proof_system::RelationParameters<FF> relation_parameters{
         .beta = beta,
         .gamma = gamma,
         .public_input_delta = public_input_delta,
@@ -635,7 +621,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     auto lookup_grand_product_delta =
         honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 
-    sumcheck::RelationParameters<FF> relation_parameters{
+    proof_system::RelationParameters<FF> relation_parameters{
         .eta = eta,
         .beta = beta,
         .gamma = gamma,

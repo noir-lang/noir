@@ -1,15 +1,13 @@
 #pragma once
-#include <array>
-#include <tuple>
-
-#include "../polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
-template <typename FF> class GenPermSortRelationBase {
+template <typename FF_> class GenPermSortRelationImpl {
   public:
+    using FF = FF_;
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6; // degree(q_sort * D(D - 1)(D - 2)(D - 3)) = 5
 
@@ -17,8 +15,8 @@ template <typename FF> class GenPermSortRelationBase {
     static constexpr size_t LEN_2 = 6; // range constrain sub-relation 2
     static constexpr size_t LEN_3 = 6; // range constrain sub-relation 3
     static constexpr size_t LEN_4 = 6; // range constrain sub-relation 4
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2, LEN_3, LEN_4>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2, LEN_3, LEN_4>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -36,10 +34,10 @@ template <typename FF> class GenPermSortRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    void static add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
-                                           const auto& extended_edges,
-                                           const RelationParameters<FF>&,
-                                           const FF& scaling_factor)
+    void static accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                           const auto& extended_edges,
+                           const RelationParameters<FF>&,
+                           const FF& scaling_factor)
     {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
@@ -100,6 +98,6 @@ template <typename FF> class GenPermSortRelationBase {
     };
 };
 
-template <typename FF> using GenPermSortRelation = RelationWrapper<FF, GenPermSortRelationBase>;
+template <typename FF> using GenPermSortRelation = Relation<GenPermSortRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system

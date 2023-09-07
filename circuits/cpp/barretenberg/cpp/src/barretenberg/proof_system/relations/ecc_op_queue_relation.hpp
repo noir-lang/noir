@@ -1,15 +1,12 @@
 #pragma once
-#include <array>
-#include <tuple>
-
-#include "../polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
-template <typename FF> class EccOpQueueRelationBase {
+template <typename FF_> class EccOpQueueRelationImpl {
   public:
+    using FF = FF_;
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 3; // degree(q * (w - w_op_queue)) = 2
 
@@ -21,8 +18,8 @@ template <typename FF> class EccOpQueueRelationBase {
     static constexpr size_t LEN_6 = 3; // op-queue-wire vanishes sub-relation 2
     static constexpr size_t LEN_7 = 3; // op-queue-wire vanishes sub-relation 3
     static constexpr size_t LEN_8 = 3; // op-queue-wire vanishes sub-relation 4
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6, LEN_7, LEN_8>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6, LEN_7, LEN_8>;
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -44,10 +41,10 @@ template <typename FF> class EccOpQueueRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    void static add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& accumulators,
-                                           const auto& extended_edges,
-                                           const RelationParameters<FF>&,
-                                           const FF& scaling_factor)
+    void static accumulate(typename AccumulatorTypes::Accumulators& accumulators,
+                           const auto& extended_edges,
+                           const RelationParameters<FF>&,
+                           const FF& scaling_factor)
     {
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
@@ -111,6 +108,6 @@ template <typename FF> class EccOpQueueRelationBase {
     };
 };
 
-template <typename FF> using EccOpQueueRelation = RelationWrapper<FF, EccOpQueueRelationBase>;
+template <typename FF> using EccOpQueueRelation = Relation<EccOpQueueRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system

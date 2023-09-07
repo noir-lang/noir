@@ -4,8 +4,8 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/flavor/ultra_recursive.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 
 namespace proof_system::plonk::stdlib::recursion::honk {
@@ -27,7 +27,7 @@ template <class Flavor, size_t LENGTH> auto generate_mock_proof_data(auto prover
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
-    using Univariate = typename proof_system::honk::sumcheck::Univariate<FF, LENGTH>;
+    using Univariate = typename barretenberg::Univariate<FF, LENGTH>;
 
     // Create some mock data to be added to the transcript in several mock rounds
     uint32_t data = 25;
@@ -69,7 +69,7 @@ template <class Flavor, size_t LENGTH> void perform_mock_verifier_transcript_ope
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
-    using Univariate = typename proof_system::honk::sumcheck::Univariate<FF, LENGTH>;
+    using Univariate = typename barretenberg::Univariate<FF, LENGTH>;
 
     // round 0
     transcript.template receive_from_prover<uint32_t>("data");

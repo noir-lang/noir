@@ -1,4 +1,4 @@
-#include "../honk/sumcheck/polynomials/univariate.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "transcript_wrappers.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -136,7 +136,7 @@ TEST(transcript, univariate_serialization)
     constexpr size_t LENGTH = 8;
 
     using Fr = barretenberg::fr;
-    using Univariate = proof_system::honk::sumcheck::Univariate<Fr, LENGTH>;
+    using Univariate = barretenberg::Univariate<Fr, LENGTH>;
     using Transcript = transcript::StandardTranscript;
 
     std::vector<uint8_t> g1_vector(64);

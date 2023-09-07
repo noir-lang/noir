@@ -2,18 +2,27 @@
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include <array>
-#include <cstdint>
-#include <ostream>
 #include <span>
 
-namespace proof_system::honk::sumcheck {
+namespace barretenberg {
 
+/**
+ * @brief A view of a univariate, also used to truncate univariates.
+ *
+ * @details For optimization purposes, it makes sense to define univariates with large lengths and then reuse only some
+ * of the data in those univariates. We do that by taking a view of those elements and then, as needed, using this to
+ * populate new containers.
+ */
 template <class Fr, size_t view_length> class UnivariateView;
 
+/**
+ * @brief A univariate polynomial represented by its values on {0,1,..., _length-1}
+ */
 template <class Fr, size_t _length> class Univariate {
   public:
     static constexpr size_t LENGTH = _length;
 
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/714) Try out std::valarray?
     std::array<Fr, _length> evaluations;
 
     Univariate() = default;
@@ -58,6 +67,15 @@ template <class Fr, size_t _length> class Univariate {
         std::read(buffer, result.evaluations);
         return result;
     }
+
+    static Univariate get_random()
+    {
+        auto output = Univariate<Fr, _length>();
+        for (size_t i = 0; i != _length; ++i) {
+            output.value_at(i) = Fr::random_element();
+        }
+        return output;
+    };
 
     // Operations between Univariate and other Univariate
     bool operator==(const Univariate& other) const = default;
@@ -356,4 +374,4 @@ template <typename T, typename U, std::size_t N> std::array<T, N> array_to_array
     return array_to_array_aux<T, U, N>(elements, std::make_index_sequence<N>());
 };
 
-} // namespace proof_system::honk::sumcheck
+} // namespace barretenberg

@@ -3,7 +3,8 @@
 #include "barretenberg/ecc/curves/bn254/fq.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
+
 #include "barretenberg/honk/transcript/transcript.hpp"
 
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"

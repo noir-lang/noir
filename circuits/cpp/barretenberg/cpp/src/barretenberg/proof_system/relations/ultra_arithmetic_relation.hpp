@@ -1,22 +1,20 @@
 #pragma once
-#include <array>
-#include <tuple>
-
-#include "../polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace proof_system {
 
-template <typename FF> class UltraArithmeticRelationBase {
+template <typename FF_> class UltraArithmeticRelationImpl {
   public:
+    using FF = FF_;
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6; // degree(q_arith^2 * q_m * w_r * w_l) = 5
 
     static constexpr size_t LEN_1 = 6; // primary arithmetic sub-relation
     static constexpr size_t LEN_2 = 5; // secondary arithmetic sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
+    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
@@ -70,10 +68,10 @@ template <typename FF> class UltraArithmeticRelationBase {
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
     template <typename AccumulatorTypes>
-    void static add_edge_contribution_impl(typename AccumulatorTypes::Accumulators& evals,
-                                           const auto& extended_edges,
-                                           const RelationParameters<FF>&,
-                                           const FF& scaling_factor){
+    void static accumulate(typename AccumulatorTypes::Accumulators& evals,
+                           const auto& extended_edges,
+                           const RelationParameters<FF>&,
+                           const FF& scaling_factor){
         // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
         //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
         // clang-format off
@@ -122,7 +120,7 @@ template <typename FF> class UltraArithmeticRelationBase {
 };
 
 template <typename FF>
-using UltraArithmeticRelation = RelationWrapper<FF, UltraArithmeticRelationBase>;
+using UltraArithmeticRelation = Relation<UltraArithmeticRelationImpl<FF>>;
 
 // clang-format on
-} // namespace proof_system::honk::sumcheck
+} // namespace proof_system
