@@ -1,4 +1,4 @@
 {
   ".": "0.10.5",
-  "crates/source-resolver": "1.1.4"
+  "source-resolver": "1.1.4"
 }

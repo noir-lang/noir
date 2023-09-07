@@ -17,18 +17,16 @@
           "type": "json",
           "path": "crates/wasm/package.json",
           "jsonpath": "$.version"
-        }
-      ]
-    },
-    "crates/source-resolver": {
-      "release-type": "simple",
-      "extra-files": [
+        },
         {
           "type": "json",
-          "path": "package.json",
+          "path": "crates/source-resolver/package.json",
           "jsonpath": "$.version"
         }
       ]
+    },
+    "source-resolver": {
+      "component": "source-resolver"
     }
   },
   "plugins": ["sentence-case"]
