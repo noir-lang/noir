@@ -126,7 +126,8 @@ struct BlackBoxFuncCall {
     };
 
     struct FixedBaseScalarMul {
-        Circuit::FunctionInput input;
+        Circuit::FunctionInput low;
+        Circuit::FunctionInput high;
         std::array<Circuit::Witness, 2> outputs;
 
         friend bool operator==(const FixedBaseScalarMul&, const FixedBaseScalarMul&);
@@ -467,7 +468,8 @@ struct BlackBoxOp {
     };
 
     struct FixedBaseScalarMul {
-        Circuit::RegisterIndex input;
+        Circuit::RegisterIndex low;
+        Circuit::RegisterIndex high;
         Circuit::HeapArray result;
 
         friend bool operator==(const FixedBaseScalarMul&, const FixedBaseScalarMul&);
@@ -2379,7 +2381,10 @@ namespace Circuit {
 
 inline bool operator==(const BlackBoxFuncCall::FixedBaseScalarMul& lhs, const BlackBoxFuncCall::FixedBaseScalarMul& rhs)
 {
-    if (!(lhs.input == rhs.input)) {
+    if (!(lhs.low == rhs.low)) {
+        return false;
+    }
+    if (!(lhs.high == rhs.high)) {
         return false;
     }
     if (!(lhs.outputs == rhs.outputs)) {
@@ -2413,7 +2418,8 @@ template <typename Serializer>
 void serde::Serializable<Circuit::BlackBoxFuncCall::FixedBaseScalarMul>::serialize(
     const Circuit::BlackBoxFuncCall::FixedBaseScalarMul& obj, Serializer& serializer)
 {
-    serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
+    serde::Serializable<decltype(obj.low)>::serialize(obj.low, serializer);
+    serde::Serializable<decltype(obj.high)>::serialize(obj.high, serializer);
     serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
 }
 
@@ -2423,7 +2429,8 @@ Circuit::BlackBoxFuncCall::FixedBaseScalarMul serde::Deserializable<
     Circuit::BlackBoxFuncCall::FixedBaseScalarMul>::deserialize(Deserializer& deserializer)
 {
     Circuit::BlackBoxFuncCall::FixedBaseScalarMul obj;
-    obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
+    obj.low = serde::Deserializable<decltype(obj.low)>::deserialize(deserializer);
+    obj.high = serde::Deserializable<decltype(obj.high)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
     return obj;
 }
@@ -3134,7 +3141,10 @@ namespace Circuit {
 
 inline bool operator==(const BlackBoxOp::FixedBaseScalarMul& lhs, const BlackBoxOp::FixedBaseScalarMul& rhs)
 {
-    if (!(lhs.input == rhs.input)) {
+    if (!(lhs.low == rhs.low)) {
+        return false;
+    }
+    if (!(lhs.high == rhs.high)) {
         return false;
     }
     if (!(lhs.result == rhs.result)) {
@@ -3167,7 +3177,8 @@ template <typename Serializer>
 void serde::Serializable<Circuit::BlackBoxOp::FixedBaseScalarMul>::serialize(
     const Circuit::BlackBoxOp::FixedBaseScalarMul& obj, Serializer& serializer)
 {
-    serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
+    serde::Serializable<decltype(obj.low)>::serialize(obj.low, serializer);
+    serde::Serializable<decltype(obj.high)>::serialize(obj.high, serializer);
     serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
 }
 
@@ -3177,7 +3188,8 @@ Circuit::BlackBoxOp::FixedBaseScalarMul serde::Deserializable<Circuit::BlackBoxO
     Deserializer& deserializer)
 {
     Circuit::BlackBoxOp::FixedBaseScalarMul obj;
-    obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
+    obj.low = serde::Deserializable<decltype(obj.low)>::deserialize(deserializer);
+    obj.high = serde::Deserializable<decltype(obj.high)>::deserialize(deserializer);
     obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
     return obj;
 }

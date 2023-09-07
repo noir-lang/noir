@@ -158,7 +158,8 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, aci
                 });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::FixedBaseScalarMul>) {
                 af.fixed_base_scalar_mul_constraints.push_back(FixedBaseScalarMul{
-                    .scalar = arg.input.witness.value,
+                    .low = arg.low.witness.value,
+                    .high = arg.high.witness.value,
                     .pub_key_x = arg.outputs[0].value,
                     .pub_key_y = arg.outputs[1].value,
                 });
