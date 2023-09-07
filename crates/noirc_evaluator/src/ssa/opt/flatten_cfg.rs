@@ -492,17 +492,14 @@ impl<'f> Context<'f> {
             Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = &self.inserter.function.dfg[*instruction_id];
                 match instruction {
-                    Instruction::ArraySet { array, .. } => {
-                        self.get_slice_length(*array)
-                    }
+                    Instruction::ArraySet { array, .. } => self.get_slice_length(*array),
                     Instruction::Load { address } => {
                         let context_store = if let Some(store) = self.store_values.get(address) {
                             store
                         } else {
-                            self
-                            .outer_block_stores
-                            .get(address)
-                            .expect("ICE: load in merger should have store from outer block")
+                            self.outer_block_stores
+                                .get(address)
+                                .expect("ICE: load in merger should have store from outer block")
                         };
 
                         self.get_slice_length(context_store.new_value)
@@ -514,10 +511,14 @@ impl<'f> Context<'f> {
                             Value::Intrinsic(intrinsic) => match intrinsic {
                                 Intrinsic::SlicePushBack
                                 | Intrinsic::SlicePushFront
-                                | Intrinsic::SliceInsert => self.get_slice_length(slice_contents) + 1,
+                                | Intrinsic::SliceInsert => {
+                                    self.get_slice_length(slice_contents) + 1
+                                }
                                 Intrinsic::SlicePopBack
                                 | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRemove => self.get_slice_length(slice_contents) - 1,
+                                | Intrinsic::SliceRemove => {
+                                    self.get_slice_length(slice_contents) - 1
+                                }
                                 _ => {
                                     unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
                                 }

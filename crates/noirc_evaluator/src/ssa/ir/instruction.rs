@@ -171,7 +171,7 @@ pub(crate) enum Instruction {
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
     ///
-    /// An optional length can be provided to enabling handling of dynamic slice indices
+    /// An optional length can be provided to enable handling of dynamic slice indices.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, length: Option<ValueId> },
 }
 
