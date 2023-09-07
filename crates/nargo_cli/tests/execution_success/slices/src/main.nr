@@ -183,7 +183,7 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(15);
     }
-    // Breaks if the push back happens without the else case
+    // TODO(#2599): Breaks if the push back happens without the else case
     // slice = slice.push_back(15);
     slice = slice.push_back(30);
     
@@ -206,7 +206,7 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(15);
     }
-    // Breaks if the push back happens without the else case
+    // TODO(#2599): Breaks if the push back happens without the else case
     // slice = slice.push_back(15);
 
     slice

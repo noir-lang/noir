@@ -183,7 +183,7 @@ fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
     } else {
         slice = slice.push_back(15);
     }
-    // Breaks if the push back happens without the else case
+    // TODO(#2599): Breaks if the push back happens without the else case
     // slice = slice.push_back(15);
 
     assert(slice.len() == 7);
