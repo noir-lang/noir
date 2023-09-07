@@ -2,11 +2,13 @@ use acvm::acir::circuit::opcodes::Opcode;
 use acvm::Language;
 use serde::Deserialize;
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::BackendError;
 
-pub(crate) struct InfoCommand;
+pub(crate) struct InfoCommand {
+    pub(crate) crs_path: PathBuf,
+}
 
 #[derive(Deserialize)]
 struct InfoResponse {
@@ -28,7 +30,7 @@ impl InfoCommand {
     ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
-        command.arg("info");
+        command.arg("info").arg("-c").arg(self.crs_path).arg("-o").arg("-");
 
         let output = command.output().expect("Failed to execute command");
 
@@ -77,8 +79,10 @@ fn info_command() {
     use acvm::acir::native_types::Expression;
 
     let backend = crate::get_mock_backend();
+    let crs_path = backend.backend_directory();
 
-    let (language, is_opcode_supported) = InfoCommand.run(&backend.binary_path()).unwrap();
+    let (language, is_opcode_supported) =
+        InfoCommand { crs_path }.run(&backend.binary_path()).unwrap();
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
     assert!(is_opcode_supported(&Opcode::Arithmetic(Expression::default())));

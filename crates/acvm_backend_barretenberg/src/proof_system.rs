@@ -30,7 +30,7 @@ impl Backend {
         &self,
     ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
         let binary_path = assert_binary_exists(self);
-        InfoCommand.run(&binary_path)
+        InfoCommand { crs_path: self.crs_directory() }.run(&binary_path)
     }
 
     pub fn prove(

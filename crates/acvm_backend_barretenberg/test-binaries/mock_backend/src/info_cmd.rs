@@ -24,7 +24,10 @@ const INFO_RESPONSE: &str = r#"{
 }"#;
 
 #[derive(Debug, Clone, Args)]
-pub(crate) struct InfoCommand;
+pub(crate) struct InfoCommand {
+    #[clap(short = 'c')]
+    pub(crate) crs_path: Option<PathBuf>,
+}
 
 pub(crate) fn run(_args: InfoCommand) {
     std::io::stdout().write_all(INFO_RESPONSE.as_bytes()).unwrap();
