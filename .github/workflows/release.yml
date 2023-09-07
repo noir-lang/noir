@@ -11,6 +11,7 @@ jobs:
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
+      source-resolver-released: ${{ steps.release.outputs.crates/source-resolver--release_created }}
     runs-on: ubuntu-latest
     steps:
       - name: Run release-please
