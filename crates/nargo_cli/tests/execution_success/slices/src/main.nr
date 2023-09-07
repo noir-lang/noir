@@ -102,6 +102,18 @@ fn merge_slices_if(x: Field, y: Field) {
     let slice = merge_slices_mutate_in_loop(x, y);
     assert(slice[6] == 4);
     assert(slice.len() == 7);
+
+    let slice = merge_slices_mutate_two_ifs(x, y);
+    assert(slice.len() == 6);
+    assert(slice[3] == 5);
+    assert(slice[4] == 15);
+    assert(slice[5] == 30);
+
+    let slice = merge_slices_mutate_between_ifs(x, y);
+    assert(slice.len() == 6);
+    assert(slice[3] == 5);
+    assert(slice[4] == 30);
+    assert(slice[5] == 15);
 }
 
 fn merge_slices_else(x: Field) {
@@ -155,5 +167,47 @@ fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(x);
     }
+    slice
+}
+
+fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+    if x == 20 {
+        slice = slice.push_back(20);
+    } else {
+        slice = slice.push_back(15);
+    }
+    // TODO(#2599): Breaks if the push back happens without the else case
+    // slice = slice.push_back(15);
+    slice = slice.push_back(30);
+    
+    slice
+}
+
+fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+
+    slice = slice.push_back(30);
+
+    if x == 20 {
+        slice = slice.push_back(20);
+    } else {
+        slice = slice.push_back(15);
+    }
+    // TODO(#2599): Breaks if the push back happens without the else case
+    // slice = slice.push_back(15);
+
     slice
 }
