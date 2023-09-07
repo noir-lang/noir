@@ -35,10 +35,10 @@ const tests = [
     {
         case: "crates/nargo_cli/tests/execution_success/1_mul"
     },
-    // Below failes
-    // {
-    //     case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
-    // }
+    // Below fails
+    {
+        case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
+    }
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
