@@ -365,7 +365,6 @@ impl<'interner> TypeChecker<'interner> {
     /// call object to its base value type T.
     fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
         if let Type::MutableReference(element) = typ {
-            // If that didn't work, then wrap the whole expression in an `&mut`
             let location = self.interner.id_location(object);
 
             let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
