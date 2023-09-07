@@ -532,7 +532,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next().unwrap().unwrap();
-        assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::ShouldFail)));
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith { reason: None }))
+        );
     }
 
     #[test]
@@ -543,7 +546,9 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith("hello".to_owned())))
+            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith {
+                reason: Some("hello".to_owned())
+            }))
         );
     }
 

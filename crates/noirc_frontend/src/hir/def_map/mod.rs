@@ -254,7 +254,7 @@ impl TestFunction {
     /// or `#[test(should_fail_with = "reason")]`
     pub fn should_fail(&self) -> bool {
         match self.scope {
-            TestScope::ShouldFail | TestScope::ShouldFailWith(_) => true,
+            TestScope::ShouldFailWith { .. } => true,
             TestScope::None => false,
         }
     }
@@ -263,8 +263,8 @@ impl TestFunction {
     /// by the user.
     pub fn failure_reason(&self) -> Option<&str> {
         match &self.scope {
-            TestScope::ShouldFail | TestScope::None => None,
-            TestScope::ShouldFailWith(contents) => Some(&contents),
+            TestScope::None => None,
+            TestScope::ShouldFailWith { reason } => reason.as_deref(),
         }
     }
 }
