@@ -38,7 +38,16 @@ impl Ssa {
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            let abort_on_error = function.runtime() == RuntimeType::Acir;
+            let function_runtime = function.runtime();
+            if function_runtime == RuntimeType::Brillig {
+                // Brillig can encode loops like any normal programming language
+                // so we don't need to unroll loops.
+                continue;
+            }
+
+            // We abort on error if the runtime is Acir, because ACIR does not
+            // know how to handle loops even with constant bounds.
+            let abort_on_error = function_runtime == RuntimeType::Acir;
             find_all_loops(function).unroll_each_loop(function, abort_on_error)?;
         }
         Ok(self)
