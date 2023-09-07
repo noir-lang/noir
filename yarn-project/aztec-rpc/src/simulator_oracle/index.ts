@@ -11,8 +11,8 @@ import {
   EthAddress,
   Fr,
   FunctionSelector,
+  GrumpkinPrivateKey,
   HistoricBlockData,
-  PrivateKey,
   PublicKey,
 } from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
@@ -33,7 +33,7 @@ export class SimulatorOracle implements DBOracle {
     private dataTreeProvider: DataCommitmentProvider,
   ) {}
 
-  getSecretKey(_contractAddress: AztecAddress, pubKey: PublicKey): Promise<PrivateKey> {
+  getSecretKey(_contractAddress: AztecAddress, pubKey: PublicKey): Promise<GrumpkinPrivateKey> {
     return this.keyStore.getAccountPrivateKey(pubKey);
   }
 

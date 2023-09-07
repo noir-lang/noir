@@ -1,7 +1,7 @@
-import { AztecAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
@@ -52,7 +52,7 @@ export class NoteSpendingInfo {
    * @returns The encrypted NoteSpendingInfo object.
    */
   public toEncryptedBuffer(ownerPubKey: PublicKey, curve: Grumpkin): Buffer {
-    const ephPrivKey = PrivateKey.random();
+    const ephPrivKey: GrumpkinPrivateKey = GrumpkinScalar.random();
     return encryptBuffer(this.toBuffer(), ownerPubKey, ephPrivKey, curve);
   }
 
@@ -63,7 +63,11 @@ export class NoteSpendingInfo {
    * @param curve - The curve instance to use.
    * @returns Instance of NoteSpendingInfo if the decryption was successful, undefined otherwise.
    */
-  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: PrivateKey, curve: Grumpkin): NoteSpendingInfo | undefined {
+  static fromEncryptedBuffer(
+    data: Buffer,
+    ownerPrivKey: GrumpkinPrivateKey,
+    curve: Grumpkin,
+  ): NoteSpendingInfo | undefined {
     const buf = decryptBuffer(data, ownerPrivKey, curve);
     if (!buf) {
       return;

@@ -475,8 +475,8 @@ TEST_F(base_rollup_tests, native_nullifier_tree_regression)
     DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_nullifier_tree_regression");
 
     // This test runs after some data has already been inserted into the tree
-    // This test will pre-populate the tree with 6 * KERNEL_NEW_NULLILFIERS_LENGTH values (0 item + 6 *
-    // KERNEL_NEW_NULLILFIERS_LENGTH -1 more) simulating that a rollup inserting two random values has already
+    // This test will pre-populate the tree with 6 * KERNEL_NEW_NULLIFIERS_LENGTH values (0 item + 6 *
+    // KERNEL_NEW_NULLIFIERS_LENGTH -1 more) simulating that a rollup inserting two random values has already
     // succeeded. Note that this corresponds to 3 (1 already initialized and 2 new ones) base rollups. This rollup then
     // adds two further random values that will end up having their low nullifiers point at each other
     std::vector<fr> initial_values(6 * MAX_NEW_NULLIFIERS_PER_TX - 1, 0);

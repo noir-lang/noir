@@ -1,4 +1,4 @@
-import { CircuitsWasm, PrivateKey } from '@aztec/circuits.js';
+import { CircuitsWasm, GrumpkinPrivateKey } from '@aztec/circuits.js';
 import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -37,7 +37,7 @@ export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bb
  * @param grumpkin - The grumpkin instance.
  * @returns The public key.
  */
-export function toPublicKey(privateKey: PrivateKey, grumpkin: Grumpkin): NoirPoint {
+export function toPublicKey(privateKey: GrumpkinPrivateKey, grumpkin: Grumpkin): NoirPoint {
   const point = grumpkin.mul(Grumpkin.generator, privateKey);
   return {
     x: point.x.value,

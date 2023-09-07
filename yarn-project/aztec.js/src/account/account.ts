@@ -1,5 +1,5 @@
 import { Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { AztecRPC, CompleteAddress, PrivateKey } from '@aztec/types';
+import { AztecRPC, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
 import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../index.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
@@ -19,7 +19,7 @@ export class Account {
 
   constructor(
     private rpc: AztecRPC,
-    private encryptionPrivateKey: PrivateKey,
+    private encryptionPrivateKey: GrumpkinPrivateKey,
     private accountContract: AccountContract,
     saltOrAddress?: Salt | CompleteAddress,
   ) {

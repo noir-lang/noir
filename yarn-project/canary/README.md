@@ -10,6 +10,6 @@ To build and execute the test:
 
 `export FORK_BLOCK_NUMBER=17514288`
 `export FORK_URL='https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c'`
-`docker build --build-arg COMMIT_TAG=<verion of deployed artifacts on npm> .`
+`docker build --build-arg COMMIT_TAG=<version of deployed artifacts on npm> .`
 `cd ./scripts`
 `docker-compose up`

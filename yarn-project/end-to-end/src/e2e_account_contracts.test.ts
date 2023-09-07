@@ -12,17 +12,19 @@ import {
   SingleKeyAccountContract,
   Wallet,
 } from '@aztec/aztec.js';
-import { CompleteAddress, PrivateKey } from '@aztec/circuits.js';
+import { CompleteAddress, GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract } from '@aztec/noir-contracts/types';
+
+import { randomBytes } from 'crypto';
 
 import { setup } from './fixtures/utils.js';
 
 function itShouldBehaveLikeAnAccountContract(
-  getAccountContract: (encryptionKey: PrivateKey) => AccountContract,
+  getAccountContract: (encryptionKey: GrumpkinPrivateKey) => AccountContract,
   walletSetup: (
     rpc: AztecRPC,
-    encryptionPrivateKey: PrivateKey,
+    encryptionPrivateKey: GrumpkinPrivateKey,
     accountContract: AccountContract,
     address?: CompleteAddress,
   ) => Promise<{ account: Account; wallet: Wallet }>,
@@ -32,11 +34,11 @@ function itShouldBehaveLikeAnAccountContract(
     let child: ChildContract;
     let account: Account;
     let wallet: Wallet;
-    let encryptionPrivateKey: PrivateKey;
+    let encryptionPrivateKey: GrumpkinPrivateKey;
 
     beforeEach(async () => {
       context = await setup(0);
-      encryptionPrivateKey = PrivateKey.random();
+      encryptionPrivateKey = GrumpkinScalar.random();
 
       ({ account, wallet } = await walletSetup(
         context.aztecRpcServer,
@@ -73,7 +75,7 @@ function itShouldBehaveLikeAnAccountContract(
       const { wallet: invalidWallet } = await walletSetup(
         context.aztecRpcServer,
         encryptionPrivateKey,
-        getAccountContract(PrivateKey.random()),
+        getAccountContract(GrumpkinScalar.random()),
         accountAddress,
       );
       const childWithInvalidWallet = await ChildContract.at(child.address, invalidWallet);
@@ -87,7 +89,7 @@ function itShouldBehaveLikeAnAccountContract(
 describe('e2e_account_contracts', () => {
   const base = async (
     rpc: AztecRPC,
-    encryptionPrivateKey: PrivateKey,
+    encryptionPrivateKey: GrumpkinPrivateKey,
     accountContract: AccountContract,
     address?: CompleteAddress,
   ) => {
@@ -98,25 +100,25 @@ describe('e2e_account_contracts', () => {
 
   describe('schnorr single-key account', () => {
     itShouldBehaveLikeAnAccountContract(
-      (encryptionKey: PrivateKey) => new SingleKeyAccountContract(encryptionKey),
+      (encryptionKey: GrumpkinPrivateKey) => new SingleKeyAccountContract(encryptionKey),
       base,
     );
   });
 
   describe('schnorr multi-key account', () => {
-    itShouldBehaveLikeAnAccountContract(() => new SchnorrAccountContract(PrivateKey.random()), base);
+    itShouldBehaveLikeAnAccountContract(() => new SchnorrAccountContract(GrumpkinScalar.random()), base);
   });
 
   describe('ecdsa stored-key account', () => {
-    itShouldBehaveLikeAnAccountContract(() => new EcdsaAccountContract(PrivateKey.random()), base);
+    itShouldBehaveLikeAnAccountContract(() => new EcdsaAccountContract(randomBytes(32)), base);
   });
 
   describe('eip single-key account', () => {
     itShouldBehaveLikeAnAccountContract(
-      (encryptionKey: PrivateKey) => new AuthWitnessAccountContract(encryptionKey),
+      (encryptionKey: GrumpkinPrivateKey) => new AuthWitnessAccountContract(encryptionKey),
       async (
         rpc: AztecRPC,
-        encryptionPrivateKey: PrivateKey,
+        encryptionPrivateKey: GrumpkinPrivateKey,
         accountContract: AccountContract,
         address?: CompleteAddress,
       ) => {

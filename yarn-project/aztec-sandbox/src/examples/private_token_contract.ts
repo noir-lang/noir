@@ -1,11 +1,19 @@
-import { AztecAddress, Contract, Fr, PrivateKey, Wallet, createAccounts, createAztecRpcClient } from '@aztec/aztec.js';
+import {
+  AztecAddress,
+  Contract,
+  Fr,
+  GrumpkinScalar,
+  Wallet,
+  createAccounts,
+  createAztecRpcClient,
+} from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 
-export const privateKey = PrivateKey.fromString('ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+export const privateKey = GrumpkinScalar.fromString('ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
 
 const url = 'http://localhost:8080';
 

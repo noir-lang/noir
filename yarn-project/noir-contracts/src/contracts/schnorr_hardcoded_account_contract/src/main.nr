@@ -1,8 +1,8 @@
 // docs:start:contract
 // Account contract that uses Schnorr signatures for authentication using a hardcoded public key.
 contract SchnorrHardcodedAccount {
-    global public_key_x: Field = 0x077a724f70dfb200eae8951b27aebb5c97629eb03224b397b109d09509f978a4;
-    global public_key_y: Field = 0x0f0aad1ece7d55d177d4b44fd28f53bfdc0978be15939ce8762f71db88f37774;
+    global public_key_x: Field = 0x0ede3d33c920df8fdf43f3e39ed38b0882c25b056620ef52fd016fe811aa2443;
+    global public_key_y: Field = 0x29155934ffaa105323695b5f91faadd84acc21f4a8bda2fad760f992d692bc7f;
 
     use dep::std;
     use dep::aztec::{

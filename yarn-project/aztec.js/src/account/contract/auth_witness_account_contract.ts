@@ -1,6 +1,6 @@
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { CompleteAddress, NodeInfo, PrivateKey } from '@aztec/types';
+import { CompleteAddress, GrumpkinPrivateKey, NodeInfo } from '@aztec/types';
 
 import AuthWitnessAccountContractAbi from '../../abis/schnorr_auth_witness_account_contract.json' assert { type: 'json' };
 import { AuthWitnessAccountEntrypoint } from '../entrypoint/auth_witness_account_entrypoint.js';
@@ -12,7 +12,7 @@ import { AccountContract } from './index.js';
  * Extended to pull verification data from the oracle instead of passed as arguments.
  */
 export class AuthWitnessAccountContract implements AccountContract {
-  constructor(private encryptionPrivateKey: PrivateKey) {}
+  constructor(private encryptionPrivateKey: GrumpkinPrivateKey) {}
 
   public getDeploymentArgs() {
     return Promise.resolve([]);

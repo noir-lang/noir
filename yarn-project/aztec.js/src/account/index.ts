@@ -1,4 +1,4 @@
-import { AztecRPC, CompleteAddress, PrivateKey } from '@aztec/types';
+import { AztecRPC, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
 import { AccountContract, AccountWallet, AztecAddress, Fr } from '../index.js';
 import { Account } from './account.js';
@@ -23,8 +23,8 @@ export type Salt = Fr | number | bigint;
  */
 export function getEcdsaAccount(
   rpc: AztecRPC,
-  encryptionPrivateKey: PrivateKey,
-  signingPrivateKey: PrivateKey,
+  encryptionPrivateKey: GrumpkinPrivateKey,
+  signingPrivateKey: Buffer,
   saltOrAddress?: Salt | CompleteAddress,
 ): Account {
   return new Account(rpc, encryptionPrivateKey, new EcdsaAccountContract(signingPrivateKey), saltOrAddress);
@@ -39,8 +39,8 @@ export function getEcdsaAccount(
  */
 export function getSchnorrAccount(
   rpc: AztecRPC,
-  encryptionPrivateKey: PrivateKey,
-  signingPrivateKey: PrivateKey,
+  encryptionPrivateKey: GrumpkinPrivateKey,
+  signingPrivateKey: GrumpkinPrivateKey,
   saltOrAddress?: Salt | CompleteAddress,
 ): Account {
   return new Account(rpc, encryptionPrivateKey, new SchnorrAccountContract(signingPrivateKey), saltOrAddress);
@@ -54,7 +54,7 @@ export function getSchnorrAccount(
  */
 export function getUnsafeSchnorrAccount(
   rpc: AztecRPC,
-  encryptionAndSigningPrivateKey: PrivateKey,
+  encryptionAndSigningPrivateKey: GrumpkinPrivateKey,
   saltOrAddress?: Salt | CompleteAddress,
 ): Account {
   return new Account(
@@ -75,7 +75,7 @@ export function getUnsafeSchnorrAccount(
 export function getUnsafeSchnorrWallet(
   rpc: AztecRPC,
   address: AztecAddress,
-  signingKey: PrivateKey,
+  signingKey: GrumpkinPrivateKey,
 ): Promise<AccountWallet> {
   return getWallet(rpc, address, new SingleKeyAccountContract(signingKey));
 }

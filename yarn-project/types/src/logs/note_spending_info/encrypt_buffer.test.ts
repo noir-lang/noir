@@ -1,4 +1,4 @@
-import { CircuitsWasm, PrivateKey } from '@aztec/circuits.js';
+import { CircuitsWasm, GrumpkinScalar } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 
@@ -12,9 +12,9 @@ describe('encrypt buffer', () => {
   });
 
   it('derive shared secret', () => {
-    const ownerPrivKey = PrivateKey.random();
+    const ownerPrivKey = GrumpkinScalar.random();
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
-    const ephPrivKey = PrivateKey.random();
+    const ephPrivKey = GrumpkinScalar.random();
     const ephPubKey = grumpkin.mul(Grumpkin.generator, ephPrivKey);
 
     const secretBySender = deriveAESSecret(ownerPubKey, ephPrivKey, grumpkin);
@@ -24,9 +24,9 @@ describe('encrypt buffer', () => {
 
   it('convert to and from encrypted buffer', () => {
     const data = randomBytes(253);
-    const ownerPrivKey = PrivateKey.random();
+    const ownerPrivKey = GrumpkinScalar.random();
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
-    const ephPrivKey = PrivateKey.random();
+    const ephPrivKey = GrumpkinScalar.random();
     const encrypted = encryptBuffer(data, ownerPubKey, ephPrivKey, grumpkin);
     const decrypted = decryptBuffer(encrypted, ownerPrivKey, grumpkin);
     expect(decrypted).not.toBeUndefined();
@@ -35,8 +35,8 @@ describe('encrypt buffer', () => {
 
   it('decrypting gibberish returns undefined', () => {
     const data = randomBytes(253);
-    const ownerPrivKey = PrivateKey.random();
-    const ephPrivKey = PrivateKey.random();
+    const ownerPrivKey = GrumpkinScalar.random();
+    const ephPrivKey = GrumpkinScalar.random();
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
     const encrypted = encryptBuffer(data, ownerPubKey, ephPrivKey, grumpkin);
 

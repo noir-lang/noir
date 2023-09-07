@@ -1,7 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
-import { PrivateKey } from '@aztec/circuits.js';
 import { deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
@@ -67,7 +66,7 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   const privKey = hdAccount.getHdKey().privateKey;
 
   const l1Contracts = await waitThenDeploy(aztecNodeConfig.rpcUrl, hdAccount);
-  aztecNodeConfig.publisherPrivateKey = new PrivateKey(Buffer.from(privKey!));
+  aztecNodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
   aztecNodeConfig.rollupContract = l1Contracts.rollupAddress;
   aztecNodeConfig.contractDeploymentEmitterContract = l1Contracts.contractDeploymentEmitterAddress;
   aztecNodeConfig.inboxContract = l1Contracts.inboxAddress;

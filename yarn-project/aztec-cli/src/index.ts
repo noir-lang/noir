@@ -3,6 +3,7 @@ import {
   Contract,
   ContractDeployer,
   Fr,
+  GrumpkinScalar,
   Point,
   generatePublicKey,
   getAccountWallets,
@@ -15,7 +16,7 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { compileContract } from '@aztec/noir-compiler/cli';
 import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/artifacts';
-import { CompleteAddress, ContractData, L2BlockL2Logs, PrivateKey, TxHash } from '@aztec/types';
+import { CompleteAddress, ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
@@ -94,7 +95,10 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
   program
     .command('generate-private-key')
-    .description('Generates a 32-byte private key.')
+    .summary('Generates an encryption private key.')
+    .description(
+      'Generates a private key which fits into the scalar field used by Grumpkin curve, can be used as an encryption private key.',
+    )
     .option(
       '-m, --mnemonic',
       'An optional mnemonic string used for the private key generation. If not provided, random private key will be generated.',
@@ -104,11 +108,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       let publicKey;
       if (options.mnemonic) {
         const acc = mnemonicToAccount(options.mnemonic);
-        const key = Buffer.from(acc.getHdKey().privateKey!);
-        privKey = key.toString('hex');
-        publicKey = await generatePublicKey(new PrivateKey(key));
+        // TODO(#2052): This reduction is not secure enough. TACKLE THIS ISSUE BEFORE MAINNET.
+        const key = GrumpkinScalar.fromBufferWithReduction(Buffer.from(acc.getHdKey().privateKey!));
+        publicKey = await generatePublicKey(key);
       } else {
-        const key = PrivateKey.random();
+        const key = GrumpkinScalar.random();
         privKey = key.toString();
         publicKey = await generatePublicKey(key);
       }
@@ -130,8 +134,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .action(async options => {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const privateKey = options.privateKey
-        ? PrivateKey.fromString(stripLeadingHex(options.privateKey))
-        : PrivateKey.random();
+        ? GrumpkinScalar.fromString(stripLeadingHex(options.privateKey))
+        : GrumpkinScalar.random();
 
       const account = getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt);
       const wallet = await account.waitDeploy();
@@ -380,7 +384,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         );
       }
 
-      const privateKey = PrivateKey.fromString(stripLeadingHex(options.privateKey));
+      const privateKey = GrumpkinScalar.fromString(stripLeadingHex(options.privateKey));
 
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const wallet = await getAccountWallets(

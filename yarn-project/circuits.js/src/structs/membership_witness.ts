@@ -41,7 +41,7 @@ export class MembershipWitness<N extends number> {
 
   /**
    * Creates a random membership witness. Used for testing purposes.
-   * @param pathSize - Number of fields in the siblin path.
+   * @param pathSize - Number of fields in the sibling path.
    * @returns Random membership witness.
    */
   public static random<N extends number>(pathSize: N) {

@@ -1,4 +1,4 @@
-import { Fr, PrivateKey } from '@aztec/circuits.js';
+import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { sleep } from '@aztec/foundation/sleep';
 
@@ -8,9 +8,9 @@ import SchnorrAccountContractAbi from '../abis/schnorr_account_contract.json' as
 import { AccountWallet, AztecRPC, EntrypointWallet, getAccountWallets, getSchnorrAccount } from '../index.js';
 
 export const INITIAL_SANDBOX_ENCRYPTION_KEYS = [
-  new PrivateKey(Buffer.from('b2803ec899f76f6b2ac011480d24028f1a29587f8a3a92f7ee9d48d8c085c284', 'hex')),
-  new PrivateKey(Buffer.from('6bb46e9a80da2ff7bfff71c2c50eaaa4b15f7ed5ad1ade4261b574ef80b0cdb0', 'hex')),
-  new PrivateKey(Buffer.from('0f6addf0da06c33293df974a565b03d1ab096090d907d98055a8b7f4954e120c', 'hex')),
+  GrumpkinScalar.fromString('2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281'),
+  GrumpkinScalar.fromString('aebd1b4be76efa44f5ee655c20bf9ea60f7ae44b9a7fd1fd9f189c7a0b0cdae'),
+  GrumpkinScalar.fromString('0f6addf0da06c33293df974a565b03d1ab096090d907d98055a8b7f4954e120c'),
 ];
 
 export const INITIAL_SANDBOX_SIGNING_KEYS = INITIAL_SANDBOX_ENCRYPTION_KEYS;

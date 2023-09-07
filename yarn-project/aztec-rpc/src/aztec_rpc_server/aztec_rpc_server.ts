@@ -10,10 +10,10 @@ import {
   CompleteAddress,
   EthAddress,
   FunctionData,
+  GrumpkinPrivateKey,
   KernelCircuitPublicInputsFinal,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PartialAddress,
-  PrivateKey,
   PublicCallRequest,
 } from '@aztec/circuits.js';
 import { encodeArguments } from '@aztec/foundation/abi';
@@ -104,7 +104,7 @@ export class AztecRPCServer implements AztecRPC {
     this.log.info('Stopped');
   }
 
-  public async registerAccount(privKey: PrivateKey, partialAddress: PartialAddress) {
+  public async registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress) {
     const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(privKey, partialAddress);
     const wasAdded = await this.db.addCompleteAddress(completeAddress);
     if (wasAdded) {

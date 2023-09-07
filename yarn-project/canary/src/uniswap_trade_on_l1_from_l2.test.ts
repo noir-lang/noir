@@ -2,7 +2,6 @@ import {
   AztecAddress,
   EthAddress,
   Fr,
-  PrivateKey,
   TxStatus,
   Wallet,
   computeMessageSecretHash,
@@ -51,7 +50,6 @@ const aztecRpcUrl = SANDBOX_URL;
 const ethRpcUrl = ETHEREUM_HOST;
 
 const hdAccount = mnemonicToAccount(MNEMONIC);
-const privateKey = new PrivateKey(Buffer.from(hdAccount.getHdKey().privateKey!));
 
 const aztecRpcClient = createAztecRpcClient(aztecRpcUrl, makeFetch([1, 2, 3], true));
 let wallet: Wallet;

@@ -54,7 +54,8 @@ impl CardNote {
         let secret = get_secret_key(self.owner);
         dep::std::hash::pedersen([
             note_hash_for_nullify,
-            secret,
+            secret.high,
+            secret.low,
         ])[0]
     }
 

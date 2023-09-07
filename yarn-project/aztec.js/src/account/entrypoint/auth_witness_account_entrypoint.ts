@@ -1,5 +1,5 @@
-import { AztecAddress, Fr, FunctionData, PartialAddress, PrivateKey, TxContext } from '@aztec/circuits.js';
-import { Signer } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, Fr, FunctionData, GrumpkinPrivateKey, PartialAddress, TxContext } from '@aztec/circuits.js';
+import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
 
@@ -19,8 +19,8 @@ export class AuthWitnessAccountEntrypoint implements Entrypoint {
   constructor(
     private address: AztecAddress,
     private partialAddress: PartialAddress,
-    private privateKey: PrivateKey,
-    private signer: Signer,
+    private privateKey: GrumpkinPrivateKey,
+    private signer: Schnorr,
     private chainId: number = DEFAULT_CHAIN_ID,
     private version: number = DEFAULT_VERSION,
   ) {}

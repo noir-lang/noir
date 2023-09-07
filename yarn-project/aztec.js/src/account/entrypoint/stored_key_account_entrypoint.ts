@@ -1,5 +1,5 @@
-import { AztecAddress, FunctionData, PrivateKey, TxContext } from '@aztec/circuits.js';
-import { Signer } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
+import { Signature } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments } from '@aztec/foundation/abi';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
@@ -18,8 +18,7 @@ export class StoredKeyAccountEntrypoint implements Entrypoint {
 
   constructor(
     private address: AztecAddress,
-    private privateKey: PrivateKey,
-    private signer: Signer,
+    private sign: (msg: Buffer) => Signature,
     private chainId: number = DEFAULT_CHAIN_ID,
     private version: number = DEFAULT_VERSION,
   ) {
@@ -36,7 +35,7 @@ export class StoredKeyAccountEntrypoint implements Entrypoint {
 
     const { payload, packedArguments: callsPackedArguments } = await buildPayload(executions);
     const message = await hashPayload(payload);
-    const signature = this.signer.constructSignature(message, this.privateKey).toBuffer();
+    const signature = this.sign(message).toBuffer();
     this.log(`Signed challenge ${message.toString('hex')} as ${signature.toString('hex')}`);
 
     const args = [payload, signature];

@@ -5,14 +5,14 @@ set -eu
 
 export TEST=$1
 export IMAGE=${2:-canary}
-export COMPOSE_FILE=${3:-docker-compose.yml}
+export COMPOSE_FILE=${3:-./scripts/docker-compose.yml}
 
 if [ "$TEST" = "uniswap_trade_on_l1_from_l2.test.ts" ]; then
   export FORK_URL=https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c
   export FORK_BLOCK_NUMBER=17514288
 fi
 
-$(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
+aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com
 
 IMAGE_URI=$($(git rev-parse --show-toplevel)/build-system/scripts/calculate_image_uri $IMAGE)
 docker pull $IMAGE_URI
@@ -22,5 +22,5 @@ SANDBOX_IMAGE_URI=$($(git rev-parse --show-toplevel)/build-system/scripts/calcul
 docker pull $SANDBOX_IMAGE_URI
 docker tag $SANDBOX_IMAGE_URI aztecprotocol/sandbox:latest
 
-docker-compose rm -f
+docker-compose -f $COMPOSE_FILE rm -f
 docker-compose -f $COMPOSE_FILE up --exit-code-from canary

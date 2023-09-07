@@ -1,7 +1,6 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
 
-import { CircuitsWasm, PrivateKey } from '../../../index.js';
-import { Signer } from '../index.js';
+import { CircuitsWasm } from '../../../index.js';
 import { EcdsaSignature } from './signature.js';
 
 export * from './signature.js';
@@ -9,7 +8,7 @@ export * from './signature.js';
 /**
  * ECDSA signature construction and helper operations.
  */
-export class Ecdsa implements Signer {
+export class Ecdsa {
   /**
    * Creates a new Ecdsa instance.
    * @returns New Ecdsa instance.
@@ -25,8 +24,8 @@ export class Ecdsa implements Signer {
    * @param privateKey - Secp256k1 private key.
    * @returns A secp256k1 public key.
    */
-  public computePublicKey(privateKey: PrivateKey): Buffer {
-    this.wasm.writeMemory(0, privateKey.value);
+  public computePublicKey(privateKey: Buffer): Buffer {
+    this.wasm.writeMemory(0, privateKey);
     this.wasm.call('ecdsa__compute_public_key', 0, 32);
     return Buffer.from(this.wasm.getMemorySlice(32, 96));
   }
@@ -37,9 +36,9 @@ export class Ecdsa implements Signer {
    * @param privateKey - The secp256k1 private key of the signer.
    * @returns An ECDSA signature of the form (r, s, v).
    */
-  public constructSignature(msg: Uint8Array, privateKey: PrivateKey) {
+  public constructSignature(msg: Uint8Array, privateKey: Buffer) {
     const mem = this.wasm.call('bbmalloc', msg.length);
-    this.wasm.writeMemory(0, privateKey.value);
+    this.wasm.writeMemory(0, privateKey);
     this.wasm.writeMemory(mem, msg);
     this.wasm.call('ecdsa__construct_signature', mem, msg.length, 0, 32, 64, 96);
 

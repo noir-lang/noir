@@ -1,5 +1,5 @@
-import { AztecAddress, FunctionData, PartialAddress, PrivateKey, TxContext } from '@aztec/circuits.js';
-import { Signer } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, FunctionData, GrumpkinPrivateKey, PartialAddress, TxContext } from '@aztec/circuits.js';
+import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments } from '@aztec/foundation/abi';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
 
@@ -18,8 +18,7 @@ export class SingleKeyAccountEntrypoint implements Entrypoint {
   constructor(
     private address: AztecAddress,
     private partialAddress: PartialAddress,
-    private privateKey: PrivateKey,
-    private signer: Signer,
+    private privateKey: GrumpkinPrivateKey,
     private chainId: number = DEFAULT_CHAIN_ID,
     private version: number = DEFAULT_VERSION,
   ) {}
@@ -35,7 +34,8 @@ export class SingleKeyAccountEntrypoint implements Entrypoint {
     const { payload, packedArguments: callsPackedArguments } = await buildPayload(executions);
     const message = await hashPayload(payload);
 
-    const signature = this.signer.constructSignature(message, this.privateKey).toBuffer();
+    const signer = await Schnorr.new();
+    const signature = signer.constructSignature(message, this.privateKey).toBuffer();
     const publicKey = await generatePublicKey(this.privateKey);
     const args = [payload, publicKey.toBuffer(), signature, this.partialAddress];
     const abi = this.getEntrypointAbi();

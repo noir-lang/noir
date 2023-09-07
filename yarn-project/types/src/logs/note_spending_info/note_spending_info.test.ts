@@ -1,6 +1,6 @@
-import { CircuitsWasm, PrivateKey } from '@aztec/circuits.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { Point } from '@aztec/foundation/fields';
+import { GrumpkinScalar, Point } from '@aztec/foundation/fields';
 
 import { NoteSpendingInfo } from './note_spending_info.js';
 
@@ -19,7 +19,7 @@ describe('note_spending_info', () => {
 
   it('convert to and from encrypted buffer', () => {
     const noteSpendingInfo = NoteSpendingInfo.random();
-    const ownerPrivKey = PrivateKey.random();
+    const ownerPrivKey = GrumpkinScalar.random();
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerPrivKey);
     const encrypted = noteSpendingInfo.toEncryptedBuffer(ownerPubKey, grumpkin);
     const decrypted = NoteSpendingInfo.fromEncryptedBuffer(encrypted, ownerPrivKey, grumpkin);
@@ -31,7 +31,7 @@ describe('note_spending_info', () => {
     const noteSpendingInfo = NoteSpendingInfo.random();
     const ownerPubKey = Point.random();
     const encrypted = noteSpendingInfo.toEncryptedBuffer(ownerPubKey, grumpkin);
-    const randomPrivKey = PrivateKey.random();
+    const randomPrivKey = GrumpkinScalar.random();
     const decrypted = NoteSpendingInfo.fromEncryptedBuffer(encrypted, randomPrivKey, grumpkin);
     expect(decrypted).toBeUndefined();
   });

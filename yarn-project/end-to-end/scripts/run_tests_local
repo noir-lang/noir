@@ -10,7 +10,7 @@ aws ecr get-login-password --region us-east-2 | docker login --username AWS --pa
 
 BS=$(git rev-parse --show-toplevel)/build-system/scripts
 
-for REPO in end-to-end; do
+for REPO in aztec.js end-to-end aztec-sandbox; do
   docker pull $($BS/calculate_image_uri $REPO)
   docker tag $($BS/calculate_image_uri $REPO) aztecprotocol/$REPO:latest
 done

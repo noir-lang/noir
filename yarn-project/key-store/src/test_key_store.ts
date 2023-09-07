@@ -1,4 +1,4 @@
-import { PrivateKey } from '@aztec/circuits.js';
+import { GrumpkinPrivateKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { KeyPair, KeyStore, PublicKey } from '@aztec/types';
 
@@ -12,7 +12,7 @@ export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
   constructor(private curve: Grumpkin) {}
 
-  public addAccount(privKey: PrivateKey): PublicKey {
+  public addAccount(privKey: GrumpkinPrivateKey): PublicKey {
     const keyPair = ConstantKeyPair.fromPrivateKey(this.curve, privKey);
 
     // check if private key has already been used
@@ -35,7 +35,7 @@ export class TestKeyStore implements KeyStore {
     return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
   }
 
-  public getAccountPrivateKey(pubKey: PublicKey): Promise<PrivateKey> {
+  public getAccountPrivateKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey> {
     const account = this.getAccount(pubKey);
     return account.getPrivateKey();
   }

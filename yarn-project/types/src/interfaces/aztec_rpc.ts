@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr, PartialAddress, PrivateKey } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import {
   CompleteAddress,
@@ -84,7 +84,7 @@ export interface AztecRPC {
    * @returns Empty promise.
    * @throws If the account is already registered.
    */
-  registerAccount(privKey: PrivateKey, partialAddress: PartialAddress): Promise<void>;
+  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void>;
 
   /**
    * Registers recipient in the Aztec RPC server.

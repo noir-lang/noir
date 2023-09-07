@@ -9,7 +9,6 @@ import {
   L1_TO_L2_MSG_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_CALL,
   PRIVATE_DATA_TREE_HEIGHT,
-  PrivateKey,
   PublicCallRequest,
   TxContext,
 } from '@aztec/circuits.js';
@@ -28,7 +27,7 @@ import { asyncMap } from '@aztec/foundation/async-map';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
@@ -66,7 +65,7 @@ describe('Private Execution test suite', () => {
   let logger: DebugLogger;
 
   const defaultContractAddress = AztecAddress.random();
-  const ownerPk = PrivateKey.fromString('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33');
+  const ownerPk = GrumpkinScalar.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
 
   const treeHeights: { [name: string]: number } = {
     privateData: PRIVATE_DATA_TREE_HEIGHT,
@@ -168,7 +167,7 @@ describe('Private Execution test suite', () => {
 
   describe('private token airdrop contract', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = PrivateKey.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
+    const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
     const mockFirstNullifier = new Fr(1111);
     let owner: AztecAddress;
     let recipient: AztecAddress;
@@ -233,7 +232,11 @@ describe('Private Execution test suite', () => {
       const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, note.nonce, siloedNoteHash);
       const innerNullifier = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(circuitsWasm, [uniqueSiloedNoteHash.toBuffer(), ownerPk.value]),
+        pedersenPlookupCommitInputs(circuitsWasm, [
+          uniqueSiloedNoteHash.toBuffer(),
+          ownerPk.high.toBuffer(),
+          ownerPk.low.toBuffer(),
+        ]),
       );
 
       const result = await acirSimulator.computeNoteHashAndNullifier(
@@ -400,7 +403,7 @@ describe('Private Execution test suite', () => {
 
   describe('private token contract', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = PrivateKey.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
+    const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
     const mockFirstNullifier = new Fr(1111);
     let owner: AztecAddress;
     let recipient: AztecAddress;
@@ -465,7 +468,11 @@ describe('Private Execution test suite', () => {
       const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, note.nonce, siloedNoteHash);
       const innerNullifier = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(circuitsWasm, [uniqueSiloedNoteHash.toBuffer(), ownerPk.value]),
+        pedersenPlookupCommitInputs(circuitsWasm, [
+          uniqueSiloedNoteHash.toBuffer(),
+          ownerPk.high.toBuffer(),
+          ownerPk.low.toBuffer(),
+        ]),
       );
 
       const result = await acirSimulator.computeNoteHashAndNullifier(
@@ -680,7 +687,7 @@ describe('Private Execution test suite', () => {
 
   describe('consuming messages', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = PrivateKey.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
+    const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
 
     let recipient: AztecAddress;
 

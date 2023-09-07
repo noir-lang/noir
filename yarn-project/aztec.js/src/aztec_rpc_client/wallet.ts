@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, Fr, PartialAddress, PrivateKey, TxContext } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, Fr, GrumpkinPrivateKey, PartialAddress, TxContext } from '@aztec/circuits.js';
 import {
   AztecRPC,
   ContractData,
@@ -32,7 +32,7 @@ export abstract class BaseWallet implements Wallet {
 
   abstract createTxExecutionRequest(execs: FunctionCall[], opts?: CreateTxRequestOpts): Promise<TxExecutionRequest>;
 
-  registerAccount(privKey: PrivateKey, partialAddress: PartialAddress): Promise<void> {
+  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void> {
     return this.rpc.registerAccount(privKey, partialAddress);
   }
   registerRecipient(account: CompleteAddress): Promise<void> {

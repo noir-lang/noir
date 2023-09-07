@@ -6,7 +6,7 @@ export * from './account/index.js';
 export * from './contract_deployer/deploy_method.js';
 export * from './sandbox/index.js';
 
-export { AztecAddress, EthAddress, Point, Fr } from '@aztec/circuits.js';
+export { AztecAddress, EthAddress, Point, Fr, GrumpkinScalar } from '@aztec/circuits.js';
 export {
   AztecRPC,
   ContractData,
@@ -17,7 +17,7 @@ export {
   NodeInfo,
   PackedArguments,
   PublicKey,
-  PrivateKey,
+  GrumpkinPrivateKey,
   SyncStatus,
   Tx,
   TxExecutionRequest,

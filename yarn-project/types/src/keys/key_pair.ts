@@ -1,4 +1,4 @@
-import { PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a cryptographic public-private key pair.
@@ -16,5 +16,5 @@ export interface KeyPair {
    * The function returns a Promise that resolves to a Buffer containing the private key.
    * @returns A Promise that resolves to a Buffer containing the private key.
    */
-  getPrivateKey(): Promise<PrivateKey>;
+  getPrivateKey(): Promise<GrumpkinPrivateKey>;
 }

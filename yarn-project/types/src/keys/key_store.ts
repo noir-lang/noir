@@ -1,4 +1,4 @@
-import { PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.
@@ -18,7 +18,7 @@ export interface KeyStore {
    * @param privKey - The private key of the account.
    * @returns - The account's public key.
    */
-  addAccount(privKey: PrivateKey): PublicKey;
+  addAccount(privKey: GrumpkinPrivateKey): PublicKey;
 
   /**
    * Retrieves the public keys of all accounts stored.
@@ -35,5 +35,5 @@ export interface KeyStore {
    * @returns A Promise that resolves to a Buffer containing the private key.
    * @deprecated We should not require a keystore to expose private keys in plain.
    */
-  getAccountPrivateKey(pubKey: PublicKey): Promise<PrivateKey>;
+  getAccountPrivateKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey>;
 }

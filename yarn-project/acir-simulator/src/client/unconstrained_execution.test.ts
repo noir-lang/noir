@@ -1,8 +1,8 @@
-import { CompleteAddress, FunctionData, HistoricBlockData, PrivateKey } from '@aztec/circuits.js';
+import { CompleteAddress, FunctionData, HistoricBlockData } from '@aztec/circuits.js';
 import { FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { PrivateTokenContractAbi } from '@aztec/noir-contracts/artifacts';
 import { FunctionCall } from '@aztec/types';
 
@@ -21,7 +21,7 @@ describe('Unconstrained Execution test suite', () => {
   });
 
   describe('private token contract', () => {
-    const ownerPk = PrivateKey.fromString('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33');
+    const ownerPk = GrumpkinScalar.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
 
     let owner: AztecAddress;
 

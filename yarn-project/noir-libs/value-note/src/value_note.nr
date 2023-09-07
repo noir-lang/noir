@@ -61,7 +61,8 @@ impl ValueNote {
         // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             note_hash_for_nullify,
-            secret,
+            secret.high,
+            secret.low,
         ])[0]
     }
 

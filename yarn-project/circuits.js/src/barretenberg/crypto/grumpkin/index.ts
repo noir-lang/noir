@@ -1,6 +1,6 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
 
-import { CircuitsWasm, Fr, Point, PrivateKey } from '../../../index.js';
+import { CircuitsWasm, Fr, GrumpkinScalar, Point } from '../../../index.js';
 
 /**
  * Grumpkin elliptic curve operations.
@@ -33,32 +33,32 @@ export class Grumpkin {
   }
 
   /**
-   * Multiplies a point by a private key (adds the point `privateKey` amount of time).
+   * Multiplies a point by a scalar (adds the point `scalar` amount of times).
    * @param point - Point to multiply.
-   * @param privateKey - Private key to multiply by.
+   * @param scalar - Scalar to multiply by.
    * @returns Result of the multiplication.
    */
-  public mul(point: Point, privateKey: PrivateKey): Point {
+  public mul(point: Point, scalar: GrumpkinScalar): Point {
     this.wasm.writeMemory(0, point.toBuffer());
-    this.wasm.writeMemory(64, privateKey.value);
+    this.wasm.writeMemory(64, scalar.toBuffer());
     this.wasm.call('ecc_grumpkin__mul', 0, 64, 96);
     return Point.fromBuffer(Buffer.from(this.wasm.getMemorySlice(96, 160)));
   }
 
   /**
-   * Multiplies a set of points by a private key.
+   * Multiplies a set of points by a scalar.
    * @param points - Points to multiply.
-   * @param privateKey - Private key to multiply by.
-   * @returns Points multiplied by the private key.
+   * @param scalar - Scalar to multiply by.
+   * @returns Points multiplied by the scalar.
    */
-  public batchMul(points: Point[], privateKey: PrivateKey) {
+  public batchMul(points: Point[], scalar: GrumpkinScalar) {
     const concatenatedPoints: Buffer = Buffer.concat(points.map(point => point.toBuffer()));
     const pointsByteLength = points.length * Point.SIZE_IN_BYTES;
 
     const mem = this.wasm.call('bbmalloc', pointsByteLength * 2);
 
     this.wasm.writeMemory(mem, concatenatedPoints);
-    this.wasm.writeMemory(0, privateKey.value);
+    this.wasm.writeMemory(0, scalar.toBuffer());
     this.wasm.call('ecc_grumpkin__batch_mul', mem, 0, points.length, mem + pointsByteLength);
 
     const result: Buffer = Buffer.from(

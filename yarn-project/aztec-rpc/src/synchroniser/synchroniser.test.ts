@@ -1,4 +1,4 @@
-import { CompleteAddress, Fr, HistoricBlockData, PrivateKey } from '@aztec/circuits.js';
+import { CompleteAddress, Fr, GrumpkinScalar, HistoricBlockData } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestKeyStore } from '@aztec/key-store';
 import { AztecNode, L2Block, MerkleTreeId } from '@aztec/types';
@@ -103,7 +103,7 @@ describe('Synchroniser', () => {
 
     // Manually adding account to database so that we can call synchroniser.isAccountStateSynchronised
     const keyStore = new TestKeyStore(await Grumpkin.new());
-    const privateKey = PrivateKey.random();
+    const privateKey = GrumpkinScalar.random();
     keyStore.addAccount(privateKey);
     const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, Fr.random());
     await database.addCompleteAddress(completeAddress);

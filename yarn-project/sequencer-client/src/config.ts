@@ -1,4 +1,3 @@
-import { PrivateKey } from '@aztec/circuits.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
 import { GlobalReaderConfig } from './global_variable_builder/index.js';
@@ -30,6 +29,12 @@ export function getConfigEnvVars(): SequencerClientConfig {
     CONTRACT_DEPLOYMENT_EMITTER_ADDRESS,
   } = process.env;
 
+  const publisherPrivateKey: `0x${string}` = `0x${
+    SEQ_PUBLISHER_PRIVATE_KEY
+      ? SEQ_PUBLISHER_PRIVATE_KEY.replace('0x', '')
+      : '0000000000000000000000000000000000000000000000000000000000000000'
+  }`;
+
   return {
     rpcUrl: ETHEREUM_HOST ? ETHEREUM_HOST : '',
     chainId: CHAIN_ID ? +CHAIN_ID : 31337, // 31337 is the default chain id for anvil
@@ -43,9 +48,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     contractDeploymentEmitterContract: CONTRACT_DEPLOYMENT_EMITTER_ADDRESS
       ? EthAddress.fromString(CONTRACT_DEPLOYMENT_EMITTER_ADDRESS)
       : EthAddress.ZERO,
-    publisherPrivateKey: SEQ_PUBLISHER_PRIVATE_KEY
-      ? PrivateKey.fromString(SEQ_PUBLISHER_PRIVATE_KEY)
-      : new PrivateKey(Buffer.alloc(32)),
+    publisherPrivateKey,
     maxTxsPerBlock: SEQ_MAX_TX_PER_BLOCK ? +SEQ_MAX_TX_PER_BLOCK : 32,
     minTxsPerBlock: SEQ_MIN_TX_PER_BLOCK ? +SEQ_MIN_TX_PER_BLOCK : 1,
   };

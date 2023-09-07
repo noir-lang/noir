@@ -4,7 +4,6 @@
 // docs:start:imports
 import {
   AztecRPC,
-  PrivateKey,
   createAztecRpcClient,
   createDebugLogger,
   getSchnorrAccount,
@@ -16,6 +15,7 @@ import {
 /* eslint-enable @typescript-eslint/no-unused-vars */
 // Note: this is a hack to make the docs use http://localhost:8080 and CI to use the SANDBOX_URL
 import { createAztecRpcClient as createAztecRpcClient2 } from '@aztec/aztec.js';
+import { GrumpkinScalar } from '@aztec/circuits.js';
 import { defaultFetch } from '@aztec/foundation/json-rpc/client';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 
@@ -58,8 +58,8 @@ describe('e2e_sandbox_example', () => {
         .map(() =>
           getSchnorrAccount(
             aztecRpc,
-            PrivateKey.random(), // encryption private key
-            PrivateKey.random(), // signing private key
+            GrumpkinScalar.random(), // encryption private key
+            GrumpkinScalar.random(), // signing private key
           ),
         );
       return await Promise.all(

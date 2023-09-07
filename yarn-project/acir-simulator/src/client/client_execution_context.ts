@@ -78,12 +78,14 @@ export class ClientTxExecutionContext {
    * @param contractAddress - The contract address.
    * @param ownerX - The x coordinate of the owner's public key.
    * @param ownerY - The y coordinate of the owner's public key.
-   * @returns The secret key of the owner.
+   * @returns The secret key of the owner as a pair of ACVM fields.
    */
   public async getSecretKey(contractAddress: AztecAddress, ownerX: ACVMField, ownerY: ACVMField) {
-    return toACVMField(
-      (await this.db.getSecretKey(contractAddress, new Point(fromACVMField(ownerX), fromACVMField(ownerY)))).value,
+    const secretKey = await this.db.getSecretKey(
+      contractAddress,
+      new Point(fromACVMField(ownerX), fromACVMField(ownerY)),
     );
+    return [toACVMField(secretKey.high), toACVMField(secretKey.low)];
   }
 
   /**

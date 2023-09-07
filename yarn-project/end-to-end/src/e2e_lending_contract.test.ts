@@ -10,7 +10,7 @@ import {
   Fr,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex, PrivateKey } from '@aztec/circuits.js';
+import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex, GrumpkinScalar } from '@aztec/circuits.js';
 import { pedersenPlookupCommitInputs, pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { LendingContract, NativeTokenContract, PriceFeedContract } from '@aztec/noir-contracts/types';
@@ -82,7 +82,7 @@ describe('e2e_lending_contract', () => {
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, logger, cheatCodes: cc } = await setup(0));
 
-    const privateKey = PrivateKey.random();
+    const privateKey = GrumpkinScalar.random();
     const account = new Account(aztecRpcServer, privateKey, new AuthWitnessAccountContract(privateKey));
     const entryPoint = (await account.getEntrypoint()) as unknown as AuthWitnessAccountEntrypoint;
 

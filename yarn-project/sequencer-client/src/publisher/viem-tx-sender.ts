@@ -49,7 +49,7 @@ export class ViemTxSender implements L1PublisherTxSender {
       contractDeploymentEmitterContract: contractDeploymentEmitterContractAddress,
     } = config;
     const chain = createEthereumChain(rpcUrl, apiKey);
-    this.account = privateKeyToAccount(`0x${publisherPrivateKey.toString()}`);
+    this.account = privateKeyToAccount(publisherPrivateKey);
     const walletClient = createWalletClient({
       account: this.account,
       chain: chain.chainInfo,

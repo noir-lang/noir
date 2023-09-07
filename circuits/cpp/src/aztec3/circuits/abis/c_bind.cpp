@@ -185,7 +185,7 @@ WASM_EXPORT void abis__hash_vk(uint8_t const* vk_data_buf, uint8_t* output)
  * @brief Generates a function tree leaf from its preimage.
  * This is a WASM-export that can be called from Typescript.
  *
- * @details given a `uint8_t const*` buffer representing a function leaf's prieimage,
+ * @details given a `uint8_t const*` buffer representing a function leaf's preimage,
  * construct a FunctionLeafPreimage instance, hash, and return the serialized results
  * in the `output` buffer.
  *

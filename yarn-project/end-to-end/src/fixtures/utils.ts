@@ -17,10 +17,10 @@ import {
   getUnsafeSchnorrAccount,
   makeFetch,
 } from '@aztec/aztec.js';
-import { CompleteAddress, PrivateKey } from '@aztec/circuits.js';
+import { CompleteAddress, GrumpkinPrivateKey } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
@@ -130,7 +130,7 @@ const setupL1Contracts = async (l1RpcUrl: string, account: HDAccount, logger: De
 export async function setupAztecRPCServer(
   numberOfAccounts: number,
   aztecNode: AztecNodeService | undefined,
-  firstPrivKey: PrivateKey | null = null,
+  firstPrivKey: GrumpkinPrivateKey | null = null,
   logger = getLogger(),
   useLogSuffix = false,
 ): Promise<{
@@ -162,7 +162,7 @@ export async function setupAztecRPCServer(
 
       // Prepare deployments
       for (let i = 0; i < numberOfAccounts; ++i) {
-        const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : PrivateKey.random();
+        const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : GrumpkinScalar.random();
         const account = getUnsafeSchnorrAccount(aztecRpcServer, privateKey);
         await account.getDeployMethod().then(d => d.simulate({ contractAddressSalt: account.salt }));
         accounts.push(account);
@@ -241,16 +241,24 @@ export async function setup(
 
   const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);
   const privKeyRaw = hdAccount.getHdKey().privateKey;
-  const privKey = privKeyRaw === null ? null : new PrivateKey(Buffer.from(privKeyRaw));
+  const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
+  // TODO(#2052): This reduction is not secure enough. TACKLE THIS ISSUE BEFORE MAINNET.
+  const firstRpcAccountPrivKey =
+    publisherPrivKey === null ? null : GrumpkinScalar.fromBufferWithReduction(publisherPrivKey);
 
-  config.publisherPrivateKey = privKey!;
+  config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   config.rollupContract = deployL1ContractsValues.rollupAddress;
   config.contractDeploymentEmitterContract = deployL1ContractsValues.contractDeploymentEmitterAddress;
   config.inboxContract = deployL1ContractsValues.inboxAddress;
 
   const aztecNode = await createAztecNode(config, logger);
 
-  const { aztecRpcServer, accounts, wallet } = await setupAztecRPCServer(numberOfAccounts, aztecNode, privKey, logger);
+  const { aztecRpcServer, accounts, wallet } = await setupAztecRPCServer(
+    numberOfAccounts,
+    aztecNode,
+    firstRpcAccountPrivKey,
+    logger,
+  );
 
   const cheatCodes = await CheatCodes.create(config.rpcUrl, aztecRpcServer!);
 
