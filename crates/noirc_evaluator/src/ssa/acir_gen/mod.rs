@@ -431,10 +431,7 @@ impl Context {
                             // when the intrinsic returns an array, we initialize it
                             if let AcirValue::Array(elements) = &output {
                                 let block = self.block_id(result);
-                                let mut values = Vec::new();
-                                for element in elements {
-                                    values.push(element.clone());
-                                }
+                                let values = vecmap(elements, |element| element.clone());
                                 self.initialize_array(block, elements.len(), Some(&values))?;
                             }
                             self.ssa_values.insert(*result, output);
