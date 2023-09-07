@@ -120,11 +120,8 @@ impl Backend {
         .run(&binary_path)?;
 
         // Verify the proof
-        let valid_proof =
-            VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
-                .run(&binary_path);
-
-        Ok(valid_proof)
+        VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
+            .run(&binary_path)
     }
 }
 

@@ -28,17 +28,17 @@ impl WriteVkCommand {
             command.arg("-r");
         }
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
         if output.status.success() {
             Ok(())
         } else {
-            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()))
         }
     }
 }
 
 #[test]
-fn write_vk_command() {
+fn write_vk_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
     let backend = crate::get_mock_backend();
@@ -55,7 +55,8 @@ fn write_vk_command() {
     let write_vk_command =
         WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
 
-    let vk_written = write_vk_command.run(&backend.binary_path());
-    assert!(vk_written.is_ok());
+    write_vk_command.run(&backend.binary_path())?;
     drop(temp_directory);
+
+    Ok(())
 }

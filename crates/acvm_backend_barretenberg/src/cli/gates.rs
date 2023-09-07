@@ -22,14 +22,14 @@ impl GatesCommand {
             .expect("Failed to execute command");
 
         if !output.status.success() {
-            return Err(BackendError(String::from_utf8(output.stderr).unwrap()));
+            return Err(BackendError::BinaryError(String::from_utf8(output.stderr).unwrap()));
         }
         // Note: barretenberg includes the newline, so that subsequent prints to stdout
         // are not on the same line as the gates output.
 
         // Ensure we got the expected number of bytes
         if output.stdout.len() != 8 {
-            return Err(BackendError(format!(
+            return Err(BackendError::BinaryError(format!(
                 "Unexpected 8 bytes, received {}",
                 output.stdout.len()
             )));
@@ -52,7 +52,7 @@ impl GatesCommand {
 }
 
 #[test]
-fn gate_command() {
+fn gate_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
     let backend = crate::get_mock_backend();
@@ -66,7 +66,9 @@ fn gate_command() {
 
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
-    let output = gate_command.run(&backend.binary_path()).unwrap();
+    let output = gate_command.run(&backend.binary_path())?;
     // Mock backend always returns zero gates.
     assert_eq!(output, 0);
+
+    Ok(())
 }

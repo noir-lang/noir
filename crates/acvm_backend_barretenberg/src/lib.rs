@@ -80,10 +80,10 @@ impl Backend {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub struct BackendError(String);
+pub enum BackendError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 
-impl std::fmt::Display for BackendError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
+    #[error("{0}")]
+    BinaryError(String),
 }
