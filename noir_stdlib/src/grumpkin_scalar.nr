@@ -5,7 +5,7 @@ struct GrumpkinScalar {
 
 impl GrumpkinScalar {
     fn new(low: Field, high: Field) -> Self {
-        // TODO: max value check
+        // TODO: check that the low and high value fit within the grumpkin modulus
         GrumpkinScalar { low, high }
     }
 }
