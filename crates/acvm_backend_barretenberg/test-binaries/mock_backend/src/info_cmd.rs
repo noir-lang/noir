@@ -28,6 +28,9 @@ const INFO_RESPONSE: &str = r#"{
 pub(crate) struct InfoCommand {
     #[clap(short = 'c')]
     pub(crate) crs_path: Option<PathBuf>,
+
+    #[clap(short = 'o')]
+    pub(crate) info_path: Option<PathBuf>,
 }
 
 pub(crate) fn run(_args: InfoCommand) {
