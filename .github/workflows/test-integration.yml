@@ -109,15 +109,15 @@ jobs:
         if: env.ACT == 'true'
         run: npm install -g yarn
   
-      - name: Install `integration-tests` dependencies
-        working-directory: ./crates/integration-tests
-        run: yarn install
-
       - name: Install `playwright` deps
         working-directory: ./crates/integration-tests
         run: |
           npx playwright install
-          npx playwright install-deps
+        #   npx playwright install-deps
+
+      - name: Install `integration-tests` dependencies
+        working-directory: ./crates/integration-tests
+        run: yarn install
 
       - name: Run `integration-tests`
         working-directory: ./crates/integration-tests
