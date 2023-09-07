@@ -113,7 +113,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         publicKey = await generatePublicKey(key);
       } else {
         const key = GrumpkinScalar.random();
-        privKey = key.toString();
+        privKey = key.toString(true);
         publicKey = await generatePublicKey(key);
       }
       log(`\nPrivate Key: ${privKey}\nPublic Key: ${publicKey.toString()}\n`);
@@ -144,7 +144,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       log(`\nCreated new account:\n`);
       log(`Address:         ${address.toString()}`);
       log(`Public key:      ${publicKey.toString()}`);
-      if (!options.privateKey) log(`Private key:     ${privateKey.toString()}`);
+      if (!options.privateKey) log(`Private key:     ${privateKey.toString(true)}`);
       log(`Partial address: ${partialAddress.toString()}`);
     });
 

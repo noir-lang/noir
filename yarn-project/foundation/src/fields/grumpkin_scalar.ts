@@ -108,10 +108,11 @@ export class GrumpkinScalar {
    * The resulting string is prefixed with '0x' and contains the exact number of hex characters required
    * to represent the numeric value of this instance.
    *
+   * @param padTo32 - Whether to pad the resulting string to 32 bytes.
    * @returns A hexadecimal string representing the GrumpkinScalar value.
    */
-  toString() {
-    return toHex(this.value);
+  toString(padTo32 = false) {
+    return toHex(this.value, padTo32);
   }
 
   /**
