@@ -26,4 +26,5 @@ strum = "0.24"
 strum_macros = "0.24"
 
 [features]
+default = ["aztec"]
 aztec = []

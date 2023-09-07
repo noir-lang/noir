@@ -38,8 +38,9 @@ impl Ssa {
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            let abort_on_error = function.runtime() == RuntimeType::Acir;
-            find_all_loops(function).unroll_each_loop(function, abort_on_error)?;
+            if function.runtime() == RuntimeType::Acir {
+                find_all_loops(function).unroll_each_loop(function, true)?;
+            }
         }
         Ok(self)
     }
