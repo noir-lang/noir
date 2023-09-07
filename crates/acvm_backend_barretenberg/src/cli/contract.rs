@@ -44,14 +44,15 @@ fn contract_command() {
 
     let backend = crate::get_mock_backend();
 
-    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
-
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
+    let bytecode_path = temp_directory_path.join("acir.gz");
     let vk_path = temp_directory_path.join("vk");
     let contract_path = temp_directory_path.join("contract");
 
     let crs_path = backend.backend_directory();
+
+    std::fs::File::create(&bytecode_path).expect("file should be created");
 
     let write_vk_command = super::WriteVkCommand {
         bytecode_path,
