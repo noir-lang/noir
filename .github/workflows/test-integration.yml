@@ -129,27 +129,3 @@ jobs:
         run: |
           yarn test:browser
   
-  test-noir-bb-integration:
-    # needs: [build-wasm, build-nargo]
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout noir-lang/noir
-        uses: actions/checkout@v4
-
-
-      - name: Install dependencies
-        working-directory: ./crates/wasm
-        run: yarn install
-
-      - name: Install playwright deps
-        working-directory: ./crates/wasm
-        run: |
-          npx playwright install
-          npx playwright install-deps
-
-      - name: Run tests
-        working-directory: ./crates/wasm
-        run: |
-          yarn test:browser
-          # yarn test:node
