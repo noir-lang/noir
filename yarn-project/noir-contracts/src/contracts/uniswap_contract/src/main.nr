@@ -1,3 +1,5 @@
+mod non_native_token_interface;
+
 // Demonstrates how to send a message to a portal contract on L1. We use Uniswap here as it's the most typical example.
 contract Uniswap {
     use dep::aztec::oracle::{
@@ -7,6 +9,8 @@ contract Uniswap {
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use dep::aztec::types::point::Point;
+    
+    use crate::non_native_token_interface::NonNativeTokenPrivateContextInterface;
     
     #[aztec(private)]
     fn constructor() {}
@@ -21,7 +25,6 @@ contract Uniswap {
 
     #[aztec(private)]
     fn swap(
-        withdrawFnSelector: Field, // withdraw method on inputAsset (l2 contract) that would withdraw to L1
         inputAsset: Field, 
         inputAmount: Field,
         uniswapFeeTier: Field, // which uniswap tier to use (eg 3000 for 0.3% fee)
@@ -42,12 +45,14 @@ contract Uniswap {
         // inputAsset.withdraw(inputAmount, sender, recipient=l1UniswapPortal, callerOnL1=l1UniswapPortal) 
         // only uniswap portal can call this (done to safeguard ordering of message consumption)
         // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
-        let return_values = context.call_private_function(inputAsset, withdrawFnSelector, [
+        let inputAssetInterface = NonNativeTokenPrivateContextInterface::at(inputAsset);
+        let return_value = inputAssetInterface.withdraw(
+            &mut context,
             inputAmount,
             sender,
             l1UniswapPortal,
             l1UniswapPortal,
-        ]);
+        )[0];
         
         // Send the swap message to L1 portal
         let content_hash = _compute_swap_content_hash(
@@ -64,7 +69,7 @@ contract Uniswap {
         );
         context.message_portal(content_hash);
 
-        return_values[0]
+        return_value
     }
 
     // refer `l1-contracts/test/portals/UniswapPortal.sol` on how L2 to L1 message is expected

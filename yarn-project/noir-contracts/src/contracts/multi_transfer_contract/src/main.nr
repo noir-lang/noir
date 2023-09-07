@@ -1,3 +1,5 @@
+mod private_token_airdrop_interface;
+
 // Demonstrates how to perform 4 x 4 = 16 transfers in one transaction. Uses the private airdrop contract in the backend.
 contract MultiTransfer {
     use dep::aztec::oracle::public_call;
@@ -14,6 +16,9 @@ contract MultiTransfer {
         utils as note_utils,
     };
 
+    // Interfaces
+    use crate::private_token_airdrop_interface::PrivateTokenAirdropPrivateContextInterface;
+
     #[aztec(private)]
     fn constructor() {}
 
@@ -28,60 +33,45 @@ contract MultiTransfer {
         addresses: [Field; 12], // Addresses to distribute to
         amounts: [Field; 12], // Amounts to distribute
         owner: Field, // Owner of the asset
-        batch_transfer_selector: Field, // Function selector for transfer
         note_offsets: [Field; 4], // Offsets from which 4 notes of the owner would be read.
     ) -> [Field; 4] {
+        let token = PrivateTokenAirdropPrivateContextInterface::at(asset);
+
         // First batch transfer call
-        let return_values_1 = context.call_private_function(asset, batch_transfer_selector, [
+        let result1 = token.batchTransfer(
+            &mut context,
             owner, 
-            amounts[0],
-            amounts[1],
-            amounts[2],
-            addresses[0],
-            addresses[1],
-            addresses[2],
-            note_offsets[0],
-        ]);
-        let result1 = return_values_1[0];
+            [amounts[0], amounts[1], amounts[2]],
+            [addresses[0], addresses[1], addresses[2]],
+            note_offsets[0] as u32,
+        )[0];
 
         // Second batch transfer call
-        let return_values_2 = context.call_private_function(asset, batch_transfer_selector, [
+        let result2 = token.batchTransfer(
+            &mut context,
             owner, 
-            amounts[3],
-            amounts[4],
-            amounts[5],
-            addresses[3],
-            addresses[4],
-            addresses[5],
-            note_offsets[1],
-        ]);
-        let result2 = return_values_2[0];
+            [amounts[3], amounts[4], amounts[5]],
+            [addresses[3], addresses[4], addresses[5]],
+            note_offsets[1] as u32,
+        )[0];
 
         // Third batch transfer call
-        let return_values_3 = context.call_private_function(asset, batch_transfer_selector, [
+        let result3 = token.batchTransfer(
+            &mut context,
             owner, 
-            amounts[6],
-            amounts[7],
-            amounts[8],
-            addresses[6],
-            addresses[7],
-            addresses[8],
-            note_offsets[2],
-        ]);
-        let result3 = return_values_3[0];
+            [amounts[6], amounts[7], amounts[8]],
+            [addresses[6], addresses[7], addresses[8]],
+            note_offsets[2] as u32,
+        )[0];
 
         // Fourth batch transfer call
-        let return_values_4 = context.call_private_function(asset, batch_transfer_selector, [
+        let result4 = token.batchTransfer(
+            &mut context,
             owner, 
-            amounts[9],
-            amounts[10],
-            amounts[11],
-            addresses[9],
-            addresses[10],
-            addresses[11],
-            note_offsets[3],
-        ]);
-        let result4 = return_values_4[0];
+            [amounts[9], amounts[10], amounts[11]],
+            [addresses[9], addresses[10], addresses[11]],
+            note_offsets[3] as u32,
+        )[0];
 
         [result1, result2, result3, result4]
     }

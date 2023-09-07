@@ -1,4 +1,5 @@
 mod abi;
+mod auth;
 mod context;
 mod log;
 mod messaging;

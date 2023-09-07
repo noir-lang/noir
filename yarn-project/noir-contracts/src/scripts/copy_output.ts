@@ -23,7 +23,7 @@ const PROJECT_CONTRACTS = [
   { name: 'SchnorrAuthWitnessAccount', target: '../aztec.js/src/abis/', exclude: [] },
 ];
 
-const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'test'];
+const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'non_native_token', 'test'];
 
 /**
  * Writes the contract to a specific project folder, if needed.
