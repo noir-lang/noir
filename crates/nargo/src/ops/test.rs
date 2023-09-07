@@ -27,7 +27,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             // otherwise constraints involving these expressions will not error.
             let circuit_execution =
                 execute_circuit(blackbox_solver, program.circuit, WitnessMap::new(), show_output);
-            test_status_program_compiled(test_function, circuit_execution)
+            test_status_program_compile_pass(test_function, circuit_execution)
         }
         Err(diag) => test_status_program_compile_fail(diag, test_function),
     }
@@ -51,63 +51,74 @@ fn test_status_program_compile_fail(
     // The test has failed compilation, check if it is because the program is never satisfiable.
     // If it is never satisfiable, then this is the expected behavior.
     let program_is_never_satisfiable = diag.diagnostic.message.contains("Failed constraint");
-    if program_is_never_satisfiable {
-        let expected_failure_message = test_function.failure_reason().unwrap_or_default();
-        // Now check to see if it contains the expected failure message
-        if diag.diagnostic.message.contains(expected_failure_message) {
-            return TestStatus::Pass;
-        } else {
-            return TestStatus::Fail {
-                message: format!(
-                    "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
-                    expected_failure_message,
-                    diag.diagnostic
-                        .message
-                        .trim_start_matches("Failed constraint: ")
-                        .trim_matches('\'')
-                ),
-            };
-        }
+    if !program_is_never_satisfiable {
+        // The test has failed compilation, but its a compilation error. Report error
+        return TestStatus::CompileError(diag);
     }
 
-    // The test has failed compilation, but its a compilation error. Report error
-    TestStatus::CompileError(diag)
+    let expected_failure_message = test_function.failure_reason().unwrap_or_default();
+    // Now check to see if it contains the expected failure message
+    if diag.diagnostic.message.contains(expected_failure_message) {
+        return TestStatus::Pass;
+    }
+
+    TestStatus::Fail {
+        message: format!(
+            "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
+            expected_failure_message,
+            diag.diagnostic.message.trim_start_matches("Failed constraint: ").trim_matches('\'')
+        ),
+    }
 }
 
 /// The test function compiled successfully.
 ///
 /// We now check whether execution passed/failed and whether it should have
 /// passed/failed to determine the test status.
-fn test_status_program_compiled(
+fn test_status_program_compile_pass(
     test_function: TestFunction,
     circuit_execution: Result<WitnessMap, NargoError>,
 ) -> TestStatus {
-    if test_function.should_fail() {
-        match circuit_execution {
-            Ok(_) => TestStatus::Fail {
-                // TODO: Improve color variations on this message
-                message: "error: Test passed when it should have failed".to_string(),
-            },
-            Err(err) => {
-                let expected_failure_message = test_function.failure_reason().unwrap_or_default();
-                // Check for the failure message
-                if err.to_string().contains(expected_failure_message) {
-                    TestStatus::Pass
-                } else {
-                    TestStatus::Fail {
-                        message: format!(
-                            "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
-                            expected_failure_message,
-                            err.to_string().trim_matches('\'')
-                        ),
-                    }
-                }
+    let circuit_execution_err = match circuit_execution {
+        // Circuit execution was successful; ie no errors or unsatisfied constraints
+        // were encountered.
+        Ok(_) => {
+            if test_function.should_fail() {
+                return TestStatus::Fail {
+                    message: "error: Test passed when it should have failed".to_string(),
+                };
             }
+            return TestStatus::Pass;
         }
-    } else {
-        match circuit_execution {
-            Ok(_) => TestStatus::Pass,
-            Err(error) => TestStatus::Fail { message: error.to_string() },
-        }
+        Err(err) => err,
+    };
+
+    // If we reach here, then the circuit execution failed.
+    //
+    // Check if the function should have passed
+    let test_should_have_passed = !test_function.should_fail();
+    if test_should_have_passed {
+        return TestStatus::Fail { message: circuit_execution_err.to_string() };
     }
+
+    // Extract the expected failure message, if there was one
+    //
+    // #[test(should_fail)] will not produce any message
+    // #[test(should_fail_with = "reason")] will produce a message
+    //
+    let expected_failure_message = test_function.failure_reason().unwrap_or_default();
+    let expected_failure_message_matches =
+        circuit_execution_err.to_string().contains(expected_failure_message);
+    if expected_failure_message_matches {
+        return TestStatus::Pass;
+    }
+
+    // The expected failure message does not match the actual failure message
+    return TestStatus::Fail {
+        message: format!(
+            "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
+            expected_failure_message,
+            circuit_execution_err.to_string().trim_matches('\'')
+        ),
+    };
 }
