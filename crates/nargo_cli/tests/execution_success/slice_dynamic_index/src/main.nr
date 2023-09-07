@@ -10,7 +10,6 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     }
     assert(slice.len() == 5);
     
-
     dynamic_slice_index_set_if(slice, x, y);
     dynamic_slice_index_set_else(slice, x, y);
     dynamic_slice_index_set_nested_if_else_else(slice, x, y);
@@ -22,7 +21,6 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     dynamic_slice_merge_if(slice, x);
     dynamic_slice_merge_else(slice, x);
     dynamic_slice_merge_two_ifs(slice, x);
-
 }
 
 fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
