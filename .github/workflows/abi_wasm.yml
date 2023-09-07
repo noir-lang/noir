@@ -86,7 +86,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           working-directory: ./crates/noirc_abi_wasm
-        
+
       - name: Run node tests
         working-directory: ./crates/noirc_abi_wasm
         run: yarn test
@@ -110,7 +110,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           working-directory: ./crates/noirc_abi_wasm
-        
+
       - name: Install playwright deps
         working-directory: ./crates/noirc_abi_wasm
         run: |
