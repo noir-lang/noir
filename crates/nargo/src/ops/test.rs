@@ -57,8 +57,8 @@ fn test_status_program_compile_fail(
     }
 
     let expected_failure_message = test_function.failure_reason().unwrap_or_default();
-    // Now check to see if it contains the expected failure message
-    if diag.diagnostic.message.contains(expected_failure_message) {
+    // Now check to see if it is the expected failure message
+    if diag.diagnostic.message == expected_failure_message {
         return TestStatus::Pass;
     }
 
@@ -108,7 +108,7 @@ fn test_status_program_compile_pass(
     //
     let expected_failure_message = test_function.failure_reason().unwrap_or_default();
     let expected_failure_message_matches =
-        circuit_execution_err.to_string().contains(expected_failure_message);
+        circuit_execution_err.to_string() == expected_failure_message;
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
