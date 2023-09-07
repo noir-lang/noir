@@ -332,10 +332,10 @@ mod curvegroup {
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..N {
+            for i in 0..bits.len() {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
+                    if(bits[bits.len() - i - 1] == 0) {Point::zero()} else {p});
             }
 
             out
