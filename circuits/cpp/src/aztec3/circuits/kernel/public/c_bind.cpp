@@ -23,30 +23,6 @@ using aztec3::circuits::kernel::public_kernel::native_public_kernel_circuit_publ
 
 // WASM Cbinds
 
-WASM_EXPORT size_t public_kernel__init_proving_key(uint8_t const** pk_buf)
-{
-    std::vector<uint8_t> pk_vec(42, 0);
-
-    auto* raw_buf = (uint8_t*)malloc(pk_vec.size());
-    memcpy(raw_buf, (void*)pk_vec.data(), pk_vec.size());
-    *pk_buf = raw_buf;
-
-    return pk_vec.size();
-}
-
-WASM_EXPORT size_t public_kernel__init_verification_key(uint8_t const* pk_buf, uint8_t const** vk_buf)
-{
-    std::vector<uint8_t> vk_vec(42, 0);
-    // TODO(dbanks12): remove when proving key is used
-    (void)pk_buf;  // unused
-
-    auto* raw_buf = (uint8_t*)malloc(vk_vec.size());
-    memcpy(raw_buf, (void*)vk_vec.data(), vk_vec.size());
-    *vk_buf = raw_buf;
-
-    return vk_vec.size();
-}
-
 CBIND(public_kernel__sim, [](PublicKernelInputs<NT> public_kernel_inputs) {
     DummyBuilder builder = DummyBuilder("public_kernel__sim");
     KernelCircuitPublicInputs<NT> const result =
