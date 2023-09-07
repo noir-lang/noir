@@ -5,7 +5,8 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73be19aa7187beec9846bfbf1a14ffe6e2734d93beec2cdee484ee9a73f0c3b2"
 dependencies = [
  "acir_field",
  "bincode",
@@ -18,7 +19,8 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2789ab2ac86557428d542e6777a9b8f6f4538f15c1a771a9949d3d848e544286"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,7 +33,8 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c8a26353bf5b2f71bad4fb66a3577bba079e4fa532526991fb97495f34a5746"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -65,7 +68,8 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26e6fa3c9a3ce14707362eec74f7293ee91f144669a617624ae503cd2260d782"
 dependencies = [
  "acir",
  "blake2",
@@ -88,7 +92,8 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a97848b040795cccc1dec010256d34fc4e767bbc26af4080d784b7b3392c522f"
 dependencies = [
  "acir",
 ]
@@ -492,7 +497,8 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "551dbdf6d26e0f0ebdd89cd4f2134360ef79f83e05f12f19766fab7dcbf62ea6"
 dependencies = [
  "acir_field",
  "serde",
@@ -501,7 +507,8 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.25.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/fix-scalar-mul#6958cbbf02713ca7893528a7ad90ee946cb0a76c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de41cbba0e6b35fa4963470f117a809c32d2818d92d67810b1bd5cc31fdfa6f"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
