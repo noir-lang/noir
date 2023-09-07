@@ -61,7 +61,6 @@ mod tests {
     use crate::get_mock_backend;
 
     #[test]
-    #[serial_test::serial]
     fn test_smart_contract() {
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
         let constraint = Opcode::Arithmetic(expression);

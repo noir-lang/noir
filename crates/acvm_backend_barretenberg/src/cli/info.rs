@@ -71,7 +71,6 @@ impl InfoCommand {
 }
 
 #[test]
-#[serial_test::serial]
 fn info_command() {
     use acvm::acir::circuit::black_box_functions::BlackBoxFunc;
     use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, Opcode};
