@@ -1,0 +1,49 @@
+{
+  "release-type": "simple",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "prerelease": true,
+  "group-pull-request-title-pattern": "chore(master): Release ${version}",
+  "pull-request-header": ":robot: I have created a new Aztec Packages release",
+  "versioning": "default",
+  "include-component-in-tag": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features", "hidden": false },
+    { "type": "fix", "section": "Bug Fixes", "hidden": false },
+    { "type": "chore", "section": "Miscellaneous", "hidden": false },
+    { "type": "test", "section": "Miscellaneous", "hidden": false },
+    { "type": "refactor", "section": "Miscellaneous", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": false }
+  ],
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "aztec-packages",
+      "package-name": "aztec-packages"
+    },
+    "barrentenberg/ts": {
+      "release-type": "node",
+      "package-name": "barretenberg.js",
+      "component": "barretenberg.js"
+    },
+    "barretenberg": {
+      "release-type": "simple",
+      "component": "barretenberg",
+      "package-name": "barretenberg",
+      "extra-files": [
+        "cpp/CMakeLists.txt",
+        "VERSION",
+        "barretenberg.nix",
+        "barretenberg-wasm.nix"
+      ]
+    }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "aztec-packages",
+      "components": ["barretenberg", "barretenberg.js", "aztec-packages"]
+    },
+    "sentence-case"
+  ]
+}

@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - pw/bb-releases
 
 permissions:
   contents: write
@@ -12,35 +13,21 @@ permissions:
 
 jobs:
   release-please:
+    name: Create Release
     runs-on: ubuntu-latest
     steps:
-      - uses: google-github-actions/release-please-action@v3
+      - name: Run Release Please
+        id: release
+        uses: google-github-actions/release-please-action@v3
         with:
-          # Our release type is simple as all we really want is to update the changelog and trigger a github release
-          release-type: simple
-          # Self explanatory
-          package-name: aztec-packages
-          # Marks github releases as 'Pre-Release'
-          prerelease: true
-          # Our default branch
-          default-branch: master
-          # Uses the 'prerelease' versioning strategy to update the pre-release number only e.g. 0.1.0-alpha23 -> 0.1.0-alpha24
-          versioning-strategy: prerelease
-          # Don't include the component name in the tag name
-          include-component-in-tag: false
-          # Influences the versioning strategy to only update the pre-release number
-          bump-minor-pre-major: true
-          # Influences the versioning strategy to only update the pre-release number
-          bump-patch-for-minor-pre-major: true
-          # Just a bit of test at the top of the 'Release PR'
-          pull-request-header: ":robot: I have created a new Aztec Packages release"
-          # The sections into which changes are grouped on the github release notes
-          changelog-types: >
-            [
-              {"type":"feat","section":"Features","hidden":false},
-              {"type":"fix","section":"Bug Fixes","hidden":false},
-              {"type":"chore","section":"Miscellaneous","hidden":false},
-              {"type":"test","section":"Miscellaneous","hidden":false},
-              {"type":"refactor","section":"Miscellaneous","hidden":false},
-              {"type":"docs","section":"Documentation","hidden":false}
-            ]
+          command: manifest
+
+      - name: Dispatch to publish workflow
+        uses: benc-uk/workflow-dispatch@v1
+        if: ${{ steps.release.outputs.tag_name }}
+        with:
+          workflow: publish-bb.yml
+          repo: AztecProtocol/aztec-packages
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "tag": "${{ steps.release.outputs.tag_name }}", "publish": true }'
