@@ -37,7 +37,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get -y install ninja-build
-      
+
       - name: Install Clang16
         run: |
           wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
@@ -46,16 +46,16 @@ jobs:
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
-          
+
       - name: Compile Barretenberg
         run: |
-          cd cpp
+          cd barretenberg/cpp
 
           cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
           cmake --build --preset default --target bb
 
       - name: Tar and GZip bb Binary (Ubuntu)
-        working-directory: cpp/build/bin
+        working-directory: barretenberg/cpp/build/bin
         run: tar -cvzf barretenberg-x86_64-linux-gnu.tar.gz bb
 
       - name: Upload artifacts
@@ -63,10 +63,10 @@ jobs:
         with:
           name: release-linux
           path: |
-            ./cpp/build/bin/barretenberg-x86_64-linux-gnu.tar.gz
+            ./barretenberg/cpp/build/bin/barretenberg-x86_64-linux-gnu.tar.gz
 
   build-wasm-ts:
-    name: Build WASM and deploy to TS 
+    name: Build WASM and deploy to TS
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout Code
@@ -83,7 +83,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get -y install ninja-build yarn
-      
+
       - name: Install Clang16
         run: |
           wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
@@ -92,7 +92,7 @@ jobs:
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
-      
+
       - name: Install yarn
         run: |
           curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
@@ -100,21 +100,21 @@ jobs:
           sudo apt -y update && sudo apt -y install yarn
       - name: Install WASI-SDK
         run: |
-          cd cpp
+          cd barretenberg/cpp
 
           ./scripts/install-wasi-sdk.sh
 
       - name: Compile Typescript
         run: |
-          cd ts
+          cd barretenberg/ts
           yarn install && yarn && yarn build
 
       - name: Tar and GZip barretenberg.wasm
-        working-directory: cpp/build-wasm/bin
+        working-directory: barretenberg/cpp/build-wasm/bin
         run: tar -cvzf barretenberg.wasm.tar.gz barretenberg.wasm
 
       - name: Tar and GZip acvm_backend.wasm
-        working-directory: cpp/build-wasm/bin
+        working-directory: barretenberg/cpp/build-wasm/bin
         run: tar -cvzf acvm_backend.wasm.tar.gz acvm_backend.wasm
 
       - name: Setup Node.js
@@ -126,7 +126,7 @@ jobs:
       - name: Deploy Typescript to NPM
         if: github.event.inputs.tag != 'nightly' && github.event.inputs.tag != '' # Do not deploy to npm if it is a nightly build
         run: |
-          cd ts
+          cd barretenberg/ts
           yarn deploy
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
@@ -136,8 +136,8 @@ jobs:
         with:
           name: release-wasm
           path: |
-            ./cpp/build-wasm/bin/barretenberg.wasm.tar.gz
-            ./cpp/build-wasm/bin/acvm_backend.wasm.tar.gz
+            ./barretenberg/cpp/build-wasm/bin/barretenberg.wasm.tar.gz
+            ./barretenberg/cpp/build-wasm/bin/acvm_backend.wasm.tar.gz
 
   build-mac:
     name: Build on Mac (${{ matrix.target }})
@@ -163,20 +163,20 @@ jobs:
 
       - name: Compile Barretenberg (x86_64)
         if: matrix.target == 'x86_64-apple-darwin'
-        working-directory: cpp
+        working-directory: barretenberg/cpp
         run: |
           cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
           cmake --build --preset default --target bb
-          
+
       - name: Compile Barretenberg (ARM)
         if: matrix.target == 'aarch64-apple-darwin'
-        working-directory: cpp
+        working-directory: barretenberg/cpp
         run: |
           cmake --toolchain ./cmake/toolchains/aarch64-darwin.cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
           cmake --build --preset default --target bb
 
       - name: Package barretenberg artifact
-        working-directory: cpp/build/bin
+        working-directory: barretenberg/cpp/build/bin
         run: |
           mkdir dist
           cp ./bb ./dist/bb
@@ -186,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: barretenberg-${{ matrix.target }}
-          path: ./cpp/build/bin/barretenberg-${{ matrix.target }}.tar.gz
+          path: ./barretenberg/cpp/build/bin/barretenberg-${{ matrix.target }}.tar.gz
           retention-days: 3
 
   release:

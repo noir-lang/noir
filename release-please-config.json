@@ -21,7 +21,7 @@
       "component": "aztec-packages",
       "package-name": "aztec-packages"
     },
-    "barrentenberg/ts": {
+    "barretenberg/ts": {
       "release-type": "node",
       "package-name": "barretenberg.js",
       "component": "barretenberg.js"
