@@ -3,6 +3,9 @@ name: Test
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -39,7 +42,7 @@ jobs:
         id: cache
         with:
           path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
