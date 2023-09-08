@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.2](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.5.2...barretenberg-v0.5.2) (2023-09-08)
+
+
+### Bug Fixes
+
+* Work around intermittent wasm webkit issue ([#2140](https://github.com/AztecProtocol/aztec-packages/issues/2140)) ([a9b0934](https://github.com/AztecProtocol/aztec-packages/commit/a9b09344c80d8628f95f859d4e2d455d61f9e7c6))
+
+
+### Miscellaneous
+
+* Release 0.5.2 ([f76b53c](https://github.com/AztecProtocol/aztec-packages/commit/f76b53c985116ac131a9b11b2a255feb7d0f8f13))
+
 ## [0.5.1](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.5.0...barretenberg-v0.5.1) (2023-09-05)
 
 
