@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use acvm::acir::circuit::Opcode;
+use acvm::Language;
 use fm::FileManager;
 use iter_extended::{try_vecmap, vecmap};
 use nargo::artifacts::contract::PreprocessedContract;
@@ -63,14 +65,20 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let circuit_dir = workspace.target_directory_path();
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
         // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
         if package.is_contract() {
-            let (file_manager, contracts) =
-                compile_contracts(backend, package, &args.compile_options)?;
+            let (file_manager, contracts) = compile_contracts(
+                package,
+                &args.compile_options,
+                np_language,
+                &is_opcode_supported,
+            )?;
             save_contracts(&file_manager, contracts, package, &circuit_dir, args.output_debug);
         } else {
-            let (file_manager, program) = compile_package(backend, package, &args.compile_options)?;
+            let (file_manager, program) =
+                compile_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
             save_program(&file_manager, program, package, &circuit_dir, args.output_debug);
         }
     }
@@ -79,9 +87,10 @@ pub(crate) fn run(
 }
 
 pub(crate) fn compile_package(
-    backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(FileManager, CompiledProgram), CliError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
@@ -92,7 +101,6 @@ pub(crate) fn compile_package(
     let program = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
 
     // Apply backend specific optimizations.
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     let optimized_program =
         nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
             .expect("Backend does not support an opcode that is in the IR");
@@ -101,15 +109,15 @@ pub(crate) fn compile_package(
 }
 
 pub(crate) fn compile_contracts(
-    backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(FileManager, Vec<CompiledContract>), CliError> {
     let (mut context, crate_id) = prepare_package(package);
     let result = noirc_driver::compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     let optimized_contracts = try_vecmap(contracts, |contract| {
         nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
     })?;
