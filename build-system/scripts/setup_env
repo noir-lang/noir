@@ -37,7 +37,7 @@ if [ -n "${COMMIT_TAG:-}" ]; then
   echo "WITHOUT_VERSION_TAG=$WITHOUT_VERSION_TAG"
   echo "COMMIT_TAG_VERSION=$COMMIT_TAG_VERSION"
   # COMMIT_TAG_VERSION=$(echo "$COMMIT_TAG" | grep -oE "v\d+.\d+")
-  if [ "$COMMIT_TAG_VERSION" != "$VERSION" ]; then
+  if [ "$COMMIT_TAG" != "$VERSION" ]; then
     echo "Commit tag $COMMIT_TAG does not match repo version $VERSION."
     exit 1
   fi
