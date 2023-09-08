@@ -199,7 +199,7 @@ fn stack_trace<'files>(
         let source = files.source(call_item.file).expect("should get file source");
 
         let (line, column) = location(source.as_ref(), call_item.span.start());
-        result += &format!("{}. {}.nr:{}:{}\n", i + 1, path.to_string(), line, column);
+        result += &format!("{}. {}.nr:{}:{}\n", i + 1, path, line, column);
     }
 
     result

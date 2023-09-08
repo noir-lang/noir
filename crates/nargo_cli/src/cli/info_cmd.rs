@@ -1,3 +1,4 @@
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use acvm_backend_barretenberg::BackendError;
 use clap::Args;
@@ -50,14 +51,25 @@ pub(crate) fn run(
 
     let mut info_report = InfoReport::default();
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
         if package.is_contract() {
-            let contract_info =
-                count_opcodes_and_gates_in_contracts(backend, package, &args.compile_options)?;
+            let contract_info = count_opcodes_and_gates_in_contracts(
+                backend,
+                package,
+                &args.compile_options,
+                np_language,
+                &is_opcode_supported,
+            )?;
             info_report.contracts.extend(contract_info);
         } else {
-            let program_info =
-                count_opcodes_and_gates_in_program(backend, package, &args.compile_options)?;
+            let program_info = count_opcodes_and_gates_in_program(
+                backend,
+                package,
+                &args.compile_options,
+                np_language,
+                &is_opcode_supported,
+            )?;
             info_report.programs.push(program_info);
         }
     }
@@ -156,8 +168,11 @@ fn count_opcodes_and_gates_in_program(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<ProgramInfo, CliError> {
-    let (_, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (_, compiled_program) =
+        compile_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
     Ok(ProgramInfo {
@@ -172,8 +187,11 @@ fn count_opcodes_and_gates_in_contracts(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<Vec<ContractInfo>, CliError> {
-    let (_, contracts) = compile_contracts(backend, package, compile_options)?;
+    let (_, contracts) =
+        compile_contracts(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
     try_vecmap(contracts, |contract| {

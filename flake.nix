@@ -134,7 +134,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.10.5";
+        version = "0.11.1";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {

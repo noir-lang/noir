@@ -5,6 +5,7 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::ir::{
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     instruction::Intrinsic,
     map::Id,
@@ -16,10 +17,16 @@ use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
 
 /// Try to simplify this call instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
+///
+/// The `block` parameter indicates the block any new instructions that are part of a call's
+/// simplification will be inserted into. For example, all slice intrinsics require updates
+/// to the slice length, which requires inserting a binary instruction. This update instruction
+/// must be inserted into the same block that the call itself is being simplified into.
 pub(super) fn simplify_call(
     func: ValueId,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
@@ -88,7 +95,7 @@ pub(super) fn simplify_call(
                     slice.push_back(*elem);
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add);
+                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -103,7 +110,7 @@ pub(super) fn simplify_call(
                     slice.push_front(*elem);
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add);
+                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -128,7 +135,7 @@ pub(super) fn simplify_call(
                 let new_slice = dfg.make_array(slice, typ);
                 results.push_front(new_slice);
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub);
+                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
                 results.push_front(new_slice_length);
                 SimplifyResult::SimplifiedToMultiple(results.into())
@@ -146,7 +153,7 @@ pub(super) fn simplify_call(
                     slice.pop_front().expect("There are no elements in this slice to be removed")
                 });
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub);
+                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
                 results.push(new_slice_length);
 
@@ -171,7 +178,7 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add);
+                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
 
                 let new_slice = dfg.make_array(slice, typ);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -194,7 +201,7 @@ pub(super) fn simplify_call(
                 let new_slice = dfg.make_array(slice, typ);
                 results.insert(0, new_slice);
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub);
+                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
                 results.insert(0, new_slice_length);
 
@@ -226,9 +233,13 @@ pub(super) fn simplify_call(
 /// The binary operation performed on the slice length is always an addition or subtraction of `1`.
 /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
 /// and not a flattened length used internally to represent arrays of tuples.
-fn update_slice_length(slice_len: ValueId, dfg: &mut DataFlowGraph, operator: BinaryOp) -> ValueId {
+fn update_slice_length(
+    slice_len: ValueId,
+    dfg: &mut DataFlowGraph,
+    operator: BinaryOp,
+    block: BasicBlockId,
+) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
-    let block = dfg.make_block();
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()

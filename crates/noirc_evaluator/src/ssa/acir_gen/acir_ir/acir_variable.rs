@@ -240,7 +240,7 @@ impl AcirContext {
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
-    fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
+    pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {
@@ -1328,7 +1328,8 @@ fn execute_brillig(
         }
         fn fixed_base_scalar_mul(
             &self,
-            _input: &FieldElement,
+            _low: &FieldElement,
+            _high: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::FixedBaseScalarMul))
         }
