@@ -26,7 +26,9 @@ fn get_mock_backend() -> Result<Backend, BackendError> {
     std::env::set_var("NARGO_BACKEND_PATH", path_to_mock_backend());
 
     let mock_backend = Backend::new("mock_backend".to_string());
-    mock_backend.assert_binary_exists().map(|_| mock_backend)
+    mock_backend.assert_binary_exists()?;
+
+    Ok(mock_backend)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -47,14 +49,26 @@ pub enum BackendError {
 #[derive(Debug)]
 pub struct Backend {
     name: String,
+    binary_path: PathBuf,
 }
 
 impl Backend {
     pub fn new(name: String) -> Backend {
-        Backend { name }
+        let binary_path = if let Some(binary_path) = std::env::var_os("NARGO_BACKEND_PATH") {
+            PathBuf::from(binary_path)
+        } else {
+            const BINARY_NAME: &str = "backend_binary";
+
+            backends_directory().join(&name).join(BINARY_NAME)
+        };
+        Backend { name, binary_path }
     }
 
-    fn assert_binary_exists(&self) -> Result<PathBuf, BackendError> {
+    fn binary_path(&self) -> &PathBuf {
+        &self.binary_path
+    }
+
+    fn assert_binary_exists(&self) -> Result<&PathBuf, BackendError> {
         let binary_path = self.binary_path();
         if binary_path.is_file() {
             Ok(binary_path)
@@ -79,16 +93,6 @@ impl Backend {
 
     fn crs_directory(&self) -> PathBuf {
         self.backend_directory().join("crs")
-    }
-
-    fn binary_path(&self) -> PathBuf {
-        if let Some(binary_path) = std::env::var_os("NARGO_BACKEND_PATH") {
-            PathBuf::from(binary_path)
-        } else {
-            const BINARY_NAME: &str = "backend_binary";
-
-            self.backend_directory().join(BINARY_NAME)
-        }
     }
 }
 
