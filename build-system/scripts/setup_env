@@ -18,6 +18,7 @@ BASH_ENV=${BASH_ENV:-}
 BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PROJECT=$(cat PROJECT)
 VERSION=$(cat VERSION)
+VERSION=${VERSION%% x-release-please-version*}
 
 echo "COMMIT_HASH=$COMMIT_HASH"
 echo "COMMIT_TAG=$COMMIT_TAG"
