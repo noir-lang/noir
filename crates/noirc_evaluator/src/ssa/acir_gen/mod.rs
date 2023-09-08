@@ -659,6 +659,7 @@ impl Context {
             Type::Slice(typ) => {
                 if typ.len() != 1 {
                     // TODO(#2461)
+                    dbg!(typ);
                     unimplemented!(
                         "Non-const array indices is not implemented for non-homogenous array"
                     );
@@ -708,9 +709,19 @@ impl Context {
                     .expect("ICE: array set on slice must have a length associated with the call");
                 let length_acir_var = self.convert_value(length, dfg).into_var()?;
                 let len = self.acir_context.var_to_expression(length_acir_var)?.to_const();
-                let len = len
-                    .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
-                len.to_u128() as usize
+                if let Some(len) = len {
+                    len.to_u128() as usize
+                } else {
+                    if let Some((array, _)) = dfg.get_array_constant(array) {
+                        // dbg!(array.clone());
+                        array.len()
+                    } else {
+                        panic!("ICE: slice length should be fully tracked and constant by ACIR gen");
+                    }
+                }
+                // let len = len
+                //     .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                // len.to_u128() as usize
             }
             _ => unreachable!("ICE - expected an array"),
         };

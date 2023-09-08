@@ -141,7 +141,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::{CallStack, InsertInstructionResult},
+        dfg::{CallStack, InsertInstructionResult, DataFlowGraph},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
@@ -418,7 +418,8 @@ impl<'f> Context<'f> {
     ) -> ValueId {
         match self.inserter.function.dfg.type_of_value(then_value) {
             Type::Numeric(_) => {
-                self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
+                // self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
+                merge_numeric_values_pub(then_condition, else_condition, then_value, else_value, self.inserter.function.entry_block(), &mut self.inserter.function.dfg)
             }
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
@@ -447,7 +448,14 @@ impl<'f> Context<'f> {
         };
 
         let then_len = self.get_slice_length(then_value_id);
+        dbg!(then_len);
         let else_len = self.get_slice_length(else_value_id);
+        dbg!(else_len);
+        if else_len == 4 {
+            dbg!(&self.inserter.function.dfg.resolve(then_value_id));
+            dbg!(&self.inserter.function.dfg.resolve(else_value_id));
+            dbg!(&self.inserter.function.dfg[else_value_id]);
+        }
 
         let len = then_len.max(else_len);
 
@@ -487,6 +495,7 @@ impl<'f> Context<'f> {
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
         let value = &self.inserter.function.dfg[value_id];
+        // dbg!(value);
         match value {
             Value::Array { array, .. } => array.len(),
             Value::Instruction { instruction: instruction_id, .. } => {
@@ -501,6 +510,10 @@ impl<'f> Context<'f> {
                                 .get(address)
                                 .expect("ICE: load in merger should have store from outer block")
                         };
+                        // let context_store =
+                        // self.outer_block_stores
+                        // .get(address)
+                        // .expect("ICE: load in merger should have store from outer block");
 
                         self.get_slice_length(context_store.new_value)
                     }
@@ -878,6 +891,251 @@ impl<'f> Context<'f> {
         }
     }
 }
+
+
+pub(crate) fn merge_values_pub(
+    then_condition: ValueId,
+    else_condition: ValueId,
+    then_value: ValueId,
+    else_value: ValueId,
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+) -> ValueId {
+    // let block = self.inserter.function.entry_block();
+    match dfg.type_of_value(then_value) {
+        Type::Numeric(_) => {
+            // self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
+            merge_numeric_values_pub(then_condition, else_condition, then_value, else_value, block, dfg)
+        }
+        typ @ Type::Array(_, _) => {
+            // self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
+            merge_array_values_pub(typ, then_condition, else_condition, then_value, else_value, block, dfg)
+        }
+        typ @ Type::Slice(_) => {
+            // self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+            // panic!("ahh");
+            merge_slice_values_pub(typ, then_condition, else_condition, then_value, else_value, block, dfg)
+        }
+        Type::Reference => panic!("Cannot return references from an if expression"),
+        Type::Function => panic!("Cannot return functions from an if expression"),
+    }
+}
+
+pub(crate) fn merge_slice_values_pub(
+    typ: Type,
+    then_condition: ValueId,
+    else_condition: ValueId,
+    then_value_id: ValueId,
+    else_value_id: ValueId,
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+) -> ValueId {
+    let mut merged = im::Vector::new();
+
+    let element_types = match &typ {
+        Type::Slice(elements) => elements,
+        _ => panic!("Expected slice type"),
+    };
+
+    let then_len = get_slice_length_pub(then_value_id, dfg);
+    dbg!(then_len);
+    let else_len = get_slice_length_pub(else_value_id, dfg);
+    dbg!(else_len);
+    let len = then_len.max(else_len);
+
+    for i in 0..len {
+        for (element_index, element_type) in element_types.iter().enumerate() {
+            let index_value = ((i * element_types.len() + element_index) as u128).into();
+            let index = dfg.make_constant(index_value, Type::field());
+
+            let typevars = Some(vec![element_type.clone()]);
+
+            let mut get_element = |array, typevars, len| {
+                // The smaller slice is filled with placeholder data. Codegen for slice accesses must
+                // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
+                if (len - 1) < index_value.to_u128() as usize {
+                    let zero = FieldElement::zero();
+                    dfg.make_constant(zero, Type::field())
+                } else {
+                    let get = Instruction::ArrayGet { array, index };
+                    dfg.insert_instruction_and_results(
+                        get,
+                        block,
+                        typevars,
+                        CallStack::new(),
+                    ).first()
+                }
+            };
+
+            let then_element = get_element(then_value_id, typevars.clone(), then_len);
+            let else_element = get_element(else_value_id, typevars, else_len);
+
+            merged.push_back(merge_values_pub(
+                then_condition, 
+                else_condition, 
+                then_element, 
+                else_element, 
+                block, 
+                dfg
+            ))
+        }
+    }
+
+    dfg.make_array(merged, typ)
+}
+
+fn get_slice_length_pub(value_id: ValueId, dfg: &DataFlowGraph) -> usize {
+    let value = &dfg[value_id];
+    match value {
+        Value::Array { array, .. } => array.len(),
+        Value::Instruction { instruction: instruction_id, .. } => {
+            let instruction = &dfg[*instruction_id];
+            match instruction {
+                Instruction::ArraySet { array, .. } => get_slice_length_pub(*array, dfg),
+                Instruction::Load { address } => {
+                    panic!("should not have a load");
+                    // let context_store = if let Some(store) = self.store_values.get(address) {
+                    //     store
+                    // } else {
+                    //     self.outer_block_stores
+                    //         .get(address)
+                    //         .expect("ICE: load in merger should have store from outer block")
+                    // };
+
+                    // self.get_slice_length(context_store.new_value)
+                }
+                Instruction::Call { func, arguments } => {
+                    let func = &dfg[*func];
+                    let slice_contents = arguments[1];
+                    match func {
+                        Value::Intrinsic(intrinsic) => match intrinsic {
+                            Intrinsic::SlicePushBack
+                            | Intrinsic::SlicePushFront
+                            | Intrinsic::SliceInsert => {
+                                get_slice_length_pub(slice_contents, dfg) + 1
+                            }
+                            Intrinsic::SlicePopBack
+                            | Intrinsic::SlicePopFront
+                            | Intrinsic::SliceRemove => {
+                                get_slice_length_pub(slice_contents, dfg) - 1
+                            }
+                            _ => {
+                                unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
+                            }
+                        },
+                        _ => unreachable!("ICE: Expected intrinsic value but got {func:?}"),
+                    }
+                }
+                _ => unreachable!("ICE: Got unexpected instruction: {instruction:?}"),
+            }
+        }
+        _ => unreachable!("ICE: Got unexpected value when resolving slice length {value:?}"),
+    }
+}
+
+/// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
+/// this function will recursively merge array1 and array2 into a single resulting array
+/// by creating a new array containing the result of self.merge_values for each element.
+pub(crate) fn merge_array_values_pub(
+    typ: Type,
+    then_condition: ValueId,
+    else_condition: ValueId,
+    then_value: ValueId,
+    else_value: ValueId,
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+) -> ValueId {
+    let mut merged = im::Vector::new();
+
+    let (element_types, len) = match &typ {
+        Type::Array(elements, len) => (elements, *len),
+        _ => panic!("Expected array type"),
+    };
+
+    for i in 0..len {
+        for (element_index, element_type) in element_types.iter().enumerate() {
+            let index = ((i * element_types.len() + element_index) as u128).into();
+            let index = dfg.make_constant(index, Type::field());
+
+            let typevars = Some(vec![element_type.clone()]);
+
+            let mut get_element = |array, typevars| {
+                let get = Instruction::ArrayGet { array, index };
+                dfg.insert_instruction_and_results(
+                    get,
+                    block,
+                    typevars,
+                    CallStack::new(),
+                ).first()
+            };
+
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
+
+            merged.push_back(merge_values_pub(
+                then_condition, 
+                else_condition, 
+                then_element, 
+                else_element, 
+                block, 
+                dfg
+            ))
+        }
+    }
+
+    dfg.make_array(merged, typ)
+}
+
+/// Merge two numeric values a and b from separate basic blocks to a single value. This
+/// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
+pub(crate) fn merge_numeric_values_pub(
+    then_condition: ValueId,
+    else_condition: ValueId,
+    then_value: ValueId,
+    else_value: ValueId,
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+) -> ValueId {
+    let then_type = dfg.type_of_value(then_value);
+    let else_type = dfg.type_of_value(else_value);
+    assert_eq!(
+        then_type, else_type,
+        "Expected values merged to be of the same type but found {then_type} and {else_type}"
+    );
+
+    let then_call_stack = dfg.get_value_call_stack(then_value);
+    let else_call_stack = dfg.get_value_call_stack(else_value);
+
+    let call_stack = if then_call_stack.is_empty() {
+        else_call_stack.clone()
+    } else {
+        then_call_stack.clone()
+    };
+
+    // We must cast the bool conditions to the actual numeric type used by each value.
+    let then_condition = dfg
+        .insert_instruction_and_results(Instruction::Cast(then_condition, then_type), block, None, call_stack.clone())
+        .first();
+    let else_condition = dfg
+        .insert_instruction_and_results(Instruction::Cast(else_condition, else_type), block, None, call_stack.clone())
+        .first();
+
+    let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
+    let then_value = dfg
+        .insert_instruction_and_results(mul, block, None, call_stack.clone())
+        .first();
+
+    let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
+    let else_value = dfg
+        .insert_instruction_and_results(mul, block, None, call_stack.clone())
+        .first();
+
+    let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
+    dfg
+        .insert_instruction_and_results(add, block, None, call_stack)
+        .first()
+}
+
 
 #[cfg(test)]
 mod test {

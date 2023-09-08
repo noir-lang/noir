@@ -12,6 +12,7 @@ use crate::ssa::ir::{
     types::Type,
     value::{Value, ValueId},
 };
+use crate::ssa::opt::flatten_cfg::merge_values_pub;
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
 
@@ -91,13 +92,34 @@ pub(super) fn simplify_call(
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, element_type)) = slice {
-                for elem in &arguments[2..] {
-                    slice.push_back(*elem);
-                }
+                let length = dfg.get_numeric_constant(arguments[0]);
+                dbg!(length);
+                dbg!(slice.len());
+
+                // The capacity must be an integer so that we can compare it against the slice length which is represented as a field
+                let capacity = dfg.make_constant((slice.len() as u128).into(), Type::unsigned(64));
+
+                let len_equals_capacity_instr = Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
+                let call_stack = dfg.get_value_call_stack(arguments[0]);
+                let len_equals_capacity = dfg.insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack.clone()).first();
+                let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
+                let len_not_equals_capacity = dfg.insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack.clone()).first();
 
                 let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
 
+                for elem in &arguments[2..] {
+                    slice.push_back(*elem);
+                }
+                dbg!(slice.len());
                 let new_slice = dfg.make_array(slice, element_type);
+
+                // let slice_length_minus_one = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+                let set_last_slice_value_instr = Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2], length: Some(new_slice_length) };
+                let set_last_slice_value = dfg.insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack.clone()).first();
+
+                let new_slice = merge_values_pub(len_not_equals_capacity, len_equals_capacity, set_last_slice_value, new_slice, block, dfg);
+                // let new_slice_val = dfg.get_array_constant(new_slice);
+                // dbg!(new_slice_val);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
             } else {
                 SimplifyResult::None
