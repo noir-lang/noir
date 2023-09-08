@@ -448,10 +448,10 @@ export function fromPublicDataRead(o: PublicDataRead): MsgpackPublicDataRead {
 
 interface MsgpackCombinedAccumulatedData {
   aggregation_object: MsgpackNativeAggregationState;
-  read_requests: Tuple<Buffer, 16>;
-  new_commitments: Tuple<Buffer, 16>;
-  new_nullifiers: Tuple<Buffer, 16>;
-  nullified_commitments: Tuple<Buffer, 16>;
+  read_requests: Tuple<Buffer, 128>;
+  new_commitments: Tuple<Buffer, 64>;
+  new_nullifiers: Tuple<Buffer, 64>;
+  nullified_commitments: Tuple<Buffer, 64>;
   private_call_stack: Tuple<Buffer, 8>;
   public_call_stack: Tuple<Buffer, 8>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
@@ -1158,10 +1158,10 @@ interface MsgpackPrivateCircuitPublicInputs {
   call_context: MsgpackCallContext;
   args_hash: Buffer;
   return_values: Tuple<Buffer, 4>;
-  read_requests: Tuple<Buffer, 4>;
-  new_commitments: Tuple<Buffer, 4>;
-  new_nullifiers: Tuple<Buffer, 4>;
-  nullified_commitments: Tuple<Buffer, 4>;
+  read_requests: Tuple<Buffer, 32>;
+  new_commitments: Tuple<Buffer, 16>;
+  new_nullifiers: Tuple<Buffer, 16>;
+  nullified_commitments: Tuple<Buffer, 16>;
   private_call_stack: Tuple<Buffer, 4>;
   public_call_stack: Tuple<Buffer, 4>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
@@ -1496,7 +1496,7 @@ interface MsgpackPrivateCallData {
   vk: MsgpackVerificationKeyData;
   function_leaf_membership_witness: MsgpackMembershipWitness4;
   contract_leaf_membership_witness: MsgpackMembershipWitness16;
-  read_request_membership_witnesses: Tuple<MsgpackReadRequestMembershipWitness, 4>;
+  read_request_membership_witnesses: Tuple<MsgpackReadRequestMembershipWitness, 32>;
   portal_contract_address: Buffer;
   acir_hash: Buffer;
 }
@@ -1675,8 +1675,8 @@ export function fromPrivateKernelInputsInner(o: PrivateKernelInputsInner): Msgpa
 
 interface MsgpackPrivateKernelInputsOrdering {
   previous_kernel: MsgpackPreviousKernelData;
-  read_commitment_hints: Tuple<Buffer, 16>;
-  nullifier_commitment_hints: Tuple<Buffer, 16>;
+  read_commitment_hints: Tuple<Buffer, 128>;
+  nullifier_commitment_hints: Tuple<Buffer, 64>;
 }
 
 export function toPrivateKernelInputsOrdering(o: MsgpackPrivateKernelInputsOrdering): PrivateKernelInputsOrdering {
@@ -1715,9 +1715,9 @@ export function fromPrivateKernelInputsOrdering(o: PrivateKernelInputsOrdering):
 
 interface MsgpackFinalAccumulatedData {
   aggregation_object: MsgpackNativeAggregationState;
-  new_commitments: Tuple<Buffer, 16>;
-  new_nullifiers: Tuple<Buffer, 16>;
-  nullified_commitments: Tuple<Buffer, 16>;
+  new_commitments: Tuple<Buffer, 64>;
+  new_nullifiers: Tuple<Buffer, 64>;
+  nullified_commitments: Tuple<Buffer, 64>;
   private_call_stack: Tuple<Buffer, 8>;
   public_call_stack: Tuple<Buffer, 8>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
@@ -1964,8 +1964,8 @@ interface MsgpackPublicCircuitPublicInputs {
   contract_storage_update_requests: Tuple<MsgpackContractStorageUpdateRequest, 16>;
   contract_storage_reads: Tuple<MsgpackContractStorageRead, 16>;
   public_call_stack: Tuple<Buffer, 4>;
-  new_commitments: Tuple<Buffer, 4>;
-  new_nullifiers: Tuple<Buffer, 4>;
+  new_commitments: Tuple<Buffer, 16>;
+  new_nullifiers: Tuple<Buffer, 16>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
   unencrypted_logs_hash: Tuple<Buffer, 2>;
   unencrypted_log_preimages_length: Buffer;
