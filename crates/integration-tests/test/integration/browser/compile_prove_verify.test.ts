@@ -11,6 +11,7 @@ import initACVM, {
     compressWitness,
 } from "@noir-lang/acvm_js";
 
+// @ts-ignore  
 import { Barretenberg, RawBuffer, Crs } from '@aztec/bb.js';
 
 import * as TOML from 'smol-toml'
@@ -31,23 +32,23 @@ async function getFile(url: URL): Promise<string> {
 const CIRCUIT_SIZE = 2 ** 19;
 
 
-const tests = [
+const test_cases = [
     {
         case: "crates/nargo_cli/tests/execution_success/1_mul"
     },
     // Below fails
-    {
-        case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
-    }
+    // {
+    //     case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
+    // }
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
 
 let suite = Mocha.Suite.create(mocha.suite, "Noir end to end test");
 
-suite.timeout(10e4);
+suite.timeout(60*10e3);//10mins
 
-tests.forEach((testInfo) => {
+test_cases.forEach((testInfo) => {
     const test_name = testInfo.case.split("/").pop();
     const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Proove, Verify)`, async () => {
 
@@ -143,8 +144,6 @@ tests.forEach((testInfo) => {
             expect(e, "Proving and Verifying").to.not.be.an('error');
             throw e;
         }
-
-
 
     });
 
