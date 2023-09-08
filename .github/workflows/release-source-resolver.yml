@@ -38,7 +38,7 @@ jobs:
         working-directory: ./crates/source-resolver
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
       - name: Configure git
         run: |
