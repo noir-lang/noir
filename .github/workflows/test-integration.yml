@@ -13,14 +13,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  wasm-packages-build:
+  wasm-packages-build-test:
     runs-on: ubuntu-latest
     env:
       CACHED_PATH: /tmp/nix-cache
 
     steps:
-      - name: Install Yarn
-        run: npm install -g yarn
 
       - name: Checkout noir sources
         uses: actions/checkout@v4
