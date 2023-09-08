@@ -274,9 +274,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
                    chain_id,
                    version);
 
-    OptionalPrivateCircuitPublicInputs<NCT>() = default;
+    OptionalPrivateCircuitPublicInputs() = default;
 
-    OptionalPrivateCircuitPublicInputs<NCT>(
+    OptionalPrivateCircuitPublicInputs(
         std::optional<CallContext<NCT>> const& call_context,
 
         opt_fr const& args_hash,

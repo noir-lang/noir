@@ -442,9 +442,9 @@ template <typename NCT> std::array<typename NCT::fr, NUM_FIELDS_PER_SHA256> accu
     // Generate a 512 bit input from right and left 256 bit hashes
     constexpr auto num_bytes = 2 * 32;
     std::array<uint8_t, num_bytes> hash_input_bytes;
-    for (uint8_t i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         auto half = hashes[i].to_buffer();
-        for (uint8_t j = 0; j < 16; j++) {
+        for (size_t j = 0; j < 16; j++) {
             hash_input_bytes[i * 16 + j] = half[16 + j];
         }
     }

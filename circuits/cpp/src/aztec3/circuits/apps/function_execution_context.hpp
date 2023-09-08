@@ -70,7 +70,7 @@ template <typename Builder> class FunctionExecutionContext {
     bool is_finalised = false;
 
   public:
-    FunctionExecutionContext<Builder>(Builder& builder, OracleWrapperInterface<Builder>& oracle)
+    FunctionExecutionContext(Builder& builder, OracleWrapperInterface<Builder>& oracle)
         : builder(builder)
         , oracle(oracle)
         , private_circuit_public_inputs(OptionalPrivateCircuitPublicInputs<CT>::create())

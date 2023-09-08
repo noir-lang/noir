@@ -45,7 +45,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
     HistoricBlockData<NCT> historic_block_data{};
 
-    address prover_address;
+    address prover_address{};
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(call_context,
