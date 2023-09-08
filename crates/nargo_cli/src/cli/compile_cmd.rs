@@ -6,7 +6,7 @@ use iter_extended::{try_vecmap, vecmap};
 use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
-use nargo::package::Package;
+use nargo::package::{Package, PackageType};
 use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -65,14 +65,21 @@ pub(crate) fn run(
     let circuit_dir = workspace.target_directory_path();
 
     for package in &workspace {
-        // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
-        if package.is_contract() {
-            let (file_manager, contracts) =
-                compile_contracts(backend, package, &args.compile_options)?;
-            save_contracts(&file_manager, contracts, package, &circuit_dir, args.output_debug);
-        } else {
-            let (file_manager, program) = compile_package(backend, package, &args.compile_options)?;
-            save_program(&file_manager, program, package, &circuit_dir, args.output_debug);
+        match package.package_type {
+            PackageType::Binary => {
+                let (file_manager, program) =
+                    compile_package(backend, package, &args.compile_options)?;
+                save_program(&file_manager, program, package, &circuit_dir, args.output_debug);
+            }
+            PackageType::Contract => {
+                // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
+                let (file_manager, contracts) =
+                    compile_contracts(backend, package, &args.compile_options)?;
+                save_contracts(&file_manager, contracts, package, &circuit_dir, args.output_debug);
+            }
+            PackageType::Library => {
+                // Libraries can not be compiled independently.
+            }
         }
     }
 
