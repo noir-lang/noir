@@ -2,7 +2,7 @@ FROM node:18-alpine
 RUN apk update && apk add --no-cache udev ttf-freefont chromium curl jq bash
 ENV CHROME_BIN="/usr/bin/chromium-browser" PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 
-ARG COMMIT_TAG="v0.1.0-alpha62"
+ARG COMMIT_TAG=""
 
 #Build canary
 WORKDIR /usr/src/
