@@ -1,0 +1,9 @@
+[package]
+name = "card_game_contract"
+authors = [""]
+compiler_version = "0.1"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/noir-aztec" }
+value_note = { path = "../../../../noir-libs/value-note"}
