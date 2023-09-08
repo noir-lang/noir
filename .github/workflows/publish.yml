@@ -68,8 +68,7 @@ jobs:
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
@@ -145,8 +144,7 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
