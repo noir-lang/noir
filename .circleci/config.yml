@@ -58,7 +58,7 @@ checkout: &checkout
 
       # Only download metadata when fetching.
       retry git fetch --depth 1 --filter=blob:none origin $CIRCLE_SHA1
-      git checkout FETCH_HEAD
+      retry git checkout FETCH_HEAD
 
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
