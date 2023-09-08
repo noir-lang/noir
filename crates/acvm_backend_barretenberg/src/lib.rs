@@ -36,7 +36,8 @@ fn assert_binary_exists(backend: &Backend) -> PathBuf {
     let binary_path = backend.binary_path();
 
     if !binary_path.is_file() {
-        let bb_url = std::env::var("BB_BINARY_URL").unwrap_or(env!("BB_BINARY_URL").to_string());
+        let bb_url =
+            std::env::var("BB_BINARY_URL").unwrap_or_else(|_| env!("BB_BINARY_URL").to_string());
         download_backend(&bb_url, &binary_path)
     }
     binary_path
