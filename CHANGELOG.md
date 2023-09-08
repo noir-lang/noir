@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.5.1...aztec-packages-v0.5.2) (2023-09-08)
+
+
+### Bug Fixes
+
+* **build:** Config fixes for release please ([#2123](https://github.com/AztecProtocol/aztec-packages/issues/2123)) ([7b4f30d](https://github.com/AztecProtocol/aztec-packages/commit/7b4f30dbdf29a907b7474e5f308849ca068f056e))
+* **build:** Don't include component in tag ([#2128](https://github.com/AztecProtocol/aztec-packages/issues/2128)) ([b588e3a](https://github.com/AztecProtocol/aztec-packages/commit/b588e3aad944c7a7f555718794609a9b2559e18a))
+* **build:** Updated version file ([#2131](https://github.com/AztecProtocol/aztec-packages/issues/2131)) ([30f9935](https://github.com/AztecProtocol/aztec-packages/commit/30f993502eb6b312fa57f0e995d359ed55b037f5))
+* Canary browser test transfer method ([#2126](https://github.com/AztecProtocol/aztec-packages/issues/2126)) ([a23b037](https://github.com/AztecProtocol/aztec-packages/commit/a23b0370ae9395ca51ed8f94a1d71b57d35916a0))
+* File reference to canary docker-compose file ([#2124](https://github.com/AztecProtocol/aztec-packages/issues/2124)) ([13d3f16](https://github.com/AztecProtocol/aztec-packages/commit/13d3f161cc2ee6b49e4448ae9e8d33dd7f6ce7d2))
+* Retry with -eu was suspect in retrospect ([#2110](https://github.com/AztecProtocol/aztec-packages/issues/2110)) ([7265c2a](https://github.com/AztecProtocol/aztec-packages/commit/7265c2adc64445ae635779351683e479d345fcaf))
+
+
+### Miscellaneous
+
+* **build:** Enabled components in tags ([#2139](https://github.com/AztecProtocol/aztec-packages/issues/2139)) ([ccb38fb](https://github.com/AztecProtocol/aztec-packages/commit/ccb38fbab252f1a6ed4fb5b974e0255b2b7556b2))
+* **build:** Fixed manifest ([#2122](https://github.com/AztecProtocol/aztec-packages/issues/2122)) ([91faa66](https://github.com/AztecProtocol/aztec-packages/commit/91faa668650b98306813e64e9ebe3064bd7a221e))
+* **build:** Force a rebuild ([#2136](https://github.com/AztecProtocol/aztec-packages/issues/2136)) ([f26c9a0](https://github.com/AztecProtocol/aztec-packages/commit/f26c9a0df2889c1e1bfbc706199abed67ed3efc4))
+* **build:** Reset version back ([#2132](https://github.com/AztecProtocol/aztec-packages/issues/2132)) ([750a757](https://github.com/AztecProtocol/aztec-packages/commit/750a7570c91262e3320bc786fc2944c097427d94))
+* **build:** Unify barretenberg releases with aztec-packages ([#2120](https://github.com/AztecProtocol/aztec-packages/issues/2120)) ([82823d8](https://github.com/AztecProtocol/aztec-packages/commit/82823d8cd6882b191a7b363aa40344f66dfd7af7))
+* Delete broken bb Dockerfile.arm64-linux-gcc ([#2138](https://github.com/AztecProtocol/aztec-packages/issues/2138)) ([0f988b7](https://github.com/AztecProtocol/aztec-packages/commit/0f988b77ed4c1d0b01916763433344b54765e65a))
+* **documentation:** Document noteCommitment vs noteHash ([#2127](https://github.com/AztecProtocol/aztec-packages/issues/2127)) ([73b484f](https://github.com/AztecProtocol/aztec-packages/commit/73b484f474a16b53920fa1dc4f71cbe1ff2bf9ce)), closes [#1679](https://github.com/AztecProtocol/aztec-packages/issues/1679)
+* **master:** Release 0.6.0 ([#2121](https://github.com/AztecProtocol/aztec-packages/issues/2121)) ([9bc8e11](https://github.com/AztecProtocol/aztec-packages/commit/9bc8e11ec4598c54d2c8f37c9f1a38ad90148f12))
+
 ## [0.6.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.5.1...aztec-packages-v0.6.0) (2023-09-08)
 
 
