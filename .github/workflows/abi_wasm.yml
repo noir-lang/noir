@@ -3,6 +3,9 @@ name: ABI Wasm test
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -46,12 +49,13 @@ jobs:
           nix build -L .#noirc_abi_wasm
 
       - name: Export cache from nix store
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         run: |
           nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noirc-abi-wasm-cargo-artifacts
 
       - uses: actions/cache/save@v3
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        # Don't create cache entries for the merge queue.
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ env.CACHED_PATH }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
