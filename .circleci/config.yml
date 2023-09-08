@@ -1202,7 +1202,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary uniswap_trade_on_l1_from_l2.test.ts canary scripts/docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary uniswap_trade_on_l1_from_l2.test.ts canary docker-compose.yml
 
   run-deployment-canary-browser:
     docker:
@@ -1213,7 +1213,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary aztec_js_browser.test.ts canary scripts/docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary aztec_js_browser.test.ts canary docker-compose.yml
 
   run-deployment-canary-cli:
     docker:
@@ -1224,7 +1224,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary cli.test.ts canary scripts/docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary cli.test.ts canary docker-compose.yml
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /^aztec-packages-v.*/
