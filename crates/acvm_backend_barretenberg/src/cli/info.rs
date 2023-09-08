@@ -32,10 +32,10 @@ impl InfoCommand {
 
         command.arg("info").arg("-c").arg(self.crs_path).arg("-o").arg("-");
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
 
         if !output.status.success() {
-            return Err(BackendError(String::from_utf8(output.stderr).unwrap()));
+            return Err(BackendError::CommandFailed(output.stderr));
         }
 
         let backend_info: InfoResponse =
@@ -71,17 +71,16 @@ impl InfoCommand {
 }
 
 #[test]
-fn info_command() {
+fn info_command() -> Result<(), BackendError> {
     use acvm::acir::circuit::black_box_functions::BlackBoxFunc;
     use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, Opcode};
 
     use acvm::acir::native_types::Expression;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
-    let (language, is_opcode_supported) =
-        InfoCommand { crs_path }.run(&backend.binary_path()).unwrap();
+    let (language, is_opcode_supported) = InfoCommand { crs_path }.run(&backend.binary_path())?;
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
     assert!(is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
@@ -90,4 +89,6 @@ fn info_command() {
         #[allow(deprecated)]
         BlackBoxFuncCall::dummy(BlackBoxFunc::Keccak256)
     )));
+
+    Ok(())
 }

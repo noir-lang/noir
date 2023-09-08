@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::BackendError;
+
 /// VerifyCommand will call the barretenberg binary
 /// to verify a proof
 pub(crate) struct VerifyCommand {
@@ -10,7 +12,7 @@ pub(crate) struct VerifyCommand {
 }
 
 impl VerifyCommand {
-    pub(crate) fn run(self, binary_path: &Path) -> bool {
+    pub(crate) fn run(self, binary_path: &Path) -> Result<bool, BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
         command
@@ -26,21 +28,21 @@ impl VerifyCommand {
             command.arg("-r");
         }
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
 
         // We currently do not distinguish between an invalid proof and an error inside the backend.
-        output.status.success()
+        Ok(output.status.success())
     }
 }
 
 #[test]
-fn verify_command() {
+fn verify_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
     use super::{ProveCommand, WriteVkCommand};
     use crate::proof_system::write_to_file;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -61,8 +63,7 @@ fn verify_command() {
         vk_path_output: vk_path_output.clone(),
     };
 
-    let vk_written = write_vk_command.run(&backend.binary_path());
-    assert!(vk_written.is_ok());
+    write_vk_command.run(&backend.binary_path())?;
 
     let prove_command = ProveCommand {
         crs_path: crs_path.clone(),
@@ -70,14 +71,16 @@ fn verify_command() {
         bytecode_path,
         witness_path,
     };
-    let proof = prove_command.run(&backend.binary_path()).unwrap();
+    let proof = prove_command.run(&backend.binary_path())?;
 
     write_to_file(&proof, &proof_path);
 
     let verify_command =
         VerifyCommand { crs_path, is_recursive: false, proof_path, vk_path: vk_path_output };
 
-    let verified = verify_command.run(&backend.binary_path());
+    let verified = verify_command.run(&backend.binary_path())?;
     assert!(verified);
+
     drop(temp_directory);
+    Ok(())
 }

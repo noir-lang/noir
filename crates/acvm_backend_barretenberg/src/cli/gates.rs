@@ -18,44 +18,29 @@ impl GatesCommand {
             .arg(self.crs_path)
             .arg("-b")
             .arg(self.bytecode_path)
-            .output()
-            .expect("Failed to execute command");
+            .output()?;
 
         if !output.status.success() {
-            return Err(BackendError(String::from_utf8(output.stderr).unwrap()));
+            return Err(BackendError::CommandFailed(output.stderr));
         }
         // Note: barretenberg includes the newline, so that subsequent prints to stdout
         // are not on the same line as the gates output.
 
-        // Ensure we got the expected number of bytes
-        if output.stdout.len() != 8 {
-            return Err(BackendError(format!(
-                "Unexpected 8 bytes, received {}",
-                output.stdout.len()
-            )));
-        }
+        let gates_bytes: [u8; 8] =
+            output.stdout.try_into().map_err(BackendError::MalformedResponse)?;
 
         // Convert bytes to u64 in little-endian format
-        let value = u64::from_le_bytes([
-            output.stdout[0],
-            output.stdout[1],
-            output.stdout[2],
-            output.stdout[3],
-            output.stdout[4],
-            output.stdout[5],
-            output.stdout[6],
-            output.stdout[7],
-        ]);
+        let value = u64::from_le_bytes(gates_bytes);
 
         Ok(value as u32)
     }
 }
 
 #[test]
-fn gate_command() {
+fn gate_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -66,7 +51,9 @@ fn gate_command() {
 
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
-    let output = gate_command.run(&backend.binary_path()).unwrap();
+    let output = gate_command.run(&backend.binary_path())?;
     // Mock backend always returns zero gates.
     assert_eq!(output, 0);
+
+    Ok(())
 }

@@ -35,20 +35,20 @@ impl ProveCommand {
             command.arg("-r");
         }
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
         if output.status.success() {
             Ok(output.stdout)
         } else {
-            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }
 
 #[test]
-fn prove_command() {
+fn prove_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -61,7 +61,9 @@ fn prove_command() {
     let crs_path = backend.backend_directory();
     let prove_command = ProveCommand { crs_path, bytecode_path, witness_path, is_recursive: false };
 
-    let proof = prove_command.run(&backend.binary_path()).unwrap();
+    let proof = prove_command.run(&backend.binary_path())?;
     assert_eq!(proof, "proof".as_bytes());
     drop(temp_directory);
+
+    Ok(())
 }

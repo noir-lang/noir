@@ -27,21 +27,22 @@ impl ContractCommand {
             .arg("-o")
             .arg("-");
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
 
         if output.status.success() {
-            Ok(String::from_utf8(output.stdout).unwrap())
+            String::from_utf8(output.stdout)
+                .map_err(|error| BackendError::MalformedResponse(error.into_bytes()))
         } else {
-            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }
 
 #[test]
-fn contract_command() {
+fn contract_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_mock_backend();
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
@@ -58,11 +59,12 @@ fn contract_command() {
         is_recursive: false,
         crs_path: crs_path.clone(),
     };
-
-    assert!(write_vk_command.run(&backend.binary_path()).is_ok());
+    write_vk_command.run(&backend.binary_path())?;
 
     let contract_command = ContractCommand { vk_path, crs_path };
+    contract_command.run(&backend.binary_path())?;
 
-    assert!(contract_command.run(&backend.binary_path()).is_ok());
     drop(temp_directory);
+
+    Ok(())
 }

@@ -1,6 +1,5 @@
 use super::proof_system::{serialize_circuit, write_to_file};
 use crate::{
-    assert_binary_exists,
     cli::{ContractCommand, WriteVkCommand},
     Backend, BackendError,
 };
@@ -12,6 +11,8 @@ const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
 
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path().to_path_buf();
 
@@ -23,7 +24,6 @@ impl Backend {
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory_path.join("vk");
 
-        let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             crs_path: self.crs_directory(),
             is_recursive: false,
@@ -49,10 +49,10 @@ mod tests {
         native_types::{Expression, Witness},
     };
 
-    use crate::get_mock_backend;
+    use crate::{get_mock_backend, BackendError};
 
     #[test]
-    fn test_smart_contract() {
+    fn test_smart_contract() -> Result<(), BackendError> {
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
         let constraint = Opcode::Arithmetic(expression);
 
@@ -65,10 +65,12 @@ mod tests {
             assert_messages: Default::default(),
         };
 
-        let contract = get_mock_backend().eth_contract(&circuit).unwrap();
+        let contract = get_mock_backend()?.eth_contract(&circuit)?;
 
         assert!(contract.contains("contract BaseUltraVerifier"));
         assert!(contract.contains("contract UltraVerifier"));
         assert!(contract.contains("library UltraVerificationKey"));
+
+        Ok(())
     }
 }
