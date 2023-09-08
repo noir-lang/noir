@@ -2,9 +2,8 @@ name: test-integration
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-        - kh-integration-testing    
+  schedule:
+    - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -22,7 +21,7 @@ jobs:
 
       - name: Checkout noir sources
         uses: actions/checkout@v4
-      
+
       - name: Checkout acvm sources
         uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
         with:
@@ -39,7 +38,7 @@ jobs:
         with:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-  
+
       - name: Restore nix store cache
         if: env.ACT != 'true'
         uses: actions/cache/restore@v3
@@ -65,7 +64,6 @@ jobs:
           cp -r ./result/* ./.packages/noir_wasm/
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
-
       - name: Upload `noir_wasm` artifact
         if: env.ACT != 'true'
         uses: actions/upload-artifact@v3
@@ -88,7 +86,7 @@ jobs:
           name: noirc_abi_wasm
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
-  
+
       - name: Build `acvm_js` package
         working-directory: ./acvm
         run: |
@@ -108,11 +106,11 @@ jobs:
       - name: Install Yarn (local)
         if: env.ACT == 'true'
         run: npm install -g yarn
-  
-      - name: Install `playwright` deps
-        working-directory: ./crates/integration-tests
-        run: |
-          npx playwright install
+
+    #   - name: Install `playwright` deps
+    #     working-directory: ./crates/integration-tests
+    #     run: |
+    #       npx playwright install
         #   npx playwright install-deps
 
       - name: Install `integration-tests` dependencies
@@ -123,4 +121,3 @@ jobs:
         working-directory: ./crates/integration-tests
         run: |
           yarn test:browser
-  
