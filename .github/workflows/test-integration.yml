@@ -4,14 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
-  push:
-    branches:
-        - kh-integration-testing    
     
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
-  cancel-in-progress: true
-
 jobs:
   wasm-packages-build-test:
     runs-on: ubuntu-latest
