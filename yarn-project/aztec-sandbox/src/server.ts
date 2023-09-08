@@ -27,5 +27,6 @@ export function startHttpRpcServer(
 
   const httpServer = http.createServer(app.callback());
   httpServer.listen(port);
+
   return httpServer;
 }
