@@ -319,30 +319,42 @@ impl IntType {
 /// TestScope is used to specify additional annotations for test functions
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum TestScope {
-    /// If a test has a scope of ShouldFail, then it is expected to fail
-    ShouldFail,
+    /// If a test has a scope of ShouldFailWith, then it can only pass
+    /// if it fails with the specified reason. If the reason is None, then
+    /// the test must unconditionally fail
+    ShouldFailWith { reason: Option<String> },
     /// No scope is applied and so the test must pass
     None,
 }
 
 impl TestScope {
     fn lookup_str(string: &str) -> Option<TestScope> {
-        match string {
-            "should_fail" => Some(TestScope::ShouldFail),
+        match string.trim() {
+            "should_fail" => Some(TestScope::ShouldFailWith { reason: None }),
+            s if s.starts_with("should_fail_with") => {
+                let parts: Vec<&str> = s.splitn(2, '=').collect();
+                if parts.len() == 2 {
+                    let reason = parts[1].trim();
+                    let reason = reason.trim_matches('"');
+                    Some(TestScope::ShouldFailWith { reason: Some(reason.to_string()) })
+                } else {
+                    None
+                }
+            }
             _ => None,
-        }
-    }
-    fn as_str(&self) -> &'static str {
-        match self {
-            TestScope::ShouldFail => "should_fail",
-            TestScope::None => "",
         }
     }
 }
 
 impl fmt::Display for TestScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({})", self.as_str())
+        match self {
+            TestScope::None => write!(f, ""),
+            TestScope::ShouldFailWith { reason } => match reason {
+                Some(failure_reason) => write!(f, "(should_fail_with = ({}))", failure_reason),
+                None => write!(f, "should_fail"),
+            },
+        }
     }
 }
 
@@ -391,6 +403,9 @@ impl Attribute {
                         || ch == '_'
                         || ch == '('
                         || ch == ')'
+                        || ch == '='
+                        || ch == '"'
+                        || ch == ' '
                 })
                 .then_some(());
 

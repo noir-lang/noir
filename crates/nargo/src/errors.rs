@@ -17,6 +17,32 @@ pub enum NargoError {
     ForeignCallError(#[from] ForeignCallError),
 }
 
+impl NargoError {
+    /// Extracts the user defined failure message from the ExecutionError
+    /// If one exists.
+    ///
+    /// We want to extract the user defined error so that we can compare it
+    /// in tests to expected failure messages
+    pub fn user_defined_failure_message(&self) -> Option<&str> {
+        let execution_error = match self {
+            NargoError::ExecutionError(error) => error,
+            _ => return None,
+        };
+
+        match execution_error {
+            ExecutionError::AssertionFailed(message, _) => Some(message),
+            ExecutionError::SolvingError(error) => match error {
+                OpcodeResolutionError::IndexOutOfBounds { .. }
+                | OpcodeResolutionError::UnsupportedBlackBoxFunc(_)
+                | OpcodeResolutionError::OpcodeNotSolvable(_)
+                | OpcodeResolutionError::UnsatisfiedConstrain { .. } => None,
+                OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),
+                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => Some(reason),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ExecutionError {
     #[error("Failed assertion: '{}'", .0)]

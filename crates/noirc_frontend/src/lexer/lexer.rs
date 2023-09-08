@@ -532,7 +532,24 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next().unwrap().unwrap();
-        assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::ShouldFail)));
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith { reason: None }))
+        );
+    }
+
+    #[test]
+    fn test_attribute_with_valid_scope_should_fail_with() {
+        let input = r#"#[test(should_fail_with = "hello")]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith {
+                reason: Some("hello".to_owned())
+            }))
+        );
     }
 
     #[test]
