@@ -1,7 +1,0 @@
-# Unused & not maintained. This probably won't work without changes.
-FROM aztecprotocol/crosstool-ng-arm64:latest
-WORKDIR /usr/src/circuits/cpp
-COPY . .
-RUN cmake --toolchain ./cmake/toolchains/aarch64-linux.cmake --preset gcc && cmake --build --preset gcc
-RUN cd build && for test in ./bin/*_tests; do qemu-aarch64 $test; done
-ENTRYPOINT /bin/bash
