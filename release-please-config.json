@@ -19,14 +19,15 @@
     ".": {
       "release-type": "simple",
       "component": "aztec-packages",
-      "package-name": "aztec-packages"
+      "package-name": "aztec-packages",
+      "extra-files": ["VERSION"]
     },
-    "barretenberg/ts": {
+    "circuits/cpp/barretenberg/ts": {
       "release-type": "node",
       "package-name": "barretenberg.js",
       "component": "barretenberg.js"
     },
-    "barretenberg": {
+    "circuits/cpp/barretenberg": {
       "release-type": "simple",
       "component": "barretenberg",
       "package-name": "barretenberg",
