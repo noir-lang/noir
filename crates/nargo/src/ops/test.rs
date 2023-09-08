@@ -106,18 +106,17 @@ fn check_expected_failure_message(test_function: TestFunction, got_error: &str) 
         None => return TestStatus::Pass,
     };
 
-    let expected_failure_message_matches =
-        got_error == expected_failure_message;
+    let expected_failure_message_matches = got_error == expected_failure_message;
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
 
     // The expected failure message does not match the actual failure message
-    return TestStatus::Fail {
+    TestStatus::Fail {
         message: format!(
             "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
             test_function.failure_reason().unwrap_or_default(),
             got_error.trim_matches('\'')
         ),
-    };
+    }
 }
