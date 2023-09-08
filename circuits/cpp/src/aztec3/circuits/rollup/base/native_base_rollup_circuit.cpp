@@ -274,7 +274,9 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                     if (!(is_less_than_nullifier && is_next_greater_than)) {
                         if (low_nullifier_preimage.next_index != 0 && low_nullifier_preimage.next_value != 0) {
                             builder.do_assert(false,
-                                              format("Nullifier is not in the correct range. \n  ",
+                                              format("Nullifier (",
+                                                     nullifier,
+                                                     ") is not in the correct range. \n  ",
                                                      "is_less_than_nullifier ",
                                                      is_less_than_nullifier,
                                                      "\n is_next_greater_than ",

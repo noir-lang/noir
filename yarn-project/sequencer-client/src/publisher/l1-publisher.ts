@@ -93,7 +93,7 @@ export class L1Publisher implements L2BlockReceiver {
   private interruptableSleep = new InterruptableSleep();
   private sleepTimeMs: number;
   private interrupted = false;
-  private log = createDebugLogger('aztec:sequencer');
+  private log = createDebugLogger('aztec:sequencer:publisher');
 
   constructor(private txSender: L1PublisherTxSender, config?: PublisherConfig) {
     this.sleepTimeMs = config?.l1BlockPublishRetryIntervalMS ?? 60_000;

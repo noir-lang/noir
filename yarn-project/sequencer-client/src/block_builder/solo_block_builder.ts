@@ -64,7 +64,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     protected vks: VerificationKeys,
     protected simulator: RollupSimulator,
     protected prover: RollupProver,
-    protected debug = createDebugLogger('aztec:sequencer'),
+    protected debug = createDebugLogger('aztec:sequencer:solo-block-builder'),
   ) {}
 
   /**
