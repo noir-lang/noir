@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.6.3...aztec-packages-v0.6.4) (2023-09-08)
+
+
+### Bug Fixes
+
+* Commit tags and rebuilds ([#2156](https://github.com/AztecProtocol/aztec-packages/issues/2156)) ([7669b43](https://github.com/AztecProtocol/aztec-packages/commit/7669b43253f8c2633e96f483ec12c75478dcf539))
+
 ## [0.6.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.6.2...aztec-packages-v0.6.3) (2023-09-08)
 
 
