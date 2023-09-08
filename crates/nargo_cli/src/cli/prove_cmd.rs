@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use acvm::acir::circuit::Opcode;
+use acvm::Language;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
@@ -60,6 +62,7 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let proof_dir = workspace.proofs_directory_path();
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
 
@@ -72,6 +75,8 @@ pub(crate) fn run(
             circuit_build_path,
             args.verify,
             &args.compile_options,
+            np_language,
+            &is_opcode_supported,
         )?;
     }
 
@@ -88,13 +93,16 @@ pub(crate) fn prove_package(
     circuit_build_path: PathBuf,
     check_proof: bool,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(), CliError> {
     let (preprocessed_program, debug_data) = if circuit_build_path.exists() {
         let program = read_program_from_file(circuit_build_path)?;
 
         (program, None)
     } else {
-        let (context, program) = compile_package(backend, package, compile_options)?;
+        let (context, program) =
+            compile_package(package, compile_options, np_language, &is_opcode_supported)?;
         let preprocessed_program = PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),
             abi: program.abi,

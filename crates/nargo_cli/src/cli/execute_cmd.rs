@@ -1,6 +1,7 @@
-use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::{Opcode, OpcodeLocation};
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
+use acvm::Language;
 use clap::Args;
 use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
@@ -53,9 +54,16 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let witness_dir = &workspace.target_directory_path();
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        let (return_value, solved_witness) =
-            execute_package(backend, package, &args.prover_name, &args.compile_options)?;
+        let (return_value, solved_witness) = execute_package(
+            backend,
+            package,
+            &args.prover_name,
+            &args.compile_options,
+            np_language,
+            &is_opcode_supported,
+        )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {
@@ -75,8 +83,11 @@ fn execute_package(
     package: &Package,
     prover_name: &str,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (context, compiled_program) =
+        compile_package(package, compile_options, np_language, &is_opcode_supported)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
