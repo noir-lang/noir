@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 use acvm::acir::circuit::Opcode;
@@ -54,20 +54,15 @@ impl Backend {
         let serialized_circuit = serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
-        let proof_path = temp_directory.join("proof").with_extension("proof");
-
         let binary_path = assert_binary_exists(self);
         // Create proof and store it in the specified path
-        ProveCommand {
+        let proof_with_public_inputs = ProveCommand {
             crs_path: self.crs_directory(),
             is_recursive,
             bytecode_path,
             witness_path,
-            proof_path: proof_path.clone(),
         }
         .run(&binary_path)?;
-
-        let proof_with_public_inputs = read_bytes_from_file(&proof_path).unwrap();
 
         // Barretenberg return the proof prepended with the public inputs.
         //
@@ -145,19 +140,6 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
-}
-
-pub(super) fn read_bytes_from_file(path: &Path) -> std::io::Result<Vec<u8>> {
-    // Open the file for reading.
-    let mut file = File::open(path)?;
-
-    // Create a buffer to store the bytes.
-    let mut buffer = Vec::new();
-
-    // Read bytes from the file.
-    file.read_to_end(&mut buffer)?;
-
-    Ok(buffer)
 }
 
 /// Removes the public inputs which are prepended to a proof by Barretenberg.

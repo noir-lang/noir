@@ -2,7 +2,6 @@ use super::proof_system::{serialize_circuit, write_to_file};
 use crate::{
     assert_binary_exists,
     cli::{ContractCommand, WriteVkCommand},
-    proof_system::read_bytes_from_file,
     Backend, BackendError,
 };
 use acvm::acir::circuit::Circuit;
@@ -33,16 +32,8 @@ impl Backend {
         }
         .run(&binary_path)?;
 
-        let contract_path = temp_directory_path.join("contract");
-        ContractCommand {
-            crs_path: self.crs_directory(),
-            vk_path,
-            contract_path: contract_path.clone(),
-        }
-        .run(&binary_path)?;
-
-        let verification_key_library_bytes = read_bytes_from_file(&contract_path).unwrap();
-        let verification_key_library = String::from_utf8(verification_key_library_bytes).unwrap();
+        let verification_key_library =
+            ContractCommand { crs_path: self.crs_directory(), vk_path }.run(&binary_path)?;
 
         drop(temp_directory);
         Ok(format!("{verification_key_library}{ULTRA_VERIFIER_CONTRACT}"))
