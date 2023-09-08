@@ -9,7 +9,7 @@
 set -eu
 
 COMMIT_HASH=$1
-COMMIT_TAG=$2
+COMMIT_TAG=${2##*aztec-packages-}
 JOB_NAME=$3
 GIT_REPOSITORY_URL=${4:-}
 BRANCH=${5:-}

@@ -6,7 +6,7 @@
   "group-pull-request-title-pattern": "chore(master): Release ${version}",
   "pull-request-header": ":robot: I have created a new Aztec Packages release",
   "versioning": "default",
-  "include-component-in-tag": false,
+  "include-component-in-tag": true,
   "changelog-sections": [
     { "type": "feat", "section": "Features", "hidden": false },
     { "type": "fix", "section": "Bug Fixes", "hidden": false },

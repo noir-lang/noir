@@ -1216,7 +1216,7 @@ jobs:
           command: spot_run_test_script ./scripts/run_tests canary cli.test.ts canary scripts/docker-compose.yml
 
 # Repeatable config for defining the workflow below.
-tag_regex: &tag_regex /^v.*/
+tag_regex: &tag_regex /^aztec-packages-v.*/
 defaults: &defaults
   filters:
     tags:
