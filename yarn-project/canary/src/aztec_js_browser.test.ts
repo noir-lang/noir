@@ -138,6 +138,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
         const balance = await contract.methods.getBalance(owner).view({ from: owner });
+        console.log(`Owner's balance: ${balance}`);
         return balance;
       },
       SANDBOX_URL,
@@ -159,9 +160,13 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const receiver = accounts[1].address;
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
-        await contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner }).wait();
+        await contract.methods.transfer(transferAmount, receiver).send({ origin: owner }).wait();
         console.log(`Transferred ${transferAmount} tokens to new Account`);
-        return await contract.methods.getBalance(receiver).view({ from: receiver });
+        const receiverBalance = await contract.methods.getBalance(receiver).view({ from: receiver });
+        console.log(`Receiver's balance is now: ${receiverBalance}`);
+        const senderBalance = await contract.methods.getBalance(owner).view({ from: owner });
+        console.log(`Updated sender balance: ${senderBalance}`);
+        return receiverBalance;
       },
       SANDBOX_URL,
       (await getPrivateTokenAddress()).toString(),
