@@ -54,7 +54,7 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Write a cache entry even if the tests fail but don't create any for the merge queue.
-        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
