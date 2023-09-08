@@ -1,19 +1,20 @@
-use acvm::{
-    acir::circuit::{Circuit, Opcode},
-    compiler::AcirTransformationMap,
-    Language,
-};
+use acvm::{acir::circuit::Opcode, Language};
 use iter_extended::try_vecmap;
-use noirc_driver::CompiledContract;
+use noirc_driver::{CompiledContract, CompiledProgram};
 
 use crate::NargoError;
 
-pub fn optimize_circuit(
-    circuit: Circuit,
+pub fn optimize_program(
+    mut program: CompiledProgram,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<(Circuit, AcirTransformationMap), NargoError> {
-    acvm::compiler::compile(circuit, np_language, &is_opcode_supported).map_err(NargoError::from)
+) -> Result<CompiledProgram, NargoError> {
+    let (optimized_circuit, location_map) =
+        acvm::compiler::compile(program.circuit, np_language, &is_opcode_supported)?;
+
+    program.circuit = optimized_circuit;
+    program.debug.update_acir(location_map);
+    Ok(program)
 }
 
 pub fn optimize_contract(

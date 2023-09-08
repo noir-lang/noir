@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap};
 use fm::FileManager;
 use iter_extended::{try_vecmap, vecmap};
 use nargo::artifacts::contract::PreprocessedContract;
@@ -83,23 +82,22 @@ pub(crate) fn compile_package(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-) -> Result<(FileManager, CompiledProgram), CompileError> {
+) -> Result<(FileManager, CompiledProgram), CliError> {
     if package.is_library() {
-        return Err(CompileError::LibraryCrate(package.name.clone()));
+        return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
     let (mut context, crate_id) = prepare_package(package);
     let result = compile_main(&mut context, crate_id, compile_options);
-    let mut program = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
-    // Apply backend specific optimizations.
-    let (optimized_circuit, location_map) = optimize_circuit(backend, program.circuit)
-        .expect("Backend does not support an opcode that is in the IR");
-    // TODO(#2110): Why does this set `program.circuit` to `optimized_circuit` instead of the function taking ownership
-    // and requiring we use `optimized_circuit` everywhere after
-    program.circuit = optimized_circuit;
-    program.debug.update_acir(location_map);
+    let program = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
 
-    Ok((context.file_manager, program))
+    // Apply backend specific optimizations.
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let optimized_program =
+        nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
+            .expect("Backend does not support an opcode that is in the IR");
+
+    Ok((context.file_manager, optimized_program))
 }
 
 pub(crate) fn compile_contracts(
@@ -111,26 +109,11 @@ pub(crate) fn compile_contracts(
     let result = noirc_driver::compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
 
-    let optimized_contracts =
-        try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let optimized_contracts = try_vecmap(contracts, |contract| {
+        nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
+    })?;
     Ok((context.file_manager, optimized_contracts))
-}
-
-fn optimize_circuit(
-    backend: &Backend,
-    circuit: Circuit,
-) -> Result<(Circuit, AcirTransformationMap), CliError> {
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
-    nargo::ops::optimize_circuit(circuit, np_language, &is_opcode_supported).map_err(CliError::from)
-}
-
-fn optimize_contract(
-    backend: &Backend,
-    contract: CompiledContract,
-) -> Result<CompiledContract, CliError> {
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
-    nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
-        .map_err(CliError::from)
 }
 
 fn save_program(
