@@ -3,12 +3,12 @@ use std::path::Path;
 use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap};
 use fm::FileManager;
 use iter_extended::{try_vecmap, vecmap};
+use nargo::artifacts::contract::PreprocessedContract;
 use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
 use nargo::prepare_package;
-use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     compile_main, CompileOptions, CompiledContract, CompiledProgram, ErrorsAndWarnings, Warnings,
@@ -116,29 +116,21 @@ pub(crate) fn compile_contracts(
     Ok((context.file_manager, optimized_contracts))
 }
 
-pub(super) fn optimize_circuit(
+fn optimize_circuit(
     backend: &Backend,
     circuit: Circuit,
 ) -> Result<(Circuit, AcirTransformationMap), CliError> {
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
-    let result = acvm::compiler::compile(circuit, np_language, is_opcode_supported)
-        .map_err(|_| NargoError::CompilationError)?;
-
-    Ok(result)
+    nargo::ops::optimize_circuit(circuit, np_language, &is_opcode_supported).map_err(CliError::from)
 }
 
-pub(super) fn optimize_contract(
+fn optimize_contract(
     backend: &Backend,
     contract: CompiledContract,
 ) -> Result<CompiledContract, CliError> {
-    let functions = try_vecmap(contract.functions, |mut func| {
-        let (optimized_bytecode, location_map) = optimize_circuit(backend, func.bytecode)?;
-        func.bytecode = optimized_bytecode;
-        func.debug.update_acir(location_map);
-        Ok::<_, CliError>(func)
-    })?;
-
-    Ok(CompiledContract { functions, ..contract })
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
+        .map_err(CliError::from)
 }
 
 fn save_program(

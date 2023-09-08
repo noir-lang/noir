@@ -17,6 +17,12 @@ pub enum NargoError {
     ForeignCallError(#[from] ForeignCallError),
 }
 
+impl From<acvm::compiler::CompileError> for NargoError {
+    fn from(_: acvm::compiler::CompileError) -> Self {
+        NargoError::CompilationError
+    }
+}
+
 impl NargoError {
     /// Extracts the user defined failure message from the ExecutionError
     /// If one exists.
