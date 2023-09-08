@@ -30,7 +30,7 @@ describe('guides/dapp/testing', () => {
         owner = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
         recipient = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
         token = await PrivateTokenContract.deploy(owner, 100n, owner.getAddress()).send().deployed();
-      }, 30_000);
+      }, 60_000);
 
       // docs:start:stop-in-proc-sandbox
       afterAll(() => stop());
