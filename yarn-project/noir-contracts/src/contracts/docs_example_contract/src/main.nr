@@ -6,7 +6,7 @@ mod types;
 contract DocsExample {
     use dep::std::option::Option;
     use dep::aztec::{
-        context::{PrivateContext, PublicContext},
+        context::{PrivateContext, PublicContext, Context},
         state_vars::{
             immutable_singleton::ImmutableSingleton, map::Map, public_state::PublicState, set::Set,
             singleton::Singleton,
@@ -44,33 +44,28 @@ contract DocsExample {
     // docs:start:state_vars-Set
     // docs:start:state_vars-MapSingleton
     impl Storage {
-        fn init(
-            private_context: Option<&mut PrivateContext>,
-            public_context: Option<&mut PublicContext>,
-        ) -> pub Self {
+        fn init(context: Context) -> pub Self {
             Storage {
                 // highlight-next-line:state_vars-PublicState
-                locked: PublicState::new(private_context, public_context, 1, BoolSerialisationMethods),
+                locked: PublicState::new(context, 1, BoolSerialisationMethods),
                 // highlight-next-line:state_vars-PublicStateCustomStruct
                 queen: PublicState::new(
-                    private_context,
-                    public_context,
+                    context,
                     2,
                     QueenSerialisationMethods,
                 ),
                 // highlight-next-line:state_vars-ImmutableSingleton
-                game_rules: ImmutableSingleton::new(private_context, 3, RulesNoteMethods),
+                game_rules: ImmutableSingleton::new(context, 3, RulesNoteMethods),
                 // highlight-next-line:state_vars-Singleton
-                legendary_card: Singleton::new(private_context, public_context, 4, CardNoteMethods),
+                legendary_card: Singleton::new(context, 4, CardNoteMethods),
                 // highlight-next-line:state_vars-Set
-                cards: Set::new(private_context, public_context, 5, CardNoteMethods),
+                cards: Set::new(context, 5, CardNoteMethods),
                 // highlight-next-line:state_vars-MapSingleton
                 profiles: Map::new(
-                    private_context,
-                    public_context,
+                    context,
                     6,
-                    |private_context, public_context, slot| {
-                        Singleton::new(private_context, public_context, slot, ProfileNoteMethods)
+                    |context, slot| {
+                        Singleton::new(context, slot, ProfileNoteMethods)
                     },
                 ),
             }
@@ -93,7 +88,7 @@ contract DocsExample {
         max_points: u8,
         legendary_card_secret: Field,
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let mut game_rules = RulesNote::new(min_points, max_points);
         actions::init_game_rules(storage.game_rules, &mut game_rules);
@@ -106,7 +101,7 @@ contract DocsExample {
     #[aztec(public)]
     fn lock() {
         // highlight-next-line:storage-init
-        let storage = Storage::init(Option::none(), Option::some(&mut context));
+        let storage = Storage::init(Context::public(&mut context));
         storage.locked.write(true);
     }
     // docs:end:storage-init
@@ -114,7 +109,7 @@ contract DocsExample {
     // docs:start:functions-OpenFunction
     #[aztec(public)]
     fn unlock() {
-        let storage = Storage::init(Option::none(), Option::some(&mut context));
+        let storage = Storage::init(Context::public(&mut context));
         actions::unlock(storage.locked);
     }
     // docs:end:functions-OpenFunction
@@ -124,7 +119,7 @@ contract DocsExample {
         account: Field,
         points: u8,
     ) {
-        let storage = Storage::init(Option::none(), Option::some(&mut context));
+        let storage = Storage::init(Context::public(&mut context));
 
         let new_queen = Queen { account, points };
         
@@ -136,7 +131,7 @@ contract DocsExample {
     // docs:start:state_vars-PublicStateWriteBeforeCall
     #[aztec(public)]
     fn replace_queen_unsafe() {
-        let storage = Storage::init(Option::none(), Option::some(&mut context));
+        let storage = Storage::init(Context::public(&mut context));
 
         let account = context.msg_sender();
         let points = actions::get_total_points(storage.cards, account, 0);
@@ -155,7 +150,7 @@ contract DocsExample {
     // docs:start:functions-SecretFunction
     #[aztec(private)]
     fn add_common_cards(secrets: [Field; 4]) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         for i in 0..secrets.len() as u8 {
             let mut card = CardNote::new(0, secrets[i], 0);
@@ -169,7 +164,7 @@ contract DocsExample {
         new_points: u8,
         new_secret: Field,
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let owner = inputs.call_context.msg_sender;
         let mut updated_card = CardNote::new(new_points, new_secret, owner);
@@ -181,7 +176,7 @@ contract DocsExample {
 
     #[aztec(private)]
     fn become_queen() {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let legendary_card = actions::get_legendary_card(storage.legendary_card);
 
@@ -205,7 +200,7 @@ contract DocsExample {
         account: Field,
         offset: u32,
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let mut total_points = 0;
         let options = create_account_card_getter_options(account, offset);
@@ -224,7 +219,7 @@ contract DocsExample {
     // docs:start:state_vars-check_return_notes
     #[aztec(private)]
     fn discard_largest_card() {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let account = context.msg_sender();
         let options = create_largest_account_card_getter_options(account);
@@ -238,7 +233,7 @@ contract DocsExample {
 
     // docs:start:functions-UncontrainedFunction
     unconstrained fn get_total_points(account: Field) -> u8 {
-        let storage = Storage::init(Option::none(), Option::none());
+        let storage = Storage::init(Context::none());
         actions::get_total_points(storage.cards, account, 0)
     }
     // docs:end:functions-UncontrainedFunction

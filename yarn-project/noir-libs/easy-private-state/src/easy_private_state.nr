@@ -1,5 +1,5 @@
 use dep::aztec::{
-    context::{PrivateContext, PublicContext},
+    context::{PrivateContext, PublicContext, Context},
     log::emit_encrypted_log,
     note::note_getter_options::NoteGetterOptions,
     oracle::get_public_key::get_public_key,
@@ -13,26 +13,24 @@ use dep::value_note::{
 };
 
 struct EasyPrivateUint {
-    maybe_context: Option<&mut PrivateContext>,
+    context: Context,
     set: Set<ValueNote, VALUE_NOTE_LEN>,
     storage_slot: Field,
 }
 
 impl EasyPrivateUint {
     fn new(
-        private_context: Option<&mut PrivateContext>,
-        public_context: Option<&mut PublicContext>,
+        context: Context,
         storage_slot: Field,
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         let set = Set {
-            private_context,
-            public_context,
+            context,
             storage_slot,
             note_interface: ValueNoteMethods,
         };
         EasyPrivateUint {
-            maybe_context: private_context,
+            context,
             set,
             storage_slot,
         }
@@ -48,7 +46,7 @@ impl EasyPrivateUint {
 
         // Emit the newly created encrypted note preimages via oracle calls.
         let owner_key = get_public_key(owner);
-        let context = self.maybe_context.unwrap();
+        let context = self.context.private.unwrap();
         emit_encrypted_log(
             context,
             (*context).this_address(),
@@ -94,7 +92,7 @@ impl EasyPrivateUint {
 
         let owner_key = get_public_key(owner);
 
-        let context = self.maybe_context.unwrap();
+        let context = self.context.private.unwrap();
         emit_encrypted_log(
             context,
             (*context).this_address(),

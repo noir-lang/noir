@@ -6,7 +6,7 @@ contract Escrow {
     use dep::std::option::Option;
 
     use dep::aztec::{
-        context::{PrivateContext, PublicContext},
+        context::{PrivateContext, PublicContext, Context},
         log::emit_encrypted_log,
         note::{
             note_getter_options::NoteGetterOptions,
@@ -30,12 +30,9 @@ contract Escrow {
     }
 
     impl Storage {
-        fn init(
-            private_context: Option<&mut PrivateContext>,
-            public_context: Option<&mut PublicContext>,
-        ) -> pub Self {
+        fn init(context: Context) -> pub Self {
             Storage {
-                owners: Set::new(private_context, public_context, 1, AddressNoteMethods),
+                owners: Set::new(context, 1, AddressNoteMethods),
             }
         }
     }
@@ -47,7 +44,7 @@ contract Escrow {
     ) {
         let this = context.this_address();
         
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
         let mut note = AddressNote::new(owner, this);
         storage.owners.insert(&mut note);
         emit_encrypted_log(
@@ -68,7 +65,7 @@ contract Escrow {
     ) {
         let this = context.this_address();
         let sender = context.msg_sender();
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
         
         // We don't remove note from the owners set. If a note exists, the owner and recipient are legit.
         let options = NoteGetterOptions::new().select(0, sender).select(1, this).set_limit(1);

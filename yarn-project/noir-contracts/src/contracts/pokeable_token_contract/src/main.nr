@@ -9,7 +9,7 @@ contract PokeableToken {
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
     };
     use dep::aztec::{
-        context::{PrivateContext, PublicContext},
+        context::{PrivateContext, PublicContext, Context},
         log::emit_encrypted_log,
         note::{
             note_getter::NoteGetterOptions,
@@ -28,19 +28,15 @@ contract PokeableToken {
     }
 
     impl Storage {
-        fn init(
-            private_context: Option<&mut PrivateContext>,
-            public_context: Option<&mut PublicContext>,
-        ) -> pub Self {
+        fn init(context: Context) -> pub Self {
             Storage {
-                sender: ImmutableSingleton::new(private_context, 1, AddressNoteMethods),
-                recipient: ImmutableSingleton::new(private_context, 2, AddressNoteMethods),
+                sender: ImmutableSingleton::new(context, 1, AddressNoteMethods),
+                recipient: ImmutableSingleton::new(context, 2, AddressNoteMethods),
                 balances: Map::new(
-                    private_context,
-                    public_context,
+                    context,
                     3,
-                    |private_context, public_context, slot| {
-                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    |context, slot| {
+                        Set::new(context, slot, ValueNoteMethods)
                     },
                 ),
             }
@@ -54,7 +50,7 @@ contract PokeableToken {
         sender: Field,
         recipient: Field
     )  {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let mut sender_note = AddressNote::new(sender);
         let mut recipient_note = AddressNote::new(recipient);
@@ -73,7 +69,7 @@ contract PokeableToken {
         sender: Field,
         recipient: Field
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         // TODO: This check is not satisfying constraints
         // let mut sender_note = AddressNote::new(sender);
@@ -111,7 +107,7 @@ contract PokeableToken {
     unconstrained fn getBalance(
         sender: Field,
     ) -> Field {
-        let storage = Storage::init(Option::none(), Option::none());
+        let storage = Storage::init(Context::none());
 
         // Get the set of notes owned by the user.
         let sender_balance = storage.balances.at(sender);

@@ -8,7 +8,7 @@ contract EcdsaAccount {
     use dep::aztec::{
         abi::CallContext,
         constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
-        context::{PrivateContext, PublicContext},
+        context::{PrivateContext, PublicContext, Context},
         entrypoint::{EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE},
         log::emit_encrypted_log,
         note::{
@@ -28,9 +28,9 @@ contract EcdsaAccount {
     }
 
     impl Storage {
-        fn init(private_context: Option<&mut PrivateContext>, _: Option<&mut PublicContext>) -> pub Self {
+        fn init(context: Context) -> pub Self {
             Storage {
-                public_key: ImmutableSingleton::new(private_context, 1, EcdsaPublicKeyNoteInterface),
+                public_key: ImmutableSingleton::new(context, 1, EcdsaPublicKeyNoteInterface),
             }
         }
     }
@@ -42,7 +42,7 @@ contract EcdsaAccount {
         signature: pub [u8;64],
     ) {
         // Load public key from storage
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
         let public_key = storage.public_key.get_note();
 
         // Verify payload signature using Ethereum's signing scheme
@@ -69,7 +69,7 @@ contract EcdsaAccount {
         signing_pub_key_x: pub [u8;32],
         signing_pub_key_y: pub [u8;32],
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
         
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);

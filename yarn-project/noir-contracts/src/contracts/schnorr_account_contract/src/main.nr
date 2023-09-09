@@ -7,7 +7,7 @@ contract SchnorrAccount {
     use dep::std::option::Option;
     use dep::aztec::{
         constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
-        context::{PrivateContext, PublicContext},
+        context::{PrivateContext, PublicContext, Context},
         entrypoint::{ENTRYPOINT_PAYLOAD_SIZE, EntrypointPayload},
         log::emit_encrypted_log,
         note::{
@@ -25,9 +25,9 @@ contract SchnorrAccount {
     }
 
     impl Storage {
-        fn init(private_context: Option<&mut PrivateContext>, _: Option<&mut PublicContext>) -> pub Self {
+        fn init(context: Context) -> pub Self {
             Storage {
-                signing_public_key: ImmutableSingleton::new(private_context, 1, PublicKeyNoteMethods),
+                signing_public_key: ImmutableSingleton::new(context, 1, PublicKeyNoteMethods),
             }
         }
     }
@@ -39,7 +39,7 @@ contract SchnorrAccount {
         signature: pub [u8;64], // schnorr signature of the payload hash
     ) {
         // Load public key from storage
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
         let public_key = storage.signing_public_key.get_note();
 
         // Verify payload signature
@@ -68,7 +68,7 @@ contract SchnorrAccount {
         signing_pub_key_x: pub Field,
         signing_pub_key_y: pub Field,
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
         
         let this = context.this_address();
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);

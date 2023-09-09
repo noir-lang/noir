@@ -94,7 +94,7 @@ fn create_note(
     if note.value != 0 {
         // Emit the newly created encrypted note preimages via oracle calls.
         // docs:start:encrypted
-        let context = balance.private_context.unwrap();
+        let context = balance.context.private.unwrap();
         let application_contract_address = (*context).this_address();
         let note_storage_slot = balance.storage_slot;
         let encryption_pub_key = get_public_key(owner);

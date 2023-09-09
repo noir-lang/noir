@@ -12,7 +12,7 @@ contract PendingCommitments {
     };
     use dep::aztec::{
         constants_gen::ARGS_LENGTH,
-        context::{PrivateContext, PublicContext},
+        context::{PrivateContext, PublicContext, Context},
         log::emit_encrypted_log,
         note::{
             note_getter::NoteGetterOptions,
@@ -28,17 +28,13 @@ contract PendingCommitments {
     }
 
     impl Storage {
-        fn init(
-            private_context: Option<&mut PrivateContext>,
-            public_context: Option<&mut PublicContext>,
-        ) -> pub Self {
+        fn init(context: Context) -> pub Self {
             Storage {
                 balances: Map::new(
-                    private_context,
-                    public_context,
+                    context,
                     1, // Storage slot
-                    |private_context, public_context, slot| {
-                        Set::new(private_context, public_context, slot, ValueNoteMethods)
+                    |context, slot| {
+                        Set::new(context, slot, ValueNoteMethods)
                     },
                 ),
             }
@@ -59,7 +55,7 @@ contract PendingCommitments {
         amount: Field,
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
@@ -93,7 +89,7 @@ contract PendingCommitments {
         amount: Field,
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let owner_balance = storage.balances.at(owner);
 
@@ -131,7 +127,7 @@ contract PendingCommitments {
         amount: Field,
         owner: Field,
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
@@ -153,7 +149,7 @@ contract PendingCommitments {
         expected_value: Field,
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let owner_balance = storage.balances.at(owner);
 
@@ -172,7 +168,7 @@ contract PendingCommitments {
     fn get_note_zero_balance(
         owner: Field,
     ) {
-        let storage = Storage::init(Option::some(&mut context), Option::none());
+        let storage = Storage::init(Context::private(&mut context));
 
         let owner_balance = storage.balances.at(owner);
 

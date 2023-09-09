@@ -1,5 +1,5 @@
 use crate::constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALISATION_NULLIFIER};
-use crate::context::{PrivateContext, PublicContext};
+use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
     lifecycle::{create_note, destroy_note},
     note_getter::{get_note, view_notes},
@@ -18,14 +18,13 @@ struct Singleton<Note, N> {
 
 impl<Note, N> Singleton<Note, N> {
     fn new(
-        context: Option<&mut PrivateContext>,
-        _: Option<&mut PublicContext>,
+        context: Context,
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Singleton {
-            context,
+            context: context.private,
             storage_slot,
             note_interface,
         }

@@ -1,5 +1,5 @@
 use crate::constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALISATION_NULLIFIER};
-use crate::context::PrivateContext;
+use crate::context::{PrivateContext, Context};
 use crate::note::{
     lifecycle::create_note,
     note_getter::{get_note, view_notes},
@@ -11,14 +11,14 @@ use dep::std::hash::pedersen_with_separator;
 use dep::std::option::Option;
 
 struct ImmutableSingleton<Note, N> {
-    context: Option<&mut PrivateContext>,
+    context: Context,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
 }
 
 impl<Note, N> ImmutableSingleton<Note, N> {
     fn new(
-        context: Option<&mut PrivateContext>,
+        context: Context,
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
     ) -> Self {
@@ -38,12 +38,12 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     fn initialise(self, note: &mut Note) {
         // Nullify the storage slot.
         let nullifier = self.compute_initialisation_nullifier();
-        self.context
+        self.context.private
             .unwrap()
             .push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
 
         create_note(
-            self.context.unwrap(),
+            self.context.private.unwrap(),
             self.storage_slot,
             note,
             self.note_interface,
@@ -59,7 +59,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
 
     fn get_note(self) -> Note {
         let storage_slot = self.storage_slot;
-        get_note(self.context.unwrap(), storage_slot, self.note_interface)
+        get_note(self.context.private.unwrap(), storage_slot, self.note_interface)
     }
 
     unconstrained fn view_note(self) -> Note {

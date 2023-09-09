@@ -1,5 +1,5 @@
 use dep::aztec::{
-    context::{PrivateContext, PublicContext},
+    context::{PrivateContext, PublicContext, Context},
     constants_gen::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
     log::emit_encrypted_log,
     note::{
@@ -119,13 +119,11 @@ fn filter_cards<N>(notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL], desir
 
 impl Deck {
     fn new(
-        private_context: Option<&mut PrivateContext>,
-        public_context: Option<&mut PublicContext>,
+        context: Context,
         storage_slot: Field,
     ) -> Self {
         let set = Set {
-            private_context,
-            public_context,
+            context,
             storage_slot,
             note_interface: ValueNoteMethods,
         };
@@ -136,7 +134,7 @@ impl Deck {
 
     fn add_cards<N>(&mut self, cards: [Card; N], owner: Field) -> [CardNote]{
         let owner_key = get_public_key(owner);
-        let context = self.set.private_context.unwrap();
+        let context = self.set.context.private.unwrap();
 
         let mut inserted_cards = [];
         for card in cards {

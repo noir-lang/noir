@@ -47,6 +47,7 @@ use crate::oracle::{
     context::get_portal_address,
 };
 
+use dep::std::option::Option;
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateContext {
@@ -548,4 +549,32 @@ impl PublicContext {
         )
     }
 
+}
+
+struct Context {
+    private: Option<&mut PrivateContext>,
+    public: Option<&mut PublicContext>,
+}
+
+impl Context {
+    fn private(context: &mut PrivateContext) -> Context {
+        Context {
+            private: Option::some(context),
+            public: Option::none()
+        }
+    }
+
+    fn public(context: &mut PublicContext) -> Context {
+        Context {
+            public: Option::some(context),
+            private: Option::none()
+        }
+    }
+
+    fn none() -> Context {
+        Context {
+            public: Option::none(),
+            private: Option::none()
+        }
+    }
 }
