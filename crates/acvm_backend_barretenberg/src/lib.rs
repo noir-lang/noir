@@ -77,7 +77,7 @@ impl Backend {
                 // If we're trying to use barretenberg, automatically go and install it.
                 let bb_url =
                     std::env::var("BB_BINARY_URL").unwrap_or(env!("BB_BINARY_URL").to_string());
-                download_backend(&bb_url, &binary_path);
+                download_backend(&bb_url, binary_path);
                 return Ok(binary_path);
             }
             Err(BackendError::MissingBinary)
