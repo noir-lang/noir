@@ -1,0 +1,9 @@
+[package]
+name = "dkim"
+type = "bin"
+authors = ["richardliang"]
+compiler_version = "0.10.1"
+
+[dependencies]
+biguint = { path = "../../crates/rsa-biguint" }
+rsa = { path = "../../crates/rsa" }

@@ -58,6 +58,8 @@ pub(crate) fn run(
     args: CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
+    println!("foo");
+    dbg!("foo1");
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
