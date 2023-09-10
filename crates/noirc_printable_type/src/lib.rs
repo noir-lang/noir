@@ -157,14 +157,15 @@ fn fetch_printable_type(
 fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
     match (value, typ) {
-        (
-            PrintableValue::Field(f),
-            PrintableType::Field
-            // TODO(#2401): We should print the sign for these and probably print normal integers instead of field strings
-            | PrintableType::SignedInteger { .. }
-            | PrintableType::UnsignedInteger { .. },
-        ) => {
+        (PrintableValue::Field(f), PrintableType::Field) => {
             output.push_str(&format_field_string(*f));
+        }
+        (
+            PrintableValue::Field(_f),
+            PrintableType::SignedInteger { .. } | PrintableType::UnsignedInteger { .. },
+        ) => {
+            output
+                .push_str(&format!("{}", PrintableValueDisplay::Plain(value.clone(), typ.clone())));
         }
         (PrintableValue::Field(f), PrintableType::Boolean) => {
             if f.is_one() {
@@ -176,8 +177,11 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (PrintableValue::Vec(vector), PrintableType::Array { typ, .. }) => {
             output.push('[');
             let mut values = vector.iter().peekable();
-            while let Some(value) = values.next()  {
-                output.push_str(&format!("{}", PrintableValueDisplay::Plain(value.clone(), *typ.clone())));
+            while let Some(value) = values.next() {
+                output.push_str(&format!(
+                    "{}",
+                    PrintableValueDisplay::Plain(value.clone(), *typ.clone())
+                ));
                 if values.peek().is_some() {
                     output.push_str(", ");
                 }
@@ -193,9 +197,12 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
             output.push_str(&format!("{name} {{ "));
 
             let mut fields = fields.iter().peekable();
-            while let Some((key, field_type)) = fields.next()  {
+            while let Some((key, field_type)) = fields.next() {
                 let value = &map[key];
-                output.push_str(&format!("{key}: {}", PrintableValueDisplay::Plain(value.clone(), field_type.clone())));
+                output.push_str(&format!(
+                    "{key}: {}",
+                    PrintableValueDisplay::Plain(value.clone(), field_type.clone())
+                ));
                 if fields.peek().is_some() {
                     output.push_str(", ");
                 }
@@ -204,7 +211,7 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
             output.push_str(" }");
         }
 
-        _ => return None
+        _ => return None,
     };
 
     Some(output)
