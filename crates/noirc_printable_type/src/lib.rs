@@ -162,9 +162,12 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         }
         (
             PrintableValue::Field(f),
-            PrintableType::SignedInteger { .. } | PrintableType::UnsignedInteger { .. },
+            PrintableType::UnsignedInteger { .. },
         ) => {
             output.push_str(&format!("{}", f.to_u128()));
+        }
+        (PrintableValue::Field(_f), PrintableType::SignedInteger { .. }) => {
+            // TODO: I am not sure how to convert an element to a signed integer in this case 
         }
         (PrintableValue::Field(f), PrintableType::Boolean) => {
             if f.is_one() {
