@@ -161,11 +161,10 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
             output.push_str(&format_field_string(*f));
         }
         (
-            PrintableValue::Field(_f),
+            PrintableValue::Field(f),
             PrintableType::SignedInteger { .. } | PrintableType::UnsignedInteger { .. },
         ) => {
-            output
-                .push_str(&format!("{}", PrintableValueDisplay::Plain(value.clone(), typ.clone())));
+            output.push_str(&format!("{}", f.to_u128()));
         }
         (PrintableValue::Field(f), PrintableType::Boolean) => {
             if f.is_one() {
