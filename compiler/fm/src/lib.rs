@@ -27,18 +27,6 @@ pub struct FileManager {
     path_to_id: HashMap<VirtualPath, FileId>,
 }
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
 impl FileManager {
     pub fn new(root: &Path) -> Self {
         Self {
@@ -54,12 +42,6 @@ impl FileManager {
     }
 
     pub fn add_file(&mut self, file_name: &Path) -> Option<FileId> {
-        #[cfg(target_arch = "wasm32")]
-        log(&format!("{}", file_name.display()));
-
-        #[cfg(not(target_arch = "wasm32"))]
-        println!("{}", file_name.display());
-
         // Handle both relative file paths and std/lib virtual paths.
         let resolved_path: PathBuf = if is_stdlib_asset(file_name) {
             // Special case for stdlib where we want to read specifically the `std/` relative path
