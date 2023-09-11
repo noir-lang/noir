@@ -141,7 +141,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::{CallStack, InsertInstructionResult, DataFlowGraph},
+        dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
@@ -205,8 +205,11 @@ struct Context<'f> {
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
+
+    slice_sizes: HashMap<ValueId, usize>,
 }
 
+#[derive(Debug, Clone)]
 struct Store {
     old_value: ValueId,
     new_value: ValueId,
@@ -237,6 +240,7 @@ fn flatten_function_cfg(function: &mut Function) {
         branch_ends,
         conditions: Vec::new(),
         outer_block_stores: HashMap::default(),
+        slice_sizes: HashMap::default(),
     };
     context.flatten();
 }
@@ -419,7 +423,14 @@ impl<'f> Context<'f> {
         match self.inserter.function.dfg.type_of_value(then_value) {
             Type::Numeric(_) => {
                 // self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
-                merge_numeric_values_pub(then_condition, else_condition, then_value, else_value, self.inserter.function.entry_block(), &mut self.inserter.function.dfg)
+                merge_numeric_values_pub(
+                    then_condition,
+                    else_condition,
+                    then_value,
+                    else_value,
+                    self.inserter.function.entry_block(),
+                    &mut self.inserter.function.dfg,
+                )
             }
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
@@ -447,15 +458,34 @@ impl<'f> Context<'f> {
             _ => panic!("Expected slice type"),
         };
 
+        dbg!(then_value_id);
         let then_len = self.get_slice_length(then_value_id);
         dbg!(then_len);
+        dbg!(self.slice_sizes.insert(then_value_id, then_len));
+
+        if then_len == 6 {
+            dbg!(self.outer_block_stores.clone());
+            dbg!(self.store_values.clone());
+        }
+        dbg!(else_value_id);
         let else_len = self.get_slice_length(else_value_id);
         dbg!(else_len);
-        if else_len == 4 {
-            dbg!(&self.inserter.function.dfg.resolve(then_value_id));
-            dbg!(&self.inserter.function.dfg.resolve(else_value_id));
-            dbg!(&self.inserter.function.dfg[else_value_id]);
+        dbg!(self.slice_sizes.insert(else_value_id, else_len));
+
+        // just for debugging `merge_slices_mutate_between_ifs`
+        if else_len == 4 && then_len == 6 {
+            // let x = self.outer_block_stores;
+            dbg!(self.outer_block_stores.clone());
+            dbg!(self.store_values.clone());
+
+            // else_len = 5;
+            // println!("then_value_id: {then_value_id}");
+            // println!("else_value_id: {else_value_id}");
+            // dbg!(&self.inserter.function.dfg.resolve(then_value_id));
+            // dbg!(&self.inserter.function.dfg.resolve(else_value_id));
+            // dbg!(&self.inserter.function.dfg[else_value_id]);
         }
+        // dbg!(self.slice_sizes.clone());
 
         let len = then_len.max(else_len);
 
@@ -489,48 +519,125 @@ impl<'f> Context<'f> {
                 ));
             }
         }
-
-        self.inserter.function.dfg.make_array(merged, typ)
+        dbg!(merged.len());
+        let merged = self.inserter.function.dfg.make_array(merged, typ);
+        dbg!(merged);
+        merged
     }
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
         let value = &self.inserter.function.dfg[value_id];
-        // dbg!(value);
+        dbg!(value_id);
+        dbg!(value);
         match value {
-            Value::Array { array, .. } => array.len(),
+            Value::Array { array, .. } => {
+                // dbg!(value_id);
+                // self.slice_sizes.insert(value_id, array.len());
+                // dbg!(value_id);
+                array.len()
+            }
             Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = &self.inserter.function.dfg[*instruction_id];
+                // TODO: it may be better to check the results
+                // let results = self.inserter.function.dfg.instruction_results(*instruction_id);
+                // dbg!(results);
+                // dbg!(instruction.clone());
+                // let results =
+                // self.inserter.function.dfg.instruction_results(*instruction_id);
+                // dbg!(results);
                 match instruction {
-                    Instruction::ArraySet { array, .. } => self.get_slice_length(*array),
+                    Instruction::ArraySet { array, .. } => {
+                        dbg!("got an array set");
+                        self.get_slice_length(*array)
+                    }
                     Instruction::Load { address } => {
+                        let outer_store = self
+                            .outer_block_stores
+                            .get(address)
+                            .expect("ICE: load in merger should have store from outer block");
+                        dbg!(self.slice_sizes.get(&outer_store.new_value));
+                        if let Some(len) = self.slice_sizes.get(&outer_store.new_value) {
+                            dbg!(outer_store.new_value);
+                            dbg!(len);
+                            return *len;
+                        }
+
                         let context_store = if let Some(store) = self.store_values.get(address) {
+                            dbg!("got here");
+                            dbg!(self.slice_sizes.get(&store.new_value));
+                            if let Some(len) = self.slice_sizes.get(&store.new_value) {
+                                dbg!(store.new_value);
+                                dbg!(len);
+                                return *len;
+                            }
+
                             store
+                            // panic!("ahhh")
                         } else {
-                            self.outer_block_stores
-                                .get(address)
-                                .expect("ICE: load in merger should have store from outer block")
+                            // dbg!("in outer_block");
+                            // self.outer_block_stores
+                            //     .get(address)
+                            //     .expect("ICE: load in merger should have store from outer block")
+                            outer_store
+                            // panic!("ahhh")
                         };
-                        // let context_store =
-                        // self.outer_block_stores
+
+                        // let outer_store = self.outer_block_stores
                         // .get(address)
                         // .expect("ICE: load in merger should have store from outer block");
-
+                        // dbg!(self.slice_sizes.get(&outer_store.new_value));
+                        // if let Some(len) = self.slice_sizes.get(&outer_store.new_value) {
+                        //     dbg!(outer_store.new_value);
+                        //     dbg!(len);
+                        //     return *len
+                        // } else {
+                        //     self.get_slice_length(outer_store.new_value)
+                        // }
+                        dbg!("about to recursively call get_slice_length");
                         self.get_slice_length(context_store.new_value)
                     }
                     Instruction::Call { func, arguments } => {
+                        // TODO: look into just storing a map of the slice lengths to reference so we don't have to recursively
+                        // search here
                         let func = &self.inserter.function.dfg[*func];
                         let slice_contents = arguments[1];
+                        // dbg!(slice_contents);
+                        // dbg!(&self.inserter.function.dfg[slice_contents]);
+                        // match &self.inserter.function.dfg[slice_contents] {
+                        //     Value::Instruction { instruction, .. } => {
+                        //         dbg!(&self.inserter.function.dfg[*instruction]);
+                        //     }
+                        //     _ => (),
+                        // }
+
+                        // self.get_slice_length(results[0]);
                         match func {
                             Value::Intrinsic(intrinsic) => match intrinsic {
                                 Intrinsic::SlicePushBack
                                 | Intrinsic::SlicePushFront
                                 | Intrinsic::SliceInsert => {
-                                    self.get_slice_length(slice_contents) + 1
+                                    dbg!("about to call get_slice_length");
+                                    let inner_len = self.get_slice_length(slice_contents);
+                                    dbg!(slice_contents);
+                                    dbg!(self.slice_sizes.get(&slice_contents));
+                                    dbg!(inner_len);
+                                    dbg!(self.slice_sizes.insert(slice_contents, inner_len));
+
+                                    // dbg!(self.slice_sizes.insert(results[1], inner_len + 1));
+
+                                    // let results =
+                                    // self.inserter.function.dfg.instruction_results(*instruction_id);
+                                    // dbg!(results);
+                                    // self.get_slice_length(slice_contents, loaded_before) + 1
+                                    inner_len + 1
                                 }
                                 Intrinsic::SlicePopBack
                                 | Intrinsic::SlicePopFront
                                 | Intrinsic::SliceRemove => {
                                     self.get_slice_length(slice_contents) - 1
+                                    // let slice_size = self.slice_sizes.get(&slice_contents);
+                                    // dbg!(slice_size);
+                                    // slice_size.expect("ahhh") - 1
                                 }
                                 _ => {
                                     unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
@@ -780,8 +887,13 @@ impl<'f> Context<'f> {
 
             if let Some(store) = self.store_values.get_mut(&address) {
                 store.new_value = value;
+                // if let Some(store) = self.outer_block_stores.get_mut(&address) {
+                //     println!("new_value: {value}");
+                //     store.new_value = value;
+                // }
             } else {
                 self.store_values.insert(address, Store { old_value, new_value: value });
+                // self.outer_block_stores.insert(address, Store { old_value, new_value: value });
             }
         }
     }
@@ -796,6 +908,11 @@ impl<'f> Context<'f> {
                 let old_value = self.insert_instruction_with_typevars(load, load_type).first();
 
                 self.store_values.insert(address, Store { old_value, new_value });
+                // if let Type::Slice(_) = self.inserter.function.dfg.type_of_value(new_value) {
+                // dbg!("got a slice bitch");
+                // dbg!(new_value);
+                // dbg!(&self.inserter.function.dfg[new_value]);
+                // }
             }
         }
     }
@@ -831,15 +948,21 @@ impl<'f> Context<'f> {
     fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
-        let is_allocate = matches!(instruction, Instruction::Allocate);
+        let is_allocate = matches!(instruction.clone(), Instruction::Allocate);
 
         let entry = self.inserter.function.entry_block();
-        let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
+        let results =
+            self.inserter.push_instruction_value(instruction.clone(), id, entry, call_stack);
 
+        let results = results.results();
+        // if matches!(instruction, Instruction::Call { .. }) {
+        //     dbg!(results.clone());
+        // }
+        // dbg!(is_allocate);
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
         if is_allocate {
-            self.local_allocations.insert(results.first());
+            self.local_allocations.insert(results[0]);
         }
     }
 
@@ -892,7 +1015,6 @@ impl<'f> Context<'f> {
     }
 }
 
-
 pub(crate) fn merge_values_pub(
     then_condition: ValueId,
     else_condition: ValueId,
@@ -905,16 +1027,39 @@ pub(crate) fn merge_values_pub(
     match dfg.type_of_value(then_value) {
         Type::Numeric(_) => {
             // self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
-            merge_numeric_values_pub(then_condition, else_condition, then_value, else_value, block, dfg)
+            merge_numeric_values_pub(
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+                block,
+                dfg,
+            )
         }
         typ @ Type::Array(_, _) => {
             // self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
-            merge_array_values_pub(typ, then_condition, else_condition, then_value, else_value, block, dfg)
+            merge_array_values_pub(
+                typ,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+                block,
+                dfg,
+            )
         }
         typ @ Type::Slice(_) => {
             // self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
             // panic!("ahh");
-            merge_slice_values_pub(typ, then_condition, else_condition, then_value, else_value, block, dfg)
+            merge_slice_values_pub(
+                typ,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+                block,
+                dfg,
+            )
         }
         Type::Reference => panic!("Cannot return references from an if expression"),
         Type::Function => panic!("Cannot return functions from an if expression"),
@@ -938,9 +1083,9 @@ pub(crate) fn merge_slice_values_pub(
     };
 
     let then_len = get_slice_length_pub(then_value_id, dfg);
-    dbg!(then_len);
+    // dbg!(then_len);
     let else_len = get_slice_length_pub(else_value_id, dfg);
-    dbg!(else_len);
+    // dbg!(else_len);
     let len = then_len.max(else_len);
 
     for i in 0..len {
@@ -958,12 +1103,8 @@ pub(crate) fn merge_slice_values_pub(
                     dfg.make_constant(zero, Type::field())
                 } else {
                     let get = Instruction::ArrayGet { array, index };
-                    dfg.insert_instruction_and_results(
-                        get,
-                        block,
-                        typevars,
-                        CallStack::new(),
-                    ).first()
+                    dfg.insert_instruction_and_results(get, block, typevars, CallStack::new())
+                        .first()
                 }
             };
 
@@ -971,12 +1112,12 @@ pub(crate) fn merge_slice_values_pub(
             let else_element = get_element(else_value_id, typevars, else_len);
 
             merged.push_back(merge_values_pub(
-                then_condition, 
-                else_condition, 
-                then_element, 
-                else_element, 
-                block, 
-                dfg
+                then_condition,
+                else_condition,
+                then_element,
+                else_element,
+                block,
+                dfg,
             ))
         }
     }
@@ -1061,24 +1202,19 @@ pub(crate) fn merge_array_values_pub(
 
             let mut get_element = |array, typevars| {
                 let get = Instruction::ArrayGet { array, index };
-                dfg.insert_instruction_and_results(
-                    get,
-                    block,
-                    typevars,
-                    CallStack::new(),
-                ).first()
+                dfg.insert_instruction_and_results(get, block, typevars, CallStack::new()).first()
             };
 
             let then_element = get_element(then_value, typevars.clone());
             let else_element = get_element(else_value, typevars);
 
             merged.push_back(merge_values_pub(
-                then_condition, 
-                else_condition, 
-                then_element, 
-                else_element, 
-                block, 
-                dfg
+                then_condition,
+                else_condition,
+                then_element,
+                else_element,
+                block,
+                dfg,
             ))
         }
     }
@@ -1106,36 +1242,38 @@ pub(crate) fn merge_numeric_values_pub(
     let then_call_stack = dfg.get_value_call_stack(then_value);
     let else_call_stack = dfg.get_value_call_stack(else_value);
 
-    let call_stack = if then_call_stack.is_empty() {
-        else_call_stack.clone()
-    } else {
-        then_call_stack.clone()
-    };
+    let call_stack =
+        if then_call_stack.is_empty() { else_call_stack.clone() } else { then_call_stack.clone() };
 
     // We must cast the bool conditions to the actual numeric type used by each value.
     let then_condition = dfg
-        .insert_instruction_and_results(Instruction::Cast(then_condition, then_type), block, None, call_stack.clone())
+        .insert_instruction_and_results(
+            Instruction::Cast(then_condition, then_type),
+            block,
+            None,
+            call_stack.clone(),
+        )
         .first();
     let else_condition = dfg
-        .insert_instruction_and_results(Instruction::Cast(else_condition, else_type), block, None, call_stack.clone())
+        .insert_instruction_and_results(
+            Instruction::Cast(else_condition, else_type),
+            block,
+            None,
+            call_stack.clone(),
+        )
         .first();
 
     let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-    let then_value = dfg
-        .insert_instruction_and_results(mul, block, None, call_stack.clone())
-        .first();
+    let then_value =
+        dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
     let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-    let else_value = dfg
-        .insert_instruction_and_results(mul, block, None, call_stack.clone())
-        .first();
+    let else_value =
+        dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
     let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-    dfg
-        .insert_instruction_and_results(add, block, None, call_stack)
-        .first()
+    dfg.insert_instruction_and_results(add, block, None, call_stack).first()
 }
-
 
 #[cfg(test)]
 mod test {

@@ -716,7 +716,9 @@ impl Context {
                         // dbg!(array.clone());
                         array.len()
                     } else {
-                        panic!("ICE: slice length should be fully tracked and constant by ACIR gen");
+                        panic!(
+                            "ICE: slice length should be fully tracked and constant by ACIR gen"
+                        );
                     }
                 }
                 // let len = len

@@ -1,40 +1,6 @@
 use dep::std::slice;
 use dep::std;
 
-// fn main(x : Field, y : pub Field) {
-//     let slice = merge_slices_mutate_two_ifs_test(x, y);
-//     let len = slice.len();
-//     dep::std::println(f"len: {len}");
-//     dep::std::println(slice[0]);
-//     dep::std::println(slice[1]);    
-//     dep::std::println(slice[2]);
-//     dep::std::println(slice[3]);
-//     dep::std::println(slice[4]);
-//     dep::std::println(slice[5]);
-// }
-
-// fn merge_slices_mutate_two_ifs_test(x: Field, y: Field) -> [Field] {
-//     let mut slice = [0; 2];
-//     if x != y {
-//         slice = slice.push_back(y);
-//         slice = slice.push_back(x);
-//     } else {
-//         slice = slice.push_back(x);
-//     }
-//     if x == 20 {
-//         slice = slice.push_back(20);
-//         // slice = slice.push_back(40);
-//     } 
-//     // else {
-//     //     slice = slice.push_back(15);
-//     // }
-//     // TODO(#2599): Breaks if the push back happens without the else case
-//     // slice = slice.push_back(15);
-//     slice = slice.push_back(30);
-    
-//     slice
-// }
-
 fn main(x : Field, y : pub Field) {
     // let mut slice = [0; 2];
     // assert(slice[0] == 0);
@@ -122,42 +88,44 @@ fn regression_2083() {
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
-    // merge_slices_else(x);
+    merge_slices_else(x);
 }
 
 fn merge_slices_if(x: Field, y: Field) {
-    // let slice = merge_slices_return(x, y);
-    // assert(slice[2] == 10);
-    // assert(slice.len() == 3);
+    let slice = merge_slices_return(x, y);
+    assert(slice[2] == 10);
+    assert(slice.len() == 3);
 
-    // let slice = merge_slices_mutate(x, y);
-    // assert(slice[3] == 5);
-    // assert(slice.len() == 4);
+    let slice = merge_slices_mutate(x, y);
+    assert(slice[3] == 5);
+    assert(slice.len() == 4);
 
-    // let slice = merge_slices_mutate_in_loop(x, y);
-    // assert(slice[6] == 4);
-    // assert(slice.len() == 7);
+    let slice = merge_slices_mutate_in_loop(x, y);
+    assert(slice[6] == 4);
+    assert(slice.len() == 7);
 
-    // let slice = merge_slices_mutate_two_ifs(x, y);
-    // let len = slice.len();
-    // dep::std::println(f"len: {len}");
-    // assert(slice.len() == 6);
-    // assert(slice[3] == 5);
-    // assert(slice[4] == 15);
-    // assert(slice[5] == 30);
+    let slice = merge_slices_mutate_two_ifs(x, y);
+    let len = slice.len();
+    dep::std::println(f"len: {len}");
+    assert(slice.len() == 6);
+    assert(slice[3] == 5);
+    assert(slice[4] == 15);
+    assert(slice[5] == 30);
 
-    // let slice = merge_slices_mutate_between_ifs(x, y);
-    // let len = slice.len();
-    // dep::std::println(f"len: {len}");
-    // for i in 0..6 {
-    //     let elem = slice[i];
-    //     dep::std::println(f"slice[{i}]: {elem}");
-    // }
-    // assert(slice.len() == 6);
-
-    // assert(slice[3] == 5);
-    // assert(slice[4] == 30);
-    // assert(slice[5] == 15);
+    let slice = merge_slices_mutate_between_ifs(x, y);
+    assert(slice.len() == 8);
+    assert(slice[3] == 5);
+    assert(slice[4] == 30);
+    assert(slice[5] == 15);
+    assert(slice[6] == 50);
+    assert(slice[7] == 60);
+    let len = slice.len();
+    dep::std::println(f"len: {len}");
+    for i in 0..8 {
+        let elem = slice[i];
+        dep::std::println(f"slice[{i}]: {elem}");
+    }
+    
 }
 
 fn merge_slices_else(x: Field) {
@@ -222,16 +190,11 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(x);
     }
-    let len = slice.len();
-    dep::std::println(f"len: {len}");
+
     if x == 20 {
         slice = slice.push_back(20);
     } 
-    // else {
-    //     slice = slice.push_back(15);
-    // }
-    // TODO(#2599): Breaks if the push back happens without the else case
-    // Working now  
+
     slice = slice.push_back(15);
     slice = slice.push_back(30);
     
@@ -249,20 +212,19 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
     }
 
     slice = slice.push_back(30);
-    let len = slice.len();
-    dep::std::println(f"len: {len}");
+    // let len = slice.len();
+    // dep::std::println(f"len: {len}");
     if x == 20 {
         slice = slice.push_back(20);
     }
-    // else {
-    //     slice = slice.push_back(15);
-    // }
 
-    let len = slice.len();
-    dep::std::println(f"len: {len}");
+    slice = slice.push_back(15);
 
-    // TODO(#2599): Breaks if the push back happens without the else case
-    // slice = slice.push_back(15);
+    if x != 20 {
+        slice = slice.push_back(50);
+    }
+
+    slice = slice.push_back(60);
 
     slice
 }

@@ -346,7 +346,11 @@ impl<'a> FunctionContext<'a> {
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
-        self.builder.insert_constrain(is_offset_out_of_bounds, true_const, Some("Index out of bounds".to_owned()));
+        self.builder.insert_constrain(
+            is_offset_out_of_bounds,
+            true_const,
+            Some("Index out of bounds".to_owned()),
+        );
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
