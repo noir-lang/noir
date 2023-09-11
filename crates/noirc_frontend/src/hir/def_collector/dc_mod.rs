@@ -6,8 +6,8 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
     parser::SubModule,
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
+    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
