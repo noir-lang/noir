@@ -98,7 +98,7 @@ pub fn compile(args: JsValue) -> JsValue {
     debug!("Compiler configuration {:?}", &options);
 
     let root = Path::new("/");
-    let fm = FileManager::new(root);
+    let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
@@ -134,5 +134,31 @@ pub fn compile(args: JsValue) -> JsValue {
                 .expect("Program optimization failed");
 
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))] {
+        use wasm_bindgen::{prelude::*, JsValue};
+
+        #[wasm_bindgen(module = "@noir-lang/source-resolver")]
+        extern "C" {
+
+            #[wasm_bindgen(catch)]
+            fn read_file(path: &str) -> Result<String, JsValue>;
+
+        }
+
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            let path_str = path_to_file.to_str().unwrap();
+            match read_file(path_str) {
+                Ok(buffer) => Ok(buffer),
+                Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
+            }
+        }
+    } else {
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            std::fs::read_to_string(path_to_file)
+        }
     }
 }

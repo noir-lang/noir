@@ -1505,7 +1505,6 @@ dependencies = [
 name = "fm"
 version = "0.14.0"
 dependencies = [
- "cfg-if",
  "codespan-reporting",
  "iter-extended",
  "rust-embed",
@@ -2333,6 +2332,7 @@ dependencies = [
  "acvm",
  "async-lsp",
  "barretenberg_blackbox_solver",
+ "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
  "fm",
@@ -2355,6 +2355,7 @@ version = "0.14.0"
 dependencies = [
  "acvm",
  "build-data",
+ "cfg-if",
  "console_error_panic_hook",
  "fm",
  "getrandom",

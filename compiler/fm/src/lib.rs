@@ -8,6 +8,7 @@ mod file_reader;
 
 pub use file_map::{File, FileId, FileMap, PathString};
 use file_reader::is_stdlib_asset;
+pub use file_reader::FileReader;
 
 use std::{
     collections::HashMap,
@@ -19,21 +20,33 @@ pub const FILE_EXTENSION: &str = "nr";
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
-#[derive(Debug)]
 pub struct FileManager {
     root: PathBuf,
     file_map: file_map::FileMap,
     id_to_path: HashMap<FileId, VirtualPath>,
     path_to_id: HashMap<VirtualPath, FileId>,
+    file_reader: Box<FileReader>,
+}
+
+impl std::fmt::Debug for FileManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileManager")
+            .field("root", &self.root)
+            .field("file_map", &self.file_map)
+            .field("id_to_path", &self.id_to_path)
+            .field("path_to_id", &self.path_to_id)
+            .finish()
+    }
 }
 
 impl FileManager {
-    pub fn new(root: &Path) -> Self {
+    pub fn new(root: &Path, file_reader: Box<FileReader>) -> Self {
         Self {
             root: root.normalize(),
             file_map: Default::default(),
             id_to_path: Default::default(),
             path_to_id: Default::default(),
+            file_reader,
         }
     }
 
@@ -58,7 +71,7 @@ impl FileManager {
         }
 
         // Otherwise we add the file
-        let source = file_reader::read_file_to_string(&resolved_path).ok()?;
+        let source = file_reader::read_file_to_string(&resolved_path, &self.file_reader).ok()?;
         let file_id = self.file_map.add_file(resolved_path.into(), source);
         self.register_path(file_id, path_to_file);
         Some(file_id)
@@ -225,7 +238,7 @@ mod tests {
         let entry_file_name = Path::new("my_dummy_file.nr");
         create_dummy_file(&dir, entry_file_name);
 
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         let file_id = fm.add_file(entry_file_name).unwrap();
 
@@ -240,7 +253,7 @@ mod tests {
         let file_name = Path::new("foo.nr");
         create_dummy_file(&dir, file_name);
 
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         let file_id = fm.add_file(file_name).unwrap();
 
@@ -250,7 +263,7 @@ mod tests {
     #[test]
     fn path_resolve_sub_module() {
         let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         // Create a lib.nr file at the root.
         // we now have dir/lib.nr
@@ -296,7 +309,7 @@ mod tests {
         let sub_dir = TempDir::new_in(&dir).unwrap();
         let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
 
-        let mut fm = FileManager::new(dir.path());
+        let mut fm = FileManager::new(dir.path(), Box::new(|path| std::fs::read_to_string(path)));
 
         // Create a lib.nr file at the root.
         let file_name = Path::new("lib.nr");
