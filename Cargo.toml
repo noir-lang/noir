@@ -49,7 +49,7 @@ clap = { version = "4.3.19", features = ["derive"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
-chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
+chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312", default-features = false, features = ["ahash", "std"] }
 dirs = "4"
 lsp-types = "0.94"
 serde = { version = "1.0.136", features = ["derive"] }
