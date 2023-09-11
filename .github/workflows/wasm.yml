@@ -146,9 +146,21 @@ jobs:
           chmod +x $nargo_binary
           $nargo_binary compile
 
-      - name: Install dependencies
-        working-directory: ./crates/wasm
-        run: yarn install
+      - name: Set up test environment
+        uses: ./.github/actions/setup
+        with:
+          working-directory: ./crates/wasm
+
+      - name: Query playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+
+      - name: Cache playwright binaries
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
 
       - name: Install playwright deps
         working-directory: ./crates/wasm
