@@ -521,8 +521,8 @@ impl fmt::Display for PrimaryAttribute {
     }
 }
 
-/// Secondary attributes are those which a function can have many off
-/// They do not change the FunctionKind and thus do not have direct impact on the IR output
+/// Secondary attributes are those which a function can have many of.
+/// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output
 /// They are often consumed by libraries or used as notices for the developer
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum SecondaryAttribute {

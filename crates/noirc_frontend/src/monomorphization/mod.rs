@@ -146,7 +146,6 @@ impl<'interner> Monomorphizer<'interner> {
                 match meta.kind {
                     FunctionKind::LowLevel => {
                         let attribute = meta.attributes.primary.expect("all low level functions must contain a primary attribute which contains the opcode which it links to");
-                        // TODO: implement these helper methods on the new primary / secondary attribute types
                         let opcode = attribute.foreign().expect(
                             "ice: function marked as foreign, but attribute kind does not match this",
                         );
