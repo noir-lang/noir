@@ -8,13 +8,13 @@
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
-#include "barretenberg/proof_system/relations/permutation_relation.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 
 using namespace proof_system::honk;
 

@@ -8,7 +8,7 @@ namespace proof_system {
 template <typename FF_> class AuxiliaryRelationImpl {
   public:
     using FF = FF_;
-    
+
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 6;
 

@@ -20,9 +20,9 @@ using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
 using namespace proof_system;
 
-using barretenberg::Univariate;
-using barretenberg::PowUnivariate;
 using barretenberg::BarycentricData;
+using barretenberg::PowUnivariate;
+using barretenberg::Univariate;
 
 using Flavor = flavor::Standard;
 using FF = typename Flavor::FF;

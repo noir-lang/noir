@@ -28,7 +28,7 @@ The BoolSerialisationMethods is part of the Aztec stdlib:
 
 It contains methods that instruct its PublicState wrapper how to serialise and deserialise a boolean to and from a Field, which is the data type being saved in the public state tree.
 
-The Aztec stdlib provides serialization methods for various common types. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-libs/noir-aztec/src/types/type_serialisation) for the complete list.
+The Aztec stdlib provides serialization methods for various common types. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-libs/aztec-noir/src/types/type_serialisation) for the complete list.
 
 ### Custom types
 
@@ -36,7 +36,7 @@ It's possible to create a public state for any types. Simply define methods that
 
 The methods should be implemented in a struct that conforms to the following interface:
 
-#include_code TypeSerialisationInterface /yarn-project/noir-libs/noir-aztec/src/types/type_serialisation.nr rust
+#include_code TypeSerialisationInterface /yarn-project/noir-libs/aztec-noir/src/types/type_serialisation.nr rust
 
 For example, to create a public state for the following type:
 
@@ -118,7 +118,7 @@ Notes are the fundamental elements in the private world.
 
 A note should conform to the following interface:
 
-#include_code NoteInterface /yarn-project/noir-libs/noir-aztec/src/note/note_interface.nr rust
+#include_code NoteInterface /yarn-project/noir-libs/aztec-noir/src/note/note_interface.nr rust
 
 The interplay between a private state variable and its notes can be confusing. Here's a summary to aid intuition:
 
@@ -243,7 +243,7 @@ Because of this limit, we should always consider using the second argument `Note
 
 `NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a database:
 
-#include_code NoteGetterOptions /yarn-project/noir-libs/noir-aztec/src/note/note_getter_options.nr rust
+#include_code NoteGetterOptions /yarn-project/noir-libs/aztec-noir/src/note/note_getter_options.nr rust
 
 Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
 

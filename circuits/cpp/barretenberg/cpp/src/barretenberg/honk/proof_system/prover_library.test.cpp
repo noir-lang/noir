@@ -1,11 +1,11 @@
 
-#include "prover_library.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "prover.hpp"
+#include "prover_library.hpp"
 
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <array>

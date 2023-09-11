@@ -271,8 +271,7 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     grand_product_library::compute_grand_products<honk::flavor::Standard>(prover.key, prover_polynomials, params);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
-    auto relations =
-        std::tuple(proof_system::ArithmeticRelation<FF>(), proof_system::PermutationRelation<FF>());
+    auto relations = std::tuple(proof_system::ArithmeticRelation<FF>(), proof_system::PermutationRelation<FF>());
 
     // Check that each relation is satisfied across each row of the prover polynomials
     check_relation<Flavor>(std::get<0>(relations), circuit_size, prover_polynomials, params);

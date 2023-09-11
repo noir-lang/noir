@@ -65,8 +65,8 @@
 
 #pragma once
 #include "barretenberg/polynomials/barycentric.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include <array>
 #include <concepts>

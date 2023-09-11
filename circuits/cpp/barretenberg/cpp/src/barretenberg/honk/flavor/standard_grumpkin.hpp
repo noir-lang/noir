@@ -4,13 +4,13 @@
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 
-#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
-#include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include <array>
 #include <concepts>
 #include <span>
@@ -226,8 +226,8 @@ class StandardGrumpkin {
      * @todo TODO(#390): Simplify this by moving MAX_RELATION_LENGTH?
      */
     template <size_t MAX_RELATION_LENGTH>
-    using ExtendedEdges =
-        AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>, barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
+    using ExtendedEdges = AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>,
+                                      barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
 
     /**
      * @brief A container for the polynomials evaluations produced during sumcheck, which are purported to be the

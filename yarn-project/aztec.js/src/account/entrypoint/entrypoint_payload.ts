@@ -5,7 +5,7 @@ import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
 import partition from 'lodash.partition';
 
-// These must match the values defined in yarn-project/noir-libs/noir-aztec/src/entrypoint.nr
+// These must match the values defined in yarn-project/noir-libs/aztec-noir/src/entrypoint.nr
 export const ACCOUNT_MAX_PRIVATE_CALLS = 2;
 export const ACCOUNT_MAX_PUBLIC_CALLS = 2;
 

@@ -121,10 +121,11 @@ template <typename Flavor> class SumcheckProverRound {
      * values. Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12. At the end, reset all
      * univariate accumulators to be zero.
      */
-    barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH> compute_univariate(auto& polynomials,
-                                                                  const proof_system::RelationParameters<FF>& relation_parameters,
-                                                                  const barretenberg::PowUnivariate<FF>& pow_univariate,
-                                                                  const FF alpha)
+    barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH> compute_univariate(
+        auto& polynomials,
+        const proof_system::RelationParameters<FF>& relation_parameters,
+        const barretenberg::PowUnivariate<FF>& pow_univariate,
+        const FF alpha)
     {
         // Precompute the vector of required powers of zeta
         // TODO(luke): Parallelize this
@@ -440,12 +441,12 @@ template <typename Flavor> class SumcheckVerifierRound {
      * @param round_challenge u_l
      * @return FF sigma_{l+1} = S^l(u_l)
      */
-    FF compute_next_target_sum(barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, FF& round_challenge)
+    FF compute_next_target_sum(barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate,
+                               FF& round_challenge)
     {
         // IMPROVEMENT(Cody): Use barycentric static method, maybe implement evaluation as member
         // function on Univariate.
-        auto barycentric =
-            barretenberg::BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
+        auto barycentric = barretenberg::BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
         // Evaluate T^{l}(u_{l})
         target_total_sum = barycentric.evaluate(univariate, round_challenge);
 

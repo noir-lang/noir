@@ -2,8 +2,8 @@
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "transcript.hpp"
 #include <gtest/gtest.h>

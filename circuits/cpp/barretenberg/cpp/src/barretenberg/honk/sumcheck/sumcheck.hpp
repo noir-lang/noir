@@ -2,11 +2,11 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/honk/proof_system/prover.hpp"
-#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 #include "sumcheck_round.hpp"
 
 namespace proof_system::honk::sumcheck {
@@ -70,8 +70,9 @@ template <typename Flavor> class SumcheckProver {
      *
      * @details
      */
-    SumcheckOutput<Flavor> prove(auto full_polynomials,
-                                 const proof_system::RelationParameters<FF>& relation_parameters) // pass by value, not by reference
+    SumcheckOutput<Flavor> prove(
+        auto full_polynomials,
+        const proof_system::RelationParameters<FF>& relation_parameters) // pass by value, not by reference
     {
         auto [alpha, zeta] = transcript.get_challenges("Sumcheck:alpha", "Sumcheck:zeta");
 
@@ -172,7 +173,8 @@ template <typename Flavor> class SumcheckVerifier {
      * @param relation_parameters
      * @param transcript
      */
-    std::optional<SumcheckOutput<Flavor>> verify(const proof_system::RelationParameters<FF>& relation_parameters, auto& transcript)
+    std::optional<SumcheckOutput<Flavor>> verify(const proof_system::RelationParameters<FF>& relation_parameters,
+                                                 auto& transcript)
     {
         bool verified(true);
 
@@ -192,8 +194,9 @@ template <typename Flavor> class SumcheckVerifier {
         for (size_t round_idx = 0; round_idx < multivariate_d; round_idx++) {
             // Obtain the round univariate from the transcript
             std::string round_univariate_label = "Sumcheck:univariate_" + std::to_string(round_idx);
-            auto round_univariate = transcript.template receive_from_prover<
-                barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>>(round_univariate_label);
+            auto round_univariate =
+                transcript.template receive_from_prover<barretenberg::Univariate<FF, MAX_RANDOM_RELATION_LENGTH>>(
+                    round_univariate_label);
 
             bool checked = round.check_sum(round_univariate);
             verified = verified && checked;

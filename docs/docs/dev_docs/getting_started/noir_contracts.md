@@ -61,7 +61,7 @@ compiler_version = "0.1"
 type = "contract"
 
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/noir-libs/noir-aztec" }
+aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/noir-libs/aztec-noir" }
 ```
 
 You are now ready to write your own contracts! 

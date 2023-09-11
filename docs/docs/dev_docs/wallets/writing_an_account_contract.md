@@ -32,7 +32,7 @@ Public Key:  0x0ede151adaef1cfcc1b3e152ea39f00c5cda3f3857cef00decb049d283672dc71
 
 The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: 1) authenticating the transaction and 2) executing calls. It receives a `payload` with the list of function calls to execute, as well as a signature over that payload.
 
-#include_code entrypoint-struct yarn-project/noir-libs/noir-aztec/src/entrypoint.nr rust
+#include_code entrypoint-struct yarn-project/noir-libs/aztec-noir/src/entrypoint.nr rust
 
 :::info
 Using the `EntrypointPayload` struct is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, the entrypoint payload already provides a set of helper functions, both in Noir and Typescript, that can save you a lot of time when writing a new account contract.
@@ -48,7 +48,7 @@ We authenticate the transaction. To do this, we serialise and Pedersen-hash the 
 
 Last, we execute the calls in the payload struct. The `execute_calls` helper function runs through the private and public calls included in the entrypoint payload and executes them:
 
-#include_code entrypoint-execute-calls yarn-project/noir-libs/noir-aztec/src/entrypoint.nr rust
+#include_code entrypoint-execute-calls yarn-project/noir-libs/aztec-noir/src/entrypoint.nr rust
 
 Note the usage of the `_with_packed_args` variant of [`call_public_function` and `call_private_function`](../contracts/functions.md#calling-functions). Due to Noir limitations, we cannot include more than a small number of arguments in a function call. However, we can bypass this restriction by using a hash of the arguments in a function call, which gets automatically expanded to the full set of arguments when the nested call is executed. We call this _argument packing_.
 

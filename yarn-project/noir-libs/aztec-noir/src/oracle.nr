@@ -1,3 +1,7 @@
+// docs:start:oracles-module
+/// Oracles module
+// docs:end:oracles-module
+
 mod arguments;
 mod call_private_function;
 mod context;

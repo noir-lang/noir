@@ -1,4 +1,3 @@
-#include "sumcheck.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
@@ -11,6 +10,7 @@
 #include "barretenberg/proof_system/relations/lookup_relation.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
+#include "sumcheck.hpp"
 #include <gtest/gtest.h>
 
 using namespace proof_system::honk;

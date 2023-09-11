@@ -39,7 +39,7 @@ async function main(): Promise<void> {
     processEnumNoir(privateStateNoteGeneratorIndexEnum, 'PRIVATE_STATE_NOTE_GENERATOR_INDEX__') +
     processEnumNoir(privateStateTypeEnum, 'PRIVATE_STATE_TYPE__');
 
-  const noirTargetPath = join(__dirname, '../../../noir-libs/noir-aztec/src/constants_gen.nr');
+  const noirTargetPath = join(__dirname, '../../../noir-libs/aztec-noir/src/constants_gen.nr');
   fs.writeFileSync(noirTargetPath, resultNoir);
 
   // Solidity

@@ -5,6 +5,6 @@ compiler_version = "0.1"
 type = "contract"
 
 [dependencies]
-aztec = { path = "../../../../noir-libs/noir-aztec" }
+aztec = { path = "../../../../noir-libs/aztec-noir" }
 value_note = { path = "../../../../noir-libs/value-note"}
 non_native = { path = "../non_native_token_contract"}

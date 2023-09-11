@@ -1,8 +1,6 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
-#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
-#include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
@@ -10,6 +8,8 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
+#include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 
 namespace proof_system::honk::flavor {
