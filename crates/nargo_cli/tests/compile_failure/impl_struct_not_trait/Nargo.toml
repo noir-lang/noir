@@ -1,0 +1,7 @@
+[package]
+name = "impl_struct_not_trait"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]

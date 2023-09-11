@@ -3,11 +3,11 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
-use crate::token::Attribute;
+use crate::token::{Attribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::FileDiagnostic;
-use std::collections::HashMap;
+use noirc_errors::{FileDiagnostic, Location};
+use std::collections::BTreeMap;
 
 mod module_def;
 pub use module_def::*;
@@ -18,13 +18,16 @@ pub use module_data::*;
 mod namespace;
 pub use namespace::*;
 
+#[cfg(feature = "aztec")]
+mod aztec_library;
+
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
 
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 pub struct LocalModuleId(pub Index);
 
 impl LocalModuleId {
@@ -33,7 +36,7 @@ impl LocalModuleId {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
     pub krate: CrateId,
     pub local_id: LocalModuleId,
@@ -46,7 +49,7 @@ impl ModuleId {
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &HashMap<CrateId, CrateDefMap>) -> &ModuleData {
+    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }
 }
@@ -62,7 +65,7 @@ pub struct CrateDefMap {
 
     pub(crate) krate: CrateId,
 
-    pub(crate) extern_prelude: HashMap<String, ModuleId>,
+    pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
 }
 
 impl CrateDefMap {
@@ -85,16 +88,19 @@ impl CrateDefMap {
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
+        #[cfg(feature = "aztec")]
+        let ast = aztec_library::transform(ast, &crate_id, context, errors);
+
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
-        let origin = ModuleOrigin::CrateRoot(root_file_id);
-        let root = modules.insert(ModuleData::new(None, origin, false));
+        let location = Location::new(Default::default(), root_file_id);
+        let root = modules.insert(ModuleData::new(None, location, false));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
             modules,
             krate: crate_id,
-            extern_prelude: HashMap::new(),
+            extern_prelude: BTreeMap::new(),
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
@@ -120,13 +126,8 @@ impl CrateDefMap {
         root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
-    pub fn root_file_id(&self) -> FileId {
-        let root_module = &self.modules()[self.root.0];
-        root_module.origin.into()
-    }
-
-    pub fn module_file_id(&self, module_id: LocalModuleId) -> FileId {
-        self.modules[module_id.0].origin.file_id()
+    pub fn file_id(&self, module_id: LocalModuleId) -> FileId {
+        self.modules[module_id.0].location.file
     }
 
     /// Go through all modules in this crate, and find all functions in
@@ -134,12 +135,18 @@ impl CrateDefMap {
     pub fn get_all_test_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,
-    ) -> impl Iterator<Item = FuncId> + 'a {
+    ) -> impl Iterator<Item = TestFunction> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
-            module
-                .value_definitions()
-                .filter_map(|id| id.as_function())
-                .filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+            module.value_definitions().filter_map(|id| {
+                if let Some(func_id) = id.as_function() {
+                    match interner.function_meta(&func_id).attributes {
+                        Some(Attribute::Test(scope)) => Some(TestFunction::new(func_id, scope)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            })
         })
     }
 
@@ -153,7 +160,7 @@ impl CrateDefMap {
                     let functions =
                         module.value_definitions().filter_map(|id| id.as_function()).collect();
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, functions })
+                    Some(Contract { name, location: module.location, functions })
                 } else {
                     None
                 }
@@ -199,6 +206,7 @@ impl CrateDefMap {
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
+    pub location: Location,
     pub functions: Vec<FuncId>,
 }
 
@@ -223,5 +231,40 @@ impl std::ops::Index<LocalModuleId> for CrateDefMap {
 impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
         &mut self.modules[local_module_id.0]
+    }
+}
+
+pub struct TestFunction {
+    id: FuncId,
+    scope: TestScope,
+}
+
+impl TestFunction {
+    fn new(id: FuncId, scope: TestScope) -> Self {
+        TestFunction { id, scope }
+    }
+
+    /// Returns the function id of the test function
+    pub fn get_id(&self) -> FuncId {
+        self.id
+    }
+
+    /// Returns true if the test function has been specified to fail
+    /// This is done by annotating the function with `#[test(should_fail)]`
+    /// or `#[test(should_fail_with = "reason")]`
+    pub fn should_fail(&self) -> bool {
+        match self.scope {
+            TestScope::ShouldFailWith { .. } => true,
+            TestScope::None => false,
+        }
+    }
+
+    /// Returns the reason for the test function to fail if specified
+    /// by the user.
+    pub fn failure_reason(&self) -> Option<&str> {
+        match &self.scope {
+            TestScope::None => None,
+            TestScope::ShouldFailWith { reason } => reason.as_deref(),
+        }
     }
 }

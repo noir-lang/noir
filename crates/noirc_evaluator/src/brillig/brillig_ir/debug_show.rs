@@ -1,4 +1,5 @@
-///! This module contains functions for producing a higher level view disassembler of Brillig.
+//! This module contains functions for producing a higher level view disassembler of Brillig.
+
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 use acvm::acir::brillig::{
@@ -73,8 +74,9 @@ impl DebugToString for BinaryIntOp {
             BinaryIntOp::And => "&&".into(),
             BinaryIntOp::Or => "||".into(),
             BinaryIntOp::Xor => "^".into(),
-            BinaryIntOp::Shl => "<<".into(),
-            BinaryIntOp::Shr => ">>".into(),
+            BinaryIntOp::Shl | BinaryIntOp::Shr => {
+                unreachable!("bit shift should have been replaced")
+            }
         }
     }
 }
@@ -393,11 +395,12 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::FixedBaseScalarMul { input, result } => {
+            BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  FIXED_BASE_SCALAR_MUL {} -> {}",
-                    input,
+                    "  FIXED_BASE_SCALAR_MUL {} {} -> {}",
+                    low,
+                    high,
                     result
                 );
             }

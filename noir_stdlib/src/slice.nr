@@ -22,84 +22,35 @@ impl<T> [T] {
     #[builtin(slice_pop_front)]
     fn pop_front(_self: Self) -> (T, Self) { }
 
+    fn insert(self, _index: Field, _elem: T) -> Self {
+        // TODO(#2462): Slice insert with a dynamic index
+        crate::assert_constant(_index);
+        self.__slice_insert(_index, _elem)
+    }
+
     /// Insert an element at a specified index, shifting all elements 
     /// after it to the right
     #[builtin(slice_insert)]
-    fn insert(_self: Self, _index: Field, _elem: T) -> Self { }
+    fn __slice_insert(_self: Self, _index: Field, _elem: T) -> Self { }
+
+    fn remove(self, _index: Field) -> (Self, T) {
+        // TODO(#2462): Slice remove with a dynamic index
+        crate::assert_constant(_index);
+        self.__slice_remove(_index)
+    }
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the altered slice and 
     /// the removed element
     #[builtin(slice_remove)]
-    fn remove(_self: Self, _index: Field) -> (Self, T) { }
- 
-    #[builtin(array_len)]
-    fn len(_self: Self) -> comptime Field {}
+    fn __slice_remove(_self: Self, _index: Field) -> (Self, T) { }
 
-    #[builtin(arraysort)]
-    fn sort(_self: Self) -> Self {}
-
-    // Sort with a custom sorting function.
-    fn sort_via(mut a: Self, ordering: fn(T, T) -> bool) -> Self { 
-        for i in 1 .. a.len() {
-            for j in 0..i {
-                if ordering(a[i], a[j]) {
-                    let old_a_j = a[j];
-                    a[j] = a[i];
-                    a[i] = old_a_j;
-                }
-            }
+    // Append each element of the `other` slice to the end of `self`.
+    // This returns a new slice and leaves both input slices unchanged.
+    fn append(mut self, other: Self) -> Self {
+        for elem in other {
+            self = self.push_back(elem);
         }
-        a
-    }
-
-    // Apply a function to each element of a slice, returning a new slice
-    // containing the mapped elements.
-    fn map<U>(self, f: fn(T) -> U) -> [U] {
-        let mut ret: [U] = [];
-        for elem in self {
-            ret = ret.push_back(f(elem));
-        }
-        ret
-    }
-
-    // Apply a function to each element of the slice and an accumulator value,
-    // returning the final accumulated value. This function is also sometimes
-    // called `foldl`, `fold_left`, `reduce`, or `inject`.
-    fn fold<U>(self, mut accumulator: U, f: fn(U, T) -> U) -> U {
-        for elem in self {
-            accumulator = f(accumulator, elem);
-        }
-        accumulator
-    }
-
-    // Apply a function to each element of the slice and an accumulator value,
-    // returning the final accumulated value. Unlike fold, reduce uses the first
-    // element of the given slice as its starting accumulator value.
-    fn reduce(self, f: fn(T, T) -> T) -> T {
-        let mut accumulator = self[0];
-        for i in 1 .. self.len() {
-            accumulator = f(accumulator, self[i]);
-        }
-        accumulator
-    }
-
-    // Returns true if all elements in the array satisfy the predicate
-    fn all(self, predicate: fn(T) -> bool) -> bool {
-        let mut ret = true;
-        for elem in self {
-            ret &= predicate(elem);
-        }
-        ret
-    }
-
-    // Returns true if any element in the array satisfies the predicate
-    fn any(self, predicate: fn(T) -> bool) -> bool {
-        let mut ret = false;
-        for elem in self {
-            ret |= predicate(elem);
-        }
-        ret
+        self
     }
 }
-

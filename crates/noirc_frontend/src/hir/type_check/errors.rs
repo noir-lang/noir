@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
@@ -5,6 +6,7 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::FunctionReturnType;
 use crate::Signedness;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -23,18 +25,22 @@ pub enum Source {
     Comparison,
     #[error("BinOp")]
     BinOp,
+    #[error("Return")]
+    Return(FunctionReturnType, Span),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
+    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
+    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
-    #[error("Expected type {lhs} is not the same as {rhs}")]
-    TypeMismatchWithSource { lhs: Type, rhs: Type, span: Span, source: Source },
+    #[error("Expected type {expected} is not the same as {actual}")]
+    TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: u16, found: u16, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -47,14 +53,6 @@ pub enum TypeCheckError {
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
-    #[error("The value is non-comptime because of this expression, which uses another non-comptime value")]
-    NotCompTime { span: Span },
-    #[error(
-        "The value is comptime because of this expression, which forces the value to be comptime"
-    )]
-    CompTime { span: Span },
-    #[error("Cannot cast to a comptime type, argument to cast is not known at compile-time")]
-    CannotCastToComptimeType { span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
@@ -71,6 +69,8 @@ pub enum TypeCheckError {
     IntegerBitWidth { bit_width_x: u32, bit_width_y: u32, span: Span },
     #[error("{kind} cannot be used in an infix operation")]
     InvalidInfixOp { kind: &'static str, span: Span },
+    #[error("{kind} cannot be used in a unary operation")]
+    InvalidUnaryOp { kind: String, span: Span },
     #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
     InvalidBitwiseOperationOnField { span: Span },
     #[error("Integer cannot be used with type {typ}")]
@@ -94,8 +94,12 @@ pub enum TypeCheckError {
     },
     #[error("Cannot infer type of expression, type annotations needed before this point")]
     TypeAnnotationsNeeded { span: Span },
+    #[error("use of deprecated function {name}")]
+    CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
     ResolverError(ResolverError),
+    #[error("Unused expression result of type {expr_type}")]
+    UnusedResultError { expr_type: Type, expr_span: Span },
 }
 
 impl TypeCheckError {
@@ -161,9 +165,6 @@ impl From<TypeCheckError> for Diagnostic {
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
-            | TypeCheckError::CompTime { span }
-            | TypeCheckError::NotCompTime { span }
-            | TypeCheckError::CannotCastToComptimeType { span }
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
@@ -172,11 +173,13 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
             | TypeCheckError::InvalidInfixOp { span, .. }
+            | TypeCheckError::InvalidUnaryOp { span, .. }
             | TypeCheckError::InvalidBitwiseOperationOnField { span, .. }
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { span } => {
+            | TypeCheckError::IntegerAndFieldBinaryOperation { span }
+            | TypeCheckError::OverflowingAssignment { span, .. } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
@@ -190,20 +193,49 @@ impl From<TypeCheckError> for Diagnostic {
                 span,
             ),
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { lhs, rhs, span, source } => {
+            TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
                 let message = match source {
-                    Source::Binary => format!("Types in a binary operation should match, but found {lhs} and {rhs}"),
+                    Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
                     Source::Assignment => {
-                        format!("Cannot assign an expression of type {lhs} to a value of type {rhs}")
+                        format!("Cannot assign an expression of type {actual} to a value of type {expected}")
                     }
-                    Source::ArrayElements => format!("Cannot compare {lhs} and {rhs}, the array element types differ"),
-                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
-                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
-                    Source::Comparison => format!("Unsupported types for comparison: {lhs} and {rhs}"),
-                    Source::BinOp => format!("Unsupported types for binary operation: {lhs} and {rhs}"),
+                    Source::ArrayElements => format!("Cannot compare {expected} and {actual}, the array element types differ"),
+                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
+                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
+                    Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
+                    Source::BinOp => format!("Unsupported types for binary operation: {expected} and {actual}"),
+                    Source::Return(ret_ty, expr_span) => {
+                        let ret_ty_span = match ret_ty.clone() {
+                            FunctionReturnType::Default(span) => span,
+                            FunctionReturnType::Ty(ty) => ty.span.unwrap(),
+                        };
+
+                        let mut diagnostic = Diagnostic::simple_error(format!("expected type {expected}, found type {actual}"), format!("expected {expected} because of return type"), ret_ty_span);
+
+                        if let FunctionReturnType::Default(_) = ret_ty {
+                            diagnostic.add_note(format!("help: try adding a return type: `-> {actual}`"));
+                        }
+
+                        diagnostic.add_secondary(format!("{actual} returned here"), expr_span);
+
+                        return diagnostic
+                    },
                 };
 
                 Diagnostic::simple_error(message, String::new(), span)
+            }
+            TypeCheckError::CallDeprecated { span, ref note, .. } => {
+                let primary_message = error.to_string();
+                let secondary_message = note.clone().unwrap_or_default();
+
+                Diagnostic::simple_warning(primary_message, secondary_message, span)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_span } => {
+                Diagnostic::simple_warning(
+                    format!("Unused expression result of type {expr_type}"),
+                    String::new(),
+                    expr_span,
+                )
             }
         }
     }

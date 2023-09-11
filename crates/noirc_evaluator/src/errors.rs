@@ -1,151 +1,126 @@
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+//! Noir Evaluator has two types of errors
+//!
+//! [RuntimeError]s that should be displayed to the user
+//!
+//! [InternalError]s that are used for checking internal logics of the SSA
+//!
+//! An Error of the former is a user Error
+//!
+//! An Error of the latter is an error in the implementation of the compiler
+use acvm::acir::native_types::Expression;
+use iter_extended::vecmap;
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-#[derive(Debug)]
-pub struct RuntimeError {
-    pub location: Option<Location>,
-    pub kind: RuntimeErrorKind,
+use crate::ssa::ir::dfg::CallStack;
+
+#[derive(Debug, PartialEq, Eq, Clone, Error)]
+pub enum RuntimeError {
+    #[error("{}", format_failed_constraint(.assert_message))]
+    FailedConstraint {
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+        call_stack: CallStack,
+        assert_message: Option<String>,
+    },
+    #[error(transparent)]
+    InternalError(#[from] InternalError),
+    #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
+    IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
+    #[error("Range constraint of {num_bits} bits is too large for the Field size")]
+    InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
+    #[error("Expected array index to fit into a u64")]
+    TypeConversion { from: String, into: String, call_stack: CallStack },
+    #[error("{name:?} is not initialized")]
+    UnInitialized { name: String, call_stack: CallStack },
+    #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
+    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
+    #[error("Could not determine loop bound at compile-time")]
+    UnknownLoopBound { call_stack: CallStack },
+    #[error("Argument is not constant")]
+    AssertConstantFailed { call_stack: CallStack },
+}
+
+// We avoid showing the actual lhs and rhs since most of the time they are just 0
+// and 1 respectively. This would confuse users if a constraint such as
+// assert(foo < bar) fails with "failed constraint: 0 = 1."
+fn format_failed_constraint(message: &Option<String>) -> String {
+    match message {
+        Some(message) => format!("Failed constraint: '{}'", message),
+        None => "Failed constraint".to_owned(),
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Error)]
+pub enum InternalError {
+    #[error("ICE: Both expressions should have degree<=1")]
+    DegreeNotReduced { call_stack: CallStack },
+    #[error("Try to get element from empty array")]
+    EmptyArray { call_stack: CallStack },
+    #[error("ICE: {message:?}")]
+    General { message: String, call_stack: CallStack },
+    #[error("ICE: {name:?} missing {arg:?} arg")]
+    MissingArg { name: String, arg: String, call_stack: CallStack },
+    #[error("ICE: {name:?} should be a constant")]
+    NotAConstant { name: String, call_stack: CallStack },
+    #[error("ICE: Undeclared AcirVar")]
+    UndeclaredAcirVar { call_stack: CallStack },
+    #[error("ICE: Expected {expected:?}, found {found:?}")]
+    UnExpected { expected: String, found: String, call_stack: CallStack },
 }
 
 impl RuntimeError {
-    // XXX: In some places, we strip the span because we do not want span to
-    // be introduced into the binary op or low level function code, for simplicity.
-    //
-    // It's possible to have it there, but it means we will need to proliferate the code with span
-    //
-    // This does make error reporting, less specific!
-    pub fn remove_span(self) -> RuntimeErrorKind {
-        self.kind
-    }
-
-    pub fn new(kind: RuntimeErrorKind, location: Option<Location>) -> RuntimeError {
-        RuntimeError { location, kind }
-    }
-
-    // Keep one of the two location which is Some, if possible
-    // This is used when we optimize instructions so that we do not lose track of location
-    pub fn merge_location(a: Option<Location>, b: Option<Location>) -> Option<Location> {
-        match (a, b) {
-            (Some(loc), _) | (_, Some(loc)) => Some(loc),
-            (None, None) => None,
+    fn call_stack(&self) -> &CallStack {
+        match self {
+            RuntimeError::InternalError(
+                InternalError::DegreeNotReduced { call_stack }
+                | InternalError::EmptyArray { call_stack }
+                | InternalError::General { call_stack, .. }
+                | InternalError::MissingArg { call_stack, .. }
+                | InternalError::NotAConstant { call_stack, .. }
+                | InternalError::UndeclaredAcirVar { call_stack }
+                | InternalError::UnExpected { call_stack, .. },
+            )
+            | RuntimeError::FailedConstraint { call_stack, .. }
+            | RuntimeError::IndexOutOfBounds { call_stack, .. }
+            | RuntimeError::InvalidRangeConstraint { call_stack, .. }
+            | RuntimeError::TypeConversion { call_stack, .. }
+            | RuntimeError::UnInitialized { call_stack, .. }
+            | RuntimeError::UnknownLoopBound { call_stack }
+            | RuntimeError::AssertConstantFailed { call_stack }
+            | RuntimeError::UnsupportedIntegerSize { call_stack, .. } => call_stack,
         }
     }
 }
 
-impl From<RuntimeErrorKind> for RuntimeError {
-    fn from(kind: RuntimeErrorKind) -> RuntimeError {
-        RuntimeError { location: None, kind }
-    }
-}
-
 impl From<RuntimeError> for FileDiagnostic {
-    fn from(err: RuntimeError) -> Self {
-        let file_id = err.location.map(|loc| loc.file).unwrap();
-        FileDiagnostic { file_id, diagnostic: err.into() }
+    fn from(error: RuntimeError) -> FileDiagnostic {
+        let call_stack = vecmap(error.call_stack(), |location| *location);
+        let diagnostic = error.into_diagnostic();
+        let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
+
+        diagnostic.in_file(file_id).with_call_stack(call_stack)
     }
 }
 
-#[derive(Error, Debug)]
-pub enum RuntimeErrorKind {
-    // Array errors
-    #[error("Out of bounds")]
-    ArrayOutOfBounds { index: u128, bound: u128 },
-
-    #[error("index out of bounds: the len is {index} but the index is {bound}")]
-    IndexOutOfBounds { index: u32, bound: u128 },
-
-    #[error("cannot call {func_name} function in non main function")]
-    FunctionNonMainContext { func_name: String },
-
-    // Environment errors
-    #[error("Cannot find Array")]
-    ArrayNotFound { found_type: String, name: String },
-
-    #[error("Not an object")]
-    NotAnObject,
-
-    #[error("Invalid id")]
-    InvalidId,
-
-    #[error("Attempt to divide by zero")]
-    DivisionByZero,
-
-    #[error("Failed range constraint when constraining to {0} bits")]
-    FailedRangeConstraint(u32),
-
-    #[error("Unsupported integer size of {num_bits} bits. The maximum supported size is {max_num_bits} bits.")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32 },
-
-    #[error("Failed constraint")]
-    FailedConstraint,
-
-    #[error(
-        "All Witnesses are by default u{0}. Applying this type does not apply any constraints."
-    )]
-    DefaultWitnesses(u32),
-
-    #[error("Constraint is always false")]
-    ConstraintIsAlwaysFalse,
-
-    #[error("ICE: cannot convert signed {0} bit size into field")]
-    CannotConvertSignedIntoField(u32),
-
-    #[error("we do not allow private ABI inputs to be returned as public outputs")]
-    PrivateAbiInput,
-
-    #[error("unimplemented")]
-    Unimplemented(String),
-
-    #[error("Unsupported operation error")]
-    UnsupportedOp { op: String, first_type: String, second_type: String },
-}
-
-impl From<RuntimeError> for Diagnostic {
-    fn from(error: RuntimeError) -> Diagnostic {
-        let span =
-            if let Some(loc) = error.location { loc.span } else { noirc_errors::Span::new(0..0) };
-        match &error.kind {
-            RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
-                "index out of bounds".to_string(),
-                format!("out of bounds error, index is {index} but length is {bound}"),
-                span,
-            ),
-            RuntimeErrorKind::ArrayNotFound { found_type, name } => Diagnostic::simple_error(
-                format!("cannot find an array with name {name}"),
-                format!("{found_type} has type"),
-                span,
-            ),
-            RuntimeErrorKind::NotAnObject
-            | RuntimeErrorKind::InvalidId
-            | RuntimeErrorKind::DivisionByZero
-            | RuntimeErrorKind::FailedRangeConstraint(_)
-            | RuntimeErrorKind::UnsupportedIntegerSize { .. }
-            | RuntimeErrorKind::FailedConstraint
-            | RuntimeErrorKind::DefaultWitnesses(_)
-            | RuntimeErrorKind::CannotConvertSignedIntoField(_)
-            | RuntimeErrorKind::IndexOutOfBounds { .. }
-            | RuntimeErrorKind::PrivateAbiInput => {
-                Diagnostic::simple_error("".to_owned(), error.kind.to_string(), span)
-            }
-            RuntimeErrorKind::UnsupportedOp { op, first_type, second_type } => {
+impl RuntimeError {
+    fn into_diagnostic(self) -> Diagnostic {
+        match self {
+            RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
-                    "unsupported operation".to_owned(),
-                    format!("no support for {op} with types {first_type} and {second_type}"),
-                    span,
+                    "Internal Consistency Evaluators Errors: \n
+                    This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                    cause.to_string(),
+                    noirc_errors::Span::inclusive(0, 0)
                 )
             }
-            RuntimeErrorKind::ConstraintIsAlwaysFalse if error.location.is_some() => {
-                Diagnostic::simple_error("".to_owned(), error.kind.to_string(), span)
+            _ => {
+                let message = self.to_string();
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+
+                Diagnostic::simple_error(message, String::new(), location.span)
             }
-            RuntimeErrorKind::ConstraintIsAlwaysFalse => {
-                Diagnostic::from_message(&error.kind.to_string())
-            }
-            RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(message),
-            RuntimeErrorKind::FunctionNonMainContext { func_name } => Diagnostic::simple_error(
-                "cannot call function outside of main".to_owned(),
-                format!("function {func_name} can only be called in main"),
-                span,
-            ),
         }
     }
 }

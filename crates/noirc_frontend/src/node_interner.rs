@@ -7,17 +7,22 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir::def_collector::dc_crate::{
+    UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
+};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::types::{StructType, Type};
+use crate::hir_def::types::{StructType, Trait, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{
+    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
+    TypeVariableKind,
+};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -51,6 +56,27 @@ pub struct NodeInterner {
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
+
+    // Type Aliases map.
+    //
+    // Map type aliases to the actual type.
+    // When resolving types, check against this map to see if a type alias is defined.
+    type_aliases: Vec<TypeAliasType>,
+
+    // Trait map.
+    //
+    // Each trait definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    //
+    // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
+    // We'd just lookup their methods as needed through the NodeInterner.
+    traits: HashMap<TraitId, Shared<Trait>>,
+
+    // Trait implementation map
+    // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
+    // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
+    trait_implementaions: HashMap<(Type, TraitId), Ident>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -120,8 +146,8 @@ impl FuncId {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct StructId(pub ModuleId);
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+pub struct StructId(ModuleId);
 
 impl StructId {
     //dummy id for error reporting
@@ -129,6 +155,39 @@ impl StructId {
     // after resolution
     pub fn dummy_id() -> StructId {
         StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+    }
+
+    pub fn module_id(self) -> ModuleId {
+        self.0
+    }
+
+    pub fn krate(self) -> CrateId {
+        self.0.krate
+    }
+
+    pub fn local_module_id(self) -> LocalModuleId {
+        self.0.local_id
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+pub struct TypeAliasId(pub usize);
+
+impl TypeAliasId {
+    pub fn dummy_id() -> TypeAliasId {
+        TypeAliasId(std::usize::MAX)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TraitId(pub ModuleId);
+
+impl TraitId {
+    // dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> TraitId {
+        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -213,11 +272,11 @@ impl DefinitionKind {
         matches!(self, DefinitionKind::Global(..))
     }
 
-    pub fn get_rhs(self) -> Option<ExprId> {
+    pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(id),
-            DefinitionKind::Local(id) => id,
+            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
     }
@@ -243,6 +302,9 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            type_aliases: Vec::new(),
+            traits: HashMap::new(),
+            trait_implementaions: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -285,16 +347,16 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
-        self.structs.insert(
+    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        self.traits.insert(
             type_id,
-            Shared::new(StructType::new(
+            Shared::new(Trait::new(
                 type_id,
-                typ.struct_def.name.clone(),
-                typ.struct_def.span,
+                typ.trait_def.name.clone(),
+                typ.trait_def.span,
                 Vec::new(),
-                vecmap(&typ.struct_def.generics, |_| {
-                    // Temporary type variable ids before the struct is resolved to its actual ids.
+                vecmap(&typ.trait_def.generics, |_| {
+                    // Temporary type variable ids before the trait is resolved to its actual ids.
                     // This lets us record how many arguments the type expects so that other types
                     // can refer to it with generic arguments before the generic parameters themselves
                     // are resolved.
@@ -305,9 +367,61 @@ impl NodeInterner {
         );
     }
 
+    pub fn new_struct(
+        &mut self,
+        typ: &UnresolvedStruct,
+        krate: CrateId,
+        local_id: LocalModuleId,
+    ) -> StructId {
+        let struct_id = StructId(ModuleId { krate, local_id });
+        let name = typ.struct_def.name.clone();
+
+        // Fields will be filled in later
+        let no_fields = Vec::new();
+        let generics = vecmap(&typ.struct_def.generics, |_| {
+            // Temporary type variable ids before the struct is resolved to its actual ids.
+            // This lets us record how many arguments the type expects so that other types
+            // can refer to it with generic arguments before the generic parameters themselves
+            // are resolved.
+            let id = TypeVariableId(0);
+            (id, Shared::new(TypeBinding::Unbound(id)))
+        });
+
+        let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
+        self.structs.insert(struct_id, Shared::new(new_struct));
+        struct_id
+    }
+
+    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
+        let type_id = TypeAliasId(self.type_aliases.len());
+
+        self.type_aliases.push(TypeAliasType::new(
+            type_id,
+            typ.type_alias_def.name.clone(),
+            typ.type_alias_def.span,
+            Type::Error,
+            vecmap(&typ.type_alias_def.generics, |_| {
+                let id = TypeVariableId(0);
+                (id, Shared::new(TypeBinding::Unbound(id)))
+            }),
+        ));
+
+        type_id
+    }
+
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
+    }
+
+    pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
+        let mut value = self.traits.get_mut(&trait_id).unwrap().borrow_mut();
+        f(&mut value);
+    }
+
+    pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
+        let type_alias_type = &mut self.type_aliases[type_id.0];
+        type_alias_type.set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -506,6 +620,14 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
+    pub fn get_trait(&self, id: TraitId) -> Shared<Trait> {
+        self.traits[&id].clone()
+    }
+
+    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
+        &self.type_aliases[id.0]
+    }
+
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
         self.globals.get(stmt_id).cloned()
     }
@@ -589,6 +711,26 @@ impl NodeInterner {
         }
     }
 
+    pub fn get_previous_trait_implementation(&self, key: &(Type, TraitId)) -> Option<&Ident> {
+        self.trait_implementaions.get(key)
+    }
+
+    pub fn add_trait_implementaion(
+        &mut self,
+        key: &(Type, TraitId),
+        trait_definition_ident: &Ident,
+        methods: &UnresolvedFunctions,
+    ) -> Vec<FuncId> {
+        self.trait_implementaions.insert(key.clone(), trait_definition_ident.clone());
+        methods
+            .functions
+            .iter()
+            .flat_map(|(_, func_id, _)| {
+                self.add_method(&key.0, self.function_name(func_id).to_owned(), *func_id)
+            })
+            .collect::<Vec<FuncId>>()
+    }
+
     /// Search by name for a method on the given struct
     pub fn lookup_method(&self, id: StructId, method_name: &str) -> Option<FuncId> {
         self.struct_methods.get(&(id, method_name.to_owned())).copied()
@@ -608,7 +750,6 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
-    Slice,
     Bool,
     String,
     Unit,
@@ -620,24 +761,25 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
-        Type::FieldElement(_) => Some(FieldOrInt),
+        Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Slice(_) => Some(Slice),
-        Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
-        Type::Bool(_) => Some(Bool),
+        Type::Integer(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
-        Type::Function(_, _) => Some(Function),
+        Type::Function(_, _, _) => Some(Function),
         Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_)
+        Type::TypeVariable(_, _)
         | Type::NamedGeneric(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::Struct(_, _) => None,
+        | Type::NotConstant
+        | Type::Struct(_, _)
+        | Type::FmtString(_, _) => None,
     }
 }

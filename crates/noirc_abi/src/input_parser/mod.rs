@@ -1,6 +1,5 @@
-pub mod json;
-mod toml;
-
+use num_bigint::BigUint;
+use num_traits::Num;
 use std::collections::BTreeMap;
 
 use acvm::FieldElement;
@@ -8,6 +7,10 @@ use serde::Serialize;
 
 use crate::errors::InputParserError;
 use crate::{Abi, AbiType};
+
+mod json;
+mod toml;
+
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
@@ -133,6 +136,7 @@ mod serialization_tests {
                 AbiParameter {
                     name: "bar".into(),
                     typ: AbiType::Struct {
+                        path: "MyStruct".into(),
                         fields: vec![
                             ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
                             (
@@ -182,20 +186,67 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
     if value.starts_with("0x") {
         FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
     } else {
-        value
-            .parse::<i128>()
+        BigUint::from_str_radix(value, 10)
             .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
-            .map(FieldElement::from)
+            .and_then(|bigint| {
+                if bigint < FieldElement::modulus() {
+                    Ok(field_from_big_uint(bigint))
+                } else {
+                    Err(InputParserError::ParseStr(format!(
+                        "Input exceeds field modulus. Values must fall within [0, {})",
+                        FieldElement::modulus(),
+                    )))
+                }
+            })
     }
+}
+
+fn field_from_big_uint(bigint: BigUint) -> FieldElement {
+    FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be())
 }
 
 #[cfg(test)]
 mod test {
+    use acvm::FieldElement;
+    use num_bigint::BigUint;
+
     use super::parse_str_to_field;
+
+    fn big_uint_from_field(field: FieldElement) -> BigUint {
+        BigUint::from_bytes_be(&field.to_be_bytes())
+    }
 
     #[test]
     fn parse_empty_str_fails() {
         // Check that this fails appropriately rather than being treated as 0, etc.
         assert!(parse_str_to_field("").is_err());
+    }
+
+    #[test]
+    fn parse_fields_from_strings() {
+        let fields = vec![
+            FieldElement::zero(),
+            FieldElement::one(),
+            FieldElement::from(u128::MAX) + FieldElement::one(),
+            // Equivalent to `FieldElement::modulus() - 1`
+            -FieldElement::one(),
+        ];
+
+        for field in fields {
+            let hex_field = format!("0x{}", field.to_hex());
+            let field_from_hex = parse_str_to_field(&hex_field).unwrap();
+            assert_eq!(field_from_hex, field);
+
+            let dec_field = big_uint_from_field(field).to_string();
+            let field_from_dec = parse_str_to_field(&dec_field).unwrap();
+            assert_eq!(field_from_dec, field);
+        }
+    }
+
+    #[test]
+    fn rejects_noncanonical_fields() {
+        let noncanonical_field = FieldElement::modulus().to_string();
+        let parsed_field = parse_str_to_field(&noncanonical_field);
+        println!("{parsed_field:?}");
     }
 }

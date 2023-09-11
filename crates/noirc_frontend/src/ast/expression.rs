@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
-use crate::{Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType};
+use crate::{
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
+    UnresolvedTypeData, Visibility,
+};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -70,6 +73,10 @@ impl ExpressionKind {
 
     pub fn string(contents: String) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Str(contents))
+    }
+
+    pub fn format_string(contents: String) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::FmtStr(contents))
     }
 
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
@@ -264,6 +271,10 @@ impl BinaryOpKind {
             BinaryOpKind::Modulo => Token::Percent,
         }
     }
+
+    pub fn is_bit_shift(&self) -> bool {
+        matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -271,7 +282,14 @@ pub enum UnaryOp {
     Minus,
     Not,
     MutableReference,
-    Dereference,
+
+    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// field dereference. The compiler may undo some of these implicitly added dereferences if
+    /// the reference later turns out to be needed (e.g. passing a field by reference to a function
+    /// requiring an &mut parameter).
+    Dereference {
+        implicitly_added: bool,
+    },
 }
 
 impl UnaryOp {
@@ -291,6 +309,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    FmtStr(String),
     Unit,
 }
 
@@ -344,19 +363,26 @@ pub struct FunctionDefinition {
     pub is_unconstrained: bool,
 
     pub generics: UnresolvedGenerics,
-    pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
+    pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,
     pub span: Span,
     pub where_clause: Vec<TraitConstraint>,
-    pub return_type: UnresolvedType,
-    pub return_visibility: noirc_abi::AbiVisibility,
-    pub return_distinctness: noirc_abi::AbiDistinctness,
+    pub return_type: FunctionReturnType,
+    pub return_visibility: Visibility,
+    pub return_distinctness: Distinctness,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FunctionReturnType {
+    /// Returns type is not specified.
+    Default(Span),
+    /// Everything else.
+    Ty(UnresolvedType),
 }
 
 /// Describes the types of smart contract functions that are allowed.
 /// - All Noir programs in the non-contract context can be seen as `Secret`.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ContractFunctionType {
     /// This function will be executed in a private
     /// context.
@@ -466,6 +492,7 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::FmtStr(string) => write!(f, "f\"{string}\""),
             Literal::Unit => write!(f, "()"),
         }
     }
@@ -496,7 +523,7 @@ impl Display for UnaryOp {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
             UnaryOp::MutableReference => write!(f, "&mut"),
-            UnaryOp::Dereference => write!(f, "*"),
+            UnaryOp::Dereference { .. } => write!(f, "*"),
         }
     }
 }
@@ -599,6 +626,39 @@ impl Display for Lambda {
     }
 }
 
+impl FunctionDefinition {
+    pub fn normal(
+        name: &Ident,
+        generics: &UnresolvedGenerics,
+        parameters: &[(Ident, UnresolvedType)],
+        body: &BlockExpression,
+        where_clause: &[TraitConstraint],
+        return_type: &FunctionReturnType,
+    ) -> FunctionDefinition {
+        let p = parameters
+            .iter()
+            .map(|(ident, unresolved_type)| {
+                (Pattern::Identifier(ident.clone()), unresolved_type.clone(), Visibility::Private)
+            })
+            .collect();
+        FunctionDefinition {
+            name: name.clone(),
+            attribute: None,
+            is_open: false,
+            is_internal: false,
+            is_unconstrained: false,
+            generics: generics.clone(),
+            parameters: p,
+            body: body.clone(),
+            span: name.span(),
+            where_clause: where_clause.to_vec(),
+            return_type: return_type.clone(),
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
+        }
+    }
+}
+
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(attribute) = &self.attribute {
@@ -609,13 +669,39 @@ impl Display for FunctionDefinition {
             format!("{name}: {visibility} {type}")
         });
 
+        let where_clause = vecmap(&self.where_clause, ToString::to_string);
+        let where_clause_str = if !where_clause.is_empty() {
+            format!("where {}", where_clause.join(", "))
+        } else {
+            "".to_string()
+        };
+
         write!(
             f,
-            "fn {}({}) -> {} {}",
+            "fn {}({}) -> {} {} {}",
             self.name,
             parameters.join(", "),
             self.return_type,
+            where_clause_str,
             self.body
         )
+    }
+}
+
+impl FunctionReturnType {
+    pub fn get_type(&self) -> &UnresolvedTypeData {
+        match self {
+            FunctionReturnType::Default(_span) => &UnresolvedTypeData::Unit,
+            FunctionReturnType::Ty(typ) => &typ.typ,
+        }
+    }
+}
+
+impl Display for FunctionReturnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionReturnType::Default(_) => f.write_str(""),
+            FunctionReturnType::Ty(ty) => write!(f, "{ty}"),
+        }
     }
 }

@@ -1,4 +1,6 @@
 [package]
+name = "bad_impl"
+type = "lib"
 authors = [""]
 compiler_version = "0.7.1"
 

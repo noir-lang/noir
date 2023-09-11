@@ -1,16 +1,23 @@
 use fm::FileId;
-use noirc_errors::FileDiagnostic;
+use noirc_errors::{FileDiagnostic, Location};
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, TypeImpl,
+    graph::CrateId,
+    hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+    node_interner::TraitId,
+    parser::SubModule,
+    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
-    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal},
-    errors::DefCollectorErrorKind,
+    dc_crate::{
+        DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
+        UnresolvedTypeAlias,
+    },
+    errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
+use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleDefId, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -53,9 +60,15 @@ pub fn collect_defs(
 
     collector.collect_globals(context, ast.globals, errors);
 
-    collector.collect_structs(ast.types, crate_id, errors);
+    collector.collect_traits(ast.traits, crate_id, errors);
+
+    collector.collect_structs(context, ast.types, crate_id, errors);
+
+    collector.collect_type_aliases(context, ast.type_aliases, errors);
 
     collector.collect_functions(context, ast.functions, errors);
+
+    collector.collect_trait_impls(context, ast.trait_impls, errors);
 
     collector.collect_impls(context, ast.impls);
 }
@@ -79,7 +92,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Global,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -107,6 +124,137 @@ impl<'a> ModCollector<'a> {
             let methods = self.def_collector.collected_impls.entry(key).or_default();
             methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
         }
+    }
+
+    fn collect_trait_impls(
+        &mut self,
+        context: &mut Context,
+        impls: Vec<TraitImpl>,
+        errors: &mut Vec<FileDiagnostic>,
+    ) {
+        for trait_impl in impls {
+            let trait_name = trait_impl.trait_name.clone();
+            let module = &self.def_collector.def_map.modules[self.module_id.0];
+            match module.find_name(&trait_name).types {
+                Some((module_def_id, _visibility)) => {
+                    if let Some(collected_trait) = self.get_unresolved_trait(module_def_id) {
+                        let unresolved_functions = self.collect_trait_implementations(
+                            context,
+                            &trait_impl,
+                            &collected_trait.trait_def,
+                            errors,
+                        );
+
+                        for (_, func_id, noir_function) in &unresolved_functions.functions {
+                            let name = noir_function.name().to_owned();
+
+                            context.def_interner.push_function_definition(name, *func_id);
+                        }
+
+                        let unresolved_trait_impl = UnresolvedTraitImpl {
+                            file_id: self.file_id,
+                            module_id: self.module_id,
+                            the_trait: collected_trait,
+                            methods: unresolved_functions,
+                            trait_impl_ident: trait_impl.trait_name.clone(),
+                        };
+
+                        let trait_id = match module_def_id {
+                            ModuleDefId::TraitId(trait_id) => trait_id,
+                            _ => unreachable!(),
+                        };
+
+                        let key = (trait_impl.object_type, self.module_id, trait_id);
+                        self.def_collector
+                            .collected_traits_impls
+                            .insert(key, unresolved_trait_impl);
+                    } else {
+                        let error = DefCollectorErrorKind::NotATrait {
+                            not_a_trait_name: trait_name.clone(),
+                        };
+                        errors.push(error.into_file_diagnostic(self.file_id));
+                    }
+                }
+                None => {
+                    let error = DefCollectorErrorKind::TraitNotFound { trait_ident: trait_name };
+                    errors.push(error.into_file_diagnostic(self.file_id));
+                }
+            }
+        }
+    }
+
+    fn get_unresolved_trait(&self, module_def_id: ModuleDefId) -> Option<UnresolvedTrait> {
+        match module_def_id {
+            ModuleDefId::TraitId(trait_id) => {
+                self.def_collector.collected_traits.get(&trait_id).cloned()
+            }
+            _ => None,
+        }
+    }
+
+    fn collect_trait_implementations(
+        &mut self,
+        context: &mut Context,
+        trait_impl: &TraitImpl,
+        trait_def: &NoirTrait,
+        errors: &mut Vec<FileDiagnostic>,
+    ) -> UnresolvedFunctions {
+        let mut unresolved_functions =
+            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+
+        for item in &trait_impl.items {
+            if let TraitImplItem::Function(impl_method) = item {
+                let func_id = context.def_interner.push_empty_fn();
+                context
+                    .def_interner
+                    .push_function_definition(impl_method.name().to_owned(), func_id);
+                unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
+            }
+        }
+
+        for item in &trait_def.items {
+            if let TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+            } = item
+            {
+                let is_implemented = unresolved_functions
+                    .functions
+                    .iter()
+                    .any(|(_, _, func_impl)| func_impl.name() == name.0.contents);
+                if !is_implemented {
+                    match body {
+                        Some(body) => {
+                            let method_name = name.0.contents.clone();
+                            let func_id = context.def_interner.push_empty_fn();
+                            context.def_interner.push_function_definition(method_name, func_id);
+                            let impl_method = NoirFunction::normal(FunctionDefinition::normal(
+                                name,
+                                generics,
+                                parameters,
+                                body,
+                                where_clause,
+                                return_type,
+                            ));
+                            unresolved_functions.push_fn(self.module_id, func_id, impl_method);
+                        }
+                        None => {
+                            let error = DefCollectorErrorKind::TraitMissedMethodImplementation {
+                                trait_name: trait_def.name.clone(),
+                                method_name: name.clone(),
+                                trait_impl_span: trait_impl.object_type_span,
+                            };
+                            errors.push(error.into_file_diagnostic(self.file_id));
+                        }
+                    }
+                }
+            }
+        }
+        unresolved_functions
     }
 
     fn collect_functions(
@@ -139,7 +287,11 @@ impl<'a> ModCollector<'a> {
                 .declare_function(name, func_id);
 
             if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let error = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Function,
+                    first_def,
+                    second_def,
+                };
                 errors.push(error.into_file_diagnostic(self.file_id));
             }
         }
@@ -151,6 +303,7 @@ impl<'a> ModCollector<'a> {
     /// Returns a vector of errors if any structs were already defined.
     fn collect_structs(
         &mut self,
+        context: &mut Context,
         types: Vec<NoirStruct>,
         krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
@@ -158,9 +311,15 @@ impl<'a> ModCollector<'a> {
         for struct_definition in types {
             let name = struct_definition.name.clone();
 
+            let unresolved = UnresolvedStruct {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                struct_def: struct_definition,
+            };
+
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false, errors) {
-                Some(local_id) => StructId(ModuleId { krate, local_id }),
+                Some(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id),
                 None => continue,
             };
 
@@ -169,17 +328,93 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::TypeDefinition,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
-            let unresolved = UnresolvedStruct {
+            self.def_collector.collected_types.insert(id, unresolved);
+        }
+    }
+
+    /// Collect any type aliases definitions declared within the ast.
+    /// Returns a vector of errors if any type aliases were already defined.
+    fn collect_type_aliases(
+        &mut self,
+        context: &mut Context,
+        type_aliases: Vec<NoirTypeAlias>,
+        errors: &mut Vec<FileDiagnostic>,
+    ) {
+        for type_alias in type_aliases {
+            let name = type_alias.name.clone();
+
+            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
+            let unresolved = UnresolvedTypeAlias {
                 file_id: self.file_id,
                 module_id: self.module_id,
-                struct_def: struct_definition,
+                type_alias_def: type_alias,
             };
-            self.def_collector.collected_types.insert(id, unresolved);
+
+            let type_alias_id = context.def_interner.push_type_alias(&unresolved);
+
+            // Add the type alias to scope so its path can be looked up later
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .declare_type_alias(name, type_alias_id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Function,
+                    first_def,
+                    second_def,
+                };
+                errors.push(err.into_file_diagnostic(self.file_id));
+            }
+
+            self.def_collector.collected_type_aliases.insert(type_alias_id, unresolved);
+        }
+    }
+
+    /// Collect any traits definitions declared within the ast.
+    /// Returns a vector of errors if any traits were already defined.
+    fn collect_traits(
+        &mut self,
+        traits: Vec<NoirTrait>,
+        krate: CrateId,
+        errors: &mut Vec<FileDiagnostic>,
+    ) {
+        for trait_definition in traits {
+            let name = trait_definition.name.clone();
+
+            // Create the corresponding module for the trait namespace
+            let id = match self.push_child_module(&name, self.file_id, false, false, errors) {
+                Some(local_id) => TraitId(ModuleId { krate, local_id }),
+                None => continue,
+            };
+
+            // Add the trait to scope so its path can be looked up later
+            let result =
+                self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Trait,
+                    first_def,
+                    second_def,
+                };
+                errors.push(err.into_file_diagnostic(self.file_id));
+            }
+
+            // And store the TraitId -> TraitType mapping somewhere it is reachable
+            let unresolved = UnresolvedTrait {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                trait_def: trait_definition,
+            };
+            self.def_collector.collected_traits.insert(id, unresolved);
         }
     }
 
@@ -223,7 +458,7 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) {
         let child_file_id =
-            match context.file_manager.resolve_path(self.file_id, &mod_name.0.contents) {
+            match context.file_manager.find_module(self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(_) => {
                     let err =
@@ -263,7 +498,8 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) -> Option<LocalModuleId> {
         let parent = Some(self.module_id);
-        let new_module = ModuleData::new(parent, ModuleOrigin::File(file_id), is_contract);
+        let location = Location::new(mod_name.span(), file_id);
+        let new_module = ModuleData::new(parent, location, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;
@@ -287,7 +523,11 @@ impl<'a> ModCollector<'a> {
             if let Err((first_def, second_def)) =
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
-                let err = DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Module,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
                 return None;
             }

@@ -20,5 +20,6 @@
         }
       ]
     }
-  }
+  },
+  "plugins": ["sentence-case"]
 }

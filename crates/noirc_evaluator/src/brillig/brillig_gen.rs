@@ -4,13 +4,10 @@ pub(crate) mod brillig_directive;
 pub(crate) mod brillig_fn;
 pub(crate) mod brillig_slice_ops;
 
-use crate::ssa_refactor::ir::{function::Function, post_order::PostOrder};
-
-use std::collections::HashMap;
-
 use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
-
 use super::brillig_ir::{artifact::BrilligArtifact, BrilligContext};
+use crate::ssa::ir::{function::Function, post_order::PostOrder};
+use fxhash::FxHashMap as HashMap;
 
 /// Converting an SSA function into Brillig bytecode.
 pub(crate) fn convert_ssa_function(func: &Function, enable_debug_trace: bool) -> BrilligArtifact {
@@ -18,8 +15,10 @@ pub(crate) fn convert_ssa_function(func: &Function, enable_debug_trace: bool) ->
     reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
     reverse_post_order.reverse();
 
-    let mut function_context =
-        FunctionContext { function_id: func.id(), ssa_value_to_brillig_variable: HashMap::new() };
+    let mut function_context = FunctionContext {
+        function_id: func.id(),
+        ssa_value_to_brillig_variable: HashMap::default(),
+    };
 
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 

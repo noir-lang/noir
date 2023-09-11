@@ -1,0 +1,7 @@
+[package]
+name = "2_div"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

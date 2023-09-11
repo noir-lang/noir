@@ -1,7 +1,6 @@
-use crate::FileManager;
-use codespan_reporting::files::{SimpleFile, SimpleFiles};
+use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{ops::Range, path::PathBuf};
 
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep
@@ -34,7 +33,9 @@ impl From<&PathBuf> for PathString {
 pub struct FileMap(SimpleFiles<PathString, String>);
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub struct FileId(usize);
 
 impl FileId {
@@ -72,9 +73,24 @@ impl Default for FileMap {
     }
 }
 
-impl FileManager {
-    // Needed as code_span dep requires underlying SimpleFiles
-    pub fn as_simple_files(&self) -> &SimpleFiles<PathString, String> {
-        &self.file_map.0
+impl<'a> Files<'a> for FileMap {
+    type FileId = FileId;
+    type Name = PathString;
+    type Source = &'a str;
+
+    fn name(&self, file_id: Self::FileId) -> Result<Self::Name, Error> {
+        Ok(self.0.get(file_id.as_usize())?.name().clone())
+    }
+
+    fn source(&'a self, file_id: Self::FileId) -> Result<Self::Source, Error> {
+        Ok(self.0.get(file_id.as_usize())?.source().as_ref())
+    }
+
+    fn line_index(&self, file_id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
+        self.0.get(file_id.as_usize())?.line_index((), byte_index)
+    }
+
+    fn line_range(&self, file_id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
+        self.0.get(file_id.as_usize())?.line_range((), line_index)
     }
 }

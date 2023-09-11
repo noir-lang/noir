@@ -1,0 +1,7 @@
+[package]
+name = "brillig_identity_function"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

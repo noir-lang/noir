@@ -94,7 +94,7 @@ impl TomlTypes {
 
             (InputValue::String(s), AbiType::String { .. }) => TomlTypes::String(s.to_string()),
 
-            (InputValue::Struct(map), AbiType::Struct { fields }) => {
+            (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
                 let map_with_toml_types = try_btree_map(fields, |(key, field_type)| {
                     TomlTypes::try_from_input_value(&map[key], field_type)
                         .map(|toml_value| (key.to_owned(), toml_value))
@@ -138,7 +138,7 @@ impl InputValue {
                 InputValue::Vec(array_elements)
             }
 
-            (TomlTypes::Table(table), AbiType::Struct { fields }) => {
+            (TomlTypes::Table(table), AbiType::Struct { fields, .. }) => {
                 let native_table = try_btree_map(fields, |(field_name, abi_type)| {
                     // Check that json contains a value for each field of the struct.
                     let field_id = format!("{arg_name}.{field_name}");

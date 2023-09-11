@@ -1,126 +1,114 @@
-use super::compile_cmd::compile_circuit;
-use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
-    inputs::read_inputs_from_file,
-    load_hex_data,
-    program::read_program_from_file,
-};
 use super::NargoConfig;
-use crate::{
-    constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
-    errors::CliError,
+use super::{
+    compile_cmd::compile_package,
+    fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file},
 };
+use crate::{backends::Backend, errors::CliError};
 
-use acvm::Backend;
+use acvm::acir::circuit::Opcode;
+use acvm::Language;
 use clap::Args;
-use nargo::artifacts::program::PreprocessedProgram;
-use nargo::ops::{preprocess_program, verify_proof};
+use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
+use nargo::{artifacts::program::PreprocessedProgram, package::Package};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
+use noirc_frontend::graph::CrateName;
 use std::path::{Path, PathBuf};
+
+// TODO(#1388): pull this from backend.
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
 pub(crate) struct VerifyCommand {
-    /// The proof to verify
-    proof: String,
-
-    /// The name of the circuit build files (ACIR, proving and verification keys)
-    circuit_name: Option<String>,
-
     /// The name of the toml file which contains the inputs for the verifier
     #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
     verifier_name: String,
+
+    /// The name of the package verify
+    #[clap(long, conflicts_with = "workspace")]
+    package: Option<CrateName>,
+
+    /// Verify all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
-    backend: &B,
+pub(crate) fn run(
+    backend: &Backend,
     args: VerifyCommand,
     config: NargoConfig,
-) -> Result<(), CliError<B>> {
-    let proof_path =
-        config.program_dir.join(PROOFS_DIR).join(&args.proof).with_extension(PROOF_EXT);
+) -> Result<(), CliError> {
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+    let proofs_dir = workspace.proofs_directory_path();
 
-    let circuit_build_path = args
-        .circuit_name
-        .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    for package in &workspace {
+        let circuit_build_path = workspace.package_build_path(package);
 
-    verify_with_path(
-        backend,
-        &config.program_dir,
-        proof_path,
-        circuit_build_path.as_ref(),
-        args.verifier_name,
-        &args.compile_options,
-    )
+        let proof_path = proofs_dir.join(String::from(&package.name)).with_extension(PROOF_EXT);
+
+        verify_package(
+            backend,
+            package,
+            &proof_path,
+            circuit_build_path,
+            &args.verifier_name,
+            &args.compile_options,
+            np_language,
+            &is_opcode_supported,
+        )?;
+    }
+
+    Ok(())
 }
 
-fn verify_with_path<B: Backend, P: AsRef<Path>>(
-    backend: &B,
-    program_dir: P,
-    proof_path: PathBuf,
-    circuit_build_path: Option<P>,
-    verifier_name: String,
+fn verify_package(
+    backend: &Backend,
+    package: &Package,
+    proof_path: &Path,
+    circuit_build_path: PathBuf,
+    verifier_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
-    let common_reference_string = read_cached_common_reference_string();
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+) -> Result<(), CliError> {
+    let preprocessed_program = if circuit_build_path.exists() {
+        read_program_from_file(circuit_build_path)?
+    } else {
+        let (_, program) =
+            compile_package(package, compile_options, np_language, &is_opcode_supported)?;
 
-    let (common_reference_string, preprocessed_program) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let program = read_program_from_file(circuit_build_path)?;
-            let common_reference_string = update_common_reference_string(
-                backend,
-                &common_reference_string,
-                &program.bytecode,
-            )
-            .map_err(CliError::CommonReferenceStringError)?;
-            (common_reference_string, program)
-        }
-        None => {
-            let (program, _) =
-                compile_circuit(backend, None, program_dir.as_ref(), compile_options)?;
-            let common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
-            let (program, _) = preprocess_program(backend, true, &common_reference_string, program)
-                .map_err(CliError::ProofSystemCompilerError)?;
-            (common_reference_string, program)
+        PreprocessedProgram {
+            backend: String::from(BACKEND_IDENTIFIER),
+            abi: program.abi,
+            bytecode: program.circuit,
         }
     };
 
-    write_cached_common_reference_string(&common_reference_string);
-
-    let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
+    let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
 
     // Load public inputs (if any) from `verifier_name`.
     let public_abi = abi.public_abi();
     let (public_inputs_map, return_value) =
-        read_inputs_from_file(program_dir, verifier_name.as_str(), Format::Toml, &public_abi)?;
+        read_inputs_from_file(&package.root_dir, verifier_name, Format::Toml, &public_abi)?;
 
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
-    let proof = load_hex_data(&proof_path)?;
+    let proof = load_hex_data(proof_path)?;
 
-    let verification_key = verification_key
-        .expect("Verification key should exist as `true` is passed to `preprocess_program`");
-    let valid_proof = verify_proof(
-        backend,
-        &common_reference_string,
-        &bytecode,
-        &proof,
-        public_inputs,
-        &verification_key,
-    )
-    .map_err(CliError::ProofSystemCompilerError)?;
+    let valid_proof = backend.verify(&proof, public_inputs, &bytecode, false)?;
 
     if valid_proof {
         Ok(())
     } else {
-        Err(CliError::InvalidProof(proof_path))
+        Err(CliError::InvalidProof(proof_path.to_path_buf()))
     }
 }

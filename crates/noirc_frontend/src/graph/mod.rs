@@ -4,34 +4,57 @@
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
 
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CrateId {
+    Root(usize),
     Crate(usize),
     Stdlib(usize),
+    Dummy,
 }
 
 impl CrateId {
     pub fn dummy_id() -> CrateId {
-        CrateId::Crate(std::usize::MAX)
+        CrateId::Dummy
     }
 
     pub fn is_stdlib(&self) -> bool {
         matches!(self, CrateId::Stdlib(_))
     }
+
+    pub fn is_root(&self) -> bool {
+        matches!(self, CrateId::Root(_))
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CrateName(SmolStr);
+
+impl CrateName {
+    fn is_valid_name(name: &str) -> bool {
+        !name.is_empty() && name.chars().all(|n| !CHARACTER_BLACK_LIST.contains(&n))
+    }
+}
+
+impl Display for CrateName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl From<CrateName> for String {
     fn from(crate_name: CrateName) -> Self {
         crate_name.0.into()
+    }
+}
+impl From<&CrateName> for String {
+    fn from(crate_name: &CrateName) -> Self {
+        crate_name.0.clone().into()
     }
 }
 
@@ -43,11 +66,28 @@ impl FromStr for CrateName {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
-        let is_invalid = name.chars().any(|n| CHARACTER_BLACK_LIST.contains(&n));
-        if is_invalid {
-            Err(name.into())
-        } else {
+        if Self::is_valid_name(name) {
             Ok(Self(SmolStr::new(name)))
+        } else {
+            Err("Package names must be non-empty and cannot contain hyphens".into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod crate_name {
+    use super::{CrateName, CHARACTER_BLACK_LIST};
+
+    #[test]
+    fn it_rejects_empty_string() {
+        assert!(!CrateName::is_valid_name(""));
+    }
+
+    #[test]
+    fn it_rejects_blacklisted_chars() {
+        for bad_char in CHARACTER_BLACK_LIST {
+            let bad_char_string = bad_char.to_string();
+            assert!(!CrateName::is_valid_name(&bad_char_string));
         }
     }
 }
@@ -62,17 +102,9 @@ pub struct CrateGraph {
 /// and we do not want names that differ by a hyphen
 pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum CrateType {
-    Library,
-    Binary,
-    Workspace,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
     pub root_file_id: FileId,
-    pub crate_type: CrateType,
     pub dependencies: Vec<Dependency>,
 }
 
@@ -91,40 +123,87 @@ impl Dependency {
 }
 
 impl CrateGraph {
-    pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
-        let mut roots_with_file_id =
-            self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
+    pub fn root_crate_id(&self) -> &CrateId {
+        self.arena
+            .keys()
+            .find(|crate_id| crate_id.is_root())
+            .expect("ICE: A root crate should exist in the CrateGraph")
+    }
 
-        let next_file_id = roots_with_file_id.next();
-        if let Some(file_id) = next_file_id {
-            return *file_id.0;
+    pub fn stdlib_crate_id(&self) -> &CrateId {
+        self.arena
+            .keys()
+            .find(|crate_id| crate_id.is_stdlib())
+            .expect("ICE: The stdlib should exist in the CrateGraph")
+    }
+
+    pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
+        for (crate_id, crate_data) in self.arena.iter() {
+            if crate_id.is_root() {
+                panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
+            }
+
+            if crate_data.root_file_id == file_id {
+                panic!("ICE: This FileId was already added to the CrateGraph")
+            }
         }
 
-        let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
-        let crate_id = CrateId::Crate(self.arena.len());
+        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+        let crate_id = CrateId::Root(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
         crate_id
     }
 
-    pub fn add_stdlib(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
-        let mut roots_with_file_id =
-            self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
+    pub fn add_crate(&mut self, file_id: FileId) -> CrateId {
+        let mut crates_with_file_id = self
+            .arena
+            .iter()
+            .filter(|(_, crate_data)| crate_data.root_file_id == file_id)
+            .peekable();
 
-        let next_file_id = roots_with_file_id.next();
-        if let Some(file_id) = next_file_id {
-            return *file_id.0;
+        let matching_id = crates_with_file_id.next();
+        if crates_with_file_id.peek().is_some() {
+            panic!("ICE: Found multiple crates with the same FileId");
         }
 
-        let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
+        match matching_id {
+            Some((crate_id @ CrateId::Crate(_), _)) => *crate_id,
+            Some((CrateId::Root(_), _)) => {
+                panic!("ICE: Tried to re-add the root crate as a regular crate")
+            }
+            Some((CrateId::Stdlib(_), _)) => {
+                panic!("ICE: Tried to re-add the stdlib crate as a regular crate")
+            }
+            Some((CrateId::Dummy, _)) => {
+                panic!("ICE: A dummy CrateId should not exist in the CrateGraph")
+            }
+            None => {
+                let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+                let crate_id = CrateId::Crate(self.arena.len());
+                let prev = self.arena.insert(crate_id, data);
+                assert!(prev.is_none());
+                crate_id
+            }
+        }
+    }
+
+    pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
+        for (crate_id, crate_data) in self.arena.iter() {
+            if crate_id.is_stdlib() {
+                panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
+            }
+
+            if crate_data.root_file_id == file_id {
+                panic!("ICE: This FileId was already added to the CrateGraph")
+            }
+        }
+
+        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
         let crate_id = CrateId::Stdlib(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
         crate_id
-    }
-
-    pub fn crate_type(&self, crate_id: CrateId) -> CrateType {
-        self.arena.get(&crate_id).unwrap().crate_type
     }
 
     pub fn iter_keys(&self) -> impl Iterator<Item = CrateId> + '_ {
@@ -203,6 +282,12 @@ impl std::ops::Index<CrateId> for CrateGraph {
         &self.arena[&crate_id]
     }
 }
+impl std::ops::Index<&CrateId> for CrateGraph {
+    type Output = CrateData;
+    fn index(&self, crate_id: &CrateId) -> &CrateData {
+        &self.arena[crate_id]
+    }
+}
 
 /// XXX: This is bare-bone for two reasons:
 // There are no display names currently
@@ -218,7 +303,7 @@ pub struct CyclicDependenciesError {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{CrateGraph, CrateType, FileId};
+    use super::{CrateGraph, FileId};
 
     fn dummy_file_ids(n: usize) -> Vec<FileId> {
         use fm::{FileMap, FILE_EXTENSION};
@@ -240,9 +325,9 @@ mod tests {
         let file_ids = dummy_file_ids(3);
 
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(CrateType::Library, file_ids[0]);
-        let crate2 = graph.add_crate_root(CrateType::Library, file_ids[1]);
-        let crate3 = graph.add_crate_root(CrateType::Library, file_ids[2]);
+        let crate1 = graph.add_crate_root(file_ids[0]);
+        let crate2 = graph.add_crate(file_ids[1]);
+        let crate3 = graph.add_crate(file_ids[2]);
 
         assert!(graph.add_dep(crate1, "crate2".parse().unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, "crate3".parse().unwrap(), crate3).is_ok());
@@ -256,9 +341,9 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
-        let crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
-        let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
+        let crate1 = graph.add_crate_root(file_id_0);
+        let crate2 = graph.add_crate(file_id_1);
+        let crate3 = graph.add_crate(file_id_2);
         assert!(graph.add_dep(crate1, "crate2".parse().unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, "crate3".parse().unwrap(), crate3).is_ok());
     }
@@ -269,12 +354,69 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let _crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
-        let _crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
+        let _crate1 = graph.add_crate_root(file_id_0);
+        let _crate2 = graph.add_crate(file_id_1);
 
         // Adding the same file, so the crate should be the same.
-        let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
-        let crate3_2 = graph.add_crate_root(CrateType::Library, file_id_2);
+        let crate3 = graph.add_crate(file_id_2);
+        let crate3_2 = graph.add_crate(file_id_2);
         assert_eq!(crate3, crate3_2);
+    }
+
+    #[test]
+    #[should_panic = "ICE: Cannot add two crate roots to a graph - use `add_crate` instead"]
+    fn panics_if_adding_two_roots() {
+        let file_ids = dummy_file_ids(2);
+        let mut graph = CrateGraph::default();
+        let _ = graph.add_crate_root(file_ids[0]);
+        let _ = graph.add_crate_root(file_ids[1]);
+    }
+
+    #[test]
+    #[should_panic = "ICE: This FileId was already added to the CrateGraph"]
+    fn panics_if_adding_existing_file_as_root() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_crate(file_id_0);
+        let _ = graph.add_crate_root(file_id_0);
+    }
+
+    #[test]
+    #[should_panic = "ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead"]
+    fn panics_if_adding_two_stdlib() {
+        let file_ids = dummy_file_ids(2);
+        let mut graph = CrateGraph::default();
+        let _ = graph.add_stdlib(file_ids[0]);
+        let _ = graph.add_stdlib(file_ids[1]);
+    }
+
+    #[test]
+    #[should_panic = "ICE: This FileId was already added to the CrateGraph"]
+    fn panics_if_adding_existing_file_as_stdlib() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_crate(file_id_0);
+        let _ = graph.add_stdlib(file_id_0);
+    }
+
+    #[test]
+    #[should_panic = "ICE: Tried to re-add the root crate as a regular crate"]
+    fn panics_if_adding_root_as_regular() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_crate_root(file_id_0);
+        let _ = graph.add_crate(file_id_0);
+    }
+    #[test]
+    #[should_panic = "ICE: Tried to re-add the stdlib crate as a regular crate"]
+    fn panics_if_adding_stdlib_as_regular() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_stdlib(file_id_0);
+        let _ = graph.add_crate(file_id_0);
     }
 }

@@ -17,8 +17,8 @@ use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
-    MethodCallExpression, NoirFunction, NoirTrait, Path, PathKind, Pattern, Recoverable, Statement,
-    TraitImpl, TypeImpl, UnresolvedType, UseTree,
+    MethodCallExpression, NoirFunction, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern,
+    Recoverable, Statement, TraitImpl, TypeImpl, UnresolvedType, UseTree,
 };
 
 use acvm::FieldElement;
@@ -43,6 +43,7 @@ pub(crate) enum TopLevelStatement {
     Trait(NoirTrait),
     TraitImpl(TraitImpl),
     Impl(TypeImpl),
+    TypeAlias(NoirTypeAlias),
     SubModule(SubModule),
     Global(LetStatement),
     Error,
@@ -225,6 +226,7 @@ pub struct ParsedModule {
     pub traits: Vec<NoirTrait>,
     pub trait_impls: Vec<TraitImpl>,
     pub impls: Vec<TypeImpl>,
+    pub type_aliases: Vec<NoirTypeAlias>,
     pub globals: Vec<LetStatement>,
 
     /// Module declarations like `mod foo;`
@@ -262,6 +264,10 @@ impl ParsedModule {
 
     fn push_impl(&mut self, r#impl: TypeImpl) {
         self.impls.push(r#impl);
+    }
+
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias) {
+        self.type_aliases.push(type_alias);
     }
 
     fn push_import(&mut self, import_stmt: UseTree) {
@@ -397,7 +403,7 @@ impl ForRange {
                 // let fresh1 = array;
                 let let_array = Statement::Let(LetStatement {
                     pattern: Pattern::Identifier(array_ident.clone()),
-                    r#type: UnresolvedType::Unspecified,
+                    r#type: UnresolvedType::unspecified(),
                     expression: array,
                 });
 
@@ -430,7 +436,7 @@ impl ForRange {
                 // let elem = array[i];
                 let let_elem = Statement::Let(LetStatement {
                     pattern: Pattern::Identifier(identifier),
-                    r#type: UnresolvedType::Unspecified,
+                    r#type: UnresolvedType::unspecified(),
                     expression: Expression::new(loop_element, array_span),
                 });
 
@@ -463,6 +469,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::TraitImpl(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
+            TopLevelStatement::TypeAlias(t) => t.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
             TopLevelStatement::Global(c) => c.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
@@ -494,6 +501,10 @@ impl std::fmt::Display for ParsedModule {
 
         for impl_ in &self.impls {
             write!(f, "{impl_}")?;
+        }
+
+        for type_alias in &self.type_aliases {
+            write!(f, "{type_alias}")?;
         }
 
         for submodule in &self.submodules {

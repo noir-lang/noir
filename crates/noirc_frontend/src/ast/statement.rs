@@ -78,17 +78,11 @@ impl Statement {
                             Statement::Expression(expr)
                         }
                     }
-
-                    // Don't wrap expressions that are not the last expression in
-                    // a block in a Semi so that we can report errors in the type checker
-                    // for unneeded expressions like { 1 + 2; 3 }
-                    (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
                         emit_error(missing_semicolon);
                         Statement::Expression(expr)
                     }
-
-                    (_, Some(_), true) => Statement::Semi(expr),
+                    (_, Some(_), _) => Statement::Semi(expr),
                     (_, None, true) => Statement::Expression(expr),
                 }
             }
@@ -407,7 +401,7 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression);
+pub struct ConstrainStatement(pub Expression, pub Option<String>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
@@ -456,7 +450,7 @@ impl LValue {
             })),
             LValue::Dereference(lvalue) => {
                 ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
-                    operator: crate::UnaryOp::Dereference,
+                    operator: crate::UnaryOp::Dereference { implicitly_added: false },
                     rhs: lvalue.as_expression(span),
                 }))
             }

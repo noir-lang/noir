@@ -1,0 +1,7 @@
+[package]
+name = "higher_order_functions"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

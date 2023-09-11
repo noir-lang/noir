@@ -10,6 +10,8 @@ pub(crate) mod registers;
 
 mod entry_point;
 
+use crate::ssa::ir::dfg::CallStack;
+
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
     registers::BrilligRegistersContext,
@@ -104,7 +106,7 @@ impl BrilligContext {
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
-        self.obj.byte_code.push(opcode);
+        self.obj.push_opcode(opcode);
     }
 
     /// Returns the artifact
@@ -359,13 +361,20 @@ impl BrilligContext {
 impl BrilligContext {
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
-    pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
+    pub(crate) fn constrain_instruction(
+        &mut self,
+        condition: RegisterIndex,
+        assert_message: Option<String>,
+    ) {
         self.debug_show.constrain_instruction(condition);
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             self.next_section_label(),
         );
         self.push_opcode(BrilligOpcode::Trap);
+        if let Some(assert_message) = assert_message {
+            self.obj.add_assert_message_to_last_opcode(assert_message);
+        }
         self.enter_next_section();
     }
 
@@ -546,24 +555,6 @@ impl BrilligContext {
     ) {
         self.debug_show.store_instruction(destination_pointer, source);
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
-    }
-
-    pub(crate) fn length_of_variable_instruction(
-        &mut self,
-        variable: RegisterOrMemory,
-        result: RegisterIndex,
-    ) {
-        match variable {
-            RegisterOrMemory::RegisterIndex(_) => {
-                self.const_instruction(result, 1_u128.into());
-            }
-            RegisterOrMemory::HeapArray(HeapArray { size, .. }) => {
-                self.const_instruction(result, size.into());
-            }
-            RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
-                self.mov_instruction(result, size);
-            }
-        }
     }
 
     /// Stores a variable by saving its registers to memory
@@ -951,6 +942,23 @@ impl BrilligContext {
         self.deallocate_register(end_value_register);
         self.deallocate_register(index_at_end_of_array);
     }
+
+    pub(crate) fn extract_heap_vector(&mut self, variable: RegisterOrMemory) -> HeapVector {
+        match variable {
+            RegisterOrMemory::HeapVector(vector) => vector,
+            RegisterOrMemory::HeapArray(array) => {
+                let size = self.allocate_register();
+                self.const_instruction(size, array.size.into());
+                HeapVector { pointer: array.pointer, size }
+            }
+            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
+        }
+    }
+
+    /// Sets a current call stack that the next pushed opcodes will be associated with.
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.obj.set_call_stack(call_stack);
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig
@@ -976,7 +984,7 @@ pub(crate) mod tests {
 
     use crate::brillig::brillig_ir::BrilligContext;
 
-    use super::artifact::BrilligParameter;
+    use super::artifact::{BrilligParameter, GeneratedBrillig};
     use super::{BrilligOpcode, ReservedRegisters};
 
     pub(crate) struct DummyBlackBoxSolver;
@@ -1000,7 +1008,8 @@ pub(crate) mod tests {
         }
         fn fixed_base_scalar_mul(
             &self,
-            _input: &FieldElement,
+            _low: &FieldElement,
+            _high: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into()))
         }
@@ -1016,7 +1025,7 @@ pub(crate) mod tests {
         context: BrilligContext,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> Vec<BrilligOpcode> {
+    ) -> GeneratedBrillig {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
@@ -1034,7 +1043,7 @@ pub(crate) mod tests {
         let mut vm = VM::new(
             Registers { inner: param_registers },
             memory,
-            create_entry_point_bytecode(context, arguments, returns),
+            create_entry_point_bytecode(context, arguments, returns).byte_code,
             vec![],
             &DummyBlackBoxSolver,
         );
@@ -1085,7 +1094,7 @@ pub(crate) mod tests {
 
         context.stop_instruction();
 
-        let bytecode = context.artifact().byte_code;
+        let bytecode = context.artifact().finish().byte_code;
         let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
         let mut vm = VM::new(
             Registers { inner: vec![] },

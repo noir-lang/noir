@@ -59,7 +59,7 @@ pub(crate) fn serialize_to_json(
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
-pub enum JsonTypes {
+pub(super) enum JsonTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
@@ -78,7 +78,7 @@ pub enum JsonTypes {
 }
 
 impl JsonTypes {
-    pub fn try_from_input_value(
+    pub(super) fn try_from_input_value(
         value: &InputValue,
         abi_type: &AbiType,
     ) -> Result<JsonTypes, InputParserError> {
@@ -96,7 +96,7 @@ impl JsonTypes {
 
             (InputValue::String(s), AbiType::String { .. }) => JsonTypes::String(s.to_string()),
 
-            (InputValue::Struct(map), AbiType::Struct { fields }) => {
+            (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
                 let map_with_json_types = try_btree_map(fields, |(key, field_type)| {
                     JsonTypes::try_from_input_value(&map[key], field_type)
                         .map(|json_value| (key.to_owned(), json_value))
@@ -155,7 +155,7 @@ impl InputValue {
                 InputValue::Vec(array_elements)
             }
 
-            (JsonTypes::Table(table), AbiType::Struct { fields }) => {
+            (JsonTypes::Table(table), AbiType::Struct { fields, .. }) => {
                 let native_table = try_btree_map(fields, |(field_name, abi_type)| {
                     // Check that json contains a value for each field of the struct.
                     let field_id = format!("{arg_name}.{field_name}");
@@ -173,15 +173,5 @@ impl InputValue {
         };
 
         Ok(input_value)
-    }
-}
-
-impl std::fmt::Display for JsonTypes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // From the docs: https://doc.rust-lang.org/std/fmt/struct.Error.html
-        // This type does not support transmission of an error other than that an error
-        // occurred. Any extra information must be arranged to be transmitted through
-        // some other means.
-        write!(f, "{}", serde_json::to_string(&self).map_err(|_| std::fmt::Error)?)
     }
 }

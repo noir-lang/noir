@@ -5,6 +5,11 @@ examples/9
 node_modules
 pkg/
 
+# Source resolver
+crates/source-resolver/node_modules
+crates/source-resolver/lib
+crates/source-resolver/lib-node
+
 # Nix stuff
 **/outputs
 result
@@ -20,7 +25,9 @@ result
 *.vk
 **/Verifier.toml
 **/target
-!crates/nargo_cli/tests/test_data/*/target
-!crates/nargo_cli/tests/test_data/*/target/witness.tr
-!crates/nargo_cli/tests/test_data_ssa_refactor/*/target
-!crates/nargo_cli/tests/test_data_ssa_refactor/*/target/witness.tr
+!crates/nargo_cli/tests/acir_artifacts/*/target
+!crates/nargo_cli/tests/acir_artifacts/*/target/witness.gz
+
+# Github Actions scratch space
+# This gives a location to download artifacts into the repository in CI without making git dirty.
+libbarretenberg-wasm32

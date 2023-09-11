@@ -15,6 +15,7 @@ pub enum Token {
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    FmtStr(String),
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
@@ -145,6 +146,7 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{}", n.to_u128()),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b}"),
+            Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::IntType(ref i) => write!(f, "{i}"),
@@ -212,7 +214,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
+            Token::Int(_) | Token::Bool(_) | Token::Str(_) | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
             ref tok => TokenKind::Token(tok.clone()),
@@ -314,6 +316,48 @@ impl IntType {
     }
 }
 
+/// TestScope is used to specify additional annotations for test functions
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum TestScope {
+    /// If a test has a scope of ShouldFailWith, then it can only pass
+    /// if it fails with the specified reason. If the reason is None, then
+    /// the test must unconditionally fail
+    ShouldFailWith { reason: Option<String> },
+    /// No scope is applied and so the test must pass
+    None,
+}
+
+impl TestScope {
+    fn lookup_str(string: &str) -> Option<TestScope> {
+        match string.trim() {
+            "should_fail" => Some(TestScope::ShouldFailWith { reason: None }),
+            s if s.starts_with("should_fail_with") => {
+                let parts: Vec<&str> = s.splitn(2, '=').collect();
+                if parts.len() == 2 {
+                    let reason = parts[1].trim();
+                    let reason = reason.trim_matches('"');
+                    Some(TestScope::ShouldFailWith { reason: Some(reason.to_string()) })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for TestScope {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TestScope::None => write!(f, ""),
+            TestScope::ShouldFailWith { reason } => match reason {
+                Some(failure_reason) => write!(f, "(should_fail_with = ({}))", failure_reason),
+                None => write!(f, "should_fail"),
+            },
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
@@ -322,16 +366,21 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
-    Test,
+    Deprecated(Option<String>),
+    Test(TestScope),
+    Custom(String),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Test => write!(f, "#[test]"),
+            Attribute::Test(scope) => write!(f, "#[test{}]", scope),
+            Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
+            Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
+            Attribute::Custom(ref k) => write!(f, "#[{k}]"),
         }
     }
 }
@@ -345,29 +394,65 @@ impl Attribute {
             .filter(|string_segment| !string_segment.is_empty())
             .collect();
 
-        if word_segments.len() != 2 {
-            if word_segments.len() == 1 && word_segments[0] == "test" {
-                return Ok(Token::Attribute(Attribute::Test));
-            } else {
-                return Err(LexerErrorKind::MalformedFuncAttribute {
-                    span,
-                    found: word.to_owned(),
-                });
+        let validate = |slice: &str| {
+            let is_valid = slice
+                .chars()
+                .all(|ch| {
+                    ch.is_ascii_alphabetic()
+                        || ch.is_numeric()
+                        || ch == '_'
+                        || ch == '('
+                        || ch == ')'
+                        || ch == '='
+                        || ch == '"'
+                        || ch == ' '
+                })
+                .then_some(());
+
+            is_valid.ok_or(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+        };
+
+        let attribute = match &word_segments[..] {
+            ["foreign", name] => {
+                validate(name)?;
+                Attribute::Foreign(name.to_string())
             }
-        }
+            ["builtin", name] => {
+                validate(name)?;
+                Attribute::Builtin(name.to_string())
+            }
+            ["oracle", name] => {
+                validate(name)?;
+                Attribute::Oracle(name.to_string())
+            }
+            ["deprecated"] => Attribute::Deprecated(None),
+            ["deprecated", name] => {
+                if !name.starts_with('"') && !name.ends_with('"') {
+                    return Err(LexerErrorKind::MalformedFuncAttribute {
+                        span,
+                        found: word.to_owned(),
+                    });
+                }
 
-        let attribute_type = word_segments[0];
-        let attribute_name = word_segments[1];
-
-        let tok = match attribute_type {
-            "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
-            "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            "oracle" => Token::Attribute(Attribute::Oracle(attribute_name.to_string())),
-            _ => {
-                return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+                Attribute::Deprecated(name.trim_matches('"').to_string().into())
+            }
+            ["test"] => Attribute::Test(TestScope::None),
+            ["test", name] => {
+                validate(name)?;
+                let malformed_scope =
+                    LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
+                match TestScope::lookup_str(name) {
+                    Some(scope) => Attribute::Test(scope),
+                    None => return Err(malformed_scope),
+                }
+            }
+            tokens => {
+                tokens.iter().try_for_each(|token| validate(token))?;
+                Attribute::Custom(word.to_owned())
             }
         };
-        Ok(tok)
+
+        Ok(Token::Attribute(attribute))
     }
 
     pub fn builtin(self) -> Option<String> {
@@ -399,7 +484,9 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
-            Attribute::Test => "",
+            Attribute::Deprecated(Some(string)) => string,
+            Attribute::Test { .. } | Attribute::Deprecated(None) => "",
+            Attribute::Custom(string) => string,
         }
     }
 }
@@ -412,6 +499,7 @@ impl AsRef<str> for Attribute {
 pub enum Keyword {
     As,
     Assert,
+    AssertEq,
     Bool,
     Char,
     CompTime,
@@ -424,6 +512,7 @@ pub enum Keyword {
     Field,
     Fn,
     For,
+    FormatString,
     Global,
     If,
     Impl,
@@ -450,6 +539,7 @@ impl fmt::Display for Keyword {
         match *self {
             Keyword::As => write!(f, "as"),
             Keyword::Assert => write!(f, "assert"),
+            Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
             Keyword::CompTime => write!(f, "comptime"),
@@ -462,6 +552,7 @@ impl fmt::Display for Keyword {
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
+            Keyword::FormatString => write!(f, "fmtstr"),
             Keyword::Global => write!(f, "global"),
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
@@ -491,6 +582,7 @@ impl Keyword {
         let keyword = match word {
             "as" => Keyword::As,
             "assert" => Keyword::Assert,
+            "assert_eq" => Keyword::AssertEq,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,
@@ -503,6 +595,7 @@ impl Keyword {
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
+            "fmtstr" => Keyword::FormatString,
             "global" => Keyword::Global,
             "if" => Keyword::If,
             "impl" => Keyword::Impl,

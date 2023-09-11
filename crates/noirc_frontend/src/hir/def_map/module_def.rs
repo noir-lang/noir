@@ -1,13 +1,15 @@
-use crate::node_interner::{FuncId, StmtId, StructId};
+use crate::node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId};
 
 use super::ModuleId;
 
-/// A generic ID that references either a module, function, type, or global
+/// A generic ID that references either a module, function, type, interface or global
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
     TypeId(StructId),
+    TypeAliasId(TypeAliasId),
+    TraitId(TraitId),
     GlobalId(StmtId),
 }
 
@@ -26,6 +28,20 @@ impl ModuleDefId {
         }
     }
 
+    pub fn as_type_alias(&self) -> Option<TypeAliasId> {
+        match self {
+            ModuleDefId::TypeAliasId(type_alias_id) => Some(*type_alias_id),
+            _ => None,
+        }
+    }
+
+    pub fn as_trait(&self) -> Option<TraitId> {
+        match self {
+            ModuleDefId::TraitId(trait_id) => Some(*trait_id),
+            _ => None,
+        }
+    }
+
     pub fn as_global(&self) -> Option<StmtId> {
         match self {
             ModuleDefId::GlobalId(stmt_id) => Some(*stmt_id),
@@ -39,6 +55,8 @@ impl ModuleDefId {
         match self {
             ModuleDefId::FunctionId(_) => "function",
             ModuleDefId::TypeId(_) => "type",
+            ModuleDefId::TypeAliasId(_) => "type alias",
+            ModuleDefId::TraitId(_) => "trait",
             ModuleDefId::ModuleId(_) => "module",
             ModuleDefId::GlobalId(_) => "global",
         }
@@ -54,6 +72,12 @@ impl From<ModuleId> for ModuleDefId {
 impl From<FuncId> for ModuleDefId {
     fn from(fid: FuncId) -> Self {
         ModuleDefId::FunctionId(fid)
+    }
+}
+
+impl From<TypeAliasId> for ModuleDefId {
+    fn from(fid: TypeAliasId) -> Self {
+        ModuleDefId::TypeAliasId(fid)
     }
 }
 
@@ -94,6 +118,34 @@ impl TryFromModuleDefId for StructId {
 
     fn description() -> String {
         "type".to_string()
+    }
+}
+
+impl TryFromModuleDefId for TypeAliasId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_type_alias()
+    }
+
+    fn dummy_id() -> Self {
+        TypeAliasId::dummy_id()
+    }
+
+    fn description() -> String {
+        "type alias".to_string()
+    }
+}
+
+impl TryFromModuleDefId for TraitId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_trait()
+    }
+
+    fn dummy_id() -> Self {
+        TraitId::dummy_id()
+    }
+
+    fn description() -> String {
+        "trait".to_string()
     }
 }
 

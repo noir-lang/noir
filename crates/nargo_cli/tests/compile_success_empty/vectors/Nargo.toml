@@ -1,0 +1,7 @@
+[package]
+name = "vectors"
+type = "bin"
+authors = [""]
+compiler_version = "0.7.1"
+
+[dependencies]

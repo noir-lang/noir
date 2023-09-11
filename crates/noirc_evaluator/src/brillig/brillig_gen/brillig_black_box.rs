@@ -16,12 +16,10 @@ pub(crate) fn convert_black_box_call(
 ) {
     match bb_func {
         BlackBoxFunc::SHA256 => {
-            if let (
-                [RegisterOrMemory::HeapArray(message_array)],
-                [RegisterOrMemory::HeapArray(result_array)],
-            ) = (function_arguments, function_results)
+            if let ([message], [RegisterOrMemory::HeapArray(result_array)]) =
+                (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::Sha256 {
                     message: message_vector,
                     output: *result_array,
@@ -31,12 +29,10 @@ pub(crate) fn convert_black_box_call(
             }
         }
         BlackBoxFunc::Blake2s => {
-            if let (
-                [RegisterOrMemory::HeapArray(message_array)],
-                [RegisterOrMemory::HeapArray(result_array)],
-            ) = (function_arguments, function_results)
+            if let ([message], [RegisterOrMemory::HeapArray(result_array)]) =
+                (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake2s {
                     message: message_vector,
                     output: *result_array,
@@ -47,12 +43,13 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Keccak256 => {
             if let (
-                [RegisterOrMemory::HeapArray(message_array), RegisterOrMemory::RegisterIndex(array_size)],
+                [message, RegisterOrMemory::RegisterIndex(array_size)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
-                let message_vector =
-                    HeapVector { size: *array_size, pointer: message_array.pointer };
+                let mut message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                message_vector.size = *array_size;
+
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
                     message: message_vector,
                     output: *result_array,
@@ -62,12 +59,10 @@ pub(crate) fn convert_black_box_call(
             }
         }
         BlackBoxFunc::HashToField128Security => {
-            if let (
-                [RegisterOrMemory::HeapArray(message_array)],
-                [RegisterOrMemory::RegisterIndex(result_register)],
-            ) = (function_arguments, function_results)
+            if let ([message], [RegisterOrMemory::RegisterIndex(result_register)]) =
+                (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::HashToField128Security {
                     message: message_vector,
                     output: *result_register,
@@ -78,11 +73,12 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
-                [RegisterOrMemory::HeapArray(public_key_x), RegisterOrMemory::HeapArray(public_key_y), RegisterOrMemory::HeapArray(signature), RegisterOrMemory::HeapArray(message_hash)],
+                [RegisterOrMemory::HeapArray(public_key_x), RegisterOrMemory::HeapArray(public_key_y), RegisterOrMemory::HeapArray(signature), message],
                 [RegisterOrMemory::RegisterIndex(result_register)],
             ) = (function_arguments, function_results)
             {
-                let message_hash_vector = brillig_context.array_to_vector(message_hash);
+                let message_hash_vector =
+                    convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256k1 {
                     hashed_msg: message_hash_vector,
                     public_key_x: *public_key_x,
@@ -98,11 +94,11 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Pedersen => {
             if let (
-                [RegisterOrMemory::HeapArray(message_array), RegisterOrMemory::RegisterIndex(domain_separator)],
+                [message, RegisterOrMemory::RegisterIndex(domain_separator)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
-                let message_vector = brillig_context.array_to_vector(message_array);
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::Pedersen {
                     inputs: message_vector,
                     domain_separator: *domain_separator,
@@ -114,11 +110,11 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::SchnorrVerify => {
             if let (
-                [RegisterOrMemory::RegisterIndex(public_key_x), RegisterOrMemory::RegisterIndex(public_key_y), RegisterOrMemory::HeapArray(signature), RegisterOrMemory::HeapArray(message_hash)],
+                [RegisterOrMemory::RegisterIndex(public_key_x), RegisterOrMemory::RegisterIndex(public_key_y), RegisterOrMemory::HeapArray(signature), message],
                 [RegisterOrMemory::RegisterIndex(result_register)],
             ) = (function_arguments, function_results)
             {
-                let message_hash = brillig_context.array_to_vector(message_hash);
+                let message_hash = convert_array_or_vector(brillig_context, message, bb_func);
                 let signature = brillig_context.array_to_vector(signature);
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
                     public_key_x: *public_key_x,
@@ -133,12 +129,13 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::FixedBaseScalarMul => {
             if let (
-                [RegisterOrMemory::RegisterIndex(scalar)],
+                [RegisterOrMemory::RegisterIndex(low), RegisterOrMemory::RegisterIndex(high)],
                 [RegisterOrMemory::HeapArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::FixedBaseScalarMul {
-                    input: *scalar,
+                    low: *low,
+                    high: *high,
                     result: *result_array,
                 });
             } else {
@@ -148,5 +145,21 @@ pub(crate) fn convert_black_box_call(
             }
         }
         _ => unimplemented!("ICE: Black box function {:?} is not implemented", bb_func),
+    }
+}
+
+fn convert_array_or_vector(
+    brillig_context: &mut BrilligContext,
+    array_or_vector: &RegisterOrMemory,
+    bb_func: &BlackBoxFunc,
+) -> HeapVector {
+    match array_or_vector {
+        RegisterOrMemory::HeapArray(array) => brillig_context.array_to_vector(array),
+        RegisterOrMemory::HeapVector(vector) => *vector,
+        _ => unreachable!(
+            "ICE: {} expected an array or a vector, but got {:?}",
+            bb_func.name(),
+            array_or_vector
+        ),
     }
 }
