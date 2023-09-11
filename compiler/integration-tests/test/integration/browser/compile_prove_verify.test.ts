@@ -68,10 +68,7 @@ test_cases.forEach((testInfo) => {
 
         initialiseResolver((id: String) => {
             console.log("Resoving:", id);
-            if (id === "/main.nr") {
-                console.log("Returning source:", noir_source);
-                return noir_source;
-            }
+            return noir_source;
         });
 
         const inputs = TOML.parse(prover_toml);
