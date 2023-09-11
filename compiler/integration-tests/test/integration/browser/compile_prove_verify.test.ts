@@ -49,7 +49,7 @@ const numberOfThreads = navigator.hardwareConcurrency || 1;
 
 let suite = Mocha.Suite.create(mocha.suite, "Noir end to end test");
 
-suite.timeout(60*10e3);//10mins
+suite.timeout(60*20e3);//20mins
 
 test_cases.forEach((testInfo) => {
     const test_name = testInfo.case.split("/").pop();
@@ -132,6 +132,7 @@ test_cases.forEach((testInfo) => {
 
             const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
+            // This took 6.5 minutes!
             const proof = await api.acirCreateProof(
                 acirComposer,
                 acirUint8Array,
@@ -140,9 +141,9 @@ test_cases.forEach((testInfo) => {
             );
 
 
-            // const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
+            const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
 
-            // expect(verified).to.be.true;
+            expect(verified).to.be.true;
 
         } catch (e) {
             expect(e, "Proving and Verifying").to.not.be.an('error');

@@ -27,5 +27,5 @@ export default {
     },
   },
   rootDir: fileURLToPath(new URL("./../..", import.meta.url)),
-  testsFinishTimeout: 60 * 10e3, // 10 minutes
+  testsFinishTimeout: 60 * 20e3, // 20 minutes
 };
