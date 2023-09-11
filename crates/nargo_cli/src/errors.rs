@@ -1,5 +1,4 @@
 use acvm::acir::native_types::WitnessMapError;
-use acvm_backend_barretenberg::BackendError;
 use hex::FromHexError;
 use nargo::NargoError;
 use nargo_toml::ManifestError;
@@ -65,9 +64,25 @@ pub(crate) enum CliError {
     #[error(transparent)]
     CompileError(#[from] CompileError),
 
-    /// Backend error
+    /// Error related to backend selection/installation.
     #[error(transparent)]
-    SmartContractError(#[from] BackendError),
+    BackendError(#[from] BackendError),
+
+    /// Error related to communication with backend.
+    #[error(transparent)]
+    BackendCommunicationError(#[from] acvm_backend_barretenberg::BackendError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum BackendError {
+    #[error("No backend is installed with the name {0}")]
+    UnknownBackend(String),
+
+    #[error("The backend {0} is already installed")]
+    AlreadyInstalled(String),
+
+    #[error("Backend installation failed: {0}")]
+    InstallationError(#[from] std::io::Error),
 }
 
 /// Errors covering situations where a package cannot be compiled.

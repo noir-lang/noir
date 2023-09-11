@@ -6,21 +6,25 @@ use crate::{
     backends::{
         clear_active_backend, get_active_backend, set_active_backend, ACVM_BACKEND_BARRETENBERG,
     },
-    errors::CliError,
+    errors::{BackendError, CliError},
 };
 
 use super::ls_cmd::get_available_backends;
 
-/// Uninstall a backend
+/// Uninstalls a backend
 #[derive(Debug, Clone, Args)]
 pub(crate) struct UninstallCommand {
+    /// The name of the backend to uninstall.
     backend: String,
 }
 
 pub(crate) fn run(args: UninstallCommand) -> Result<(), CliError> {
     let installed_backends = get_available_backends();
 
-    assert!(installed_backends.contains(&args.backend), "backend does not exist");
+    if !installed_backends.contains(&args.backend) {
+        return Err(BackendError::UnknownBackend(args.backend).into());
+    }
+
     let active_backend = get_active_backend();
 
     // Handle the case where we're uninstalling the currently active backend.

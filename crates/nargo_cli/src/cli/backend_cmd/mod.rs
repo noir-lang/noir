@@ -10,6 +10,7 @@ mod use_cmd;
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
+/// Install and select custom backends used to generate and verify proofs.
 pub(crate) struct BackendCommand {
     #[command(subcommand)]
     command: BackendCommands,

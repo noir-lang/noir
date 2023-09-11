@@ -3,7 +3,7 @@ use clap::Args;
 
 use crate::errors::CliError;
 
-/// Prints the list of available backends
+/// Prints the list of currently installed backends
 #[derive(Debug, Clone, Args)]
 pub(crate) struct LsCommand;
 
@@ -16,7 +16,8 @@ pub(crate) fn run(_args: LsCommand) -> Result<(), CliError> {
 }
 
 pub(super) fn get_available_backends() -> Vec<String> {
-    let backend_directory_contents = std::fs::read_dir(backends_directory()).unwrap();
+    let backend_directory_contents = std::fs::read_dir(backends_directory())
+        .expect("Could not read backends directory contents");
 
     // TODO: Highlight the currently active backend.
     backend_directory_contents

@@ -1,4 +1,7 @@
-use std::{io::Cursor, path::Path};
+use std::{
+    io::{Cursor, ErrorKind},
+    path::Path,
+};
 
 /// Downloads a zipped archive and unpacks the backend binary to `destination_path`.
 ///
@@ -8,40 +11,42 @@ use std::{io::Cursor, path::Path};
 /// - `backend_url` must serve a gzipped tarball.
 /// - The tarball must only contain the backend's binary.
 /// - The binary file must be located at the archive root.
-pub fn download_backend(backend_url: &str, destination_path: &Path) {
+pub fn download_backend(backend_url: &str, destination_path: &Path) -> std::io::Result<()> {
     use flate2::read::GzDecoder;
     use tar::Archive;
     use tempfile::tempdir;
 
     // Download sources
     let compressed_file: Cursor<Vec<u8>> = download_binary_from_url(backend_url)
-        .unwrap_or_else(|error| panic!("\n\nDownload error: {error}\n\n"));
+        .map_err(|_| std::io::Error::from(ErrorKind::Other))?;
 
     // Unpack the tarball
     let gz_decoder = GzDecoder::new(compressed_file);
     let mut archive = Archive::new(gz_decoder);
 
-    let temp_directory = tempdir().expect("could not create a temporary directory");
-    archive.unpack(&temp_directory).unwrap();
+    let temp_directory = tempdir()?;
+    archive.unpack(&temp_directory)?;
 
     // Assume that the archive contains a single file which is the backend binary.
-    let mut archive_files = std::fs::read_dir(&temp_directory).unwrap();
-    let temp_binary_path = archive_files.next().unwrap().unwrap().path();
+    let mut archive_files = std::fs::read_dir(&temp_directory)?;
+    let temp_binary_path = archive_files.next().unwrap()?.path();
 
     // Create directory to place binary in.
-    std::fs::create_dir_all(destination_path.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(destination_path.parent().unwrap())?;
 
     // Rename the binary to the desired name
-    std::fs::copy(temp_binary_path, destination_path).unwrap();
+    std::fs::copy(temp_binary_path, destination_path)?;
 
     drop(temp_directory);
+
+    Ok(())
 }
 
 /// Try to download the specified URL into a buffer which is returned.
-fn download_binary_from_url(url: &str) -> Result<Cursor<Vec<u8>>, String> {
-    let response = reqwest::blocking::get(url).map_err(|error| error.to_string())?;
+fn download_binary_from_url(url: &str) -> Result<Cursor<Vec<u8>>, reqwest::Error> {
+    let response = reqwest::blocking::get(url)?;
 
-    let bytes = response.bytes().unwrap();
+    let bytes = response.bytes()?;
 
     // TODO: Check SHA of downloaded binary
 

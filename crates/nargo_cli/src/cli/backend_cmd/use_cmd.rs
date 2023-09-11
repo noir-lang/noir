@@ -1,10 +1,13 @@
 use clap::Args;
 
-use crate::{backends::set_active_backend, errors::CliError};
+use crate::{
+    backends::set_active_backend,
+    errors::{BackendError, CliError},
+};
 
 use super::ls_cmd::get_available_backends;
 
-/// Select the currently active backend
+/// Select the backend to use
 #[derive(Debug, Clone, Args)]
 pub(crate) struct UseCommand {
     backend: String,
@@ -13,7 +16,9 @@ pub(crate) struct UseCommand {
 pub(crate) fn run(args: UseCommand) -> Result<(), CliError> {
     let backends = get_available_backends();
 
-    assert!(backends.contains(&args.backend), "backend doesn't exist");
+    if !backends.contains(&args.backend) {
+        return Err(BackendError::UnknownBackend(args.backend).into());
+    }
 
     set_active_backend(&args.backend);
 
