@@ -50,7 +50,6 @@ pub(crate) struct NargoConfig {
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
-    #[command(hide = true)] // Hidden while dynamic backends feature is being built out.
     Backend(backend_cmd::BackendCommand),
     Check(check_cmd::CheckCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),

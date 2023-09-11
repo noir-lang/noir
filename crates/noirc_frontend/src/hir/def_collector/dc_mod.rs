@@ -213,6 +213,7 @@ impl<'a> ModCollector<'a> {
         }
 
         for item in &trait_def.items {
+            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
             if let TraitItem::Function {
                 name,
                 generics,

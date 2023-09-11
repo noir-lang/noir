@@ -31,6 +31,10 @@ pub enum ParserErrorReason {
     ExperimentalFeature(&'static str),
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
+    #[error(
+        "Multiple primary attributes found. Only one primary attribute is allowed per function."
+    )]
+    MultiplePrimaryAttributesFound,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
 }

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::token::{Attribute, Token};
+use crate::token::{Attributes, Token};
 use crate::{
     Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
     UnresolvedTypeData, Visibility,
@@ -351,8 +351,9 @@ pub struct Lambda {
 pub struct FunctionDefinition {
     pub name: Ident,
 
-    // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-    pub attribute: Option<Attribute>,
+    // The `Attributes` container holds both `primary` (ones that change the function kind)
+    // and `secondary` attributes (ones that do not change the function kind)
+    pub attributes: Attributes,
 
     /// True if this function was defined with the 'open' keyword
     pub is_open: bool,
@@ -643,7 +644,7 @@ impl FunctionDefinition {
             .collect();
         FunctionDefinition {
             name: name.clone(),
-            attribute: None,
+            attributes: Attributes::empty(),
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
@@ -661,9 +662,7 @@ impl FunctionDefinition {
 
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(attribute) = &self.attribute {
-            writeln!(f, "{attribute}")?;
-        }
+        writeln!(f, "{:?}", self.attributes)?;
 
         let parameters = vecmap(&self.parameters, |(name, r#type, visibility)| {
             format!("{name}: {visibility} {type}")

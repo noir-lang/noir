@@ -686,7 +686,7 @@ impl AcirContext {
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
-    /// In order to do this, we simply perform euclidian division of lhs by 2^{rhs}
+    /// In order to do this, we 'simply' perform euclidian division of lhs by 2^{rhs}
     /// The remainder of the division is then lhs mod 2^{rhs}
     pub(crate) fn truncate_var(
         &mut self,
@@ -694,11 +694,12 @@ impl AcirContext {
         rhs: u32,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
-
         // 2^{rhs}
         let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
-        // Computes lhs = 2^{rhs} * q + r
+
+        let lhs_data = &self.vars[&lhs];
+        let lhs_expr = lhs_data.to_expression();
+        //  Computes lhs = 2^{rhs} * q + r
         let (_, remainder) = self.acir_ir.euclidean_division(
             &lhs_expr,
             &Expression::from_field(divisor),

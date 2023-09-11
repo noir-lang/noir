@@ -411,7 +411,7 @@ impl<'a> Iterator for Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::TestScope;
+    use crate::token::{Attribute, PrimaryAttribute, SecondaryAttribute, TestScope};
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -474,7 +474,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next().unwrap().unwrap();
-        assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
+        );
     }
 
     #[test]
@@ -485,7 +488,9 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Deprecated("hello".to_string().into()))
+            &Token::Attribute(Attribute::Secondary(crate::token::SecondaryAttribute::Deprecated(
+                "hello".to_string().into()
+            )))
         );
     }
 
@@ -494,9 +499,9 @@ mod tests {
         let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
         let expected = vec![
-            Token::Attribute(Attribute::Foreign("sha256".to_string())),
-            Token::Attribute(Attribute::Foreign("blake2s".to_string())),
-            Token::Attribute(Attribute::Builtin("sum".to_string())),
+            Token::Attribute(Attribute::Primary(PrimaryAttribute::Foreign("sha256".to_string()))),
+            Token::Attribute(Attribute::Primary(PrimaryAttribute::Foreign("blake2s".to_string()))),
+            Token::Attribute(Attribute::Primary(PrimaryAttribute::Builtin("sum".to_string()))),
         ];
 
         let mut lexer = Lexer::new(input);
@@ -514,7 +519,9 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Custom("custom(hello)".to_string()))
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
+                "custom(hello)".to_string()
+            )))
         );
     }
 
@@ -524,7 +531,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         let token = lexer.next().unwrap().unwrap();
-        assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::None)));
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(TestScope::None)))
+        );
     }
     #[test]
     fn test_attribute_with_valid_scope() {
@@ -534,7 +544,9 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith { reason: None }))
+            &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(
+                TestScope::ShouldFailWith { reason: None }
+            )))
         );
     }
 
@@ -546,9 +558,9 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Test(TestScope::ShouldFailWith {
-                reason: Some("hello".to_owned())
-            }))
+            &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(
+                TestScope::ShouldFailWith { reason: Some("hello".to_owned()) }
+            )))
         );
     }
 
