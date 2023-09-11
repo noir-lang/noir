@@ -10,15 +10,13 @@ struct Foo {
 }
 
 impl Default for Foo {
-    fn default(x: Field,y: Field) -> Self {
-        Self { bar: x, array: [x,y] }
+    fn default(x: Field, y: Foo) -> Self {
+        Self { bar: x, array: [x, y.bar] }
     }
 }
 
-// Duplicate trait declarations should not compile
-trait Default {
-    fn default(x: Field) -> Self;
-}
-
 fn main(x: Field, y: Field) {
+    let foo = Foo { bar: x, array: [x, y] };
+    let first = Foo::default(x,foo);
+    assert(first.bar == x);
 }

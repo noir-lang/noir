@@ -1,6 +1,5 @@
 use crate::hir::resolution::import::PathResolutionError;
 use crate::Ident;
-use crate::UnresolvedType;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
@@ -34,21 +33,13 @@ pub enum DefCollectorErrorKind {
     NonStructTraitImpl { trait_ident: Ident, span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
-    #[error("Mismatch signature of trait")]
-    MismatchTraitImlementationParameter {
-        trait_name: String,
-        impl_method: String,
-        parameter: Ident,
-        expected_type: UnresolvedType,
-    },
-    #[error("Mismatch return type of trait implementation")]
-    MismatchTraitImplementationReturnType { trait_name: String, impl_ident: Ident },
     #[error("Mismatch number of parameters in of trait implementation")]
     MismatchTraitImplementationNumParameters {
         actual_num_parameters: usize,
         expected_num_parameters: usize,
         trait_name: String,
-        impl_ident: Ident,
+        method_name: String,
+        span: Span,
     },
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
@@ -133,48 +124,22 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "".to_string(),
                 trait_ident.span(),
             ),
-            DefCollectorErrorKind::MismatchTraitImplementationReturnType {
-                trait_name,
-                impl_ident,
-            } => {
-                let span = impl_ident.span();
-                let method_name = impl_ident.0.contents;
-                Diagnostic::simple_error(
-                    format!("Mismatch return type of method with name {method_name} that implements trait {trait_name}"),
-                    "".to_string(),
-                    span,
-                )
-            }
             DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,
                 trait_name,
-                impl_ident,
-            } => {
-                let method_name = impl_ident.0.contents.clone();
-                let primary_message = format!(
-                    "Mismatch - expected {expected_num_parameters} arguments, but got {actual_num_parameters} of trait `{trait_name}` implementation `{method_name}`");
-                Diagnostic::simple_error(primary_message, "".to_string(), impl_ident.span())
-            }
-            DefCollectorErrorKind::MismatchTraitImlementationParameter {
-                trait_name,
-                impl_method,
-                parameter,
-                expected_type,
+                method_name,
+                span,
             } => {
                 let primary_message = format!(
-                    "Mismatch signature of method {impl_method} that implements trait {trait_name}"
-                );
-                let secondary_message =
-                    format!("`{}: {}` expected", parameter.0.contents, expected_type,);
-                let span = parameter.span();
-                Diagnostic::simple_error(primary_message, secondary_message, span)
+                    "Method `{method_name}` of trait `{trait_name}` needs {expected_num_parameters} parameters, but has {actual_num_parameters}");
+                Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {
                 let trait_name = trait_name.0.contents;
                 let impl_method_span = impl_method.span();
                 let impl_method_name = impl_method.0.contents;
-                let primary_message = format!("method with name {impl_method_name} is not part of trait {trait_name}, therefore it can't be implemented");
+                let primary_message = format!("Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented");
                 Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_span)
             }
             DefCollectorErrorKind::TraitMissedMethodImplementation {
@@ -185,7 +150,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let trait_name = trait_name.0.contents;
                 let impl_method_name = method_name.0.contents;
                 let primary_message = format!(
-                    "method `{impl_method_name}` from trait `{trait_name}` is not implemented"
+                    "Method `{impl_method_name}` from trait `{trait_name}` is not implemented"
                 );
                 Diagnostic::simple_error(
                     primary_message,

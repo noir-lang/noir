@@ -688,10 +688,12 @@ impl Display for FunctionDefinition {
 }
 
 impl FunctionReturnType {
-    pub fn get_type(&self) -> &UnresolvedTypeData {
+    pub fn get_type(&self) -> UnresolvedType {
         match self {
-            FunctionReturnType::Default(_span) => &UnresolvedTypeData::Unit,
-            FunctionReturnType::Ty(typ) => &typ.typ,
+            FunctionReturnType::Default(span) => {
+                UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) }
+            }
+            FunctionReturnType::Ty(typ) => typ.clone(),
         }
     }
 }
