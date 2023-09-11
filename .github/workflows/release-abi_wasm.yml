@@ -20,12 +20,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           registry-url: "https://registry.npmjs.org"
-          node-version: "lts/*"
-
-      - name: Setup .npmrc file
-        run: |
-          echo "//registry.npmjs.org/:_authToken=dummy" > .npmrc
-          echo "@noir-lang:registry=https://npm.pkg.github.com/" >> .npmrc
 
       - uses: cachix/install-nix-action@v20
         with:
@@ -44,13 +38,8 @@ jobs:
           mkdir temp_publish_dir
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
 
-      - name: Install Dependencies
-        run: yarn install --immutable
+      - name: Publish to NPM
         working-directory: ./temp_publish_dir
-
-      - name: Publish to GitHub Packages
-        working-directory: ./temp_publish_dir
-        run: |
-          npm publish --tag latest --registry=https://npm.pkg.github.com/
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
