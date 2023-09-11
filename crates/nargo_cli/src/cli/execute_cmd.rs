@@ -150,8 +150,8 @@ fn report_error_with_opcode_locations(
         let source_locations: Vec<_> = opcode_locations
             .iter()
             .flat_map(|opcode_location| {
-                // This assumes that the we're executing the circuit which corresponds to the first `DebugInfo`.
-                // This holds for all binary crates.
+                // This assumes that we're executing the circuit which corresponds to the first `DebugInfo`.
+                // This holds for all binary crates as there is only one `DebugInfo`.
                 let locations = debug_artifact.debug_symbols[0].opcode_location(opcode_location);
                 locations.unwrap_or_default()
             })
