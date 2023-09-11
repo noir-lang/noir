@@ -1,7 +1,7 @@
 #!/bin/bash
 # This script is used to run an e2e test in CI (see config.yml and cond_spot_run_tests).
 # It sets a few environment variables used inside the docker-compose.yml, pulls images, and runs docker-compose.
-set -eu
+set -exu
 
 export TEST=$1
 export COMPOSE_FILE=${2:-docker-compose.yml}
