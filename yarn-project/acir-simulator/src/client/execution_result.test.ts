@@ -10,10 +10,7 @@ function emptyExecutionResult(): ExecutionResult {
     partialWitness: new Map(),
     callStackItem: PrivateCallStackItem.empty(),
     readRequestPartialWitnesses: [],
-    preimages: {
-      newNotes: [],
-      nullifiedNotes: [],
-    },
+    newNotes: [],
     returnValues: [],
     nestedExecutions: [],
     enqueuedPublicFunctionCalls: [],

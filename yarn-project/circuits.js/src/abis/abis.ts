@@ -271,12 +271,12 @@ export function computeCommitmentNonce(wasm: IWasmModule, nullifierZero: Fr, com
  * A siloed commitment effectively namespaces a commitment to a specific contract.
  * @param wasm - A module providing low-level wasm access.
  * @param contract - The contract address
- * @param uniqueCommitment - The commitment to silo.
+ * @param innerCommitment - The commitment to silo.
  * @returns A siloed commitment.
  */
-export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, uniqueCommitment: Fr): Fr {
+export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, innerCommitment: Fr): Fr {
   wasm.call('pedersen__init');
-  return abisSiloCommitment(wasm, contract, uniqueCommitment);
+  return abisSiloCommitment(wasm, contract, innerCommitment);
 }
 
 /**

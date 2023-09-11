@@ -185,11 +185,13 @@ describe('Private Execution test suite', () => {
       const noteHashIndex = Math.floor(Math.random()); // mock index in TX's final newNoteHashes array
       const nonce = computeCommitmentNonce(circuitsWasm, mockFirstNullifier, noteHashIndex);
       const preimage = [new Fr(amount), owner.toField(), Fr.random()];
+      const innerNoteHash = Fr.fromBuffer(hash(preimage.map(p => p.toBuffer())));
       return {
         contractAddress,
         storageSlot,
         nonce,
         preimage,
+        innerNoteHash,
         siloedNullifier: new Fr(0),
         index: currentNoteIndex++,
       };
@@ -259,8 +261,8 @@ describe('Private Execution test suite', () => {
 
       const result = await runSimulator({ args: [140, owner], abi });
 
-      expect(result.preimages.newNotes).toHaveLength(1);
-      const newNote = result.preimages.newNotes[0];
+      expect(result.newNotes).toHaveLength(1);
+      const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -277,8 +279,8 @@ describe('Private Execution test suite', () => {
 
       const result = await runSimulator({ args: [140, owner], abi });
 
-      expect(result.preimages.newNotes).toHaveLength(1);
-      const newNote = result.preimages.newNotes[0];
+      expect(result.newNotes).toHaveLength(1);
+      const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -313,8 +315,8 @@ describe('Private Execution test suite', () => {
       expect(newNullifiers).toHaveLength(consumedNotes.length);
       expect(newNullifiers).toEqual(expect.arrayContaining(consumedNotes.map(n => n.innerNullifier)));
 
-      expect(result.preimages.newNotes).toHaveLength(2);
-      const [changeNote, recipientNote] = result.preimages.newNotes;
+      expect(result.newNotes).toHaveLength(2);
+      const [changeNote, recipientNote] = result.newNotes;
       expect(recipientNote.storageSlot).toEqual(recipientStorageSlot);
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -357,8 +359,8 @@ describe('Private Execution test suite', () => {
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toEqual(consumedNotes.map(n => n.innerNullifier));
 
-      expect(result.preimages.newNotes).toHaveLength(2);
-      const [changeNote, recipientNote] = result.preimages.newNotes;
+      expect(result.newNotes).toHaveLength(2);
+      const [changeNote, recipientNote] = result.newNotes;
       expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
       expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     });
@@ -370,6 +372,8 @@ describe('Private Execution test suite', () => {
       const storageSlot = new Fr(2n);
       // choose nonzero nonce otherwise reads will be interpreted as transient (inner note hash instead of unique+siloed)
       const nonce = new Fr(1n);
+      const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
+      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
 
       oracle.getNotes.mockResolvedValue([
         {
@@ -377,6 +381,7 @@ describe('Private Execution test suite', () => {
           storageSlot,
           nonce,
           preimage: [new Fr(amount), secret],
+          innerNoteHash,
           siloedNullifier: new Fr(0),
           index: 1n,
         },
@@ -393,8 +398,6 @@ describe('Private Execution test suite', () => {
 
       // Check the read request was inserted successfully.
       const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
-      const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
-      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
       const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, nonce, siloedNoteHash);
       expect(readRequests).toEqual([uniqueSiloedNoteHash]);
@@ -421,11 +424,13 @@ describe('Private Execution test suite', () => {
       const noteHashIndex = Math.floor(Math.random()); // mock index in TX's final newNoteHashes array
       const nonce = computeCommitmentNonce(circuitsWasm, mockFirstNullifier, noteHashIndex);
       const preimage = [new Fr(amount), owner.toField(), Fr.random()];
+      const innerNoteHash = Fr.fromBuffer(hash(preimage.map(p => p.toBuffer())));
       return {
         contractAddress,
         storageSlot,
         nonce,
         preimage,
+        innerNoteHash,
         siloedNullifier: new Fr(0),
         index: currentNoteIndex++,
       };
@@ -495,8 +500,8 @@ describe('Private Execution test suite', () => {
 
       const result = await runSimulator({ args: [140, owner], abi });
 
-      expect(result.preimages.newNotes).toHaveLength(1);
-      const newNote = result.preimages.newNotes[0];
+      expect(result.newNotes).toHaveLength(1);
+      const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -513,8 +518,8 @@ describe('Private Execution test suite', () => {
 
       const result = await runSimulator({ args: [140, owner], abi });
 
-      expect(result.preimages.newNotes).toHaveLength(1);
-      const newNote = result.preimages.newNotes[0];
+      expect(result.newNotes).toHaveLength(1);
+      const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -549,8 +554,8 @@ describe('Private Execution test suite', () => {
       expect(newNullifiers).toHaveLength(consumedNotes.length);
       expect(newNullifiers).toEqual(expect.arrayContaining(consumedNotes.map(n => n.innerNullifier)));
 
-      expect(result.preimages.newNotes).toHaveLength(2);
-      const [changeNote, recipientNote] = result.preimages.newNotes;
+      expect(result.newNotes).toHaveLength(2);
+      const [changeNote, recipientNote] = result.newNotes;
       expect(recipientNote.storageSlot).toEqual(recipientStorageSlot);
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -593,8 +598,8 @@ describe('Private Execution test suite', () => {
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toEqual(consumedNotes.map(n => n.innerNullifier));
 
-      expect(result.preimages.newNotes).toHaveLength(2);
-      const [changeNote, recipientNote] = result.preimages.newNotes;
+      expect(result.newNotes).toHaveLength(2);
+      const [changeNote, recipientNote] = result.newNotes;
       expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
       expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     });
@@ -868,8 +873,8 @@ describe('Private Execution test suite', () => {
         contractAddress,
       });
 
-      expect(result.preimages.newNotes).toHaveLength(1);
-      const note = result.preimages.newNotes[0];
+      expect(result.newNotes).toHaveLength(1);
+      const note = result.newNotes[0];
       expect(note.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       expect(note.preimage[0]).toEqual(new Fr(amountToTransfer));
@@ -934,8 +939,8 @@ describe('Private Execution test suite', () => {
       const execGetThenNullify = result.nestedExecutions[1];
       const getNotesAfterNullify = result.nestedExecutions[2];
 
-      expect(execInsert.preimages.newNotes).toHaveLength(1);
-      const note = execInsert.preimages.newNotes[0];
+      expect(execInsert.newNotes).toHaveLength(1);
+      const note = execInsert.newNotes[0];
       expect(note.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       expect(note.preimage[0]).toEqual(new Fr(amountToTransfer));
@@ -983,8 +988,8 @@ describe('Private Execution test suite', () => {
         contractAddress,
       });
 
-      expect(result.preimages.newNotes).toHaveLength(1);
-      const note = result.preimages.newNotes[0];
+      expect(result.newNotes).toHaveLength(1);
+      const note = result.newNotes[0];
       expect(note.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       expect(note.preimage[0]).toEqual(new Fr(amountToTransfer));

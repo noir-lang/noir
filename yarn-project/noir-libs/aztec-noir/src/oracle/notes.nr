@@ -24,17 +24,15 @@ unconstrained fn notify_created_note<N>(
 fn notify_nullified_note_oracle<N>(
     _storage_slot: Field,
     _nullifier: Field,
-    _preimage: [Field; N],
     _inner_note_hash: Field,
 ) -> Field {}
 
 unconstrained fn notify_nullified_note<N>(
     storage_slot: Field,
     nullifier: Field,
-    preimage: [Field; N],
     inner_note_hash: Field,
 ) -> Field {
-    notify_nullified_note_oracle(storage_slot, nullifier, preimage, inner_note_hash)
+    notify_nullified_note_oracle(storage_slot, nullifier, inner_note_hash)
 }
 
 #[oracle(getNotes)]

@@ -117,7 +117,7 @@ export class NoteProcessor {
             if (noteSpendingInfo) {
               // We have successfully decrypted the data.
               try {
-                const { index, nonce, siloedNullifier } = await this.findNoteIndexAndNullifier(
+                const { index, nonce, innerNoteHash, siloedNullifier } = await this.findNoteIndexAndNullifier(
                   dataStartIndexForTx,
                   newCommitments,
                   newNullifiers[0],
@@ -126,6 +126,7 @@ export class NoteProcessor {
                 noteSpendingInfoDaos.push({
                   ...noteSpendingInfo,
                   nonce,
+                  innerNoteHash,
                   siloedNullifier,
                   index,
                   publicKey: this.publicKey,

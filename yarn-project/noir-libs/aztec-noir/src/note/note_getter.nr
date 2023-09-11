@@ -123,22 +123,17 @@ fn get_notes<Note, N, FILTER_ARGS>(
     let opt_notes = get_notes_internal(storage_slot, note_interface, options);
     for i in 0..opt_notes.len() {
         let opt_note = opt_notes[i];
-        let mut note_hash_for_read_request = 0;
         if opt_note.is_some() {
             let note = opt_note.unwrap_unchecked();
             check_note_header(*context, storage_slot, note_interface, note);
-            note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);
-        };
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
-        // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
-        context.push_read_request(note_hash_for_read_request);
-    };
 
-    // TODO(#1660)
-    // Move it back to get_notes_internal and only make read request for selected notes.
-    let filter = options.filter;
-    let filter_args = options.filter_args;
-    filter(opt_notes, filter_args)
+            let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);
+            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
+            // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
+            context.push_read_request(note_hash_for_read_request);
+        };
+    };
+    opt_notes
 }
 
 unconstrained fn get_note_internal<Note, N>(
@@ -170,7 +165,7 @@ unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
     let (num_selects, select_by, select_values, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let placeholder_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];
-    oracle::notes::get_notes(
+    let opt_notes = oracle::notes::get_notes(
         storage_slot,
         note_interface,
         num_selects,
@@ -182,7 +177,11 @@ unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
         options.offset,
         placeholder_opt_notes,
         placeholder_fields,
-    )
+    );
+
+    let filter = options.filter;
+    let filter_args = options.filter_args;
+    filter(opt_notes, filter_args)
 }
 
 unconstrained fn view_notes<Note, N>(

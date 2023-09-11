@@ -58,7 +58,7 @@ describe('Kernel Prover', () => {
       callStackItem: new PrivateCallStackItem(AztecAddress.ZERO, fnName as any, publicInputs, false),
       nestedExecutions: (dependencies[fnName] || []).map(name => createExecutionResult(name)),
       vk: VerificationKey.makeFake().toBuffer(),
-      preimages: { newNotes: newNoteIndices.map(idx => notes[idx]), nullifiedNotes: [] },
+      newNotes: newNoteIndices.map(idx => notes[idx]),
       // TODO(dbanks12): should test kernel prover with non-transient reads.
       // This will be necessary once kernel actually checks (attempts to match) transient reads.
       readRequestPartialWitnesses: Array.from({ length: MAX_READ_REQUESTS_PER_CALL }, () =>

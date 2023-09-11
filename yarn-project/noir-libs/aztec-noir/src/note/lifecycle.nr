@@ -59,9 +59,6 @@ fn destroy_note<Note, N>(
     let compute_nullifier = note_interface.compute_nullifier;
     nullifier = compute_nullifier(note);
 
-    let serialise = note_interface.serialise;
-    let preimage = serialise(note);
-
     // We also need the note commitment corresponding to the "nullifier"
     let get_header = note_interface.get_header;
     let header = get_header(note);
@@ -75,7 +72,7 @@ fn destroy_note<Note, N>(
         // TODO(1718): Can we reuse the note commitment computed in `compute_nullifier`?
         nullified_commitment = compute_inner_note_hash(note_interface, note);
     }
-    assert(notify_nullified_note(storage_slot, nullifier, preimage, nullified_commitment) == 0);
+    assert(notify_nullified_note(storage_slot, nullifier, nullified_commitment) == 0);
 
     context.push_new_nullifier(nullifier, nullified_commitment)
 }

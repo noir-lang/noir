@@ -246,12 +246,12 @@ export class KernelProver {
   private async getNewNotes(executionResult: ExecutionResult): Promise<OutputNoteData[]> {
     const {
       callStackItem: { publicInputs },
-      preimages,
+      newNotes,
     } = executionResult;
     const contractAddress = publicInputs.callContext.storageContractAddress;
     // Assuming that for each new commitment there's an output note added to the execution result.
     const newCommitments = await this.proofCreator.getSiloedCommitments(publicInputs);
-    return preimages.newNotes.map((data, i) => ({
+    return newNotes.map((data, i) => ({
       contractAddress,
       data,
       commitment: newCommitments[i],

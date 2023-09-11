@@ -25,6 +25,11 @@ export interface NoteSpendingInfoDao {
    */
   notePreimage: NotePreimage;
   /**
+   * Inner note hash of the note. This is customisable by the app circuit.
+   * We can use this value to compute siloedNoteHash and uniqueSiloedNoteHash.
+   */
+  innerNoteHash: Fr;
+  /**
    * The nullifier of the note (siloed by contract address).
    */
   siloedNullifier: Fr;
@@ -43,6 +48,7 @@ export const createRandomNoteSpendingInfoDao = ({
   nonce = Fr.random(),
   storageSlot = Fr.random(),
   notePreimage = NotePreimage.random(),
+  innerNoteHash = Fr.random(),
   siloedNullifier = Fr.random(),
   index = Fr.random().value,
   publicKey = Point.random(),
@@ -51,6 +57,7 @@ export const createRandomNoteSpendingInfoDao = ({
   nonce,
   storageSlot,
   notePreimage,
+  innerNoteHash,
   siloedNullifier,
   index,
   publicKey,

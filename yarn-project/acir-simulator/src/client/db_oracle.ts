@@ -18,18 +18,12 @@ export interface NoteData {
   nonce: Fr;
   /** The preimage of the note */
   preimage: Fr[];
-  /** The corresponding nullifier of the note */
+  /** The inner note hash of the note. */
+  innerNoteHash: Fr;
+  /** The corresponding nullifier of the note. Undefined for pending notes. */
   siloedNullifier?: Fr;
   /** The note's leaf index in the private data tree. Undefined for pending notes. */
   index?: bigint;
-}
-
-/**
- * Information about a note needed during execution.
- */
-export interface PendingNoteData extends NoteData {
-  /** The inner note hash (used as a nullified commitment). */
-  innerNoteHash: Fr;
 }
 
 /**
