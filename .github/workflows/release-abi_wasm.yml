@@ -2,9 +2,6 @@ name: Release ABI Wasm
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - jb/update-npm-token
 
 jobs:
   noirc-abi-wasm-build:
