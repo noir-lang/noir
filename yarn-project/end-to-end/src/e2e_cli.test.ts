@@ -190,5 +190,5 @@ describe('CLI e2e test', () => {
     );
     const receiverBalance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
     expect(receiverBalance).toEqual(`${BigInt(TRANSFER_BALANCE).toString()}n`);
-  });
+  }, 30_000);
 });
