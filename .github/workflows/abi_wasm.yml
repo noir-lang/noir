@@ -109,6 +109,9 @@ jobs:
           name: noirc_abi_wasm
           path: ./result
 
+      - name: Query playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+
       - name: Cache playwright binaries
         uses: actions/cache@v3
         id: playwright-cache
@@ -116,7 +119,7 @@ jobs:
           path: |
             ~/.cache/ms-playwright
           # TODO: Inspect yarn.lock and pull installed version automatically
-          key: ${{ runner.os }}-playwright-0.10.1
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
 
       - name: Set up test environment
         uses: ./.github/actions/setup
