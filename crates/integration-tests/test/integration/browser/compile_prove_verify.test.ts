@@ -40,7 +40,6 @@ const test_cases = [
     {
         case: "crates/nargo_cli/tests/execution_success/1_mul"
     },
-    // Below fails
     {
         case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
     }
