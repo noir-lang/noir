@@ -66,15 +66,16 @@ jobs:
           inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-wasm:
-    name: Publish noir_wasm package
+    name: Publish nargo_wasm package
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch to noir_wasm
+      - name: Dispatch to nargo_wasm
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: update.yml
+          # This repo was created before we renamed noir_wasm to nargo_wasm
           repo: noir-lang/noir_wasm
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}

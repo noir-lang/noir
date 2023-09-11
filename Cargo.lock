@@ -2243,6 +2243,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nargo_wasm"
+version = "0.11.1"
+dependencies = [
+ "acvm",
+ "build-data",
+ "console_error_panic_hook",
+ "fm",
+ "getrandom",
+ "gloo-utils",
+ "log",
+ "noirc_driver",
+ "noirc_frontend",
+ "serde",
+ "wasm-bindgen",
+ "wasm-logger",
+]
+
+[[package]]
 name = "nix"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2273,24 +2291,6 @@ dependencies = [
  "tokio",
  "toml",
  "tower",
-]
-
-[[package]]
-name = "noir_wasm"
-version = "0.11.1"
-dependencies = [
- "acvm",
- "build-data",
- "console_error_panic_hook",
- "fm",
- "getrandom",
- "gloo-utils",
- "log",
- "noirc_driver",
- "noirc_frontend",
- "serde",
- "wasm-bindgen",
- "wasm-logger",
 ]
 
 [[package]]

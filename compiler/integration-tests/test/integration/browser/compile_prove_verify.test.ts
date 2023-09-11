@@ -3,7 +3,7 @@ import { initialiseResolver } from "@noir-lang/noir-source-resolver";
 import newCompiler, {
     compile,
     init_log_level as compilerLogLevel
-} from "@noir-lang/noir_wasm";
+} from "@noir-lang/nargo_wasm";
 import { decompressSync as gunzip } from 'fflate';
 import newABICoder, { abiEncode } from "@noir-lang/noirc_abi";
 import initACVM, {

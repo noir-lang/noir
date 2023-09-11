@@ -49,17 +49,17 @@ jobs:
             nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
           done
 
-      - name: Build noir_wasm package
+      - name: Build nargo_wasm package
         run: |
           nix build -L .#wasm
-          mkdir -p ./.packages/noir_wasm
-          cp -r ./result/* ./.packages/noir_wasm/
+          mkdir -p ./.packages/nargo_wasm
+          cp -r ./result/* ./.packages/nargo_wasm/
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
-      - name: Upload `noir_wasm` artifact
+      - name: Upload `nargo_wasm` artifact
         uses: actions/upload-artifact@v3
         with:
-          name: noir_wasm
+          name: nargo_wasm
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 

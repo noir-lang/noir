@@ -172,11 +172,11 @@
 
       # Combine the environmnet with cargo args needed to build wasm package
       noirWasmArgs = sharedEnvironment // sharedArgs // {
-        pname = "noir_wasm";
+        pname = "nargo_wasm";
 
         src = ./.;
 
-        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
+        cargoExtraArgs = "--package nargo_wasm --target wasm32-unknown-unknown";
 
         buildInputs = [ ] ++ extraBuildInputs;
 

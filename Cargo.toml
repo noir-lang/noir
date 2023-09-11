@@ -45,7 +45,7 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
-noir_wasm = { path = "compiler/wasm" }
+nargo_wasm = { path = "tooling/wasm/nargo" }
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive"] }
 codespan = { version = "0.11.1", features = ["serialization"] }

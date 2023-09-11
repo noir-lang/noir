@@ -1,13 +1,13 @@
 {
-  "name": "@noir-lang/noir_wasm",
+  "name": "@noir-lang/nargo_wasm",
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
   "version": "0.11.1",
   "license": "(MIT OR Apache-2.0)",
-  "main": "./nodejs/noir_wasm.js",
-  "types": "./web/noir_wasm.d.ts",
-  "module": "./web/noir_wasm.js",
+  "main": "./nodejs/nargo_wasm.js",
+  "types": "./web/nargo_wasm.d.ts",
+  "module": "./web/nargo_wasm.js",
   "files": [
     "nodejs",
     "web",

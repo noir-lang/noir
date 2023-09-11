@@ -1,6 +1,6 @@
 [package]
-name="noir_wasm_testing"
-type="bin"
+name = "nargo_wasm_testing"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

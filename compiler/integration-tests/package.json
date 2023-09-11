@@ -29,7 +29,7 @@
     "@aztec/bb.js": "^0.5.1",
     "@noir-lang/acvm_js": "./../../.packages/acvm_js",
     "@noir-lang/noir-source-resolver": "^1.1.4",
-    "@noir-lang/noir_wasm": "./../../.packages/noir_wasm",
+    "@noir-lang/nargo_wasm": "./../../.packages/nargo_wasm",
     "@noir-lang/noirc_abi": "./../../.packages/noirc_abi_wasm"
   }
 }

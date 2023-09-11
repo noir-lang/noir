@@ -3,7 +3,7 @@ import { compile } from "../result/";
 
 export const noirSourcePath = "../../noir-script/src/main.nr";
 export const nargoArtifactPath =
-  "../../noir-script/target/noir_wasm_testing.json";
+  "../../noir-script/target/nargo_wasm_testing.json";
 
 export async function compileNoirSource(noir_source: string): Promise<any> {
   console.log("Compiling Noir source...");
