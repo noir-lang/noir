@@ -2,6 +2,9 @@ name: Release ABI Wasm
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - jb/update-npm-token
 
 jobs:
   noirc-abi-wasm-build:
@@ -12,6 +15,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+
+      - name: Setup .npmrc file for npm
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
       - uses: cachix/install-nix-action@v20
         with:
@@ -32,6 +40,7 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./temp_publish_dir
-        run: npm publish
+        run: |
+          npm publish --tag latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
