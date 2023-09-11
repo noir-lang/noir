@@ -24,14 +24,14 @@ impl Backend {
         write_to_file(&serialized_circuit, &circuit_path);
 
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
-            .run(&binary_path)
+            .run(binary_path)
     }
 
     pub fn get_backend_info(
         &self,
     ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
         let binary_path = self.assert_binary_exists()?;
-        InfoCommand { crs_path: self.crs_directory() }.run(&binary_path)
+        InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
     pub fn prove(
@@ -64,7 +64,7 @@ impl Backend {
             bytecode_path,
             witness_path,
         }
-        .run(&binary_path)?;
+        .run(binary_path)?;
 
         // Barretenberg return the proof prepended with the public inputs.
         //
@@ -120,11 +120,11 @@ impl Backend {
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run(&binary_path)?;
+        .run(binary_path)?;
 
         // Verify the proof
         VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
-            .run(&binary_path)
+            .run(binary_path)
     }
 }
 

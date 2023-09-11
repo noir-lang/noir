@@ -63,7 +63,7 @@ fn verify_command() -> Result<(), BackendError> {
         vk_path_output: vk_path_output.clone(),
     };
 
-    write_vk_command.run(&backend.binary_path())?;
+    write_vk_command.run(backend.binary_path())?;
 
     let prove_command = ProveCommand {
         crs_path: crs_path.clone(),
@@ -71,14 +71,14 @@ fn verify_command() -> Result<(), BackendError> {
         bytecode_path,
         witness_path,
     };
-    let proof = prove_command.run(&backend.binary_path())?;
+    let proof = prove_command.run(backend.binary_path())?;
 
     write_to_file(&proof, &proof_path);
 
     let verify_command =
         VerifyCommand { crs_path, is_recursive: false, proof_path, vk_path: vk_path_output };
 
-    let verified = verify_command.run(&backend.binary_path())?;
+    let verified = verify_command.run(backend.binary_path())?;
     assert!(verified);
 
     drop(temp_directory);

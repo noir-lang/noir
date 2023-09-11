@@ -61,7 +61,7 @@ fn prove_command() -> Result<(), BackendError> {
     let crs_path = backend.backend_directory();
     let prove_command = ProveCommand { crs_path, bytecode_path, witness_path, is_recursive: false };
 
-    let proof = prove_command.run(&backend.binary_path())?;
+    let proof = prove_command.run(backend.binary_path())?;
     assert_eq!(proof, "proof".as_bytes());
     drop(temp_directory);
 

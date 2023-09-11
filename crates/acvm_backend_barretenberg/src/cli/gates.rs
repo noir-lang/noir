@@ -51,7 +51,7 @@ fn gate_command() -> Result<(), BackendError> {
 
     let gate_command = GatesCommand { crs_path, bytecode_path };
 
-    let output = gate_command.run(&backend.binary_path())?;
+    let output = gate_command.run(backend.binary_path())?;
     // Mock backend always returns zero gates.
     assert_eq!(output, 0);
 

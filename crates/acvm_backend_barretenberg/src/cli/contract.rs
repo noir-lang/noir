@@ -59,10 +59,10 @@ fn contract_command() -> Result<(), BackendError> {
         is_recursive: false,
         crs_path: crs_path.clone(),
     };
-    write_vk_command.run(&backend.binary_path())?;
+    write_vk_command.run(backend.binary_path())?;
 
     let contract_command = ContractCommand { vk_path, crs_path };
-    contract_command.run(&backend.binary_path())?;
+    contract_command.run(backend.binary_path())?;
 
     drop(temp_directory);
 
