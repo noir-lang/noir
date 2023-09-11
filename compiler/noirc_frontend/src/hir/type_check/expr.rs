@@ -6,11 +6,12 @@ use crate::{
     hir_def::{
         expr::{
             self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirMethodReference, HirPrefixExpression,
         },
+        traits::TraitFunction,
         types::Type,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId},
+    node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
     Shared, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
@@ -144,7 +145,7 @@ impl<'interner> TypeChecker<'interner> {
                 let object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
-                    Some(method_id) => {
+                    Some(method_ref) => {
                         let mut args = vec![(
                             object_type,
                             method_call.object,
@@ -160,22 +161,27 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        // Automatically add `&mut` if the method expects a mutable reference and
-                        // the object is not already one.
-                        if method_id != FuncId::dummy_id() {
-                            let func_meta = self.interner.function_meta(&method_id);
-                            self.try_add_mutable_reference_to_object(
-                                &mut method_call,
-                                &func_meta.typ,
-                                &mut args,
-                            );
-                        }
+                        if let HirMethodReference::FuncId(func_id) = method_ref {
+                            // Automatically add `&mut` if the method expects a mutable reference and
+                            // the object is not already one.
+                            if func_id != FuncId::dummy_id() {
+                                let func_meta = self.interner.function_meta(&func_id);
+                                self.try_add_mutable_reference_to_object(
+                                    &mut method_call,
+                                    &func_meta.typ,
+                                    &mut args,
+                                );
+                            }
+                        };
 
-                        let (function_id, function_call) =
-                            method_call.into_function_call(method_id, location, self.interner);
+                        let (function_id, function_call) = method_call.into_function_call(
+                            method_ref.clone(),
+                            location,
+                            self.interner,
+                        );
 
                         let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, &method_id, args, span);
+                        let ret = self.check_method_call(&function_id, &method_ref, args, span);
 
                         self.interner.replace_expr(expr_id, function_call);
                         ret
@@ -286,6 +292,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
+            HirExpression::TraitMethodReference(_) => unreachable!(),
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
@@ -477,34 +484,46 @@ impl<'interner> TypeChecker<'interner> {
     fn check_method_call(
         &mut self,
         function_ident_id: &ExprId,
-        func_id: &FuncId,
+        method_ref: &HirMethodReference,
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        if func_id == &FuncId::dummy_id() {
-            Type::Error
-        } else {
-            let func_meta = self.interner.function_meta(func_id);
+        let (fntyp, param_len) = match method_ref {
+            HirMethodReference::FuncId(func_id) => {
+                if func_id == &FuncId::dummy_id() {
+                    return Type::Error;
+                }
 
-            // Check function call arity is correct
-            let param_len = func_meta.parameters.len();
-            let arg_len = arguments.len();
+                let func_meta = self.interner.function_meta(func_id);
+                let param_len = func_meta.parameters.len();
 
-            if param_len != arg_len {
-                self.errors.push(TypeCheckError::ArityMisMatch {
-                    expected: param_len as u16,
-                    found: arg_len as u16,
-                    span,
-                });
+                (func_meta.typ, param_len)
             }
+            HirMethodReference::TraitMethodId(method) => {
+                let the_trait = self.interner.get_trait(method.trait_id);
+                let the_trait = the_trait.borrow();
+                let method: &TraitFunction = &the_trait.methods[method.method_index];
 
-            let (function_type, instantiation_bindings) = func_meta.typ.instantiate(self.interner);
+                (method.get_type(), method.arguments.len())
+            }
+        };
 
-            self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
-            self.interner.push_expr_type(function_ident_id, function_type.clone());
+        let arg_len = arguments.len();
 
-            self.bind_function_type(function_type, arguments, span)
+        if param_len != arg_len {
+            self.errors.push(TypeCheckError::ArityMisMatch {
+                expected: param_len as u16,
+                found: arg_len as u16,
+                span,
+            });
         }
+
+        let (function_type, instantiation_bindings) = fntyp.instantiate(self.interner);
+
+        self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
+        self.interner.push_expr_type(function_ident_id, function_type.clone());
+
+        self.bind_function_type(function_type, arguments, span)
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {
@@ -818,11 +837,11 @@ impl<'interner> TypeChecker<'interner> {
         object_type: &Type,
         method_name: &str,
         expr_id: &ExprId,
-    ) -> Option<FuncId> {
+    ) -> Option<HirMethodReference> {
         match object_type {
             Type::Struct(typ, _args) => {
                 match self.interner.lookup_method(typ.borrow().id, method_name) {
-                    Some(method_id) => Some(method_id),
+                    Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.errors.push(TypeCheckError::UnresolvedMethodCall {
                             method_name: method_name.to_string(),
@@ -832,6 +851,35 @@ impl<'interner> TypeChecker<'interner> {
                         None
                     }
                 }
+            }
+            Type::NamedGeneric(_, _) => {
+                let func_meta = self.interner.function_meta(&self.current_function.unwrap());
+
+                for constraint in func_meta.trait_constraints {
+                    if let Some(trait_id) = constraint.trait_id {
+                        // TODO(#2568): == on types is sketchy, since Field != TypeVar::Bound(Field)
+                        // unify() is sketchier here though, since it may accidentally commit typebindings.
+                        // this works for now, but likely needs to be revisited when we implement generic traits
+                        if *object_type == constraint.typ {
+                            let the_trait = self.interner.get_trait(trait_id);
+                            let the_trait = the_trait.borrow();
+
+                            for (method_index, method) in the_trait.methods.iter().enumerate() {
+                                if method.name.0.contents == method_name {
+                                    let trait_method = TraitMethodId { trait_id, method_index };
+                                    return Some(HirMethodReference::TraitMethodId(trait_method));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    span: self.interner.expr_span(expr_id),
+                });
+                None
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
@@ -843,7 +891,7 @@ impl<'interner> TypeChecker<'interner> {
             // In the future we could support methods for non-struct types if we have a context
             // (in the interner?) essentially resembling HashMap<Type, Methods>
             other => match self.interner.lookup_primitive_method(other, method_name) {
-                Some(method_id) => Some(method_id),
+                Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
                         method_name: method_name.to_string(),
