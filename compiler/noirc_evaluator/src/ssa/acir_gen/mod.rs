@@ -1166,7 +1166,13 @@ impl Context {
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Var(var, _) => {
+                        if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
+                            return Ok(vec![AcirValue::Var(var, AcirType::field())]);
+                        } else {
+                            unreachable!("Non-array passed to array.len() method");
+                        }
+                    }
                     AcirValue::Array(values) => (values.len() as u128).into(),
                     AcirValue::DynamicArray(array) => (array.len as u128).into(),
                 };
