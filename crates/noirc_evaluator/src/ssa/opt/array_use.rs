@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -10,13 +8,14 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Map arrays with the last instruction that uses it
     /// For this we simply process all the instructions in execution order
     /// and update the map whenever there is a match
     pub(crate) fn find_last_array_uses(&self) -> HashMap<ValueId, InstructionId> {
-        let mut array_use = HashMap::new();
+        let mut array_use = HashMap::default();
         for func in self.functions.values() {
             let mut reverse_post_order = PostOrder::with_function(func).into_vec();
             reverse_post_order.reverse();

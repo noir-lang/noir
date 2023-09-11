@@ -140,7 +140,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId),
+    Constrain(ValueId, ValueId, Option<String>),
 
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
@@ -170,7 +170,9 @@ pub(crate) enum Instruction {
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId },
+    ///
+    /// An optional length can be provided to enable handling of dynamic slice indices.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, length: Option<ValueId> },
 }
 
 impl Instruction {
@@ -189,7 +191,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
-            Instruction::Constrain(_, _)
+            Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
@@ -218,7 +220,7 @@ impl Instruction {
             Truncate { .. } => false,
 
             // These either have side-effects or interact with memory
-            Constrain(_, _) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
+            Constrain(..) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
                 false
             }
 
@@ -242,7 +244,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(_, _) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(..) | Store { .. } | EnableSideEffects { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -278,7 +280,9 @@ impl Instruction {
                 bit_size: *bit_size,
                 max_bit_size: *max_bit_size,
             },
-            Instruction::Constrain(lhs, rhs) => Instruction::Constrain(f(*lhs), f(*rhs)),
+            Instruction::Constrain(lhs, rhs, assert_message) => {
+                Instruction::Constrain(f(*lhs), f(*rhs), assert_message.clone())
+            }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
                 arguments: vecmap(arguments.iter().copied(), f),
@@ -294,9 +298,12 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value } => {
-                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
-            }
+            Instruction::ArraySet { array, index, value, length } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                length: length.map(f),
+            },
         }
     }
 
@@ -319,7 +326,7 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, _) => {
                 f(*lhs);
                 f(*rhs);
             }
@@ -333,10 +340,11 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, length } => {
                 f(*array);
                 f(*index);
                 f(*value);
+                length.map(&mut f);
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
@@ -374,7 +382,7 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(lhs, rhs) => {
+            Instruction::Constrain(lhs, rhs, ..) => {
                 if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
                     // Remove trivial case `assert_eq(x, x)`
                     SimplifyResult::Remove
@@ -394,7 +402,7 @@ impl Instruction {
                 }
                 None
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, .. } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
@@ -417,7 +425,7 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
+            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg, block),
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
@@ -632,7 +640,8 @@ impl Binary {
             // If the rhs of a division is zero, attempting to evaluate the divison will cause a compiler panic.
             // Thus, we do not evaluate this divison as we want to avoid triggering a panic,
             // and division by zero should be handled by laying down constraints during ACIR generation.
-            if matches!(self.operator, BinaryOp::Div) && rhs == FieldElement::zero() {
+            if matches!(self.operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero()
+            {
                 return SimplifyResult::None;
             }
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {

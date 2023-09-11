@@ -1,5 +1,6 @@
 use crate::{FileDiagnostic, Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::Files;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
@@ -110,8 +111,8 @@ impl CustomLabel {
 
 /// Writes the given diagnostics to stderr and returns the count
 /// of diagnostics that were errors.
-pub fn report_all(
-    files: &fm::FileManager,
+pub fn report_all<'files>(
+    files: &'files impl Files<'files, FileId = fm::FileId>,
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
 ) -> ReportedErrors {
@@ -126,14 +127,18 @@ pub fn report_all(
 }
 
 impl FileDiagnostic {
-    pub fn report(&self, files: &fm::FileManager, deny_warnings: bool) -> bool {
+    pub fn report<'files>(
+        &self,
+        files: &'files impl Files<'files, FileId = fm::FileId>,
+        deny_warnings: bool,
+    ) -> bool {
         report(files, &self.diagnostic, Some(self.file_id), &self.call_stack, deny_warnings)
     }
 }
 
 /// Report the given diagnostic, and return true if it was an error
-pub fn report(
-    files: &fm::FileManager,
+pub fn report<'files>(
+    files: &'files impl Files<'files, FileId = fm::FileId>,
     custom_diagnostic: &CustomDiagnostic,
     file: Option<fm::FileId>,
     call_stack: &[Location],
@@ -144,7 +149,7 @@ pub fn report(
 
     let stack_trace = stack_trace(files, call_stack);
     let diagnostic = convert_diagnostic(custom_diagnostic, file, stack_trace, deny_warnings);
-    term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
+    term::emit(&mut writer.lock(), &config, files, &diagnostic).unwrap();
 
     deny_warnings || custom_diagnostic.is_error()
 }
@@ -154,7 +159,7 @@ fn convert_diagnostic(
     file: Option<fm::FileId>,
     stack_trace: String,
     deny_warnings: bool,
-) -> Diagnostic<usize> {
+) -> Diagnostic<fm::FileId> {
     let diagnostic = match (cd.kind, deny_warnings) {
         (DiagnosticKind::Warning, false) => Diagnostic::warning(),
         _ => Diagnostic::error(),
@@ -166,7 +171,7 @@ fn convert_diagnostic(
             .map(|sl| {
                 let start_span = sl.span.start() as usize;
                 let end_span = sl.span.end() as usize;
-                Label::secondary(file_id.as_usize(), start_span..end_span).with_message(&sl.message)
+                Label::secondary(file_id, start_span..end_span).with_message(&sl.message)
             })
             .collect()
     } else {
@@ -179,7 +184,10 @@ fn convert_diagnostic(
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(notes)
 }
 
-fn stack_trace(files: &fm::FileManager, call_stack: &[Location]) -> String {
+fn stack_trace<'files>(
+    files: &'files impl Files<'files, FileId = fm::FileId>,
+    call_stack: &[Location],
+) -> String {
     if call_stack.is_empty() {
         return String::new();
     }
@@ -187,11 +195,11 @@ fn stack_trace(files: &fm::FileManager, call_stack: &[Location]) -> String {
     let mut result = "Call stack:\n".to_string();
 
     for (i, call_item) in call_stack.iter().enumerate() {
-        let path = files.path(call_item.file);
-        let source = files.fetch_file(call_item.file).source();
+        let path = files.name(call_item.file).expect("should get file path");
+        let source = files.source(call_item.file).expect("should get file source");
 
-        let (line, column) = location(source, call_item.span.start());
-        result += &format!("{}. {}.nr:{}:{}\n", i + 1, path.display(), line, column);
+        let (line, column) = location(source.as_ref(), call_item.span.start());
+        result += &format!("{}. {}.nr:{}:{}\n", i + 1, path, line, column);
     }
 
     result

@@ -7,7 +7,7 @@ use crate::token::{PrimaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{FileDiagnostic, Location};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 mod module_def;
 pub use module_def::*;
@@ -27,7 +27,7 @@ pub const MAIN_FUNCTION: &str = "main";
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 pub struct LocalModuleId(pub Index);
 
 impl LocalModuleId {
@@ -36,7 +36,7 @@ impl LocalModuleId {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
     pub krate: CrateId,
     pub local_id: LocalModuleId,
@@ -49,7 +49,7 @@ impl ModuleId {
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &HashMap<CrateId, CrateDefMap>) -> &ModuleData {
+    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }
 }
@@ -65,7 +65,7 @@ pub struct CrateDefMap {
 
     pub(crate) krate: CrateId,
 
-    pub(crate) extern_prelude: HashMap<String, ModuleId>,
+    pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
 }
 
 impl CrateDefMap {
@@ -100,7 +100,7 @@ impl CrateDefMap {
             root: LocalModuleId(root),
             modules,
             krate: crate_id,
-            extern_prelude: HashMap::new(),
+            extern_prelude: BTreeMap::new(),
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
@@ -253,10 +253,20 @@ impl TestFunction {
 
     /// Returns true if the test function has been specified to fail
     /// This is done by annotating the function with `#[test(should_fail)]`
+    /// or `#[test(should_fail_with = "reason")]`
     pub fn should_fail(&self) -> bool {
         match self.scope {
-            TestScope::ShouldFail => true,
+            TestScope::ShouldFailWith { .. } => true,
             TestScope::None => false,
+        }
+    }
+
+    /// Returns the reason for the test function to fail if specified
+    /// by the user.
+    pub fn failure_reason(&self) -> Option<&str> {
+        match &self.scope {
+            TestScope::None => None,
+            TestScope::ShouldFailWith { reason } => reason.as_deref(),
         }
     }
 }

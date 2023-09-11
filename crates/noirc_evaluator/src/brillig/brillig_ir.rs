@@ -361,13 +361,20 @@ impl BrilligContext {
 impl BrilligContext {
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
-    pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
+    pub(crate) fn constrain_instruction(
+        &mut self,
+        condition: RegisterIndex,
+        assert_message: Option<String>,
+    ) {
         self.debug_show.constrain_instruction(condition);
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             self.next_section_label(),
         );
         self.push_opcode(BrilligOpcode::Trap);
+        if let Some(assert_message) = assert_message {
+            self.obj.add_assert_message_to_last_opcode(assert_message);
+        }
         self.enter_next_section();
     }
 
@@ -1001,7 +1008,8 @@ pub(crate) mod tests {
         }
         fn fixed_base_scalar_mul(
             &self,
-            _input: &FieldElement,
+            _low: &FieldElement,
+            _high: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into()))
         }

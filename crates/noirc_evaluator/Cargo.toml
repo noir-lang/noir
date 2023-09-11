@@ -11,6 +11,7 @@ noirc_frontend.workspace = true
 noirc_errors.workspace = true
 noirc_abi.workspace = true
 acvm.workspace = true
+fxhash = "0.2.1"
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"

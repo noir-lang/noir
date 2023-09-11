@@ -12,7 +12,7 @@
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify cfg pass.
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::{
     errors::RuntimeError,
@@ -31,12 +31,22 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Unroll all loops in each SSA function.
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
+            // Loop unrolling in brillig can lead to a code explosion currently. This can
+            // also be true for ACIR, but we have no alternative to unrolling in ACIR.
+            // Brillig also generally prefers smaller code rather than faster code.
+            if function.runtime() == RuntimeType::Brillig {
+                continue;
+            }
+
+            // This check is always true with the addition of the above guard, but I'm
+            // keeping it in case the guard on brillig functions is ever removed.
             let abort_on_error = function.runtime() == RuntimeType::Acir;
             find_all_loops(function).unroll_each_loop(function, abort_on_error)?;
         }
@@ -307,9 +317,9 @@ impl<'f> LoopIteration<'f> {
             loop_,
             insert_block,
             source_block,
-            blocks: HashMap::new(),
-            original_blocks: HashMap::new(),
-            visited_blocks: HashSet::new(),
+            blocks: HashMap::default(),
+            original_blocks: HashMap::default(),
+            visited_blocks: HashSet::default(),
             induction_value: None,
         }
     }
@@ -536,7 +546,7 @@ mod tests {
         builder.switch_to_block(b5);
         let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
         let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5, one);
+        builder.insert_constrain(v5, one, None);
         let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
         builder.terminate_with_jmp(b4, vec![v6]);
 

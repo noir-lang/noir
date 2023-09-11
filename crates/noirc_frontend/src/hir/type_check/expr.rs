@@ -318,9 +318,9 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         if let Some(expected_object_type) = expected_object_type {
-            if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
-                let actual_type = argument_types[0].0.follow_bindings();
+            let actual_type = argument_types[0].0.follow_bindings();
 
+            if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
                     if let Err(error) = verify_mutable_reference(self.interner, method_call.object)
                     {
@@ -349,7 +349,34 @@ impl<'interner> TypeChecker<'interner> {
                         );
                     }
                 }
+            // Otherwise if the object type is a mutable reference and the method is not, insert as
+            // many dereferences as needed.
+            } else if matches!(actual_type, Type::MutableReference(_)) {
+                let (object, new_type) =
+                    self.insert_auto_dereferences(method_call.object, actual_type);
+                method_call.object = object;
+                argument_types[0].0 = new_type;
             }
+        }
+    }
+
+    /// Insert as many dereference operations as necessary to automatically dereference a method
+    /// call object to its base value type T.
+    fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
+        if let Type::MutableReference(element) = typ {
+            let location = self.interner.id_location(object);
+
+            let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
+                operator: UnaryOp::Dereference { implicitly_added: true },
+                rhs: object,
+            }));
+            self.interner.push_expr_type(&object, element.as_ref().clone());
+            self.interner.push_expr_location(object, location.span, location.file);
+
+            // Recursively dereference to allow for converting &mut &mut T to T
+            self.insert_auto_dereferences(object, *element)
+        } else {
+            (object, typ)
         }
     }
 

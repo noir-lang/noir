@@ -131,7 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::collections::{BTreeMap, HashMap, HashSet};
+use fxhash::FxHashMap as HashMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -143,7 +144,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
         value::{Value, ValueId},
     },
@@ -175,7 +176,20 @@ struct Context<'f> {
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
 
     /// Maps an address to the old and new value of the element at that address
+    /// These only hold stores for one block at a time and is cleared
+    /// between inlining of branches.
     store_values: HashMap<ValueId, Store>,
+
+    /// Maps an address to the old and new value of the element at that address
+    /// The difference between this map and store_values is that this stores
+    /// the old and new value of an element from the outer block whose jmpif
+    /// terminator is being flattened.
+    ///
+    /// This map persists throughout the flattening process, where addresses
+    /// are overwritten as new stores are found. This overwriting is the desired behavior,
+    /// as we want the most update to date value to be stored at a given address as
+    /// we walk through blocks to flatten.
+    outer_block_stores: HashMap<ValueId, Store>,
 
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
@@ -218,10 +232,11 @@ fn flatten_function_cfg(function: &mut Function) {
     let mut context = Context {
         inserter: FunctionInserter::new(function),
         cfg,
-        store_values: HashMap::new(),
+        store_values: HashMap::default(),
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
+        outer_block_stores: HashMap::default(),
     };
     context.flatten();
 }
@@ -244,6 +259,26 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
+        if let TerminatorInstruction::JmpIf { .. } =
+            self.inserter.function.dfg[block].unwrap_terminator()
+        {
+            // Find stores in the outer block and insert into the `outer_block_stores` map.
+            // Not using this map can lead to issues when attempting to merge slices.
+            // When inlining a branch end, only the then branch and the else branch are checked for stores.
+            // However, there are cases where we want to load a value that comes from the outer block
+            // that we are handling the terminator for here.
+            let instructions = self.inserter.function.dfg[block].instructions().to_vec();
+            for instruction in instructions {
+                let (instruction, _) = self.inserter.map_instruction(instruction);
+                if let Instruction::Store { address, value } = instruction {
+                    let load = Instruction::Load { address };
+                    let load_type = Some(vec![self.inserter.function.dfg.type_of_value(value)]);
+                    let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+                    self.outer_block_stores.insert(address, Store { old_value, new_value: value });
+                }
+            }
+        }
+
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let old_condition = *condition;
@@ -411,20 +446,10 @@ impl<'f> Context<'f> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_value = self.inserter.function.dfg[then_value_id].clone();
-        let else_value = self.inserter.function.dfg[else_value_id].clone();
+        let then_len = self.get_slice_length(then_value_id);
+        let else_len = self.get_slice_length(else_value_id);
 
-        let len = match then_value {
-            Value::Array { array, .. } => array.len(),
-            _ => panic!("Expected array value"),
-        };
-
-        let else_len = match else_value {
-            Value::Array { array, .. } => array.len(),
-            _ => panic!("Expected array value"),
-        };
-
-        let len = len.max(else_len);
+        let len = then_len.max(else_len);
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -445,7 +470,7 @@ impl<'f> Context<'f> {
                     }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone(), len);
+                let then_element = get_element(then_value_id, typevars.clone(), then_len);
                 let else_element = get_element(else_value_id, typevars, else_len);
 
                 merged.push_back(self.merge_values(
@@ -458,6 +483,54 @@ impl<'f> Context<'f> {
         }
 
         self.inserter.function.dfg.make_array(merged, typ)
+    }
+
+    fn get_slice_length(&mut self, value_id: ValueId) -> usize {
+        let value = &self.inserter.function.dfg[value_id];
+        match value {
+            Value::Array { array, .. } => array.len(),
+            Value::Instruction { instruction: instruction_id, .. } => {
+                let instruction = &self.inserter.function.dfg[*instruction_id];
+                match instruction {
+                    Instruction::ArraySet { array, .. } => self.get_slice_length(*array),
+                    Instruction::Load { address } => {
+                        let context_store = if let Some(store) = self.store_values.get(address) {
+                            store
+                        } else {
+                            self.outer_block_stores
+                                .get(address)
+                                .expect("ICE: load in merger should have store from outer block")
+                        };
+
+                        self.get_slice_length(context_store.new_value)
+                    }
+                    Instruction::Call { func, arguments } => {
+                        let func = &self.inserter.function.dfg[*func];
+                        let slice_contents = arguments[1];
+                        match func {
+                            Value::Intrinsic(intrinsic) => match intrinsic {
+                                Intrinsic::SlicePushBack
+                                | Intrinsic::SlicePushFront
+                                | Intrinsic::SliceInsert => {
+                                    self.get_slice_length(slice_contents) + 1
+                                }
+                                Intrinsic::SlicePopBack
+                                | Intrinsic::SlicePopFront
+                                | Intrinsic::SliceRemove => {
+                                    self.get_slice_length(slice_contents) - 1
+                                }
+                                _ => {
+                                    unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
+                                }
+                            },
+                            _ => unreachable!("ICE: Expected intrinsic value but got {func:?}"),
+                        }
+                    }
+                    _ => unreachable!("ICE: Got unexpected instruction: {instruction:?}"),
+                }
+            }
+            _ => unreachable!("ICE: Got unexpected value when resolving slice length {value:?}"),
+        }
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -587,7 +660,7 @@ impl<'f> Context<'f> {
                 // args that will be merged by inline_branch_end. Since jmpifs don't have
                 // block arguments, it is safe to use the jmpif block here.
                 last_block: jmpif_block,
-                store_values: HashMap::new(),
+                store_values: HashMap::default(),
                 local_allocations: HashSet::new(),
             }
         } else {
@@ -766,7 +839,7 @@ impl<'f> Context<'f> {
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(lhs, rhs) => {
+                Instruction::Constrain(lhs, rhs, message) => {
                     // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
 
                     // Condition needs to be cast to argument type in order to multiply them together.
@@ -784,7 +857,7 @@ impl<'f> Context<'f> {
                         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
                         call_stack,
                     );
-                    Instruction::Constrain(lhs, rhs)
+                    Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
                     self.remember_store(address, value);
@@ -901,7 +974,7 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        builder.insert_constrain(v1, v_true);
+        builder.insert_constrain(v1, v_true, None);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
@@ -1360,7 +1433,7 @@ mod test {
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
-        builder.insert_constrain(v_false, v_true); // should not be removed
+        builder.insert_constrain(v_false, v_true, None); // should not be removed
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1368,7 +1441,7 @@ mod test {
 
         // Assert we have not incorrectly removed a constraint:
         use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_, _)));
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(..)));
         assert_eq!(constrain_count, 1);
     }
 
@@ -1443,7 +1516,7 @@ mod test {
         builder.switch_to_block(b3);
         let v_true = builder.numeric_constant(true, Type::bool());
         let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
-        builder.insert_constrain(v12, v_true);
+        builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1452,7 +1525,7 @@ mod test {
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(lhs, rhs) = main.dfg[*instruction] {
+            if let Instruction::Constrain(lhs, rhs, ..) = main.dfg[*instruction] {
                 if let (Some(lhs), Some(rhs)) =
                     (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
                 {

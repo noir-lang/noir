@@ -3,6 +3,9 @@ name: Test
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -32,14 +35,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Restore nix store cache
         uses: actions/cache/restore@v3
         id: cache
         with:
           path: ${{ env.CACHED_PATHS }}
-          key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
+          key: ${{ matrix.target }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0

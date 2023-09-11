@@ -8,6 +8,8 @@ use super::{
 use crate::backends::Backend;
 use crate::errors::CliError;
 
+use acvm::acir::circuit::Opcode;
+use acvm::Language;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
@@ -44,6 +46,7 @@ pub(crate) fn run(
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
 
@@ -52,6 +55,8 @@ pub(crate) fn run(
             package,
             circuit_build_path,
             &args.compile_options,
+            np_language,
+            &is_opcode_supported,
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);
@@ -70,11 +75,14 @@ fn smart_contract_for_package(
     package: &Package,
     circuit_build_path: PathBuf,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<String, CliError> {
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
-        let (_, program) = compile_package(backend, package, compile_options)?;
+        let (_, program) =
+            compile_package(package, compile_options, np_language, &is_opcode_supported)?;
 
         PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),

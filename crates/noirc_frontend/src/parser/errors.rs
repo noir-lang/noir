@@ -31,12 +31,12 @@ pub enum ParserErrorReason {
     ExperimentalFeature(&'static str),
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
-
-    // TODO(Maddiaa): Update the error message here
     #[error(
         "Multiple primary attributes found. Only one primary attribute is allowed per function."
     )]
     MultiplePrimaryAttributesFound,
+    #[error("Assert statements can only accept string literals")]
+    AssertMessageNotString,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

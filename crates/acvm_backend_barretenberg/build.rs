@@ -1,4 +1,5 @@
 use build_target::{Arch, Os};
+use const_format::formatcp;
 
 // Useful for printing debugging messages during the build
 // macro_rules! p {
@@ -6,6 +7,14 @@ use build_target::{Arch, Os};
 //         println!("cargo:warning={}", format!($($tokens)*))
 //     }
 // }
+
+const USERNAME: &str = "AztecProtocol";
+const REPO: &str = "barretenberg";
+const VERSION: &str = "0.5.1";
+const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
+
+const API_URL: &str =
+    formatcp!("https://github.com/{}/{}/releases/download/{}", USERNAME, REPO, TAG);
 
 fn main() -> Result<(), String> {
     // We need to inject which OS we're building for so that we can download the correct barretenberg binary.
@@ -25,8 +34,21 @@ fn main() -> Result<(), String> {
         panic!("ARM64 builds of linux are not supported")
     };
 
-    println!("cargo:rustc-env=TARGET_OS={os}");
-    println!("cargo:rustc-env=TARGET_ARCH={arch}");
+    println!("cargo:rustc-env=BB_BINARY_URL={}", get_bb_download_url(arch, os));
 
     Ok(())
+}
+
+fn get_bb_download_url(target_arch: Arch, target_os: Os) -> String {
+    let archive_name = match target_os {
+        Os::Linux => "barretenberg-x86_64-linux-gnu.tar.gz",
+        Os::MacOs => match target_arch {
+            Arch::AARCH64 => "barretenberg-aarch64-apple-darwin.tar.gz",
+            Arch::X86_64 => "barretenberg-x86_64-apple-darwin.tar.gz",
+            arch => panic!("unsupported arch {arch}"),
+        },
+        os => panic!("Unsupported OS {os}"),
+    };
+
+    format!("{API_URL}/{archive_name}")
 }

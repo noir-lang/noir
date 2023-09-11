@@ -174,13 +174,13 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
-            // This sorts between primary and secondary attributes
-            let sorted_attributes = validate_attributes(attributes, span, emit);
+            // Validate collected attributes, filtering them into primary and secondary variants
+            let attrs = validate_attributes(attributes, span, emit);
             validate_where_clause(&generics, &where_clause, span, emit);
             FunctionDefinition {
                 span: body_span,
                 name,
-                attributes: sorted_attributes, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                attributes: attrs,
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.1,
                 is_internal: modifiers.2,
@@ -271,7 +271,7 @@ fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), Functi
         .then(spanned(parse_type()))
         .or_not()
         .map_with_span(|ret, span| match ret {
-            Some((head, (ty, span))) => (head, FunctionReturnType::Ty(ty, span)),
+            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
             None => (
                 (Distinctness::DuplicationAllowed, Visibility::Private),
                 FunctionReturnType::Default(span),
@@ -425,7 +425,6 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         )
 }
 
-// TODO: clean this up massively
 fn validate_attributes(
     attributes: Option<Vec<Attribute>>,
     span: Span,
@@ -751,7 +750,7 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+    .map(|expr| Statement::Constrain(ConstrainStatement(expr, None)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -762,20 +761,37 @@ fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
+    let argument_parser =
+        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(1).at_most(2);
+
+    ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .validate(|expressions, span, emit| {
+            let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
+            let mut message_str = None;
+
+            if let Some(message) = expressions.get(1) {
+                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
+                    message_str = Some(message.clone());
+                } else {
+                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
+                }
+            }
+
+            Statement::Constrain(ConstrainStatement(condition, message_str))
+        })
 }
 
 fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().exactly(2);
+    let argument_parser =
+        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(2).at_most(3);
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, _| {
+        .validate(|exprs: Vec<Expression>, span, emit| {
             let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
@@ -784,8 +800,16 @@ where
                 })),
                 span,
             );
+            let mut message_str = None;
 
-            Statement::Constrain(ConstrainStatement(predicate))
+            if let Some(message) = exprs.get(2) {
+                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
+                    message_str = Some(message.clone());
+                } else {
+                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
+                }
+            }
+            Statement::Constrain(ConstrainStatement(predicate, message_str))
         })
 }
 
@@ -1879,6 +1903,14 @@ mod test {
                 "assert(x + x ^ x == y | m)",
             ],
         );
+
+        match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
+        {
+            Statement::Constrain(ConstrainStatement(_, message)) => {
+                assert_eq!(message, Some("assertion message".to_owned()));
+            }
+            _ => unreachable!(),
+        }
     }
 
     /// This is the standard way to assert that two expressions are equivalent
@@ -1895,6 +1927,14 @@ mod test {
                 "assert_eq(x + x ^ x, y | m)",
             ],
         );
+        match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
+            .unwrap()
+        {
+            Statement::Constrain(ConstrainStatement(_, message)) => {
+                assert_eq!(message, Some("assertion message".to_owned()));
+            }
+            _ => unreachable!(),
+        }
     }
 
     #[test]
@@ -2252,8 +2292,10 @@ mod test {
             ("assert", 1, "constrain Error"),
             ("constrain x ==", 2, "constrain (plain::x == Error)"),
             ("assert(x ==)", 1, "constrain (plain::x == Error)"),
+            ("assert(x == x, x)", 1, "constrain (plain::x == plain::x)"),
             ("assert_eq(x,)", 1, "constrain (Error == Error)"),
-            ("assert_eq(x, x, x)", 1, "constrain (Error == Error)"),
+            ("assert_eq(x, x, x, x)", 1, "constrain (Error == Error)"),
+            ("assert_eq(x, x, x)", 1, "constrain (plain::x == plain::x)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");

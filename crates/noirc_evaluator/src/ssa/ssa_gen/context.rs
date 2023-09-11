@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
@@ -19,6 +18,7 @@ use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -94,7 +94,7 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let builder = FunctionBuilder::new(function_name, function_id, runtime);
-        let mut this = Self { definitions: HashMap::new(), builder, shared_context };
+        let mut this = Self { definitions: HashMap::default(), builder, shared_context };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -659,14 +659,19 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
-                array = self.assign_lvalue_index(new_value, array, index, location);
+                array = self.assign_lvalue_index(new_value, array, index, None, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                slice_values[1] =
-                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
+                slice_values[1] = self.assign_lvalue_index(
+                    new_value,
+                    slice_values[1],
+                    index,
+                    Some(slice_values[0]),
+                    location,
+                );
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
@@ -687,6 +692,7 @@ impl<'a> FunctionContext<'a> {
         new_value: Values,
         mut array: ValueId,
         index: ValueId,
+        length: Option<ValueId>,
         location: Location,
     ) -> ValueId {
         let element_size = self.builder.field_constant(self.element_size(array));
@@ -698,7 +704,7 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value);
+            array = self.builder.insert_array_set(array, index, value, length);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
         array

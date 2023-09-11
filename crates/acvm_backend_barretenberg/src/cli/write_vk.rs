@@ -5,7 +5,6 @@ use crate::BackendError;
 /// WriteCommand will call the barretenberg binary
 /// to write a verification key to a file
 pub(crate) struct WriteVkCommand {
-    pub(crate) verbose: bool,
     pub(crate) crs_path: PathBuf,
     pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
@@ -25,45 +24,39 @@ impl WriteVkCommand {
             .arg("-o")
             .arg(self.vk_path_output);
 
-        if self.verbose {
-            command.arg("-v");
-        }
         if self.is_recursive {
             command.arg("-r");
         }
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
         if output.status.success() {
             Ok(())
         } else {
-            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }
 
 #[test]
-#[serial_test::serial]
-fn write_vk_command() {
+fn write_vk_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_bb();
-
-    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
+    let temp_directory_path = temp_directory.path();
+    let bytecode_path = temp_directory_path.join("acir.gz");
     let vk_path_output = temp_directory.path().join("vk");
 
     let crs_path = backend.backend_directory();
 
-    let write_vk_command = WriteVkCommand {
-        verbose: true,
-        bytecode_path,
-        crs_path,
-        is_recursive: false,
-        vk_path_output,
-    };
+    std::fs::File::create(&bytecode_path).expect("file should be created");
 
-    let vk_written = write_vk_command.run(&backend.binary_path());
-    assert!(vk_written.is_ok());
+    let write_vk_command =
+        WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
+
+    write_vk_command.run(&backend.binary_path())?;
     drop(temp_directory);
+
+    Ok(())
 }

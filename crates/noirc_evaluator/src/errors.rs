@@ -16,11 +16,13 @@ use crate::ssa::ir::dfg::CallStack;
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
-    // We avoid showing the actual lhs and rhs since most of the time they are just 0
-    // and 1 respectively. This would confuse users if a constraint such as
-    // assert(foo < bar) fails with "failed constraint: 0 = 1."
-    #[error("Failed constraint")]
-    FailedConstraint { lhs: Box<Expression>, rhs: Box<Expression>, call_stack: CallStack },
+    #[error("{}", format_failed_constraint(.assert_message))]
+    FailedConstraint {
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+        call_stack: CallStack,
+        assert_message: Option<String>,
+    },
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
@@ -37,6 +39,16 @@ pub enum RuntimeError {
     UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
     AssertConstantFailed { call_stack: CallStack },
+}
+
+// We avoid showing the actual lhs and rhs since most of the time they are just 0
+// and 1 respectively. This would confuse users if a constraint such as
+// assert(foo < bar) fails with "failed constraint: 0 = 1."
+fn format_failed_constraint(message: &Option<String>) -> String {
+    match message {
+        Some(message) => format!("Failed constraint: '{}'", message),
+        None => "Failed constraint".to_owned(),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -104,7 +116,8 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                let location = self.call_stack().back().expect("Expected RuntimeError to have a location");
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

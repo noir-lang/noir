@@ -20,4 +20,5 @@ export default {
       timeout: 40000,
     },
   },
+  rootDir:  fileURLToPath(new URL('./../../', import.meta.url)),
 };
