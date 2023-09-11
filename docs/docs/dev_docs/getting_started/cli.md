@@ -36,10 +36,7 @@ Lets first establish that we are able to communicate with the Sandbox. Most comm
 
 To test communication with the Sandbox, let's run the command:
 
-```bash
-% aztec-cli block-number
-1
-```
+#include_code block-number yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 You should see the current block number (1) printed to the screen!
 
@@ -47,25 +44,7 @@ You should see the current block number (1) printed to the screen!
 
 We have shipped a number of example contracts in the `@aztec/noir-contracts` npm package. This is included with the cli by default so you are able to use these contracts to test with. To get a list of the names of the contracts run:
 
-```bash
-% aztec-cli example-contracts
-ChildContractAbi
-EasyPrivateTokenContractAbi
-EcdsaAccountContractAbi
-EscrowContractAbi
-LendingContractAbi
-NonNativeTokenContractAbi
-ParentContractAbi
-PendingCommitmentsContractAbi
-PokeableTokenContractAbi
-PrivateTokenAirdropContractAbi
-PrivateTokenContractAbi
-PublicTokenContractAbi
-SchnorrAccountContractAbi
-SchnorrSingleKeyAccountContractAbi
-TestContractAbi
-UniswapContractAbi
-```
+#include_code example-contracts yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 In the following sections there will be commands that require contracts as options. You can either specify the full directory path to the contract abi, or you can use the name of one of these examples as the option value. This will become clearer later on.
 
@@ -73,19 +52,11 @@ In the following sections there will be commands that require contracts as optio
 
 The first thing we want to do is create a couple of accounts. We will use the `create-account` command which will generate a new private key for us, register the account on the sandbox, and deploy a simple account contract which [uses a single key for privacy and authentication](../../concepts/foundation/accounts/keys.md):
 
-```bash
-% aztec-cli create-account
-Created new account:
-
-Address:         0x20d3321707d53cebb168568e25c5c62a853ae1f0766d965e00d6f6c4eb05d599
-Public key:      0x02d18745eadddd496be95274367ee2cbf0bf667b81373fb6bed715c18814a09022907c273ec1c469fcc678738bd8efc3e9053fe1acbb11fa32da0d6881a1370e
-Private key:     0x2aba9e7de7075deee3e3f4ad1e47749f985f0f72543ed91063cc97a40d851f1e
-Partial address: 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
-```
+#include_code create-account yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 Once the account is set up, the CLI returns the resulting address, its privacy key, and partial address. You can read more about these [here](../../concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys).
 
-Save the Address and Private key as environement variables. We will be using them later.
+Save the Address and Private key as environment variables. We will be using them later.
 
 ```bash
 export ADDRESS=<Address printed when you run the command>
@@ -94,38 +65,13 @@ export PRIVATE_KEY=<Private key printed when you run the command>
 
 Alternatively, we can also manually generate a private key and use it for creating the account, either via a `-k` option or by setting the `PRIVATE_KEY` environment variable.
 
-```bash
-% aztec-cli generate-private-key
-
-Private Key: 0x6622c828e9cd5adc86f10878765fe921d2b8cb2c79bdbc391157e43811ce88e3
-Public Key: 0x08aad54f32f1b6621ee5f25267166e160147cd355a2dfc129fa646a651dd29471d814ac749c2cda831fcca361c830ba56db4b4bd5951d4953c81865d0ae0cbe7
-
-
-% aztec-cli create-account --private-key 0x6622c828e9cd5adc86f10878765fe921d2b8cb2c79bdbc391157e43811ce88e3
-
-Created new account:
-
-Address:         0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c
-Public key:      0x08aad54f32f1b6621ee5f25267166e160147cd355a2dfc129fa646a651dd29471d814ac749c2cda831fcca361c830ba56db4b4bd5951d4953c81865d0ae0cbe7
-Partial address: 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
-```
+#include_code create-account-from-private-key yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 For all commands that require a user's private key, the CLI will look for the `PRIVATE_KEY` environment variable in absence of an optional argument.
 
 Let's double check that the accounts have been registered with the sandbox using the `get-accounts` command:
 
-```bash
-% aztec-cli get-accounts
-Accounts found:
-
-Address:         0x20d3321707d53cebb168568e25c5c62a853ae1f0766d965e00d6f6c4eb05d599
-Public key:      0x02d18745eadddd496be95274367ee2cbf0bf667b81373fb6bed715c18814a09022907c273ec1c469fcc678738bd8efc3e9053fe1acbb11fa32da0d6881a1370e
-Partial address: 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
-
-Address:         0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c
-Public key:      0x08aad54f32f1b6621ee5f25267166e160147cd355a2dfc129fa646a651dd29471d814ac749c2cda831fcca361c830ba56db4b4bd5951d4953c81865d0ae0cbe7
-Partial address: 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
-```
+#include_code get-accounts yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 Save one of the printed accounts (not the one that you generated above) in an environment variable. We will use it later.
 
@@ -137,11 +83,7 @@ export ADDRESS2=<Account address printed by the above command>
 
 We will now deploy the private token contract using the `deploy` command, minting 1000000 initial tokens to address `0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c`. Make sure to replace this address with one of the two you created earlier.
 
-```bash
-% aztec-cli deploy PrivateTokenContractAbi --args 1000000 $ADDRESS
-
-Contract deployed at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc54c06d0f
-```
+#include_code deploy yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 Save the contract address as an environment variable. We will use it later.
 
@@ -158,30 +100,17 @@ Alternatively you can pass the name of an example contract as exported by `@azte
 
 The command takes a few optional arguments while the most important one is:
 
-- `--args` - Arguments to the constructor of the contract. In this case we have minted 1000000 initial tokens to the aztec address 0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c.
+- `--args` - Arguments to the constructor of the contract. In this case we have minted 1000000 initial tokens to the aztec address 0x20d3321707d53cebb168568e25c5c62a853ae1f0766d965e00d6f6c4eb05d599.
 
 The CLI tells us that the contract was successfully deployed. We can use the `check-deploy` command to verify that a contract has been successfully deployed to that address:
 
-```bash
-% aztec-cli check-deploy --contract-address $CONTRACT_ADDRESS
-
-Contract found at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc54c06d0f
-```
+#include_code check-deploy yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 ## Calling a View Method
 
 When we deployed the token contract, an initial supply of tokens was minted to the address provided in the constructor. We can now query the `getBalance()` method on the contract to retrieve the balance of that address. Make sure to replace the `contract-address` with the deployment address you got from the previous command, and the `args` with the account you used in the constructor.
 
-```bash
-% aztec-cli call getBalance \
-  --args $ADDRESS \
-  --contract-abi PrivateTokenContractAbi \
-  --contract-address $CONTRACT_ADDRESS
-
-View result:  [
-  "{\"type\":\"bigint\",\"data\":\"1000000\"}"
-]
-```
+#include_code call yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 The `call` command calls a read-only method on a contract, one that will not generate a transaction to be sent to the network. The arguments here are:
 
@@ -195,19 +124,7 @@ As you can see from the result, this address has a balance of 1000000, as expect
 
 We can now send a transaction to the network. We will transfer funds from the owner of the initial minted tokens to our other account. For this we will use the `send` command, which expects as arguments the quantity of tokens to be transferred, the sender's address, and the recipient's address. Make sure to replace all addresses in this command with the ones for your run.
 
-```bash
-% aztec-cli send transfer \
-  --args 543 $ADDRESS2 \
-  --contract-abi PrivateTokenContractAbi \
-  --contract-address $CONTRACT_ADDRESS \
-  --private-key $PRIVATE_KEY
-
-Transaction has been mined
-Transaction hash: 15c5a8e58d5f895c7e3017a706efbad693635e01f67345fa60a64a340d83c78c
-Status: mined
-Block number: 5
-Block hash: 163697608599543b2bee9652f543938683e4cdd0f94ac506e5764d8b908d43d4
-```
+#include_code send yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 We called the `transfer` function of the contract and provided these arguments:
 
@@ -218,32 +135,8 @@ We called the `transfer` function of the contract and provided these arguments:
 
 The command output tells us the details of the transaction such as its hash and status. We can use this hash to query the receipt of the transaction at a later time:
 
-```bash
-% aztec-cli get-tx-receipt 15c5a8e58d5f895c7e3017a706efbad693635e01f67345fa60a64a340d83c78c
-
-Transaction receipt:
-{
-  "txHash": "15c5a8e58d5f895c7e3017a706efbad693635e01f67345fa60a64a340d83c78c",
-  "status": "mined",
-  "error": "",
-  "blockHash": "163697608599543b2bee9652f543938683e4cdd0f94ac506e5764d8b908d43d4",
-  "blockNumber": 5,
-  "origin": "0x2337f1d5cfa6c03796db5539b0b2d5a57e9aed42665df2e0907f66820cb6eebe"
-}
-```
+#include_code get-tx-receipt yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
 Let's now call `getBalance()` on each of our accounts and we should see updated values:
 
-```bash
-% aztec-cli call getBalance -a $ADDRESS -c PrivateTokenContractAbi -ca $CONTRACT_ADDRESS
-
-View result:  [
-  "{\"type\":\"bigint\",\"data\":\"999457\"}"
-]
-
-% aztec-cli call getBalance -a $ADDRESS2 -c PrivateTokenContractAbi -ca $CONTRACT_ADDRESS
-
-View result:  [
-  "{\"type\":\"bigint\",\"data\":\"543\"}"
-]
-```
+#include_code calls yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash

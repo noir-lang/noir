@@ -969,6 +969,17 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local aztec_rpc_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
           working_directory: yarn-project/end-to-end
 
+  cli-docs-sandbox:
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local cli_docs_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
+
   guides-writing-an-account-contract:
     machine:
       image: ubuntu-2004:202010-01
@@ -1429,6 +1440,7 @@ workflows:
       - e2e-browser-sandbox: *e2e_test
       - e2e-card-game: *e2e_test
       - aztec-rpc-sandbox: *e2e_test
+      - cli-docs-sandbox: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
       - guides-dapp-testing: *e2e_test
 
@@ -1461,6 +1473,7 @@ workflows:
             - e2e-canary-test
             - e2e-card-game
             - aztec-rpc-sandbox
+            - cli-docs-sandbox
             - guides-writing-an-account-contract
             - guides-dapp-testing
           <<: *defaults
