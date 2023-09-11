@@ -1,5 +1,6 @@
 {
   "name": "@aztec/aztec.js",
+  "homepage": "https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec.js",
   "version": "0.1.0",
   "type": "module",
   "exports": {
