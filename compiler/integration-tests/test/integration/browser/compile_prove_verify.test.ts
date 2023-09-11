@@ -67,11 +67,10 @@ test_cases.forEach((testInfo) => {
         expect(noir_source).to.be.a.string;
 
         initialiseResolver((id: String) => {
+            console.log("Resoving:", id);
             if (id.endsWith("/main.nr")) {
-                console.log("Resoving:", id);
+                console.log("Returning source:", noir_source);
                 return noir_source;
-            } else {
-                throw new Error()
             }
         });
 
