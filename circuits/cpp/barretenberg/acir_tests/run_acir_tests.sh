@@ -30,10 +30,10 @@ if [ ! -d acir_tests ]; then
     git clone -b $BRANCH --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
     cd noir
     git sparse-checkout init --cone
-    git sparse-checkout set crates/nargo_cli/tests/acir_artifacts
+    git sparse-checkout set tooling/nargo_cli/tests/acir_artifacts
     git checkout
     cd ..
-    mv noir/crates/nargo_cli/tests/acir_artifacts acir_tests
+    mv noir/tooling/nargo_cli/tests/acir_artifacts acir_tests
     rm -rf noir
   fi
 fi
