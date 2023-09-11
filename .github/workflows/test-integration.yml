@@ -1,9 +1,6 @@
 name: test-integration
 
 on:
-  push:
-    branches:
-      - phated/wasm-stdlib-debug
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
