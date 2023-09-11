@@ -81,7 +81,7 @@ fn smart_contract_for_package(
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
-        let (_, program) =
+        let (program, _) =
             compile_package(package, compile_options, np_language, &is_opcode_supported)?;
 
         PreprocessedProgram {

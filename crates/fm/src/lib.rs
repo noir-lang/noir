@@ -6,7 +6,7 @@
 mod file_map;
 mod file_reader;
 
-pub use file_map::{File, FileId, FileMap};
+pub use file_map::{File, FileId, FileMap, PathString};
 use file_reader::is_stdlib_asset;
 
 use std::{
