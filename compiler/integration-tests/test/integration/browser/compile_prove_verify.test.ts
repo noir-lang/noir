@@ -89,65 +89,65 @@ test_cases.forEach((testInfo) => {
         }
 
 
-        // let witnessMap: WitnessMap;
-        // try {
+        let witnessMap: WitnessMap;
+        try {
 
-        //     witnessMap = abiEncode(compile_output.abi, inputs, null);
+            witnessMap = abiEncode(compile_output.abi, inputs, null);
 
-        // } catch (e) {
-        //     expect(e, "Abi Encoding Step").to.not.be.an('error');
-        //     throw e;
-        // }
+        } catch (e) {
+            expect(e, "Abi Encoding Step").to.not.be.an('error');
+            throw e;
+        }
 
-        // let solvedWitness: WitnessMap;
-        // let compressedByteCode;
-        // try {
-        //     compressedByteCode = Uint8Array.from(atob(compile_output.circuit), c => c.charCodeAt(0));
+        let solvedWitness: WitnessMap;
+        let compressedByteCode;
+        try {
+            compressedByteCode = Uint8Array.from(atob(compile_output.circuit), c => c.charCodeAt(0));
 
-        //     solvedWitness = await executeCircuit(
-        //         compressedByteCode,
-        //         witnessMap,
-        //         () => {
-        //             throw Error("unexpected oracle");
-        //         }
-        //     );
+            solvedWitness = await executeCircuit(
+                compressedByteCode,
+                witnessMap,
+                () => {
+                    throw Error("unexpected oracle");
+                }
+            );
 
-        // } catch (e) {
-        //     expect(e, "Abi Encoding Step").to.not.be.an('error');
-        //     throw e;
-        // }
+        } catch (e) {
+            expect(e, "Abi Encoding Step").to.not.be.an('error');
+            throw e;
+        }
 
-        // try {
-        //     const compressedWitness = compressWitness(solvedWitness);
-        //     const acirUint8Array = gunzip(compressedByteCode);
-        //     const witnessUint8Array = gunzip(compressedWitness);
+        try {
+            const compressedWitness = compressWitness(solvedWitness);
+            const acirUint8Array = gunzip(compressedByteCode);
+            const witnessUint8Array = gunzip(compressedWitness);
 
-        //     const isRecursive = true;
-        //     const api = await Barretenberg.new(numberOfThreads);
-        //     await api.commonInitSlabAllocator(CIRCUIT_SIZE);
+            const isRecursive = true;
+            const api = await Barretenberg.new(numberOfThreads);
+            await api.commonInitSlabAllocator(CIRCUIT_SIZE);
 
-        //     // Plus 1 needed!
-        //     const crs = await Crs.new(CIRCUIT_SIZE + 1);
-        //     await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
+            // Plus 1 needed!
+            const crs = await Crs.new(CIRCUIT_SIZE + 1);
+            await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
-        //     const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
+            const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
-        //     const proof = await api.acirCreateProof(
-        //         acirComposer,
-        //         acirUint8Array,
-        //         witnessUint8Array,
-        //         isRecursive
-        //     );
+            const proof = await api.acirCreateProof(
+                acirComposer,
+                acirUint8Array,
+                witnessUint8Array,
+                isRecursive
+            );
 
 
-        //     const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
+            const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
 
-        //     expect(verified).to.be.true;
+            expect(verified).to.be.true;
 
-        // } catch (e) {
-        //     expect(e, "Proving and Verifying").to.not.be.an('error');
-        //     throw e;
-        // }
+        } catch (e) {
+            expect(e, "Proving and Verifying").to.not.be.an('error');
+            throw e;
+        }
 
     });
 
