@@ -6,16 +6,18 @@ members = [
     "compiler/noirc_errors",
     "compiler/noirc_driver",
     "compiler/noirc_printable_type",
+    "compiler/fm",
+    "compiler/wasm",
+    # Utility crates used by the Noir compiler
+    "compiler/utils/arena",
+    "compiler/utils/iter-extended",
+    # Crates related to tooling built ontop of the Noir compiler
     "tooling/acvm_backend_barretenberg",
     "tooling/nargo",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
-    "compiler/fm",
-    "compiler/arena",
-    "compiler/noirc_abi",
-    "compiler/noirc_abi_wasm",
-    "compiler/iter-extended",
-    "compiler/wasm",
+    "tooling/noirc_abi",
+    "tooling/noirc_abi_wasm",
 ]
 default-members = ["tooling/nargo_cli"]
 resolver = "2"
@@ -30,14 +32,14 @@ rust-version = "1.66"
 
 [workspace.dependencies]
 acvm = "0.26.0"
-arena = { path = "compiler/arena" }
+arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
-iter-extended = { path = "compiler/iter-extended" }
+iter-extended = { path = "compiler/utils/iter-extended" }
 nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
-noirc_abi = { path = "compiler/noirc_abi" }
+noirc_abi = { path = "tooling/noirc_abi" }
 noirc_driver = { path = "compiler/noirc_driver" }
 noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
