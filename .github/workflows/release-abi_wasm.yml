@@ -16,8 +16,10 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup .npmrc file for npm
-        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+      - name: Setup .npmrc file for GitHub Packages
+        run: |
+          echo "@noir-lang:registry=https://npm.pkg.github.com/" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
@@ -38,9 +40,13 @@ jobs:
           mkdir temp_publish_dir
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
 
-      - name: Publish to NPM
+      - name: Install Dependencies
+        run: yarn install --immutable
+        working-directory: ./temp_publish_dir
+
+      - name: Publish to GitHub Packages
         working-directory: ./temp_publish_dir
         run: |
-          npm publish --tag latest
+          yarn npm publish --tag latest --registry=https://npm.pkg.github.com/
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
