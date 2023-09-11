@@ -90,7 +90,7 @@ test_cases.forEach((testInfo) => {
         }
 
 
-        let witnessMap = abiEncode(compile_output.abi, inputs, null);
+        let witnessMap: WitnessMap;
         try {
 
             witnessMap = abiEncode(compile_output.abi, inputs, null);
