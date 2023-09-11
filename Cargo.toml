@@ -7,7 +7,6 @@ members = [
     "compiler/noirc_driver",
     "compiler/noirc_printable_type",
     "compiler/fm",
-    "compiler/wasm",
     # Utility crates used by the Noir compiler
     "compiler/utils/arena",
     "compiler/utils/iter-extended",
@@ -17,7 +16,8 @@ members = [
     "tooling/nargo_cli",
     "tooling/nargo_toml",
     "tooling/noirc_abi",
-    "tooling/noirc_abi_wasm",
+    "tooling/wasm/noirc_abi",
+    "tooling/wasm/nargo",
 ]
 default-members = ["tooling/nargo_cli"]
 resolver = "2"

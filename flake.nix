@@ -412,11 +412,11 @@
         ];
 
         buildPhaseCargoCommand = ''
-          bash tooling/noirc_abi_wasm/buildPhaseCargoCommand.sh release
+          bash tooling/wasm/noirc_abi/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
-          bash tooling/noirc_abi_wasm/installPhase.sh
+          bash tooling/wasm/noirc_abi/installPhase.sh
         '';
 
       });

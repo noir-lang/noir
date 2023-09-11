@@ -115,13 +115,13 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: noir_wasm
+          name: nargo_wasm
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
   test:
     needs: [build-wasm, build-nargo]
-    name: Test noir_wasm
+    name: Test nargo_wasm
     runs-on: ubuntu-latest
     steps:
       - name: Checkout noir-lang/noir
@@ -130,8 +130,8 @@ jobs:
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
-          name: noir_wasm
-          path: ./compiler/wasm/result
+          name: nargo_wasm
+          path: ./tooling/wasm/nargo/result
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -140,7 +140,7 @@ jobs:
           path: ./nargo
 
       - name: Compile test program with Nargo CLI
-        working-directory: ./compiler/wasm/noir-script
+        working-directory: ./tooling/wasm/nargo/noir-script
         run: |
           nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
@@ -149,20 +149,20 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
         with:
-          working-directory: ./compiler/wasm
+          working-directory: ./tooling/wasm/nargo
 
       - name: Install dependencies
-        working-directory: ./compiler/wasm
+        working-directory: ./tooling/wasm/nargo
         run: yarn install
 
       - name: Install playwright deps
-        working-directory: ./compiler/wasm
+        working-directory: ./tooling/wasm/nargo
         run: |
           npx playwright install
           npx playwright install-deps
 
       - name: Run tests
-        working-directory: ./compiler/wasm
+        working-directory: ./tooling/wasm/nargo
         run: |
           yarn test:browser
           yarn test:node
