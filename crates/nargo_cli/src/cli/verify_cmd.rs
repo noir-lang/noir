@@ -71,6 +71,7 @@ pub(crate) fn run(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn verify_package(
     backend: &Backend,
     package: &Package,
