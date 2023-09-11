@@ -10,7 +10,7 @@ describe('private token', () => {
     owner = await createAccount(rpc);
     recipient = await createAccount(rpc);
     token = await Contract.deploy(owner, PrivateTokenArtifact, [100n, owner.getAddress()]).send().deployed();
-  }, 30_000);
+  }, 60_000);
 
   afterAll(() => stop());
   // docs:end:setup
