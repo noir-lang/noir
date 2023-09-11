@@ -185,10 +185,11 @@ const sidebars = {
             id: "dev_docs/dapps/tutorials/main",
           },
           items: [
+            "dev_docs/dapps/tutorials/project_setup",
             "dev_docs/dapps/tutorials/rpc_server",
-            "dev_docs/dapps/tutorials/creating_accounts",
             "dev_docs/dapps/tutorials/contract_deployment",
             "dev_docs/dapps/tutorials/contract_interaction",
+            "dev_docs/dapps/tutorials/testing",
           ],
         },
       ],

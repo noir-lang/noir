@@ -4,11 +4,10 @@ import {
   AztecRPC,
   CheatCodes,
   Fr,
-  GrumpkinScalar,
   L2BlockL2Logs,
+  createAccount,
   createAztecRpcClient,
   getSandboxAccountsWallets,
-  getSchnorrAccount,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
@@ -27,8 +26,8 @@ describe('guides/dapp/testing', () => {
         // docs:start:in-proc-sandbox
         ({ rpcServer: rpc, stop } = await createSandbox());
         // docs:end:in-proc-sandbox
-        owner = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
-        recipient = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
+        owner = await createAccount(rpc);
+        recipient = await createAccount(rpc);
         token = await PrivateTokenContract.deploy(owner, 100n, owner.getAddress()).send().deployed();
       }, 60_000);
 
@@ -62,8 +61,8 @@ describe('guides/dapp/testing', () => {
 
       beforeEach(async () => {
         rpc = createAztecRpcClient(SANDBOX_URL);
-        owner = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
-        recipient = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
+        owner = await createAccount(rpc);
+        recipient = await createAccount(rpc);
         token = await PrivateTokenContract.deploy(owner, 100n, owner.getAddress()).send().deployed();
       }, 30_000);
 
@@ -108,7 +107,7 @@ describe('guides/dapp/testing', () => {
 
       beforeAll(async () => {
         rpc = createAztecRpcClient(SANDBOX_URL);
-        owner = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
+        owner = await createAccount(rpc);
         testContract = await TestContract.deploy(owner).send().deployed();
         cheats = await CheatCodes.create(ETHEREUM_HOST, rpc);
       }, 30_000);
@@ -135,8 +134,8 @@ describe('guides/dapp/testing', () => {
 
       beforeAll(async () => {
         rpc = createAztecRpcClient(SANDBOX_URL);
-        owner = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
-        recipient = await getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
+        owner = await createAccount(rpc);
+        recipient = await createAccount(rpc);
         token = await PrivateTokenContract.deploy(owner, 100n, owner.getAddress()).send().deployed();
         nativeToken = await NativeTokenContract.deploy(owner, 100n, owner.getAddress()).send().deployed();
 

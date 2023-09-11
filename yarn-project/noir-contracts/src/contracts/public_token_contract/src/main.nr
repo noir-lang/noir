@@ -1,3 +1,4 @@
+// docs:start:all
 contract PublicToken {
     use dep::std::option::Option;
 
@@ -48,8 +49,8 @@ contract PublicToken {
         let storage = Storage::init(Context::public(&mut context));
         let recipient_balance = storage.balances.at(recipient);
         let new_amount = recipient_balance.read() + amount;
-        // docs:start:unencrypted_log
         // TODO: Remove return value.
+        // docs:start:unencrypted_log
         let _hash = emit_unencrypted_log("Coins minted");
         // docs:end:unencrypted_log
         recipient_balance.write(new_amount);
@@ -96,3 +97,4 @@ contract PublicToken {
         storage.balances.at(owner).read()
     }
 }
+// docs:end:all

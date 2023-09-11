@@ -5,8 +5,23 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { SingleKeyAccountEntrypoint } from '../account/entrypoint/single_key_account_entrypoint.js';
-import { EntrypointWallet, Wallet } from '../aztec_rpc_client/wallet.js';
-import { ContractDeployer, EntrypointCollection, StoredKeyAccountEntrypoint, generatePublicKey } from '../index.js';
+import { AccountWallet, EntrypointWallet, Wallet } from '../aztec_rpc_client/wallet.js';
+import {
+  ContractDeployer,
+  EntrypointCollection,
+  StoredKeyAccountEntrypoint,
+  generatePublicKey,
+  getSchnorrAccount,
+} from '../index.js';
+
+/**
+ * Deploys and registers a new account using random private keys and returns the associated wallet. Useful for testing.
+ * @param rpc - RPC client.
+ * @returns - A wallet for a fresh account.
+ */
+export function createAccount(rpc: AztecRPC): Promise<AccountWallet> {
+  return getSchnorrAccount(rpc, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
+}
 
 /**
  * Creates an Aztec Account.

@@ -5,7 +5,14 @@ import { sleep } from '@aztec/foundation/sleep';
 import zip from 'lodash.zip';
 
 import SchnorrAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
-import { AccountWallet, AztecRPC, EntrypointWallet, getAccountWallets, getSchnorrAccount } from '../index.js';
+import {
+  AccountWallet,
+  AztecRPC,
+  EntrypointWallet,
+  createAztecRpcClient,
+  getAccountWallets,
+  getSchnorrAccount,
+} from '../index.js';
 
 export const INITIAL_SANDBOX_ENCRYPTION_KEYS = [
   GrumpkinScalar.fromString('2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281'),
@@ -18,6 +25,8 @@ export const INITIAL_SANDBOX_SIGNING_KEYS = INITIAL_SANDBOX_ENCRYPTION_KEYS;
 export const INITIAL_SANDBOX_SALTS = [Fr.ZERO, Fr.ZERO, Fr.ZERO];
 
 export const INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI = SchnorrAccountContractAbi;
+
+export const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 
 /**
  * Gets a single wallet that manages all the Aztec accounts that are initially stored in the sandbox.
@@ -84,12 +93,13 @@ export async function deployInitialSandboxAccounts(aztecRpc: AztecRPC) {
 
 /**
  * Function to wait until the sandbox becomes ready for use.
- * @param rpcServer - The rpc client connected to the sandbox.
+ * @param rpc - The rpc client connected to the sandbox.
  */
-export async function waitForSandbox(rpcServer: AztecRPC) {
+export async function waitForSandbox(rpc?: AztecRPC) {
+  rpc = rpc ?? createAztecRpcClient(SANDBOX_URL);
   while (true) {
     try {
-      await rpcServer.getNodeInfo();
+      await rpc.getNodeInfo();
       break;
     } catch (err) {
       await sleep(1000);

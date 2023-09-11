@@ -1002,6 +1002,17 @@ jobs:
           name: "Test"
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local guides/dapp_testing.test.ts ./scripts/docker-compose-e2e-sandbox.yml
           working_directory: yarn-project/end-to-end
+        
+  guides-sample-dapp:
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local sample-dapp ./scripts/docker-compose-e2e-sandbox.yml
+          working_directory: yarn-project/end-to-end
 
   e2e-canary-test:
     machine:
@@ -1443,6 +1454,7 @@ workflows:
       - cli-docs-sandbox: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
       - guides-dapp-testing: *e2e_test
+      - guides-sample-dapp: *e2e_test
 
       - e2e-end:
           requires:
@@ -1476,6 +1488,7 @@ workflows:
             - cli-docs-sandbox
             - guides-writing-an-account-contract
             - guides-dapp-testing
+            - guides-sample-dapp
           <<: *defaults
 
       - deploy-dockerhub:
