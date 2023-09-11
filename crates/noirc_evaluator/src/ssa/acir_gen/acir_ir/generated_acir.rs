@@ -456,7 +456,17 @@ impl GeneratedAcir {
         }
 
         // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        assert!(max_q_bits + max_rhs_bits < FieldElement::max_num_bits() - 1);
+        let mut avoid_overflow = false;
+        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
+            // q*b+r can overflow; we avoid this when b is constant
+            if rhs.is_const() {
+                avoid_overflow = true;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
+            }
+        }
+
         let (q_witness, r_witness) =
             self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 
@@ -482,6 +492,32 @@ impl GeneratedAcir {
         let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
         let div_euclidean = &self.mul_with_witness(lhs, predicate)
             - &self.mul_with_witness(&rhs_constraint, predicate);
+
+        if let Some(rhs_const) = rhs.to_const() {
+            if avoid_overflow {
+                // we compute q0 = p/rhs
+                let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
+                let q0_big = FieldElement::modulus() / &rhs_big;
+                let q0 = FieldElement::from_be_bytes_reduce(&q0_big.to_bytes_be());
+                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                let size_predicate =
+                    self.is_equal(&Expression::from_field(q0), &Expression::from(q_witness));
+                let predicate = self.mul_with_witness(&size_predicate.into(), predicate);
+                // Ensure that there is no overflow, under q == q0 predicate
+                let max_r_big = FieldElement::modulus() - q0_big * rhs_big;
+                let max_r = FieldElement::from_be_bytes_reduce(&max_r_big.to_bytes_be());
+                let max_r_predicate =
+                    self.mul_with_witness(&predicate, &Expression::from_field(max_r));
+                let r_predicate = self.mul_with_witness(&Expression::from(r_witness), &predicate);
+                // Bound the remainder to be <p-q0*b, if the predicate is true.
+                self.bound_constraint_with_offset(
+                    &r_predicate,
+                    &max_r_predicate,
+                    &predicate,
+                    rhs_const.num_bits(),
+                )?;
+            }
+        }
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 

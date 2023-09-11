@@ -22,8 +22,6 @@ use acvm::{
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
-use num_bigint::BigUint;
-use std::collections::BTreeMap;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -692,71 +690,12 @@ impl AcirContext {
     /// The remainder of the division is then lhs mod 2^{rhs}
     pub(crate) fn truncate_var(
         &mut self,
-        mut lhs: AcirVar,
+        lhs: AcirVar,
         rhs: u32,
-        mut max_bit_size: u32,
+        max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
         let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
-        // Target bit size is the bit size of the field modulus with some margin.
-        // This margin is required for the euclidian division which does not work with field elements
-        let target_bit_size = FieldElement::max_num_bits() - 3;
-
-        if max_bit_size > target_bit_size {
-            max_bit_size = target_bit_size;
-            // lhs is higher than the desired bit size, so we will remove multiples of the divisor from lhs
-            // until we get under the bit size. This will not change the end result.
-            let big_divisor = BigUint::from(2_u32).pow(rhs);
-            let one = self.add_constant(FieldElement::one());
-            let divisor_var = self.add_constant(divisor);
-            // Create a variable quotient_high such that lhs-quotient_high*divisor is target_bit_size-bits
-            let quotient_high = self.add_variable();
-            // Computes quotient_high non-deterministically
-            let target_bit_pow =
-                FieldElement::from(2_i128).pow(&FieldElement::from(target_bit_size as i128));
-            let target_bit_pow_var = self.add_constant(target_bit_pow);
-            let truncate_code =
-                brillig_directive::directive_truncate_helper(FieldElement::max_num_bits());
-            let field_type = AcirType::NumericType(NumericType::NativeField);
-            let inputs = vec![
-                AcirValue::Var(lhs, field_type.clone()),
-                AcirValue::Var(divisor_var, field_type.clone()),
-                AcirValue::Var(target_bit_pow_var, field_type.clone()),
-            ];
-            let truncate_brillig = GeneratedBrillig {
-                byte_code: truncate_code,
-                locations: BTreeMap::new(),
-                assert_messages: BTreeMap::new(),
-            };
-            let quotient_high_value =
-                self.brillig(one, truncate_brillig, inputs, vec![field_type])?[0]
-                    .clone()
-                    .into_var()?;
-            self.assert_eq_var(quotient_high, quotient_high_value, None)?;
-            // Bounds quotient_high to q_max_big
-            // this bound is the smallest integer s.t p-1-bound*divisor < 2^target_bit_size
-            // since lhs is p-1 at max, we do not need an higher value
-            let q_max_big = (FieldElement::modulus()
-                - BigUint::from(1_u32)
-                - BigUint::from(2_u32).pow(target_bit_size))
-                / big_divisor
-                + BigUint::from(1_u32);
-            let q_max_bits = q_max_big.bits() as u32;
-            let q_max_var =
-                self.add_constant(FieldElement::from_be_bytes_reduce(&q_max_big.to_bytes_be()));
-            self.range_constrain_var(
-                quotient_high,
-                &NumericType::Unsigned { bit_size: q_max_bits },
-            )?;
-            self.less_than_constrain(quotient_high, q_max_var, q_max_bits, one)?;
-            // Reduce lhs with quotient_high
-            let reduce = self.mul_var(quotient_high, divisor_var)?;
-            let lhs_reduce = self.sub_var(lhs, reduce)?;
-            let lhs_reduce_witness = self.var_to_witness(lhs_reduce)?;
-            // Constrain lhs_reduce to be reduced to the target_bit_size
-            self.acir_ir.range_constraint(lhs_reduce_witness, target_bit_size)?;
-            lhs = lhs_reduce;
-        }
 
         let lhs_data = &self.vars[&lhs];
         let lhs_expr = lhs_data.to_expression();
