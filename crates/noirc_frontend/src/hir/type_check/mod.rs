@@ -187,6 +187,7 @@ mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
+    use crate::token::Attributes;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -257,7 +258,7 @@ mod test {
             name,
             kind: FunctionKind::Normal,
             module_id: ModuleId::dummy_id(),
-            attributes: None,
+            attributes: Attributes::empty(),
             location,
             contract_function_type: None,
             is_internal: None,

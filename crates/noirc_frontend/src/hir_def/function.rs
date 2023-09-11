@@ -5,7 +5,7 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
-use crate::{token::Attribute, FunctionKind};
+use crate::{token::Attributes, FunctionKind};
 use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
 
 /// A Hir function is a block expression
@@ -99,9 +99,9 @@ pub struct FuncMeta {
     pub module_id: ModuleId,
 
     /// A function's attributes are the `#[...]` items above the function
-    /// definition, if any. Currently, this is limited to a maximum of only one
-    /// Attribute per function.
-    pub attributes: Option<Attribute>,
+    /// definition.
+    /// Primary Attributes will alter the function kind, secondary attributes do not
+    pub attributes: Attributes,
 
     /// This function's type in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
