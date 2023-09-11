@@ -3,7 +3,7 @@ use acvm::Language;
 use acvm_backend_barretenberg::BackendError;
 use clap::Args;
 use iter_extended::{try_vecmap, vecmap};
-use nargo::package::Package;
+use nargo::package::{Package, PackageType};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
@@ -53,24 +53,28 @@ pub(crate) fn run(
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        if package.is_contract() {
-            let contract_info = count_opcodes_and_gates_in_contracts(
-                backend,
-                package,
-                &args.compile_options,
-                np_language,
-                &is_opcode_supported,
-            )?;
-            info_report.contracts.extend(contract_info);
-        } else {
-            let program_info = count_opcodes_and_gates_in_program(
-                backend,
-                package,
-                &args.compile_options,
-                np_language,
-                &is_opcode_supported,
-            )?;
-            info_report.programs.push(program_info);
+        match package.package_type {
+            PackageType::Binary => {
+                let program_info = count_opcodes_and_gates_in_program(
+                    backend,
+                    package,
+                    &args.compile_options,
+                    np_language,
+                    &is_opcode_supported,
+                )?;
+                info_report.programs.push(program_info);
+            }
+            PackageType::Contract => {
+                let contract_info = count_opcodes_and_gates_in_contracts(
+                    backend,
+                    package,
+                    &args.compile_options,
+                    np_language,
+                    &is_opcode_supported,
+                )?;
+                info_report.contracts.extend(contract_info);
+            }
+            PackageType::Library => (), // Libraries have no concrete circuit to display information on.
         }
     }
 

@@ -9,6 +9,7 @@ use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
+use nargo::package::PackageType;
 use nargo::prepare_package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -67,19 +68,27 @@ pub(crate) fn run(
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
-        if package.is_contract() {
-            let (file_manager, contracts) = compile_contracts(
-                package,
-                &args.compile_options,
-                np_language,
-                &is_opcode_supported,
-            )?;
-            save_contracts(&file_manager, contracts, package, &circuit_dir, args.output_debug);
-        } else {
-            let (file_manager, program) =
-                compile_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
-            save_program(&file_manager, program, package, &circuit_dir, args.output_debug);
+        match package.package_type {
+            PackageType::Binary => {
+                let (file_manager, program) = compile_package(
+                    package,
+                    &args.compile_options,
+                    np_language,
+                    &is_opcode_supported,
+                )?;
+                save_program(&file_manager, program, package, &circuit_dir, args.output_debug);
+            }
+            PackageType::Contract => {
+                // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
+                let (file_manager, contracts) = compile_contracts(
+                    package,
+                    &args.compile_options,
+                    np_language,
+                    &is_opcode_supported,
+                )?;
+                save_contracts(&file_manager, contracts, package, &circuit_dir, args.output_debug);
+            }
+            PackageType::Library => (),
         }
     }
 

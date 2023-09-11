@@ -6,7 +6,7 @@ use clap::Args;
 use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::{ExecutionError, NargoError};
-use nargo::package::Package;
+use nargo::package::{Package, PackageType};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
@@ -56,14 +56,19 @@ pub(crate) fn run(
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        let (return_value, solved_witness) = execute_package(
-            backend,
-            package,
-            &args.prover_name,
-            &args.compile_options,
-            np_language,
-            &is_opcode_supported,
-        )?;
+        let (return_value, solved_witness) = match package.package_type {
+            PackageType::Binary => execute_package(
+                backend,
+                package,
+                &args.prover_name,
+                &args.compile_options,
+                np_language,
+                &is_opcode_supported,
+            )?,
+
+            // Nargo does not support executing these package types
+            PackageType::Contract | PackageType::Library => continue,
+        };
 
         println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {

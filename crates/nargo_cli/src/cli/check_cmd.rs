@@ -3,6 +3,7 @@ use crate::errors::{CliError, CompileError};
 
 use clap::Args;
 use iter_extended::btree_map;
+use nargo::package::PackageType;
 use nargo::{package::Package, prepare_package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
@@ -52,32 +53,33 @@ fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<
     let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    if package.is_library() || package.is_contract() {
-        // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
-        Ok(())
-    } else {
-        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
-            let path_to_prover_input = package.prover_input_path();
-            let path_to_verifier_input = package.verifier_input_path();
+    match package.package_type {
+        PackageType::Binary => {
+            if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
+                let path_to_prover_input = package.prover_input_path();
+                let path_to_verifier_input = package.verifier_input_path();
 
-            // If they are not available, then create them and populate them based on the ABI
-            if !path_to_prover_input.exists() {
-                let prover_toml = create_input_toml_template(parameters.clone(), None);
-                write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+                // If they are not available, then create them and populate them based on the ABI
+                if !path_to_prover_input.exists() {
+                    let prover_toml = create_input_toml_template(parameters.clone(), None);
+                    write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+                }
+                if !path_to_verifier_input.exists() {
+                    let public_inputs =
+                        parameters.into_iter().filter(|param| param.is_public()).collect();
+
+                    let verifier_toml = create_input_toml_template(public_inputs, return_type);
+                    write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+                }
+
+                Ok(())
+            } else {
+                Err(CompileError::MissingMainFunction(package.name.clone()))
             }
-            if !path_to_verifier_input.exists() {
-                let public_inputs =
-                    parameters.into_iter().filter(|param| param.is_public()).collect();
-
-                let verifier_toml = create_input_toml_template(public_inputs, return_type);
-                write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
-            }
-
-            Ok(())
-        } else {
-            Err(CompileError::MissingMainFunction(package.name.clone()))
         }
+
+        // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
+        PackageType::Contract | PackageType::Library => Ok(()),
     }
 }
 

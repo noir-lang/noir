@@ -48,6 +48,11 @@ pub(crate) fn run(
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
+        if !package.is_binary() {
+            // Contract and library packages cannot generate verifiers.
+            continue;
+        }
+
         let circuit_build_path = workspace.package_build_path(package);
 
         let smart_contract_string = smart_contract_for_package(

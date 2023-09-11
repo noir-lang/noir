@@ -5,7 +5,7 @@ use acvm::Language;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
-use nargo::package::Package;
+use nargo::package::{Package, PackageType};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
@@ -66,18 +66,25 @@ pub(crate) fn run(
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
 
-        prove_package(
-            backend,
-            package,
-            &args.prover_name,
-            &args.verifier_name,
-            &proof_dir,
-            circuit_build_path,
-            args.verify,
-            &args.compile_options,
-            np_language,
-            &is_opcode_supported,
-        )?;
+        match package.package_type {
+            PackageType::Binary => {
+                prove_package(
+                    backend,
+                    package,
+                    &args.prover_name,
+                    &args.verifier_name,
+                    &proof_dir,
+                    circuit_build_path,
+                    args.verify,
+                    &args.compile_options,
+                    np_language,
+                    &is_opcode_supported,
+                )?;
+            }
+
+            // Nargo does not support creating proofs for these package types
+            PackageType::Contract | PackageType::Library => (),
+        }
     }
 
     Ok(())

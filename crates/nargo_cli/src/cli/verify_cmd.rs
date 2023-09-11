@@ -9,6 +9,7 @@ use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
+use nargo::package::PackageType;
 use nargo::{artifacts::program::PreprocessedProgram, package::Package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
@@ -56,16 +57,23 @@ pub(crate) fn run(
 
         let proof_path = proofs_dir.join(String::from(&package.name)).with_extension(PROOF_EXT);
 
-        verify_package(
-            backend,
-            package,
-            &proof_path,
-            circuit_build_path,
-            &args.verifier_name,
-            &args.compile_options,
-            np_language,
-            &is_opcode_supported,
-        )?;
+        match package.package_type {
+            PackageType::Binary => {
+                verify_package(
+                    backend,
+                    package,
+                    &proof_path,
+                    circuit_build_path,
+                    &args.verifier_name,
+                    &args.compile_options,
+                    np_language,
+                    &is_opcode_supported,
+                )?;
+            }
+
+            // Nargo does not support verifying proofs for these package types
+            PackageType::Contract | PackageType::Library => (),
+        }
     }
 
     Ok(())
