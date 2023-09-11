@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'url';
 import { esbuildPlugin } from "@web/dev-server-esbuild";
 import { playwrightLauncher } from "@web/test-runner-playwright";
 
