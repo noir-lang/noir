@@ -30,6 +30,7 @@ use acvm::{
     FieldElement,
 };
 use fxhash::FxHashMap as HashMap;
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -428,11 +429,21 @@ impl Context {
                         // assert_eq!(result_ids.len(), outputs.len());
 
                         for (result, output) in result_ids.iter().zip(outputs) {
-                            // when the intrinsic returns an array, we initialize it
-                            if let AcirValue::Array(elements) = &output {
-                                let block = self.block_id(result);
-                                let values = vecmap(elements, |element| element.clone());
-                                self.initialize_array(block, elements.len(), Some(&values))?;
+                            match &output {
+                                // We need to make sure we initialize arrays returned from intrinsic calls
+                                // or else they will fail if accessed with a dynamic index
+                                AcirValue::Array(values) => {
+                                    let block_id = self.block_id(result);
+                                    let values = vecmap(values, |v| v.clone());
+
+                                    self.initialize_array(block_id, values.len(), Some(&values))?;
+                                }
+                                AcirValue::DynamicArray(_) => {
+                                    unreachable!("The output from an intrinsic call is expected to be a single value or an array but got {output:?}");
+                                }
+                                AcirValue::Var(_, _) => {
+                                    // Do nothing
+                                }
                             }
                             self.ssa_values.insert(*result, output);
                         }
@@ -460,25 +471,8 @@ impl Context {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
                 self.current_side_effects_enabled_var = acir_var;
             }
-            Instruction::ArrayGet { array, index } => {
-                self.handle_array_operation(
-                    instruction_id,
-                    *array,
-                    *index,
-                    None,
-                    dfg,
-                    last_array_uses,
-                )?;
-            }
-            Instruction::ArraySet { array, index, value } => {
-                self.handle_array_operation(
-                    instruction_id,
-                    *array,
-                    *index,
-                    Some(*value),
-                    dfg,
-                    last_array_uses,
-                )?;
+            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
             }
             Instruction::Allocate => {
                 unreachable!("Expected all allocate instructions to be removed before acir_gen")
@@ -529,67 +523,89 @@ impl Context {
     fn handle_array_operation(
         &mut self,
         instruction: InstructionId,
-        array: ValueId,
-        index: ValueId,
-        store_value: Option<ValueId>,
         dfg: &DataFlowGraph,
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
+        // Pass the instruction between array methods rather than the internal fields themselves
+        let (array, index, store_value) = match dfg[instruction] {
+            Instruction::ArrayGet { array, index } => (array, index, None),
+            Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
+            _ => {
+                return Err(InternalError::UnExpected {
+                    expected: "Instruction should be an ArrayGet or ArraySet".to_owned(),
+                    found: format!("Instead got {:?}", dfg[instruction]),
+                    call_stack: self.acir_context.get_call_stack(),
+                }
+                .into())
+            }
+        };
+
         let index_const = dfg.get_numeric_constant(index);
         // we use predicate*index instead of index if there are side effects, in order to avoid index-out-of-bound with false predicates.
         let index_var = self.convert_numeric_value(index, dfg)?;
         let predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
 
-        match self.convert_value(array, dfg) {
-            AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::UnExpected {
-                    expected: "an array value".to_string(),
-                    found: format!("{acir_var:?}"),
-                    call_stack: self.acir_context.get_call_stack(),
-                }))
-            }
-            AcirValue::Array(array) => {
-                if let Some(index_const) = index_const {
-                    let array_size = array.len();
-                    let index = match index_const.try_to_u64() {
-                        Some(index_const) => index_const as usize,
-                        None => {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::TypeConversion {
-                                from: "array index".to_string(),
-                                into: "u64".to_string(),
-                                call_stack,
-                            });
-                        }
-                    };
-                    if index >= array_size {
-                        // Report the error if side effects are disabled.
-                        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
-                        {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::IndexOutOfBounds {
-                                index,
-                                array_size,
-                                call_stack,
-                            });
-                        }
-                    } else {
-                        let value = match store_value {
-                            Some(store_value) => {
-                                let store_value = self.convert_value(store_value, dfg);
-                                AcirValue::Array(array.update(index, store_value))
-                            }
-                            None => array[index].clone(),
-                        };
-
-                        self.define_result(dfg, instruction, value);
-                        return Ok(());
+        match dfg.type_of_value(array) {
+            Type::Array(_, _) => {
+                match self.convert_value(array, dfg) {
+                    AcirValue::Var(acir_var, _) => {
+                        return Err(RuntimeError::InternalError(InternalError::UnExpected {
+                            expected: "an array value".to_string(),
+                            found: format!("{acir_var:?}"),
+                            call_stack: self.acir_context.get_call_stack(),
+                        }))
                     }
+                    AcirValue::Array(array) => {
+                        if let Some(index_const) = index_const {
+                            let array_size = array.len();
+                            let index = match index_const.try_to_u64() {
+                                Some(index_const) => index_const as usize,
+                                None => {
+                                    let call_stack = self.acir_context.get_call_stack();
+                                    return Err(RuntimeError::TypeConversion {
+                                        from: "array index".to_string(),
+                                        into: "u64".to_string(),
+                                        call_stack,
+                                    });
+                                }
+                            };
+                            if index >= array_size {
+                                // Ignore the error if side effects are disabled.
+                                if self
+                                    .acir_context
+                                    .is_constant_one(&self.current_side_effects_enabled_var)
+                                {
+                                    let call_stack = self.acir_context.get_call_stack();
+                                    return Err(RuntimeError::IndexOutOfBounds {
+                                        index,
+                                        array_size,
+                                        call_stack,
+                                    });
+                                } else {
+                                    let value = match store_value {
+                                        Some(store_value) => {
+                                            let store_value = self.convert_value(store_value, dfg);
+                                            AcirValue::Array(array.update(index, store_value))
+                                        }
+                                        None => array[index].clone(),
+                                    };
+
+                                    self.define_result(dfg, instruction, value);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                    AcirValue::DynamicArray(_) => (),
                 }
             }
-            AcirValue::DynamicArray(_) => (),
+            Type::Slice(_) => {
+                // Do nothing we only want dynamic checks here
+            }
+            _ => unreachable!("ICE: expected array or slice type"),
         }
+
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
         if let Some(store) = store_value {
@@ -615,7 +631,7 @@ impl Context {
                 } else {
                     store_var
                 };
-            self.array_set(instruction, array, predicate_index, new_value, dfg, map_array)?;
+            self.array_set(instruction, predicate_index, new_value, dfg, map_array)?;
         } else {
             self.array_get(instruction, array, predicate_index, dfg)?;
         }
@@ -653,6 +669,16 @@ impl Context {
         let typ = match dfg.type_of_value(array) {
             Type::Array(typ, _) => {
                 if typ.len() != 1 {
+                    // TODO(#2461)
+                    unimplemented!(
+                        "Non-const array indices is not implemented for non-homogenous array"
+                    );
+                }
+                typ[0].clone()
+            }
+            Type::Slice(typ) => {
+                if typ.len() != 1 {
+                    // TODO(#2461)
                     unimplemented!(
                         "Non-const array indices is not implemented for non-homogenous array"
                     );
@@ -672,12 +698,24 @@ impl Context {
     fn array_set(
         &mut self,
         instruction: InstructionId,
-        array: ValueId,
+        //    array: ValueId,
         var_index: AcirVar,
         store_value: AcirVar,
         dfg: &DataFlowGraph,
         map_array: bool,
     ) -> Result<(), InternalError> {
+        // Pass the instruction between array methods rather than the internal fields themselves
+        let (array, length) = match dfg[instruction] {
+            Instruction::ArraySet { array, length, .. } => (array, length),
+            _ => {
+                return Err(InternalError::UnExpected {
+                    expected: "Instruction should be an ArraySet".to_owned(),
+                    found: format!("Instead got {:?}", dfg[instruction]),
+                    call_stack: self.acir_context.get_call_stack(),
+                })
+            }
+        };
+
         // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
 
@@ -688,6 +726,15 @@ impl Context {
         // the SSA IR.
         let len = match dfg.type_of_value(array) {
             Type::Array(_, len) => len,
+            Type::Slice(_) => {
+                let length = length
+                    .expect("ICE: array set on slice must have a length associated with the call");
+                let length_acir_var = self.convert_value(length, dfg).into_var()?;
+                let len = self.acir_context.var_to_expression(length_acir_var)?.to_const();
+                let len = len
+                    .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                len.to_u128() as usize
+            }
             _ => unreachable!("ICE - expected an array"),
         };
 
@@ -1141,8 +1188,178 @@ impl Context {
                 };
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
+            Intrinsic::SlicePushBack => {
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                // TODO(#2461): make sure that we have handled nested struct inputs
+                let element = self.convert_value(arguments[2], dfg);
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.add_var(slice_length, one)?;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                new_slice.push_back(element);
+
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                ])
+            }
+            Intrinsic::SlicePushFront => {
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                // TODO(#2461): make sure that we have handled nested struct inputs
+                let element = self.convert_value(arguments[2], dfg);
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.add_var(slice_length, one)?;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                new_slice.push_front(element);
+
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                ])
+            }
+            Intrinsic::SlicePopBack => {
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
+                let elem = new_slice
+                    .pop_back()
+                    .expect("There are no elements in this slice to be removed");
+
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                    elem,
+                ])
+            }
+            Intrinsic::SlicePopFront => {
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
+                let elem = new_slice
+                    .pop_front()
+                    .expect("There are no elements in this slice to be removed");
+
+                Ok(vec![
+                    elem,
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                ])
+            }
+            Intrinsic::SliceInsert => {
+                // Slice insert with a constant index
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                let index = self.convert_value(arguments[2], dfg).into_var()?;
+                let element = self.convert_value(arguments[3], dfg);
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.add_var(slice_length, one)?;
+
+                // TODO(#2462): Slice insert is a little less obvious on how to implement due to the case
+                // of having a dynamic index
+                // The slice insert logic will need a more involved codegen
+                let index = self.acir_context.var_to_expression(index)?.to_const();
+                let index = index
+                    .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                let index = index.to_u128() as usize;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
+                new_slice.insert(index, element);
+
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                ])
+            }
+            Intrinsic::SliceRemove => {
+                // Slice insert with a constant index
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                let index = self.convert_value(arguments[2], dfg).into_var()?;
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+
+                // TODO(#2462): allow slice remove with a constant index
+                // Slice remove is a little less obvious on how to implement due to the case
+                // of having a dynamic index
+                // The slice remove logic will need a more involved codegen
+                let index = self.acir_context.var_to_expression(index)?.to_const();
+                let index = index
+                    .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                let index = index.to_u128() as usize;
+
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                // TODO(#2461): make sure that we have handled nested struct inputs
+                let removed_elem = new_slice.remove(index);
+
+                Ok(vec![
+                    AcirValue::Var(new_slice_length, AcirType::field()),
+                    AcirValue::Array(new_slice),
+                    removed_elem,
+                ])
+            }
             _ => todo!("expected a black box function"),
         }
+    }
+
+    fn slice_intrinsic_input(
+        &mut self,
+        old_slice: &mut Vector<AcirValue>,
+        input: AcirValue,
+    ) -> Result<(), RuntimeError> {
+        match input {
+            AcirValue::Var(_, _) => {
+                old_slice.push_back(input);
+            }
+            AcirValue::Array(vars) => {
+                for var in vars {
+                    self.slice_intrinsic_input(old_slice, var)?;
+                }
+            }
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+                for i in 0..len {
+                    // We generate witnesses corresponding to the array values
+                    let index = AcirValue::Var(
+                        self.acir_context.add_constant(FieldElement::from(i as u128)),
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+
+                    let index_var = index.into_var()?;
+                    let value_read_var =
+                        self.acir_context.read_from_memory(block_id, &index_var)?;
+                    let value_read = AcirValue::Var(
+                        value_read_var,
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+
+                    old_slice.push_back(value_read);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Given an array value, return the numerical type of its element.

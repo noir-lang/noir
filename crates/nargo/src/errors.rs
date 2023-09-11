@@ -17,6 +17,38 @@ pub enum NargoError {
     ForeignCallError(#[from] ForeignCallError),
 }
 
+impl From<acvm::compiler::CompileError> for NargoError {
+    fn from(_: acvm::compiler::CompileError) -> Self {
+        NargoError::CompilationError
+    }
+}
+
+impl NargoError {
+    /// Extracts the user defined failure message from the ExecutionError
+    /// If one exists.
+    ///
+    /// We want to extract the user defined error so that we can compare it
+    /// in tests to expected failure messages
+    pub fn user_defined_failure_message(&self) -> Option<&str> {
+        let execution_error = match self {
+            NargoError::ExecutionError(error) => error,
+            _ => return None,
+        };
+
+        match execution_error {
+            ExecutionError::AssertionFailed(message, _) => Some(message),
+            ExecutionError::SolvingError(error) => match error {
+                OpcodeResolutionError::IndexOutOfBounds { .. }
+                | OpcodeResolutionError::UnsupportedBlackBoxFunc(_)
+                | OpcodeResolutionError::OpcodeNotSolvable(_)
+                | OpcodeResolutionError::UnsatisfiedConstrain { .. } => None,
+                OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),
+                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => Some(reason),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ExecutionError {
     #[error("Failed assertion: '{}'", .0)]

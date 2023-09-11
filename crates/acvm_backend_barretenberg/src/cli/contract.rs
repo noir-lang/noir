@@ -12,11 +12,10 @@ use crate::BackendError;
 pub(crate) struct ContractCommand {
     pub(crate) crs_path: PathBuf,
     pub(crate) vk_path: PathBuf,
-    pub(crate) contract_path: PathBuf,
 }
 
 impl ContractCommand {
-    pub(crate) fn run(self, binary_path: &Path) -> Result<(), BackendError> {
+    pub(crate) fn run(self, binary_path: &Path) -> Result<String, BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
         command
@@ -26,32 +25,33 @@ impl ContractCommand {
             .arg("-k")
             .arg(self.vk_path)
             .arg("-o")
-            .arg(self.contract_path);
+            .arg("-");
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
+
         if output.status.success() {
-            Ok(())
+            String::from_utf8(output.stdout)
+                .map_err(|error| BackendError::MalformedResponse(error.into_bytes()))
         } else {
-            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }
 
 #[test]
-#[serial_test::serial]
-fn contract_command() {
+fn contract_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_mock_backend();
-
-    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
     let temp_directory_path = temp_directory.path();
+    let bytecode_path = temp_directory_path.join("acir.gz");
     let vk_path = temp_directory_path.join("vk");
-    let contract_path = temp_directory_path.join("contract");
 
     let crs_path = backend.backend_directory();
+
+    std::fs::File::create(&bytecode_path).expect("file should be created");
 
     let write_vk_command = super::WriteVkCommand {
         bytecode_path,
@@ -59,11 +59,12 @@ fn contract_command() {
         is_recursive: false,
         crs_path: crs_path.clone(),
     };
+    write_vk_command.run(&backend.binary_path())?;
 
-    assert!(write_vk_command.run(&backend.binary_path()).is_ok());
+    let contract_command = ContractCommand { vk_path, crs_path };
+    contract_command.run(&backend.binary_path())?;
 
-    let contract_command = ContractCommand { vk_path, crs_path, contract_path };
-
-    assert!(contract_command.run(&backend.binary_path()).is_ok());
     drop(temp_directory);
+
+    Ok(())
 }

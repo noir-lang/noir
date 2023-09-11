@@ -1,58 +1,37 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 use acvm::acir::circuit::Opcode;
-use acvm::acir::{circuit::Circuit, native_types::WitnessMap, BlackBoxFunc};
+use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::cli::{GatesCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{assert_binary_exists, Backend, BackendError};
+use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::{Backend, BackendError};
 
 impl Backend {
-    pub fn np_language(&self) -> Language {
-        Language::PLONKCSat { width: 3 }
-    }
-
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
         // Create a temporary file for the circuit
         let circuit_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &circuit_path);
+        write_to_file(&serialized_circuit, &circuit_path);
 
-        let binary_path = assert_binary_exists(self);
         GatesCommand { crs_path: self.crs_directory(), bytecode_path: circuit_path }
             .run(&binary_path)
     }
 
-    pub fn supports_opcode(&self, opcode: &Opcode) -> bool {
-        match opcode {
-            Opcode::Arithmetic(_) => true,
-            Opcode::Directive(_) => true,
-            Opcode::Brillig(_) => true,
-            Opcode::MemoryInit { .. } => true,
-            Opcode::MemoryOp { .. } => true,
-            Opcode::BlackBoxFuncCall(func) => match func.get_black_box_func() {
-                BlackBoxFunc::AND
-                | BlackBoxFunc::XOR
-                | BlackBoxFunc::RANGE
-                | BlackBoxFunc::SHA256
-                | BlackBoxFunc::Blake2s
-                | BlackBoxFunc::Keccak256
-                | BlackBoxFunc::SchnorrVerify
-                | BlackBoxFunc::Pedersen
-                | BlackBoxFunc::HashToField128Security
-                | BlackBoxFunc::EcdsaSecp256k1
-                | BlackBoxFunc::EcdsaSecp256r1
-                | BlackBoxFunc::FixedBaseScalarMul
-                | BlackBoxFunc::RecursiveAggregation => true,
-            },
-        }
+    pub fn get_backend_info(
+        &self,
+    ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+        InfoCommand { crs_path: self.crs_directory() }.run(&binary_path)
     }
 
     pub fn prove(
@@ -61,6 +40,8 @@ impl Backend {
         witness_values: WitnessMap,
         is_recursive: bool,
     ) -> Result<Vec<u8>, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
@@ -74,22 +55,16 @@ impl Backend {
         //
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
+        write_to_file(&serialized_circuit, &bytecode_path);
 
-        let proof_path = temp_directory.join("proof").with_extension("proof");
-
-        let binary_path = assert_binary_exists(self);
         // Create proof and store it in the specified path
-        ProveCommand {
+        let proof_with_public_inputs = ProveCommand {
             crs_path: self.crs_directory(),
             is_recursive,
             bytecode_path,
             witness_path,
-            proof_path: proof_path.clone(),
         }
         .run(&binary_path)?;
-
-        let proof_with_public_inputs = read_bytes_from_file(&proof_path).unwrap();
 
         // Barretenberg return the proof prepended with the public inputs.
         //
@@ -110,6 +85,8 @@ impl Backend {
         circuit: &Circuit,
         is_recursive: bool,
     ) -> Result<bool, BackendError> {
+        let binary_path = self.assert_binary_exists()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
@@ -132,12 +109,11 @@ impl Backend {
         // Create a temporary file for the circuit
         let bytecode_path = temp_directory.join("circuit").with_extension("bytecode");
         let serialized_circuit = serialize_circuit(circuit);
-        write_to_file(serialized_circuit.as_bytes(), &bytecode_path);
+        write_to_file(&serialized_circuit, &bytecode_path);
 
         // Create the verification key and write it to the specified path
         let vk_path = temp_directory.join("vk");
 
-        let binary_path = assert_binary_exists(self);
         WriteVkCommand {
             crs_path: self.crs_directory(),
             is_recursive,
@@ -147,11 +123,8 @@ impl Backend {
         .run(&binary_path)?;
 
         // Verify the proof
-        let valid_proof =
-            VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
-                .run(&binary_path);
-
-        Ok(valid_proof)
+        VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
+            .run(&binary_path)
     }
 }
 
@@ -167,19 +140,6 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
-}
-
-pub(super) fn read_bytes_from_file(path: &Path) -> std::io::Result<Vec<u8>> {
-    // Open the file for reading.
-    let mut file = File::open(path)?;
-
-    // Create a buffer to store the bytes.
-    let mut buffer = Vec::new();
-
-    // Read bytes from the file.
-    file.read_to_end(&mut buffer)?;
-
-    Ok(buffer)
 }
 
 /// Removes the public inputs which are prepended to a proof by Barretenberg.
@@ -204,9 +164,8 @@ fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Ve
 
 // TODO: See nargo/src/artifacts/mod.rs
 // TODO: This method should live in ACVM and be the default method for serializing/deserializing circuits
-pub(super) fn serialize_circuit(circuit: &Circuit) -> String {
-    use base64::Engine;
+pub(super) fn serialize_circuit(circuit: &Circuit) -> Vec<u8> {
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
-    base64::engine::general_purpose::STANDARD.encode(circuit_bytes)
+    circuit_bytes
 }

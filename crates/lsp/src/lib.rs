@@ -195,7 +195,7 @@ fn on_code_lens_request(
         let _ = check_crate(&mut context, crate_id, false);
 
         let fm = &context.file_manager;
-        let files = fm.as_simple_files();
+        let files = fm.as_file_map();
         let tests = context
             .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
 
@@ -211,8 +211,8 @@ fn on_code_lens_request(
                 continue;
             }
 
-            let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
-                .unwrap_or_default();
+            let range =
+                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
             let test_command = Command {
                 title: format!("{ARROW} {TEST_CODELENS_TITLE}"),
@@ -245,8 +245,8 @@ fn on_code_lens_request(
                     continue;
                 }
 
-                let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
-                    .unwrap_or_default();
+                let range =
+                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
                 let compile_command = Command {
                     title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
@@ -294,8 +294,8 @@ fn on_code_lens_request(
                     continue;
                 }
 
-                let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
-                    .unwrap_or_default();
+                let range =
+                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
                 let compile_command = Command {
                     title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
@@ -417,7 +417,7 @@ fn on_did_save_text_document(
 
         if !file_diagnostics.is_empty() {
             let fm = &context.file_manager;
-            let files = fm.as_simple_files();
+            let files = fm.as_file_map();
 
             for FileDiagnostic { file_id, diagnostic, call_stack: _ } in file_diagnostics {
                 // Ignore diagnostics for any file that wasn't the file we saved
@@ -433,8 +433,7 @@ fn on_did_save_text_document(
                 // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
                 for sec in diagnostic.secondaries {
                     // Not using `unwrap_or_default` here because we don't want to overwrite a valid range with a default range
-                    if let Some(r) = byte_span_to_range(files, file_id.as_usize(), sec.span.into())
-                    {
+                    if let Some(r) = byte_span_to_range(files, file_id, sec.span.into()) {
                         range = r
                     }
                 }
