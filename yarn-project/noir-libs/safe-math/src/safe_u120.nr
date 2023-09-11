@@ -260,11 +260,10 @@ fn test_mul_div_up_ghost_overflow() {
 // It should not be possible for us to overflow `mul_div_up` through the adder, since that require the divisor to be 1
 // since we otherwise would not be at the max value. If divisor is 1, adder is 0.
 
-// See https://github.com/AztecProtocol/aztec-packages/issues/2000
-//#[test(should_fail)]
-//fn test_mul_div_up_zero_divisor() {
-//    let a = SafeU120::new(6);
-//    let b = SafeU120::new(3);
-//    let c = SafeU120::new(0);
-//    let _d = SafeU120::mul_div_up(a, b, c);
-//}
+#[test(should_fail)]
+fn test_mul_div_up_zero_divisor() {
+    let a = SafeU120::new(6);
+    let b = SafeU120::new(3);
+    let c = SafeU120::new(0);
+    let _d = SafeU120::mul_div_up(a, b, c);
+}
