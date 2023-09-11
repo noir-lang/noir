@@ -416,7 +416,7 @@ impl Context {
 
                                 for result in result_ids.iter().zip(output_values) {
                                     if let  AcirValue::Array(values) = &result.1 {
-                                        let block_id = BlockId(dfg.resolve(*result.0).to_usize() as u32);
+                                        let block_id = self.block_id(&dfg.resolve(*result.0));
                                         let values: Vec<AcirValue> = values.iter().cloned().collect();
                                         self.initialize_array(block_id, values.len(), Some(&values))?;
                                     }
