@@ -1,10 +1,13 @@
 name: test-integration
 
 on:
+  push:
+    branches:
+      - phated/wasm-stdlib-debug
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
-    
+
 jobs:
   wasm-packages-build-test:
     runs-on: ubuntu-latest
@@ -100,8 +103,8 @@ jobs:
         working-directory: ./compiler/integration-tests
         run: |
           yarn test:browser
-          
-      - name: Alert on nightly test failure  
+
+      - name: Alert on nightly test failure
         uses: JasonEtco/create-an-issue@v2
         if: ${{ failure() && github.event_name == 'schedule' }}
         env:
