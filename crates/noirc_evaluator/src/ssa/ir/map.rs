@@ -74,7 +74,7 @@ impl<T> Copy for Id<T> {}
 
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Self { index: self.index, _marker: self._marker }
+        *self
     }
 }
 
