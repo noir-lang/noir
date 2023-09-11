@@ -132,7 +132,7 @@ test_cases.forEach((testInfo) => {
 
             const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
-            // This took 6.5 minutes!
+            // This took ~6.5 minutes!
             const proof = await api.acirCreateProof(
                 acirComposer,
                 acirUint8Array,
@@ -140,7 +140,7 @@ test_cases.forEach((testInfo) => {
                 isRecursive
             );
 
-
+            // And this took ~5 minutes!
             const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
 
             expect(verified).to.be.true;
