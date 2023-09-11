@@ -9,6 +9,9 @@
     "web",
     "package.json"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./nodejs/noirc_abi_wasm.js",
   "types": "./web/noirc_abi_wasm.d.ts",
   "module": "./web/noirc_abi_wasm.js",
