@@ -16,12 +16,17 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup .npmrc file for GitHub Packages
-        run: |
-          echo "@noir-lang:registry=https://npm.pkg.github.com/" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.15
+
+      # - name: Setup .npmrc file for GitHub Packages
+      #   run: |
+      #     echo "@noir-lang:registry=https://npm.pkg.github.com/" > .npmrc
+      #     echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
       - uses: cachix/install-nix-action@v20
         with:
