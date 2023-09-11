@@ -12,7 +12,7 @@ use nargo::package::Package;
 use nargo::prepare_package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    compile_main, CompileOptions, CompiledContract, CompiledProgram, ErrorsAndWarnings, Warnings,
+    compile_main, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
 };
 use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
@@ -203,10 +203,10 @@ fn save_contracts(
     }
 }
 
-/// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
+/// Helper function for reporting any errors in a `CompilationResult<T>`
 /// structure that is commonly used as a return result in this file.
 pub(crate) fn report_errors<T>(
-    result: Result<(T, Warnings), ErrorsAndWarnings>,
+    result: CompilationResult<T>,
     file_manager: &FileManager,
     deny_warnings: bool,
 ) -> Result<T, CompileError> {

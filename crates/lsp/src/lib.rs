@@ -411,7 +411,7 @@ fn on_did_save_text_document(
         let (mut context, crate_id) = prepare_package(package);
 
         let file_diagnostics = match check_crate(&mut context, crate_id, false) {
-            Ok(warnings) => warnings,
+            Ok(((), warnings)) => warnings,
             Err(errors_and_warnings) => errors_and_warnings,
         };
 
