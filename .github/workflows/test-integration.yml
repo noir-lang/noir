@@ -93,11 +93,11 @@ jobs:
           retention-days: 3
 
       - name: Install `integration-tests` dependencies
-        working-directory: ./crates/integration-tests
+        working-directory: ./compiler/integration-tests
         run: yarn install
 
       - name: Run `integration-tests`
-        working-directory: ./crates/integration-tests
+        working-directory: ./compiler/integration-tests
         run: |
           yarn test:browser
           
