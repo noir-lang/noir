@@ -47,6 +47,6 @@ jobs:
       - name: Publish to GitHub Packages
         working-directory: ./temp_publish_dir
         run: |
-          yarn npm publish --tag latest --registry=https://npm.pkg.github.com/
+          npm publish --tag latest --registry=https://npm.pkg.github.com/
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
