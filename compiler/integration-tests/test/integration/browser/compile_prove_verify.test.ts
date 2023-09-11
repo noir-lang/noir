@@ -12,7 +12,7 @@ import initACVM, {
     compressWitness,
 } from "@noir-lang/acvm_js";
 
-// @ts-ignore  
+// @ts-ignore
 import { Barretenberg, RawBuffer, Crs } from '@aztec/bb.js';
 
 import * as TOML from 'smol-toml'
@@ -67,8 +67,12 @@ test_cases.forEach((testInfo) => {
         expect(noir_source).to.be.a.string;
 
         initialiseResolver((id: String) => {
-            console.log("Resoving:", id);
-            return noir_source;
+            if (id.endsWith("/main.nr")) {
+                console.log("Resoving:", id);
+                return noir_source;
+            } else {
+                throw new Error()
+            }
         });
 
         const inputs = TOML.parse(prover_toml);

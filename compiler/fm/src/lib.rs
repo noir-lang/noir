@@ -57,6 +57,9 @@ impl FileManager {
         #[cfg(target_arch = "wasm32")]
         log(&format!("{}", file_name.display()));
 
+        #[cfg(not(target_arch = "wasm32"))]
+        println!("{}", file_name.display());
+
         // Handle both relative file paths and std/lib virtual paths.
         let resolved_path: PathBuf = if is_stdlib_asset(file_name) {
             // Special case for stdlib where we want to read specifically the `std/` relative path
