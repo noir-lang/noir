@@ -19,6 +19,7 @@ jobs:
         id: release
         uses: google-github-actions/release-please-action@v3
         with:
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
           command: manifest
 
       - name: Dispatch to publish workflow
@@ -26,7 +27,6 @@ jobs:
         if: ${{ steps.release.outputs.tag_name }}
         with:
           workflow: publish-bb.yml
-          repo: AztecProtocol/aztec-packages
           ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
           inputs: '{ "tag": "${{ steps.release.outputs.tag_name }}", "publish": true }'
