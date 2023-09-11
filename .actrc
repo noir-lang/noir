@@ -1,3 +1,0 @@
--P ubuntu-latest=catthehacker/ubuntu:runner-latest
-# --env ACTIONS_RUNTIME_TOKEN=foobar
-# --bind

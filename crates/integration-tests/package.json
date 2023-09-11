@@ -17,7 +17,6 @@
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
-    "@web/test-runner-playwright": "^0.10.0",
     "@web/test-runner-webdriver": "^0.7.0",
     "chai": "^4.3.7",
     "fflate": "^0.8.0",

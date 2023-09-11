@@ -1,7 +1,8 @@
 import { expect } from '@esm-bundle/chai';
 import { initialiseResolver } from "@noir-lang/noir-source-resolver";
 import newCompiler, {
-    compile
+    compile,
+    init_log_level as compilerLogLevel
 } from "@noir-lang/noir_wasm";
 import { decompressSync as gunzip } from 'fflate';
 import newABICoder, { abiEncode } from "@noir-lang/noirc_abi";
@@ -16,9 +17,12 @@ import { Barretenberg, RawBuffer, Crs } from '@aztec/bb.js';
 
 import * as TOML from 'smol-toml'
 
+
 await newCompiler();
 await newABICoder();
 await initACVM();
+
+compilerLogLevel("DEBUG");
 
 async function getFile(url: URL): Promise<string> {
 
@@ -37,9 +41,9 @@ const test_cases = [
         case: "crates/nargo_cli/tests/execution_success/1_mul"
     },
     // Below fails
-    // {
-    //     case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
-    // }
+    {
+        case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
+    }
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
@@ -64,6 +68,7 @@ test_cases.forEach((testInfo) => {
         expect(noir_source).to.be.a.string;
 
         initialiseResolver((id: String) => {
+            console.log("Resoving:", id);
             return noir_source;
         });
 

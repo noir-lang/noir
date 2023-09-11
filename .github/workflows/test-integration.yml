@@ -12,7 +12,6 @@ jobs:
       CACHED_PATH: /tmp/nix-cache
 
     steps:
-
       - name: Checkout noir sources
         uses: actions/checkout@v4
 
@@ -34,7 +33,6 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Restore nix store cache
-        if: env.ACT != 'true'
         uses: actions/cache/restore@v3
         id: cache
         with:
@@ -43,7 +41,7 @@ jobs:
 
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
       - name: Copy cache into nix store
-        if: steps.cache.outputs.cache-hit == 'true' && env.ACT != 'true'
+        if: steps.cache.outputs.cache-hit == 'true'
         # We don't check the signature because we're the one that created the cache
         run: |
           for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
@@ -59,7 +57,6 @@ jobs:
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
       - name: Upload `noir_wasm` artifact
-        if: env.ACT != 'true'
         uses: actions/upload-artifact@v3
         with:
           name: noir_wasm
@@ -74,7 +71,6 @@ jobs:
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
       - name: Upload `noirc_abi_wasm` artifact
-        if: env.ACT != 'true'
         uses: actions/upload-artifact@v3
         with:
           name: noirc_abi_wasm
@@ -90,22 +86,11 @@ jobs:
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
       - name: Upload `acvm_js` artifact
-        if: env.ACT != 'true'
         uses: actions/upload-artifact@v3
         with:
           name: acvm_js
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
-
-      - name: Install Yarn (local)
-        if: env.ACT == 'true'
-        run: npm install -g yarn
-
-    #   - name: Install `playwright` deps
-    #     working-directory: ./crates/integration-tests
-    #     run: |
-    #       npx playwright install
-        #   npx playwright install-deps
 
       - name: Install `integration-tests` dependencies
         working-directory: ./crates/integration-tests
@@ -115,3 +100,14 @@ jobs:
         working-directory: ./crates/integration-tests
         run: |
           yarn test:browser
+          
+      - name: Alert on nightly build failure  
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+            update_existing: true
+            filename: .github/NIGHTLY_BUILD_FAILURE.md
