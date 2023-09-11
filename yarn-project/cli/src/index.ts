@@ -6,7 +6,6 @@ import {
   GrumpkinScalar,
   Point,
   generatePublicKey,
-  getAccountWallets,
   getSchnorrAccount,
   isContractDeployed,
 } from '@aztec/aztec.js';
@@ -15,7 +14,6 @@ import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { compileContract } from '@aztec/noir-compiler/cli';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { CompleteAddress, ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
@@ -387,13 +385,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const privateKey = GrumpkinScalar.fromString(stripLeadingHex(options.privateKey));
 
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const wallet = await getAccountWallets(
-        client,
-        SchnorrAccountContractAbi,
-        [privateKey],
-        [privateKey],
-        [accountCreationSalt],
-      );
+      const wallet = await getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt).getWallet();
       const contract = await Contract.at(contractAddress, contractAbi, wallet);
       const tx = contract.methods[functionName](...functionArgs).send();
       await tx.wait();

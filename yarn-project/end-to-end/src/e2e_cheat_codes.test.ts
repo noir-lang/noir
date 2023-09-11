@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, EthAddress } from '@aztec/aztec-rpc';
+import { AztecRPCServer, EthAddress } from '@aztec/aztec-rpc';
 import { CheatCodes, Wallet } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts/types';
@@ -18,17 +18,14 @@ describe('e2e_cheat_codes', () => {
   let walletClient: WalletClient<HttpTransport, Chain, Account>;
   let publicClient: PublicClient<HttpTransport, Chain>;
   let rollupAddress: EthAddress;
-  let recipient: AztecAddress;
 
   beforeAll(async () => {
     let deployL1ContractsValues;
-    let accounts;
-    ({ aztecNode, aztecRpcServer, wallet, accounts, cheatCodes: cc, deployL1ContractsValues } = await setup());
+    ({ aztecNode, aztecRpcServer, wallet, cheatCodes: cc, deployL1ContractsValues } = await setup());
 
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
     rollupAddress = deployL1ContractsValues.rollupAddress;
-    recipient = accounts[0].address;
   }, 100_000);
 
   afterAll(async () => {
@@ -158,13 +155,13 @@ describe('e2e_cheat_codes', () => {
       expect(Number(await rollup.read.lastBlockTs())).toEqual(newTimestamp);
       expect(Number(await rollup.read.lastWarpedBlockTs())).toEqual(newTimestamp);
 
-      const txIsTimeEqual = contract.methods.isTimeEqual(newTimestamp).send({ origin: recipient });
+      const txIsTimeEqual = contract.methods.isTimeEqual(newTimestamp).send();
       const isTimeEqualReceipt = await txIsTimeEqual.wait({ interval: 0.1 });
       expect(isTimeEqualReceipt.status).toBe(TxStatus.MINED);
 
       // Since last rollup block was warped, txs for this rollup will have time incremented by 1
       // See https://github.com/AztecProtocol/aztec-packages/issues/1614 for details
-      const txTimeNotEqual = contract.methods.isTimeEqual(newTimestamp + 1).send({ origin: recipient });
+      const txTimeNotEqual = contract.methods.isTimeEqual(newTimestamp + 1).send();
       const isTimeNotEqualReceipt = await txTimeNotEqual.wait({ interval: 0.1 });
       expect(isTimeNotEqualReceipt.status).toBe(TxStatus.MINED);
       // block is published at t >= newTimestamp + 1.

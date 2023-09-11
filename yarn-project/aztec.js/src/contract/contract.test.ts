@@ -109,9 +109,7 @@ describe('Contract Class', () => {
     const fooContract = await Contract.at(contractAddress, defaultAbi, wallet);
     const param0 = 12;
     const param1 = 345n;
-    const sentTx = fooContract.methods.bar(param0, param1).send({
-      origin: account.address,
-    });
+    const sentTx = fooContract.methods.bar(param0, param1).send();
     const txHash = await sentTx.getTxHash();
     const receipt = await sentTx.getReceipt();
 
@@ -134,7 +132,7 @@ describe('Contract Class', () => {
 
   it('should not call create on an unconstrained function', async () => {
     const fooContract = await Contract.at(contractAddress, defaultAbi, wallet);
-    await expect(fooContract.methods.qux().create({ origin: account.address })).rejects.toThrow();
+    await expect(fooContract.methods.qux().create()).rejects.toThrow();
   });
 
   it('should not call view on a secret or open function', async () => {

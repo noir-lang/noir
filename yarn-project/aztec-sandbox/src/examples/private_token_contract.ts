@@ -1,14 +1,13 @@
 import {
+  AccountWallet,
   AztecAddress,
   Contract,
-  Fr,
   GrumpkinScalar,
-  Wallet,
-  createAccounts,
   createAztecRpcClient,
+  createRecipient,
+  getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
@@ -18,7 +17,7 @@ export const privateKey = GrumpkinScalar.fromString('ac0974bec39a17e36ba4a6b4d23
 const url = 'http://localhost:8080';
 
 const aztecRpcClient = createAztecRpcClient(url);
-let wallet: Wallet;
+let wallet: AccountWallet;
 
 const INITIAL_BALANCE = 333n;
 const SECONDARY_AMOUNT = 33n;
@@ -30,10 +29,7 @@ const SECONDARY_AMOUNT = 33n;
  */
 async function deployZKContract(owner: AztecAddress) {
   logger('Deploying L2 contract...');
-  const tx = PrivateTokenContract.deploy(aztecRpcClient, INITIAL_BALANCE, owner).send();
-  const receipt = await tx.getReceipt();
-  const contract = await PrivateTokenContract.at(receipt.contractAddress!, wallet);
-  await tx.isMined();
+  const contract = await PrivateTokenContract.deploy(aztecRpcClient, INITIAL_BALANCE, owner).send().deployed();
   logger('L2 contract deployed');
   return contract;
 }
@@ -54,10 +50,9 @@ async function getBalance(contract: Contract, ownerAddress: AztecAddress) {
 async function main() {
   logger('Running ZK contract test on HTTP interface.');
 
-  wallet = await createAccounts(aztecRpcClient, SchnorrSingleKeyAccountContractAbi, privateKey, Fr.random(), 2);
-  const accounts = await aztecRpcClient.getAccounts();
-  const [owner, account2] = accounts;
-  logger(`Created ${accounts.length} accounts`);
+  wallet = await getUnsafeSchnorrAccount(aztecRpcClient, privateKey).waitDeploy();
+  const owner = wallet.getCompleteAddress();
+  const recipient = await createRecipient(aztecRpcClient);
 
   logger(`Created Owner account ${owner.toString()}`);
 
@@ -67,17 +62,15 @@ async function main() {
 
   // Mint more tokens
   logger(`Minting ${SECONDARY_AMOUNT} more coins`);
-  const mintTx = zkContract.methods.mint(SECONDARY_AMOUNT, owner.address).send({ origin: owner.address });
-  await mintTx.isMined({ interval: 0.5 });
+  await zkContract.methods.mint(SECONDARY_AMOUNT, owner.address).send().wait({ interval: 0.5 });
   const balanceAfterMint = await getBalance(zkContract, owner.address);
   logger(`Owner's balance is now: ${balanceAfterMint}`);
 
   // Perform a transfer
   logger(`Transferring ${SECONDARY_AMOUNT} tokens from owner to another account.`);
-  const transferTx = zkContract.methods.transfer(SECONDARY_AMOUNT, account2.address).send({ origin: owner.address });
-  await transferTx.isMined({ interval: 0.5 });
+  await zkContract.methods.transfer(SECONDARY_AMOUNT, recipient.address).send().wait({ interval: 0.5 });
   const balanceAfterTransfer = await getBalance(zkContract, owner.address);
-  const receiverBalance = await getBalance(zkContract, account2.address);
+  const receiverBalance = await getBalance(zkContract, recipient.address);
   logger(`Owner's balance is now ${balanceAfterTransfer}`);
   logger(`The transfer receiver's balance is ${receiverBalance}`);
 }

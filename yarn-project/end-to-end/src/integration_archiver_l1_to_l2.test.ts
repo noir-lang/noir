@@ -123,7 +123,7 @@ describe('archiver integration with l1 to l2 messages', () => {
   it('archiver handles l1 to l2 message correctly even when l2block has no such messages', async () => {
     // send a transfer tx to force through rollup with the message included
     const transferAmount = 1n;
-    l2Contract.methods.transfer(transferAmount, receiver).send({ origin: owner });
+    l2Contract.methods.transfer(transferAmount, receiver).send();
 
     expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(0);
     expect(() => archiver.getConfirmedL1ToL2Message(Fr.ZERO)).toThrow();

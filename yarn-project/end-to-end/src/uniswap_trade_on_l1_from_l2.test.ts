@@ -205,7 +205,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         ethAccount.toField(),
         ethAccount.toField(),
       )
-      .send({ origin: owner });
+      .send();
     await withdrawTx.isMined({ interval: 0.1 });
     const withdrawReceipt = await withdrawTx.getReceipt();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);

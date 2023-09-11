@@ -27,14 +27,20 @@ describe('e2e_2_rpc_servers', () => {
       throw new Error(`Test can't be run against the sandbox as 2 RPC servers are required`);
     }
     let accounts: CompleteAddress[] = [];
-    ({ aztecNode, aztecRpcServer: aztecRpcServerA, accounts, wallet: walletA, logger } = await setup(1));
+    ({
+      aztecNode,
+      aztecRpcServer: aztecRpcServerA,
+      accounts,
+      wallets: [walletA],
+      logger,
+    } = await setup(1));
     [userA] = accounts;
 
     ({
       aztecRpcServer: aztecRpcServerB,
       accounts: accounts,
-      wallet: walletB,
-    } = await setupAztecRPCServer(1, aztecNode!, null, undefined, true));
+      wallets: [walletB],
+    } = await setupAztecRPCServer(1, aztecNode!, undefined, true));
     [userB] = accounts;
   }, 100_000);
 
@@ -108,7 +114,7 @@ describe('e2e_2_rpc_servers', () => {
 
     // Transfer funds from A to B via RPC server A
     const contractWithWalletA = await PrivateTokenContract.at(tokenAddress, walletA);
-    const txAToB = contractWithWalletA.methods.transfer(transferAmount1, userB.address).send({ origin: userA.address });
+    const txAToB = contractWithWalletA.methods.transfer(transferAmount1, userB.address).send();
 
     await txAToB.isMined({ interval: 0.1 });
     const receiptAToB = await txAToB.getReceipt();
@@ -122,12 +128,7 @@ describe('e2e_2_rpc_servers', () => {
 
     // Transfer funds from B to A via RPC server B
     const contractWithWalletB = await PrivateTokenContract.at(tokenAddress, walletB);
-    const txBToA = contractWithWalletB.methods.transfer(transferAmount2, userA.address).send({ origin: userB.address });
-
-    await txBToA.isMined({ interval: 0.1 });
-    const receiptBToA = await txBToA.getReceipt();
-
-    expect(receiptBToA.status).toBe(TxStatus.MINED);
+    await contractWithWalletB.methods.transfer(transferAmount2, userA.address).send().wait({ interval: 0.1 });
 
     // Check balances and logs are as expected
     await expectTokenBalance(walletA, tokenAddress, userA.address, initialBalance - transferAmount1 + transferAmount2);
@@ -170,11 +171,7 @@ describe('e2e_2_rpc_servers', () => {
     const newValueToSet = 256n;
 
     const childContractWithWalletB = await ChildContract.at(childCompleteAddress.address, walletB);
-    const tx = childContractWithWalletB.methods.pubIncValue(newValueToSet).send({ origin: userB.address });
-    await tx.isMined({ interval: 0.1 });
-
-    const receipt = await tx.getReceipt();
-    expect(receipt.status).toBe(TxStatus.MINED);
+    await childContractWithWalletB.methods.pubIncValue(newValueToSet).send().wait({ interval: 0.1 });
 
     await awaitServerSynchronised(aztecRpcServerA);
 

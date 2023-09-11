@@ -7,7 +7,7 @@ import SchnorrAuthWitnessAccountContractAbi from '../../abis/schnorr_auth_witnes
 import { generatePublicKey } from '../../index.js';
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../../utils/defaults.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
-import { CreateTxRequestOpts, Entrypoint } from './index.js';
+import { Entrypoint } from './index.js';
 
 /**
  * Account contract implementation that uses a single key for signing and encryption. This public key is not
@@ -59,10 +59,7 @@ export class AuthWitnessAccountEntrypoint implements Entrypoint {
    * @param opts - The options
    * @returns The TxRequest, the auth witness to insert in db and the message signed
    */
-  async createTxExecutionRequestWithWitness(
-    executions: FunctionCall[],
-    opts: CreateTxRequestOpts = {},
-  ): Promise<{
+  async createTxExecutionRequestWithWitness(executions: FunctionCall[]): Promise<{
     /** The transaction request */
     txRequest: TxExecutionRequest;
     /** The auth witness */
@@ -70,10 +67,6 @@ export class AuthWitnessAccountEntrypoint implements Entrypoint {
     /** The message signed */
     message: Buffer;
   }> {
-    if (opts.origin && !opts.origin.equals(this.address)) {
-      throw new Error(`Sender ${opts.origin.toString()} does not match account address ${this.address.toString()}`);
-    }
-
     const { payload, packedArguments: callsPackedArguments } = await buildPayload(executions);
     const message = await hashPayload(payload);
     const witness = await this.createAuthWitness(message);
@@ -92,7 +85,7 @@ export class AuthWitnessAccountEntrypoint implements Entrypoint {
     return { txRequest, message, witness };
   }
 
-  createTxExecutionRequest(executions: FunctionCall[], _opts: CreateTxRequestOpts = {}): Promise<TxExecutionRequest> {
+  createTxExecutionRequest(_executions: FunctionCall[]): Promise<TxExecutionRequest> {
     throw new Error(`Not implemented, use createTxExecutionRequestWithWitness instead`);
   }
 

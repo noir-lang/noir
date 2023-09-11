@@ -19,7 +19,7 @@ export type ContractMethod = ((...args: any[]) => ContractFunctionInteraction) &
 /**
  * Abstract implementation of a contract extended by the Contract class and generated contract types.
  */
-export abstract class ContractBase {
+export class ContractBase {
   /**
    * An object containing contract methods mapped to their respective names.
    */
@@ -56,8 +56,20 @@ export abstract class ContractBase {
     });
   }
 
-  get address() {
+  /**
+   * Address of the contract.
+   */
+  public get address() {
     return this.completeAddress.address;
+  }
+
+  /**
+   * Creates a new instance of the contract wrapper attached to a different wallet.
+   * @param wallet - Wallet to use for sending txs.
+   * @returns A new contract instance.
+   */
+  public withWallet(wallet: Wallet): this {
+    return new ContractBase(this.completeAddress, this.abi, wallet) as this;
   }
 
   /**

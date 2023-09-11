@@ -75,7 +75,7 @@ describe('e2e_cross_chain_messaging', () => {
     logger('Send L2 tx to withdraw funds');
     const withdrawTx = l2Contract.methods
       .withdraw(withdrawAmount, ownerAddress, ethAccount, EthAddress.ZERO.toField())
-      .send({ origin: ownerAddress });
+      .send();
 
     await withdrawTx.isMined({ interval: 0.1 });
     const withdrawReceipt = await withdrawTx.getReceipt();

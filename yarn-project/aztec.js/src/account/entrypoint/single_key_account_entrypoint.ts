@@ -7,7 +7,7 @@ import SchnorrSingleKeyAccountContractAbi from '../../abis/schnorr_single_key_ac
 import { generatePublicKey } from '../../index.js';
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../../utils/defaults.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
-import { CreateTxRequestOpts, Entrypoint } from './index.js';
+import { Entrypoint } from './index.js';
 
 /**
  * Account contract implementation that uses a single key for signing and encryption. This public key is not
@@ -23,14 +23,7 @@ export class SingleKeyAccountEntrypoint implements Entrypoint {
     private version: number = DEFAULT_VERSION,
   ) {}
 
-  async createTxExecutionRequest(
-    executions: FunctionCall[],
-    opts: CreateTxRequestOpts = {},
-  ): Promise<TxExecutionRequest> {
-    if (opts.origin && !opts.origin.equals(this.address)) {
-      throw new Error(`Sender ${opts.origin.toString()} does not match account address ${this.address.toString()}`);
-    }
-
+  async createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
     const { payload, packedArguments: callsPackedArguments } = await buildPayload(executions);
     const message = await hashPayload(payload);
 

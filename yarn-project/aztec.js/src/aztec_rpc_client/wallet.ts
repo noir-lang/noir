@@ -16,7 +16,7 @@ import {
   TxReceipt,
 } from '@aztec/types';
 
-import { AuthWitnessAccountEntrypoint, CreateTxRequestOpts, Entrypoint } from '../account/entrypoint/index.js';
+import { AuthWitnessAccountEntrypoint, Entrypoint } from '../account/entrypoint/index.js';
 import { CompleteAddress } from '../index.js';
 
 /**
@@ -30,7 +30,7 @@ export type Wallet = Entrypoint & AztecRPC;
 export abstract class BaseWallet implements Wallet {
   constructor(protected readonly rpc: AztecRPC) {}
 
-  abstract createTxExecutionRequest(execs: FunctionCall[], opts?: CreateTxRequestOpts): Promise<TxExecutionRequest>;
+  abstract createTxExecutionRequest(execs: FunctionCall[]): Promise<TxExecutionRequest>;
 
   registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void> {
     return this.rpc.registerAccount(privKey, partialAddress);
@@ -110,8 +110,8 @@ export class EntrypointWallet extends BaseWallet {
   constructor(rpc: AztecRPC, protected accountImpl: Entrypoint) {
     super(rpc);
   }
-  createTxExecutionRequest(executions: FunctionCall[], opts: CreateTxRequestOpts = {}): Promise<TxExecutionRequest> {
-    return this.accountImpl.createTxExecutionRequest(executions, opts);
+  createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
+    return this.accountImpl.createTxExecutionRequest(executions);
   }
 }
 
@@ -136,14 +136,8 @@ export class AuthWitnessEntrypointWallet extends BaseWallet {
    * @param opts - The options.
    * @returns - The TxRequest
    */
-  async createTxExecutionRequest(
-    executions: FunctionCall[],
-    opts: CreateTxRequestOpts = {},
-  ): Promise<TxExecutionRequest> {
-    const { txRequest, message, witness } = await this.accountImpl.createTxExecutionRequestWithWitness(
-      executions,
-      opts,
-    );
+  async createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
+    const { txRequest, message, witness } = await this.accountImpl.createTxExecutionRequestWithWitness(executions);
     await this.rpc.addAuthWitness(Fr.fromBuffer(message), witness);
     return txRequest;
   }

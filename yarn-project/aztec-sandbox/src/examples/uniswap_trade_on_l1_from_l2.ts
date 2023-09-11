@@ -1,17 +1,17 @@
 import {
+  AccountWallet,
   AztecAddress,
   EthAddress,
   Fr,
-  Wallet,
   computeMessageSecretHash,
-  createAccounts,
   createAztecRpcClient,
+  createRecipient,
   getL1ContractAddresses,
+  getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
 import { GrumpkinScalar } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
-import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { NonNativeTokenContract, UniswapContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
@@ -56,7 +56,7 @@ if (Number(await publicClient.getBlockNumber()) < EXPECTED_FORKED_BLOCK) {
 const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
 
 const aztecRpcClient = createAztecRpcClient(aztecRpcUrl);
-let wallet: Wallet;
+let wallet: AccountWallet;
 
 /**
  * Deploys all l1 / l2 contracts
@@ -153,7 +153,7 @@ const transferWethOnL2 = async (
   receiver: AztecAddress,
   transferAmount: bigint,
 ) => {
-  const transferTx = wethL2Contract.methods.transfer(transferAmount, receiver).send({ origin: ownerAddress });
+  const transferTx = wethL2Contract.methods.transfer(transferAmount, receiver).send();
   await transferTx.isMined({ interval: 0.5 });
   const transferReceipt = await transferTx.getReceipt();
   // expect(transferReceipt.status).toBe(TxStatus.MINED);
@@ -166,9 +166,9 @@ const transferWethOnL2 = async (
 async function main() {
   logger('Running L1/L2 messaging test on HTTP interface.');
 
-  wallet = await createAccounts(aztecRpcClient, SchnorrSingleKeyAccountContractAbi, privateKey!, Fr.random(), 2);
-  const accounts = await wallet.getAccounts();
-  const [owner, receiver] = accounts;
+  wallet = await getUnsafeSchnorrAccount(aztecRpcClient, privateKey).waitDeploy();
+  const owner = wallet.getCompleteAddress();
+  const receiver = await createRecipient(aztecRpcClient);
 
   const result = await deployAllContracts(owner.address);
   const {
@@ -220,7 +220,7 @@ async function main() {
   // Call the mint tokens function on the noir contract
   const consumptionTx = wethL2Contract.methods
     .mint(wethAmountToBridge, owner.address, messageKey, secret, ethAccount.toField())
-    .send({ origin: owner.address });
+    .send();
   await consumptionTx.isMined({ interval: 0.5 });
   const consumptionReceipt = await consumptionTx.getReceipt();
   // expect(consumptionReceipt.status).toBe(TxStatus.MINED);
@@ -250,7 +250,7 @@ async function main() {
       ethAccount.toField(),
       ethAccount.toField(),
     )
-    .send({ origin: owner.address });
+    .send();
   await withdrawTx.isMined({ interval: 0.5 });
   const withdrawReceipt = await withdrawTx.getReceipt();
   // expect(withdrawReceipt.status).toBe(TxStatus.MINED);
@@ -301,7 +301,7 @@ async function main() {
   // Call the mint tokens function on the noir contract
   const daiMintTx = daiL2Contract.methods
     .mint(daiAmountToBridge, owner.address, depositDaiMessageKey, secret, ethAccount.toField())
-    .send({ origin: owner.address });
+    .send();
   await daiMintTx.isMined({ interval: 0.5 });
   const daiMintTxReceipt = await daiMintTx.getReceipt();
   // expect(daiMintTxReceipt.status).toBe(TxStatus.MINED);

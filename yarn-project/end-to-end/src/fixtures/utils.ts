@@ -1,34 +1,27 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { RpcServerConfig, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
-  Account as AztecAccount,
+  AccountWallet,
   AztecAddress,
   CheatCodes,
-  Contract,
-  ContractDeployer,
-  EntrypointCollection,
-  EntrypointWallet,
   EthAddress,
   EthCheatCodes,
   Wallet,
+  createAccounts,
   createAztecRpcClient as createJsonRpcClient,
   getL1ContractAddresses,
-  getSandboxAccountsWallet,
-  getUnsafeSchnorrAccount,
+  getSandboxAccountsWallets,
   makeFetch,
 } from '@aztec/aztec.js';
-import { CompleteAddress, GrumpkinPrivateKey } from '@aztec/circuits.js';
+import { CompleteAddress } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
-import { ContractAbi } from '@aztec/foundation/abi';
-import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
 
-import every from 'lodash.every';
-import zipWith from 'lodash.zipwith';
 import {
   Account,
   Chain,
@@ -130,7 +123,6 @@ const setupL1Contracts = async (l1RpcUrl: string, account: HDAccount, logger: De
 export async function setupAztecRPCServer(
   numberOfAccounts: number,
   aztecNode: AztecNodeService | undefined,
-  firstPrivKey: GrumpkinPrivateKey | null = null,
   logger = getLogger(),
   useLogSuffix = false,
 ): Promise<{
@@ -143,47 +135,33 @@ export async function setupAztecRPCServer(
    */
   accounts: CompleteAddress[];
   /**
-   * The wallet to be used.
+   * The wallets to be used.
    */
-  wallet: Wallet;
+  wallets: AccountWallet[];
   /**
    * Logger instance named as the current test.
    */
   logger: DebugLogger;
 }> {
   const rpcConfig = getRpcConfigEnvVars();
-  const aztecRpcServer = await createRpcServer(rpcConfig, aztecNode, logger, useLogSuffix);
+  const rpc = await createRpcServer(rpcConfig, aztecNode, logger, useLogSuffix);
 
-  const accounts: AztecAccount[] = [];
-
-  const createWalletWithAccounts = async () => {
+  const createWallets = () => {
     if (!SANDBOX_URL) {
       logger('RPC server created, deploying new accounts...');
-
-      // Prepare deployments
-      for (let i = 0; i < numberOfAccounts; ++i) {
-        const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : GrumpkinScalar.random();
-        const account = getUnsafeSchnorrAccount(aztecRpcServer, privateKey);
-        await account.getDeployMethod().then(d => d.simulate({ contractAddressSalt: account.salt }));
-        accounts.push(account);
-      }
-
-      // Send them and await them to be mined
-      const txs = await Promise.all(accounts.map(account => account.deploy()));
-      await Promise.all(txs.map(tx => tx.wait({ interval: 0.1 })));
-      return new EntrypointWallet(aztecRpcServer, await EntrypointCollection.fromAccounts(accounts));
+      return createAccounts(rpc, numberOfAccounts);
     } else {
-      logger('RPC server created, constructing wallet from initial sandbox accounts...');
-      return await getSandboxAccountsWallet(aztecRpcServer);
+      logger('RPC server created, constructing wallets from initial sandbox accounts...');
+      return getSandboxAccountsWallets(rpc);
     }
   };
 
-  const wallet = await createWalletWithAccounts();
+  const wallets = await createWallets();
 
   return {
-    aztecRpcServer: aztecRpcServer!,
-    accounts: await aztecRpcServer!.getAccounts(),
-    wallet,
+    aztecRpcServer: rpc!,
+    accounts: await rpc!.getAccounts(),
+    wallets,
     logger,
   };
 }
@@ -217,9 +195,13 @@ export async function setup(
    */
   config: AztecNodeConfig;
   /**
-   * The wallet to be used.
+   * The first wallet to be used.
    */
-  wallet: Wallet;
+  wallet: AccountWallet;
+  /**
+   * The wallets to be used.
+   */
+  wallets: AccountWallet[];
   /**
    * Logger instance named as the current test.
    */
@@ -242,9 +224,6 @@ export async function setup(
   const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);
   const privKeyRaw = hdAccount.getHdKey().privateKey;
   const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
-  // TODO(#2052): This reduction is not secure enough. TACKLE THIS ISSUE BEFORE MAINNET.
-  const firstRpcAccountPrivKey =
-    publisherPrivKey === null ? null : GrumpkinScalar.fromBufferWithReduction(publisherPrivKey);
 
   config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   config.rollupContract = deployL1ContractsValues.rollupAddress;
@@ -253,12 +232,7 @@ export async function setup(
 
   const aztecNode = await createAztecNode(config, logger);
 
-  const { aztecRpcServer, accounts, wallet } = await setupAztecRPCServer(
-    numberOfAccounts,
-    aztecNode,
-    firstRpcAccountPrivKey,
-    logger,
-  );
+  const { aztecRpcServer, accounts, wallets } = await setupAztecRPCServer(numberOfAccounts, aztecNode, logger);
 
   const cheatCodes = await CheatCodes.create(config.rpcUrl, aztecRpcServer!);
 
@@ -268,7 +242,8 @@ export async function setup(
     deployL1ContractsValues,
     accounts,
     config,
-    wallet,
+    wallet: wallets[0],
+    wallets,
     logger,
     cheatCodes,
   };
@@ -286,28 +261,6 @@ export async function setNextBlockTimestamp(rpcUrl: string, timestamp: number) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
-}
-
-/**
- * Deploys a set of contracts to the network.
- * @param wallet - the wallet to make the request.
- * @param abi - contracts to be deployed.
- * @returns The deployed contract instances.
- */
-export async function deployL2Contracts(wallet: Wallet, abis: ContractAbi[]) {
-  const logger = getLogger();
-  const calls = await Promise.all(abis.map(abi => new ContractDeployer(abi, wallet).deploy()));
-  for (const call of calls) await call.create();
-  const txs = await Promise.all(calls.map(c => c.send()));
-  expect(every(await Promise.all(txs.map(tx => tx.isMined({ interval: 0.1 }))))).toBeTruthy();
-  const receipts = await Promise.all(txs.map(tx => tx.getReceipt()));
-  const contracts = zipWith(
-    abis,
-    receipts,
-    async (abi, receipt) => await Contract.at(receipt!.contractAddress!, abi!, wallet),
-  );
-  contracts.forEach(async c => logger(`L2 contract ${(await c).abi.name} deployed at ${(await c).address}`));
-  return contracts;
 }
 
 /**

@@ -156,9 +156,7 @@ export class CrossChainTestHarness {
 
   async performL2Transfer(transferAmount: bigint) {
     // send a transfer tx to force through rollup with the message included
-    const transferTx = this.l2Contract.methods
-      .transfer(transferAmount, this.receiver)
-      .send({ origin: this.ownerAddress });
+    const transferTx = this.l2Contract.methods.transfer(transferAmount, this.receiver).send();
 
     await transferTx.isMined({ interval: 0.1 });
     const transferReceipt = await transferTx.getReceipt();
@@ -171,7 +169,7 @@ export class CrossChainTestHarness {
     // Call the mint tokens function on the noir contract
     const consumptionTx = this.l2Contract.methods
       .mint(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
-      .send({ origin: this.ownerAddress });
+      .send();
 
     await consumptionTx.isMined({ interval: 0.1 });
     const consumptionReceipt = await consumptionTx.getReceipt();
@@ -183,7 +181,7 @@ export class CrossChainTestHarness {
     // Call the mint tokens function on the noir contract
     const consumptionTx = this.l2Contract.methods
       .mintPublic(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
-      .send({ origin: this.ownerAddress });
+      .send();
 
     await consumptionTx.isMined({ interval: 0.1 });
     const consumptionReceipt = await consumptionTx.getReceipt();
@@ -249,7 +247,7 @@ export class CrossChainTestHarness {
 
   async shieldFundsOnL2(shieldAmount: bigint, secretHash: Fr) {
     this.logger('Shielding funds on L2');
-    const shieldTx = this.l2Contract.methods.shield(shieldAmount, secretHash).send({ origin: this.ownerAddress });
+    const shieldTx = this.l2Contract.methods.shield(shieldAmount, secretHash).send();
     await shieldTx.isMined({ interval: 0.1 });
     const shieldReceipt = await shieldTx.getReceipt();
     expect(shieldReceipt.status).toBe(TxStatus.MINED);
@@ -257,9 +255,7 @@ export class CrossChainTestHarness {
 
   async redeemShieldPrivatelyOnL2(shieldAmount: bigint, secret: Fr) {
     this.logger('Spending commitment in private call');
-    const privateTx = this.l2Contract.methods
-      .redeemShield(shieldAmount, secret, this.ownerAddress)
-      .send({ origin: this.ownerAddress });
+    const privateTx = this.l2Contract.methods.redeemShield(shieldAmount, secret, this.ownerAddress).send();
 
     await privateTx.isMined();
     const privateReceipt = await privateTx.getReceipt();
@@ -269,9 +265,7 @@ export class CrossChainTestHarness {
 
   async unshieldTokensOnL2(unshieldAmount: bigint) {
     this.logger('Unshielding tokens');
-    const unshieldTx = this.l2Contract.methods
-      .unshieldTokens(unshieldAmount, this.ownerAddress)
-      .send({ origin: this.ownerAddress });
+    const unshieldTx = this.l2Contract.methods.unshieldTokens(unshieldAmount, this.ownerAddress).send();
     await unshieldTx.isMined();
     const unshieldReceipt = await unshieldTx.getReceipt();
 

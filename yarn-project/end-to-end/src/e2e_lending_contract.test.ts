@@ -296,7 +296,7 @@ describe('e2e_lending_contract', () => {
     const storageSnapshots: { [key: string]: { [key: string]: Fr } } = {};
 
     const setPrice = async (newPrice: bigint) => {
-      const tx = priceFeedContract.methods.set_price(0n, newPrice).send({ origin: recipient });
+      const tx = priceFeedContract.methods.set_price(0n, newPrice).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
     };
@@ -305,11 +305,11 @@ describe('e2e_lending_contract', () => {
 
     {
       // Minting some collateral in public so we got it at hand.
-      const tx = collateralAsset.methods.owner_mint_pub(lendingAccount.address, 10000n).send({ origin: recipient });
+      const tx = collateralAsset.methods.owner_mint_pub(lendingAccount.address, 10000n).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
 
-      const tx2 = collateralAsset.methods.approve(lendingContract.address, 10000n).send({ origin: recipient });
+      const tx2 = collateralAsset.methods.approve(lendingContract.address, 10000n).send();
       const receipt2 = await tx2.wait();
       expect(receipt2.status).toBe(TxStatus.MINED);
 
@@ -317,15 +317,15 @@ describe('e2e_lending_contract', () => {
       const secret = Fr.random();
       const secretHash = await computeMessageSecretHash(secret);
       const shieldAmount = 10000n;
-      const tx3 = stableCoin.methods.owner_mint_priv(shieldAmount, secretHash).send({ origin: recipient });
+      const tx3 = stableCoin.methods.owner_mint_priv(shieldAmount, secretHash).send();
       const receipt3 = await tx3.wait();
       expect(receipt3.status).toBe(TxStatus.MINED);
 
-      const tx4 = stableCoin.methods.redeemShield(shieldAmount, secret, recipient).send({ origin: recipient });
+      const tx4 = stableCoin.methods.redeemShield(shieldAmount, secret, recipient).send();
       const receipt4 = await tx4.wait();
       expect(receipt4.status).toBe(TxStatus.MINED);
 
-      const tx5 = stableCoin.methods.approve(lendingContract.address, 10000n).send({ origin: recipient });
+      const tx5 = stableCoin.methods.approve(lendingContract.address, 10000n).send();
       const receipt5 = await tx5.wait();
       expect(receipt5.status).toBe(TxStatus.MINED);
     }
@@ -342,7 +342,7 @@ describe('e2e_lending_contract', () => {
       logger('Initializing contract');
       const tx = lendingContract.methods
         .init(priceFeedContract.address, 8000, collateralAsset.address, stableCoin.address)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['initial'] = await getStorageSnapshot(
@@ -376,7 +376,7 @@ describe('e2e_lending_contract', () => {
       logger('Depositing 🥸 : 💰 -> 🏦');
       const tx = lendingContract.methods
         .deposit_private(lendingAccount.secret, lendingAccount.address, 0n, depositAmount, collateralAsset.address)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_deposit'] = await getStorageSnapshot(
@@ -409,7 +409,7 @@ describe('e2e_lending_contract', () => {
       logger('Depositing 🥸 on behalf of recipient: 💰 -> 🏦');
       const tx = lendingContract.methods
         .deposit_private(0n, lendingAccount.address, recipient.toField(), depositAmount, collateralAsset.address)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_deposit_on_behalf'] = await getStorageSnapshot(
@@ -436,7 +436,7 @@ describe('e2e_lending_contract', () => {
       logger('Depositing: 💰 -> 🏦');
       const tx = lendingContract.methods
         .deposit_public(lendingAccount.address, depositAmount, collateralAsset.address)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_deposit'] = await getStorageSnapshot(
@@ -462,7 +462,7 @@ describe('e2e_lending_contract', () => {
       logger('Borrow 🥸 : 🏦 -> 🍌');
       const tx = lendingContract.methods
         .borrow_private(lendingAccount.secret, lendingAccount.address, borrowAmount)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_borrow'] = await getStorageSnapshot(
@@ -487,9 +487,7 @@ describe('e2e_lending_contract', () => {
       // - increase the public debt.
 
       logger('Borrow: 🏦 -> 🍌');
-      const tx = lendingContract.methods
-        .borrow_public(lendingAccount.address, borrowAmount)
-        .send({ origin: recipient });
+      const tx = lendingContract.methods.borrow_public(lendingAccount.address, borrowAmount).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_borrow'] = await getStorageSnapshot(
@@ -524,7 +522,7 @@ describe('e2e_lending_contract', () => {
       logger('Repay 🥸 : 🍌 -> 🏦');
       const tx = lendingContract.methods
         .repay_private(lendingAccount.secret, lendingAccount.address, 0n, repayAmount, stableCoin.address)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_repay'] = await getStorageSnapshot(
@@ -559,7 +557,7 @@ describe('e2e_lending_contract', () => {
       logger('Repay 🥸  on behalf of public: 🍌 -> 🏦');
       const tx = lendingContract.methods
         .repay_private(0n, lendingAccount.address, recipient.toField(), repayAmount, stableCoin.address)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_repay_on_behalf'] = await getStorageSnapshot(
@@ -584,9 +582,7 @@ describe('e2e_lending_contract', () => {
       // - decrease the public debt.
 
       logger('Repay: 🍌 -> 🏦');
-      const tx = lendingContract.methods
-        .repay_public(recipient.toField(), 20n, stableCoin.address)
-        .send({ origin: recipient });
+      const tx = lendingContract.methods.repay_public(recipient.toField(), 20n, stableCoin.address).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_repay'] = await getStorageSnapshot(
@@ -602,9 +598,7 @@ describe('e2e_lending_contract', () => {
     {
       // Withdraw more than possible to test the revert.
       logger('Withdraw: trying to withdraw more than possible');
-      const tx = lendingContract.methods
-        .withdraw_public(recipient, 10n ** 9n)
-        .send({ origin: recipient, skipPublicSimulation: true });
+      const tx = lendingContract.methods.withdraw_public(recipient, 10n ** 9n).send({ skipPublicSimulation: true });
       await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.DROPPED);
@@ -622,7 +616,7 @@ describe('e2e_lending_contract', () => {
       // - decrease the public collateral.
 
       logger('Withdraw: 🏦 -> 💰');
-      const tx = lendingContract.methods.withdraw_public(recipient, withdrawAmount).send({ origin: recipient });
+      const tx = lendingContract.methods.withdraw_public(recipient, withdrawAmount).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_withdraw'] = await getStorageSnapshot(
@@ -649,7 +643,7 @@ describe('e2e_lending_contract', () => {
       logger('Withdraw 🥸 : 🏦 -> 💰');
       const tx = lendingContract.methods
         .withdraw_private(lendingAccount.secret, lendingAccount.address, withdrawAmount)
-        .send({ origin: recipient });
+        .send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_withdraw'] = await getStorageSnapshot(
@@ -670,7 +664,7 @@ describe('e2e_lending_contract', () => {
 
       const tx = lendingContract.methods
         ._deposit(recipient.toField(), 42n, collateralAsset.address)
-        .send({ origin: recipient, skipPublicSimulation: true });
+        .send({ skipPublicSimulation: true });
       await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.DROPPED);

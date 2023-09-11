@@ -102,7 +102,7 @@ describe('multi-transfer payments', () => {
     logger(`self batchTransfer()`);
     await zkTokenContract.methods
       .batchTransfer(ownerAddress, [200n, 300n, 400n], [ownerAddress, ownerAddress, ownerAddress], 0)
-      .send({ origin: ownerAddress })
+      .send()
       .wait();
 
     await expectBalance(zkTokenContract, ownerAddress, initialBalance);
@@ -116,7 +116,7 @@ describe('multi-transfer payments', () => {
     logger(`multiTransfer()...`);
     await multiTransferContract.methods
       .multiTransfer(zkTokenContract.address.toField(), recipients, amounts, ownerAddress, noteOffsets)
-      .send({ origin: ownerAddress })
+      .send()
       .wait({ timeout: 1000 }); // mining timeout ≥ time needed for the test to finish.
 
     await expectBalance(zkTokenContract, ownerAddress, initialBalance - amountSum);
@@ -170,7 +170,7 @@ describe('multi-transfer payments', () => {
 
       await multiTransferContract.methods
         .multiTransfer(zkTokenContract.address.toField(), repeatedSelfAdddress, amounts, ownerAddress, noteOffsets)
-        .send({ origin: ownerAddress })
+        .send()
         .wait({ timeout: 100 }); // mining timeout ≥ time needed for the test to finish.
 
       await expectBalance(zkTokenContract, ownerAddress, initialBalance);
@@ -184,7 +184,7 @@ describe('multi-transfer payments', () => {
       const recipient = recipients[0];
       await expectBalance(zkTokenContract, recipient, 0n);
 
-      await zkTokenContract.methods.transfer(transferAmount, recipient).send({ origin: ownerAddress }).wait();
+      await zkTokenContract.methods.transfer(transferAmount, recipient).send().wait();
 
       await expectBalance(zkTokenContract, ownerAddress, initialBalance - transferAmount);
       await expectBalance(zkTokenContract, recipient, transferAmount);

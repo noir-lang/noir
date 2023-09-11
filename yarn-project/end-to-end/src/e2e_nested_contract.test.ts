@@ -4,7 +4,7 @@ import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress } from '@aztec/types';
+import { AztecRPC } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -12,13 +12,10 @@ describe('e2e_nested_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let sender: AztecAddress;
   let logger: DebugLogger;
 
   beforeEach(async () => {
-    let accounts: CompleteAddress[];
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup());
-    sender = accounts[0].address;
+    ({ aztecNode, aztecRpcServer, wallet, logger } = await setup());
   }, 100_000);
 
   afterEach(async () => {
@@ -43,7 +40,7 @@ describe('e2e_nested_contract', () => {
     it('performs nested calls', async () => {
       await parentContract.methods
         .entryPoint(childContract.address, childContract.methods.value.selector.toField())
-        .send({ origin: sender })
+        .send()
         .wait();
     }, 100_000);
 
@@ -58,14 +55,14 @@ describe('e2e_nested_contract', () => {
     it('performs public nested calls', async () => {
       await parentContract.methods
         .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector.toField(), 42n)
-        .send({ origin: sender })
+        .send()
         .wait();
     }, 100_000);
 
     it('enqueues a single public call', async () => {
       await parentContract.methods
         .enqueueCallToChild(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
-        .send({ origin: sender })
+        .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(42n);
     }, 100_000);
@@ -81,7 +78,7 @@ describe('e2e_nested_contract', () => {
     it('enqueues multiple public calls', async () => {
       await parentContract.methods
         .enqueueCallToChildTwice(childContract.address, childContract.methods.pubIncValue.selector.value, 42n)
-        .send({ origin: sender })
+        .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(85n);
     }, 100_000);
@@ -89,7 +86,7 @@ describe('e2e_nested_contract', () => {
     it('enqueues a public call with nested public calls', async () => {
       await parentContract.methods
         .enqueueCallToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
-        .send({ origin: sender })
+        .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(42n);
     }, 100_000);
@@ -97,7 +94,7 @@ describe('e2e_nested_contract', () => {
     it('enqueues multiple public calls with nested public calls', async () => {
       await parentContract.methods
         .enqueueCallsToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
-        .send({ origin: sender })
+        .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(85n);
     }, 100_000);
@@ -106,7 +103,7 @@ describe('e2e_nested_contract', () => {
     it('reads fresh value after write within the same tx', async () => {
       await parentContract.methods
         .pubEntryPointTwice(childContract.address, childContract.methods.pubIncValue.selector.value, 42n)
-        .send({ origin: sender })
+        .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(84n);
     }, 100_000);

@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
+import { EthAddress, Fr, Point } from '@aztec/circuits.js';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecRPC, PublicKey, Tx, TxHash, TxReceipt } from '@aztec/types';
 
@@ -26,7 +26,6 @@ describe.skip('Contract Deployer', () => {
   const publicKey: PublicKey = Point.random();
   const portalContract = EthAddress.random();
   const contractAddressSalt = Fr.random();
-  const account = AztecAddress.random();
   const args = [12, 345n];
 
   const mockTx = { type: 'Tx' } as any as Tx;
@@ -44,7 +43,6 @@ describe.skip('Contract Deployer', () => {
     const sentTx = deployer.deploy(args[0], args[1]).send({
       portalContract,
       contractAddressSalt,
-      origin: account,
     });
     const txHash = await sentTx.getTxHash();
     const receipt = await sentTx.getReceipt();

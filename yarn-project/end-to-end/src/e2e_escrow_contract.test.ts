@@ -1,6 +1,6 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, BatchCall, Wallet, generatePublicKey } from '@aztec/aztec.js';
+import { AccountWallet, AztecAddress, BatchCall, generatePublicKey } from '@aztec/aztec.js';
 import { CompleteAddress, Fr, GrumpkinPrivateKey, GrumpkinScalar, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { EscrowContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -12,7 +12,8 @@ import { setup } from './fixtures/utils.js';
 describe('e2e_escrow_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
-  let wallet: Wallet;
+  let wallet: AccountWallet;
+  let recipientWallet: AccountWallet;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
 
@@ -26,7 +27,13 @@ describe('e2e_escrow_contract', () => {
 
   beforeEach(async () => {
     // Setup environment
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    ({
+      aztecNode,
+      aztecRpcServer,
+      accounts,
+      wallets: [wallet, recipientWallet],
+      logger,
+    } = await setup(2));
     owner = accounts[0].address;
     recipient = accounts[1].address;
 
@@ -74,7 +81,10 @@ describe('e2e_escrow_contract', () => {
 
   it('refuses to withdraw funds as a non-owner', async () => {
     await expect(
-      escrowContract.methods.withdraw(privateTokenContract.address, 30, recipient).simulate({ origin: recipient }),
+      escrowContract
+        .withWallet(recipientWallet)
+        .methods.withdraw(privateTokenContract.address, 30, recipient)
+        .simulate(),
     ).rejects.toThrowError();
   }, 60_000);
 

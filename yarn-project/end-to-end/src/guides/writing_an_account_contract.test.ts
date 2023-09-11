@@ -3,7 +3,6 @@ import {
   Account,
   AccountContract,
   CompleteAddress,
-  CreateTxRequestOpts,
   Entrypoint,
   FunctionCall,
   NodeInfo,
@@ -42,12 +41,7 @@ class SchnorrHardcodedKeyAccountContract implements AccountContract {
     // Create a new Entrypoint object, whose responsibility is to turn function calls from the user
     // into a tx execution request ready to be simulated and sent.
     return Promise.resolve({
-      async createTxExecutionRequest(calls: FunctionCall[], opts: CreateTxRequestOpts = {}) {
-        // Validate that the requested origin matches (if set)
-        if (opts.origin && !opts.origin.equals(address)) {
-          throw new Error(`Sender ${opts.origin.toString()} does not match ${address.toString()}`);
-        }
-
+      async createTxExecutionRequest(calls: FunctionCall[]) {
         // Assemble the EntrypointPayload out of the requested calls
         const { payload, packedArguments: callsPackedArguments } = await buildPayload(calls);
 

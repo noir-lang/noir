@@ -49,7 +49,7 @@ describe('e2e_public_token_contract', () => {
 
     await deployContract();
 
-    const tx = contract.methods.mint(mintAmount, recipient).send({ origin: recipient });
+    const tx = contract.methods.mint(mintAmount, recipient).send();
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
@@ -70,7 +70,7 @@ describe('e2e_public_token_contract', () => {
 
     // Assemble two mint txs sequentially (no parallel calls to circuits!) and send them simultaneously
     const methods = times(3, () => contract.methods.mint(mintAmount, recipient));
-    for (const method of methods) await method.simulate({ origin: recipient });
+    for (const method of methods) await method.simulate();
     const txs = await Promise.all(methods.map(method => method.send()));
 
     // Check that all txs got mined in the same block

@@ -58,10 +58,7 @@ describe('e2e_non_contract_account', () => {
     const contractWithNoContractWallet = await PokeableTokenContract.at(contract.address, pokerWallet);
 
     // Send transaction as poker (arbitrary non-contract account)
-    await contractWithNoContractWallet.methods
-      .poke(sender, recipient)
-      .send({ origin: contract.address })
-      .wait({ interval: 0.1 });
+    await contractWithNoContractWallet.methods.poke(sender, recipient).send().wait({ interval: 0.1 });
 
     // Initial balance should be fully transferred to the recipient
     await expectBalance(sender, 0n);

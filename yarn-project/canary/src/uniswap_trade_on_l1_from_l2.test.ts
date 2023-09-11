@@ -8,7 +8,7 @@ import {
   createAztecRpcClient,
   createDebugLogger,
   getL1ContractAddresses,
-  getSandboxAccountsWallet,
+  getSandboxAccountsWallets,
   makeFetch,
   sleep,
   waitForSandbox,
@@ -151,7 +151,7 @@ const transferWethOnL2 = async (
   receiver: AztecAddress,
   transferAmount: bigint,
 ) => {
-  const transferTx = wethL2Contract.methods.transfer(transferAmount, receiver).send({ origin: ownerAddress });
+  const transferTx = wethL2Contract.methods.transfer(transferAmount, receiver).send();
   await transferTx.isMined();
   const transferReceipt = await transferTx.getReceipt();
   expect(transferReceipt.status).toBe(TxStatus.MINED);
@@ -184,7 +184,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
   it('should uniswap trade on L1 from L2 funds privately (swaps WETH -> DAI)', async () => {
     logger('Running L1/L2 messaging test on HTTP interface.');
 
-    wallet = await getSandboxAccountsWallet(aztecRpcClient);
+    [wallet] = await getSandboxAccountsWallets(aztecRpcClient);
     const accounts = await wallet.getAccounts();
     const owner = accounts[0].address;
     const receiver = accounts[1].address;
@@ -246,7 +246,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // Call the mint tokens function on the noir contract
     const consumptionTx = wethL2Contract.methods
       .mint(wethAmountToBridge, owner, messageKey, secret, ethAccount.toField())
-      .send({ origin: owner });
+      .send();
     await consumptionTx.isMined();
     const consumptionReceipt = await consumptionTx.getReceipt();
     expect(consumptionReceipt.status).toBe(TxStatus.MINED);
@@ -276,7 +276,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         ethAccount.toField(),
         ethAccount.toField(),
       )
-      .send({ origin: owner });
+      .send();
     await withdrawTx.isMined();
     const withdrawReceipt = await withdrawTx.getReceipt();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
@@ -327,7 +327,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // Call the mint tokens function on the noir contract
     const daiMintTx = daiL2Contract.methods
       .mint(daiAmountToBridge, owner, depositDaiMessageKey, secret, ethAccount.toField())
-      .send({ origin: owner });
+      .send();
     await daiMintTx.isMined();
     const daiMintTxReceipt = await daiMintTx.getReceipt();
     expect(daiMintTxReceipt.status).toBe(TxStatus.MINED);

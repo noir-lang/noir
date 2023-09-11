@@ -97,11 +97,11 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
   });
 
   it('Loads Aztec.js in the browser', async () => {
-    const createAccountsExists = await page.evaluate(() => {
-      const { createAccounts } = window.AztecJs;
-      return typeof createAccounts === 'function';
+    const generatePublicKeyExists = await page.evaluate(() => {
+      const { generatePublicKey } = window.AztecJs;
+      return typeof generatePublicKey === 'function';
     });
-    expect(createAccountsExists).toBe(true);
+    expect(generatePublicKeyExists).toBe(true);
   });
 
   it('Creates an account', async () => {
@@ -135,7 +135,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const { Contract, AztecAddress, createAztecRpcClient, makeFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
         const owner = (await client.getAccounts())[0].address;
-        const wallet = await AztecJs.getSandboxAccountsWallet(client);
+        const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
         const balance = await contract.methods.getBalance(owner).view({ from: owner });
         console.log(`Owner's balance: ${balance}`);
@@ -158,9 +158,9 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const accounts = await client.getAccounts();
         const owner = accounts[0].address;
         const receiver = accounts[1].address;
-        const wallet = await AztecJs.getSandboxAccountsWallet(client);
+        const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
-        await contract.methods.transfer(transferAmount, receiver).send({ origin: owner }).wait();
+        await contract.methods.transfer(transferAmount, receiver).send().wait();
         console.log(`Transferred ${transferAmount} tokens to new Account`);
         const receiverBalance = await contract.methods.getBalance(receiver).view({ from: receiver });
         console.log(`Receiver's balance is now: ${receiverBalance}`);

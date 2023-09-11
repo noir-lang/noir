@@ -69,9 +69,7 @@ describe('e2e_pending_commitments_contract', () => {
 
     const deployedContract = await deployContract();
 
-    const tx = deployedContract.methods
-      .test_insert_then_get_then_nullify_flat(mintAmount, owner)
-      .send({ origin: owner });
+    const tx = deployedContract.methods.test_insert_then_get_then_nullify_flat(mintAmount, owner).send();
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
@@ -93,7 +91,7 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.get_then_nullify_note.selector.toField(),
         deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
-      .send({ origin: owner });
+      .send();
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
@@ -117,7 +115,7 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.insert_note.selector.toField(),
         deployedContract.methods.get_then_nullify_note.selector.toField(),
       )
-      .send({ origin: owner });
+      .send();
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
@@ -142,7 +140,7 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.insert_note.selector.toField(),
         deployedContract.methods.get_then_nullify_note.selector.toField(),
       )
-      .send({ origin: owner });
+      .send();
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
@@ -163,7 +161,7 @@ describe('e2e_pending_commitments_contract', () => {
     const deployedContract = await deployContract();
 
     // create persistent note
-    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send({ origin: owner });
+    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send();
 
     await tx0.isMined({ interval: 0.1 });
     const receipt0 = await tx0.getReceipt();
@@ -181,7 +179,7 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.get_then_nullify_note.selector.toField(),
         deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
-      .send({ origin: owner });
+      .send();
 
     await tx1.isMined({ interval: 0.1 });
     const receipt1 = await tx1.getReceipt();
@@ -203,7 +201,7 @@ describe('e2e_pending_commitments_contract', () => {
     const mintAmount = 65n;
 
     const deployedContract = await deployContract();
-    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send({ origin: owner });
+    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send();
 
     await tx0.isMined({ interval: 0.1 });
     const receipt = await tx0.getReceipt();
@@ -220,7 +218,7 @@ describe('e2e_pending_commitments_contract', () => {
         deployedContract.methods.get_then_nullify_note.selector.toField(),
         deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
-      .send({ origin: owner });
+      .send();
 
     await tx1.isMined({ interval: 0.1 });
     const receipt2 = await tx1.getReceipt();

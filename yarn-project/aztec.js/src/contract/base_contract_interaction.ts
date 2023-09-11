@@ -1,4 +1,3 @@
-import { AztecAddress } from '@aztec/circuits.js';
 import { AztecRPC, Tx, TxExecutionRequest } from '@aztec/types';
 
 import { SentTx } from './sent_tx.js';
@@ -8,10 +7,6 @@ import { SentTx } from './sent_tx.js';
  * Allows the user to specify the sender address and nonce for a transaction.
  */
 export interface SendMethodOptions {
-  /**
-   * Sender's address initiating the transaction.
-   */
-  origin?: AztecAddress;
   /**
    * Wether to skip the simulation of the public part of the transaction.
    */
