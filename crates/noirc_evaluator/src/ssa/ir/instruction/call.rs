@@ -92,13 +92,11 @@ pub(super) fn simplify_call(
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, element_type)) = slice {
-                // let length = dfg.get_numeric_constant(arguments[0]);
-                // dbg!(length);
-                // dbg!(slice.len());
-
                 // The capacity must be an integer so that we can compare it against the slice length which is represented as a field
                 let capacity = dfg.make_constant((slice.len() as u128).into(), Type::unsigned(64));
 
+                // TODO: This is the user-facing length, we need to handle the element_type size
+                // to appropriately handle arrays of complex types
                 let len_equals_capacity_instr = Instruction::Binary(Binary {
                     lhs: arguments[0],
                     operator: BinaryOp::Eq,
@@ -128,9 +126,7 @@ pub(super) fn simplify_call(
                 for elem in &arguments[2..] {
                     slice.push_back(*elem);
                 }
-                // dbg!(slice.len());
                 let new_slice = dfg.make_array(slice, element_type);
-                // dbg!(new_slice);
 
                 // let slice_length_minus_one = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
                 let set_last_slice_value_instr = Instruction::ArraySet {
@@ -156,10 +152,6 @@ pub(super) fn simplify_call(
                     block,
                     dfg,
                 );
-                // let new_slice_val = dfg.get_array_constant(new_slice);
-                // dbg!(new_slice_val);
-                // dbg!(arguments[1]);
-                // dbg!(new_slice);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
 
                 // for elem in &arguments[2..] {

@@ -527,24 +527,10 @@ impl<'f> Context<'f> {
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
         let value = &self.inserter.function.dfg[value_id];
-        dbg!(value_id);
-        dbg!(value);
         match value {
-            Value::Array { array, .. } => {
-                // dbg!(value_id);
-                // self.slice_sizes.insert(value_id, array.len());
-                // dbg!(value_id);
-                array.len()
-            }
+            Value::Array { array, .. } => array.len(),
             Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = &self.inserter.function.dfg[*instruction_id];
-                // TODO: it may be better to check the results
-                // let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                // dbg!(results);
-                // dbg!(instruction.clone());
-                // let results =
-                // self.inserter.function.dfg.instruction_results(*instruction_id);
-                // dbg!(results);
                 match instruction {
                     Instruction::ArraySet { array, .. } => {
                         dbg!("got an array set");
@@ -572,28 +558,10 @@ impl<'f> Context<'f> {
                             }
 
                             store
-                            // panic!("ahhh")
                         } else {
-                            // dbg!("in outer_block");
-                            // self.outer_block_stores
-                            //     .get(address)
-                            //     .expect("ICE: load in merger should have store from outer block")
                             outer_store
-                            // panic!("ahhh")
                         };
 
-                        // let outer_store = self.outer_block_stores
-                        // .get(address)
-                        // .expect("ICE: load in merger should have store from outer block");
-                        // dbg!(self.slice_sizes.get(&outer_store.new_value));
-                        // if let Some(len) = self.slice_sizes.get(&outer_store.new_value) {
-                        //     dbg!(outer_store.new_value);
-                        //     dbg!(len);
-                        //     return *len
-                        // } else {
-                        //     self.get_slice_length(outer_store.new_value)
-                        // }
-                        dbg!("about to recursively call get_slice_length");
                         self.get_slice_length(context_store.new_value)
                     }
                     Instruction::Call { func, arguments } => {
@@ -601,16 +569,6 @@ impl<'f> Context<'f> {
                         // search here
                         let func = &self.inserter.function.dfg[*func];
                         let slice_contents = arguments[1];
-                        // dbg!(slice_contents);
-                        // dbg!(&self.inserter.function.dfg[slice_contents]);
-                        // match &self.inserter.function.dfg[slice_contents] {
-                        //     Value::Instruction { instruction, .. } => {
-                        //         dbg!(&self.inserter.function.dfg[*instruction]);
-                        //     }
-                        //     _ => (),
-                        // }
-
-                        // self.get_slice_length(results[0]);
                         match func {
                             Value::Intrinsic(intrinsic) => match intrinsic {
                                 Intrinsic::SlicePushBack
@@ -622,22 +580,13 @@ impl<'f> Context<'f> {
                                     dbg!(self.slice_sizes.get(&slice_contents));
                                     dbg!(inner_len);
                                     dbg!(self.slice_sizes.insert(slice_contents, inner_len));
-
-                                    // dbg!(self.slice_sizes.insert(results[1], inner_len + 1));
-
-                                    // let results =
-                                    // self.inserter.function.dfg.instruction_results(*instruction_id);
-                                    // dbg!(results);
-                                    // self.get_slice_length(slice_contents, loaded_before) + 1
                                     inner_len + 1
                                 }
                                 Intrinsic::SlicePopBack
                                 | Intrinsic::SlicePopFront
                                 | Intrinsic::SliceRemove => {
+                                    // TODO: handle slice removal intrinsics
                                     self.get_slice_length(slice_contents) - 1
-                                    // let slice_size = self.slice_sizes.get(&slice_contents);
-                                    // dbg!(slice_size);
-                                    // slice_size.expect("ahhh") - 1
                                 }
                                 _ => {
                                     unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
