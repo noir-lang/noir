@@ -644,7 +644,6 @@ impl FunctionDefinition {
             .collect();
         FunctionDefinition {
             name: name.clone(),
-            // TODO(MD): is this the best way to do this? -> It was previously just None
             attributes: Attributes::empty(),
             is_open: false,
             is_internal: false,
