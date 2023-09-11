@@ -283,12 +283,14 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let v = value.to_u128();
                 if let Type::Integer(_, bit_count) = annotated_type {
-                    let max = 1 << bit_count;
+                    // Avoid overflow in bitshift
+                    let max: u128 =
+                        if *bit_count == 128 { u128::MAX } else { (1 << bit_count) - 1 };
                     if v >= max {
                         self.errors.push(TypeCheckError::OverflowingAssignment {
                             expr: value,
                             ty: annotated_type.clone(),
-                            range: format!("0..={}", max - 1),
+                            range: format!("0..={}", max),
                             span,
                         });
                     };
