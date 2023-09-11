@@ -109,12 +109,24 @@ jobs:
           name: noirc_abi_wasm
           path: ./result
 
+      - name: Query playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+
+      - name: Cache playwright binaries
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+
       - name: Set up test environment
         uses: ./.github/actions/setup
         with:
           working-directory: ./crates/noirc_abi_wasm
 
       - name: Install playwright deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: ./crates/noirc_abi_wasm
         run: |
           npx playwright install
