@@ -30,10 +30,10 @@ impl Backend {
             bytecode_path,
             vk_path_output: vk_path.clone(),
         }
-        .run(&binary_path)?;
+        .run(binary_path)?;
 
         let verification_key_library =
-            ContractCommand { crs_path: self.crs_directory(), vk_path }.run(&binary_path)?;
+            ContractCommand { crs_path: self.crs_directory(), vk_path }.run(binary_path)?;
 
         drop(temp_directory);
         Ok(format!("{verification_key_library}{ULTRA_VERIFIER_CONTRACT}"))

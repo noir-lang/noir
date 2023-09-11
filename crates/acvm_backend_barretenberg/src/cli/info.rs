@@ -80,7 +80,7 @@ fn info_command() -> Result<(), BackendError> {
     let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
-    let (language, is_opcode_supported) = InfoCommand { crs_path }.run(&backend.binary_path())?;
+    let (language, is_opcode_supported) = InfoCommand { crs_path }.run(backend.binary_path())?;
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
     assert!(is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
