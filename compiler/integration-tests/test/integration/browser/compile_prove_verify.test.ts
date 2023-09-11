@@ -53,7 +53,7 @@ suite.timeout(60*10e3);//10mins
 
 test_cases.forEach((testInfo) => {
     const test_name = testInfo.case.split("/").pop();
-    const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Proove, Verify)`, async () => {
+    const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Prove, Verify)`, async () => {
 
         const base_relative_path = "../../../../..";
         const test_case = testInfo.case;
@@ -67,7 +67,7 @@ test_cases.forEach((testInfo) => {
         expect(noir_source).to.be.a.string;
 
         initialiseResolver((id: String) => {
-            console.log("Resoving:", id);
+            console.log("Resolving:", id);
             return noir_source;
         });
 
