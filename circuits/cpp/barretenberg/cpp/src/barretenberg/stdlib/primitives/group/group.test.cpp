@@ -1,6 +1,6 @@
+#include "barretenberg/stdlib/primitives/group/group.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/group/group.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include <gtest/gtest.h>
 

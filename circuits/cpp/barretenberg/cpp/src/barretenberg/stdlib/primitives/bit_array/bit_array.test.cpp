@@ -1,9 +1,9 @@
+#include "bit_array.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
-#include "bit_array.hpp"
 #include <gtest/gtest.h>
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"

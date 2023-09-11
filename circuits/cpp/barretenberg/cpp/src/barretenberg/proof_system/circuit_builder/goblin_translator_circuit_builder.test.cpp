@@ -1,5 +1,5 @@
-#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "goblin_translator_circuit_builder.hpp"
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include <array>
 #include <cstddef>
 #include <gtest/gtest.h>

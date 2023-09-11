@@ -1,5 +1,5 @@
-#include "../../primitives/plookup/plookup.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
+#include "../../primitives/plookup/plookup.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "keccak.hpp"
 #include <gtest/gtest.h>

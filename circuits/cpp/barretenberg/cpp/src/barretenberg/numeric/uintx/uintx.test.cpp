@@ -1,5 +1,5 @@
-#include "../random/engine.hpp"
 #include "./uintx.hpp"
+#include "../random/engine.hpp"
 #include <gtest/gtest.h>
 
 namespace {

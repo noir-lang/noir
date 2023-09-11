@@ -1,6 +1,6 @@
 
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "proof_of_possession.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

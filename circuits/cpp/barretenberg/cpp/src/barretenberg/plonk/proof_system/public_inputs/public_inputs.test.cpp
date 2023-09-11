@@ -1,5 +1,5 @@
-#include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "public_inputs.hpp"
+#include "barretenberg/polynomials/evaluation_domain.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

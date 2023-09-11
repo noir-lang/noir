@@ -1,9 +1,9 @@
+#include "nullifier_tree.hpp"
 #include "../memory_store.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "nullifier_memory_tree.hpp"
-#include "nullifier_tree.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib::merkle_tree;

@@ -1,8 +1,8 @@
+#include "mem_crs_factory.hpp"
 #include "../io.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "file_crs_factory.hpp"
-#include "mem_crs_factory.hpp"
 #include <fstream>
 #include <gtest/gtest.h>
 

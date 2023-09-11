@@ -1,9 +1,9 @@
+#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/curves/secp256k1.hpp"
 #include "../../primitives/curves/secp256r1.hpp"
 #include "barretenberg/common/test.hpp"
-#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "ecdsa.hpp"
 
 using namespace barretenberg;

@@ -1,7 +1,7 @@
+#include "merkle_tree.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "hash.hpp"
 #include "memory_store.hpp"
-#include "merkle_tree.hpp"
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;

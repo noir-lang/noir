@@ -14,7 +14,7 @@ elif [ -n "${1:-}" ]; then
     sed -i.bak 's/\r$//' $FILE && rm ${FILE}.bak
   done
 else
-  for FILE in $(find ./src -iname *.hpp -o -iname *.cpp -o -iname *.tcc | grep -v src/boost); do
+  for FILE in $(find ./{src,barretenberg} -iname *.hpp -o -iname *.cpp -o -iname *.tcc | grep -v src/boost); do
     clang-format -i $FILE
     sed -i.bak 's/\r$//' $FILE && rm ${FILE}.bak
   done

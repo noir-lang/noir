@@ -1,5 +1,5 @@
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;

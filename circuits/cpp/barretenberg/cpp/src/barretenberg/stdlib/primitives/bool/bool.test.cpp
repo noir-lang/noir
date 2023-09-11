@@ -1,6 +1,6 @@
+#include "bool.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.cpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
-#include "bool.hpp"
 #include <gtest/gtest.h>
 
 #define STDLIB_TYPE_ALIASES                                                                                            \

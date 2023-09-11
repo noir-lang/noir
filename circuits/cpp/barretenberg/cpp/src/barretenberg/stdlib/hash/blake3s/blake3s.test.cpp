@@ -1,5 +1,5 @@
-#include "barretenberg/common/streams.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
+#include "barretenberg/common/streams.hpp"
 #include "blake3s.hpp"
 #include "blake3s_plookup.hpp"
 #include <gtest/gtest.h>

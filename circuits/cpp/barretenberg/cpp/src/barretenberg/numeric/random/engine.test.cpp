@@ -1,6 +1,6 @@
+#include "engine.hpp"
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/common/streams.hpp"
-#include "engine.hpp"
 #include <gtest/gtest.h>
 
 TEST(engine, GetRandomUint64)

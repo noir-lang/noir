@@ -1,5 +1,5 @@
-#include "../gemini/gemini.hpp"
 #include "shplonk.hpp"
+#include "../gemini/gemini.hpp"
 
 #include <algorithm>
 #include <gtest/internal/gtest-internal.h>

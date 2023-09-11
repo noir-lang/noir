@@ -1,5 +1,5 @@
-#include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
+#include "barretenberg/common/test.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"

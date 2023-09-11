@@ -99,4 +99,7 @@ e.g. unpacking
 // Define a macro that takes any amount of parameters and expands to a msgpack method definition
 // __VA__ARGS__ expands to the parmeters, comma separated.
 #define MSGPACK_FIELDS(...)                                                                                            \
-    void msgpack(auto pack_fn) { pack_fn(NVP(__VA_ARGS__)); }
+    void msgpack(auto pack_fn)                                                                                         \
+    {                                                                                                                  \
+        pack_fn(NVP(__VA_ARGS__));                                                                                     \
+    }

@@ -1,7 +1,7 @@
+#include "verification_key.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "verification_key.hpp"
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

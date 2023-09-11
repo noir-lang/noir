@@ -1,3 +1,4 @@
+#include "ipa.hpp"
 #include "../gemini/gemini.hpp"
 #include "../shplonk/shplonk.hpp"
 #include "barretenberg/common/mem.hpp"
@@ -6,7 +7,6 @@
 #include "barretenberg/honk/pcs/commitment_key.test.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
-#include "ipa.hpp"
 #include <gtest/gtest.h>
 using namespace barretenberg;
 namespace proof_system::honk::pcs::ipa::test {

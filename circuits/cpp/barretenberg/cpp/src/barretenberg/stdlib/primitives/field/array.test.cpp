@@ -1,5 +1,5 @@
-#include "../bool/bool.hpp"
 #include "array.hpp"
+#include "../bool/bool.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include "field.hpp"

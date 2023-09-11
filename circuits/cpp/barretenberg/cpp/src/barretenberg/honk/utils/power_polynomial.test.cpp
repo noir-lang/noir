@@ -1,5 +1,5 @@
-#include "barretenberg/numeric/random/engine.hpp"
 #include "power_polynomial.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
 #include <gtest/gtest.h>
 
 TEST(power_polynomial, test_full_polynomial_correctness)

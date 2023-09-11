@@ -1,9 +1,9 @@
+#include "merkle_tree.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
-#include "merkle_tree.hpp"
 
 namespace proof_system::test_stdlib_merkle_tree {
 

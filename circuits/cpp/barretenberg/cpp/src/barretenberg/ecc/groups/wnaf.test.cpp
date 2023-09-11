@@ -1,6 +1,6 @@
+#include "wnaf.hpp"
 #include "../curves/bn254/fr.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "wnaf.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

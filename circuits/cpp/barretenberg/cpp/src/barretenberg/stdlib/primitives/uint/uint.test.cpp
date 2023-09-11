@@ -1,5 +1,5 @@
-#include "barretenberg/numeric/random/engine.hpp"
 #include "uint.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
 #include <functional>
 #include <gtest/gtest.h>
 

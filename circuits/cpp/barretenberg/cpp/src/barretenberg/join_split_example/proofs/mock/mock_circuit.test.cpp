@@ -1,7 +1,7 @@
+#include "mock_circuit.hpp"
 #include "../join_split/join_split_tx.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/join_split_example/types.hpp"
-#include "mock_circuit.hpp"
 
 using namespace proof_system::plonk::stdlib;
 

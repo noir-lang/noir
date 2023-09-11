@@ -1,5 +1,5 @@
-#include "barretenberg/crypto/generators/generator_data.hpp"
 #include "ultra_circuit_builder.hpp"
+#include "barretenberg/crypto/generators/generator_data.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

@@ -1,5 +1,5 @@
-#include "./fixed_base_scalar_mul.hpp"
 #include "./generator_data.hpp"
+#include "./fixed_base_scalar_mul.hpp"
 #include "barretenberg/common/streams.hpp"
 #include <gtest/gtest.h>
 

@@ -1,5 +1,5 @@
-#include "program_settings.hpp"
 #include "verifier.hpp"
+#include "program_settings.hpp"
 
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"

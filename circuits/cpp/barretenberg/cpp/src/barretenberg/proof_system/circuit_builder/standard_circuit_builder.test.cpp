@@ -1,6 +1,6 @@
+#include "standard_circuit_builder.hpp"
 #include "barretenberg/crypto/generators/generator_data.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
-#include "standard_circuit_builder.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

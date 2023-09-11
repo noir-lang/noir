@@ -32,10 +32,9 @@ template <typename R, typename T, typename... Vs> struct func_traits<R (T::*)(Vs
 
 // Define a concept that checks if the type is a lambda (or functor) type
 // This is done by checking if T::operator() exists
-template <typename T> concept LambdaType = requires()
-{
-    typename std::enable_if_t<std::is_member_function_pointer_v<decltype(&T::operator())>, void>;
-};
+template <typename T>
+concept LambdaType =
+    requires() { typename std::enable_if_t<std::is_member_function_pointer_v<decltype(&T::operator())>, void>; };
 
 // Overload for lambda (or functor) types
 template <LambdaType T> constexpr auto get_func_traits()

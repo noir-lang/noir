@@ -1,10 +1,10 @@
+#include "field.hpp"
 #include "../bool/bool.hpp"
 #include "array.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
-#include "field.hpp"
 #include <gtest/gtest.h>
 #include <utility>
 

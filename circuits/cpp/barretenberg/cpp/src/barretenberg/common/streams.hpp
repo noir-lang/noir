@@ -110,7 +110,8 @@ template <std::integral T, typename A> inline std::ostream& operator<<(std::ostr
 }
 
 template <typename T, typename A>
-requires(!std::integral<T>) inline std::ostream& operator<<(std::ostream& os, std::vector<T, A> const& arr)
+    requires(!std::integral<T>)
+inline std::ostream& operator<<(std::ostream& os, std::vector<T, A> const& arr)
 {
     os << "[\n";
     for (auto element : arr) {

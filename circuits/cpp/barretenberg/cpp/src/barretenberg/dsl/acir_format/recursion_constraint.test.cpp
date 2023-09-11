@@ -1,7 +1,7 @@
+#include "recursion_constraint.hpp"
 #include "acir_format.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "recursion_constraint.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>

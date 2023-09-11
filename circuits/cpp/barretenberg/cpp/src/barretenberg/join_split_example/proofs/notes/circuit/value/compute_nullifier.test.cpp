@@ -1,5 +1,5 @@
-#include "../../../../fixtures/user_context.hpp"
 #include "../../native/value/compute_nullifier.hpp"
+#include "../../../../fixtures/user_context.hpp"
 #include "../../native/value/value_note.hpp"
 #include "./compute_nullifier.hpp"
 #include "./value_note.hpp"

@@ -1,5 +1,5 @@
-#include "barretenberg/serialize/test_helper.hpp"
 #include "fq.hpp"
+#include "barretenberg/serialize/test_helper.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

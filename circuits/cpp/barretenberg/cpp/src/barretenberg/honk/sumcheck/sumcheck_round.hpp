@@ -3,6 +3,7 @@
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/pow.hpp"
+#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/proof_system/relations/relation_parameters.hpp"
 
 namespace proof_system::honk::sumcheck {

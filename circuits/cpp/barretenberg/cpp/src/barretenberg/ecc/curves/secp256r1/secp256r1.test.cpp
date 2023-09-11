@@ -1,5 +1,5 @@
-#include "barretenberg/numeric/random/engine.hpp"
 #include "secp256r1.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
 #include <gtest/gtest.h>
 
 namespace test_secp256r1 {

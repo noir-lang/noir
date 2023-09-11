@@ -1,5 +1,5 @@
-#include "../random/engine.hpp"
 #include "uint128.hpp"
+#include "../random/engine.hpp"
 #include <gtest/gtest.h>
 #ifdef __i386__
 namespace {

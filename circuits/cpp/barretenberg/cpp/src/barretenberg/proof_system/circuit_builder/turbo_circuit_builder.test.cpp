@@ -1,6 +1,6 @@
+#include "turbo_circuit_builder.hpp"
 #include "barretenberg/crypto/generators/fixed_base_scalar_mul.hpp"
 #include "barretenberg/crypto/generators/generator_data.hpp"
-#include "turbo_circuit_builder.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

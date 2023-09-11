@@ -1,5 +1,5 @@
-#include "../blake2s/blake2s.hpp"
 #include "blake3s.hpp"
+#include "../blake2s/blake2s.hpp"
 
 #include <gtest/gtest.h>
 
