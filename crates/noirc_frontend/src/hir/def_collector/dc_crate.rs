@@ -26,6 +26,7 @@ use std::rc::Rc;
 use std::vec;
 
 /// Stores all of the unresolved functions in a particular file/mod
+#[derive(Clone)]
 pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
@@ -43,10 +44,19 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+#[derive(Clone)]
 pub struct UnresolvedTrait {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub trait_def: NoirTrait,
+}
+
+pub struct UnresolvedTraitImpl {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub the_trait: UnresolvedTrait,
+    pub methods: UnresolvedFunctions,
+    pub trait_impl_ident: Ident, // for error reporting
 }
 
 #[derive(Clone)]
@@ -74,7 +84,7 @@ pub struct DefCollector {
     pub(crate) collected_traits: BTreeMap<TraitId, UnresolvedTrait>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
-    pub(crate) collected_traits_impls: ImplMap,
+    pub(crate) collected_traits_impls: TraitImplMap,
 }
 
 /// Maps the type and the module id in which the impl is defined to the functions contained in that
@@ -87,6 +97,8 @@ pub struct DefCollector {
 type ImplMap =
     HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
+type TraitImplMap = HashMap<(UnresolvedType, LocalModuleId, TraitId), UnresolvedTraitImpl>;
+
 impl DefCollector {
     fn new(def_map: CrateDefMap) -> DefCollector {
         DefCollector {
@@ -97,8 +109,8 @@ impl DefCollector {
             collected_type_aliases: BTreeMap::new(),
             collected_traits: BTreeMap::new(),
             collected_impls: HashMap::new(),
-            collected_traits_impls: HashMap::new(),
             collected_globals: vec![],
+            collected_traits_impls: HashMap::new(),
         }
     }
 
@@ -205,7 +217,7 @@ impl DefCollector {
         // impl since that determines the module we should collect into.
         collect_impls(context, crate_id, &def_collector.collected_impls, errors);
 
-        collect_impls(context, crate_id, &def_collector.collected_traits_impls, errors);
+        collect_trait_impls(context, crate_id, &def_collector.collected_traits_impls, errors);
 
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_free_functions(
@@ -225,13 +237,8 @@ impl DefCollector {
             errors,
         );
 
-        let file_trait_impls_ids = resolve_impls(
-            &mut context.def_interner,
-            crate_id,
-            &context.def_maps,
-            def_collector.collected_traits_impls,
-            errors,
-        );
+        let file_trait_impls_ids =
+            resolve_trait_impls(context, def_collector.collected_traits_impls, crate_id, errors);
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
 
@@ -301,6 +308,58 @@ fn collect_impls(
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
                 errors.push(error.into_file_diagnostic(unresolved.file_id));
+            }
+        }
+    }
+}
+
+fn collect_trait_impls(
+    context: &mut Context,
+    crate_id: CrateId,
+    collected_impls: &TraitImplMap,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    let interner = &mut context.def_interner;
+    let def_maps = &mut context.def_maps;
+
+    // TODO: To follow the semantics of Rust, we must allow the impl if either
+    //     1. The type is a struct and it's defined in the current crate
+    //     2. The trait is defined in the current crate
+    for ((unresolved_type, module_id, _), trait_impl) in collected_impls {
+        let path_resolver =
+            StandardPathResolver::new(ModuleId { local_id: *module_id, krate: crate_id });
+
+        for (_, func_id, ast) in &trait_impl.methods.functions {
+            let file = def_maps[&crate_id].file_id(*module_id);
+
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.add_generics(&ast.def.generics);
+            let typ = resolver.resolve_type(unresolved_type.clone());
+
+            // Add the method to the struct's namespace
+            if let Some(struct_type) = get_struct_type(&typ) {
+                extend_errors(errors, trait_impl.file_id, resolver.take_errors());
+
+                let struct_type = struct_type.borrow();
+                let type_module = struct_type.id.local_module_id();
+
+                let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
+
+                let result = module.declare_function(ast.name_ident().clone(), *func_id);
+
+                if let Err((first_def, second_def)) = result {
+                    let err = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::Function,
+                        first_def,
+                        second_def,
+                    };
+                    errors.push(err.into_file_diagnostic(trait_impl.file_id));
+                }
+            } else {
+                let span = trait_impl.trait_impl_ident.span();
+                let trait_ident = trait_impl.the_trait.trait_def.name.clone();
+                let error = DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span };
+                errors.push(error.into_file_diagnostic(trait_impl.file_id));
             }
         }
     }
@@ -601,6 +660,55 @@ fn resolve_impls(
     file_method_ids
 }
 
+fn resolve_trait_impls(
+    context: &mut Context,
+    traits: TraitImplMap,
+    crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
+) -> Vec<(FileId, FuncId)> {
+    let interner = &mut context.def_interner;
+    let mut methods = Vec::<(FileId, FuncId)>::new();
+
+    for ((unresolved_type, _, trait_id), trait_impl) in traits {
+        let local_mod_id = trait_impl.module_id;
+        let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
+        let path_resolver = StandardPathResolver::new(module_id);
+
+        let self_type = {
+            let mut resolver =
+                Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+            resolver.resolve_type(unresolved_type.clone())
+        };
+
+        let mut impl_methods = resolve_function_set(
+            interner,
+            crate_id,
+            &context.def_maps,
+            trait_impl.methods.clone(),
+            Some(self_type.clone()),
+            vec![], // TODO
+            errors,
+        );
+
+        let trait_definition_ident = &trait_impl.trait_impl_ident;
+        let key = (self_type.clone(), trait_id);
+        if let Some(prev_trait_impl_ident) = interner.get_previous_trait_implementation(&key) {
+            let err = DefCollectorErrorKind::Duplicate {
+                typ: DuplicateType::TraitImplementation,
+                first_def: prev_trait_impl_ident.clone(),
+                second_def: trait_definition_ident.clone(),
+            };
+            errors.push(err.into_file_diagnostic(trait_impl.methods.file_id));
+        } else {
+            let _func_ids =
+                interner.add_trait_implementaion(&key, trait_definition_ident, &trait_impl.methods);
+        }
+
+        methods.append(&mut impl_methods);
+    }
+
+    methods
+}
 fn resolve_free_functions(
     interner: &mut NodeInterner,
     crate_id: CrateId,

@@ -1,7 +1,9 @@
-use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::{Opcode, OpcodeLocation};
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
+use acvm::Language;
 use clap::Args;
+use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::{ExecutionError, NargoError};
 use nargo::package::Package;
@@ -11,7 +13,6 @@ use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::graph::CrateName;
-use noirc_frontend::hir::Context;
 
 use super::compile_cmd::compile_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
@@ -53,9 +54,16 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let witness_dir = &workspace.target_directory_path();
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        let (return_value, solved_witness) =
-            execute_package(backend, package, &args.prover_name, &args.compile_options)?;
+        let (return_value, solved_witness) = execute_package(
+            backend,
+            package,
+            &args.prover_name,
+            &args.compile_options,
+            np_language,
+            &is_opcode_supported,
+        )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {
@@ -75,8 +83,11 @@ fn execute_package(
     package: &Package,
     prover_name: &str,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (context, compiled_program) =
+        compile_package(package, compile_options, np_language, &is_opcode_supported)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
@@ -133,7 +144,7 @@ fn extract_opcode_error_from_nargo_error(
 fn report_error_with_opcode_locations(
     opcode_err_info: Option<(Vec<OpcodeLocation>, &ExecutionError)>,
     debug: &DebugInfo,
-    context: &Context,
+    file_manager: &FileManager,
 ) {
     if let Some((opcode_locations, opcode_err)) = opcode_err_info {
         let source_locations: Vec<_> = opcode_locations
@@ -173,7 +184,7 @@ fn report_error_with_opcode_locations(
             CustomDiagnostic::simple_error(message, String::new(), location.span)
                 .in_file(location.file)
                 .with_call_stack(source_locations)
-                .report(&context.file_manager, false);
+                .report(file_manager.as_file_map(), false);
         }
     }
 }
@@ -183,7 +194,7 @@ pub(crate) fn execute_program(
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
-    debug_data: Option<(DebugInfo, Context)>,
+    debug_data: Option<(DebugInfo, FileManager)>,
 ) -> Result<WitnessMap, CliError> {
     #[allow(deprecated)]
     let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
@@ -195,9 +206,9 @@ pub(crate) fn execute_program(
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
-            if let Some((debug, context)) = debug_data {
+            if let Some((debug, file_manager)) = debug_data {
                 let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
-                report_error_with_opcode_locations(opcode_err_info, &debug, &context);
+                report_error_with_opcode_locations(opcode_err_info, &debug, &file_manager);
             }
 
             Err(crate::errors::CliError::NargoError(err))

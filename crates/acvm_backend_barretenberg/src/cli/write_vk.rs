@@ -28,33 +28,35 @@ impl WriteVkCommand {
             command.arg("-r");
         }
 
-        let output = command.output().expect("Failed to execute command");
+        let output = command.output()?;
         if output.status.success() {
             Ok(())
         } else {
-            Err(BackendError(String::from_utf8(output.stderr).unwrap()))
+            Err(BackendError::CommandFailed(output.stderr))
         }
     }
 }
 
 #[test]
-#[serial_test::serial]
-fn write_vk_command() {
+fn write_vk_command() -> Result<(), BackendError> {
     use tempfile::tempdir;
 
-    let backend = crate::get_mock_backend();
-
-    let bytecode_path = PathBuf::from("./src/1_mul.bytecode");
+    let backend = crate::get_mock_backend()?;
 
     let temp_directory = tempdir().expect("could not create a temporary directory");
+    let temp_directory_path = temp_directory.path();
+    let bytecode_path = temp_directory_path.join("acir.gz");
     let vk_path_output = temp_directory.path().join("vk");
 
     let crs_path = backend.backend_directory();
 
+    std::fs::File::create(&bytecode_path).expect("file should be created");
+
     let write_vk_command =
         WriteVkCommand { bytecode_path, crs_path, is_recursive: false, vk_path_output };
 
-    let vk_written = write_vk_command.run(&backend.binary_path());
-    assert!(vk_written.is_ok());
+    write_vk_command.run(&backend.binary_path())?;
     drop(temp_directory);
+
+    Ok(())
 }

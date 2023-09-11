@@ -41,6 +41,8 @@ fn main(mut x: Field) {
     regression_2218_if_inner_else(20, x);
     regression_2218_else(x, 3);
     regression_2218_loop(x, 10);
+
+    regression_2560(s_ref);
 }
 
 fn add1(x: &mut Field) {
@@ -63,6 +65,10 @@ struct C2 {
 impl S {
     fn add2(&mut self) {
         self.y += 2;
+    }
+
+    fn get_y(self) -> Field {
+        self.y
     }
 }
 
@@ -229,4 +235,11 @@ fn regression_2218_loop(x: Field, y: Field) {
         assert(*q1 == 20);  
     }
     assert(*q1 == 2);  
+}
+
+// This is more a feature test than a proper regression.
+// Before, we never automatically dereferenced objects in method calls to their value types.
+// Now, we insert as many `*` as necessary to get to `S`.
+fn regression_2560(s_ref: &mut S) {
+    assert(s_ref.get_y() == 7);
 }

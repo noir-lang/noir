@@ -1,10 +1,11 @@
+use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use acvm_backend_barretenberg::BackendError;
 use clap::Args;
 use iter_extended::{try_vecmap, vecmap};
-use nargo::{package::Package, prepare_package};
+use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{compile_contracts, CompileOptions};
+use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
 use serde::Serialize;
@@ -12,10 +13,7 @@ use serde::Serialize;
 use crate::backends::Backend;
 use crate::{cli::compile_cmd::compile_package, errors::CliError};
 
-use super::{
-    compile_cmd::{optimize_contract, report_errors},
-    NargoConfig,
-};
+use super::{compile_cmd::compile_contracts, NargoConfig};
 
 /// Provides detailed information on a circuit
 ///
@@ -53,14 +51,25 @@ pub(crate) fn run(
 
     let mut info_report = InfoReport::default();
 
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
         if package.is_contract() {
-            let contract_info =
-                count_opcodes_and_gates_in_contracts(backend, package, &args.compile_options)?;
+            let contract_info = count_opcodes_and_gates_in_contracts(
+                backend,
+                package,
+                &args.compile_options,
+                np_language,
+                &is_opcode_supported,
+            )?;
             info_report.contracts.extend(contract_info);
         } else {
-            let program_info =
-                count_opcodes_and_gates_in_program(backend, package, &args.compile_options)?;
+            let program_info = count_opcodes_and_gates_in_program(
+                backend,
+                package,
+                &args.compile_options,
+                np_language,
+                &is_opcode_supported,
+            )?;
             info_report.programs.push(program_info);
         }
     }
@@ -159,12 +168,16 @@ fn count_opcodes_and_gates_in_program(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<ProgramInfo, CliError> {
-    let (_, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (_, compiled_program) =
+        compile_package(package, compile_options, np_language, &is_opcode_supported)?;
+    let (language, _) = backend.get_backend_info()?;
 
     Ok(ProgramInfo {
         name: package.name.to_string(),
-        language: backend.np_language(),
+        language,
         acir_opcodes: compiled_program.circuit.opcodes.len(),
         circuit_size: backend.get_exact_circuit_size(&compiled_program.circuit)?,
     })
@@ -174,14 +187,14 @@ fn count_opcodes_and_gates_in_contracts(
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<Vec<ContractInfo>, CliError> {
-    let (mut context, crate_id) = prepare_package(package);
-    let result = compile_contracts(&mut context, crate_id, compile_options);
-    let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
-    let optimized_contracts =
-        try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
+    let (_, contracts) =
+        compile_contracts(package, compile_options, np_language, &is_opcode_supported)?;
+    let (language, _) = backend.get_backend_info()?;
 
-    try_vecmap(optimized_contracts, |contract| {
+    try_vecmap(contracts, |contract| {
         let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
             Ok(FunctionInfo {
                 name: function.name,
@@ -190,6 +203,6 @@ fn count_opcodes_and_gates_in_contracts(
             })
         })?;
 
-        Ok(ContractInfo { name: contract.name, language: backend.np_language(), functions })
+        Ok(ContractInfo { name: contract.name, language, functions })
     })
 }
