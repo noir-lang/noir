@@ -476,7 +476,7 @@ impl Attribute {
     }
 }
 
-/// Primary Attributes are those which a function can only have one off
+/// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum PrimaryAttribute {
