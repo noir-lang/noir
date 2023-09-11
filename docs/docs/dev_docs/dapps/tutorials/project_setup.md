@@ -6,7 +6,7 @@ Let's start by setting up a regular Javascript NodeJS project. Feel free to skip
 
 We'll use [`yarn`](https://yarnpkg.com/) for managing our project and dependencies, though you can also use `npm` or your Javascript package manager of choice.
 
-1. Ensure node version is 18 or more by running.
+1. Ensure node version is 18 or higher by running.
 
 ```sh
 node -v

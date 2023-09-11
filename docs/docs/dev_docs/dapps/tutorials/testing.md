@@ -22,7 +22,7 @@ yarn add -D @aztec/aztec-sandbox
 
 Create a new file `src/index.test.mjs` with the imports we'll be using and an empty test suite to begin with:
 
-```ts
+```js
 import { createSandbox } from '@aztec/aztec-sandbox';
 import { Contract, createAccount } from '@aztec/aztec.js';
 import PrivateTokenArtifact from '../contracts/private_token/target/PrivateToken.json' assert { type: 'json' };

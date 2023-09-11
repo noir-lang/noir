@@ -70,7 +70,7 @@ Let's create an empty project called `private-token`. If you are familiar with s
 
 Although both `yarn` and `npm` would work, this example uses `yarn`. Open the terminal and do the following
 
-1. Ensure node version is 18 or more by running
+1. Ensure node version is 18 or higher by running
 
 ```sh
 node -v
