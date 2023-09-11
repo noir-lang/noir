@@ -1,5 +1,5 @@
 {
-  ".": "0.6.6",
-  "circuits/cpp/barretenberg": "0.6.6",
-  "circuits/cpp/barretenberg/ts": "0.6.6"
+  ".": "0.6.7",
+  "circuits/cpp/barretenberg": "0.6.7",
+  "circuits/cpp/barretenberg/ts": "0.6.7"
 }
