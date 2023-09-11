@@ -38,10 +38,10 @@ const CIRCUIT_SIZE = 2 ** 19;
 
 const test_cases = [
     {
-        case: "crates/nargo_cli/tests/execution_success/1_mul"
+        case: "tooling/nargo_cli/tests/execution_success/1_mul"
     },
     {
-        case: "crates/nargo_cli/tests/execution_success/double_verify_proof"
+        case: "tooling/nargo_cli/tests/execution_success/double_verify_proof"
     }
 ];
 

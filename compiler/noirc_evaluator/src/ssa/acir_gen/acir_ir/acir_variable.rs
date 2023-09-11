@@ -1207,19 +1207,31 @@ impl AcirContext {
     ) -> Result<(), InternalError> {
         // If the optional values are supplied, then we fill the initialized
         // array with those values. If not, then we fill it with zeros.
+        let mut nested = false;
         let initialized_values = match optional_values {
             None => {
                 let zero = self.add_constant(FieldElement::zero());
                 let zero_witness = self.var_to_witness(zero)?;
                 vec![zero_witness; len]
             }
-            Some(optional_values) => try_vecmap(optional_values, |value| {
-                let value = value.clone().into_var()?;
-                self.var_to_witness(value)
-            })?,
+            Some(optional_values) => {
+                let mut values = Vec::new();
+                for value in optional_values {
+                    if let Ok(some_value) = value.clone().into_var() {
+                        values.push(self.var_to_witness(some_value)?);
+                    } else {
+                        nested = true;
+                        break;
+                    }
+                }
+                values
+            }
         };
+        // we do not initialize nested arrays. This means that non-const indexes are not supported for nested arrays
+        if !nested {
+            self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+        }
 
-        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
         Ok(())
     }
 }

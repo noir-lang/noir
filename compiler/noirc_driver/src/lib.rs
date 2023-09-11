@@ -48,12 +48,12 @@ pub type Warnings = Vec<FileDiagnostic>;
 /// Helper type used to signify where errors or warnings are expected in file diagnostics
 pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 
+/// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
+pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
+
 // This is here for backwards compatibility
 // with the restricted version which only uses one file
-pub fn compile_file(
-    context: &mut Context,
-    root_file: &Path,
-) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
+pub fn compile_file(context: &mut Context, root_file: &Path) -> CompilationResult<CompiledProgram> {
     let crate_id = prepare_crate(context, root_file);
     compile_main(context, crate_id, &CompileOptions::default())
 }
@@ -107,14 +107,14 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-) -> Result<Warnings, ErrorsAndWarnings> {
+) -> CompilationResult<()> {
     let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)
     } else {
-        Ok(errors)
+        Ok(((), errors))
     }
 }
 
@@ -140,8 +140,8 @@ pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings)?;
+) -> CompilationResult<CompiledProgram> {
+    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
@@ -170,8 +170,8 @@ pub fn compile_contracts(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings)?;
+) -> CompilationResult<Vec<CompiledContract>> {
+    let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
@@ -218,7 +218,7 @@ fn compile_contract(
     context: &Context,
     contract: Contract,
     options: &CompileOptions,
-) -> Result<CompiledContract, Vec<FileDiagnostic>> {
+) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
     for function_id in &contract.functions {
