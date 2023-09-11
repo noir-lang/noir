@@ -46,6 +46,8 @@ We have shipped a number of example contracts in the `@aztec/noir-contracts` npm
 
 #include_code example-contracts yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
+You can see all of our example contracts in the monorepo [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts).
+
 In the following sections there will be commands that require contracts as options. You can either specify the full directory path to the contract abi, or you can use the name of one of these examples as the option value. This will become clearer later on.
 
 ## Creating Accounts
