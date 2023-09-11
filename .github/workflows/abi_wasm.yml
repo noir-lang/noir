@@ -92,7 +92,7 @@ jobs:
 
       - name: Run node tests
         working-directory: ./tooling/noirc_abi_wasm
-        run: yarn test
+        run: yarn install && yarn test
 
   noirc-abi-wasm-test-browser:
     needs: [noirc-abi-wasm-build]
@@ -135,4 +135,4 @@ jobs:
 
       - name: Run browser tests
         working-directory: ./tooling/noirc_abi_wasm
-        run: yarn test:browser
+        run: yarn install && yarn test:browser
