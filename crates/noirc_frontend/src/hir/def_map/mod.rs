@@ -2,7 +2,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
-use crate::parser::{parse_program, ParsedModule};
+use crate::parser::{parse_program, Compiler, ParsedModule};
 use crate::token::{Attribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
@@ -217,7 +217,7 @@ pub fn parse_file(
     all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.source());
+    let (program, errors) = parse_program::<Compiler>(file.source());
     all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
     program
 }

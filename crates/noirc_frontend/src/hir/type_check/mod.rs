@@ -187,6 +187,7 @@ mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
+    use crate::parser::Compiler;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -394,7 +395,7 @@ mod test {
     // This function assumes that there is only one function and this is the
     // func id that is returned
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        let (program, errors) = parse_program(src);
+        let (program, errors) = parse_program::<Compiler>(src);
         let mut interner = NodeInterner::default();
 
         // Using assert_eq here instead of assert(errors.is_empty()) displays

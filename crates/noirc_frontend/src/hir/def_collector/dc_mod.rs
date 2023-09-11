@@ -5,7 +5,7 @@ use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
-    parser::SubModule,
+    parser::{Compiler, SubModule},
     FunctionDefinition, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct,
     NoirTrait, NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
     UnresolvedType,
@@ -496,7 +496,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         crate_id: CrateId,
-        submodules: Vec<SubModule>,
+        submodules: Vec<SubModule<Compiler>>,
         file_id: FileId,
         errors: &mut Vec<FileDiagnostic>,
     ) {

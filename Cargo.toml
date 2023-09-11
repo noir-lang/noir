@@ -8,6 +8,7 @@ members = [
     "crates/noirc_driver",
     "crates/noirc_printable_type",
     "crates/nargo",
+    "crates/nargo_fmt",
     "crates/nargo_cli",
     "crates/nargo_toml",
     "crates/fm",

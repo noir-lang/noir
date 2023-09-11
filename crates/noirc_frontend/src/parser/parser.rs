@@ -23,13 +23,12 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use super::spanned;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
-    ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
-    TopLevelStatement,
+    ForRange, NoirParser, ParserError, ParserErrorReason, Precedence, SubModule, TopLevelStatement,
 };
+use super::{spanned, Mode, ParsedModuleBuilder};
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, Statement, UnresolvedType, UnresolvedTypeData,
 };
@@ -54,40 +53,40 @@ use noirc_errors::{CustomDiagnostic, Span, Spanned};
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
-pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
+pub fn parse_program<M: Mode>(source_program: &str) -> (M::ParsedModule, Vec<CustomDiagnostic>) {
     let (tokens, lexing_errors) = Lexer::lex(source_program);
     let mut errors = vecmap(lexing_errors, Into::into);
 
-    let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
+    let (module, parsing_errors) = program::<M>().parse_recovery_verbose(tokens);
     errors.extend(parsing_errors.into_iter().map(Into::into));
 
     (module.unwrap(), errors)
 }
 
 /// program: module EOF
-fn program() -> impl NoirParser<ParsedModule> {
-    module().then_ignore(force(just(Token::EOF)))
+fn program<M: Mode>() -> impl NoirParser<M::ParsedModule> {
+    module::<M>().then_ignore(force(just(Token::EOF)))
 }
 
 /// module: top_level_statement module
 ///       | %empty
-fn module() -> impl NoirParser<ParsedModule> {
+fn module<M: Mode>() -> impl NoirParser<M::ParsedModule> {
     recursive(|module_parser| {
         empty()
-            .map(|_| ParsedModule::default())
-            .then(top_level_statement(module_parser).repeated())
-            .foldl(|mut program, statement| {
+            .map(|_| M::ParsedModule::default())
+            .then(spanned(top_level_statement::<M>(module_parser)).repeated())
+            .foldl(|mut program, (statement, span)| {
                 match statement {
-                    TopLevelStatement::Function(f) => program.push_function(f),
-                    TopLevelStatement::Module(m) => program.push_module_decl(m),
-                    TopLevelStatement::Import(i) => program.push_import(i),
-                    TopLevelStatement::Struct(s) => program.push_type(s),
-                    TopLevelStatement::Trait(t) => program.push_trait(t),
-                    TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t),
-                    TopLevelStatement::Impl(i) => program.push_impl(i),
-                    TopLevelStatement::TypeAlias(t) => program.push_type_alias(t),
-                    TopLevelStatement::SubModule(s) => program.push_submodule(s),
-                    TopLevelStatement::Global(c) => program.push_global(c),
+                    TopLevelStatement::Function(f) => program.push_function(f, span),
+                    TopLevelStatement::Module(m) => program.push_module_decl(m, span),
+                    TopLevelStatement::Import(i) => program.push_import(i, span),
+                    TopLevelStatement::Struct(s) => program.push_type(s, span),
+                    TopLevelStatement::Trait(t) => program.push_trait(t, span),
+                    TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t, span),
+                    TopLevelStatement::Impl(i) => program.push_impl(i, span),
+                    TopLevelStatement::TypeAlias(t) => program.push_type_alias(t, span),
+                    TopLevelStatement::SubModule(s) => program.push_submodule(s, span),
+                    TopLevelStatement::Global(c) => program.push_global(c, span),
                     TopLevelStatement::Error => (),
                 }
                 program
@@ -103,9 +102,9 @@ fn module() -> impl NoirParser<ParsedModule> {
 ///                    | module_declaration
 ///                    | use_statement
 ///                    | global_declaration
-fn top_level_statement(
-    module_parser: impl NoirParser<ParsedModule>,
-) -> impl NoirParser<TopLevelStatement> {
+fn top_level_statement<M: Mode>(
+    module_parser: impl NoirParser<M::ParsedModule>,
+) -> impl NoirParser<TopLevelStatement<M>> {
     choice((
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
@@ -119,11 +118,11 @@ fn top_level_statement(
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
-    .recover_via(top_level_statement_recovery())
+    .recover_via(top_level_statement_recovery::<M>())
 }
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
-fn global_declaration() -> impl NoirParser<TopLevelStatement> {
+fn global_declaration<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     let p = ignore_then_commit(
         keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
         ident().map(Pattern::Identifier),
@@ -135,7 +134,9 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 /// submodule: 'mod' ident '{' module '}'
-fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+fn submodule<M: Mode>(
+    module_parser: impl NoirParser<M::ParsedModule>,
+) -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Mod)
         .ignore_then(ident())
         .then_ignore(just(Token::LeftBrace))
@@ -147,7 +148,9 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
 }
 
 /// contract: 'contract' ident '{' module '}'
-fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+fn contract<M: Mode>(
+    module_parser: impl NoirParser<M::ParsedModule>,
+) -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Contract)
         .ignore_then(ident())
         .then_ignore(just(Token::LeftBrace))
@@ -221,7 +224,7 @@ fn generics() -> impl NoirParser<Vec<Ident>> {
         .map(|opt| opt.unwrap_or_default())
 }
 
-fn struct_definition() -> impl NoirParser<TopLevelStatement> {
+fn struct_definition<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     use self::Keyword::Struct;
     use Token::*;
 
@@ -241,7 +244,7 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     )
 }
 
-fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
+fn type_alias_definition<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     use self::Keyword::Type;
 
     let p = ignore_then_commit(keyword(Type), ident());
@@ -365,7 +368,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
         })
 }
 
-fn trait_definition() -> impl NoirParser<TopLevelStatement> {
+fn trait_definition<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Trait)
         .ignore_then(ident())
         .then(generics())
@@ -467,7 +470,7 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 /// Parses a non-trait implementation, adding a set of methods to a type.
 ///
 /// implementation: 'impl' generics type '{' function_definition ... '}'
-fn implementation() -> impl NoirParser<TopLevelStatement> {
+fn implementation<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Impl)
         .ignore_then(generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
@@ -484,7 +487,7 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 /// and an optional `where` clause is also useable.
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
-fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
+fn trait_implementation<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Impl)
         .ignore_then(generics())
         .then(ident())
@@ -611,11 +614,11 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
         .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
 }
 
-fn module_declaration() -> impl NoirParser<TopLevelStatement> {
+fn module_declaration<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Mod).ignore_then(ident()).map(TopLevelStatement::Module)
 }
 
-fn use_statement() -> impl NoirParser<TopLevelStatement> {
+fn use_statement<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
     keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
 }
 
@@ -1530,7 +1533,7 @@ mod test {
     use noirc_errors::CustomDiagnostic;
 
     use super::*;
-    use crate::{ArrayLiteral, Literal};
+    use crate::{parser::Compiler, ArrayLiteral, Literal};
 
     fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<CustomDiagnostic>>
     where
@@ -1986,7 +1989,7 @@ mod test {
     #[test]
     fn parse_trait() {
         parse_all(
-            trait_definition(),
+            trait_definition::<Compiler>(),
             vec![
                 // Empty traits are legal in Rust and sometimes used as a way to whitelist certain types
                 // for a particular operation. Also known as `tag` or `marker` traits:
@@ -2087,8 +2090,8 @@ mod test {
 
     #[test]
     fn parse_module_declaration() {
-        parse_with(module_declaration(), "mod foo").unwrap();
-        parse_with(module_declaration(), "mod 1").unwrap_err();
+        parse_with(module_declaration::<Compiler>(), "mod foo").unwrap();
+        parse_with(module_declaration::<Compiler>(), "mod 1").unwrap_err();
     }
 
     #[test]
@@ -2145,7 +2148,7 @@ mod test {
     #[test]
     fn parse_use() {
         parse_all(
-            use_statement(),
+            use_statement::<Compiler>(),
             vec![
                 "use std::hash",
                 "use std",
@@ -2180,7 +2183,7 @@ mod test {
             "struct Bar { ident: Field, }",
             "struct Baz { ident: Field, other: Field }",
         ];
-        parse_all(struct_definition(), cases);
+        parse_all(struct_definition::<Compiler>(), cases);
 
         let failing = vec!["struct {  }", "struct Foo { bar: pub Field }"];
         parse_all_failing(struct_definition(), failing);
@@ -2189,7 +2192,7 @@ mod test {
     #[test]
     fn parse_type_aliases() {
         let cases = vec!["type foo = u8", "type bar = String", "type baz<T> = Vec<T>"];
-        parse_all(type_alias_definition(), cases);
+        parse_all(type_alias_definition::<Compiler>(), cases);
 
         let failing = vec!["type = u8", "type foo", "type foo = 1"];
         parse_all_failing(type_alias_definition(), failing);

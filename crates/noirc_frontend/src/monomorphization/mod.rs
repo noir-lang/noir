@@ -1344,6 +1344,7 @@ mod tests {
         hir_def::function::HirFunction,
         node_interner::{FuncId, NodeInterner},
         parse_program,
+        parser::Compiler,
     };
 
     use super::monomorphize;
@@ -1351,7 +1352,7 @@ mod tests {
     // TODO: refactor into a more general test utility?
     // mostly copied from hir / type_check / mod.rs and adapted a bit
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) -> (FuncId, NodeInterner) {
-        let (program, errors) = parse_program(src);
+        let (program, errors) = parse_program::<Compiler>(src);
         let mut interner = NodeInterner::default();
 
         // Using assert_eq here instead of assert(errors.is_empty()) displays

@@ -1524,6 +1524,7 @@ mod test {
     use crate::hir_def::function::HirFunction;
     use crate::hir_def::stmt::HirStatement;
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::parser::Compiler;
     use crate::ParsedModule;
     use crate::{
         hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -1537,7 +1538,7 @@ mod test {
     fn init_src_code_resolution(
         src: &str,
     ) -> (ParsedModule, NodeInterner, HashMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
-        let (program, errors) = parse_program(src);
+        let (program, errors) = parse_program::<Compiler>(src);
         if errors.iter().any(|e| e.is_error()) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
         }
