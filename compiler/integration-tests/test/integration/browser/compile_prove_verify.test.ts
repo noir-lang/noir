@@ -132,12 +132,12 @@ test_cases.forEach((testInfo) => {
 
             const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
-            // const proof = await api.acirCreateProof(
-            //     acirComposer,
-            //     acirUint8Array,
-            //     witnessUint8Array,
-            //     isRecursive
-            // );
+            const proof = await api.acirCreateProof(
+                acirComposer,
+                acirUint8Array,
+                witnessUint8Array,
+                isRecursive
+            );
 
 
             // const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
