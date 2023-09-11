@@ -118,7 +118,6 @@ jobs:
         with:
           path: |
             ~/.cache/ms-playwright
-          # TODO: Inspect yarn.lock and pull installed version automatically
           key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
 
       - name: Set up test environment
