@@ -23,6 +23,7 @@ use super::fs::program::{
     save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
+use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
@@ -63,38 +64,54 @@ pub(crate) fn run(
     let circuit_dir = workspace.target_directory_path();
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
-    for package in &workspace {
-        // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
-        if package.is_contract() {
-            let (file_manager, compilation_result) = compile_contracts(
-                package,
-                &args.compile_options,
-                np_language,
-                &is_opcode_supported,
-            );
-            let contracts_with_debug_artifacts = report_errors(
-                compilation_result,
-                &file_manager,
-                args.compile_options.deny_warnings,
-            )?;
 
-            save_contracts(
-                contracts_with_debug_artifacts,
-                package,
-                &circuit_dir,
-                args.output_debug,
-            );
-        } else {
-            let (file_manager, compilation_result) =
-                compile_program(package, &args.compile_options, np_language, &is_opcode_supported);
+    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
+        .members
+        .iter()
+        .filter(|package| !package.is_library())
+        .partition(|package| package.is_binary());
 
-            let (program, debug_artifact) = report_errors(
-                compilation_result,
-                &file_manager,
-                args.compile_options.deny_warnings,
-            )?;
-            save_program(debug_artifact, program, package, &circuit_dir, args.output_debug);
-        }
+    // Compile all of the packages in parallel.
+    let program_results: Vec<(FileManager, CompilationResult<(CompiledProgram, DebugArtifact)>)> =
+        binary_packages
+            .par_iter()
+            .map(|package| {
+                compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
+            })
+            .collect();
+    #[allow(clippy::type_complexity)]
+    let contract_results: Vec<(
+        FileManager,
+        CompilationResult<Vec<(CompiledContract, DebugArtifact)>>,
+    )> = contract_packages
+        .par_iter()
+        .map(|package| {
+            compile_contracts(package, &args.compile_options, np_language, &is_opcode_supported)
+        })
+        .collect();
+
+    // Report any warnings/errors which were encountered during compilation.
+    let compiled_programs: Vec<(CompiledProgram, DebugArtifact)> = program_results
+        .into_iter()
+        .map(|(file_manager, compilation_result)| {
+            report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
+        })
+        .collect::<Result<_, _>>()?;
+    let compiled_contracts: Vec<Vec<(CompiledContract, DebugArtifact)>> = contract_results
+        .into_iter()
+        .map(|(file_manager, compilation_result)| {
+            report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
+        })
+        .collect::<Result<_, _>>()?;
+
+    // Save build artifacts to disk.
+    for (package, (program, debug_artifact)) in binary_packages.into_iter().zip(compiled_programs) {
+        save_program(debug_artifact, program, package, &circuit_dir, args.output_debug);
+    }
+    for (package, contracts_with_debug_artifacts) in
+        contract_packages.into_iter().zip(compiled_contracts)
+    {
+        save_contracts(contracts_with_debug_artifacts, package, &circuit_dir, args.output_debug);
     }
 
     Ok(())
