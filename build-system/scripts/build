@@ -135,13 +135,9 @@ if [[ -n "$COMMIT_TAG" ]]; then
     COMMIT_TAG_VERSION=$COMMIT_TAG
   fi
 
-  ## We are building a tagged commit. Check it's a valid semver.
-  #VERSION=$(npx semver $COMMIT_TAG_VERSION)
-  #if [ -z "$VERSION" ]; then
-  #  COMMIT_TAG_VERSION=""
-  #else
-  #  COMMIT_TAG_VERSION=$VERSION
-  #fi
+  # We are building a tagged commit. 
+  # We prefer to strip the leading 'v' (if it exists) from versions when passing to docker.
+  COMMIT_TAG_VERSION=${COMMIT_TAG_VERSION#v}
 else
   COMMIT_TAG_VERSION=""
 fi
