@@ -88,11 +88,11 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
         with:
-          working-directory: ./crates/noirc_abi_wasm
+          working-directory: ./tooling/noirc_abi_wasm
 
       - name: Run node tests
-        working-directory: ./crates/noirc_abi_wasm
-        run: yarn test
+        working-directory: ./tooling/noirc_abi_wasm
+        run: yarn install && yarn test
 
   noirc-abi-wasm-test-browser:
     needs: [noirc-abi-wasm-build]
@@ -109,17 +109,30 @@ jobs:
           name: noirc_abi_wasm
           path: ./result
 
+      - name: Query playwright version
+        working-directory: ./tooling/noirc_abi_wasm
+        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+
+      - name: Cache playwright binaries
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+
       - name: Set up test environment
         uses: ./.github/actions/setup
         with:
-          working-directory: ./crates/noirc_abi_wasm
+          working-directory: ./tooling/noirc_abi_wasm
 
       - name: Install playwright deps
-        working-directory: ./crates/noirc_abi_wasm
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: ./tooling/noirc_abi_wasm
         run: |
           npx playwright install
           npx playwright install-deps
 
       - name: Run browser tests
-        working-directory: ./crates/noirc_abi_wasm
-        run: yarn test:browser
+        working-directory: ./tooling/noirc_abi_wasm
+        run: yarn install && yarn test:browser

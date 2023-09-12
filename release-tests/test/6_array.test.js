@@ -19,27 +19,27 @@ test("promise resolved", async () => {
   promiseResolved = true;
 });
 
-test("nargo builds ../crates/nargo_cli/tests/execution_success/6_array sucessfully", async () => {
+test("nargo builds ../tooling/nargo_cli/tests/execution_success/6_array sucessfully", async () => {
   await within(async () => {
-    cd("../crates/nargo_cli/tests/execution_success/6_array");
+    cd("../tooling/nargo_cli/tests/execution_success/6_array");
     const command = `${NARGO_BIN} check`;
 
     await $`${command}`.nothrow();
   });
 });
 
-test("nargo creates proof ../crates/nargo_cli/tests/execution_success/6_array sucessfully", async () => {
+test("nargo creates proof ../tooling/nargo_cli/tests/execution_success/6_array sucessfully", async () => {
   await within(async () => {
-    cd("../crates/nargo_cli/tests/execution_success/6_array");
+    cd("../tooling/nargo_cli/tests/execution_success/6_array");
     const command = `${NARGO_BIN} prove 6_array`;
 
     await $`${command}`.nothrow();
   });
 });
 
-test("nargo verifies proof ../crates/nargo_cli/tests/execution_success/6_array sucessfully", async () => {
+test("nargo verifies proof ../tooling/nargo_cli/tests/execution_success/6_array sucessfully", async () => {
   await within(async () => {
-    cd("../crates/nargo_cli/tests/execution_success/6_array");
+    cd("../tooling/nargo_cli/tests/execution_success/6_array");
     const command = `${NARGO_BIN} verify 6_array`;
 
     await $`${command}`.nothrow();
