@@ -64,7 +64,7 @@ pub(crate) fn run(
                 np_language,
                 &is_opcode_supported,
             )?;
-            info_report.contracts.extend(contract_info);
+            info_report.contracts.push(contract_info);
         } else {
             let program_info = count_opcodes_and_gates_in_program(
                 backend,
@@ -192,20 +192,18 @@ fn count_opcodes_and_gates_in_contracts(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<Vec<ContractInfo>, CliError> {
-    let contracts =
+) -> Result<ContractInfo, CliError> {
+    let contract =
         compile_contract_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
-    try_vecmap(contracts, |contract| {
-        let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
-            Ok(FunctionInfo {
-                name: function.name,
-                acir_opcodes: function.bytecode.opcodes.len(),
-                circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
-            })
-        })?;
+    let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
+        Ok(FunctionInfo {
+            name: function.name,
+            acir_opcodes: function.bytecode.opcodes.len(),
+            circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
+        })
+    })?;
 
-        Ok(ContractInfo { name: contract.name, language, functions })
-    })
+    Ok(ContractInfo { name: contract.name, language, functions })
 }
