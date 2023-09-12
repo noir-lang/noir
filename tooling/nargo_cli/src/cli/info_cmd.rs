@@ -174,7 +174,7 @@ fn count_opcodes_and_gates_in_program(
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<ProgramInfo, CliError> {
-    let (compiled_program, _) =
+    let compiled_program =
         compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
@@ -193,7 +193,7 @@ fn count_opcodes_and_gates_in_contracts(
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<ContractInfo, CliError> {
-    let (contract, _) =
+    let contract =
         compile_contract_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
