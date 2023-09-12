@@ -1,0 +1,53 @@
+name: Release and Publish Source Resolver
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number"
+        required: false
+
+jobs:
+  release-source-resolver:
+    name: Release and Publish Source Resolver
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bump version
+        working-directory: ./compiler/source-resolver
+        id: bump_version
+        run: |
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            NEW_VERSION=$(npm version patch --no-git-tag-version)
+          else
+            NEW_VERSION=$(npm version ${{ github.event.inputs.version }} --no-git-tag-version)
+          fi
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        working-directory: ./compiler/source-resolver
+        run: npm install
+
+      - name: Build noir-source-resolver
+        working-directory: ./compiler/source-resolver
+        run: npm run build
+
+      - name: Publish to NPM
+        working-directory: ./compiler/source-resolver
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
+      - name: Commit updates
+        run: |
+          git add compiler/source-resolver/package-lock.json
+          git add compiler/source-resolver/package.json
+          git commit -m "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
+          git push

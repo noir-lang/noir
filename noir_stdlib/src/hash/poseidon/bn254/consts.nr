@@ -12,7 +12,7 @@ fn rp() -> [u8; 16] {
 }
 
 // S-box power
-fn alpha() -> comptime Field {
+fn alpha() -> Field {
     5
 }
 

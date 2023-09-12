@@ -1,6 +1,0 @@
-[package]
-name = "brillig_calls_array"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

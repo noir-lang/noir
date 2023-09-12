@@ -1,0 +1,7 @@
+[package]
+name = "let_stmt"
+type = "bin"
+authors = [""]
+compiler_version = "0.8.0"
+
+[dependencies]

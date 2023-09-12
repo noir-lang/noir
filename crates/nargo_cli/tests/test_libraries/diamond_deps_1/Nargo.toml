@@ -1,7 +1,0 @@
-[package]
-name = "diamond_deps_1"
-authors = [""]
-compiler_version = "0.7.1"
-
-[dependencies]
-dep2 = { path = "../diamond_deps_2" }

@@ -41,12 +41,12 @@ mod affine {
 
         // Check if zero
         fn is_zero(self) -> bool {
-            self.infty == true
+            self.infty
         }
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            if self.is_zero() == true {
+            if self.is_zero() {
                 curvegroup::Point::zero()
             } else {
                 let (x,y) = (self.x, self.y);
@@ -70,7 +70,7 @@ mod affine {
         fn into_tecurve(self) -> TEPoint {
             let Self {x, y, infty} = self;
             
-            if (infty == true) | (y*(x+1) == 0) {
+            if infty | (y*(x+1) == 0) {
                 TEPoint::zero()
             } else {
                 TEPoint::new(x/y, (x-1)/(x+1))
@@ -126,7 +126,7 @@ mod affine {
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..n.len() {
+            for i in 0..N {
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
@@ -156,7 +156,7 @@ mod affine {
 
         // Point mapping into equivalent Short Weierstraß curve
         fn map_into_swcurve(self, p: Point) -> SWPoint {
-            if p.is_zero() == true {
+            if p.is_zero() {
                 SWPoint::zero()
             } else {
                 SWPoint::new((3*p.x + self.j)/(3*self.k),
@@ -191,9 +191,9 @@ mod affine {
             let x2 = 0 - x1 - (j/k);
             let gx2 = x2*x2*x2 + (j/k)*x2*x2 + x2/(k*k);
 
-            let x = if is_square(gx1) == true { x1 } else { x2 };
+            let x = if is_square(gx1) { x1 } else { x2 };
 
-            let y = if is_square(gx1) == true {
+            let y = if is_square(gx1) {
                 let y0 = sqrt(gx1);
                 if y0.sgn0() == 1 { y0 } else { 0 - y0 }
             } else {
@@ -254,7 +254,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         fn into_affine(self) -> affine::Point {
-            if self.is_zero() == true{
+            if self.is_zero() {
                 affine::Point::zero()
             } else {
                 let (x,y,z) = (self.x, self.y, self.z);
@@ -328,7 +328,7 @@ mod curvegroup {
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..n.len() {
+            for i in 0..N {
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 

@@ -6,6 +6,8 @@ mod schnorr;
 mod ecdsa_secp256k1;
 mod ecdsa_secp256r1;
 mod eddsa;
+mod grumpkin_scalar;
+mod grumpkin_scalar_mul;
 mod scalar_mul;
 mod sha256;
 mod sha512;
@@ -15,6 +17,7 @@ mod unsafe;
 mod collections;
 mod compat;
 mod option;
+mod string;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident 
@@ -27,3 +30,8 @@ unconstrained fn println<T>(input: T) {
 
 #[foreign(recursive_aggregation)]
 fn verify_proof<N>(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field; N]) -> [Field; N] {}
+
+// Asserts that the given value is known at compile-time.
+// Useful for debugging for-loop bounds.
+#[builtin(assert_constant)]
+fn assert_constant<T>(_x: T) {}

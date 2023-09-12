@@ -15,10 +15,11 @@
         "flake.nix",
         {
           "type": "json",
-          "path": "crates/wasm/package.json",
+          "path": "compiler/wasm/package.json",
           "jsonpath": "$.version"
         }
       ]
     }
-  }
+  },
+  "plugins": ["sentence-case"]
 }

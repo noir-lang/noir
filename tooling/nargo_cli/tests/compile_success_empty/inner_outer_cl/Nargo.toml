@@ -1,0 +1,7 @@
+[package]
+name = "inner_outer_cl"
+type = "bin"
+authors = [""]
+compiler_version = "0.7.1"
+
+[dependencies]

@@ -1,0 +1,7 @@
+[package]
+name = "array_dynamic"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "diamond_deps_2"
-authors = [""]
-compiler_version = "0.7.1"
-
-[dependencies]
