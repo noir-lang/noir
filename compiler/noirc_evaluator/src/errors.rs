@@ -46,7 +46,7 @@ pub enum RuntimeError {
 // assert(foo < bar) fails with "failed constraint: 0 = 1."
 fn format_failed_constraint(message: &Option<String>) -> String {
     match message {
-        Some(message) => format!("Failed constraint: '{}'", message),
+        Some(message) => format!("Failed constraint: '{message}'"),
         None => "Failed constraint".to_owned(),
     }
 }

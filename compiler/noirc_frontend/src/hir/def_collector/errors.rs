@@ -118,7 +118,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             ),
             DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => {
                 Diagnostic::simple_error(
-                    format!("Only struct types may implement trait `{}`", trait_ident),
+                    format!("Only struct types may implement trait `{trait_ident}`"),
                     "Only struct types may implement traits".into(),
                     span,
                 )
@@ -129,7 +129,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 span,
             ),
             DefCollectorErrorKind::TraitNotFound { trait_ident } => Diagnostic::simple_error(
-                format!("Trait {} not found", trait_ident),
+                format!("Trait {trait_ident} not found"),
                 "".to_string(),
                 trait_ident.span(),
             ),
