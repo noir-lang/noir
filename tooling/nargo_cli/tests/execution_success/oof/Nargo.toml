@@ -1,0 +1,7 @@
+[package]
+name = "brillig_slow_array"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

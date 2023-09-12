@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
@@ -27,6 +29,8 @@ pub(crate) struct BrilligBlock<'block> {
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext,
+    /// Forms an equivalence set between arrays
+    pub(crate) array_maps: HashMap<ValueId, ValueId>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -37,7 +41,12 @@ impl<'block> BrilligBlock<'block> {
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
-        let mut brillig_block = BrilligBlock { function_context, block_id, brillig_context };
+        let mut brillig_block = BrilligBlock {
+            function_context,
+            block_id,
+            brillig_context,
+            array_maps: Default::default(),
+        };
 
         brillig_block.convert_block(dfg);
     }
@@ -236,8 +245,11 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.allocate_variable_instruction(address_register);
             }
             Instruction::Store { address, value } => {
+                let source_variable = match self.array_maps.get(value) {
+                    Some(real_map_pointer) => self.convert_ssa_value(*real_map_pointer, dfg),
+                    None => self.convert_ssa_value(*value, dfg),
+                };
                 let address_register = self.convert_ssa_register_value(*address, dfg);
-                let source_variable = self.convert_ssa_value(*value, dfg);
 
                 self.brillig_context.store_variable_instruction(address_register, source_variable);
             }
@@ -497,16 +509,15 @@ impl<'block> BrilligBlock<'block> {
                 let index_register = self.convert_ssa_register_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);
 
-                let result_ids = dfg.instruction_results(instruction_id);
-                let destination_variable =
-                    self.function_context.create_variable(self.brillig_context, result_ids[0], dfg);
+                // Store destination in map
 
-                self.convert_ssa_array_set(
-                    source_variable,
-                    destination_variable,
-                    index_register,
-                    value_variable,
-                );
+                let result_ids = dfg.instruction_results(instruction_id);
+
+                // Equivalence set
+
+                self.array_maps.insert(result_ids[0], *array);
+
+                self.convert_ssa_array_set(source_variable, index_register, value_variable);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
@@ -595,50 +606,17 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_array_set(
         &mut self,
         source_variable: RegisterOrMemory,
-        destination_variable: RegisterOrMemory,
         index_register: RegisterIndex,
         value_variable: RegisterOrMemory,
     ) {
-        let destination_pointer = match destination_variable {
+        let source_pointer = match source_variable {
             RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => pointer,
             RegisterOrMemory::HeapVector(HeapVector { pointer, .. }) => pointer,
             _ => unreachable!("ICE: array set returns non-array"),
         };
 
-        // First issue a array copy to the destination
-        let (source_pointer, source_size_as_register) = match source_variable {
-            RegisterOrMemory::HeapArray(HeapArray { size, pointer }) => {
-                let source_size_register = self.brillig_context.allocate_register();
-                self.brillig_context.const_instruction(source_size_register, size.into());
-                (pointer, source_size_register)
-            }
-            RegisterOrMemory::HeapVector(HeapVector { size, pointer }) => {
-                let source_size_register = self.brillig_context.allocate_register();
-                self.brillig_context.mov_instruction(source_size_register, size);
-                (pointer, source_size_register)
-            }
-            _ => unreachable!("ICE: array set on non-array"),
-        };
-
-        self.brillig_context
-            .allocate_array_instruction(destination_pointer, source_size_as_register);
-
-        self.brillig_context.copy_array_instruction(
-            source_pointer,
-            destination_pointer,
-            source_size_as_register,
-        );
-
-        if let RegisterOrMemory::HeapVector(HeapVector { size: target_size, .. }) =
-            destination_variable
-        {
-            self.brillig_context.mov_instruction(target_size, source_size_as_register);
-        }
-
         // Then set the value in the newly created array
-        self.store_variable_in_array(destination_pointer, index_register, value_variable);
-
-        self.brillig_context.deallocate_register(source_size_as_register);
+        self.store_variable_in_array(source_pointer, index_register, value_variable);
     }
 
     pub(crate) fn store_variable_in_array(
