@@ -14,7 +14,7 @@ export class PreviousRollupData {
     /**
      * Public inputs to the base or merge rollup circuit.
      */
-    public publicInputs: BaseOrMergeRollupPublicInputs,
+    public baseOrMergeRollupPublicInputs: BaseOrMergeRollupPublicInputs,
     /**
      * The proof of the base or merge rollup circuit.
      */
@@ -38,6 +38,6 @@ export class PreviousRollupData {
    * @returns The buffer of the serialized previous rollup data.
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
+    return serializeToBuffer(this.baseOrMergeRollupPublicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
   }
 }

@@ -412,9 +412,9 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
 
     RootRollupInputs rootRollupInputs = {
         .previous_rollup_data = get_previous_rollup_data(builder, std::move(kernel_data)),
-        .l1_to_l2_messages = l1_to_l2_messages,
-        .new_l1_to_l2_message_tree_root_sibling_path = l1_to_l2_tree_sibling_path,
-        .start_l1_to_l2_message_tree_snapshot = start_l1_to_l2_msg_tree_snapshot,
+        .new_l1_to_l2_messages = l1_to_l2_messages,
+        .new_l1_to_l2_messages_tree_root_sibling_path = l1_to_l2_tree_sibling_path,
+        .start_l1_to_l2_messages_tree_snapshot = start_l1_to_l2_msg_tree_snapshot,
         .start_historic_blocks_tree_snapshot = start_historic_blocks_tree_snapshot,
         .new_historic_blocks_tree_sibling_path = blocks_tree_sibling_path,
     };

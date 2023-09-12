@@ -154,11 +154,9 @@ export class KernelProofCreator implements ProofCreator {
     const proof = makeEmptyProof();
     this.log('Ordering Kernel Prover Ordering Completed!');
 
-    const publicInputs = result as KernelCircuitPublicInputsFinal;
-
     return {
-      publicInputs,
-      proof,
+      publicInputs: result,
+      proof: proof,
     };
   }
 }

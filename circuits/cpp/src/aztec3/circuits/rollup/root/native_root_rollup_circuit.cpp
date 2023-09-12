@@ -92,14 +92,14 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
 
     // Check correct l1 to l2 tree given
     // Compute subtree inserting l1 to l2 messages
-    auto l1_to_l2_subtree_root = calculate_subtree(rootRollupInputs.l1_to_l2_messages);
+    auto l1_to_l2_subtree_root = calculate_subtree(rootRollupInputs.new_l1_to_l2_messages);
 
     // Insert subtree into the l1 to l2 data tree
     const auto empty_l1_to_l2_subtree_root = components::calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
     auto new_l1_to_l2_messages_tree_snapshot = components::insert_subtree_to_snapshot_tree(
         builder,
-        rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
-        rootRollupInputs.new_l1_to_l2_message_tree_root_sibling_path,
+        rootRollupInputs.start_l1_to_l2_messages_tree_snapshot,
+        rootRollupInputs.new_l1_to_l2_messages_tree_root_sibling_path,
         empty_l1_to_l2_subtree_root,
         l1_to_l2_subtree_root,
         L1_TO_L2_MSG_SUBTREE_HEIGHT,
@@ -138,12 +138,12 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
         .end_contract_tree_snapshot = right.end_contract_tree_snapshot,
         .start_public_data_tree_root = left.start_public_data_tree_root,
         .end_public_data_tree_root = right.end_public_data_tree_root,
-        .start_l1_to_l2_messages_tree_snapshot = rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
+        .start_l1_to_l2_messages_tree_snapshot = rootRollupInputs.start_l1_to_l2_messages_tree_snapshot,
         .end_l1_to_l2_messages_tree_snapshot = new_l1_to_l2_messages_tree_snapshot,
         .start_historic_blocks_tree_snapshot = rootRollupInputs.start_historic_blocks_tree_snapshot,
         .end_historic_blocks_tree_snapshot = end_historic_blocks_tree_snapshot,
         .calldata_hash = components::compute_calldata_hash(rootRollupInputs.previous_rollup_data),
-        .l1_to_l2_messages_hash = compute_messages_hash(rootRollupInputs.l1_to_l2_messages)
+        .l1_to_l2_messages_hash = compute_messages_hash(rootRollupInputs.new_l1_to_l2_messages)
     };
 
     return public_inputs;

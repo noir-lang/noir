@@ -3,10 +3,11 @@ import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
   CircuitsWasm,
-  ConstantBaseRollupData,
+  ConstantRollupData,
   GlobalVariables,
   HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
+  L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
@@ -29,7 +30,7 @@ import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { assertLength } from '@aztec/foundation/serialize';
+import { Tuple, assertLength } from '@aztec/foundation/serialize';
 import { ContractData, L2Block, L2BlockL2Logs, MerkleTreeId, PublicDataWrite, TxL2Logs } from '@aztec/types';
 import { MerkleTreeOperations, computeGlobalVariablesHash } from '@aztec/world-state';
 
@@ -109,7 +110,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       endNullifierTreeSnapshot,
       endContractTreeSnapshot,
       endPublicDataTreeRoot,
-      endL1ToL2MessageTreeSnapshot,
+      endL1ToL2MessagesTreeSnapshot,
       endHistoricBlocksTreeSnapshot,
     } = circuitsOutput;
 
@@ -149,8 +150,8 @@ export class SoloBlockBuilder implements BlockBuilder {
       endContractTreeSnapshot,
       startPublicDataTreeRoot: startPublicDataTreeSnapshot.root,
       endPublicDataTreeRoot,
-      startL1ToL2MessageTreeSnapshot,
-      endL1ToL2MessageTreeSnapshot,
+      startL1ToL2MessagesTreeSnapshot: startL1ToL2MessageTreeSnapshot,
+      endL1ToL2MessagesTreeSnapshot,
       startHistoricBlocksTreeSnapshot,
       endHistoricBlocksTreeSnapshot,
       newCommitments,
@@ -207,7 +208,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     }
 
     // padArrayEnd throws if the array is already full. Otherwise it pads till we reach the required size
-    newL1ToL2Messages = padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
+    const newL1ToL2MessagesTuple = padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
 
     // Run the base rollup circuits for the txs
     const baseRollupOutputs: [BaseOrMergeRollupPublicInputs, Proof][] = [];
@@ -230,7 +231,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     // Run the root rollup with the last two merge rollups (or base, if no merge layers)
     const [mergeOutputLeft, mergeOutputRight] = mergeRollupInputs;
-    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight, newL1ToL2Messages);
+    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight, newL1ToL2MessagesTuple);
   }
 
   protected async baseRollupCircuit(
@@ -276,7 +277,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected async rootRollupCircuit(
     left: [BaseOrMergeRollupPublicInputs, Proof],
     right: [BaseOrMergeRollupPublicInputs, Proof],
-    newL1ToL2Messages: Fr[],
+    newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
   ): Promise<[RootRollupPublicInputs, Proof]> {
     this.debug(`Running root rollup circuit`);
     const rootInput = await this.getRootRollupInput(...left, ...right, newL1ToL2Messages);
@@ -351,7 +352,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     await Promise.all([
       this.validateTrees(rootOutput),
       this.validateTree(rootOutput, MerkleTreeId.BLOCKS_TREE, 'HistoricBlocks'),
-      this.validateTree(rootOutput, MerkleTreeId.L1_TO_L2_MESSAGES_TREE, 'L1ToL2Message'),
+      this.validateTree(rootOutput, MerkleTreeId.L1_TO_L2_MESSAGES_TREE, 'L1ToL2Messages'),
     ]);
   }
 
@@ -359,7 +360,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected async validateRootTree(
     rootOutput: RootRollupPublicInputs,
     treeId: MerkleTreeId,
-    name: 'Contract' | 'PrivateData' | 'L1ToL2Message',
+    name: 'Contract' | 'PrivateData' | 'L1ToL2Messages',
   ) {
     const localTree = await this.getTreeSnapshot(treeId);
     const simulatedTree = rootOutput[`endTreeOfHistoric${name}TreeRootsSnapshot`];
@@ -400,7 +401,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected validateSimulatedTree(
     localTree: AppendOnlyTreeSnapshot,
     simulatedTree: AppendOnlyTreeSnapshot,
-    name: 'PrivateData' | 'Contract' | 'Nullifier' | 'L1ToL2Message' | 'HistoricBlocks',
+    name: 'PrivateData' | 'Contract' | 'Nullifier' | 'L1ToL2Messages' | 'HistoricBlocks',
     label?: string,
   ) {
     if (!simulatedTree.root.toBuffer().equals(localTree.root.toBuffer())) {
@@ -421,7 +422,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     rollupProofLeft: Proof,
     rollupOutputRight: BaseOrMergeRollupPublicInputs,
     rollupProofRight: Proof,
-    newL1ToL2Messages: Fr[],
+    newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
   ) {
     const vk = this.getVerificationKey(rollupOutputLeft.rollupType);
     const previousRollupData: RootRollupInputs['previousRollupData'] = [
@@ -437,23 +438,36 @@ export class SoloBlockBuilder implements BlockBuilder {
       return path.toFieldArray();
     };
 
-    const newL1ToL2MessageTreeRootSiblingPath = await this.getSubtreeSiblingPath(
+    const newL1ToL2MessagesTreeRootSiblingPathArray = await this.getSubtreeSiblingPath(
       MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
       L1_TO_L2_MSG_SUBTREE_HEIGHT,
     );
 
+    const newL1ToL2MessagesTreeRootSiblingPath = makeTuple(
+      L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+      i =>
+        i < newL1ToL2MessagesTreeRootSiblingPathArray.length ? newL1ToL2MessagesTreeRootSiblingPathArray[i] : Fr.ZERO,
+      0,
+    );
+
     // Get tree snapshots
-    const startL1ToL2MessageTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
+    const startL1ToL2MessagesTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
 
     // Get historic block tree roots
     const startHistoricBlocksTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.BLOCKS_TREE);
-    const newHistoricBlocksTreeSiblingPath = await getRootTreeSiblingPath(MerkleTreeId.BLOCKS_TREE);
+    const newHistoricBlocksTreeSiblingPathArray = await getRootTreeSiblingPath(MerkleTreeId.BLOCKS_TREE);
+
+    const newHistoricBlocksTreeSiblingPath = makeTuple(
+      HISTORIC_BLOCKS_TREE_HEIGHT,
+      i => (i < newHistoricBlocksTreeSiblingPathArray.length ? newHistoricBlocksTreeSiblingPathArray[i] : Fr.ZERO),
+      0,
+    );
 
     return RootRollupInputs.from({
       previousRollupData,
       newL1ToL2Messages,
-      newL1ToL2MessageTreeRootSiblingPath,
-      startL1ToL2MessageTreeSnapshot,
+      newL1ToL2MessagesTreeRootSiblingPath,
+      startL1ToL2MessagesTreeSnapshot,
       startHistoricBlocksTreeSnapshot,
       newHistoricBlocksTreeSiblingPath,
     });
@@ -528,8 +542,8 @@ export class SoloBlockBuilder implements BlockBuilder {
     return this.getMembershipWitnessFor(blockHash, MerkleTreeId.BLOCKS_TREE, HISTORIC_BLOCKS_TREE_HEIGHT);
   }
 
-  protected async getConstantBaseRollupData(globalVariables: GlobalVariables): Promise<ConstantBaseRollupData> {
-    return ConstantBaseRollupData.from({
+  protected async getConstantRollupData(globalVariables: GlobalVariables): Promise<ConstantRollupData> {
+    return ConstantRollupData.from({
       baseRollupVkHash: DELETE_FR,
       mergeRollupVkHash: DELETE_FR,
       privateKernelVkTreeRoot: FUTURE_FR,
@@ -604,7 +618,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const wasm = await CircuitsWasm.get();
 
     // Get trees info before any changes hit
-    const constants = await this.getConstantBaseRollupData(globalVariables);
+    const constants = await this.getConstantRollupData(globalVariables);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);

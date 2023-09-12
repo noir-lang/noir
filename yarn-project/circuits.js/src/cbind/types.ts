@@ -28,6 +28,24 @@ export class MembershipWitness16 extends MembershipWitness<16> {
 /**
  * Alias for msgpack which expects a MembershipWitness + N name.
  */
+export class MembershipWitness8 extends MembershipWitness<8> {
+  constructor(
+    /**
+     * Index of a leaf in the Merkle tree.
+     */
+    leafIndex: Fr,
+    /**
+     * Sibling path of the leaf in the Merkle tree.
+     */
+    siblingPath: Tuple<Fr, 8>,
+  ) {
+    super(8, leafIndex.toBigInt(), siblingPath);
+  }
+}
+
+/**
+ * Alias for msgpack which expects a MembershipWitness + N name.
+ */
 export class MembershipWitness4 extends MembershipWitness<4> {
   constructor(
     /**
@@ -99,6 +117,13 @@ export {
   PrivateKernelInputsInit,
   PrivateKernelInputsInner,
   TxRequest,
+  PreviousRollupData,
+  AppendOnlyTreeSnapshot,
+  BaseOrMergeRollupPublicInputs,
+  ConstantRollupData,
+  MergeRollupInputs,
+  RootRollupInputs,
+  RootRollupPublicInputs,
 } from '../structs/index.js';
 export { FunctionSelector } from '@aztec/foundation/abi';
 

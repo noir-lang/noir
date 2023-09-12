@@ -536,7 +536,7 @@ export class MerkleTrees implements MerkleTreeDb {
       compareRoot(l2Block.endNullifierTreeSnapshot.root, MerkleTreeId.NULLIFIER_TREE),
       compareRoot(l2Block.endPrivateDataTreeSnapshot.root, MerkleTreeId.PRIVATE_DATA_TREE),
       compareRoot(l2Block.endPublicDataTreeRoot, MerkleTreeId.PUBLIC_DATA_TREE),
-      compareRoot(l2Block.endL1ToL2MessageTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
+      compareRoot(l2Block.endL1ToL2MessagesTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
       compareRoot(l2Block.endHistoricBlocksTreeSnapshot.root, MerkleTreeId.BLOCKS_TREE),
     ];
     const ourBlock = rootChecks.every(x => x);

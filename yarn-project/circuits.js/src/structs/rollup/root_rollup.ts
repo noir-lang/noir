@@ -1,12 +1,12 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import {
   HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '../../cbind/constants.gen.js';
-import { FieldsOf, assertMemberLength } from '../../utils/jsUtils.js';
+import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { GlobalVariables } from '../global_variables.js';
@@ -27,15 +27,15 @@ export class RootRollupInputs {
     /**
      * New L1 to L2 messages.
      */
-    public newL1ToL2Messages: Fr[],
+    public newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
     /**
      * Sibling path of the new L1 to L2 message tree root.
      */
-    public newL1ToL2MessageTreeRootSiblingPath: Fr[],
+    public newL1ToL2MessagesTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
      * Snapshot of the L1 to L2 message tree at the start of the rollup.
      */
-    public startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * Snapshot of the historic block roots tree at the start of the rollup.
      */
@@ -43,12 +43,8 @@ export class RootRollupInputs {
     /**
      * Sibling path of the new historic block roots tree root.
      */
-    public newHistoricBlocksTreeSiblingPath: Fr[],
-  ) {
-    assertMemberLength(this, 'newL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH);
-    assertMemberLength(this, 'newHistoricBlocksTreeSiblingPath', HISTORIC_BLOCKS_TREE_HEIGHT);
-    assertMemberLength(this, 'newL1ToL2Messages', NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
-  }
+    public newHistoricBlocksTreeSiblingPath: Tuple<Fr, typeof HISTORIC_BLOCKS_TREE_HEIGHT>,
+  ) {}
 
   toBuffer() {
     return serializeToBuffer(...RootRollupInputs.getFields(this));
@@ -62,8 +58,8 @@ export class RootRollupInputs {
     return [
       fields.previousRollupData,
       fields.newL1ToL2Messages,
-      fields.newL1ToL2MessageTreeRootSiblingPath,
-      fields.startL1ToL2MessageTreeSnapshot,
+      fields.newL1ToL2MessagesTreeRootSiblingPath,
+      fields.startL1ToL2MessagesTreeSnapshot,
       fields.startHistoricBlocksTreeSnapshot,
       fields.newHistoricBlocksTreeSiblingPath,
     ] as const;
@@ -144,20 +140,20 @@ export class RootRollupPublicInputs {
     /**
      * Snapshot of the L1 to L2 message tree at the start of the rollup.
      */
-    public startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * Snapshot of the L1 to L2 message tree at the end of the rollup.
      */
-    public endL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
+    public endL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * Snapshot of the historic L1 to L2 message tree roots tree at the start of the rollup.
      */
-    public startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    public startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot: AppendOnlyTreeSnapshot,
     /**
      * Snapshot of the historic L1 to L2 message tree roots tree at the end of the rollup.
      */
-    public endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    public endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * Snapshot of the historic blocks tree roots tree at the start of the rollup.
@@ -194,10 +190,10 @@ export class RootRollupPublicInputs {
       fields.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.startTreeOfHistoricContractTreeRootsSnapshot,
       fields.endTreeOfHistoricContractTreeRootsSnapshot,
-      fields.startL1ToL2MessageTreeSnapshot,
-      fields.endL1ToL2MessageTreeSnapshot,
-      fields.startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
-      fields.endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
+      fields.startL1ToL2MessagesTreeSnapshot,
+      fields.endL1ToL2MessagesTreeSnapshot,
+      fields.startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot,
+      fields.endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot,
       fields.startHistoricBlocksTreeSnapshot,
       fields.endHistoricBlocksTreeSnapshot,
       fields.calldataHash,

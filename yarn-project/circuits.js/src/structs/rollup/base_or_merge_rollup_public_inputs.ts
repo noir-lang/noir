@@ -6,7 +6,7 @@ import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { RollupTypes } from '../shared.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
-import { ConstantBaseRollupData } from './base_rollup.js';
+import { ConstantRollupData } from './base_rollup.js';
 
 /**
  * Output of the base and merge rollup circuits.
@@ -22,7 +22,7 @@ export class BaseOrMergeRollupPublicInputs {
      * Note 1: Base rollup circuit always have a sub tree height of 0.
      * Note 2: With each merge, the sub tree height increases by 1.
      */
-    public rollupSubTreeHeight: Fr,
+    public rollupSubtreeHeight: Fr,
     /**
      * Native aggregation state at the end of the rollup circuit.
      */
@@ -30,7 +30,7 @@ export class BaseOrMergeRollupPublicInputs {
     /**
      * Data which is forwarded through the rollup circuits unchanged.
      */
-    public constants: ConstantBaseRollupData,
+    public constants: ConstantRollupData,
 
     /**
      * Snapshot of the private data tree at the start of the rollup circuit.
@@ -87,7 +87,7 @@ export class BaseOrMergeRollupPublicInputs {
       reader.readNumber(),
       reader.readFr(),
       reader.readObject(AggregationObject),
-      reader.readObject(ConstantBaseRollupData),
+      reader.readObject(ConstantRollupData),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
@@ -107,7 +107,7 @@ export class BaseOrMergeRollupPublicInputs {
   toBuffer() {
     return serializeToBuffer(
       this.rollupType,
-      this.rollupSubTreeHeight,
+      this.rollupSubtreeHeight,
       this.endAggregationObject,
       this.constants,
 

@@ -16,7 +16,7 @@ import {
   CircuitsWasm,
   CombinedAccumulatedData,
   CombinedConstantData,
-  ConstantBaseRollupData,
+  ConstantRollupData,
   ContractDeploymentData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -704,8 +704,8 @@ export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = 
 export function makeConstantBaseRollupData(
   seed = 1,
   globalVariables: GlobalVariables | undefined = undefined,
-): ConstantBaseRollupData {
-  return ConstantBaseRollupData.from({
+): ConstantRollupData {
+  return ConstantRollupData.from({
     startHistoricBlocksTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x300),
     privateKernelVkTreeRoot: fr(seed + 0x401),
     publicKernelVkTreeRoot: fr(seed + 0x402),
@@ -850,10 +850,10 @@ export function makeRootRollupPublicInputs(
     endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    startL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    endL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endHistoricBlocksTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     calldataHash: [new Fr(1n), new Fr(2n)],

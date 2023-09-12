@@ -157,7 +157,7 @@ describe('sequencer/solo_block_builder', () => {
       rootRollupOutput.endPrivateDataTreeSnapshot.root,
       rootRollupOutput.endNullifierTreeSnapshot.root,
       rootRollupOutput.endContractTreeSnapshot.root,
-      rootRollupOutput.endL1ToL2MessageTreeSnapshot.root,
+      rootRollupOutput.endL1ToL2MessagesTreeSnapshot.root,
       rootRollupOutput.endPublicDataTreeRoot,
     );
     await expectsDb.appendLeaves(MerkleTreeId.BLOCKS_TREE, [blockHash.toBuffer()]);
@@ -208,7 +208,7 @@ describe('sequencer/solo_block_builder', () => {
     rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
     rootRollupOutput.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
 
-    rootRollupOutput.endL1ToL2MessageTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
+    rootRollupOutput.endL1ToL2MessagesTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
 
     // Calculate block hash
     rootRollupOutput.globalVariables = globalVariables;
@@ -241,8 +241,8 @@ describe('sequencer/solo_block_builder', () => {
       endContractTreeSnapshot: rootRollupOutput.endContractTreeSnapshot,
       startPublicDataTreeRoot: rootRollupOutput.startPublicDataTreeRoot,
       endPublicDataTreeRoot: rootRollupOutput.endPublicDataTreeRoot,
-      startL1ToL2MessageTreeSnapshot: rootRollupOutput.startL1ToL2MessageTreeSnapshot,
-      endL1ToL2MessageTreeSnapshot: rootRollupOutput.endL1ToL2MessageTreeSnapshot,
+      startL1ToL2MessagesTreeSnapshot: rootRollupOutput.startL1ToL2MessagesTreeSnapshot,
+      endL1ToL2MessagesTreeSnapshot: rootRollupOutput.endL1ToL2MessagesTreeSnapshot,
       startHistoricBlocksTreeSnapshot: rootRollupOutput.startHistoricBlocksTreeSnapshot,
       endHistoricBlocksTreeSnapshot: rootRollupOutput.endHistoricBlocksTreeSnapshot,
       newCommitments,

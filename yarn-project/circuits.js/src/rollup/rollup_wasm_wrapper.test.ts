@@ -1,7 +1,14 @@
-import { AggregationObject, CircuitError, MergeRollupInputs, RootRollupInputs, VerificationKey } from '../index.js';
+import {
+  AggregationObject,
+  CircuitError,
+  MergeRollupInputs,
+  RootRollupInputs,
+  RootRollupPublicInputs,
+  VerificationKey,
+} from '../index.js';
 import { makeBaseRollupInputs, makeMergeRollupInputs, makeRootRollupInputs } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
-import { RollupWasmWrapper } from './rollup_wasm_wrapper.js';
+import { RollupWasmWrapper, mergeRollupSim, rootRollupSim } from './rollup_wasm_wrapper.js';
 
 describe('rollup/rollup_wasm_wrapper', () => {
   let wasm: CircuitsWasm;
@@ -22,22 +29,23 @@ describe('rollup/rollup_wasm_wrapper', () => {
   };
 
   const fixPreviousRollupInputs = (input: MergeRollupInputs | RootRollupInputs) => {
-    input.previousRollupData[1].publicInputs.constants = input.previousRollupData[0].publicInputs.constants;
-    input.previousRollupData[1].publicInputs.startPrivateDataTreeSnapshot =
-      input.previousRollupData[0].publicInputs.endPrivateDataTreeSnapshot;
-    input.previousRollupData[1].publicInputs.startNullifierTreeSnapshot =
-      input.previousRollupData[0].publicInputs.endNullifierTreeSnapshot;
-    input.previousRollupData[1].publicInputs.startContractTreeSnapshot =
-      input.previousRollupData[0].publicInputs.endContractTreeSnapshot;
-    input.previousRollupData[1].publicInputs.startPublicDataTreeRoot =
-      input.previousRollupData[0].publicInputs.endPublicDataTreeRoot;
+    input.previousRollupData[1].baseOrMergeRollupPublicInputs.constants =
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.constants;
+    input.previousRollupData[1].baseOrMergeRollupPublicInputs.startPrivateDataTreeSnapshot =
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.endPrivateDataTreeSnapshot;
+    input.previousRollupData[1].baseOrMergeRollupPublicInputs.startNullifierTreeSnapshot =
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.endNullifierTreeSnapshot;
+    input.previousRollupData[1].baseOrMergeRollupPublicInputs.startContractTreeSnapshot =
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.endContractTreeSnapshot;
+    input.previousRollupData[1].baseOrMergeRollupPublicInputs.startPublicDataTreeRoot =
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.endPublicDataTreeRoot;
   };
 
   const makeMergeRollupInputsForCircuit = () => {
     const input = makeMergeRollupInputs();
     for (const previousData of input.previousRollupData) {
       previousData.vk = VerificationKey.makeFake();
-      previousData.publicInputs.endAggregationObject = AggregationObject.makeFake();
+      previousData.baseOrMergeRollupPublicInputs.endAggregationObject = AggregationObject.makeFake();
     }
     fixPreviousRollupInputs(input);
     return input;
@@ -56,35 +64,38 @@ describe('rollup/rollup_wasm_wrapper', () => {
   it('calls merge_rollup__sim', () => {
     const input = makeMergeRollupInputsForCircuit();
 
-    const output = rollupWasm.simulateMergeRollup(input);
+    const output = mergeRollupSim(wasm, input);
+    if (output instanceof CircuitError) {
+      throw new CircuitError(output.code, output.message);
+    }
+
     expect(output.rollupType).toEqual(1);
     expect(output.startContractTreeSnapshot).toEqual(
-      input.previousRollupData[0].publicInputs.startContractTreeSnapshot,
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.startContractTreeSnapshot,
     );
     expect(output.startNullifierTreeSnapshot).toEqual(
-      input.previousRollupData[0].publicInputs.startNullifierTreeSnapshot,
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.startNullifierTreeSnapshot,
     );
     expect(output.startPrivateDataTreeSnapshot).toEqual(
-      input.previousRollupData[0].publicInputs.startPrivateDataTreeSnapshot,
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.startPrivateDataTreeSnapshot,
     );
     expect(output.endPrivateDataTreeSnapshot).toEqual(
-      input.previousRollupData[1].publicInputs.endPrivateDataTreeSnapshot,
+      input.previousRollupData[1].baseOrMergeRollupPublicInputs.endPrivateDataTreeSnapshot,
     );
   });
 
   it('calling merge_rollup__sim with different constants should fail', () => {
     const input = makeMergeRollupInputs();
-    try {
-      rollupWasm.simulateMergeRollup(input);
-    } catch (e) {
-      expect(e).toBeInstanceOf(CircuitError);
-      const err = e as CircuitError;
-      expect(err.message).toEqual(
-        `input proofs have different constants
-Refer to https://docs.aztec.network/aztec/protocol/errors for more information.`,
-      );
-      expect(err.code).toEqual(7003);
-    }
+
+    const output = mergeRollupSim(wasm, input);
+    expect(output instanceof CircuitError).toBeTruthy();
+
+    const err = output as CircuitError;
+    expect(err.message).toEqual(
+      `input proofs have different constants`,
+      // Refer to https://docs.aztec.network/aztec/protocol/errors for more information.`,
+    );
+    expect(err.code).toEqual(7003);
   });
 
   // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1586
@@ -92,14 +103,17 @@ Refer to https://docs.aztec.network/aztec/protocol/errors for more information.`
     const input = makeRootRollupInputs();
     for (const rd of input.previousRollupData) {
       rd.vk = VerificationKey.makeFake();
-      rd.publicInputs.endAggregationObject = AggregationObject.makeFake();
-      rd.publicInputs = rollupWasm.simulateBaseRollup(makeBaseRollupInputsForCircuit());
+      rd.baseOrMergeRollupPublicInputs.endAggregationObject = AggregationObject.makeFake();
+      rd.baseOrMergeRollupPublicInputs = rollupWasm.simulateBaseRollup(makeBaseRollupInputsForCircuit());
     }
     fixPreviousRollupInputs(input);
 
-    const output = rollupWasm.simulateRootRollup(input);
-    expect(output.startNullifierTreeSnapshot).toEqual(
-      input.previousRollupData[0].publicInputs.startNullifierTreeSnapshot,
+    const output = rootRollupSim(wasm, input);
+    expect(output instanceof RootRollupPublicInputs).toBeTruthy();
+
+    const publicInputs = output as RootRollupPublicInputs;
+    expect(publicInputs.startNullifierTreeSnapshot).toEqual(
+      input.previousRollupData[0].baseOrMergeRollupPublicInputs.startNullifierTreeSnapshot,
     );
   }, 15_000);
 });

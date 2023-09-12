@@ -9,10 +9,13 @@ import mapValues from 'lodash.mapvalues';
 import { callCbind } from './cbind.js';
 import {
   Address,
+  AppendOnlyTreeSnapshot,
+  BaseOrMergeRollupPublicInputs,
   CallContext,
   CircuitError,
   CombinedAccumulatedData,
   CombinedConstantData,
+  ConstantRollupData,
   ContractDeploymentData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -27,12 +30,15 @@ import {
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
   MembershipWitness4,
+  MembershipWitness8,
   MembershipWitness16,
+  MergeRollupInputs,
   NativeAggregationState,
   NewContractData,
   OptionallyRevealedData,
   Point,
   PreviousKernelData,
+  PreviousRollupData,
   PrivateCallData,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
@@ -47,6 +53,8 @@ import {
   PublicDataUpdateRequest,
   PublicKernelInputs,
   ReadRequestMembershipWitness,
+  RootRollupInputs,
+  RootRollupPublicInputs,
   TxContext,
   TxRequest,
   VerificationKeyData,
@@ -2228,6 +2236,654 @@ export function fromPublicKernelInputs(o: PublicKernelInputs): MsgpackPublicKern
   };
 }
 
+interface MsgpackAppendOnlyTreeSnapshot {
+  root: Buffer;
+  next_available_leaf_index: number;
+}
+
+export function toAppendOnlyTreeSnapshot(o: MsgpackAppendOnlyTreeSnapshot): AppendOnlyTreeSnapshot {
+  if (o.root === undefined) {
+    throw new Error('Expected root in AppendOnlyTreeSnapshot deserialization');
+  }
+  if (o.next_available_leaf_index === undefined) {
+    throw new Error('Expected next_available_leaf_index in AppendOnlyTreeSnapshot deserialization');
+  }
+  return new AppendOnlyTreeSnapshot(Fr.fromBuffer(o.root), o.next_available_leaf_index);
+}
+
+export function fromAppendOnlyTreeSnapshot(o: AppendOnlyTreeSnapshot): MsgpackAppendOnlyTreeSnapshot {
+  if (o.root === undefined) {
+    throw new Error('Expected root in AppendOnlyTreeSnapshot serialization');
+  }
+  if (o.nextAvailableLeafIndex === undefined) {
+    throw new Error('Expected nextAvailableLeafIndex in AppendOnlyTreeSnapshot serialization');
+  }
+  return {
+    root: toBuffer(o.root),
+    next_available_leaf_index: o.nextAvailableLeafIndex,
+  };
+}
+
+interface MsgpackConstantRollupData {
+  start_historic_blocks_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  private_kernel_vk_tree_root: Buffer;
+  public_kernel_vk_tree_root: Buffer;
+  base_rollup_vk_hash: Buffer;
+  merge_rollup_vk_hash: Buffer;
+  global_variables: MsgpackGlobalVariables;
+}
+
+export function toConstantRollupData(o: MsgpackConstantRollupData): ConstantRollupData {
+  if (o.start_historic_blocks_tree_roots_snapshot === undefined) {
+    throw new Error('Expected start_historic_blocks_tree_roots_snapshot in ConstantRollupData deserialization');
+  }
+  if (o.private_kernel_vk_tree_root === undefined) {
+    throw new Error('Expected private_kernel_vk_tree_root in ConstantRollupData deserialization');
+  }
+  if (o.public_kernel_vk_tree_root === undefined) {
+    throw new Error('Expected public_kernel_vk_tree_root in ConstantRollupData deserialization');
+  }
+  if (o.base_rollup_vk_hash === undefined) {
+    throw new Error('Expected base_rollup_vk_hash in ConstantRollupData deserialization');
+  }
+  if (o.merge_rollup_vk_hash === undefined) {
+    throw new Error('Expected merge_rollup_vk_hash in ConstantRollupData deserialization');
+  }
+  if (o.global_variables === undefined) {
+    throw new Error('Expected global_variables in ConstantRollupData deserialization');
+  }
+  return new ConstantRollupData(
+    toAppendOnlyTreeSnapshot(o.start_historic_blocks_tree_roots_snapshot),
+    Fr.fromBuffer(o.private_kernel_vk_tree_root),
+    Fr.fromBuffer(o.public_kernel_vk_tree_root),
+    Fr.fromBuffer(o.base_rollup_vk_hash),
+    Fr.fromBuffer(o.merge_rollup_vk_hash),
+    toGlobalVariables(o.global_variables),
+  );
+}
+
+export function fromConstantRollupData(o: ConstantRollupData): MsgpackConstantRollupData {
+  if (o.startHistoricBlocksTreeRootsSnapshot === undefined) {
+    throw new Error('Expected startHistoricBlocksTreeRootsSnapshot in ConstantRollupData serialization');
+  }
+  if (o.privateKernelVkTreeRoot === undefined) {
+    throw new Error('Expected privateKernelVkTreeRoot in ConstantRollupData serialization');
+  }
+  if (o.publicKernelVkTreeRoot === undefined) {
+    throw new Error('Expected publicKernelVkTreeRoot in ConstantRollupData serialization');
+  }
+  if (o.baseRollupVkHash === undefined) {
+    throw new Error('Expected baseRollupVkHash in ConstantRollupData serialization');
+  }
+  if (o.mergeRollupVkHash === undefined) {
+    throw new Error('Expected mergeRollupVkHash in ConstantRollupData serialization');
+  }
+  if (o.globalVariables === undefined) {
+    throw new Error('Expected globalVariables in ConstantRollupData serialization');
+  }
+  return {
+    start_historic_blocks_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(o.startHistoricBlocksTreeRootsSnapshot),
+    private_kernel_vk_tree_root: toBuffer(o.privateKernelVkTreeRoot),
+    public_kernel_vk_tree_root: toBuffer(o.publicKernelVkTreeRoot),
+    base_rollup_vk_hash: toBuffer(o.baseRollupVkHash),
+    merge_rollup_vk_hash: toBuffer(o.mergeRollupVkHash),
+    global_variables: fromGlobalVariables(o.globalVariables),
+  };
+}
+
+interface MsgpackBaseOrMergeRollupPublicInputs {
+  rollup_type: number;
+  rollup_subtree_height: Buffer;
+  end_aggregation_object: MsgpackNativeAggregationState;
+  constants: MsgpackConstantRollupData;
+  start_private_data_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_private_data_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_nullifier_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_nullifier_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_contract_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_contract_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_public_data_tree_root: Buffer;
+  end_public_data_tree_root: Buffer;
+  calldata_hash: Tuple<Buffer, 2>;
+}
+
+export function toBaseOrMergeRollupPublicInputs(
+  o: MsgpackBaseOrMergeRollupPublicInputs,
+): BaseOrMergeRollupPublicInputs {
+  if (o.rollup_type === undefined) {
+    throw new Error('Expected rollup_type in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.rollup_subtree_height === undefined) {
+    throw new Error('Expected rollup_subtree_height in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.end_aggregation_object === undefined) {
+    throw new Error('Expected end_aggregation_object in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.constants === undefined) {
+    throw new Error('Expected constants in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.start_private_data_tree_snapshot === undefined) {
+    throw new Error('Expected start_private_data_tree_snapshot in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.end_private_data_tree_snapshot === undefined) {
+    throw new Error('Expected end_private_data_tree_snapshot in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.start_nullifier_tree_snapshot === undefined) {
+    throw new Error('Expected start_nullifier_tree_snapshot in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.end_nullifier_tree_snapshot === undefined) {
+    throw new Error('Expected end_nullifier_tree_snapshot in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.start_contract_tree_snapshot === undefined) {
+    throw new Error('Expected start_contract_tree_snapshot in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.end_contract_tree_snapshot === undefined) {
+    throw new Error('Expected end_contract_tree_snapshot in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.start_public_data_tree_root === undefined) {
+    throw new Error('Expected start_public_data_tree_root in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.end_public_data_tree_root === undefined) {
+    throw new Error('Expected end_public_data_tree_root in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  if (o.calldata_hash === undefined) {
+    throw new Error('Expected calldata_hash in BaseOrMergeRollupPublicInputs deserialization');
+  }
+  return new BaseOrMergeRollupPublicInputs(
+    o.rollup_type,
+    Fr.fromBuffer(o.rollup_subtree_height),
+    toNativeAggregationState(o.end_aggregation_object),
+    toConstantRollupData(o.constants),
+    toAppendOnlyTreeSnapshot(o.start_private_data_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_private_data_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_nullifier_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_nullifier_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_contract_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_contract_tree_snapshot),
+    Fr.fromBuffer(o.start_public_data_tree_root),
+    Fr.fromBuffer(o.end_public_data_tree_root),
+    mapTuple(o.calldata_hash, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromBaseOrMergeRollupPublicInputs(
+  o: BaseOrMergeRollupPublicInputs,
+): MsgpackBaseOrMergeRollupPublicInputs {
+  if (o.rollupType === undefined) {
+    throw new Error('Expected rollupType in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.rollupSubtreeHeight === undefined) {
+    throw new Error('Expected rollupSubtreeHeight in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.endAggregationObject === undefined) {
+    throw new Error('Expected endAggregationObject in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.constants === undefined) {
+    throw new Error('Expected constants in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.startPrivateDataTreeSnapshot === undefined) {
+    throw new Error('Expected startPrivateDataTreeSnapshot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.endPrivateDataTreeSnapshot === undefined) {
+    throw new Error('Expected endPrivateDataTreeSnapshot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.startNullifierTreeSnapshot === undefined) {
+    throw new Error('Expected startNullifierTreeSnapshot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.endNullifierTreeSnapshot === undefined) {
+    throw new Error('Expected endNullifierTreeSnapshot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.startContractTreeSnapshot === undefined) {
+    throw new Error('Expected startContractTreeSnapshot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.endContractTreeSnapshot === undefined) {
+    throw new Error('Expected endContractTreeSnapshot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.startPublicDataTreeRoot === undefined) {
+    throw new Error('Expected startPublicDataTreeRoot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.endPublicDataTreeRoot === undefined) {
+    throw new Error('Expected endPublicDataTreeRoot in BaseOrMergeRollupPublicInputs serialization');
+  }
+  if (o.calldataHash === undefined) {
+    throw new Error('Expected calldataHash in BaseOrMergeRollupPublicInputs serialization');
+  }
+  return {
+    rollup_type: o.rollupType,
+    rollup_subtree_height: toBuffer(o.rollupSubtreeHeight),
+    end_aggregation_object: fromNativeAggregationState(o.endAggregationObject),
+    constants: fromConstantRollupData(o.constants),
+    start_private_data_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startPrivateDataTreeSnapshot),
+    end_private_data_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endPrivateDataTreeSnapshot),
+    start_nullifier_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startNullifierTreeSnapshot),
+    end_nullifier_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endNullifierTreeSnapshot),
+    start_contract_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startContractTreeSnapshot),
+    end_contract_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endContractTreeSnapshot),
+    start_public_data_tree_root: toBuffer(o.startPublicDataTreeRoot),
+    end_public_data_tree_root: toBuffer(o.endPublicDataTreeRoot),
+    calldata_hash: mapTuple(o.calldataHash, (v: Fr) => toBuffer(v)),
+  };
+}
+
+interface MsgpackMembershipWitness8 {
+  leaf_index: Buffer;
+  sibling_path: Tuple<Buffer, 8>;
+}
+
+export function toMembershipWitness8(o: MsgpackMembershipWitness8): MembershipWitness8 {
+  if (o.leaf_index === undefined) {
+    throw new Error('Expected leaf_index in MembershipWitness8 deserialization');
+  }
+  if (o.sibling_path === undefined) {
+    throw new Error('Expected sibling_path in MembershipWitness8 deserialization');
+  }
+  return new MembershipWitness8(
+    Fr.fromBuffer(o.leaf_index),
+    mapTuple(o.sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromMembershipWitness8(o: MembershipWitness8): MsgpackMembershipWitness8 {
+  if (o.leafIndex === undefined) {
+    throw new Error('Expected leafIndex in MembershipWitness8 serialization');
+  }
+  if (o.siblingPath === undefined) {
+    throw new Error('Expected siblingPath in MembershipWitness8 serialization');
+  }
+  return {
+    leaf_index: toBuffer(o.leafIndex),
+    sibling_path: mapTuple(o.siblingPath, (v: Fr) => toBuffer(v)),
+  };
+}
+
+interface MsgpackPreviousRollupData {
+  base_or_merge_rollup_public_inputs: MsgpackBaseOrMergeRollupPublicInputs;
+  proof: Buffer;
+  vk: MsgpackVerificationKeyData;
+  vk_index: number;
+  vk_sibling_path: MsgpackMembershipWitness8;
+}
+
+export function toPreviousRollupData(o: MsgpackPreviousRollupData): PreviousRollupData {
+  if (o.base_or_merge_rollup_public_inputs === undefined) {
+    throw new Error('Expected base_or_merge_rollup_public_inputs in PreviousRollupData deserialization');
+  }
+  if (o.proof === undefined) {
+    throw new Error('Expected proof in PreviousRollupData deserialization');
+  }
+  if (o.vk === undefined) {
+    throw new Error('Expected vk in PreviousRollupData deserialization');
+  }
+  if (o.vk_index === undefined) {
+    throw new Error('Expected vk_index in PreviousRollupData deserialization');
+  }
+  if (o.vk_sibling_path === undefined) {
+    throw new Error('Expected vk_sibling_path in PreviousRollupData deserialization');
+  }
+  return new PreviousRollupData(
+    toBaseOrMergeRollupPublicInputs(o.base_or_merge_rollup_public_inputs),
+    Proof.fromMsgpackBuffer(o.proof),
+    toVerificationKeyData(o.vk),
+    o.vk_index,
+    toMembershipWitness8(o.vk_sibling_path),
+  );
+}
+
+export function fromPreviousRollupData(o: PreviousRollupData): MsgpackPreviousRollupData {
+  if (o.baseOrMergeRollupPublicInputs === undefined) {
+    throw new Error('Expected baseOrMergeRollupPublicInputs in PreviousRollupData serialization');
+  }
+  if (o.proof === undefined) {
+    throw new Error('Expected proof in PreviousRollupData serialization');
+  }
+  if (o.vk === undefined) {
+    throw new Error('Expected vk in PreviousRollupData serialization');
+  }
+  if (o.vkIndex === undefined) {
+    throw new Error('Expected vkIndex in PreviousRollupData serialization');
+  }
+  if (o.vkSiblingPath === undefined) {
+    throw new Error('Expected vkSiblingPath in PreviousRollupData serialization');
+  }
+  return {
+    base_or_merge_rollup_public_inputs: fromBaseOrMergeRollupPublicInputs(o.baseOrMergeRollupPublicInputs),
+    proof: o.proof.toMsgpackBuffer(),
+    vk: fromVerificationKeyData(o.vk),
+    vk_index: o.vkIndex,
+    vk_sibling_path: fromMembershipWitness8(o.vkSiblingPath),
+  };
+}
+
+interface MsgpackMergeRollupInputs {
+  previous_rollup_data: Tuple<MsgpackPreviousRollupData, 2>;
+}
+
+export function toMergeRollupInputs(o: MsgpackMergeRollupInputs): MergeRollupInputs {
+  if (o.previous_rollup_data === undefined) {
+    throw new Error('Expected previous_rollup_data in MergeRollupInputs deserialization');
+  }
+  return new MergeRollupInputs(
+    mapTuple(o.previous_rollup_data, (v: MsgpackPreviousRollupData) => toPreviousRollupData(v)),
+  );
+}
+
+export function fromMergeRollupInputs(o: MergeRollupInputs): MsgpackMergeRollupInputs {
+  if (o.previousRollupData === undefined) {
+    throw new Error('Expected previousRollupData in MergeRollupInputs serialization');
+  }
+  return {
+    previous_rollup_data: mapTuple(o.previousRollupData, (v: PreviousRollupData) => fromPreviousRollupData(v)),
+  };
+}
+
+interface MsgpackRootRollupInputs {
+  previous_rollup_data: Tuple<MsgpackPreviousRollupData, 2>;
+  new_l1_to_l2_messages: Tuple<Buffer, 16>;
+  new_l1_to_l2_messages_tree_root_sibling_path: Tuple<Buffer, 12>;
+  start_l1_to_l2_messages_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_historic_blocks_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  new_historic_blocks_tree_sibling_path: Tuple<Buffer, 16>;
+}
+
+export function toRootRollupInputs(o: MsgpackRootRollupInputs): RootRollupInputs {
+  if (o.previous_rollup_data === undefined) {
+    throw new Error('Expected previous_rollup_data in RootRollupInputs deserialization');
+  }
+  if (o.new_l1_to_l2_messages === undefined) {
+    throw new Error('Expected new_l1_to_l2_messages in RootRollupInputs deserialization');
+  }
+  if (o.new_l1_to_l2_messages_tree_root_sibling_path === undefined) {
+    throw new Error('Expected new_l1_to_l2_messages_tree_root_sibling_path in RootRollupInputs deserialization');
+  }
+  if (o.start_l1_to_l2_messages_tree_snapshot === undefined) {
+    throw new Error('Expected start_l1_to_l2_messages_tree_snapshot in RootRollupInputs deserialization');
+  }
+  if (o.start_historic_blocks_tree_snapshot === undefined) {
+    throw new Error('Expected start_historic_blocks_tree_snapshot in RootRollupInputs deserialization');
+  }
+  if (o.new_historic_blocks_tree_sibling_path === undefined) {
+    throw new Error('Expected new_historic_blocks_tree_sibling_path in RootRollupInputs deserialization');
+  }
+  return new RootRollupInputs(
+    mapTuple(o.previous_rollup_data, (v: MsgpackPreviousRollupData) => toPreviousRollupData(v)),
+    mapTuple(o.new_l1_to_l2_messages, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.new_l1_to_l2_messages_tree_root_sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+    toAppendOnlyTreeSnapshot(o.start_l1_to_l2_messages_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_historic_blocks_tree_snapshot),
+    mapTuple(o.new_historic_blocks_tree_sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromRootRollupInputs(o: RootRollupInputs): MsgpackRootRollupInputs {
+  if (o.previousRollupData === undefined) {
+    throw new Error('Expected previousRollupData in RootRollupInputs serialization');
+  }
+  if (o.newL1ToL2Messages === undefined) {
+    throw new Error('Expected newL1ToL2Messages in RootRollupInputs serialization');
+  }
+  if (o.newL1ToL2MessagesTreeRootSiblingPath === undefined) {
+    throw new Error('Expected newL1ToL2MessagesTreeRootSiblingPath in RootRollupInputs serialization');
+  }
+  if (o.startL1ToL2MessagesTreeSnapshot === undefined) {
+    throw new Error('Expected startL1ToL2MessagesTreeSnapshot in RootRollupInputs serialization');
+  }
+  if (o.startHistoricBlocksTreeSnapshot === undefined) {
+    throw new Error('Expected startHistoricBlocksTreeSnapshot in RootRollupInputs serialization');
+  }
+  if (o.newHistoricBlocksTreeSiblingPath === undefined) {
+    throw new Error('Expected newHistoricBlocksTreeSiblingPath in RootRollupInputs serialization');
+  }
+  return {
+    previous_rollup_data: mapTuple(o.previousRollupData, (v: PreviousRollupData) => fromPreviousRollupData(v)),
+    new_l1_to_l2_messages: mapTuple(o.newL1ToL2Messages, (v: Fr) => toBuffer(v)),
+    new_l1_to_l2_messages_tree_root_sibling_path: mapTuple(o.newL1ToL2MessagesTreeRootSiblingPath, (v: Fr) =>
+      toBuffer(v),
+    ),
+    start_l1_to_l2_messages_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startL1ToL2MessagesTreeSnapshot),
+    start_historic_blocks_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startHistoricBlocksTreeSnapshot),
+    new_historic_blocks_tree_sibling_path: mapTuple(o.newHistoricBlocksTreeSiblingPath, (v: Fr) => toBuffer(v)),
+  };
+}
+
+interface MsgpackRootRollupPublicInputs {
+  end_aggregation_object: MsgpackNativeAggregationState;
+  global_variables: MsgpackGlobalVariables;
+  start_private_data_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_private_data_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_nullifier_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_nullifier_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_contract_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_contract_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_public_data_tree_root: Buffer;
+  end_public_data_tree_root: Buffer;
+  start_tree_of_historic_private_data_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_tree_of_historic_private_data_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_tree_of_historic_contract_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_tree_of_historic_contract_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_l1_to_l2_messages_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_l1_to_l2_messages_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  start_historic_blocks_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  end_historic_blocks_tree_snapshot: MsgpackAppendOnlyTreeSnapshot;
+  calldata_hash: Tuple<Buffer, 2>;
+  l1_to_l2_messages_hash: Tuple<Buffer, 2>;
+}
+
+export function toRootRollupPublicInputs(o: MsgpackRootRollupPublicInputs): RootRollupPublicInputs {
+  if (o.end_aggregation_object === undefined) {
+    throw new Error('Expected end_aggregation_object in RootRollupPublicInputs deserialization');
+  }
+  if (o.global_variables === undefined) {
+    throw new Error('Expected global_variables in RootRollupPublicInputs deserialization');
+  }
+  if (o.start_private_data_tree_snapshot === undefined) {
+    throw new Error('Expected start_private_data_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.end_private_data_tree_snapshot === undefined) {
+    throw new Error('Expected end_private_data_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.start_nullifier_tree_snapshot === undefined) {
+    throw new Error('Expected start_nullifier_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.end_nullifier_tree_snapshot === undefined) {
+    throw new Error('Expected end_nullifier_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.start_contract_tree_snapshot === undefined) {
+    throw new Error('Expected start_contract_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.end_contract_tree_snapshot === undefined) {
+    throw new Error('Expected end_contract_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.start_public_data_tree_root === undefined) {
+    throw new Error('Expected start_public_data_tree_root in RootRollupPublicInputs deserialization');
+  }
+  if (o.end_public_data_tree_root === undefined) {
+    throw new Error('Expected end_public_data_tree_root in RootRollupPublicInputs deserialization');
+  }
+  if (o.start_tree_of_historic_private_data_tree_roots_snapshot === undefined) {
+    throw new Error(
+      'Expected start_tree_of_historic_private_data_tree_roots_snapshot in RootRollupPublicInputs deserialization',
+    );
+  }
+  if (o.end_tree_of_historic_private_data_tree_roots_snapshot === undefined) {
+    throw new Error(
+      'Expected end_tree_of_historic_private_data_tree_roots_snapshot in RootRollupPublicInputs deserialization',
+    );
+  }
+  if (o.start_tree_of_historic_contract_tree_roots_snapshot === undefined) {
+    throw new Error(
+      'Expected start_tree_of_historic_contract_tree_roots_snapshot in RootRollupPublicInputs deserialization',
+    );
+  }
+  if (o.end_tree_of_historic_contract_tree_roots_snapshot === undefined) {
+    throw new Error(
+      'Expected end_tree_of_historic_contract_tree_roots_snapshot in RootRollupPublicInputs deserialization',
+    );
+  }
+  if (o.start_l1_to_l2_messages_tree_snapshot === undefined) {
+    throw new Error('Expected start_l1_to_l2_messages_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.end_l1_to_l2_messages_tree_snapshot === undefined) {
+    throw new Error('Expected end_l1_to_l2_messages_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot === undefined) {
+    throw new Error(
+      'Expected start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot in RootRollupPublicInputs deserialization',
+    );
+  }
+  if (o.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot === undefined) {
+    throw new Error(
+      'Expected end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot in RootRollupPublicInputs deserialization',
+    );
+  }
+  if (o.start_historic_blocks_tree_snapshot === undefined) {
+    throw new Error('Expected start_historic_blocks_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.end_historic_blocks_tree_snapshot === undefined) {
+    throw new Error('Expected end_historic_blocks_tree_snapshot in RootRollupPublicInputs deserialization');
+  }
+  if (o.calldata_hash === undefined) {
+    throw new Error('Expected calldata_hash in RootRollupPublicInputs deserialization');
+  }
+  if (o.l1_to_l2_messages_hash === undefined) {
+    throw new Error('Expected l1_to_l2_messages_hash in RootRollupPublicInputs deserialization');
+  }
+  return new RootRollupPublicInputs(
+    toNativeAggregationState(o.end_aggregation_object),
+    toGlobalVariables(o.global_variables),
+    toAppendOnlyTreeSnapshot(o.start_private_data_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_private_data_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_nullifier_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_nullifier_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_contract_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_contract_tree_snapshot),
+    Fr.fromBuffer(o.start_public_data_tree_root),
+    Fr.fromBuffer(o.end_public_data_tree_root),
+    toAppendOnlyTreeSnapshot(o.start_tree_of_historic_private_data_tree_roots_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_tree_of_historic_private_data_tree_roots_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_tree_of_historic_contract_tree_roots_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_tree_of_historic_contract_tree_roots_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_l1_to_l2_messages_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_l1_to_l2_messages_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot),
+    toAppendOnlyTreeSnapshot(o.start_historic_blocks_tree_snapshot),
+    toAppendOnlyTreeSnapshot(o.end_historic_blocks_tree_snapshot),
+    mapTuple(o.calldata_hash, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.l1_to_l2_messages_hash, (v: Buffer) => Fr.fromBuffer(v)),
+  );
+}
+
+export function fromRootRollupPublicInputs(o: RootRollupPublicInputs): MsgpackRootRollupPublicInputs {
+  if (o.endAggregationObject === undefined) {
+    throw new Error('Expected endAggregationObject in RootRollupPublicInputs serialization');
+  }
+  if (o.globalVariables === undefined) {
+    throw new Error('Expected globalVariables in RootRollupPublicInputs serialization');
+  }
+  if (o.startPrivateDataTreeSnapshot === undefined) {
+    throw new Error('Expected startPrivateDataTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endPrivateDataTreeSnapshot === undefined) {
+    throw new Error('Expected endPrivateDataTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.startNullifierTreeSnapshot === undefined) {
+    throw new Error('Expected startNullifierTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endNullifierTreeSnapshot === undefined) {
+    throw new Error('Expected endNullifierTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.startContractTreeSnapshot === undefined) {
+    throw new Error('Expected startContractTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endContractTreeSnapshot === undefined) {
+    throw new Error('Expected endContractTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.startPublicDataTreeRoot === undefined) {
+    throw new Error('Expected startPublicDataTreeRoot in RootRollupPublicInputs serialization');
+  }
+  if (o.endPublicDataTreeRoot === undefined) {
+    throw new Error('Expected endPublicDataTreeRoot in RootRollupPublicInputs serialization');
+  }
+  if (o.startTreeOfHistoricPrivateDataTreeRootsSnapshot === undefined) {
+    throw new Error('Expected startTreeOfHistoricPrivateDataTreeRootsSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endTreeOfHistoricPrivateDataTreeRootsSnapshot === undefined) {
+    throw new Error('Expected endTreeOfHistoricPrivateDataTreeRootsSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.startTreeOfHistoricContractTreeRootsSnapshot === undefined) {
+    throw new Error('Expected startTreeOfHistoricContractTreeRootsSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endTreeOfHistoricContractTreeRootsSnapshot === undefined) {
+    throw new Error('Expected endTreeOfHistoricContractTreeRootsSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.startL1ToL2MessagesTreeSnapshot === undefined) {
+    throw new Error('Expected startL1ToL2MessagesTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endL1ToL2MessagesTreeSnapshot === undefined) {
+    throw new Error('Expected endL1ToL2MessagesTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot === undefined) {
+    throw new Error(
+      'Expected startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot in RootRollupPublicInputs serialization',
+    );
+  }
+  if (o.endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot === undefined) {
+    throw new Error(
+      'Expected endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot in RootRollupPublicInputs serialization',
+    );
+  }
+  if (o.startHistoricBlocksTreeSnapshot === undefined) {
+    throw new Error('Expected startHistoricBlocksTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.endHistoricBlocksTreeSnapshot === undefined) {
+    throw new Error('Expected endHistoricBlocksTreeSnapshot in RootRollupPublicInputs serialization');
+  }
+  if (o.calldataHash === undefined) {
+    throw new Error('Expected calldataHash in RootRollupPublicInputs serialization');
+  }
+  if (o.l1ToL2MessagesHash === undefined) {
+    throw new Error('Expected l1ToL2MessagesHash in RootRollupPublicInputs serialization');
+  }
+  return {
+    end_aggregation_object: fromNativeAggregationState(o.endAggregationObject),
+    global_variables: fromGlobalVariables(o.globalVariables),
+    start_private_data_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startPrivateDataTreeSnapshot),
+    end_private_data_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endPrivateDataTreeSnapshot),
+    start_nullifier_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startNullifierTreeSnapshot),
+    end_nullifier_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endNullifierTreeSnapshot),
+    start_contract_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startContractTreeSnapshot),
+    end_contract_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endContractTreeSnapshot),
+    start_public_data_tree_root: toBuffer(o.startPublicDataTreeRoot),
+    end_public_data_tree_root: toBuffer(o.endPublicDataTreeRoot),
+    start_tree_of_historic_private_data_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(
+      o.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+    ),
+    end_tree_of_historic_private_data_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(
+      o.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+    ),
+    start_tree_of_historic_contract_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(
+      o.startTreeOfHistoricContractTreeRootsSnapshot,
+    ),
+    end_tree_of_historic_contract_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(
+      o.endTreeOfHistoricContractTreeRootsSnapshot,
+    ),
+    start_l1_to_l2_messages_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startL1ToL2MessagesTreeSnapshot),
+    end_l1_to_l2_messages_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endL1ToL2MessagesTreeSnapshot),
+    start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(
+      o.startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot,
+    ),
+    end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: fromAppendOnlyTreeSnapshot(
+      o.endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot,
+    ),
+    start_historic_blocks_tree_snapshot: fromAppendOnlyTreeSnapshot(o.startHistoricBlocksTreeSnapshot),
+    end_historic_blocks_tree_snapshot: fromAppendOnlyTreeSnapshot(o.endHistoricBlocksTreeSnapshot),
+    calldata_hash: mapTuple(o.calldataHash, (v: Fr) => toBuffer(v)),
+    l1_to_l2_messages_hash: mapTuple(o.l1ToL2MessagesHash, (v: Fr) => toBuffer(v)),
+  };
+}
+
 export function abisComputeCommitmentNonce(wasm: IWasmModule, arg0: Fr, arg1: Fr): Fr {
   return Fr.fromBuffer(callCbind(wasm, 'abis__compute_commitment_nonce', [toBuffer(arg0), toBuffer(arg1)]));
 }
@@ -2323,5 +2979,20 @@ export function publicKernelSim(wasm: IWasmModule, arg0: PublicKernelInputs): Ci
   return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
     isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
     callCbind(wasm, 'public_kernel__sim', [fromPublicKernelInputs(arg0)]),
+  );
+}
+export function mergeRollupSim(
+  wasm: IWasmModule,
+  arg0: MergeRollupInputs,
+): CircuitError | BaseOrMergeRollupPublicInputs {
+  return ((v: MsgpackCircuitError | MsgpackBaseOrMergeRollupPublicInputs) =>
+    isCircuitError(v) ? toCircuitError(v) : toBaseOrMergeRollupPublicInputs(v))(
+    callCbind(wasm, 'merge_rollup__sim', [fromMergeRollupInputs(arg0)]),
+  );
+}
+export function rootRollupSim(wasm: IWasmModule, arg0: RootRollupInputs): CircuitError | RootRollupPublicInputs {
+  return ((v: MsgpackCircuitError | MsgpackRootRollupPublicInputs) =>
+    isCircuitError(v) ? toCircuitError(v) : toRootRollupPublicInputs(v))(
+    callCbind(wasm, 'root_rollup__sim', [fromRootRollupInputs(arg0)]),
   );
 }

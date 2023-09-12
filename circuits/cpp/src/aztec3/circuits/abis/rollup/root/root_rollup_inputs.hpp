@@ -19,10 +19,10 @@ template <typename NCT> struct RootRollupInputs {
     std::array<PreviousRollupData<NCT>, 2> previous_rollup_data{};
 
     // inputs required to process l1 to l2 messages
-    std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> l1_to_l2_messages{};
-    std::array<fr, L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH> new_l1_to_l2_message_tree_root_sibling_path{};
+    std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> new_l1_to_l2_messages{};
+    std::array<fr, L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH> new_l1_to_l2_messages_tree_root_sibling_path{};
 
-    AppendOnlyTreeSnapshot<NCT> start_l1_to_l2_message_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_l1_to_l2_messages_tree_snapshot{};
 
     // inputs required to add the block hash
     AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
@@ -30,9 +30,9 @@ template <typename NCT> struct RootRollupInputs {
 
     // For serialization, update with new fields
     MSGPACK_FIELDS(previous_rollup_data,
-                   l1_to_l2_messages,
-                   new_l1_to_l2_message_tree_root_sibling_path,
-                   start_l1_to_l2_message_tree_snapshot,
+                   new_l1_to_l2_messages,
+                   new_l1_to_l2_messages_tree_root_sibling_path,
+                   start_l1_to_l2_messages_tree_snapshot,
                    start_historic_blocks_tree_snapshot,
                    new_historic_blocks_tree_sibling_path);
     bool operator==(RootRollupInputs<NCT> const&) const = default;

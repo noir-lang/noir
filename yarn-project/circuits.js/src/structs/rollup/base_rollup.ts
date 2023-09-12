@@ -53,7 +53,7 @@ export class NullifierLeafPreimage {
 /**
  * Data which is forwarded through the base rollup circuits unchanged.
  */
-export class ConstantBaseRollupData {
+export class ConstantRollupData {
   constructor(
     /**
      * Snapshot of the historic blocks roots tree at the start of the rollup.
@@ -82,13 +82,13 @@ export class ConstantBaseRollupData {
     public globalVariables: GlobalVariables,
   ) {}
 
-  static from(fields: FieldsOf<ConstantBaseRollupData>): ConstantBaseRollupData {
-    return new ConstantBaseRollupData(...ConstantBaseRollupData.getFields(fields));
+  static from(fields: FieldsOf<ConstantRollupData>): ConstantRollupData {
+    return new ConstantRollupData(...ConstantRollupData.getFields(fields));
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader): ConstantBaseRollupData {
+  static fromBuffer(buffer: Buffer | BufferReader): ConstantRollupData {
     const reader = BufferReader.asReader(buffer);
-    return new ConstantBaseRollupData(
+    return new ConstantRollupData(
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readFr(),
       reader.readFr(),
@@ -98,7 +98,7 @@ export class ConstantBaseRollupData {
     );
   }
 
-  static getFields(fields: FieldsOf<ConstantBaseRollupData>) {
+  static getFields(fields: FieldsOf<ConstantRollupData>) {
     return [
       fields.startHistoricBlocksTreeRootsSnapshot,
       fields.privateKernelVkTreeRoot,
@@ -110,7 +110,7 @@ export class ConstantBaseRollupData {
   }
 
   toBuffer() {
-    return serializeToBuffer(...ConstantBaseRollupData.getFields(this));
+    return serializeToBuffer(...ConstantRollupData.getFields(this));
   }
 }
 
@@ -203,7 +203,7 @@ export class BaseRollupInputs {
     /**
      * Data which is not modified by the base rollup circuit.
      */
-    public constants: ConstantBaseRollupData,
+    public constants: ConstantRollupData,
   ) {
     assertMemberLength(this, 'lowNullifierLeafPreimages', 2 * MAX_NEW_NULLIFIERS_PER_TX);
     assertMemberLength(this, 'lowNullifierMembershipWitness', 2 * MAX_NEW_NULLIFIERS_PER_TX);
