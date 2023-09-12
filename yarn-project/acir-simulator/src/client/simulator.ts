@@ -22,7 +22,7 @@ import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
  * The ACIR simulator.
  */
 export class AcirSimulator {
-  private static solver: WasmBlackBoxFunctionSolver; // ACVM's backend
+  private static solver: Promise<WasmBlackBoxFunctionSolver>; // ACVM's backend
   private log: DebugLogger;
 
   constructor(private db: DBOracle) {
@@ -42,8 +42,8 @@ export class AcirSimulator {
    *
    * @returns ACVM WasmBlackBoxFunctionSolver
    */
-  public static async getSolver(): Promise<WasmBlackBoxFunctionSolver> {
-    if (!this.solver) this.solver = await createBlackBoxSolver();
+  public static getSolver(): Promise<WasmBlackBoxFunctionSolver> {
+    if (!this.solver) this.solver = createBlackBoxSolver();
     return this.solver;
   }
 

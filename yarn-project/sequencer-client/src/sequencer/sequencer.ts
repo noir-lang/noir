@@ -129,10 +129,11 @@ export class Sequencer {
         return;
       }
 
-      this.log(`Processing ${validTxs.length} txs...`);
+      const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
+
+      this.log.info(`Building block ${blockNumber} with ${validTxs.length} transactions...`);
       this.state = SequencerState.CREATING_BLOCK;
 
-      const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
       const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
       const prevGlobalVariables = (await this.l2BlockSource.getL2Block(-1))?.globalVariables ?? GlobalVariables.empty();
 
