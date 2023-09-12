@@ -1,8 +1,10 @@
 name: Publish ABI Wasm
 
 on:
+  push:
+    tags:
+      - "*"
   workflow_dispatch:
-  # tags:
 
 jobs:
   noirc-abi-wasm-build:
