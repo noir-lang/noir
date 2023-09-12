@@ -1,7 +1,6 @@
-use acvm::acir::circuit::{Opcode, OpcodeLocation};
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::pwg::{ErrorLocation, OpcodeResolutionError};
-use acvm::Language;
 use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
@@ -53,17 +52,18 @@ pub(crate) fn run(
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
-    let witness_dir = &workspace.target_directory_path();
+    let target_dir = &workspace.target_directory_path();
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        let (return_value, solved_witness) = execute_package(
-            backend,
+        let (compiled_program, debug_artifact) =
+            compile_bin_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
+
+        let (return_value, solved_witness) = execute_program_and_decode(
+            compiled_program,
+            debug_artifact,
             package,
             &args.prover_name,
-            &args.compile_options,
-            np_language,
-            &is_opcode_supported,
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
@@ -71,7 +71,7 @@ pub(crate) fn run(
             println!("[{}] Circuit output: {return_value:?}", package.name);
         }
         if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
+            let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
 
             println!("[{}] Witness saved to {}", package.name, witness_path.display());
         }
@@ -79,23 +79,18 @@ pub(crate) fn run(
     Ok(())
 }
 
-fn execute_package(
-    backend: &Backend,
+fn execute_program_and_decode(
+    program: CompiledProgram,
+    debug_artifact: DebugArtifact,
     package: &Package,
     prover_name: &str,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let (compiled_program, debug_artifact) =
-        compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
-    let CompiledProgram { abi, circuit, .. } = compiled_program;
+    let CompiledProgram { abi, circuit, .. } = program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
-    let solved_witness =
-        execute_program(backend, circuit, &abi, &inputs_map, Some(debug_artifact))?;
+    let solved_witness = execute_program(circuit, &abi, &inputs_map, Some(debug_artifact))?;
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
@@ -193,7 +188,6 @@ fn report_error_with_opcode_locations(
 }
 
 pub(crate) fn execute_program(
-    _backend: &Backend,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
