@@ -63,26 +63,46 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let circuit_dir = workspace.target_directory_path();
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
-
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .members
-        .iter()
+        .into_iter()
         .filter(|package| !package.is_library())
         .partition(|package| package.is_binary());
+
+    let (compiled_programs, compiled_contracts) =
+        compile_workspace(backend, &binary_packages, &contract_packages, &args.compile_options)?;
+
+    // Save build artifacts to disk.
+    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
+        save_program(program, &package, &circuit_dir, args.output_debug);
+    }
+    for (package, contracts_with_debug_artifacts) in
+        contract_packages.into_iter().zip(compiled_contracts)
+    {
+        save_contracts(contracts_with_debug_artifacts, &package, &circuit_dir, args.output_debug);
+    }
+
+    Ok(())
+}
+
+pub(super) fn compile_workspace(
+    backend: &Backend,
+    binary_packages: &[Package],
+    contract_packages: &[Package],
+    compile_options: &CompileOptions,
+) -> Result<(Vec<CompiledProgram>, Vec<Vec<CompiledContract>>), CliError> {
+    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
 
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
-        .map(|package| {
-            compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
-        })
+        .map(|package| compile_program(package, compile_options, np_language, &is_opcode_supported))
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<Vec<CompiledContract>>)> =
         contract_packages
             .par_iter()
             .map(|package| {
-                compile_contracts(package, &args.compile_options, np_language, &is_opcode_supported)
+                compile_contracts(package, compile_options, np_language, &is_opcode_supported)
             })
             .collect();
 
@@ -90,25 +110,17 @@ pub(crate) fn run(
     let compiled_programs: Vec<CompiledProgram> = program_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
-            report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
+            report_errors(compilation_result, &file_manager, compile_options.deny_warnings)
         })
         .collect::<Result<_, _>>()?;
     let compiled_contracts: Vec<Vec<CompiledContract>> = contract_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
-            report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
+            report_errors(compilation_result, &file_manager, compile_options.deny_warnings)
         })
         .collect::<Result<_, _>>()?;
 
-    // Save build artifacts to disk.
-    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
-        save_program(program, package, &circuit_dir, args.output_debug);
-    }
-    for (package, compiled_contracts) in contract_packages.into_iter().zip(compiled_contracts) {
-        save_contracts(compiled_contracts, package, &circuit_dir, args.output_debug);
-    }
-
-    Ok(())
+    Ok((compiled_programs, compiled_contracts))
 }
 
 pub(crate) fn compile_bin_package(
@@ -127,19 +139,6 @@ pub(crate) fn compile_bin_package(
     let program = report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
 
     Ok(program)
-}
-
-pub(crate) fn compile_contract_package(
-    package: &Package,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<Vec<CompiledContract>, CliError> {
-    let (file_manager, compilation_result) =
-        compile_contracts(package, compile_options, np_language, &is_opcode_supported);
-    let contracts_with_debug_artifacts =
-        report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
-    Ok(contracts_with_debug_artifacts)
 }
 
 fn compile_program(
