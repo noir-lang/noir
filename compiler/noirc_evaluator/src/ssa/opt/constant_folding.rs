@@ -78,6 +78,7 @@ impl Context {
         // Cache of instructions without any side-effects along with their outputs.
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
         let mut constrained_values: HashMap<ValueId, ValueId> = HashMap::default();
+        let mut side_effects_enabled: bool = false;
 
         for instruction_id in instructions {
             Self::fold_constants_into_instruction(
@@ -86,6 +87,7 @@ impl Context {
                 instruction_id,
                 &mut cached_instruction_results,
                 &mut constrained_values,
+                &mut side_effects_enabled,
             );
         }
         self.block_queue.extend(function.dfg[block].successors());
@@ -97,8 +99,10 @@ impl Context {
         id: InstructionId,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
         constrained_values: &mut HashMap<ValueId, ValueId>,
+        side_effects_enabled: &mut bool,
     ) {
-        let instruction = Self::resolve_instruction(id, dfg, constrained_values);
+        let instruction =
+            Self::resolve_instruction(id, dfg, constrained_values, side_effects_enabled);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
@@ -118,6 +122,7 @@ impl Context {
             dfg,
             instruction_result_cache,
             constrained_values,
+            side_effects_enabled,
         );
     }
 
@@ -126,6 +131,7 @@ impl Context {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         constrained_values: &mut HashMap<ValueId, ValueId>,
+        side_effects_enabled: &bool,
     ) -> Instruction {
         let instruction = dfg[instruction_id].clone();
 
@@ -134,20 +140,34 @@ impl Context {
         //
         // This allows us to reach a stable final `ValueId` for each instruction input as we add more
         // constraints to the cache.
+        //
+        // We also must check whether side effects are currently enabled. If they are enabled we do not want
+        // to replace constrained values as they could be reliant upon runtime values. The runtime values
+        // would then be replaced later in the SSA, possibly leading to a mismatched constant constraint failure
+        // when we should have a runtime constraint failure earlier in the SSA.
         fn resolve_cache(
             dfg: &DataFlowGraph,
             cache: &HashMap<ValueId, ValueId>,
             value_id: ValueId,
+            side_effects_enabled: &bool,
         ) -> ValueId {
             let resolved_id = dfg.resolve(value_id);
-            match cache.get(&resolved_id) {
-                Some(cached_value) => resolve_cache(dfg, cache, *cached_value),
-                None => resolved_id,
+            if *side_effects_enabled {
+                return resolved_id;
             }
+            let resolved_id = match cache.get(&resolved_id) {
+                Some(cached_value) => {
+                    resolve_cache(dfg, cache, *cached_value, side_effects_enabled)
+                }
+                None => resolved_id,
+            };
+            resolved_id
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| resolve_cache(dfg, constrained_values, value_id))
+        instruction.map_values(|value_id| {
+            resolve_cache(dfg, constrained_values, value_id, side_effects_enabled)
+        })
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -186,31 +206,48 @@ impl Context {
         dfg: &DataFlowGraph,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
         constraint_cache: &mut HashMap<ValueId, ValueId>,
+        side_effects_enabled: &mut bool,
     ) {
-        // If the instruction was a constraint, then create a link between the two `ValueId`s
-        // to map from the more complex to the simpler value.
-        if let Instruction::Constrain(lhs, rhs, _) = instruction {
-            // These `ValueId`s should be fully resolved now.
-            match (&dfg[lhs], &dfg[rhs]) {
-                // Ignore trivial constraints
-                (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
+        match instruction {
+            Instruction::EnableSideEffects { condition } => {
+                if let Value::NumericConstant { constant, .. } = &dfg[condition] {
+                    if constant.is_one() {
+                        *side_effects_enabled = true;
+                    } else {
+                        *side_effects_enabled = false;
+                    }
+                } else {
+                    // If the `enable_side_effects` condition is not a constant we cannot know for sure whether
+                    // side effects are not enabled. Thus, we mark the side effects as being enabled to make sure
+                    // that we do not mistakenly replace constrained values dependent upon runtime side effects.
+                    *side_effects_enabled = true;
+                }
+            }
+            Instruction::Constrain(lhs, rhs, _) => {
+                match (&dfg[lhs], &dfg[rhs]) {
+                    // Ignore trivial constraints
+                    (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
 
-                // Prefer replacing with constants where possible.
-                (Value::NumericConstant { .. }, _) => {
-                    constraint_cache.insert(rhs, lhs);
+                    // Prefer replacing with constants where possible.
+                    (Value::NumericConstant { .. }, _) => {
+                        constraint_cache.insert(rhs, lhs);
+                    }
+                    (_, Value::NumericConstant { .. }) => {
+                        constraint_cache.insert(lhs, rhs);
+                    }
+                    // Otherwise prefer block parameters over instruction results.
+                    // This is as block parameters are more likely to be a single witness rather than a full expression.
+                    (Value::Param { .. }, Value::Instruction { .. }) => {
+                        constraint_cache.insert(rhs, lhs);
+                    }
+                    (Value::Instruction { .. }, Value::Param { .. }) => {
+                        constraint_cache.insert(lhs, rhs);
+                    }
+                    (_, _) => (),
                 }
-                (_, Value::NumericConstant { .. }) => {
-                    constraint_cache.insert(lhs, rhs);
-                }
-                // Otherwise prefer block parameters over instruction results.
-                // This is as block parameters are more likely to be a single witness rather than a full expression.
-                (Value::Param { .. }, Value::Instruction { .. }) => {
-                    constraint_cache.insert(rhs, lhs);
-                }
-                (Value::Instruction { .. }, Value::Param { .. }) => {
-                    constraint_cache.insert(lhs, rhs);
-                }
-                (_, _) => (),
+            }
+            _ => {
+                // The remaining instructions are not cached, so do nothing
             }
         }
 

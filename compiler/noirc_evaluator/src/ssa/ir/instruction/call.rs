@@ -85,6 +85,8 @@ pub(super) fn simplify_call(
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
+                SimplifyResult::SimplifiedTo(arguments[0])
             } else {
                 SimplifyResult::None
             }
