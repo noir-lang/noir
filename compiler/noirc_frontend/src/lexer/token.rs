@@ -351,7 +351,7 @@ impl fmt::Display for TestScope {
         match self {
             TestScope::None => write!(f, ""),
             TestScope::ShouldFailWith { reason } => match reason {
-                Some(failure_reason) => write!(f, "(should_fail_with = ({}))", failure_reason),
+                Some(failure_reason) => write!(f, "(should_fail_with = ({failure_reason}))"),
                 None => write!(f, "should_fail"),
             },
         }

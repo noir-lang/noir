@@ -73,7 +73,7 @@ impl ForeignCall {
                     ],
                 })
             }
-            None => panic!("unexpected foreign call {:?}", foreign_call_name),
+            None => panic!("unexpected foreign call {foreign_call_name:?}"),
         }
     }
 

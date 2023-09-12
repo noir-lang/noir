@@ -9,7 +9,7 @@ pub(crate) struct LsCommand;
 
 pub(crate) fn run(_args: LsCommand) -> Result<(), CliError> {
     for backend in get_available_backends() {
-        println!("{}", backend);
+        println!("{backend}");
     }
 
     Ok(())
