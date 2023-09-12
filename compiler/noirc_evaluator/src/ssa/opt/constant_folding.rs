@@ -102,7 +102,7 @@ impl Context {
         side_effects_enabled: &mut bool,
     ) {
         let instruction =
-            Self::resolve_instruction(id, dfg, constrained_values, side_effects_enabled);
+            Self::resolve_instruction(id, dfg, constrained_values, *side_effects_enabled);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
@@ -149,10 +149,10 @@ impl Context {
             dfg: &DataFlowGraph,
             cache: &HashMap<ValueId, ValueId>,
             value_id: ValueId,
-            side_effects_enabled: &bool,
+            side_effects_enabled: bool,
         ) -> ValueId {
             let resolved_id = dfg.resolve(value_id);
-            if *side_effects_enabled {
+            if side_effects_enabled {
                 return resolved_id;
             }
             match cache.get(&resolved_id) {
