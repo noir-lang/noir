@@ -689,21 +689,12 @@ impl Display for FunctionDefinition {
 }
 
 impl FunctionReturnType {
-<<<<<<< HEAD
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
             FunctionReturnType::Default(span) => {
                 Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
-=======
-    pub fn get_type(&self) -> UnresolvedType {
-        match self {
-            FunctionReturnType::Default(span) => {
-                UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) }
-            }
-            FunctionReturnType::Ty(typ) => typ.clone(),
->>>>>>> c200bfeaa (Add trait method signature type checks)
         }
     }
 }
