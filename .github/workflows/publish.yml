@@ -139,10 +139,13 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install Cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
+
       - name: Build Nargo
-        run: |
-          cargo install cross --version 0.2.5 --force 
-          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
