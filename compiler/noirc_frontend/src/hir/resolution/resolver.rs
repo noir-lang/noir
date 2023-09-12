@@ -17,8 +17,8 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
-use crate::token::PrimaryAttribute;
 use crate::hir_def::traits::Trait;
+use crate::token::PrimaryAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -37,8 +37,8 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
     Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility,
+    ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
