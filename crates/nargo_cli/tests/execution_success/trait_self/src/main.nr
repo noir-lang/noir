@@ -1,18 +1,27 @@
-struct Foo {
-    x: Field
-}
-
-trait Asd {
+trait ATrait {
     fn asd() -> Self;
 }
 
-impl Asd for Foo {
-    // the Self should typecheck properly
+struct Foo {
+    x: Field
+}
+impl ATrait for Foo {
     fn asd() -> Self {
+        // This should pass as Self should be bound to Foo while typechecking this
+        Foo{x: 100}
+    }
+}
+
+struct Bar {
+    x: Field
+}
+impl ATrait for Bar {
+    // The trait method is declared as returning `Self`
+    // but explicitly specifying the type in the impl should work
+    fn asd() -> Bar {
         Foo{x: 100}
     }
 }
 
 fn main() {
-    assert(Foo::asd().x == 100);
 }

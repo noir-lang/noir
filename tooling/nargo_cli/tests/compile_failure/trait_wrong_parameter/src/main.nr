@@ -1,19 +1,15 @@
-use dep::std;
-
-trait Default {
-    fn default(x: Field, y: Field) -> Self;
+trait FromField {
+    fn default(x: Field) -> Self;
 }
 
 struct Foo {
     bar: Field,
-    array: [Field; 2],
 }
 
 impl Default for Foo {
-    fn default(x: Field, y: Foo) -> Self {
-        Self { bar: x, array: [x, y.bar] }
+    fn default(x: u32) -> Self {
     }
 }
 
-fn main(x: Field, y: Field) {
+fn main() {
 }
