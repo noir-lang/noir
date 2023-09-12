@@ -79,6 +79,7 @@ pub(crate) fn run(
                 compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
             })
             .collect();
+    #[allow(clippy::type_complexity)]
     let contract_results: Vec<(
         FileManager,
         CompilationResult<Vec<(CompiledContract, DebugArtifact)>>,
