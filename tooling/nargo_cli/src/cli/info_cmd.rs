@@ -50,9 +50,9 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .members
         .into_iter()
         .filter(|package| !package.is_library())
+        .cloned()
         .partition(|package| package.is_binary());
 
     let (compiled_programs, compiled_contracts) =

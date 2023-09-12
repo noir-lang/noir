@@ -64,9 +64,9 @@ pub(crate) fn run(
     let circuit_dir = workspace.target_directory_path();
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .members
         .into_iter()
         .filter(|package| !package.is_library())
+        .cloned()
         .partition(|package| package.is_binary());
 
     let (compiled_programs, compiled_contracts) =
