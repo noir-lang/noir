@@ -4,6 +4,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use clap::Args;
+use debug::filter_relevant_files;
 use fm::FileId;
 use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
@@ -17,9 +18,11 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 mod contract;
+mod debug;
 mod program;
 
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
+pub use debug::DebugFile;
 pub use program::CompiledProgram;
 
 const STD_CRATE_NAME: &str = "std";
@@ -269,5 +272,7 @@ pub fn compile_no_check(
     let (circuit, debug, abi) =
         create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
-    Ok(CompiledProgram { circuit, debug, abi })
+    let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
+
+    Ok(CompiledProgram { circuit, debug, abi, file_map })
 }

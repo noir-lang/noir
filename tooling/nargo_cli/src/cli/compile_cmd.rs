@@ -72,13 +72,12 @@ pub(crate) fn run(
         .partition(|package| package.is_binary());
 
     // Compile all of the packages in parallel.
-    let program_results: Vec<(FileManager, CompilationResult<(CompiledProgram, DebugArtifact)>)> =
-        binary_packages
-            .par_iter()
-            .map(|package| {
-                compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
-            })
-            .collect();
+    let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
+        .par_iter()
+        .map(|package| {
+            compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
+        })
+        .collect();
     #[allow(clippy::type_complexity)]
     let contract_results: Vec<(
         FileManager,
@@ -91,7 +90,7 @@ pub(crate) fn run(
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
-    let compiled_programs: Vec<(CompiledProgram, DebugArtifact)> = program_results
+    let compiled_programs: Vec<CompiledProgram> = program_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
             report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
@@ -105,8 +104,8 @@ pub(crate) fn run(
         .collect::<Result<_, _>>()?;
 
     // Save build artifacts to disk.
-    for (package, (program, debug_artifact)) in binary_packages.into_iter().zip(compiled_programs) {
-        save_program(debug_artifact, program, package, &circuit_dir, args.output_debug);
+    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
+        save_program(program, package, &circuit_dir, args.output_debug);
     }
     for (package, contracts_with_debug_artifacts) in
         contract_packages.into_iter().zip(compiled_contracts)
@@ -122,7 +121,7 @@ pub(crate) fn compile_bin_package(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<(CompiledProgram, DebugArtifact), CliError> {
+) -> Result<CompiledProgram, CliError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
@@ -130,10 +129,9 @@ pub(crate) fn compile_bin_package(
     let (file_manager, compilation_result) =
         compile_program(package, compile_options, np_language, &is_opcode_supported);
 
-    let (program, debug_artifact) =
-        report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
+    let program = report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
 
-    Ok((program, debug_artifact))
+    Ok(program)
 }
 
 pub(crate) fn compile_contract_package(
@@ -154,7 +152,7 @@ fn compile_program(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> (FileManager, CompilationResult<(CompiledProgram, DebugArtifact)>) {
+) -> (FileManager, CompilationResult<CompiledProgram>) {
     let (mut context, crate_id) = prepare_package(package);
 
     let (program, warnings) =
@@ -170,10 +168,7 @@ fn compile_program(
         nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
             .expect("Backend does not support an opcode that is in the IR");
 
-    let debug_artifact =
-        DebugArtifact::new(vec![optimized_program.debug.clone()], &context.file_manager);
-
-    (context.file_manager, Ok(((optimized_program, debug_artifact), warnings)))
+    (context.file_manager, Ok((optimized_program, warnings)))
 }
 
 fn compile_contracts(
@@ -207,7 +202,6 @@ fn compile_contracts(
 }
 
 fn save_program(
-    debug_artifact: DebugArtifact,
     program: CompiledProgram,
     package: &Package,
     circuit_dir: &Path,
@@ -222,6 +216,10 @@ fn save_program(
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
     if output_debug {
+        let debug_artifact = DebugArtifact {
+            debug_symbols: vec![program.debug.clone()],
+            file_map: program.file_map,
+        };
         let circuit_name: String = (&package.name).into();
         save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
     }
