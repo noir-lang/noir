@@ -203,13 +203,15 @@
           inherit GIT_COMMIT GIT_DIRTY;
 
           cargoArtifacts = native-cargo-artifacts;
-          doCheck = true;
         });
       };
 
       packages = {
-        default = nargo;
+        # Nix flakes cannot build more than one derivation in one command (see https://github.com/NixOS/nix/issues/5591)
+        # so we use `symlinkJoin` to build everything as our default package.
+        default = pkgs.symlinkJoin { name = "noir"; paths = [ nargo noir_wasm noirc_abi_wasm ]; };
 
+        # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
         inherit noir_wasm;
         inherit noirc_abi_wasm;
