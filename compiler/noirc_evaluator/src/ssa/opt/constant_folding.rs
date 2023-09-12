@@ -131,7 +131,7 @@ impl Context {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         constrained_values: &mut HashMap<ValueId, ValueId>,
-        side_effects_enabled: &bool,
+        side_effects_enabled: bool,
     ) -> Instruction {
         let instruction = dfg[instruction_id].clone();
 
