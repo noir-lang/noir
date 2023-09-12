@@ -155,13 +155,12 @@ impl Context {
             if *side_effects_enabled {
                 return resolved_id;
             }
-            let resolved_id = match cache.get(&resolved_id) {
+            match cache.get(&resolved_id) {
                 Some(cached_value) => {
                     resolve_cache(dfg, cache, *cached_value, side_effects_enabled)
                 }
                 None => resolved_id,
-            };
-            resolved_id
+            }
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
