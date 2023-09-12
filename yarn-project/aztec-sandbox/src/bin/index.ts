@@ -54,7 +54,9 @@ async function main() {
       accountStrings.push(` Public Key: ${completeAddress.publicKey.toString()}\n\n`);
     }
   }
-  logger.info(`${splash}\n${github}\n\n`.concat(...accountStrings).concat(`Aztec Sandbox is now ready for use!`));
+  logger.info(
+    `${splash}\n${github}\n\n`.concat(...accountStrings).concat(`Aztec Sandbox v${version} is now ready for use!`),
+  );
 }
 
 main().catch(err => {

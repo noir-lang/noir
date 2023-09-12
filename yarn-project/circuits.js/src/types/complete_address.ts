@@ -67,7 +67,7 @@ export class CompleteAddress {
    * @returns A readable string representation of the complete address.
    */
   public toReadableString(): string {
-    return `Address: ${this.address.toString()}, Public Key: ${this.publicKey.toString()}, Partial Address: ${this.partialAddress.toString()}`;
+    return ` Address: ${this.address.toString()}\n Public Key: ${this.publicKey.toString()}\n Partial Address: ${this.partialAddress.toString()}\n`;
   }
 
   /**

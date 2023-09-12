@@ -111,9 +111,9 @@ export class AztecRPCServer implements AztecRPC {
       const pubKey = this.keyStore.addAccount(privKey);
       this.synchroniser.addAccount(pubKey, this.keyStore);
       this.log.info(`Registered account ${completeAddress.address.toString()}`);
-      this.log.debug(`Registered ${completeAddress.toReadableString()}`);
+      this.log.debug(`Registered account\n ${completeAddress.toReadableString()}`);
     } else {
-      this.log.info(`Account "${completeAddress.address.toString()}" already registered.`);
+      this.log.info(`Account:\n "${completeAddress.address.toString()}"\n already registered.`);
     }
   }
 
@@ -135,9 +135,9 @@ export class AztecRPCServer implements AztecRPC {
   public async registerRecipient(recipient: CompleteAddress): Promise<void> {
     const wasAdded = await this.db.addCompleteAddress(recipient);
     if (wasAdded) {
-      this.log.info(`Added recipient: ${recipient.toReadableString()}`);
+      this.log.info(`Added recipient:\n ${recipient.toReadableString()}`);
     } else {
-      this.log.info(`Recipient "${recipient.toReadableString()}" already registered.`);
+      this.log.info(`Recipient:\n "${recipient.toReadableString()}"\n already registered.`);
     }
   }
 
