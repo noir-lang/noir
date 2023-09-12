@@ -1,4 +1,4 @@
-import { ABIParameter, ABIType, FunctionAbi } from '@aztec/foundation/abi';
+import { ABIParameter, ABIType, ABIVariable, FunctionAbi } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -91,14 +91,17 @@ export function decodeReturnValues(abi: FunctionAbi, returnValues: Fr[]) {
  * Decodes the signature of a function from the name and parameters.
  */
 export class FunctionSignatureDecoder {
-  constructor(private name: string, private parameters: ABIParameter[]) {}
+  private separator: string;
+  constructor(private name: string, private parameters: ABIParameter[], private includeNames = false) {
+    this.separator = includeNames ? ', ' : ',';
+  }
 
   /**
-   * Decodes a single function parameter for the function signature.
-   * @param param - The parameter to decode.
+   * Decodes a single function parameter type for the function signature.
+   * @param param - The parameter type to decode.
    * @returns A string representing the parameter type.
    */
-  private decodeParameter(param: ABIType): string {
+  private getParameterType(param: ABIType): string {
     switch (param.kind) {
       case 'field':
         return 'Field';
@@ -110,12 +113,22 @@ export class FunctionSignatureDecoder {
       case 'boolean':
         return 'bool';
       case 'array':
-        return `[${this.decodeParameter(param.type)};${param.length}]`;
+        return `[${this.getParameterType(param.type)};${param.length}]`;
       case 'struct':
-        return `(${param.fields.map(field => `${this.decodeParameter(field.type)}`).join(',')})`;
+        return `(${param.fields.map(field => `${this.decodeParameter(field)}`).join(this.separator)})`;
       default:
         throw new Error(`Unsupported type: ${param.kind}`);
     }
+  }
+
+  /**
+   * Decodes a single function parameter for the function signature.
+   * @param param - The parameter to decode.
+   * @returns A string representing the parameter type and optionally its name.
+   */
+  private decodeParameter(param: ABIVariable): string {
+    const type = this.getParameterType(param.type);
+    return this.includeNames ? `${param.name}: ${type}` : type;
   }
 
   /**
@@ -123,16 +136,26 @@ export class FunctionSignatureDecoder {
    * @returns The function signature.
    */
   public decode(): string {
-    return `${this.name}(${this.parameters.map(param => this.decodeParameter(param.type)).join(',')})`;
+    return `${this.name}(${this.parameters.map(param => this.decodeParameter(param)).join(this.separator)})`;
   }
 }
 
 /**
  * Decodes a function signature from the name and parameters.
- * @param name - The name of the function-
+ * @param name - The name of the function.
  * @param parameters - The parameters of the function.
  * @returns - The function signature.
  */
 export function decodeFunctionSignature(name: string, parameters: ABIParameter[]) {
   return new FunctionSignatureDecoder(name, parameters).decode();
+}
+
+/**
+ * Decodes a function signature from the name and parameters including parameter names.
+ * @param name - The name of the function.
+ * @param parameters - The parameters of the function.
+ * @returns - The user-friendly function signature.
+ */
+export function decodeFunctionSignatureWithParameterNames(name: string, parameters: ABIParameter[]) {
+  return new FunctionSignatureDecoder(name, parameters, true).decode();
 }
