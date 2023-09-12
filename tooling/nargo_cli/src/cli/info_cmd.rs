@@ -174,7 +174,7 @@ fn count_opcodes_and_gates_in_program(
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<ProgramInfo, CliError> {
-    let (compiled_program, _) =
+    let compiled_program =
         compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
@@ -197,7 +197,7 @@ fn count_opcodes_and_gates_in_contracts(
         compile_contract_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
-    try_vecmap(contracts, |(contract, _)| {
+    try_vecmap(contracts, |contract| {
         let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
             Ok(FunctionInfo {
                 name: function.name,

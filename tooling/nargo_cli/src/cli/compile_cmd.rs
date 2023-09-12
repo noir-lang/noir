@@ -72,32 +72,28 @@ pub(crate) fn run(
         .partition(|package| package.is_binary());
 
     // Compile all of the packages in parallel.
-    let program_results: Vec<(FileManager, CompilationResult<(CompiledProgram, DebugArtifact)>)> =
-        binary_packages
-            .par_iter()
-            .map(|package| {
-                compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
-            })
-            .collect();
-    #[allow(clippy::type_complexity)]
-    let contract_results: Vec<(
-        FileManager,
-        CompilationResult<Vec<(CompiledContract, DebugArtifact)>>,
-    )> = contract_packages
+    let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_contracts(package, &args.compile_options, np_language, &is_opcode_supported)
+            compile_program(package, &args.compile_options, np_language, &is_opcode_supported)
         })
         .collect();
+    let contract_results: Vec<(FileManager, CompilationResult<Vec<CompiledContract>>)> =
+        contract_packages
+            .par_iter()
+            .map(|package| {
+                compile_contracts(package, &args.compile_options, np_language, &is_opcode_supported)
+            })
+            .collect();
 
     // Report any warnings/errors which were encountered during compilation.
-    let compiled_programs: Vec<(CompiledProgram, DebugArtifact)> = program_results
+    let compiled_programs: Vec<CompiledProgram> = program_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
             report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
         })
         .collect::<Result<_, _>>()?;
-    let compiled_contracts: Vec<Vec<(CompiledContract, DebugArtifact)>> = contract_results
+    let compiled_contracts: Vec<Vec<CompiledContract>> = contract_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
             report_errors(compilation_result, &file_manager, args.compile_options.deny_warnings)
@@ -105,13 +101,11 @@ pub(crate) fn run(
         .collect::<Result<_, _>>()?;
 
     // Save build artifacts to disk.
-    for (package, (program, debug_artifact)) in binary_packages.into_iter().zip(compiled_programs) {
-        save_program(debug_artifact, program, package, &circuit_dir, args.output_debug);
+    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
+        save_program(program, package, &circuit_dir, args.output_debug);
     }
-    for (package, contracts_with_debug_artifacts) in
-        contract_packages.into_iter().zip(compiled_contracts)
-    {
-        save_contracts(contracts_with_debug_artifacts, package, &circuit_dir, args.output_debug);
+    for (package, compiled_contracts) in contract_packages.into_iter().zip(compiled_contracts) {
+        save_contracts(compiled_contracts, package, &circuit_dir, args.output_debug);
     }
 
     Ok(())
@@ -122,7 +116,7 @@ pub(crate) fn compile_bin_package(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<(CompiledProgram, DebugArtifact), CliError> {
+) -> Result<CompiledProgram, CliError> {
     if package.is_library() {
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
@@ -130,10 +124,9 @@ pub(crate) fn compile_bin_package(
     let (file_manager, compilation_result) =
         compile_program(package, compile_options, np_language, &is_opcode_supported);
 
-    let (program, debug_artifact) =
-        report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
+    let program = report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
 
-    Ok((program, debug_artifact))
+    Ok(program)
 }
 
 pub(crate) fn compile_contract_package(
@@ -141,7 +134,7 @@ pub(crate) fn compile_contract_package(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<Vec<(CompiledContract, DebugArtifact)>, CliError> {
+) -> Result<Vec<CompiledContract>, CliError> {
     let (file_manager, compilation_result) =
         compile_contracts(package, compile_options, np_language, &is_opcode_supported);
     let contracts_with_debug_artifacts =
@@ -154,7 +147,7 @@ fn compile_program(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> (FileManager, CompilationResult<(CompiledProgram, DebugArtifact)>) {
+) -> (FileManager, CompilationResult<CompiledProgram>) {
     let (mut context, crate_id) = prepare_package(package);
 
     let (program, warnings) =
@@ -170,10 +163,7 @@ fn compile_program(
         nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
             .expect("Backend does not support an opcode that is in the IR");
 
-    let debug_artifact =
-        DebugArtifact::new(vec![optimized_program.debug.clone()], &context.file_manager);
-
-    (context.file_manager, Ok(((optimized_program, debug_artifact), warnings)))
+    (context.file_manager, Ok((optimized_program, warnings)))
 }
 
 fn compile_contracts(
@@ -181,7 +171,7 @@ fn compile_contracts(
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> (FileManager, CompilationResult<Vec<(CompiledContract, DebugArtifact)>>) {
+) -> (FileManager, CompilationResult<Vec<CompiledContract>>) {
     let (mut context, crate_id) = prepare_package(package);
     let (contracts, warnings) =
         match noirc_driver::compile_contracts(&mut context, crate_id, compile_options) {
@@ -196,18 +186,10 @@ fn compile_contracts(
     })
     .expect("Backend does not support an opcode that is in the IR");
 
-    let contracts_with_debug_artifacts = vecmap(optimized_contracts, |contract| {
-        let debug_infos = vecmap(&contract.functions, |func| func.debug.clone());
-        let debug_artifact = DebugArtifact::new(debug_infos, &context.file_manager);
-
-        (contract, debug_artifact)
-    });
-
-    (context.file_manager, Ok((contracts_with_debug_artifacts, warnings)))
+    (context.file_manager, Ok((optimized_contracts, warnings)))
 }
 
 fn save_program(
-    debug_artifact: DebugArtifact,
     program: CompiledProgram,
     package: &Package,
     circuit_dir: &Path,
@@ -222,13 +204,15 @@ fn save_program(
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
     if output_debug {
+        let debug_artifact =
+            DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
         let circuit_name: String = (&package.name).into();
         save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
     }
 }
 
 fn save_contracts(
-    contracts: Vec<(CompiledContract, DebugArtifact)>,
+    contracts: Vec<CompiledContract>,
     package: &Package,
     circuit_dir: &Path,
     output_debug: bool,
@@ -238,7 +222,16 @@ fn save_contracts(
     // are compiled via nargo-core and then the PreprocessedContract is constructed here.
     // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
     let preprocessed_contracts: Vec<(PreprocessedContract, DebugArtifact)> =
-        vecmap(contracts, |(contract, debug_artifact)| {
+        vecmap(contracts, |contract| {
+            let debug_artifact = DebugArtifact {
+                debug_symbols: contract
+                    .functions
+                    .iter()
+                    .map(|function| function.debug.clone())
+                    .collect(),
+                file_map: contract.file_map,
+            };
+
             let preprocessed_functions =
                 vecmap(contract.functions, |func| PreprocessedContractFunction {
                     name: func.name,
