@@ -247,7 +247,7 @@ contract NonNativeToken {
         let public_note = TransparentNote::new_from_secret(amount, secret);
 
         // Ensure that the note exists in the tree and remove it.
-        pending_shields.assert_contains_and_remove(public_note);
+        pending_shields.assert_contains_and_remove_publicly_created(public_note);
 
         // Mint the tokens
         let balance = storage.balances.at(owner);

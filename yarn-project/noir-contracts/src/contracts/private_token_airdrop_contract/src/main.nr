@@ -166,7 +166,7 @@ contract PrivateTokenAirdrop {
 
         // Remove the claim note if it exists in the set.
         let note = ClaimNote::new(amount, secret);
-        storage.claims.assert_contains_note_and_remove(note);
+        storage.claims.assert_contains_and_remove(note);
 
         // Send the value note.
         let balance = storage.balances.at(owner);
