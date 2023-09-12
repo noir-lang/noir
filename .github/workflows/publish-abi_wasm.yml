@@ -1,6 +1,9 @@
-name: Release ABI Wasm
+name: Publish ABI Wasm
 
 on:
+  push:
+    tags:
+      - "*"
   workflow_dispatch:
 
 jobs:
