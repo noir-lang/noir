@@ -18,6 +18,7 @@
   "files": [
     "src/",
     "dest/",
+    "cjs-entry/",
     "README.md"
   ],
   "scripts": {
