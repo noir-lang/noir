@@ -63,14 +63,11 @@ pub(crate) fn run(
             count_opcodes_and_gates_in_program(backend, program, package, np_language)
         })?;
 
-    let contract_info = try_vecmap(compiled_contracts, |contracts| {
-        count_opcodes_and_gates_in_contracts(backend, contracts, np_language)
+    let contract_info = try_vecmap(compiled_contracts, |contract| {
+        count_opcodes_and_gates_in_contract(backend, contract, np_language)
     })?;
 
-    let info_report = InfoReport {
-        programs: program_info,
-        contracts: contract_info.into_iter().flatten().collect(),
-    };
+    let info_report = InfoReport { programs: program_info, contracts: contract_info };
 
     if args.json {
         // Expose machine-readable JSON data.
@@ -176,20 +173,18 @@ fn count_opcodes_and_gates_in_program(
     })
 }
 
-fn count_opcodes_and_gates_in_contracts(
+fn count_opcodes_and_gates_in_contract(
     backend: &Backend,
-    compiled_contracts: Vec<CompiledContract>,
+    contract: CompiledContract,
     language: Language,
-) -> Result<Vec<ContractInfo>, CliError> {
-    try_vecmap(compiled_contracts, |contract| {
-        let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
-            Ok(FunctionInfo {
-                name: function.name,
-                acir_opcodes: function.bytecode.opcodes.len(),
-                circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
-            })
-        })?;
+) -> Result<ContractInfo, CliError> {
+    let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
+        Ok(FunctionInfo {
+            name: function.name,
+            acir_opcodes: function.bytecode.opcodes.len(),
+            circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
+        })
+    })?;
 
-        Ok(ContractInfo { name: contract.name, language, functions })
-    })
+    Ok(ContractInfo { name: contract.name, language, functions })
 }

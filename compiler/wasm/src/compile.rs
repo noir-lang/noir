@@ -1,9 +1,8 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
-use iter_extended::try_vecmap;
 use log::debug;
 use noirc_driver::{
-    add_dep, compile_contracts, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
@@ -116,17 +115,15 @@ pub fn compile(args: JsValue) -> JsValue {
     let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
     if options.contracts {
-        let compiled_contracts =
-            compile_contracts(&mut context, crate_id, &options.compile_options)
-                .expect("Contract compilation failed")
-                .0;
+        let compiled_contract = compile_contract(&mut context, crate_id, &options.compile_options)
+            .expect("Contract compilation failed")
+            .0;
 
-        let optimized_contracts = try_vecmap(compiled_contracts, |contract| {
-            nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
-        })
-        .expect("Contract optimization failed");
+        let optimized_contract =
+            nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
+                .expect("Contract optimization failed");
 
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &options.compile_options)
             .expect("Compilation failed")
