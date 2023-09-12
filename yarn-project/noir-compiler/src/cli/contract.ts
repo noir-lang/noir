@@ -39,7 +39,7 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
 
         const compile = compileUsingNargo;
         log(`Compiling contracts...`);
-        const result = await compile(projectPath);
+        const result = await compile(projectPath, { log });
 
         for (const contract of result) {
           const artifactPath = resolve(projectPath, outdir, `${contract.name}.json`);

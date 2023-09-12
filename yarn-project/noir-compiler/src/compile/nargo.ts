@@ -1,8 +1,11 @@
+import { LogFn, createDebugLogger } from '@aztec/foundation/log';
+
 import { execSync } from 'child_process';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { emptyDirSync } from 'fs-extra';
 import path from 'path';
 
+import { NoirCommit, NoirTag } from '../index.js';
 import { NoirCompilationArtifacts, NoirCompiledContract, NoirDebugMetadata } from '../noir_artifact.js';
 
 /** Compilation options */
@@ -11,13 +14,18 @@ export type CompileOpts = {
   quiet?: boolean;
   /** Path to the nargo binary. */
   nargoBin?: string;
+  /** Logging function */
+  log?: LogFn;
 };
 
 /**
  * A class that compiles noir contracts using nargo via the shell.
  */
 export class NargoContractCompiler {
-  constructor(private projectPath: string, private opts: CompileOpts = {}) {}
+  private log: LogFn;
+  constructor(private projectPath: string, private opts: CompileOpts = {}) {
+    this.log = opts.log ?? createDebugLogger('aztec:noir-compiler');
+  }
 
   /**
    * Compiles the contracts in projectPath and returns the Noir artifact.
@@ -26,10 +34,21 @@ export class NargoContractCompiler {
   public compile(): Promise<NoirCompilationArtifacts[]> {
     const stdio = this.opts.quiet ? 'ignore' : 'inherit';
     const nargoBin = this.opts.nargoBin ?? 'nargo';
-    execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio });
+    const version = execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio: 'pipe' }).toString();
+    this.checkNargoBinVersion(version.replace('\n', ''));
     emptyDirSync(this.getTargetFolder());
     execSync(`${nargoBin} compile --output-debug `, { cwd: this.projectPath, stdio });
     return Promise.resolve(this.collectArtifacts());
+  }
+
+  private checkNargoBinVersion(version: string) {
+    if (!version.includes(NoirCommit)) {
+      this.log(
+        `Warning: the nargo version installed locally does not match the expected one. This may cause issues when compiling or deploying contracts. Consider updating your nargo or aztec-cli installation. \n- Expected: ${NoirTag} (git version hash: ${NoirCommit})\n- Found: ${version}`,
+      );
+    } else if (!this.opts.quiet) {
+      this.log(`Using ${version}`);
+    }
   }
 
   private collectArtifacts(): NoirCompilationArtifacts[] {
