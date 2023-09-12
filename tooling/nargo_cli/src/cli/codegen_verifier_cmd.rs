@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::NargoConfig;
 use super::{
-    compile_cmd::compile_package,
+    compile_cmd::compile_bin_package,
     fs::{create_named_dir, program::read_program_from_file, write_to_file},
 };
 use crate::backends::Backend;
@@ -82,7 +82,7 @@ fn smart_contract_for_package(
         read_program_from_file(circuit_build_path)?
     } else {
         let (program, _) =
-            compile_package(package, compile_options, np_language, &is_opcode_supported)?;
+            compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
 
         PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),

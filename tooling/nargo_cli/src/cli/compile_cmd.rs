@@ -11,9 +11,7 @@ use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    compile_main, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
-};
+use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
@@ -68,12 +66,18 @@ pub(crate) fn run(
     for package in &workspace {
         // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
         if package.is_contract() {
-            let contracts_with_debug_artifacts = compile_contracts(
+            let (file_manager, compilation_result) = compile_contracts(
                 package,
                 &args.compile_options,
                 np_language,
                 &is_opcode_supported,
+            );
+            let contracts_with_debug_artifacts = report_errors(
+                compilation_result,
+                &file_manager,
+                args.compile_options.deny_warnings,
             )?;
+
             save_contracts(
                 contracts_with_debug_artifacts,
                 package,
@@ -81,8 +85,14 @@ pub(crate) fn run(
                 args.output_debug,
             );
         } else {
-            let (program, debug_artifact) =
-                compile_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
+            let (file_manager, compilation_result) =
+                compile_program(package, &args.compile_options, np_language, &is_opcode_supported);
+
+            let (program, debug_artifact) = report_errors(
+                compilation_result,
+                &file_manager,
+                args.compile_options.deny_warnings,
+            )?;
             save_program(debug_artifact, program, package, &circuit_dir, args.output_debug);
         }
     }
@@ -90,7 +100,7 @@ pub(crate) fn run(
     Ok(())
 }
 
-pub(crate) fn compile_package(
+pub(crate) fn compile_bin_package(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
@@ -100,9 +110,43 @@ pub(crate) fn compile_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
+    let (file_manager, compilation_result) =
+        compile_program(package, compile_options, np_language, &is_opcode_supported);
+
+    let (program, debug_artifact) =
+        report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
+
+    Ok((program, debug_artifact))
+}
+
+pub(crate) fn compile_contract_package(
+    package: &Package,
+    compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+) -> Result<Vec<(CompiledContract, DebugArtifact)>, CliError> {
+    let (file_manager, compilation_result) =
+        compile_contracts(package, compile_options, np_language, &is_opcode_supported);
+    let contracts_with_debug_artifacts =
+        report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
+    Ok(contracts_with_debug_artifacts)
+}
+
+fn compile_program(
+    package: &Package,
+    compile_options: &CompileOptions,
+    np_language: Language,
+    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+) -> (FileManager, CompilationResult<(CompiledProgram, DebugArtifact)>) {
     let (mut context, crate_id) = prepare_package(package);
-    let result = compile_main(&mut context, crate_id, compile_options);
-    let program = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
+
+    let (program, warnings) =
+        match noirc_driver::compile_main(&mut context, crate_id, compile_options) {
+            Ok(program_and_warnings) => program_and_warnings,
+            Err(errors) => {
+                return (context.file_manager, Err(errors));
+            }
+        };
 
     // Apply backend specific optimizations.
     let optimized_program =
@@ -112,22 +156,28 @@ pub(crate) fn compile_package(
     let debug_artifact =
         DebugArtifact::new(vec![optimized_program.debug.clone()], &context.file_manager);
 
-    Ok((optimized_program, debug_artifact))
+    (context.file_manager, Ok(((optimized_program, debug_artifact), warnings)))
 }
 
-pub(crate) fn compile_contracts(
+fn compile_contracts(
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<Vec<(CompiledContract, DebugArtifact)>, CliError> {
+) -> (FileManager, CompilationResult<Vec<(CompiledContract, DebugArtifact)>>) {
     let (mut context, crate_id) = prepare_package(package);
-    let result = noirc_driver::compile_contracts(&mut context, crate_id, compile_options);
-    let contracts = report_errors(result, &context.file_manager, compile_options.deny_warnings)?;
+    let (contracts, warnings) =
+        match noirc_driver::compile_contracts(&mut context, crate_id, compile_options) {
+            Ok(contracts_and_warnings) => contracts_and_warnings,
+            Err(errors) => {
+                return (context.file_manager, Err(errors));
+            }
+        };
 
     let optimized_contracts = try_vecmap(contracts, |contract| {
         nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
-    })?;
+    })
+    .expect("Backend does not support an opcode that is in the IR");
 
     let contracts_with_debug_artifacts = vecmap(optimized_contracts, |contract| {
         let debug_infos = vecmap(&contract.functions, |func| func.debug.clone());
@@ -136,7 +186,7 @@ pub(crate) fn compile_contracts(
         (contract, debug_artifact)
     });
 
-    Ok(contracts_with_debug_artifacts)
+    (context.file_manager, Ok((contracts_with_debug_artifacts, warnings)))
 }
 
 fn save_program(

@@ -14,7 +14,7 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_package;
+use super::compile_cmd::compile_bin_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::backends::Backend;
@@ -57,7 +57,7 @@ pub(crate) fn run(
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
         let (compiled_program, debug_artifact) =
-            compile_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
+            compile_bin_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
 
         let (return_value, solved_witness) = execute_program_and_decode(
             compiled_program,
