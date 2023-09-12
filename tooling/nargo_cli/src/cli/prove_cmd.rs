@@ -11,7 +11,7 @@ use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_package;
+use super::compile_cmd::compile_bin_package;
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     program::read_program_from_file,
@@ -102,7 +102,7 @@ pub(crate) fn prove_package(
         (program, None)
     } else {
         let (program, debug_artifact) =
-            compile_package(package, compile_options, np_language, &is_opcode_supported)?;
+            compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
         let preprocessed_program = PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),
             abi: program.abi,

@@ -11,9 +11,12 @@ use prettytable::{row, table, Row};
 use serde::Serialize;
 
 use crate::backends::Backend;
-use crate::{cli::compile_cmd::compile_package, errors::CliError};
+use crate::errors::CliError;
 
-use super::{compile_cmd::compile_contracts, NargoConfig};
+use super::{
+    compile_cmd::{compile_bin_package, compile_contract_package},
+    NargoConfig,
+};
 
 /// Provides detailed information on a circuit
 ///
@@ -172,7 +175,7 @@ fn count_opcodes_and_gates_in_program(
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<ProgramInfo, CliError> {
     let (compiled_program, _) =
-        compile_package(package, compile_options, np_language, &is_opcode_supported)?;
+        compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
     Ok(ProgramInfo {
@@ -190,7 +193,8 @@ fn count_opcodes_and_gates_in_contracts(
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<Vec<ContractInfo>, CliError> {
-    let contracts = compile_contracts(package, compile_options, np_language, &is_opcode_supported)?;
+    let contracts =
+        compile_contract_package(package, compile_options, np_language, &is_opcode_supported)?;
     let (language, _) = backend.get_backend_info()?;
 
     try_vecmap(contracts, |(contract, _)| {
