@@ -445,16 +445,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-        let v0 = builder.add_parameter(Type::field());
-
-        let field_10 = builder.field_constant(10u128);
-        builder.insert_constrain(v0, field_10, None);
-
-        let field_1 = builder.field_constant(1u128);
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, field_1);
-
-        let field_11 = builder.field_constant(11u128);
-        builder.insert_constrain(v1, field_11, None);
+        constrained_value_replacement_setup(&mut builder, false);
 
         let mut ssa = builder.finish();
         let main = ssa.main_mut();
@@ -478,5 +469,70 @@ mod test {
             instruction,
             &Instruction::Constrain(ValueId::test_new(0), ValueId::test_new(1), None)
         );
+    }
+
+    #[test]
+    fn constrained_value_replacement_with_side_effects() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     enable_side_effects u1 1
+        //     constrain v0 == Field 10
+        //     v1 = add v0, Field 1
+        //     constrain v1 == Field 11
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        constrained_value_replacement_setup(&mut builder, true);
+
+        let mut ssa = builder.finish();
+        let main = ssa.main_mut();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 4);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     enable_side_effects u1 1
+        //     constrain v0 == Field 10
+        //     v6 = add v0, Field 1
+        //     constrain v6 == Field 11
+        // }
+        let ssa = ssa.fold_constants();
+        println!("ssa: {ssa}");
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 4);
+
+        assert_eq!(
+            &main.dfg[instructions[0]],
+            &Instruction::EnableSideEffects { condition: ValueId::test_new(1) }
+        );
+
+        assert_eq!(
+            &main.dfg[instructions[3]],
+            &Instruction::Constrain(ValueId::test_new(6), ValueId::test_new(5), None)
+        );
+    }
+
+    fn constrained_value_replacement_setup(builder: &mut FunctionBuilder, with_side_effects: bool) {
+        let v0 = builder.add_parameter(Type::field());
+
+        if with_side_effects {
+            let field_one = builder.numeric_constant(1u128, Type::unsigned(1));
+            let enable_side_effects = Instruction::EnableSideEffects { condition: field_one };
+            builder.insert_instruction(enable_side_effects, None);
+        }
+
+        let field_10 = builder.field_constant(10u128);
+        builder.insert_constrain(v0, field_10, None);
+
+        let field_1 = builder.field_constant(1u128);
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, field_1);
+
+        let field_11 = builder.field_constant(11u128);
+        builder.insert_constrain(v1, field_11, None);
     }
 }
