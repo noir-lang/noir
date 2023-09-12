@@ -13,7 +13,7 @@ import { StructType } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
-import { compileContract } from '@aztec/noir-compiler/cli';
+import { compileContract, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
 import { CompleteAddress, ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
@@ -486,6 +486,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     });
 
   compileContract(program, 'compile', log);
+  generateTypescriptInterface(program, 'generate-typescript', log);
+  generateNoirInterface(program, 'generate-noir-interface', log);
 
   return program;
 }

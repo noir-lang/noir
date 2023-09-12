@@ -43,6 +43,12 @@ To generate them, include a `--typescript` option in the compile command with a 
 aztec-cli compile --typescript ./path/to/typescript/src ./path/to/my_aztec_contract_project
 ```
 
+You can also generate these interfaces from prebuilt artifacts using the `generate-typescript` command:
+
+```
+aztec-cli generate-typescript ./path/to/my_aztec_contract_project
+```
+
 Example code generated from the [PrivateToken](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr) contract:
 
 ```ts showLineNumbers
@@ -80,6 +86,12 @@ To generate them, include a `--interface` option in the compile command with a p
 
 ```
 aztec-cli compile --interface ./path/to/another_aztec_contract_project/src ./path/to/my_aztec_contract_project
+```
+
+You can also generate these interfaces from prebuilt artifacts using the `generate-noir-interface` command:
+
+```
+aztec-cli generate-noir-interface ./path/to/my_aztec_contract_project
 ```
 
 Example code generated from the [PrivateToken](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr) contract:
