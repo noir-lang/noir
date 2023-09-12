@@ -1,12 +1,13 @@
 use acvm::Language;
 use acvm_backend_barretenberg::BackendError;
 use clap::Args;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{CompileOptions, CompiledContract, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
+use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::backends::Backend;
@@ -58,14 +59,18 @@ pub(crate) fn run(
         compile_workspace(backend, &binary_packages, &contract_packages, &args.compile_options)?;
 
     let (np_language, _) = backend.get_backend_info()?;
-    let program_info =
-        try_vecmap(binary_packages.iter().zip(compiled_programs), |(package, program)| {
-            count_opcodes_and_gates_in_program(backend, program, package, np_language)
-        })?;
+    let program_info = binary_packages
+        .into_par_iter()
+        .zip(compiled_programs)
+        .map(|(package, program)| {
+            count_opcodes_and_gates_in_program(backend, program, &package, np_language)
+        })
+        .collect::<Result<_, _>>()?;
 
-    let contract_info = try_vecmap(compiled_contracts, |contract| {
-        count_opcodes_and_gates_in_contract(backend, contract, np_language)
-    })?;
+    let contract_info = compiled_contracts
+        .into_par_iter()
+        .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, np_language))
+        .collect::<Result<_, _>>()?;
 
     let info_report = InfoReport { programs: program_info, contracts: contract_info };
 
@@ -178,13 +183,17 @@ fn count_opcodes_and_gates_in_contract(
     contract: CompiledContract,
     language: Language,
 ) -> Result<ContractInfo, CliError> {
-    let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
-        Ok(FunctionInfo {
-            name: function.name,
-            acir_opcodes: function.bytecode.opcodes.len(),
-            circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
+    let functions = contract
+        .functions
+        .into_par_iter()
+        .map(|function| -> Result<_, BackendError> {
+            Ok(FunctionInfo {
+                name: function.name,
+                acir_opcodes: function.bytecode.opcodes.len(),
+                circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
+            })
         })
-    })?;
+        .collect::<Result<_, _>>()?;
 
     Ok(ContractInfo { name: contract.name, language, functions })
 }
