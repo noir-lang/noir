@@ -559,9 +559,9 @@ fn resolve_traits(
     }
     for (trait_id, unresolved_trait) in traits {
         // Resolve order
-        // 1. Trait Types ( Trait contants can have a trait type, therefore types before constants)
+        // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
         let _ = resolve_trait_types(context, crate_id, &unresolved_trait, errors);
-        // 2. Trait Constants ( Trait's methods can use trait types & constants, threfore they should be after)
+        // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
         let _ = resolve_trait_constants(context, crate_id, &unresolved_trait, errors);
         // 3. Trait Methods
         let methods = resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, errors);
