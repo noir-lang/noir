@@ -251,7 +251,10 @@ fn compile_contract(
     }
 
     if errors.is_empty() {
-        Ok(CompiledContract { name: contract.name, functions })
+        let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
+        let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
+
+        Ok(CompiledContract { name: contract.name, functions, file_map })
     } else {
         Err(errors)
     }
