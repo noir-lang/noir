@@ -1,6 +1,8 @@
 {
   description = "Build the Noir programming language";
 
+  # All of these inputs (a.k.a. dependencies) need to align with inputs we
+  # use so they use the `inputs.*.follows` syntax to reference our inputs
   inputs = {
     nixpkgs = {
       url = "github:NixOS/nixpkgs/nixos-22.11";
@@ -15,51 +17,34 @@
       flake = false;
     };
 
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      # All of these inputs (a.k.a. dependencies) need to align with inputs we
-      # use so they use the `inputs.*.follows` syntax to reference our inputs
+    fenix = {
+      url = "github:nix-community/fenix";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
       };
     };
 
     crane = {
       url = "github:ipetkov/crane";
-      # All of these inputs (a.k.a. dependencies) need to align with inputs we
-      # use so they use the `inputs.*.follows` syntax to reference our inputs
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
         flake-compat.follows = "flake-compat";
-        rust-overlay.follows = "rust-overlay";
       };
     };
   };
 
   outputs =
-    { self, nixpkgs, crane, flake-utils, rust-overlay, ... }:
+    { self, nixpkgs, crane, flake-utils, fenix, ... }:
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [
-          rust-overlay.overlays.default
-        ];
       };
 
-      rustVersion = "1.66.1";
-
-      rustToolchain = pkgs.rust-bin.stable.${rustVersion}.default.override {
-        # We include rust-src to ensure rust-analyzer works.
-        # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/4
-        extensions = [ "rust-src" ];
-        targets = [ "wasm32-unknown-unknown" ]
-          ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isLinux) "x86_64-unknown-linux-gnu"
-          ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isLinux) "aarch64-unknown-linux-gnu"
-          ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isDarwin) "x86_64-apple-darwin"
-          ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isDarwin) "aarch64-apple-darwin";
+      rustToolchain = fenix.packages.${system}.fromToolchainFile {
+        file = ./rust-toolchain.toml;
+        sha256 = "sha256-Zk2rxv6vwKFkTTidgjPm6gDsseVmmljVt201H7zuDkk=";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -106,15 +91,15 @@
         cargoTestExtraArgs = "--workspace";
       };
 
-      # Combine the environment and other configuration needed for crane to build our Rust packages
+      # Combine the environment and other configuration needed for Crane to build our Rust packages
       nativeConfig = environment // config // {
         nativeBuildInputs = [ ];
 
         buildInputs = [ ] ++ extraBuildInputs;
       };
 
-      # Combine the environmnet with cargo args needed to build wasm package
-      wasmConfig = environment // config // rec {
+      # Combine the environmnet and other configuration needed for Crane to build our Wasm packages
+      wasmConfig = environment // config // {
         CARGO_TARGET_DIR = "./target";
 
         nativeBuildInputs = with pkgs; [
@@ -238,32 +223,28 @@
       # Setup the environment to match the environment settings, the inputs from our checks derivations,
       # and extra tooling via `nativeBuildInputs`
       devShells.default = pkgs.mkShell (environment // {
-        inputsFrom = builtins.attrValues checks;
+        inputsFrom = [
+          nargo
+          noir_wasm
+          noirc_abi_wasm
+        ];
 
         # Additional tools that weren't included as `nativeBuildInputs` of any of the derivations in `inputsFrom`
         nativeBuildInputs = with pkgs; [
-          # Need to install various packages used by the `bb` binary.
-          # pkgs.curl
-          # stdenv.cc.cc.lib
-          # pkgs.gcc.cc.lib
-          # pkgs.gzip
+          # Rust toolchain
+          rustToolchain
+          # Other tools
+          starship
+          yarn
+          nodejs-18_x
+          # Used by the `bb` binary
           curl
           gzip
-          which
-          starship
-          git
+          # This ensures the right lldb is in the environment for running rust-lldb
+          llvmPackages.lldb
+          # Nix tools
           nil
           nixpkgs-fmt
-          toml2json
-          llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
-          wasm-bindgen-cli
-          jq
-          binaryen
-          yarn
-          rust-bin.stable.${rustVersion}.default
-          rust-analyzer
-          rustup
-          nodejs-18_x
         ];
 
         shellHook = ''

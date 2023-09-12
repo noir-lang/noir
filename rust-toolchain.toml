@@ -1,0 +1,5 @@
+[toolchain]
+channel = "1.66.1"
+components = [ "rust-src" ]
+targets = [ "wasm32-unknown-unknown" ]
+profile = "default"
