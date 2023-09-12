@@ -203,10 +203,8 @@ fn save_program(
     save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
 
     if output_debug {
-        let debug_artifact = DebugArtifact {
-            debug_symbols: vec![program.debug.clone()],
-            file_map: program.file_map,
-        };
+        let debug_artifact =
+            DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
         let circuit_name: String = (&package.name).into();
         save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
     }
