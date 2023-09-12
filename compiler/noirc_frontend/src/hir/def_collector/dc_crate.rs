@@ -11,7 +11,7 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
-use crate::hir_def::traits::{TraitType, TraitConstant, TraitFunction};
+use crate::hir_def::traits::{TraitConstant, TraitFunction, TraitType};
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
