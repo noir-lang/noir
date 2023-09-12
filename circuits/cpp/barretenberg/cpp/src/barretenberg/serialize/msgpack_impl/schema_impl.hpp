@@ -210,7 +210,7 @@ inline void msgpack_schema_pack(MsgpackSchemaPacker& packer, std::array<T, N> co
  * @param obj The object to print schema of.
  * @return std::string The schema as a string.
  */
-inline std::string msgpack_schema_to_string(auto obj)
+inline std::string msgpack_schema_to_string(const auto& obj)
 {
     msgpack::sbuffer output;
     MsgpackSchemaPacker printer{ output };
