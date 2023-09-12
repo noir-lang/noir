@@ -12,7 +12,7 @@ import initACVM, {
     compressWitness,
 } from "@noir-lang/acvm_js";
 
-// @ts-ignore  
+// @ts-ignore
 import { Barretenberg, RawBuffer, Crs } from '@aztec/bb.js';
 
 import * as TOML from 'smol-toml'
@@ -49,11 +49,11 @@ const numberOfThreads = navigator.hardwareConcurrency || 1;
 
 let suite = Mocha.Suite.create(mocha.suite, "Noir end to end test");
 
-suite.timeout(60*10e3);//10mins
+suite.timeout(60*20e3);//20mins
 
 test_cases.forEach((testInfo) => {
     const test_name = testInfo.case.split("/").pop();
-    const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Proove, Verify)`, async () => {
+    const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Prove, Verify)`, async () => {
 
         const base_relative_path = "../../../../..";
         const test_case = testInfo.case;
@@ -67,7 +67,7 @@ test_cases.forEach((testInfo) => {
         expect(noir_source).to.be.a.string;
 
         initialiseResolver((id: String) => {
-            console.log("Resoving:", id);
+            console.log("Resolving:", id);
             return noir_source;
         });
 
@@ -132,6 +132,7 @@ test_cases.forEach((testInfo) => {
 
             const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
+            // This took ~6.5 minutes!
             const proof = await api.acirCreateProof(
                 acirComposer,
                 acirUint8Array,
@@ -139,7 +140,7 @@ test_cases.forEach((testInfo) => {
                 isRecursive
             );
 
-
+            // And this took ~5 minutes!
             const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
 
             expect(verified).to.be.true;

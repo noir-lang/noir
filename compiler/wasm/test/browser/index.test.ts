@@ -31,5 +31,5 @@ describe("noir wasm compilation", () => {
 
 
     expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
-  }).timeout(10e3);
+  }).timeout(20e3); // 20 seconds
 });
