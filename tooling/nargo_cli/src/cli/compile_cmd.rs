@@ -181,7 +181,7 @@ fn compile_contracts(
             }
         };
 
-    let optimized_contracts: Vec<CompiledContract> = try_vecmap(contracts, |contract| {
+    let optimized_contracts = try_vecmap(contracts, |contract| {
         nargo::ops::optimize_contract(contract, np_language, &is_opcode_supported)
     })
     .expect("Backend does not support an opcode that is in the IR");
