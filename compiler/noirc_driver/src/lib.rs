@@ -166,20 +166,27 @@ pub fn compile_main(
 }
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
-pub fn compile_contracts(
+pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> CompilationResult<Vec<CompiledContract>> {
+) -> CompilationResult<CompiledContract> {
     let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
+
     let mut compiled_contracts = vec![];
     let mut errors = warnings;
 
+    if contracts.len() > 1 {
+        let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
+            .in_file(FileId::default());
+        return Err(vec![err]);
+    };
+
     for contract in contracts {
-        match compile_contract(context, contract, options) {
+        match compile_contract_inner(context, contract, options) {
             Ok(contract) => compiled_contracts.push(contract),
             Err(mut more_errors) => errors.append(&mut more_errors),
         }
@@ -188,19 +195,20 @@ pub fn compile_contracts(
     if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
+        assert_eq!(compiled_contracts.len(), 1);
+        let compiled_contract = compiled_contracts.remove(0);
+
         if options.print_acir {
-            for compiled_contract in &compiled_contracts {
-                for contract_function in &compiled_contract.functions {
-                    println!(
-                        "Compiled ACIR for {}::{} (unoptimized):",
-                        compiled_contract.name, contract_function.name
-                    );
-                    println!("{}", contract_function.bytecode);
-                }
+            for contract_function in &compiled_contract.functions {
+                println!(
+                    "Compiled ACIR for {}::{} (unoptimized):",
+                    compiled_contract.name, contract_function.name
+                );
+                println!("{}", contract_function.bytecode);
             }
         }
         // errors here is either empty or contains only warnings
-        Ok((compiled_contracts, errors))
+        Ok((compiled_contract, errors))
     }
 }
 
@@ -214,7 +222,7 @@ fn has_errors(errors: &[FileDiagnostic], deny_warnings: bool) -> bool {
 }
 
 /// Compile all of the functions associated with a Noir contract.
-fn compile_contract(
+fn compile_contract_inner(
     context: &Context,
     contract: Contract,
     options: &CompileOptions,

@@ -2287,7 +2287,6 @@ dependencies = [
  "fm",
  "getrandom",
  "gloo-utils",
- "iter-extended",
  "log",
  "nargo",
  "noirc_driver",
