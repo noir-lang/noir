@@ -1,7 +1,8 @@
-name: Release ABI Wasm
+name: Publish ABI Wasm
 
 on:
   workflow_dispatch:
+  # tags:
 
 jobs:
   noirc-abi-wasm-build:
