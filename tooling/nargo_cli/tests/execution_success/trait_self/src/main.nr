@@ -19,7 +19,7 @@ impl ATrait for Bar {
     // The trait method is declared as returning `Self`
     // but explicitly specifying the type in the impl should work
     fn asd() -> Bar {
-        Foo{x: 100}
+        Bar{x: 100}
     }
 }
 
