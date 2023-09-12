@@ -746,10 +746,9 @@ fn check_methods_signatures(
         if let Some(method) =
             the_trait.methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            // TODO: Is this instantiate actually needed?
-            let check_against = meta.typ.instantiate(resolver.interner);
+            let function_typ = meta.typ.instantiate(resolver.interner);
 
-            if let Type::Function(params, _, _) = check_against.0 {
+            if let Type::Function(params, _, _) = function_typ.0 {
                 if method.arguments.len() == params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
                     for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
@@ -782,8 +781,6 @@ fn check_methods_signatures(
             // Check that impl method return type matches trait return type:
             let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
 
-            // TODO: This may be idiotic - do we need to instantiate the return type?
-            //       Can we accidentally bind something unreversably?
             method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
                 let ret_type_span =
                     meta.return_type.get_type().span.expect("return type must always have a span");

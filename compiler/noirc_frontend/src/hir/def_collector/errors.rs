@@ -48,7 +48,7 @@ pub enum DefCollectorErrorKind {
     #[error("Trait not found")]
     TraitNotFound { trait_ident: Ident },
     #[error("Missing Trait method implementation")]
-    TraitMissedMethodImplementation { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -142,7 +142,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let primary_message = format!("Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented");
                 Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_span)
             }
-            DefCollectorErrorKind::TraitMissedMethodImplementation {
+            DefCollectorErrorKind::TraitMissingMethod {
                 trait_name,
                 method_name,
                 trait_impl_span,

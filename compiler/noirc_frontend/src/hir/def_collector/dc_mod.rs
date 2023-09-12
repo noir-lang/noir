@@ -228,15 +228,19 @@ impl<'a> ModCollector<'a> {
                 body,
             } = item
             {
-                let implementing_fn_vec: Vec<_> = unresolved_functions
+                // List of functinons in the impl block with the same name as the method
+                //  `matching_fns.len() == 0`  => missing method impl
+                //  `matching_fns.len() > 1`   => duplicate definition
+                let matching_fns: Vec<_> = unresolved_functions
                     .functions
                     .iter()
                     .filter(|(_, _, func_impl)| func_impl.name() == name.0.contents)
                     .collect();
 
-                if implementing_fn_vec.is_empty() {
+                if matching_fns.is_empty() {
                     match body {
                         Some(body) => {
+                            // if there's a default implementation for the method, use it
                             let method_name = name.0.contents.clone();
                             let func_id = context.def_interner.push_empty_fn();
                             context.def_interner.push_function_definition(method_name, func_id);
@@ -252,7 +256,7 @@ impl<'a> ModCollector<'a> {
                             unresolved_functions.push_fn(self.module_id, func_id, impl_method);
                         }
                         None => {
-                            let error = DefCollectorErrorKind::TraitMissedMethodImplementation {
+                            let error = DefCollectorErrorKind::TraitMissingMethod {
                                 trait_name: trait_def.name.clone(),
                                 method_name: name.clone(),
                                 trait_impl_span: trait_impl.object_type_span,
@@ -261,7 +265,7 @@ impl<'a> ModCollector<'a> {
                         }
                     }
                 } else {
-                    for (_, func_id, _) in &implementing_fn_vec {
+                    for (_, func_id, _) in &matching_fns {
                         func_ids_in_trait.insert(*func_id);
                     }
                 }
