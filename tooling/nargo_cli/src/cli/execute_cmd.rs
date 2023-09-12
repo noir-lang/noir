@@ -152,6 +152,7 @@ fn report_error_with_opcode_locations(
             .flat_map(|opcode_location| {
                 // This assumes that we're executing the circuit which corresponds to the first `DebugInfo`.
                 // This holds for all binary crates as there is only one `DebugInfo`.
+                assert_eq!(debug_artifact.debug_symbols.len(), 1);
                 let locations = debug_artifact.debug_symbols[0].opcode_location(opcode_location);
                 locations.unwrap_or_default()
             })
