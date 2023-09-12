@@ -101,14 +101,14 @@ pub(crate) fn prove_package(
 
         (program, None)
     } else {
-        let (context, program) =
+        let (program, debug_artifact) =
             compile_package(package, compile_options, np_language, &is_opcode_supported)?;
         let preprocessed_program = PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),
             abi: program.abi,
             bytecode: program.circuit,
         };
-        (preprocessed_program, Some((program.debug, context)))
+        (preprocessed_program, Some(debug_artifact))
     };
 
     let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
