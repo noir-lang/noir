@@ -1,4 +1,4 @@
-FROM ubuntu:lunar AS builder
+FROM ubuntu:jammy AS builder
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget git libssl-dev cmake ninja-build curl
 RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v3.0.1
 WORKDIR /usr/src/barretenberg/cpp

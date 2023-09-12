@@ -1,7 +1,7 @@
 # Running on ubuntu until noir supports an alpine build
 
 # Builder stage to build the noir artifacts
-FROM ubuntu:lunar
+FROM ubuntu:jammy
 
 RUN apt-get update && apt-get install -y \
     curl \
