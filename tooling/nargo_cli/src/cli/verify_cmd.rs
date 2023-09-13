@@ -1,6 +1,6 @@
 use super::NargoConfig;
 use super::{
-    compile_cmd::compile_package,
+    compile_cmd::compile_bin_package,
     fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file},
 };
 use crate::{backends::Backend, errors::CliError};
@@ -93,8 +93,8 @@ fn verify_package(
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
-        let (_, program) =
-            compile_package(package, compile_options, np_language, &is_opcode_supported)?;
+        let program =
+            compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
 
         PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),

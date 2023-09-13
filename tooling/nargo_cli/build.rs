@@ -70,6 +70,7 @@ fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute");
 
@@ -158,6 +159,7 @@ fn compile_success_contract_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile");
 
@@ -195,6 +197,7 @@ fn compile_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute");
 

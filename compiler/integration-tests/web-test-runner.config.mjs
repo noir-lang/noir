@@ -1,20 +1,19 @@
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 import { esbuildPlugin } from "@web/dev-server-esbuild";
-import { webdriverLauncher } from '@web/test-runner-webdriver';
+import { webdriverLauncher } from "@web/test-runner-webdriver";
 
 export default {
   browsers: [
     webdriverLauncher({
-      automationProtocol: 'webdriver',
+      automationProtocol: "webdriver",
       capabilities: {
-        browserName: 'firefox',
-        'moz:firefoxOptions': {
-          args: ['-headless'],
+        browserName: "firefox",
+        "moz:firefoxOptions": {
+          args: ["-headless"],
         },
       },
     }),
-  
-],
+  ],
   plugins: [
     esbuildPlugin({
       ts: true,
@@ -27,6 +26,6 @@ export default {
       ui: "bdd",
     },
   },
-  rootDir:  fileURLToPath(new URL('./../..', import.meta.url)),
-
+  rootDir: fileURLToPath(new URL("./../..", import.meta.url)),
+  testsFinishTimeout: 60 * 20e3, // 20 minutes
 };

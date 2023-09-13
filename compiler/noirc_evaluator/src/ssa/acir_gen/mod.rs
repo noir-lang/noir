@@ -994,11 +994,7 @@ impl Context {
             // If either side is a numeric type, then we expect their types to be
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
-                assert_eq!(
-                    lhs_type, rhs_type,
-                    "lhs and rhs types in {:?} are not the same",
-                    binary
-                );
+                assert_eq!(lhs_type, rhs_type, "lhs and rhs types in {binary:?} are not the same");
                 Type::Numeric(lhs_type)
             }
         }

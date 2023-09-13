@@ -33,7 +33,7 @@ impl DebugInfo {
         let old_locations = mem::take(&mut self.locations);
 
         for (old_opcode_location, source_locations) in old_locations {
-            let _ = update_map.new_locations(old_opcode_location).map(|new_opcode_location| {
+            update_map.new_locations(old_opcode_location).for_each(|new_opcode_location| {
                 self.locations.insert(new_opcode_location, source_locations.clone());
             });
         }

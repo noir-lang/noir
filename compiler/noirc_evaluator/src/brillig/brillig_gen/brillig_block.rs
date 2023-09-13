@@ -87,7 +87,7 @@ impl<'block> BrilligBlock<'block> {
     ///
     /// This is so that during linking there are no duplicates or labels being overwritten.
     fn create_block_label(function_id: FunctionId, block_id: BasicBlockId) -> String {
-        format!("{}-{}", function_id, block_id)
+        format!("{function_id}-{block_id}")
     }
 
     /// Converts an SSA terminator instruction into the necessary opcodes.

@@ -2,12 +2,13 @@ use acvm::FieldElement;
 use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::graph::CrateId;
+use crate::token::SecondaryAttribute;
 use crate::{
-    hir::Context, token::Attribute, BlockExpression, CallExpression, CastExpression, Distinctness,
-    Expression, ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement,
-    IndexExpression, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-    NoirFunction, ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
+    ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement, IndexExpression,
+    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction,
+    ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData,
+    Visibility,
 };
 use noirc_errors::FileDiagnostic;
 
@@ -188,17 +189,19 @@ fn check_for_aztec_dependency(
 fn transform_module(functions: &mut [NoirFunction]) -> bool {
     let mut has_annotated_functions = false;
     for func in functions.iter_mut() {
-        if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
-            match custom_attribute.as_str() {
-                "aztec(private)" => {
-                    transform_function("Private", func);
-                    has_annotated_functions = true;
+        for secondary_attribute in func.def.attributes.secondary.clone() {
+            if let SecondaryAttribute::Custom(custom_attribute) = secondary_attribute {
+                match custom_attribute.as_str() {
+                    "aztec(private)" => {
+                        transform_function("Private", func);
+                        has_annotated_functions = true;
+                    }
+                    "aztec(public)" => {
+                        transform_function("Public", func);
+                        has_annotated_functions = true;
+                    }
+                    _ => continue,
                 }
-                "aztec(public)" => {
-                    transform_function("Public", func);
-                    has_annotated_functions = true;
-                }
-                _ => continue,
             }
         }
     }

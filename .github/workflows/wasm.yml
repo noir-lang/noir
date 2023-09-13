@@ -14,13 +14,6 @@ concurrency:
 jobs:
   build-nargo:
     runs-on: ubuntu-22.04
-    env:
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
     strategy:
       matrix:
         target: [x86_64-unknown-linux-gnu]
@@ -29,24 +22,17 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
 
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |

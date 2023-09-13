@@ -1,10 +1,8 @@
-use acvm::acir::circuit::Circuit;
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
-    add_dep, check_crate, compile_contracts, compile_no_check, prepare_crate, prepare_dependency,
-    CompileOptions, CompiledContract,
+    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
@@ -111,49 +109,30 @@ pub fn compile(args: JsValue) -> JsValue {
         add_noir_lib(&mut context, dependency.as_str());
     }
 
-    check_crate(&mut context, crate_id, false).expect("Crate check failed");
+    // For now we default to plonk width = 3, though we can add it as a parameter
+    let np_language = acvm::Language::PLONKCSat { width: 3 };
+    #[allow(deprecated)]
+    let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
     if options.contracts {
-        let compiled_contracts =
-            compile_contracts(&mut context, crate_id, &options.compile_options)
-                .expect("Contract compilation failed")
-                .0;
+        let compiled_contract = compile_contract(&mut context, crate_id, &options.compile_options)
+            .expect("Contract compilation failed")
+            .0;
 
-        let optimized_contracts: Vec<CompiledContract> =
-            compiled_contracts.into_iter().map(optimize_contract).collect();
+        let optimized_contract =
+            nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
+                .expect("Contract optimization failed");
 
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
     } else {
-        let main = context.get_main_function(&crate_id).expect("Could not find main function!");
-        let mut compiled_program =
-            compile_no_check(&context, &options.compile_options, main).expect("Compilation failed");
+        let compiled_program = compile_main(&mut context, crate_id, &options.compile_options)
+            .expect("Compilation failed")
+            .0;
 
-        compiled_program.circuit = optimize_circuit(compiled_program.circuit);
+        let optimized_program =
+            nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
+                .expect("Program optimization failed");
 
-        <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
     }
-}
-
-fn optimize_contract(contract: CompiledContract) -> CompiledContract {
-    CompiledContract {
-        name: contract.name,
-        functions: contract
-            .functions
-            .into_iter()
-            .map(|mut func| {
-                func.bytecode = optimize_circuit(func.bytecode);
-                func
-            })
-            .collect(),
-    }
-}
-
-fn optimize_circuit(circuit: Circuit) -> Circuit {
-    // For now we default to plonk width = 3, though we can add it as a parameter
-    let language = acvm::Language::PLONKCSat { width: 3 };
-    #[allow(deprecated)]
-    let opcode_supported = acvm::pwg::default_is_opcode_supported(language);
-    acvm::compiler::compile(circuit, language, opcode_supported)
-        .expect("Circuit optimization failed")
-        .0
 }

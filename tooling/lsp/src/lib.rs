@@ -170,7 +170,7 @@ fn on_code_lens_request(
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{}", err),
+                message: format!("{err}"),
             });
             return future::ready(Ok(None));
         }
@@ -181,7 +181,7 @@ fn on_code_lens_request(
             // If we found a manifest, but the workspace is invalid, we raise an error about it
             return future::ready(Err(ResponseError::new(
                 ErrorCode::REQUEST_FAILED,
-                format!("{}", err),
+                format!("{err}"),
             )));
         }
     };
@@ -388,7 +388,7 @@ fn on_did_save_text_document(
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{}", err),
+                message: format!("{err}"),
             });
             return ControlFlow::Continue(());
         }
@@ -399,7 +399,7 @@ fn on_did_save_text_document(
             // If we found a manifest, but the workspace is invalid, we raise an error about it
             return ControlFlow::Break(Err(ResponseError::new(
                 ErrorCode::REQUEST_FAILED,
-                format!("{}", err),
+                format!("{err}"),
             )
             .into()));
         }
