@@ -17,7 +17,9 @@ jobs:
     name: cargo clippy
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
-
+    env:
+      RUSTFLAGS: -Dwarnings
+    
     strategy:
       fail-fast: false
       matrix:
@@ -44,8 +46,6 @@ jobs:
 
       - name: Run `cargo clippy`
         run: cargo clippy --workspace --locked --release
-        env:
-          RUSTFLAGS: -Dwarnings
 
       - name: Run `cargo fmt`
         run: cargo fmt --all --check
