@@ -321,13 +321,15 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
                 let expression = match unresolved_type {
                     // `hasher.add_multiple({ident}.serialize())`
                     UnresolvedTypeData::Named(..) => add_struct_to_hasher(identifier),
-                    // TODO: if this is an array of structs, we should call serialise on each of them (no methods currently do this yet)
+                    // TODO: if this is an array of structs, we should call serialize on each of them (no methods currently do this yet)
                     UnresolvedTypeData::Array(..) => add_array_to_hasher(identifier),
                     // `hasher.add({ident})`
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
                     // Add the integer to the hasher, casted to a field
                     // `hasher.add({ident} as Field)`
-                    UnresolvedTypeData::Integer(..) => add_int_to_hasher(identifier),
+                    UnresolvedTypeData::Integer(..) | UnresolvedTypeData::Bool => {
+                        add_cast_to_hasher(identifier)
+                    }
                     _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
                 };
                 injected_expressions.push(expression);
@@ -443,12 +445,12 @@ fn make_return_push_array(push_value: Expression) -> Statement {
 /// ```noir
 /// `context.return_values.push_array({push_value}.serialize())`
 fn make_struct_return_type(expression: Expression) -> Statement {
-    let serialised_call = method_call(
+    let serialized_call = method_call(
         expression.clone(), // variable
         "serialize",        // method name
         vec![],             // args
     );
-    make_return_push_array(serialised_call)
+    make_return_push_array(serialized_call)
 }
 
 /// Make array return type
@@ -545,7 +547,7 @@ pub(crate) fn create_context_finish() -> Statement {
 
 fn add_struct_to_hasher(identifier: &Ident) -> Statement {
     // If this is a struct, we call serialize and add the array to the hasher
-    let serialised_call = method_call(
+    let serialized_call = method_call(
         variable_path(path(identifier.clone())), // variable
         "serialize",                             // method name
         vec![],                                  // args
@@ -554,7 +556,7 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
     Statement::Semi(method_call(
         variable("hasher"),    // variable
         "add_multiple",        // method name
-        vec![serialised_call], // args
+        vec![serialized_call], // args
     ))
 }
 
@@ -613,7 +615,7 @@ fn add_field_to_hasher(identifier: &Ident) -> Statement {
     ))
 }
 
-fn add_int_to_hasher(identifier: &Ident) -> Statement {
+fn add_cast_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident} as Field)`
     // `{ident} as Field`
     let cast_operation = cast(
