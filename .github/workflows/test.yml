@@ -37,7 +37,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
