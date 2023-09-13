@@ -46,16 +46,16 @@ jobs:
           echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.66.0
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
         run: |
@@ -109,16 +109,16 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.66.0
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Install Cross
         uses: taiki-e/install-action@v2

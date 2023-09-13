@@ -22,14 +22,14 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.66.0
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
