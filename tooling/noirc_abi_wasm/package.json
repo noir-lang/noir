@@ -3,12 +3,15 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.8.0",
+  "version": "0.10.3",
   "files": [
     "nodejs",
     "web",
     "package.json"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./nodejs/noirc_abi_wasm.js",
   "types": "./web/noirc_abi_wasm.d.ts",
   "module": "./web/noirc_abi_wasm.js",
