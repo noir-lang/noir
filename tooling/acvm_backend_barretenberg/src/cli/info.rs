@@ -72,8 +72,7 @@ impl InfoCommand {
 
 #[test]
 fn info_command() -> Result<(), BackendError> {
-    use acvm::acir::circuit::black_box_functions::BlackBoxFunc;
-    use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, Opcode};
+    use acvm::acir::circuit::opcodes::Opcode;
 
     use acvm::acir::native_types::Expression;
 
@@ -84,11 +83,6 @@ fn info_command() -> Result<(), BackendError> {
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
     assert!(is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
-
-    assert!(!is_opcode_supported(&Opcode::BlackBoxFuncCall(
-        #[allow(deprecated)]
-        BlackBoxFuncCall::dummy(BlackBoxFunc::Keccak256)
-    )));
 
     Ok(())
 }
