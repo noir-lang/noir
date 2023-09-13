@@ -2,48 +2,40 @@
   "barretenberg-x86_64-linux-clang": {
     "buildDir": "barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
-    "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": []
+    "rebuildPatterns": ".rebuild_patterns"
   },
   "barretenberg-x86_64-linux-clang-assert": {
     "buildDir": "barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
-    "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": []
+    "rebuildPatterns": ".rebuild_patterns"
   },
   "barretenberg-x86_64-linux-clang-fuzzing": {
     "buildDir": "barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-fuzzing",
-    "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": []
+    "rebuildPatterns": ".rebuild_patterns"
   },
   "barretenberg-x86_64-linux-gcc": {
     "buildDir": "barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
-    "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": []
+    "rebuildPatterns": ".rebuild_patterns"
   },
   "barretenberg-wasm-linux-clang": {
     "buildDir": "barretenberg/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
-    "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": []
+    "rebuildPatterns": ".rebuild_patterns"
   },
   "bb.js": {
     "buildDir": "barretenberg/ts",
-    "rebuildPatterns": ["^barretenberg/ts/"],
     "dependencies": ["barretenberg-wasm-linux-clang"]
   },
   "barretenberg-acir-tests-bb": {
     "buildDir": "barretenberg/acir_tests",
     "dockerfile": "Dockerfile.bb",
-    "rebuildPatterns": ["^barretenberg/acir_tests/"],
     "dependencies": ["barretenberg-x86_64-linux-clang-assert"]
   },
   "barretenberg-acir-tests-bb.js": {
     "buildDir": "barretenberg/acir_tests",
     "dockerfile": "Dockerfile.bb.js",
-    "rebuildPatterns": ["^barretenberg/acir_tests/"],
     "dependencies": ["bb.js"]
   },
   "circuits-wasm-linux-clang": {
@@ -79,19 +71,14 @@
   "docs": {
     "buildDir": ".",
     "dockerfile": "docs/Dockerfile",
-    "rebuildPatterns": ["^docs/", "^.*.cpp$", "^.*.ts$"],
-    "dependencies": []
+    "rebuildPatterns": ["^docs/", "^.*.cpp$", "^.*.ts$"]
   },
   "l1-contracts": {
-    "buildDir": "l1-contracts",
-    "dockerfile": "Dockerfile",
-    "rebuildPatterns": ["^l1-contracts/"],
-    "dependencies": []
+    "buildDir": "l1-contracts"
   },
   "l1-artifacts": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/l1-artifacts",
-    "dockerfile": "l1-artifacts/Dockerfile",
     "rebuildPatterns": ["^l1-contracts/", "^yarn-project/l1-artifacts/"],
     "dependencies": []
   },
@@ -111,92 +98,65 @@
   },
   "acir-simulator": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/acir-simulator",
-    "dockerfile": "acir-simulator/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/acir-simulator/"]
+    "projectDir": "yarn-project/acir-simulator"
   },
   "archiver": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/archiver",
-    "dockerfile": "archiver/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/archiver/"]
+    "projectDir": "yarn-project/archiver"
   },
   "cli": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/cli",
-    "dockerfile": "cli/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/cli/"]
+    "projectDir": "yarn-project/cli"
   },
   "aztec-rpc": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/aztec-rpc",
-    "dockerfile": "aztec-rpc/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-rpc/"]
+    "projectDir": "yarn-project/aztec-rpc"
   },
   "aztec-sandbox": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/aztec-sandbox",
-    "dockerfile": "aztec-sandbox/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-sandbox/"]
+    "projectDir": "yarn-project/aztec-sandbox"
   },
   "aztec.js": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/aztec.js",
-    "dockerfile": "aztec.js/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec.js/"]
+    "projectDir": "yarn-project/aztec.js"
   },
   "canary-build": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/canary",
-    "dockerfile": "canary/Dockerfile.build",
-    "rebuildPatterns": ["^yarn-project/canary/"]
+    "dockerfile": "Dockerfile.build"
   },
   "canary": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/canary",
-    "dockerfile": "canary/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/canary/"]
+    "projectDir": "yarn-project/canary"
   },
   "circuits.js": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/circuits.js",
-    "dockerfile": "circuits.js/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/circuits.js/"]
+    "projectDir": "yarn-project/circuits.js"
   },
   "end-to-end": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/end-to-end",
-    "dockerfile": "end-to-end/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/end-to-end/"]
+    "projectDir": "yarn-project/end-to-end"
   },
   "ethereum": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/ethereum",
-    "dockerfile": "ethereum/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/ethereum/"]
+    "projectDir": "yarn-project/ethereum"
   },
   "foundation": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/foundation",
-    "dockerfile": "foundation/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/foundation/"]
+    "projectDir": "yarn-project/foundation"
   },
   "key-store": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/key-store",
-    "dockerfile": "key-store/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/key-store/"]
+    "projectDir": "yarn-project/key-store"
   },
   "merkle-tree": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/merkle-tree",
-    "dockerfile": "merkle-tree/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/merkle-tree/"]
+    "projectDir": "yarn-project/merkle-tree"
   },
   "noir-contracts-build": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/noir-contracts",
-    "dockerfile": "noir-contracts/Dockerfile.build",
+    "dockerfile": "Dockerfile.build",
     "rebuildPatterns": [
       "^yarn-project/noir-contracts/",
       "^yarn-project/aztec-nr/"
@@ -205,7 +165,6 @@
   "noir-contracts": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/noir-contracts",
-    "dockerfile": "noir-contracts/Dockerfile",
     "rebuildPatterns": [
       "^yarn-project/noir-contracts/",
       "^yarn-project/aztec-nr/"
@@ -213,56 +172,39 @@
   },
   "noir-compiler": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/noir-compiler",
-    "dockerfile": "noir-compiler/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/noir-compiler/"]
+    "projectDir": "yarn-project/noir-compiler"
   },
   "p2p": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/p2p",
-    "dockerfile": "p2p/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/p2p/"]
+    "projectDir": "yarn-project/p2p"
   },
   "p2p-bootstrap": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/p2p-bootstrap",
-    "dockerfile": "p2p/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/p2p-bootstrap/"]
+    "dockerfile": "../p2p/Dockerfile"
   },
   "prover-client": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/prover-client",
-    "dockerfile": "prover-client/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/prover-client/"]
+    "projectDir": "yarn-project/prover-client"
   },
   "rollup-provider": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/rollup-provider",
-    "dockerfile": "rollup-provider/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/rollup-provider/"]
+    "projectDir": "yarn-project/rollup-provider"
   },
   "aztec-node": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/aztec-node",
-    "dockerfile": "aztec-node/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-node/"]
+    "projectDir": "yarn-project/aztec-node"
   },
   "sequencer-client": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/sequencer-client",
-    "dockerfile": "sequencer-client/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/sequencer-client/"]
+    "projectDir": "yarn-project/sequencer-client"
   },
   "types": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/types",
-    "dockerfile": "types/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/types/"]
+    "projectDir": "yarn-project/types"
   },
   "world-state": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/world-state",
-    "dockerfile": "world-state/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/world-state/"]
+    "projectDir": "yarn-project/world-state"
   }
 }

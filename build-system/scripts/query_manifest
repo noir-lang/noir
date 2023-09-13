@@ -15,6 +15,7 @@ function get_deps {
   local TYPE=$(jq -r ".\"$1\".dependencies | type" $MANIFEST)
   if [ "$TYPE" == "string" ]; then
     # Execute string as command relative to buildDir to retrieve dependencies.
+    local BUILD_DIR=$($0 buildDir $1)
     local CMD=$BUILD_DIR/$(jq -r ".\"$1\".dependencies")
     if [ ! -f "$CMD" ]; then
       >&2 echo "Dependency script not found: $CMD"
@@ -24,10 +25,11 @@ function get_deps {
     DEPS=($($CMD $PROJECT_DIR))
   elif [ "$TYPE" == "null" ]; then
     # Execute default script relative to buildDir to retrieve dependencies.
+    local BUILD_DIR=$($0 buildDir $1)
     local CMD=$BUILD_DIR/scripts/get_dependencies.sh
     if [ ! -f "$CMD" ]; then
-      >&2 echo "Dependency script not found: $CMD"
-      exit 1
+      DEPS=()
+      return
     fi
     local PROJECT_DIR=$($0 projectDir $1)
     DEPS=($($CMD $PROJECT_DIR))
@@ -43,22 +45,25 @@ function add_rebuild_patterns {
   local TYPE=$(jq -r ".\"$1\".rebuildPatterns | type" $MANIFEST)
   if [ "$TYPE" == "string" ]; then
     local FILE=$(jq -r ".\"$1\".rebuildPatterns" $MANIFEST)
-    local BUILD_DIR=$($0 buildDir $1)
-    PATTERNS=(${PATTERNS[@]} $(cat $BUILD_DIR/$FILE))
+    local PROJECT_DIR=$($0 projectDir $1)
+    PATTERNS=(${PATTERNS[@]} $(cat $PROJECT_DIR/$FILE))
   elif [ "$TYPE" == "array" ]; then
     PATTERNS=(${PATTERNS[@]} $(jq -r ".\"$1\".rebuildPatterns | .[]" $MANIFEST))
+  elif [ "$TYPE" == "null" ]; then
+    local PROJECT_DIR=$($0 relativeProjectDir $1)
+    PATTERNS=(${PATTERNS[@]} "^$PROJECT_DIR/")
   else
-    >&2 echo "Missing rebuildPatterns property. Either filename as string, or patterns as array."
+    >&2 echo "rebuildPatterns must be array, string, or null."
     exit 1
   fi
 }
 
 case "$CMD" in
   dockerfile)
-    # In the manifest, the path is relative to buildDir. Return absolute path.
-    BUILD_DIR=$($0 buildDir $REPO)
+    # In the manifest, the path is relative to projectDir. Return absolute path.
+    PROJECT_DIR=$($0 projectDir $REPO)
     DOCKERFILE=$(jq -r ".\"$REPO\".dockerfile // \"Dockerfile\"" $MANIFEST)
-    echo $BUILD_DIR/$DOCKERFILE
+    echo $PROJECT_DIR/$DOCKERFILE
     ;;
   buildDir)
     # In the manifest, the path is relative to the repo root. Return absolute path.
@@ -71,10 +76,15 @@ case "$CMD" in
     echo $ROOT_PATH/$PROJECT_DIR
     ;;
   relativeProjectDir)
+    # Return the relative path as it is in the manifest.
     jq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $MANIFEST
     ;;
   dependencies)
-    BUILD_DIR=$($0 buildDir $REPO)
+    # Get dependencies for a given repo.
+    # If no entry in the manifest file, attempt to call <projectDir>/scripts/get_dependencies.sh if exists, else empty.
+    # If a string, attempt to call <projectDir>/<string> if exists, else error.
+    # If an array, the array lists the dependencies.
+    # Recursively descend "unvisited" dependencies to collect all dependencies.
     declare -A ALL_DEPS
     add_deps() {
       if [[ -v ALL_DEPS[$1] ]]; then
@@ -87,11 +97,18 @@ case "$CMD" in
       done
     }
     add_deps $REPO
+    # Remove ourself as a dependency.
+    unset ALL_DEPS["$REPO"]
     for KEY in "${!ALL_DEPS[@]}"; do
       echo $KEY
     done | sort
     ;;
   rebuildPatterns)
+    # Get rebuild patterns for a given repo (the file patterns that if changed result in rebuilds).
+    # First add rebuild patterns for requested repo, then add rebuild patterns for each dependency.
+    # If no rebuild patterns are given, the result is ["^<projectDir>/"].
+    # If a projects rebuildPattern is a string, the rebuild patterns are in <projectDir>/<string>.
+    # If an array, the array lists the rebuild patterns.
     DEPS=($($0 dependencies $REPO))
     PATTERNS=()
     add_rebuild_patterns $REPO

@@ -11,8 +11,6 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
-    "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
     "build": "yarn clean && yarn generate && tsc -b",
     "clean": "rm -rf ./dest ./generated .tsbuildinfo",
     "formatting": "run -T prettier --check ./generated && run -T eslint ./generated",

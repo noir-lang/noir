@@ -14,13 +14,11 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "build": "yarn clean && tsc -b",
     "start": "node --no-warnings ./dest/bin",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
-    "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
     "build:dev": "tsc -b --watch",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
     "run:example:token": "DEBUG='aztec:*' node ./dest/examples/private_token_contract.js",

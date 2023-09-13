@@ -16,8 +16,6 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
-    "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
     "build": "yarn clean && tsc -b && webpack",
     "build:web": "webpack",
     "build:dev": "tsc -b --watch",
