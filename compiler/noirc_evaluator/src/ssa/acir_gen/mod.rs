@@ -719,7 +719,6 @@ impl Context {
     fn array_set(
         &mut self,
         instruction: InstructionId,
-        //    array: ValueId,
         var_index: AcirVar,
         store_value: AcirVar,
         dfg: &DataFlowGraph,
