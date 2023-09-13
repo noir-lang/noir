@@ -1,5 +1,5 @@
 import { expect } from "@esm-bundle/chai";
-import initNoirWasm from "../../result";
+import initNoirWasm from "@noir-lang/noir_wasm";
 import { compileNoirSource, nargoArtifactPath, noirSourcePath } from "../shared";
 
 beforeEach(async () => {
