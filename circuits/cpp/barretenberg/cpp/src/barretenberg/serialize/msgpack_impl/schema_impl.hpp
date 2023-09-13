@@ -66,7 +66,7 @@ struct MsgpackSchemaPacker : msgpack::packer<msgpack::sbuffer> {
 
         // Note: if this fails to compile, check first in list of template Arg's
         // it may need a msgpack_schema_pack specialization (particularly if it doesn't define MSGPACK_FIELDS).
-        (_msgpack_schema_pack(*this, Args{}), ...); /* pack schemas of all template Args */
+        (_msgpack_schema_pack(*this, *std::make_unique<Args>()), ...); /* pack schemas of all template Args */
     }
     /**
      * @brief Encode a type that defines msgpack based on its key value pairs.
@@ -108,7 +108,10 @@ concept SchemaPackable = requires(T value, MsgpackSchemaPacker packer) { msgpack
 
 // Helper for packing (key, value, key, value, ...) arguments
 template <typename Value, typename... Rest>
-inline void _schema_pack_map_content(MsgpackSchemaPacker& packer, std::string key, Value value, Rest... rest)
+inline void _schema_pack_map_content(MsgpackSchemaPacker& packer,
+                                     std::string key,
+                                     const Value& value,
+                                     const Rest&... rest)
 {
     static_assert(
         msgpack_concepts::SchemaPackable<Value>,
@@ -200,7 +203,9 @@ inline void msgpack_schema_pack(MsgpackSchemaPacker& packer, std::array<T, N> co
     packer.pack("array");
     // That has a size 2 tuple as its 2nd arg
     packer.pack_array(2); /* param list format for consistency*/
-    _msgpack_schema_pack(packer, T{});
+    // To avoid WASM problems with large stack objects, we use a heap allocation.
+    // Small note: This works because make_unique goes of scope only when the whole line is done.
+    _msgpack_schema_pack(packer, *std::make_unique<T>());
     packer.pack(N);
 }
 

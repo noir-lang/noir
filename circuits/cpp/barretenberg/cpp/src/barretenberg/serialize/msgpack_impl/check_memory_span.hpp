@@ -59,14 +59,15 @@ template <typename T, typename... Args> std::string check_memory_span(T* obj, Ar
     return {};
 }
 
-template <msgpack_concepts::HasMsgPack T> std::string check_msgpack_method(T& object)
+template <msgpack_concepts::HasMsgPack T> std::string check_msgpack_method(const T& object)
 {
     std::string result;
     auto checker = [&](auto&... values) { result = check_memory_span(&object, &values...); };
-    object.msgpack([&](auto&... keys_and_values) { std::apply(checker, drop_keys(std::tie(keys_and_values...))); });
+    const_cast<T&>(object).msgpack( // NOLINT
+        [&](auto&... keys_and_values) { std::apply(checker, drop_keys(std::tie(keys_and_values...))); });
     return result;
 }
-void check_msgpack_usage(auto object)
+void check_msgpack_usage(const auto& object)
 {
     std::string result = check_msgpack_method(object);
     if (!result.empty()) {
