@@ -36,7 +36,7 @@ impl fmt::Display for ParsingRuleLabel {
             ParsingRuleLabel::Statement => write!(f, "statement"),
             ParsingRuleLabel::Term => write!(f, "term"),
             ParsingRuleLabel::TypeExpression => write!(f, "type expression"),
-            ParsingRuleLabel::TokenKind(token_kind) => write!(f, "{:?}", token_kind),
+            ParsingRuleLabel::TokenKind(token_kind) => write!(f, "{token_kind:?}"),
         }
     }
 }

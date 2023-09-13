@@ -1,8 +1,13 @@
+use std::collections::BTreeMap;
+
 use acvm::acir::circuit::Circuit;
+use fm::FileId;
 
 use base64::Engine;
 use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use super::debug::DebugFile;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
@@ -10,6 +15,7 @@ pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
     pub debug: DebugInfo,
+    pub file_map: BTreeMap<FileId, DebugFile>,
 }
 
 pub(crate) fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>

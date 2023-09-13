@@ -1,19 +1,19 @@
-use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use acvm_backend_barretenberg::BackendError;
 use clap::Args;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, CompiledContract, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, table, Row};
+use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::backends::Backend;
-use crate::{cli::compile_cmd::compile_package, errors::CliError};
+use crate::errors::CliError;
 
-use super::{compile_cmd::compile_contracts, NargoConfig};
+use super::{compile_cmd::compile_workspace, NargoConfig};
 
 /// Provides detailed information on a circuit
 ///
@@ -49,30 +49,30 @@ pub(crate) fn run(
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
-    let mut info_report = InfoReport::default();
+    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
+        .into_iter()
+        .filter(|package| !package.is_library())
+        .cloned()
+        .partition(|package| package.is_binary());
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
-    for package in &workspace {
-        if package.is_contract() {
-            let contract_info = count_opcodes_and_gates_in_contracts(
-                backend,
-                package,
-                &args.compile_options,
-                np_language,
-                &is_opcode_supported,
-            )?;
-            info_report.contracts.extend(contract_info);
-        } else {
-            let program_info = count_opcodes_and_gates_in_program(
-                backend,
-                package,
-                &args.compile_options,
-                np_language,
-                &is_opcode_supported,
-            )?;
-            info_report.programs.push(program_info);
-        }
-    }
+    let (compiled_programs, compiled_contracts) =
+        compile_workspace(backend, &binary_packages, &contract_packages, &args.compile_options)?;
+
+    let (np_language, _) = backend.get_backend_info()?;
+    let program_info = binary_packages
+        .into_par_iter()
+        .zip(compiled_programs)
+        .map(|(package, program)| {
+            count_opcodes_and_gates_in_program(backend, program, &package, np_language)
+        })
+        .collect::<Result<_, _>>()?;
+
+    let contract_info = compiled_contracts
+        .into_par_iter()
+        .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, np_language))
+        .collect::<Result<_, _>>()?;
+
+    let info_report = InfoReport { programs: program_info, contracts: contract_info };
 
     if args.json {
         // Expose machine-readable JSON data.
@@ -166,15 +166,10 @@ impl From<ContractInfo> for Vec<Row> {
 
 fn count_opcodes_and_gates_in_program(
     backend: &Backend,
+    compiled_program: CompiledProgram,
     package: &Package,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
+    language: Language,
 ) -> Result<ProgramInfo, CliError> {
-    let (_, compiled_program) =
-        compile_package(package, compile_options, np_language, &is_opcode_supported)?;
-    let (language, _) = backend.get_backend_info()?;
-
     Ok(ProgramInfo {
         name: package.name.to_string(),
         language,
@@ -183,26 +178,22 @@ fn count_opcodes_and_gates_in_program(
     })
 }
 
-fn count_opcodes_and_gates_in_contracts(
+fn count_opcodes_and_gates_in_contract(
     backend: &Backend,
-    package: &Package,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
-) -> Result<Vec<ContractInfo>, CliError> {
-    let (_, contracts) =
-        compile_contracts(package, compile_options, np_language, &is_opcode_supported)?;
-    let (language, _) = backend.get_backend_info()?;
-
-    try_vecmap(contracts, |contract| {
-        let functions = try_vecmap(contract.functions, |function| -> Result<_, BackendError> {
+    contract: CompiledContract,
+    language: Language,
+) -> Result<ContractInfo, CliError> {
+    let functions = contract
+        .functions
+        .into_par_iter()
+        .map(|function| -> Result<_, BackendError> {
             Ok(FunctionInfo {
                 name: function.name,
                 acir_opcodes: function.bytecode.opcodes.len(),
                 circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
             })
-        })?;
+        })
+        .collect::<Result<_, _>>()?;
 
-        Ok(ContractInfo { name: contract.name, language, functions })
-    })
+    Ok(ContractInfo { name: contract.name, language, functions })
 }

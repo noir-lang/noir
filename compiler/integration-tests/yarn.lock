@@ -231,7 +231,7 @@
     fastq "^1.6.0"
 
 "@noir-lang/acvm_js@./../../.packages/acvm_js":
-  version "0.25.0"
+  version "0.26.0"
 
 "@noir-lang/noir-source-resolver@^1.1.4":
   version "1.1.4"
@@ -239,7 +239,7 @@
   integrity sha512-jmUcEoRXRSyhPyOqeDGi3E/7rYRVyqiNR0YQkwqH2G/WyvlHL2o2Ltk2N9iYKMNm1la0ri35Nz9OvIeeXjI4wA==
 
 "@noir-lang/noir_wasm@./../../.packages/noir_wasm":
-  version "0.10.5"
+  version "0.11.1"
 
 "@noir-lang/noirc_abi@./../../.packages/noirc_abi_wasm":
   version "0.8.0"
@@ -832,7 +832,7 @@
     picomatch "^2.2.2"
     source-map "^0.7.3"
 
-"@web/test-runner-core@^0.11.0", "@web/test-runner-core@^0.11.1":
+"@web/test-runner-core@^0.11.1":
   version "0.11.4"
   resolved "https://registry.yarnpkg.com/@web/test-runner-core/-/test-runner-core-0.11.4.tgz#590994c3fc69337e2c5411bf11c293dd061cc07a"
   integrity sha512-E7BsKAP8FAAEsfj4viASjmuaYfOw4UlKP9IFqo4W20eVyd1nbUWU3Amq4Jksh7W/j811qh3VaFNjDfCwklQXMg==
@@ -874,17 +874,6 @@
     picomatch "^2.2.2"
     v8-to-istanbul "^9.0.1"
 
-"@web/test-runner-coverage-v8@^0.7.0":
-  version "0.7.1"
-  resolved "https://registry.yarnpkg.com/@web/test-runner-coverage-v8/-/test-runner-coverage-v8-0.7.1.tgz#b09c73f3e49ef6256cb589a5d7b09d1e28aef9b2"
-  integrity sha512-R0laTOxbLg7kVKHCBILEmja3w1ihlwkB+eRc7J06/ByyZoQVWxkM9SrTAUx7qCFI6o738Jj24a6TfIDbu3CwSA==
-  dependencies:
-    "@web/test-runner-core" "^0.11.0"
-    istanbul-lib-coverage "^3.0.0"
-    lru-cache "^8.0.4"
-    picomatch "^2.2.2"
-    v8-to-istanbul "^9.0.1"
-
 "@web/test-runner-mocha@^0.7.5":
   version "0.7.5"
   resolved "https://registry.yarnpkg.com/@web/test-runner-mocha/-/test-runner-mocha-0.7.5.tgz#696f8cb7f5118a72bd7ac5778367ae3bd3fb92cd"
@@ -892,15 +881,6 @@
   dependencies:
     "@types/mocha" "^8.2.0"
     "@web/test-runner-core" "^0.10.20"
-
-"@web/test-runner-playwright@^0.10.0":
-  version "0.10.1"
-  resolved "https://registry.yarnpkg.com/@web/test-runner-playwright/-/test-runner-playwright-0.10.1.tgz#f9fc29dbd771bcb65dcebe826b257d10fb8a8ec5"
-  integrity sha512-/sEfuKc60UT0gXdn7M6lFddh+nCepO73gLPe2Og7jfoFv2tDkkk41RYBG75jx11RMVOJ6+i1peluLZSVxLlcEg==
-  dependencies:
-    "@web/test-runner-core" "^0.11.0"
-    "@web/test-runner-coverage-v8" "^0.7.0"
-    playwright "^1.22.2"
 
 "@web/test-runner-webdriver@^0.7.0":
   version "0.7.0"
@@ -3188,18 +3168,6 @@ picomatch@^2.0.4, picomatch@^2.2.1, picomatch@^2.2.2, picomatch@^2.3.1:
   version "2.3.1"
   resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-2.3.1.tgz#3ba3833733646d9d3e4995946c1365a67fb07a42"
   integrity sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==
-
-playwright-core@1.37.1:
-  version "1.37.1"
-  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.37.1.tgz#cb517d52e2e8cb4fa71957639f1cd105d1683126"
-  integrity sha512-17EuQxlSIYCmEMwzMqusJ2ztDgJePjrbttaefgdsiqeLWidjYz9BxXaTaZWxH1J95SHGk6tjE+dwgWILJoUZfA==
-
-playwright@^1.22.2:
-  version "1.37.1"
-  resolved "https://registry.yarnpkg.com/playwright/-/playwright-1.37.1.tgz#6e488d82d7d98b9127c5db9c701f9c956ab47e76"
-  integrity sha512-bgUXRrQKhT48zHdxDYQTpf//0xDfDd5hLeEhjuSw8rXEGoT9YeElpfvs/izonTNY21IQZ7d3s22jLxYaAnubbQ==
-  dependencies:
-    playwright-core "1.37.1"
 
 portfinder@^1.0.32:
   version "1.0.32"

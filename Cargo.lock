@@ -2173,6 +2173,7 @@ version = "0.11.1"
 dependencies = [
  "acvm",
  "base64",
+ "codespan-reporting",
  "fm",
  "iter-extended",
  "noirc_abi",
@@ -2215,6 +2216,7 @@ dependencies = [
  "pprof",
  "predicates 2.1.5",
  "prettytable-rs",
+ "rayon",
  "rustc_version",
  "serde",
  "serde_json",
@@ -2285,7 +2287,6 @@ dependencies = [
  "fm",
  "getrandom",
  "gloo-utils",
- "iter-extended",
  "log",
  "nargo",
  "noirc_driver",
