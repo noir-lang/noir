@@ -2,6 +2,16 @@
 # yarn lockfile v1
 
 
+"@aztec/bb.js@0.6.7":
+  version "0.6.7"
+  resolved "https://registry.yarnpkg.com/@aztec/bb.js/-/bb.js-0.6.7.tgz#e3c58f05c7928a5919aed00f03210a18e01cdcb3"
+  integrity sha512-ZVytRcpsSZYgVyNbHQoPNoAEumxxdmXHmW9eRB4WWTfhzhmaF+VCrShg3RQt5x5HOMZbS+ukw7/cSf+WBiMC/Q==
+  dependencies:
+    comlink "^4.4.1"
+    commander "^10.0.1"
+    debug "^4.3.4"
+    tslib "^2.4.0"
+
 "@noir-lang/acvm_js@0.26.1":
   version "0.26.1"
   resolved "https://registry.yarnpkg.com/@noir-lang/acvm_js/-/acvm_js-0.26.1.tgz#5dc5d4f54a1663ff0096ab3e7633c126418bd0f0"
@@ -11,3 +21,30 @@
   version "0.10.3"
   resolved "https://registry.yarnpkg.com/@noir-lang/noirc_abi/-/noirc_abi-0.10.3.tgz#5f80ff0be441a8a802be76a2bff09947f6de891a"
   integrity sha512-l5T/iF8nrOhV2hMS6byUwOtxPTF1DfZtNFw0028ExQ68Z25KD3hXwg6VlUtmaEhQ83e1PUdGEyss9UnA4fmFxQ==
+
+comlink@^4.4.1:
+  version "4.4.1"
+  resolved "https://registry.yarnpkg.com/comlink/-/comlink-4.4.1.tgz#e568b8e86410b809e8600eb2cf40c189371ef981"
+  integrity sha512-+1dlx0aY5Jo1vHy/tSsIGpSkN4tS9rZSW8FIhG0JH/crs9wwweswIo/POr451r7bZww3hFbPAKnTpimzL/mm4Q==
+
+commander@^10.0.1:
+  version "10.0.1"
+  resolved "https://registry.yarnpkg.com/commander/-/commander-10.0.1.tgz#881ee46b4f77d1c1dccc5823433aa39b022cbe06"
+  integrity sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==
+
+debug@^4.3.4:
+  version "4.3.4"
+  resolved "https://registry.yarnpkg.com/debug/-/debug-4.3.4.tgz#1319f6579357f2338d3337d2cdd4914bb5dcc865"
+  integrity sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ==
+  dependencies:
+    ms "2.1.2"
+
+ms@2.1.2:
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
+  integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
+
+tslib@^2.4.0:
+  version "2.6.2"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.6.2.tgz#703ac29425e7b37cd6fd456e92404d46d1f3e4ae"
+  integrity sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==
