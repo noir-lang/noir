@@ -162,13 +162,25 @@ impl PrivateContext {
         self.nullified_commitments.push(nullified_commitment);
     }
 
-    fn message_portal(&mut self, content: Field) {
+    // docs:start:context_message_portal
+    fn message_portal(&mut self, content: Field) 
+    // docs:end:context_message_portal
+    {
         self.new_l2_to_l1_msgs.push(content);
     }
 
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
-    fn consume_l1_to_l2_message(&mut self, inputs: abi::PrivateContextInputs, msg_key: Field, content: Field, secret: Field) {
+    // docs:start:context_consume_l1_to_l2_message
+    fn consume_l1_to_l2_message(
+        &mut self,
+        inputs: abi::PrivateContextInputs,
+        msg_key: Field,
+        content: Field,
+        secret: Field
+    ) 
+    // docs:end:context_consume_l1_to_l2_message
+    {
         let nullifier = process_l1_to_l2_message(inputs.block_data.l1_to_l2_messages_tree_root, inputs.call_context.storage_contract_address, msg_key, content, secret);
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")

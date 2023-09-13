@@ -34,6 +34,7 @@ contract UniswapPortal {
     bytes32 contentHash;
   }
 
+  // docs:start:solidity_uniswap_swap
   /**
    * @notice Exit with funds from L2, perform swap on L1 and deposit output asset to L2 again
    * @dev `msg.value` indicates fee to submit message to inbox. Currently, anyone can call this method on your behalf.
@@ -125,4 +126,5 @@ contract UniswapPortal {
       _aztecRecipient, amountOut, _deadlineForL1ToL2Message, _secretHash, _canceller
     );
   }
+  // docs:end:solidity_uniswap_swap
 }

@@ -10,9 +10,7 @@ The registry is a contract deployed on L1, that contains addresses for the `Roll
 
 Retrieves the number of versions that have been deployed.
 
-```solidity
-function numberOfVersions() external view returns (uint256);
-```
+#include_code registry_number_of_versions l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -21,9 +19,7 @@ function numberOfVersions() external view returns (uint256);
 ## `getRollup()`
 Retrieves the current rollup contract.
 
-```solidity
-function getRollup() external view returns (IRollup);
-```
+#include_code registry_get_rollup l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -33,9 +29,7 @@ function getRollup() external view returns (IRollup);
 
 Retrieves the current inbox contract.
 
-```solidity
-function getInbox() external view returns (IInbox);
-```
+#include_code registry_get_inbox l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -45,9 +39,7 @@ function getInbox() external view returns (IInbox);
 
 Retrieves the current inbox contract.
 
-```solidity
-function getOutbox() external view returns (IOutbox);
-```
+#include_code registry_get_outbox l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -56,9 +48,8 @@ function getOutbox() external view returns (IOutbox);
 ## `getVersionFor(address _rollup)`
 
 Retrieve the version of a specific rollup contract. 
-```solidity
-function getVersionFor(address _rollup) external view returns (uint256);
-```
+
+#include_code registry_get_version_for l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -72,20 +63,8 @@ Will revert with `Registry__RollupNotRegistered(_rollup)` if the rollup have not
 
 Retrieve the snapshot of a specific version. 
 
-```solidity
-// Snippet from DataStructures.sol
-struct RegistrySnapshot {
-    address rollup;
-    address inbox;
-    address outbox;
-    uint256 blockNumber;
-  }
-
-function getSnapshot(uint256 _version)
-    external
-    view
-    returns (DataStructures.RegistrySnapshot memory);
-```
+#include_code registry_snapshot l1-contracts/src/core/libraries/DataStructures.sol solidity
+#include_code registry_get_snapshot l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |
@@ -100,12 +79,7 @@ function getSnapshot(uint256 _version)
 
 Retrieves the snapshot for the current version.
 
-```solidity
-function getCurrentSnapshot() 
-    external 
-    view 
-    returns (DataStructures.RegistrySnapshot memory);
-```
+#include_code registry_get_current_snapshot l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol solidity
 
 | Name           | Description |
 | -------------- | ----------- |

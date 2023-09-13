@@ -30,29 +30,14 @@ Should we discard the use of the L2Actor struct and use the individual fields in
 
 With all that information at hand, we can call the `sendL2Message` function on the Inbox. The function will return a `field` (inside  `bytes32`) that is the hash of the message. This hash can be used as an identifier to spot when your message has been included in a rollup block. 
 
-```solidity title="IInbox.sol"
-  function sendL2Message(
-    DataStructures.L2Actor memory _recipient,
-    uint32 _deadline,
-    bytes32 _content,
-    bytes32 _secretHash
-  ) external payable returns (bytes32);
-```
+#include_code send_l1_to_l2_message l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 As time passes, a sequencer will see your tx, the juicy fee provided and include it in a rollup block. Upon inclusion, it is removed from L1, and made available to be consumed on L2.
 
 To consume the message, we can use the `consume_l1_to_l2_message` function within the `context` struct. 
 The `msg_key` is the hash of the message produced from the `sendL2Message` call, the `content` is the content of the message, and the `secret` is the pre-image hashed to compute the `secretHash`.
 
-```rust title="context.nr"
-  fn consume_l1_to_l2_message(
-      &mut self, 
-      inputs: abi::PrivateContextInputs, 
-      msg_key: Field, 
-      content: Field, 
-      secret: Field
-  )
-```
+#include_code context_consume_l1_to_l2_message /yarn-project/noir-libs/aztec-noir/src/context.nr rust
 
 Computing the `content` might be a little clunky in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Non-native token example](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/non_native_token_contract/src/hash.nr).
 
@@ -62,27 +47,7 @@ The `inputs` that is passed into `consume_l1_to_l2_message` are only temporary, 
 
 An example usage of this flow is a token bridge, in the Aztec contract a `mint` function consumes a message from L1 and mints tokens to a user. Note that we are using a private function, as we don't want to expose the user that is receiving the tokens publicly.
 
-```rust title="NonNativeTokenContract.nr"
-// mints token upon consuming valid messages from portal
-fn mint(
-    ...
-    amount: Field,
-    owner: Field,
-    msg_key: Field,
-    secret: Field,
-) -> distinct pub abi::PrivateCircuitPublicInputs {
-    ...
-    let content_hash = get_mint_content_hash(amount, owner, canceller);
-
-    // Consume the message from L1
-    context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
-
-    // Mint the tokens to the owner
-    let balance = storage.balances.at(owner);
-    send_note(&mut context, balance, amount, owner);
-    ...
-}
-```
+#include_code non_native_token_mint yarn-project/noir-contracts/src/contracts/non_native_token_contract/src/main.nr rust
 
 After the transaction has been mined, the message is consumed, and the tokens have been minted on Aztec and are ready for use by the user. A consumed message cannot be consumed again. 
 
@@ -98,9 +63,7 @@ The portal must ensure that the sender is as expected. One way to do this, is to
 
 To send a message to L1 from your Aztec contract, you must use the `message_portal` function on the `context`. When messaging to L1, only the `content` is required (as field). 
 
-```rust title="context.nr"
-  fn message_portal(&mut self, content: Field)
-```
+#include_code context_message_portal /yarn-project/noir-libs/aztec-noir/src/context.nr rust
 
 When sending a message from L2 to L1 we don't need to pass recipient, deadline, secret nor fees. Recipient is populated with the attached portal and the remaining values are not needed as the message is inserted into the outbox at the same time as it was included in a block (for the inbox it could be inserted and then only included in rollup block later). 
 
@@ -110,68 +73,17 @@ Access control on the L1 portal contract is essential to prevent consumption of 
 
 As earlier, we can use a token bridge as an example. In this case, we are burning tokens on L2 and sending a message to the portal to free them on L1.
 
-```rust title="NonNativeTokenContract.nr"
-// burns token and sends a message to the portal
-fn withdraw(
-    amount: Field,
-    sender: Field,
-    recipient: Field,
-    callerOnL1: Field,
-) -> distinct pub abi::PrivateCircuitPublicInputs {
-    ...
-    let sender_balance = storage.balances.at(sender);
-    spend_notes(&mut context, sender_balance, amount, sender);
-
-    let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
-    context.message_portal(content);
-    ...
-}
-```
+#include_code non_native_token_withdraw yarn-project/noir-contracts/src/contracts/non_native_token_contract/src/main.nr rust
 
 When the transaction is included in a rollup block the message will be inserted into the `Outbox`, where the recipient portal can consume it from. When consuming, the `msg.sender` must match the `recipient` meaning that only portal can actually consume the message.
 
-```solidity title="IOutbox.sol"
-struct L2ToL1Msg {
-    DataStructures.L2Actor sender;
-    DataStructures.L1Actor recipient;
-    bytes32 content;
-}
+#include_code l2_to_l1_msg l1-contracts/src/core/libraries/DataStructures.sol solidity
 
-function consume(DataStructures.L2ToL1Msg memory _message) 
-    external 
-    returns (bytes32 entryKey);
-```
+#include_code outbox_consume l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol solidity
 
 As noted earlier, the portal contract should check that the sender is as expected. In the example below, we support only one sender contract (stored in `l2TokenAddress`) so we can just pass it as the sender, that way we will only be able to consume messages from that contract. If multiple senders are supported, you could use a have `mapping(address => bool) allowed` and check that `allowed[msg.sender]` is `true`.
 
-```solidity title="TokenPortal.sol"
-function withdraw(uint256 _amount, address _recipient, bool _withCaller)
-    external
-    returns (bytes32)
-  {
-    // Create the message structure
-    DataStructures.L2ToL1Msg memory message = DataStructures.L2ToL1Msg({
-      sender: DataStructures.L2Actor(l2TokenAddress, version),
-      recipient: DataStructures.L1Actor(address(this), block.chainid),
-      content: Hash.sha256ToField(
-        abi.encodeWithSignature(
-          "withdraw(uint256,address,address)",
-          _amount,
-          _recipient,
-          _withCaller ? msg.sender : address(0)
-        )
-        )
-    });
-
-    // Consume the message
-    bytes32 entryKey = registry.getOutbox().consume(message);
-
-    // Transfer the tokens to the user
-    underlying.transfer(_recipient, _amount);
-
-    return entryKey;
-  }
-```
+#include_code token_portal_withdraw l1-contracts/test/portals/TokenPortal.sol solidity
 
 
 ## How to deploy a contract with a portal
@@ -227,42 +139,11 @@ As this requires logic on the portal itself, it is not something that the protoc
 
 The portal can call the `cancelL2Message` at the `Inbox` when `block.timestamp > deadline` for the message.
 
-```solidity title="IInbox.sol"
-function cancelL2Message(
-    DataStructures.L1ToL2Msg memory _message, 
-    address _feeCollector
-) external returns (bytes32 entryKey);
-```
+#include_code pending_l2_cancel  l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 Building on our token example from earlier, this can be called like:
 
-```solidity title="TokenPortal.sol"
-function cancelL1ToAztecMessage(
-    bytes32 _to,
-    uint256 _amount,
-    uint32 _deadline,
-    bytes32 _secretHash,
-    uint64 _fee
-  ) external returns (bytes32) {
-    IInbox inbox = registry.getInbox();
-    DataStructures.L1Actor memory l1Actor = DataStructures.L1Actor(address(this), block.chainid);
-    DataStructures.L2Actor memory l2Actor = DataStructures.L2Actor(l2TokenAddress, 1);
-    DataStructures.L1ToL2Msg memory message = DataStructures.L1ToL2Msg({
-      sender: l1Actor,
-      recipient: l2Actor,
-      content: Hash.sha256ToField(
-        abi.encodeWithSignature("mint(uint256,bytes32,address)", _amount, _to, msg.sender)
-        ),
-      secretHash: _secretHash,
-      deadline: _deadline,
-      fee: _fee
-    });
-    bytes32 entryKey = inbox.cancelL2Message(message, address(this));
-    // Ensures that `msg.sender == canceller` by using `msg.sender` in the hash computation.
-    underlying.transfer(msg.sender, _amount);
-    return entryKey;
-  }
-```
+#include_code token_portal_cancel l1-contracts/test/portals/TokenPortal.sol solidity
 
 The example above ensure that the user can cancel their message if it is underpriced.
 
@@ -286,34 +167,7 @@ bytes memory message = abi.encodeWithSignature(
 
 This way, the message can be consumed by the portal contract, but only if the caller is the designated caller. By being a bit clever when specifying the designated caller, we can ensure that the calls are done in the correct order. For the Uniswap example, say that we have token portals implemented as we have done throughout this page, and n Uniswap portal implementing the designated caller:
 
-```solidity title="UniswapPortal.sol"
-  function swap(
-    address _inputTokenPortal,
-    uint256 _inAmount,
-    uint24 _uniswapFeeTier,
-    address _outputTokenPortal,
-    uint256 _amountOutMinimum,
-    bytes32 _aztecRecipient,
-    bytes32 _secretHash,
-    uint32 _deadlineForL1ToL2Message,
-    address _canceller,
-    bool _withCaller
-  ) public payable returns (bytes32) {
-    // Withdraw the input asset from the portal with designated caller 
-    TokenPortal(_inputTokenPortal).withdraw(_inAmount, address(this), true);
-
-    // Consume message to Uniswap portal (self)
-    registry.getOutbox().consume(...);
-
-    // swap...
-    uint256 amountOut = ROUTER.exactInputSingle(swapParams);
-
-    // Deposit the output asset to the L2 via its portal
-    return TokenPortal(_outputTokenPortal).depositToAztec{value: msg.value}(
-      _aztecRecipient, amountOut, _deadlineForL1ToL2Message, _secretHash, _canceller
-    );
-  }
-```
+#include_code solidity_uniswap_swap l1-contracts/test/portals/UniswapPortal.sol solidity
 
 We could then have withdraw transactions (on L2) where we are specifying the `UniswapPortal` as the caller. Because the order of the calls are specified in the contract, and that it reverts if any of them fail, we can be sure that it will execute the withdraw first, then the swap and then the deposit. Since only the `UniswapPortal` is able to execute the withdraw, we can be sure that the ordering is ensured. However, note that this means that if it for some reason is impossible to execute the batch (say prices moved greatly), the user will be stuck with the funds on L1 unless the `UniswapPortal` implements proper error handling!
 

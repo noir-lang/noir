@@ -91,6 +91,7 @@ contract NonNativeToken {
     // Mint Private Function
     // This mint function differs to the typical token mint function as it only allows minting
     // upon consuming valid messages from a token portal contract
+    // docs:start:non_native_token_mint
     #[aztec(private)]
     fn mint(
         amount: Field,
@@ -110,10 +111,12 @@ contract NonNativeToken {
         let balance = storage.balances.at(owner);
         increment(balance, amount, owner);
     }
+    // docs:end:non_native_token_mint
 
     // Withdraws using user's private balance.
     // @dev Destroys 2 of user's notes and sends a message to the L1 portal contract. That message can then be consumed
     //      by calling the `withdraw` function on the L1 portal contract (assuming the args are set correctly).
+    // docs:start:non_native_token_withdraw
     #[aztec(private)]
     fn withdraw(
         amount: Field,
@@ -129,6 +132,7 @@ contract NonNativeToken {
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
         context.message_portal(content);
     }
+    // docs:end:non_native_token_withdraw
 
     // Mint Public Function
     // This mint function differs to the typical token mint function as it only allows minting

@@ -24,6 +24,7 @@ interface IInbox {
 
   event L1ToL2MessageCancelled(bytes32 indexed entryKey);
 
+  // docs:start:send_l1_to_l2_message
   /**
    * @notice Inserts an entry into the Inbox
    * @dev Will emit `MessageAdded` with data for easy access by the sequencer
@@ -40,7 +41,9 @@ interface IInbox {
     bytes32 _content,
     bytes32 _secretHash
   ) external payable returns (bytes32);
+  // docs:end:send_l1_to_l2_message
 
+  // docs:start:pending_l2_cancel
   /**
    * @notice Cancel a pending L2 message
    * @dev Will revert if the deadline have not been crossed - message only cancellable past the deadline
@@ -53,7 +56,9 @@ interface IInbox {
   function cancelL2Message(DataStructures.L1ToL2Msg memory _message, address _feeCollector)
     external
     returns (bytes32 entryKey);
+  // docs:end:pending_l2_cancel
 
+  // docs:start:inbox_batch_consume
   /**
    * @notice Batch consumes entries from the Inbox
    * @dev Only callable by the rollup contract
@@ -62,29 +67,38 @@ interface IInbox {
    * @param _feeCollector - The address to receive the "fee"
    */
   function batchConsume(bytes32[] memory _entryKeys, address _feeCollector) external;
+  // docs:end:inbox_batch_consume
 
+  // docs:start:inbox_withdraw_fees
   /**
    * @notice Withdraws fees accrued by the sequencer
    */
   function withdrawFees() external;
+  // docs:end:inbox_withdraw_fees
 
+  // docs:start:inbox_get
   /**
    * @notice Fetch an entry
    * @param _entryKey - The key to lookup
    * @return The entry matching the provided key
    */
   function get(bytes32 _entryKey) external view returns (DataStructures.Entry memory);
+  // docs:end:inbox_get
 
+  // docs:start:inbox_contains
   /**
    * @notice Check if entry exists
    * @param _entryKey - The key to lookup
    * @return True if entry exists, false otherwise
    */
   function contains(bytes32 _entryKey) external view returns (bool);
+  // docs:end:inbox_contains
 
+  // docs:start:inbox_compute_entry_key
   /// @notice Given a message, computes an entry key for the Inbox
   function computeEntryKey(DataStructures.L1ToL2Msg memory _message)
     external
     pure
     returns (bytes32);
+  // docs:end:inbox_compute_entry_key
 }

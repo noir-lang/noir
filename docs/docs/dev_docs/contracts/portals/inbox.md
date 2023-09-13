@@ -10,14 +10,8 @@ The `Inbox` is a contract deployed on L1 that handles message passing from L1 to
 
 Sends a message from L1 to L2.
 
-```solidity
-function sendL2Message(
-  DataStructures.L2Actor memory _recipient,
-  uint32 _deadline,
-  bytes32 _content,
-  bytes32 _secretHash
-) external payable returns (bytes32);
-```
+#include_code send_l1_to_l2_message l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
+
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -40,12 +34,7 @@ function sendL2Message(
 ## `cancelL2Message()`
 Cancels a message that has not yet been consumed.
 
-```solidity
-function cancelL2Message(
-  DataStructures.L1ToL2Msg memory _message, 
-  address _feeCollector
-) external returns (bytes32 entryKey);
-```
+#include_code pending_l2_cancel l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
@@ -63,9 +52,8 @@ function cancelL2Message(
 
 Allows the `Rollup` to consume multiple messages in a single transaction.
 
-```solidity
-function batchConsume(bytes32[] memory _entryKeys, address _feeCollector) external;
-```
+#include_code inbox_batch_consume l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
+
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
 | `_entryKeys`   | `bytes32[]` | The entry keys (message hashs) to consume |
@@ -84,9 +72,7 @@ Will claim the fees that has accrued to the `msg.sender` from consuming messages
 
 Let the sequencer withdraw fees from the inbox.
 
-```solidity
-function withdrawFees() external;
-```
+#include_code inbox_withdraw_fees l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 #### Edge cases
 
@@ -95,10 +81,7 @@ function withdrawFees() external;
 ## `get()`
 Retrieves the `entry` for a given message. The entry contains fee, number of occurrences, deadline and version information. 
 
-```solidity
-function get(bytes32 _entryKey) 
-  external view returns (DataStructures.Entry memory);
-```
+#include_code inbox_get l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
@@ -112,11 +95,7 @@ function get(bytes32 _entryKey)
 ## `contains()`
 Returns whether the key exists in the inbox.
 
-```solidity
-function contains(
-  bytes32 _entryKey
-) external view returns (bool);
-```
+#include_code inbox_contains l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
@@ -126,11 +105,7 @@ function contains(
 ## `computeEntryKey()`
 Computes the hash of a message.
 
-```solidity
-function computeEntryKey(
-  DataStructures.L1ToL2Msg memory _message
-) external pure returns (bytes32 entryKey);
-```
+#include_code inbox_compute_entry_key l1-contracts/src/core/interfaces/messagebridge/IInbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |

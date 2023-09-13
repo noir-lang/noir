@@ -10,14 +10,7 @@ The `DataStructures` are structs that we are using throughout the message infras
 
 An entry for the messageboxes multi-sets. 
 
-```solidity title="DataStructures.sol"
-  struct Entry {
-    uint64 fee;
-    uint32 count;
-    uint32 version;
-    uint32 deadline;
-  }
-```
+#include_code data_structure_entry l1-contracts/src/core/libraries/DataStructures.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -31,12 +24,7 @@ An entry for the messageboxes multi-sets.
 
 An entity on L1, specifying the address and the chainId for the entity. Used when specifying sender/recipient with an entity that is on L1.
 
-```solidity title="DataStructures.sol"
-  struct L1Actor {
-    address actor;
-    uint256 chainId;
-  }
-```
+#include_code l1_actor l1-contracts/src/core/libraries/DataStructures.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -48,12 +36,7 @@ An entity on L1, specifying the address and the chainId for the entity. Used whe
 
 An entity on L2, specifying the address and the version for the entity. Used when specifying sender/recipient with an entity that is on L2.
 
-```solidity title="DataStructures.sol"
-  struct L2Actor {
-    bytes32 actor;
-    uint256 version;
-  }
-```
+#include_code l2_actor l1-contracts/src/core/libraries/DataStructures.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -64,16 +47,7 @@ An entity on L2, specifying the address and the version for the entity. Used whe
 
 A message that is sent from L1 to L2.
 
-```solidity title="DataStructures.sol"
-  struct L1ToL2Msg {
-    L1Actor sender;
-    L2Actor recipient;
-    bytes32 content;
-    bytes32 secretHash;
-    uint32 deadline;
-    uint64 fee;
-  }
-```
+#include_code l1_to_l2_msg l1-contracts/src/core/libraries/DataStructures.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -88,13 +62,7 @@ A message that is sent from L1 to L2.
 
 A message that is sent from L2 to L1.
 
-```solidity title="DataStructures.sol"
-  struct L2ToL1Msg {
-    DataStructures.L2Actor sender;
-    DataStructures.L1Actor recipient;
-    bytes32 content;
-  }
-```
+#include_code l2_to_l1_msg l1-contracts/src/core/libraries/DataStructures.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -106,14 +74,7 @@ A message that is sent from L2 to L1.
 
 A snapshot of the registry values.
 
-```solidity title="DataStructures.sol"
-  struct RegistrySnapshot {
-    address rollup;
-    address inbox;
-    address outbox;
-    uint256 blockNumber;
-  }
-```
+#include_code registry_snapshot l1-contracts/src/core/libraries/DataStructures.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |

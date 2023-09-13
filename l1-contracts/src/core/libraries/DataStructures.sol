@@ -8,6 +8,7 @@ pragma solidity >=0.8.18;
  * @notice Library that contains data structures used throughout the Aztec protocol
  */
 library DataStructures {
+  // docs:start:data_structure_entry
   /**
    * @notice Entry struct - Done as struct to easily support extensions if needed
    * @param fee - The fee provided to sequencer for including in the inbox. 0 if Outbox (as not applicable).
@@ -21,7 +22,9 @@ library DataStructures {
     uint32 version;
     uint32 deadline;
   }
+  // docs:end:data_structure_entry
 
+  // docs:start:l1_actor
   /**
    * @notice Actor on L1.
    * @param actor - The address of the actor
@@ -31,7 +34,9 @@ library DataStructures {
     address actor;
     uint256 chainId;
   }
+  // docs:end:l1_actor
 
+  // docs:start:l2_actor
   /**
    * @notice Actor on L2.
    * @param actor - The aztec address of the actor
@@ -41,7 +46,9 @@ library DataStructures {
     bytes32 actor;
     uint256 version;
   }
+  // docs:end:l2_actor
 
+  // docs:start:l1_to_l2_msg
   /**
    * @notice Struct containing a message from L1 to L2
    * @param sender - The sender of the message
@@ -59,7 +66,9 @@ library DataStructures {
     uint32 deadline;
     uint64 fee;
   }
+  // docs:end:l1_to_l2_msg
 
+  // docs:start:l2_to_l1_msg
   /**
    * @notice Struct containing a message from L2 to L1
    * @param sender - The sender of the message
@@ -71,7 +80,9 @@ library DataStructures {
     DataStructures.L1Actor recipient;
     bytes32 content;
   }
+  // docs:end:l2_to_l1_msg
 
+  // docs:start:registry_snapshot
   /**
    * @notice Struct for storing address of cross communication components and the block number when it was updated
    * @param rollup - The address of the rollup contract
@@ -85,4 +96,5 @@ library DataStructures {
     address outbox;
     uint256 blockNumber;
   }
+  // docs:end:registry_snapshot
 }

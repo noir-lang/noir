@@ -55,6 +55,7 @@ contract TokenPortal {
     return inbox.sendL2Message{value: msg.value}(actor, _deadline, contentHash, _secretHash);
   }
 
+  // docs:start:token_portal_cancel
   /**
    * @notice Cancel the L1 to L2 message
    * @dev only callable by the `canceller` of the message
@@ -92,7 +93,9 @@ contract TokenPortal {
     underlying.transfer(msg.sender, _amount);
     return entryKey;
   }
+  // docs:end:token_portal_cancel
 
+  // docs:start:token_portal_withdraw
   /**
    * @notice Withdraw funds from the portal
    * @dev Second part of withdraw, must be initiated from L2 first as it will consume a message from outbox
@@ -126,4 +129,5 @@ contract TokenPortal {
 
     return entryKey;
   }
+  // docs:end:token_portal_withdraw
 }

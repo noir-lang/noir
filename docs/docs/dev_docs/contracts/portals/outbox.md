@@ -10,9 +10,7 @@ The `Outbox` is a contract deployed on L1 that handles message passing from the 
 
 Inserts multiple messages from the `Rollup`.
 
-```solidity
-function sendL1Messages(bytes32[] memory _entryKey) external;
-```
+#include_code outbox_send_l1_msg l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol solidity
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
@@ -27,11 +25,8 @@ function sendL1Messages(bytes32[] memory _entryKey) external;
 
 Allows a recipient to consume a message from the `Outbox`.
 
-```solidity
-function consume(
-  DataStructures.L2ToL1Msg memory _message
-) external returns (bytes32 entryKey);
-```
+#include_code outbox_consume l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol solidity
+
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
@@ -48,10 +43,7 @@ function consume(
 ## `get()`
 Retrieves the `entry` for a given message. The entry contains fee, occurrences, deadline and version information. 
 
-```solidity
-function get(bytes32 _entryKey) 
-  external view returns (DataStructures.Entry memory);
-```
+#include_code outbox_get l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
@@ -64,11 +56,7 @@ function get(bytes32 _entryKey)
 ## `contains()`
 Returns whether the key is found in the inbox.
 
-```solidity
-function contains(
-  bytes32 _entryKey
-) external view returns (bool);
-```
+#include_code outbox_contains l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
@@ -78,11 +66,7 @@ function contains(
 ## `computeEntryKey()`
 Computes the hash of a message.
 
-```solidity
-function computeEntryKey(
-  DataStructures.L2ToL1Msg memory _message
-) external pure returns (bytes32 entryKey);
-```
+#include_code outbox_compute_entry_key l1-contracts/src/core/interfaces/messagebridge/IOutbox.sol solidity
 
 | Name           | Type        | Description |
 | -------------- | -------     | ----------- |
