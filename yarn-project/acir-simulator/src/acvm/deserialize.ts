@@ -22,7 +22,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { Tuple } from '@aztec/foundation/serialize';
 
-import { getReturnWitness } from 'acvm_js';
+import { getReturnWitness } from '@noir-lang/acvm_js';
 
 import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
 

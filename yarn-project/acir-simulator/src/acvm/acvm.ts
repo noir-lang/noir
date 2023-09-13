@@ -12,7 +12,7 @@ import {
   WasmBlackBoxFunctionSolver,
   WitnessMap,
   executeCircuitWithBlackBoxSolver,
-} from 'acvm_js';
+} from '@noir-lang/acvm_js';
 
 import { traverseCauseChain } from '../common/errors.js';
 

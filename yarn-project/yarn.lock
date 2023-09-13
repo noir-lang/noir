@@ -67,10 +67,10 @@ __metadata:
     "@aztec/noir-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@noir-lang/acvm_js": 0.26.1
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
-    acvm_js: "github:noir-lang/acvm-js-wasm#arv/0.25.0"
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
     levelup: ^5.1.1
@@ -2509,6 +2509,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noir-lang/acvm_js@npm:0.26.1":
+  version: 0.26.1
+  resolution: "@noir-lang/acvm_js@npm:0.26.1"
+  checksum: ae8cb6e31610cd8aa392855342d0c953a1bc4cd9e07236340341afa5815696a69a6635c38241f1d6a5dd30c5a8ae49234f2ba8b71d46c5d1a46756ff6f4dde3a
+  languageName: node
+  linkType: hard
+
 "@npmcli/fs@npm:^3.1.0":
   version: 3.1.0
   resolution: "@npmcli/fs@npm:3.1.0"
@@ -3966,13 +3973,6 @@ __metadata:
   bin:
     acorn: bin/acorn
   checksum: 538ba38af0cc9e5ef983aee196c4b8b4d87c0c94532334fa7e065b2c8a1f85863467bb774231aae91613fcda5e68740c15d97b1967ae3394d20faddddd8af61d
-  languageName: node
-  linkType: hard
-
-"acvm_js@github:noir-lang/acvm-js-wasm#arv/0.25.0":
-  version: 0.0.0-9d02637
-  resolution: "acvm_js@https://github.com/noir-lang/acvm-js-wasm.git#commit=73cc4c22f4d443c9b287ebd3824a80b912fd0e58"
-  checksum: 2a2923073a9835ec0200a7bc7818023e8ab2cc87aef6238c9ee3af2a844d535dfadfd2dbc75ed82593ea4cd26a0288f91989ee7bb3a37481f63be21b76628574
   languageName: node
   linkType: hard
 
