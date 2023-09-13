@@ -68,6 +68,10 @@ struct Context {
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
     max_block_id: u32,
+
+    /// Name of the function that we are running acir generation over.
+    /// This is used for debugging purposes.
+    function_name: Option<String>,
 }
 
 #[derive(Clone)]
@@ -155,6 +159,7 @@ impl Context {
             initialized_arrays: HashSet::new(),
             memory_blocks: HashMap::default(),
             max_block_id: 0,
+            function_name: None,
         }
     }
 
@@ -182,6 +187,7 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+        self.function_name = Some(main_func.name().to_string());
 
         for instruction_id in entry_block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
@@ -282,7 +288,10 @@ impl Context {
 
                 Ok(AcirValue::Array(elements))
             }
-            _ => unreachable!("ICE: Params to the program should only contains numbers and arrays"),
+            typ => unreachable!(
+                "ICE: Params to the program should only contains numbers and arrays, type is {:?} in function {:?}",
+                typ, self.function_name
+            ),
         }
     }
 
