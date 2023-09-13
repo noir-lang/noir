@@ -3,7 +3,10 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/arithmetization/gate_data.hpp"
+#include "barretenberg/serialize/cbind.hpp"
 #include <utility>
+
+#include <unordered_map>
 
 namespace proof_system {
 static constexpr uint32_t DUMMY_TAG = 0;
@@ -26,6 +29,8 @@ template <typename Arithmetization> class CircuitBuilderBase {
 
     std::vector<uint32_t> public_inputs;
     std::vector<FF> variables;
+    std::unordered_map<uint32_t, std::string> variable_names;
+
     // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
     std::vector<uint32_t> next_var_index;
     // index of  previous variable in equivalence class (=FIRST if you're in a cycle alone)
@@ -57,6 +62,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
         : selector_names_(std::move(selector_names))
     {
         variables.reserve(size_hint * 3);
+        variable_names.reserve(size_hint * 3);
         next_var_index.reserve(size_hint * 3);
         prev_var_index.reserve(size_hint * 3);
         real_variable_index.reserve(size_hint * 3);
@@ -187,6 +193,99 @@ template <typename Arithmetization> class CircuitBuilderBase {
         real_variable_tags.emplace_back(DUMMY_TAG);
         return index;
     }
+
+    /**
+     * Assign a name to a variable(equivalence class). Should be one name per equivalence class.
+     *
+     * @param index Index of the variable you want to name.
+     * @param name  Name of the variable.
+     *
+     */
+    virtual void set_variable_name(uint32_t index, const std::string& name)
+    {
+        ASSERT(variables.size() > index);
+        uint32_t first_idx = get_first_variable_in_class(index);
+
+        if (variable_names.contains(first_idx)) {
+            failure("Attempted to assign a name to a variable that already has a name");
+            return;
+        }
+        variable_names.insert({ first_idx, name });
+    }
+
+    /**
+     * After assert_equal() merge two class names if present.
+     * Preserves the first name in class.
+     *
+     * @param index Index of the variable you have previously named and used in assert_equal.
+     *
+     */
+    virtual void update_variable_names(uint32_t index)
+    {
+        uint32_t first_idx = get_first_variable_in_class(index);
+
+        uint32_t cur_idx = next_var_index[first_idx];
+        while (cur_idx != REAL_VARIABLE && !variable_names.contains(cur_idx)) {
+            cur_idx = next_var_index[cur_idx];
+        }
+
+        if (variable_names.contains(first_idx)) {
+            if (cur_idx != REAL_VARIABLE) {
+                variable_names.extract(cur_idx);
+            }
+            return;
+        }
+
+        if (cur_idx != REAL_VARIABLE) {
+            std::string var_name = variable_names.find(cur_idx)->second;
+            variable_names.erase(cur_idx);
+            variable_names.insert({ first_idx, var_name });
+            return;
+        }
+        failure("No previously assigned names found");
+    }
+
+    /**
+     * After finishing the circuit can be called for automatic merging
+     * all existing collisions.
+     *
+     */
+    virtual void finalize_variable_names()
+    {
+        std::vector<uint32_t> keys;
+        std::vector<uint32_t> firsts;
+
+        for (auto& tup : variable_names) {
+            keys.push_back(tup.first);
+            firsts.push_back(get_first_variable_in_class(tup.first));
+        }
+
+        for (size_t i = 0; i < keys.size() - 1; i++) {
+            for (size_t j = i + 1; j < keys.size(); i++) {
+                uint32_t first_idx_a = firsts[i];
+                uint32_t first_idx_b = firsts[j];
+                if (first_idx_a == first_idx_b) {
+                    std::string substr1 = variable_names[keys[i]];
+                    std::string substr2 = variable_names[keys[j]];
+                    failure("Variables from the same equivalence class have separate names: " + substr2 + ", " +
+                            substr2);
+                    update_variable_names(first_idx_b);
+                }
+            }
+        }
+    }
+
+    /**
+     * Export the existing circuit as msgpack compatible buffer.
+     *
+     * @return msgpack compatible buffer
+     */
+    virtual msgpack::sbuffer export_circuit()
+    {
+        info("not implemented");
+        return { 0 };
+    };
+
     /**
      * Add a public variable to variables
      *

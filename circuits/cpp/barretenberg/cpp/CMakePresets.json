@@ -89,6 +89,16 @@
       }
     },
     {
+      "name": "smt-verification",
+      "displayName": "Build with smt verificaiton",
+      "description": "Build default preset but with smt library included",
+      "inherits": "clang16",
+      "binaryDir": "build-smt",
+      "cacheVariables": {
+        "SMT": "ON"
+      }
+    },
+    {
       "name": "coverage",
       "displayName": "Build with coverage",
       "description": "Build default preset but with coverage enabled",
@@ -190,6 +200,11 @@
       "inherits": "default",
       "configurePreset": "fuzzing"
     },
+    { 
+      "name": "smt-verification",
+      "inherits": "clang16",
+      "configurePreset": "smt-verification"
+    },
     {
       "name": "coverage",
       "inherits": "default",
@@ -257,6 +272,11 @@
       "name": "fuzzing",
       "inherits": "default",
       "configurePreset": "fuzzing"
+    },
+    {
+      "name": "smt-verification",
+      "inherits": "clang16",
+      "configurePreset": "smt-verification"
     },
     {
       "name": "coverage",

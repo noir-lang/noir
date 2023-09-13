@@ -4,6 +4,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "barretenberg/serialize/cbind.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
+
 using namespace barretenberg;
 
 namespace proof_system {
@@ -507,6 +510,56 @@ template <typename FF> bool StandardCircuitBuilder_<FF>::check_circuit()
     }
     return true;
 }
+
+/**
+ * Export the existing circuit as msgpack compatible buffer.
+ *
+ * @return msgpack compatible buffer
+ */
+template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circuit()
+{
+    using base = CircuitBuilderBase<arithmetization::Standard<FF>>;
+    CircuitSchema cir;
+    
+    uint64_t modulus[4] = {FF::Params::modulus_0, FF::Params::modulus_1, FF::Params::modulus_2, FF::Params::modulus_3};
+    std::stringstream buf;
+    buf << std::hex << std::setfill('0') 
+        << std::setw(16) << modulus[3] 
+        << std::setw(16) << modulus[2] 
+        << std::setw(16) << modulus[1] 
+        << std::setw(16) << modulus[0];
+
+    cir.modulus = buf.str();
+    
+    for (uint32_t i = 0; i < this->get_num_public_inputs(); i++) {
+        cir.public_inps.push_back(this->real_variable_index[this->public_inputs[i]]);
+    }
+
+    for (auto& tup : base::variable_names) {
+        cir.vars_of_interest.insert({ this->real_variable_index[tup.first], tup.second });
+    }
+
+    for (auto var : this->variables) {
+        cir.variables.push_back(var);
+    }
+
+    for (size_t i = 0; i < this->num_gates; i++) {
+        std::vector<FF> tmp_sel = { q_m[i], q_1[i], q_2[i], q_3[i], q_c[i] };
+        std::vector<uint32_t> tmp_w = {
+            this->real_variable_index[w_l[i]],
+            this->real_variable_index[w_r[i]],
+            this->real_variable_index[w_o[i]],
+        };
+        cir.selectors.push_back(tmp_sel);
+        cir.wires.push_back(tmp_w);
+    }
+
+    msgpack::sbuffer buffer;
+    msgpack::pack(buffer, cir);
+    return buffer;
+}
+
 template class StandardCircuitBuilder_<barretenberg::fr>;
 template class StandardCircuitBuilder_<grumpkin::fr>;
+
 } // namespace proof_system

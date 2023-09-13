@@ -113,6 +113,19 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     size_t get_num_constant_gates() const override { return 0; }
 
     bool check_circuit();
+
+    msgpack::sbuffer export_circuit() override;
+
+  private:
+    struct CircuitSchema {
+        std::string modulus;
+        std::vector<uint32_t> public_inps;
+        std::unordered_map<uint32_t, std::string> vars_of_interest;
+        std::vector<FF> variables;
+        std::vector<std::vector<FF>> selectors;
+        std::vector<std::vector<uint32_t>> wires;
+        MSGPACK_FIELDS(modulus, public_inps, vars_of_interest, variables, selectors, wires);
+    } circuit_schema;
 };
 
 extern template class StandardCircuitBuilder_<barretenberg::fr>;
