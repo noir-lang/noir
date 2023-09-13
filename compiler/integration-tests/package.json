@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "build": "echo Integration Test build step",
     "test": "yarn test:browser",
     "test:browser": "web-test-runner",
     "test:integration:browser": "web-test-runner test//integration/browser/**/*.test.ts",
