@@ -29,6 +29,7 @@ version = "0.11.1"
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
+license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 acvm = "0.26.1"

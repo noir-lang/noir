@@ -75,13 +75,13 @@ mod tests {
         input_parser::{Format, InputValue},
         Abi, AbiParameter, AbiType, AbiVisibility,
     };
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     use super::{read_inputs_from_file, write_inputs_to_file};
 
     #[test]
     fn write_and_read_recovers_inputs_and_return_value() {
-        let input_dir = TempDir::new("input_dir").unwrap().into_path();
+        let input_dir = TempDir::new().unwrap().into_path();
 
         // We purposefully test a simple ABI here as we're focussing on `fs`.
         // Tests for serializing complex types should exist in `noirc_abi`.
