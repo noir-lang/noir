@@ -9,7 +9,7 @@ import {
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
-import { CommitmentDataOracleInputs, MessageLoadOracleInputs } from '../client/db_oracle.js';
+import { MessageLoadOracleInputs } from '../client/db_oracle.js';
 import { ACVMField, toACVMField } from './acvm.js';
 
 // Utilities to write TS classes to ACVM Field arrays
@@ -156,23 +156,6 @@ export function toAcvmL1ToL2MessageLoadOracleInputs(
     ...messageLoadOracleInputs.message.map(f => toACVMField(f)),
     toACVMField(messageLoadOracleInputs.index),
     ...messageLoadOracleInputs.siblingPath.map(f => toACVMField(f)),
-    toACVMField(l1ToL2MessagesTreeRoot),
-  ];
-}
-
-/**
- * Converts the result of loading commitments to ACVM fields.
- * @param commitmentLoadOracleInputs - The result of loading messages to convert.
- * @param l1ToL2MessagesTreeRoot - The L1 to L2 messages tree root
- * @returns The Message Oracle Fields.
- */
-export function toAcvmCommitmentLoadOracleInputs(
-  messageLoadOracleInputs: CommitmentDataOracleInputs,
-  l1ToL2MessagesTreeRoot: Fr,
-): ACVMField[] {
-  return [
-    toACVMField(messageLoadOracleInputs.commitment),
-    toACVMField(messageLoadOracleInputs.index),
     toACVMField(l1ToL2MessagesTreeRoot),
   ];
 }

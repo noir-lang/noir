@@ -22,17 +22,28 @@ unconstrained fn notify_created_note<N>(
 
 #[oracle(notifyNullifiedNote)]
 fn notify_nullified_note_oracle<N>(
-    _storage_slot: Field,
     _nullifier: Field,
     _inner_note_hash: Field,
 ) -> Field {}
 
 unconstrained fn notify_nullified_note<N>(
-    storage_slot: Field,
     nullifier: Field,
     inner_note_hash: Field,
 ) -> Field {
-    notify_nullified_note_oracle(storage_slot, nullifier, inner_note_hash)
+    notify_nullified_note_oracle(nullifier, inner_note_hash)
+}
+
+#[oracle(checkNoteHashExists)]
+fn check_note_hash_exists_oracle<N>(
+    _nonce: Field,
+    _inner_note_hash: Field,
+) -> Field {}
+
+unconstrained fn check_note_hash_exists(
+    nonce: Field,
+    inner_note_hash: Field,
+) -> bool {
+    check_note_hash_exists_oracle(nonce, inner_note_hash) == 1
 }
 
 #[oracle(getNotes)]

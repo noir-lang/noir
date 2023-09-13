@@ -46,22 +46,6 @@ export interface MessageLoadOracleInputs {
 }
 
 /**
- * The format noir uses to get commitments.
- */
-export interface CommitmentDataOracleInputs {
-  /** The siloed commitment. */
-  commitment: Fr;
-  /**
-   * The path in the merkle tree to the commitment.
-   */
-  siblingPath: Fr[];
-  /**
-   * The index of the message commitment in the merkle tree.
-   */
-  index: bigint;
-}
-
-/**
  * A function ABI with optional debug metadata
  */
 export interface FunctionAbiWithDebugMetadata extends FunctionAbi {

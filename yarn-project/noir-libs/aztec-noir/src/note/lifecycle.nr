@@ -50,7 +50,6 @@ fn create_note_hash_from_public<Note, N>(
 
 fn destroy_note<Note, N>(
     context: &mut PrivateContext,
-    storage_slot: Field,
     note: Note,
     note_interface: NoteInterface<Note, N>,
 ) {
@@ -72,7 +71,7 @@ fn destroy_note<Note, N>(
         // TODO(1718): Can we reuse the note commitment computed in `compute_nullifier`?
         nullified_commitment = compute_inner_note_hash(note_interface, note);
     }
-    assert(notify_nullified_note(storage_slot, nullifier, nullified_commitment) == 0);
+    assert(notify_nullified_note(nullifier, nullified_commitment) == 0);
 
     context.push_new_nullifier(nullifier, nullified_commitment)
 }

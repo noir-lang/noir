@@ -56,7 +56,7 @@ impl<Note, N> Singleton<Note, N> {
         let prev_note = get_note(context, self.storage_slot, self.note_interface);
 
         // Nullify previous note.
-        destroy_note(context, self.storage_slot, prev_note, self.note_interface);
+        destroy_note(context, prev_note, self.note_interface);
 
         // Add replacement note.
         create_note(context, self.storage_slot, new_note, self.note_interface);
@@ -67,7 +67,7 @@ impl<Note, N> Singleton<Note, N> {
         let mut note = get_note(context, self.storage_slot, self.note_interface);
 
         // Nullify current note to make sure it's reading the latest note.
-        destroy_note(context, self.storage_slot, note, self.note_interface);
+        destroy_note(context, note, self.note_interface);
 
         // Add the same note again.
         // Because a nonce is added to every note in the kernel, its nullifier will be different.
