@@ -212,6 +212,7 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
     }
 
     slice = slice.push_back(30);
+    
     if x == 20 {
         slice = slice.push_back(20);
     }
