@@ -139,9 +139,10 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
-                    match interner.function_meta(&func_id).attributes.primary {
+                    let func_meta = interner.function_meta(&func_id);
+                    match func_meta.attributes.primary {
                         Some(PrimaryAttribute::Test(scope)) => {
-                            Some(TestFunction::new(func_id, scope))
+                            Some(TestFunction::new(func_id, scope, func_meta.name.location))
                         }
                         _ => None,
                     }
@@ -239,16 +240,21 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 pub struct TestFunction {
     id: FuncId,
     scope: TestScope,
+    location: Location,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope) -> Self {
-        TestFunction { id, scope }
+    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
+        TestFunction { id, scope, location }
     }
 
     /// Returns the function id of the test function
     pub fn get_id(&self) -> FuncId {
         self.id
+    }
+
+    pub fn file_id(&self) -> FileId {
+        self.location.file
     }
 
     /// Returns true if the test function has been specified to fail

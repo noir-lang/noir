@@ -2266,6 +2266,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "serde",
  "serde_json",
  "tokio",
  "toml",
