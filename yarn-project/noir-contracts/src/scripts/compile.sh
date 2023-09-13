@@ -13,4 +13,5 @@ set -euo pipefail;
 
 # Run build scripts
 ./scripts/compile.sh "$@"
+echo "Generating types"
 ./scripts/types.sh "$@"

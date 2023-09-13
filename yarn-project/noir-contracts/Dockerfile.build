@@ -20,6 +20,5 @@ RUN ./scripts/install_noirup.sh $(pwd)
 ENV PATH="/usr/src/yarn-project/noir-contracts/.nargo/bin:${PATH}"
 
 RUN ./scripts/install_noir.sh
-RUN ./scripts/install_noir_backend.sh
-RUN ./scripts/compile_ci.sh
+RUN ./scripts/compile_all.sh
 RUN ./scripts/nargo_test_ci.sh

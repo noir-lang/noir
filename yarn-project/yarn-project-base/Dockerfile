@@ -122,7 +122,7 @@ WORKDIR /usr/src/yarn-project/noir-contracts
 
 # Run yarn build to have the json ABIs available for the types generator
 RUN yarn build
-RUN ./scripts/types_ci.sh
+RUN ./scripts/types_all.sh
 # Run yarn build again to build the types
 RUN yarn build
 
