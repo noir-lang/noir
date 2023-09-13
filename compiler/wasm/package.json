@@ -20,6 +20,7 @@
     "url": "https://github.com/noir-lang/noir_wasm.git"
   },
   "scripts": {
+    "build": "bash ./build.sh",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner"
