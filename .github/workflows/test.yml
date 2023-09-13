@@ -3,6 +3,9 @@ name: Test
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -14,13 +17,6 @@ jobs:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
-    env:
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
 
     strategy:
       fail-fast: false
@@ -34,24 +30,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore nix store cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
         with:
           targets: ${{ matrix.target }}
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
       - name: Run tests
         run: cargo test --workspace --locked --release
-
-      - uses: actions/cache/save@v3
-        # Write a cache entry even if the tests fail but don't create any for the merge queue.
-        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}

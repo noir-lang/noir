@@ -1,0 +1,46 @@
+name: Publish ABI Wasm
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  noirc-abi-wasm-build:
+    runs-on: ubuntu-latest
+    env:
+      CACHED_PATH: /tmp/nix-cache
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          registry-url: "https://registry.npmjs.org"
+          node-version: 18.15
+
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-23.05
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build noirc_abi_wasm
+        run: |
+          nix build -L .#noirc_abi_wasm
+
+      - name: Discover Build Output Path
+        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result)" >> $GITHUB_ENV
+
+      - name: Copy Build Output to Temporary Directory
+        run: |
+          mkdir temp_publish_dir
+          cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
+
+      - name: Publish to NPM
+        working-directory: ./temp_publish_dir
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
