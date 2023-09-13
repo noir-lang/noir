@@ -1,8 +1,13 @@
-use crate::program::{deserialize_circuit, serialize_circuit};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
 use acvm::acir::circuit::Circuit;
+use fm::FileId;
 use noirc_abi::Abi;
 use noirc_errors::debug_info::DebugInfo;
-use serde::{Deserialize, Serialize};
+
+use super::debug::DebugFile;
+use crate::program::{deserialize_circuit, serialize_circuit};
 
 /// Describes the types of smart contract functions that are allowed.
 /// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'
@@ -28,6 +33,8 @@ pub struct CompiledContract {
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`
     /// stored in this `Vector`.
     pub functions: Vec<ContractFunction>,
+
+    pub file_map: BTreeMap<FileId, DebugFile>,
 }
 
 /// Each function in the contract will be compiled
