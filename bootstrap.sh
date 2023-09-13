@@ -15,6 +15,7 @@ if [ -n "$CLEAN" ]; then
       exit 1
     fi
     rm -rf .git/hooks/*
+    rm -rf .git/modules/*
     git clean -fd
     for SUBMODULE in $(git config --file .gitmodules --get-regexp path | awk '{print $2}'); do
       rm -rf $SUBMODULE

@@ -13,5 +13,8 @@ echo -e '\n\033[1mUpdate npm deps...\033[0m'
 echo -e '\n\033[1mRebuild Noir contracts...\033[0m'
 (cd yarn-project/noir-contracts && yarn noir:build:all 2> /dev/null)
 
+echo -e '\n\033[1mRebuild barretenberg wasm...\033[0m'
+(cd barretenberg/cpp && cmake --build --preset wasm && cmake --build --preset wasm-threads)
+
 echo -e '\n\033[1mRebuild circuits wasm...\033[0m'
 (cd circuits/cpp && cmake --build --preset wasm -j --target aztec3-circuits.wasm)
