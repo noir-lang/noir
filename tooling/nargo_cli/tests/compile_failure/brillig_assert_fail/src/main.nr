@@ -2,7 +2,7 @@
 // 
 // The features being tested is using assert on brillig
 fn main(x: Field)  {
-    assert(1 == conditional(x == 1));
+    assert(1 == conditional(x as bool));
 }
 
 unconstrained fn conditional(x : bool) -> Field {
