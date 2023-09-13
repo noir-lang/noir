@@ -27,7 +27,7 @@ result
 **/target
 !tooling/nargo_cli/tests/acir_artifacts/*/target
 !tooling/nargo_cli/tests/acir_artifacts/*/target/witness.gz
-
+!compiler/wasm/noir-script/target
 # Github Actions scratch space
 # This gives a location to download artifacts into the repository in CI without making git dirty.
 libbarretenberg-wasm32
