@@ -199,7 +199,7 @@ fn compile_failure_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute");
+    cmd.arg("compile");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
