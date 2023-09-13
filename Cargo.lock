@@ -4,8 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddfd6bb6cb07ac4869c58d6e0219f447c2d550a9b2f135f27a6bc6ae0178c379"
 dependencies = [
  "acir_field",
  "bincode",
@@ -17,8 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f41bc6e6dab8bd68516970371d7dd897d09e9bf0aa17a72c5e51cefcdad6573"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -30,8 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79eb3b6adc177c907e03b9414a45ef5b37100eb51503c573b3eaf383e93a7543"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -63,8 +66,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3aac4ad683de5aebb590168405c46cdfd76dc7706a7d2c51d029258772d1933e"
 dependencies = [
  "acir",
  "blake2",
@@ -88,8 +92,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3344180fe2a59d57cdb0e6251cdc7d9978f15c06eace1af7d82bab12dd3ced9"
 dependencies = [
  "acir",
 ]
@@ -492,8 +497,9 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "448a380e86405ad785c235907654bea2080386d03c77a2003063ddabb853d744"
 dependencies = [
  "acir_field",
  "serde",
@@ -501,8 +507,9 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed1097a496ff44eb2b8f01789dfefb5bbd9364b132d9c2446a4ca18090259bf6"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -4630,3 +4637,8 @@ dependencies = [
  "quote",
  "syn 2.0.26",
 ]
+
+[[patch.unused]]
+name = "acvm"
+version = "0.26.0"
+source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
