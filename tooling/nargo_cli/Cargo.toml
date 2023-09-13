@@ -56,7 +56,7 @@ acvm-backend-barretenberg = { path = "../acvm_backend_barretenberg" }
 tokio-util = { version = "0.7.8", features = ["compat"] }
 
 [dev-dependencies]
-tempdir = "0.3.7"
+tempfile = "3.6.0"
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"

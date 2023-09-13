@@ -4,7 +4,6 @@ mod tests {
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
     use predicates::prelude::*;
-    use tempdir::TempDir;
 
     use std::collections::BTreeMap;
     use std::fs;
