@@ -4,6 +4,7 @@
     "The Noir Team <team@noir-lang.org>"
   ],
   "version": "0.10.3",
+  "license": "(MIT OR Apache-2.0)",
   "files": [
     "nodejs",
     "web",

@@ -1,6 +1,7 @@
 {
   "name": "integration-tests",
   "version": "1.0.0",
+  "license": "(MIT OR Apache-2.0)",
   "main": "index.js",
   "scripts": {
     "build": "echo Integration Test build step",
@@ -14,6 +15,6 @@
     "@noir-lang/acvm_js": "^0.26.0",
     "@noir-lang/noir-source-resolver": "1.1.4",
     "@noir-lang/noir_wasm": "0.11.1",
-    "@noir-lang/noirc_abi": "0.8.0"
+    "@noir-lang/noirc_abi": "0.10.3"
   }
 }

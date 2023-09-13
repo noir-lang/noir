@@ -138,7 +138,6 @@ jobs:
           working-directory: ./compiler/wasm
 
       - name: Install dependencies
-        working-directory: ./compiler/wasm
         run: yarn install
 
       - name: Install playwright deps
@@ -150,5 +149,5 @@ jobs:
       - name: Run tests
         working-directory: ./compiler/wasm
         run: |
-          yarn test:browser
-          yarn test:node
+          yarn workspace @noir-lang/noir_wasm test:browser
+          yarn workspace @noir-lang/noir_wasm test:node
