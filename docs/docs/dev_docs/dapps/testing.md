@@ -133,7 +133,7 @@ To query storage directly, you'll need to know the slot you want to access. This
 
 Private state in the Aztec Network is represented via sets of [private notes](../../concepts/foundation/state_model.md#private-state). In our token contract example, the balance of a user is represented as a set of unspent value notes, each with their own corresponding numeric value.
 
-#include_code value-note-def yarn-project/noir-libs/value-note/src/value_note.nr rust
+#include_code value-note-def yarn-project/aztec-nr/value-note/src/value_note.nr rust
 
 We can query the RPC server for all notes encrypted for a given user in a contract slot. For this example, we'll get all notes encrypted for the `owner` user that are stored on the token contract address and on the slot we calculated earlier. To calculate the actual balance, we extract the `value` of each note, which is the first element, and sum them up.
 

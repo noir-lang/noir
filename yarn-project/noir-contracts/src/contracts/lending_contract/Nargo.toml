@@ -5,5 +5,5 @@ compiler_version = "0.1"
 type = "contract"
 
 [dependencies]
-aztec = { path = "../../../../noir-libs/aztec-noir" }
-safe_math = { path = "../../../../noir-libs/safe-math" }
+aztec = { path = "../../../../aztec-nr/aztec" }
+safe_math = { path = "../../../../aztec-nr/safe-math" }

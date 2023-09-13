@@ -71,7 +71,7 @@ In a future version, encryption keys will be differentiated between incoming and
 
 An application in Aztec.nr can access the encryption public key for a given address using the oracle call `get_public_key`, which you can then use for calls such as `emit_encrypted_log`:
 
-#include_code encrypted /yarn-project/noir-libs/value-note/src/utils.nr rust
+#include_code encrypted /yarn-project/aztec-nr/value-note/src/utils.nr rust
 
 :::info
 In order to be able to provide the public encryption key for a given address, that public key needs to have been registered in advance. At the moment, there is no broadcasting mechanism for public keys, which means that you will need to manually register all addresses you intend to send encrypted notes to. You can do this via the `registerRecipient` method of the Aztec RPC server, callable either via aztec.js or the CLI. Note that any accounts you own that have been added to the RPC server are automatically registered.
@@ -83,7 +83,7 @@ In addition to deriving encryption keys, the privacy master key is used for deri
 
 An application in Aztec.nr can request a nullifier from the current user for computing the nullifier of a note via the `get_secret_key` oracle call:
 
-#include_code nullifier /yarn-project/noir-libs/value-note/src/value_note.nr rust
+#include_code nullifier /yarn-project/aztec-nr/value-note/src/value_note.nr rust
 
 ### Scoped keys
 

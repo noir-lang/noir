@@ -102,7 +102,7 @@
       "^l1-contracts/",
       "^yarn-project/l1-artifacts/",
       "^yarn-project/noir-contracts/",
-      "^yarn-project/noir-libs/",
+      "^yarn-project/aztec-nr/",
       "^yarn-project/noir-compiler/",
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
@@ -199,7 +199,7 @@
     "dockerfile": "noir-contracts/Dockerfile.build",
     "rebuildPatterns": [
       "^yarn-project/noir-contracts/",
-      "^yarn-project/noir-libs/"
+      "^yarn-project/aztec-nr/"
     ]
   },
   "noir-contracts": {
@@ -208,7 +208,7 @@
     "dockerfile": "noir-contracts/Dockerfile",
     "rebuildPatterns": [
       "^yarn-project/noir-contracts/",
-      "^yarn-project/noir-libs/"
+      "^yarn-project/aztec-nr/"
     ]
   },
   "noir-compiler": {

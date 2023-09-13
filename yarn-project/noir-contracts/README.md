@@ -122,7 +122,7 @@ It has prebuilt binaries and is super easy to install using `noirup`
    compiler_version = "0.7.1"
 
    [dependencies]
-   aztec = { path = "../../../../noir-libs/aztec-noir" }
+   aztec = { path = "../../../../aztec-nr/aztec" }
    ```
 
 4. Replace the content of the generated `example_contract/src/main.nr` file with your contract code.

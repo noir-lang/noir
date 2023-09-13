@@ -37,7 +37,7 @@ As time passes, a sequencer will see your tx, the juicy fee provided and include
 To consume the message, we can use the `consume_l1_to_l2_message` function within the `context` struct. 
 The `msg_key` is the hash of the message produced from the `sendL2Message` call, the `content` is the content of the message, and the `secret` is the pre-image hashed to compute the `secretHash`.
 
-#include_code context_consume_l1_to_l2_message /yarn-project/noir-libs/aztec-noir/src/context.nr rust
+#include_code context_consume_l1_to_l2_message /yarn-project/aztec-nr/aztec/src/context.nr rust
 
 Computing the `content` might be a little clunky in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Non-native token example](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/non_native_token_contract/src/hash.nr).
 
@@ -63,7 +63,7 @@ The portal must ensure that the sender is as expected. One way to do this, is to
 
 To send a message to L1 from your Aztec contract, you must use the `message_portal` function on the `context`. When messaging to L1, only the `content` is required (as field). 
 
-#include_code context_message_portal /yarn-project/noir-libs/aztec-noir/src/context.nr rust
+#include_code context_message_portal /yarn-project/aztec-nr/aztec/src/context.nr rust
 
 When sending a message from L2 to L1 we don't need to pass recipient, deadline, secret nor fees. Recipient is populated with the attached portal and the remaining values are not needed as the message is inserted into the outbox at the same time as it was included in a block (for the inbox it could be inserted and then only included in rollup block later). 
 

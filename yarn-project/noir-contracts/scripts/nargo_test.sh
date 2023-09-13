@@ -38,7 +38,7 @@ test() {
     nargo test --package ${PROJECT_NAME}_contract
   else
     echo "Testing library $PROJECT_NAME..."
-    cd ../noir-libs/$PROJECT_NAME
+    cd ../aztec-nr/$PROJECT_NAME
     nargo test
   fi
 }

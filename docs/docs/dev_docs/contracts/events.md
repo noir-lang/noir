@@ -44,11 +44,11 @@ await aztecRpc.registerRecipient(completeAddress);
 
 To emit encrypted logs first import the `emit_encrypted_log` utility function inside your contract:
 
-#include_code encrypted_import /yarn-project/noir-libs/value-note/src/utils.nr rust
+#include_code encrypted_import /yarn-project/aztec-nr/value-note/src/utils.nr rust
 
 Then you can call the function:
 
-#include_code encrypted /yarn-project/noir-libs/value-note/src/utils.nr rust
+#include_code encrypted /yarn-project/aztec-nr/value-note/src/utils.nr rust
 
 
 ### Unencrypted Events

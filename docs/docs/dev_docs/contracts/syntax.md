@@ -2,7 +2,7 @@
 
 [Noir](https://noir-lang.org/) is a language which is agnostic to proof systems and use cases. Rather than baking Aztec-specific keywords and smart contract types directly into Noir (which would break this agnosticism), we have developed a library -- written in Noir -- whose types and methods provide rich smart contract semantics.
 
-On top of [Noir's stdlib](https://noir-lang.org/standard_library/array_methods), we provide [Aztec.nr](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-libs) for writing contracts on Aztec.
+On top of [Noir's stdlib](https://noir-lang.org/standard_library/array_methods), we provide [Aztec.nr](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-nr) for writing contracts on Aztec.
 
 Aztec.nr contains abstractions which remove the need to understand the low-level Aztec protocol. Notably, it provides:
 

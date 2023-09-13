@@ -12,7 +12,7 @@ concurrency:
 on:
   schedule:
     # Run the workflow every night at 2:00 AM UTC.
-    cron: '0 2 * * *'
+    - cron: '0 2 * * *'
 
 jobs:
   mirror-to-docs-repo:
@@ -68,6 +68,27 @@ jobs:
       - name: Push to barretenberg repo
         run: |
           SUBREPO_PATH=barretenberg
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+            git fetch # in case a commit came after this
+            git rebase origin/master
+            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+            git push
+          fi
+
+  mirror-to-aztec-nr-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+      - name: Push to aztec-nr repo
+        run: |
+          SUBREPO_PATH=yarn-project/aztec-nr
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
 
