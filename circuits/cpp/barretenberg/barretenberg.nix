@@ -14,7 +14,7 @@ in
 buildEnv.mkDerivation
 {
   pname = "libbarretenberg";
-  version = "0.6.7"; # x-release-please-version
+  version = "0.7.0"; # x-release-please-version
 
   src = ./cpp;
 

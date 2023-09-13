@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.6.7...barretenberg.js-v0.7.0) (2023-09-13)
+
+
+### Bug Fixes
+
+* Add cjs-entry to bbjs package files ([#2237](https://github.com/AztecProtocol/aztec-packages/issues/2237)) ([ae16193](https://github.com/AztecProtocol/aztec-packages/commit/ae16193b3cdb2da3d57a1c74f7e71f139ced54d1))
+
+
+### Miscellaneous
+
+* Add debugging to run_tests ([#2212](https://github.com/AztecProtocol/aztec-packages/issues/2212)) ([1c5e78a](https://github.com/AztecProtocol/aztec-packages/commit/1c5e78a4ac01bee4b785857447efdb02d8d9cb35))
+
 ## [0.6.7](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.6.6...barretenberg.js-v0.6.7) (2023-09-11)
 
 

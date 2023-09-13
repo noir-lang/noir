@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.7.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.6.7...aztec-packages-v0.7.0) (2023-09-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **aztec-noir:** rename noir-aztec to aztec-noir ([#2071](https://github.com/AztecProtocol/aztec-packages/issues/2071))
+
+### Features
+
+* **build:** Use LTS version of ubuntu ([#2239](https://github.com/AztecProtocol/aztec-packages/issues/2239)) ([ce6671e](https://github.com/AztecProtocol/aztec-packages/commit/ce6671e6ab72fcdc8114df5b6a45f81c0086b19d))
+* **ci:** Run nargo test in ci on all packages  ([#2197](https://github.com/AztecProtocol/aztec-packages/issues/2197)) ([cca55f2](https://github.com/AztecProtocol/aztec-packages/commit/cca55f225f7277cfb44b44e4d1f50d5527afdb8b))
+* **cli:** Add commands for generating ts and nr interfaces ([#2241](https://github.com/AztecProtocol/aztec-packages/issues/2241)) ([c11b70d](https://github.com/AztecProtocol/aztec-packages/commit/c11b70d8186ef7ab9a9d4ab1a09589e7c47e91bb)), closes [#2183](https://github.com/AztecProtocol/aztec-packages/issues/2183)
+* **cli:** Inspect contract command ([#2248](https://github.com/AztecProtocol/aztec-packages/issues/2248)) ([381706e](https://github.com/AztecProtocol/aztec-packages/commit/381706eaaad7054d620855f7b986e2df3cf62a91)), closes [#2180](https://github.com/AztecProtocol/aztec-packages/issues/2180)
+* Define specific Sandbox version when running docker-compose up ([#2238](https://github.com/AztecProtocol/aztec-packages/issues/2238)) ([71da236](https://github.com/AztecProtocol/aztec-packages/commit/71da2360986e5b57f211ca095b95ade2617f4eb8))
+* **docs:** Updated docs explaining Sandbox accounts ([#2235](https://github.com/AztecProtocol/aztec-packages/issues/2235)) ([f560066](https://github.com/AztecProtocol/aztec-packages/commit/f560066394c3fc9725be18f320597794e29dc077))
+* Optimise sandbox startup time by only initialising the BB solver once. ([#2240](https://github.com/AztecProtocol/aztec-packages/issues/2240)) ([e9cac9c](https://github.com/AztecProtocol/aztec-packages/commit/e9cac9ced3604fdef1d6b298091639fc510cb4fb))
+* Remove entrypoint collection ([#2148](https://github.com/AztecProtocol/aztec-packages/issues/2148)) ([e97c94d](https://github.com/AztecProtocol/aztec-packages/commit/e97c94d8bc0659a95f457ba63369fca0dfba47c8))
+* Validate nargo version against expected one ([#2254](https://github.com/AztecProtocol/aztec-packages/issues/2254)) ([011c0b7](https://github.com/AztecProtocol/aztec-packages/commit/011c0b7c070f004fcc1c6f9ce8936830c9f496f6))
+
+
+### Bug Fixes
+
+* Add cjs-entry to bbjs package files ([#2237](https://github.com/AztecProtocol/aztec-packages/issues/2237)) ([ae16193](https://github.com/AztecProtocol/aztec-packages/commit/ae16193b3cdb2da3d57a1c74f7e71f139ced54d1))
+* Add link to example contracts in the monorepo ([#2219](https://github.com/AztecProtocol/aztec-packages/issues/2219)) ([8aede54](https://github.com/AztecProtocol/aztec-packages/commit/8aede5470d8e7d88227bf807c3c6cb5dec77a93d))
+* **build:** Update ubuntu version used in Docker builds ([#2236](https://github.com/AztecProtocol/aztec-packages/issues/2236)) ([dbe80b7](https://github.com/AztecProtocol/aztec-packages/commit/dbe80b739e97474b29e6a4125ac0d2f16e248b32))
+* **docs:** Use code snippet macros in bridge docs ([#2205](https://github.com/AztecProtocol/aztec-packages/issues/2205)) ([0c3a627](https://github.com/AztecProtocol/aztec-packages/commit/0c3a6271a1d90fa95a0163606e49f432573e66da))
+* Format barretenberg ([#2209](https://github.com/AztecProtocol/aztec-packages/issues/2209)) ([0801372](https://github.com/AztecProtocol/aztec-packages/commit/08013725091c7e80c1e83145ffbf3983cf1e7fe3))
+* Msgpack blowup with bigger objects ([#2207](https://github.com/AztecProtocol/aztec-packages/issues/2207)) ([b909937](https://github.com/AztecProtocol/aztec-packages/commit/b909937ba53b896e11e6b65db08b8f2bb83218d5))
+* Refactor constraints in scalar mul to use the high limb ([#2161](https://github.com/AztecProtocol/aztec-packages/issues/2161)) ([1d0e25d](https://github.com/AztecProtocol/aztec-packages/commit/1d0e25d9fad69aebccacf9f646e3291ea89716ca))
+* Reinstate v stripping in build ([#2220](https://github.com/AztecProtocol/aztec-packages/issues/2220)) ([13d34f5](https://github.com/AztecProtocol/aztec-packages/commit/13d34f56855bf5c86f04eec15c70b06ded7c955e))
+* Return partial witnesses based on the content of read requests. ([#2164](https://github.com/AztecProtocol/aztec-packages/issues/2164)) ([a2125f7](https://github.com/AztecProtocol/aztec-packages/commit/a2125f7611ad9ab3f479b806cbcc7ff1f97db57e))
+* Try e2e cli timeout bump ([#2210](https://github.com/AztecProtocol/aztec-packages/issues/2210)) ([a039fdd](https://github.com/AztecProtocol/aztec-packages/commit/a039fdd5d39a57eb25119e990acf309e3447b244))
+* Try workaround sample dapp ci timeout ([#2208](https://github.com/AztecProtocol/aztec-packages/issues/2208)) ([e39f6bf](https://github.com/AztecProtocol/aztec-packages/commit/e39f6bf3be2e577e9dffa2d4815b11eb442b5152))
+
+
+### Miscellaneous
+
+* Add a Nargo workspace in `noir-contracts` ([#2083](https://github.com/AztecProtocol/aztec-packages/issues/2083)) ([728a79c](https://github.com/AztecProtocol/aztec-packages/commit/728a79ca16c962462090b25959d1eab0f1e9f47f))
+* Add debugging to run_tests ([#2212](https://github.com/AztecProtocol/aztec-packages/issues/2212)) ([1c5e78a](https://github.com/AztecProtocol/aztec-packages/commit/1c5e78a4ac01bee4b785857447efdb02d8d9cb35))
+* **aztec-noir:** Rename noir-aztec to aztec-noir ([#2071](https://github.com/AztecProtocol/aztec-packages/issues/2071)) ([e1e14d2](https://github.com/AztecProtocol/aztec-packages/commit/e1e14d2c7fb44d56b9a10a645676d3551830bb10))
+* **circuits:** Merge and root rollup cbind msgpack ([#2192](https://github.com/AztecProtocol/aztec-packages/issues/2192)) ([4f3ecee](https://github.com/AztecProtocol/aztec-packages/commit/4f3eceefe1914dcd1ae3a9c7ae2d91861c25f1d3))
+* **noir-contracts:** 1655 - rename functions to make hack clearer for publicly created notes ([#2230](https://github.com/AztecProtocol/aztec-packages/issues/2230)) ([707bc09](https://github.com/AztecProtocol/aztec-packages/commit/707bc09a3c4b5a6460154931db55ee48842ee041))
+* Run the test for zero division with mul div up ([#2206](https://github.com/AztecProtocol/aztec-packages/issues/2206)) ([747de6a](https://github.com/AztecProtocol/aztec-packages/commit/747de6aa4b7da488d0f4bc7c545c7e0f4eed4ca9))
+* Update url for acir artifacts ([#2231](https://github.com/AztecProtocol/aztec-packages/issues/2231)) ([5e0abd3](https://github.com/AztecProtocol/aztec-packages/commit/5e0abd35dec449a665760e5ee51eeff89c76532c))
+* Use workspace build with `nargo compile --workspace` ([#2266](https://github.com/AztecProtocol/aztec-packages/issues/2266)) ([9ab66a0](https://github.com/AztecProtocol/aztec-packages/commit/9ab66a05993cebfd7e126fad4b3cdc6bb1e37faa))
+
+
+### Documentation
+
+* Dapp tutorial ([#2109](https://github.com/AztecProtocol/aztec-packages/issues/2109)) ([573dbc2](https://github.com/AztecProtocol/aztec-packages/commit/573dbc20a2b5ebae0e967e320da75febd5361eaf)), closes [#2051](https://github.com/AztecProtocol/aztec-packages/issues/2051)
+* Minor fixes to dapp tutorial ([#2203](https://github.com/AztecProtocol/aztec-packages/issues/2203)) ([dcc927c](https://github.com/AztecProtocol/aztec-packages/commit/dcc927c9aa347cd305cecd260cfedfb5cda0454f))
+
 ## [0.6.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.6.6...aztec-packages-v0.6.7) (2023-09-11)
 
 
