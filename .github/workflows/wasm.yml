@@ -139,8 +139,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          yarn install --non-interactive --pure-lockfile
+          npx playwright install
           npx playwright install-deps
+          yarn install --non-interactive --pure-lockfile
 
       - name: Run tests
         run: |
