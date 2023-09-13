@@ -124,10 +124,11 @@ export class PublicExecutor {
       },
       callPublicFunction: async ([address], [functionSelector], [argsHash]) => {
         const args = packedArgs.unpack(fromACVMField(argsHash));
-        this.log(`Public function call: addr=${address} selector=${functionSelector} args=${args.join(',')}`);
+        const selector = FunctionSelector.fromField(fromACVMField(functionSelector));
+        this.log(`Public function call: addr=${address} selector=${selector} args=${args.join(',')}`);
         const childExecutionResult = await this.callPublicFunction(
           frToAztecAddress(fromACVMField(address)),
-          FunctionSelector.fromField(fromACVMField(functionSelector)),
+          selector,
           args,
           execution.callContext,
           globalVariables,

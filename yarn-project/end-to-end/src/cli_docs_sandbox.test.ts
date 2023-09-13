@@ -104,6 +104,7 @@ SchnorrAuthWitnessAccountContractAbi
 SchnorrHardcodedAccountContractAbi
 SchnorrSingleKeyAccountContractAbi
 TestContractAbi
+TokenContractAbi
 UniswapContractAbi
 // docs:end:example-contracts
 `;

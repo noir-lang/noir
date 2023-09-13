@@ -147,7 +147,11 @@ export class Sequencer {
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxData));
       }
 
-      if (processedTxs.length === 0) {
+      // Only accept processed transactions that are not double-spends
+      // public functions emitting nullifiers would pass earlier check but fail here
+      const processedValidTxs = await this.takeValidProcessedTxs(processedTxs);
+
+      if (processedValidTxs.length === 0) {
         this.log('No txs processed correctly to build block. Exiting');
         return;
       }
@@ -158,16 +162,16 @@ export class Sequencer {
       this.log('Successfully retrieved L1 to L2 messages from contract');
 
       // Build the new block by running the rollup circuits
-      this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
+      this.log(`Assembling block with txs ${processedValidTxs.map(tx => tx.hash).join(', ')}`);
 
       const emptyTx = await processor.makeEmptyProcessedTx();
-      const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx, newGlobalVariables);
+      const block = await this.buildBlock(processedValidTxs, l1ToL2Messages, emptyTx, newGlobalVariables);
       this.log(`Assembled block ${block.number}`);
 
       await this.publishExtendedContractData(validTxs, block);
 
       await this.publishL2Block(block);
-      this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+      this.log.info(`Submitted rollup block ${block.number} with ${processedValidTxs.length} transactions`);
     } catch (err) {
       this.log.error(err);
       this.log.error(`Rolling back world state DB`);
@@ -247,6 +251,13 @@ export class Sequencer {
     }
 
     return validTxs;
+  }
+
+  protected async takeValidProcessedTxs(txs: ProcessedTx[]) {
+    const isDoubleSpends = await Promise.all(txs.map(async tx => await this.isTxDoubleSpend(tx as unknown as Tx)));
+    const doubleSpends = txs.filter((tx, index) => isDoubleSpends[index]).map(tx => tx.hash);
+    await this.p2pClient.deleteTxs(doubleSpends);
+    return txs.filter((tx, index) => !isDoubleSpends[index]);
   }
 
   /**

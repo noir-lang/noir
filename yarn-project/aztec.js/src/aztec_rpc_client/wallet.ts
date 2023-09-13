@@ -16,7 +16,7 @@ import {
   TxReceipt,
 } from '@aztec/types';
 
-import { AuthWitnessAccountEntrypoint, Entrypoint } from '../account/entrypoint/index.js';
+import { Entrypoint, IAuthWitnessAccountEntrypoint } from '../account/entrypoint/index.js';
 import { CompleteAddress } from '../index.js';
 
 /**
@@ -121,7 +121,7 @@ export class EntrypointWallet extends BaseWallet {
  * to provide authentication data to the contract during execution.
  */
 export class AuthWitnessEntrypointWallet extends BaseWallet {
-  constructor(rpc: AztecRPC, protected accountImpl: AuthWitnessAccountEntrypoint) {
+  constructor(rpc: AztecRPC, protected accountImpl: IAuthWitnessAccountEntrypoint, protected address: CompleteAddress) {
     super(rpc);
   }
 
@@ -151,11 +151,32 @@ export class AuthWitnessEntrypointWallet extends BaseWallet {
    * This is useful for signing messages that are not directly part of the transaction payload, such as
    * approvals .
    * @param messageHash - The message hash to sign
+   * @param opts - The options.
    */
   async signAndAddAuthWitness(messageHash: Buffer): Promise<void> {
     const witness = await this.accountImpl.createAuthWitness(messageHash);
     await this.rpc.addAuthWitness(Fr.fromBuffer(messageHash), witness);
     return Promise.resolve();
+  }
+
+  /**
+   * Signs the `messageHash` and adds the witness to the RPC.
+   * This is useful for signing messages that are not directly part of the transaction payload, such as
+   * approvals .
+   * @param messageHash - The message hash to sign
+   */
+  async signAndGetAuthWitness(messageHash: Buffer): Promise<Fr[]> {
+    return await this.accountImpl.createAuthWitness(messageHash);
+  }
+
+  /** Returns the complete address of the account that implements this wallet. */
+  public getCompleteAddress() {
+    return this.address;
+  }
+
+  /** Returns the address of the account that implements this wallet. */
+  public getAddress() {
+    return this.address.address;
   }
 }
 

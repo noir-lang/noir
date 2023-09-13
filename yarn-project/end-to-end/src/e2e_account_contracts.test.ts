@@ -128,7 +128,7 @@ describe('e2e_account_contracts', () => {
           await tx.wait();
         }
         const entryPoint = (await account.getEntrypoint()) as unknown as AuthWitnessAccountEntrypoint;
-        const wallet = new AuthWitnessEntrypointWallet(rpc, entryPoint);
+        const wallet = new AuthWitnessEntrypointWallet(rpc, entryPoint, await account.getCompleteAddress());
         return { account, wallet };
       },
     );

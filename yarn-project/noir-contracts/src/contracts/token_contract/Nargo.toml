@@ -1,0 +1,10 @@
+[package]
+name = "token_contract"
+authors = [""]
+compiler_version = "0.1"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/aztec-noir" }
+value_note = { path = "../../../../noir-libs/value-note"}
+safe_math = { path = "../../../../noir-libs/safe-math" }

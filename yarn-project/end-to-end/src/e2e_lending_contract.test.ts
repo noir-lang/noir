@@ -3,11 +3,11 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import {
   Account,
   AuthWitnessAccountContract,
-  AuthWitnessAccountEntrypoint,
   AuthWitnessEntrypointWallet,
   AztecAddress,
   CheatCodes,
   Fr,
+  IAuthWitnessAccountEntrypoint,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex, GrumpkinScalar } from '@aztec/circuits.js';
@@ -82,15 +82,18 @@ describe('e2e_lending_contract', () => {
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, logger, cheatCodes: cc } = await setup(0));
 
-    const privateKey = GrumpkinScalar.random();
-    const account = new Account(aztecRpcServer, privateKey, new AuthWitnessAccountContract(privateKey));
-    const entryPoint = (await account.getEntrypoint()) as unknown as AuthWitnessAccountEntrypoint;
-
-    const deployTx = await account.deploy();
-    await deployTx.wait({ interval: 0.1 });
-
-    wallet = new AuthWitnessEntrypointWallet(aztecRpcServer, entryPoint);
-    accounts = await wallet.getAccounts();
+    {
+      const privateKey = GrumpkinScalar.random();
+      const account = new Account(aztecRpcServer, privateKey, new AuthWitnessAccountContract(privateKey));
+      const deployTx = await account.deploy();
+      await deployTx.wait({ interval: 0.1 });
+      wallet = new AuthWitnessEntrypointWallet(
+        aztecRpcServer,
+        (await account.getEntrypoint()) as unknown as IAuthWitnessAccountEntrypoint,
+        await account.getCompleteAddress(),
+      );
+      accounts = await wallet.getAccounts();
+    }
   }, 100_000);
 
   afterEach(async () => {

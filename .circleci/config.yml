@@ -712,6 +712,19 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_lending_contract.test.ts
           working_directory: yarn-project/end-to-end
 
+  e2e-token-contract:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_token_contract.test.ts
+          working_directory: yarn-project/end-to-end
+
+
   e2e-private-token-contract:
     machine:
       image: ubuntu-2004:202010-01
@@ -1427,6 +1440,7 @@ workflows:
       - e2e-2-rpc-servers: *e2e_test
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
+      - e2e-token-contract: *e2e_test
       - e2e-private-token-contract: *e2e_test
       - e2e-sandbox-example: *e2e_test
       - e2e-multi-transfer-contract: *e2e_test
@@ -1461,6 +1475,7 @@ workflows:
             - e2e-2-rpc-servers
             - e2e-deploy-contract
             - e2e-lending-contract
+            - e2e-token-contract
             - e2e-private-token-contract
             - e2e-sandbox-example
             - e2e-multi-transfer-contract

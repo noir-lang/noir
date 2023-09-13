@@ -1,7 +1,7 @@
 import { createEthereumChain } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ContractDeploymentEmitterAbi, RollupAbi } from '@aztec/l1-artifacts';
-import { ExtendedContractData } from '@aztec/types';
+import { BLOB_SIZE_IN_BYTES, ExtendedContractData } from '@aztec/types';
 
 import {
   GetContractReturnType,
@@ -140,6 +140,9 @@ export class ViemTxSender implements L1PublisherTxSender {
         extendedContractData.publicKey.y.toString(true),
         `0x${extendedContractData.bytecode.toString('hex')}`,
       ] as const;
+
+      const codeSize = extendedContractData.bytecode.length;
+      this.log(`Bytecode is ${codeSize} bytes and require ${codeSize / BLOB_SIZE_IN_BYTES} blobs`);
 
       const gas = await this.contractDeploymentEmitterContract.estimateGas.emitContractDeployment(args, {
         account: this.account,
