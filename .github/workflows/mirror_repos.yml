@@ -1,0 +1,79 @@
+# We push using git subrepo (https://github.com/ingydotnet/git-subrepo)
+# with some logic to recover from squashed parent commits
+# We first identify ourselves, needed to commit.
+# Then push to subrepo, commit to master. The commit is needed
+# to continue to replay. If we still hit issues such as this
+# action failing due to upstream changes, a manual resolution
+# PR with ./scripts/git_subrepo.sh pull will be needed.
+name: Mirror Repositories
+
+concurrency:
+  group: mirror-repositories
+on:
+  schedule:
+    # Run the workflow every night at 2:00 AM UTC.
+    cron: '0 2 * * *'
+
+jobs:
+  mirror-to-docs-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+      - name: Push to docs repo
+        run: |
+          SUBREPO_PATH=docs
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+            git fetch # in case a commit came after this
+            git rebase origin/master
+            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+            git push
+          fi
+
+  mirror-to-build-system-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+      - name: Push to build-system repo
+        run: |
+          SUBREPO_PATH=build-system
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+            git fetch # in case a commit came after this
+            git rebase origin/master
+            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+            git push
+          fi
+
+  mirror-to-barretenberg-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+      - name: Push to barretenberg repo
+        run: |
+          SUBREPO_PATH=barretenberg
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+            git fetch # in case a commit came after this
+            git rebase origin/master
+            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+            git push
+          fi
