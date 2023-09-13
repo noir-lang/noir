@@ -34,11 +34,11 @@ build() {
   CONTRACT_NAME=$1
   CONTRACT_FOLDER="${CONTRACT_NAME}_contract"
   echo "Compiling $CONTRACT_NAME..."
-  cd src/contracts/$CONTRACT_FOLDER
-  rm -f target/*
+  rm -f target/${CONTRACT_FOLDER}-*
+  rm -f target/debug_${CONTRACT_FOLDER}-*
 
   # If the compilation fails, rerun the compilation with 'nargo' and show the compiler output.
-  nargo compile --output-debug;
+  nargo compile --package $CONTRACT_FOLDER --output-debug;
 }
 
 # Check nargo version matches the expected one

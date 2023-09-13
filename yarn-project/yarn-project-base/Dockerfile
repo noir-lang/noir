@@ -117,6 +117,7 @@ WORKDIR /usr/src/yarn-project
 FROM builder_ as noir_types
 COPY . .
 COPY --from=noir /usr/src/yarn-project/noir-contracts/src/contracts /usr/src/yarn-project/noir-contracts/src/contracts
+COPY --from=noir /usr/src/yarn-project/noir-contracts/target /usr/src/yarn-project/noir-contracts/target
 WORKDIR /usr/src/yarn-project/noir-contracts
 
 # Run yarn build to have the json ABIs available for the types generator
