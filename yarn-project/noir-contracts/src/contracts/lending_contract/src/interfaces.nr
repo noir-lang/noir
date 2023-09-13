@@ -36,36 +36,44 @@ impl Token {
     Self { address }
   }
 
-  fn transfer_pub(self: Self, context: PublicContext, to: Field, amount: Field) {
+  fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
     let _transfer_return_values = context.call_public_function(
       self.address,
-      compute_selector("transfer_pub(Field,Field)"),
+      compute_selector("transfer_public((Field),(Field),Field,Field)"),
+      [from, to, amount, nonce]
+    );
+  }
+
+  fn mint_public(self: Self, context: PublicContext, to: Field, amount: Field) {
+    let _return_values = context.call_public_function(
+      self.address,
+      compute_selector("mint_public((Field),Field)"),
       [to, amount]
     );
   }
 
-  fn transfer_from_pub(self: Self, context: PublicContext, from: Field, to: Field, amount: Field) {
-    let _transfer_return_values = context.call_public_function(
+  fn burn_public(self: Self, context: PublicContext, from: Field, amount: Field, nonce: Field){
+    let _return_values = context.call_public_function(
       self.address,
-      compute_selector("transfer_from_pub(Field,Field,Field)"),
-      [from, to, amount]
-    );
-  }
-
-  fn owner_mint_pub(self: Self, context: PublicContext, to: Field, amount: Field) {
-    let _transfer_return_values = context.call_public_function(
-      self.address, 
-      compute_selector("owner_mint_pub(Field,Field)"),
-      [to, amount]
+      compute_selector("burn_public((Field),Field,Field)"),
+      [from, amount, nonce]
     );
   }
 
   // Private
-  fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field, amount: Field) -> [Field; RETURN_VALUES_LENGTH] {
+  fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
     context.call_private_function(
       self.address,
-      compute_selector("unshieldTokens(Field,Field,Field)"),
-      [from, to, amount]
+      compute_selector("unshield((Field),(Field),Field,Field)"),
+      [from, to, amount, nonce]
+    )
+  }
+
+  fn burn(self: Self, context: &mut PrivateContext, from: Field, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
+    context.call_private_function(
+      self.address,
+      compute_selector("burn((Field),Field,Field)"),
+      [from, amount, nonce]
     )
   }
 }
