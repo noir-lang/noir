@@ -2,7 +2,7 @@ import { EthAddress, FunctionSelector } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { CommitmentDataOracleInputs, MessageLoadOracleInputs } from '../index.js';
+import { MessageLoadOracleInputs } from '../index.js';
 
 /**
  * Database interface for providing access to public state.
@@ -65,10 +65,9 @@ export interface CommitmentsDB {
   getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs>;
 
   /**
-   * Gets a message index and sibling path to some commitment in the private data tree.
-   * @param address - The contract address owning storage.
-   * @param commitment - The preimage of the siloed data.
-   * @returns - The Commitment data oracle object
+   * Gets the index of a commitment in the private data tree.
+   * @param commitment - The commitment.
+   * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */
-  getCommitmentOracle(address: AztecAddress, commitment: Fr): Promise<CommitmentDataOracleInputs>;
+  getCommitmentIndex(commitment: Fr): Promise<bigint | undefined>;
 }

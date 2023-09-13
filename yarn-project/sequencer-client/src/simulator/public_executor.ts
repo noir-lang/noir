@@ -1,5 +1,4 @@
 import {
-  CommitmentDataOracleInputs,
   CommitmentsDB,
   MessageLoadOracleInputs,
   PublicContractsDB,
@@ -7,7 +6,6 @@ import {
   PublicStateDB,
 } from '@aztec/acir-simulator';
 import { AztecAddress, CircuitsWasm, EthAddress, Fr, FunctionSelector, HistoricBlockData } from '@aztec/circuits.js';
-import { siloCommitment } from '@aztec/circuits.js/abis';
 import { ContractDataSource, L1ToL2MessageSource, MerkleTreeId } from '@aztec/types';
 import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
 
@@ -100,19 +98,7 @@ export class WorldStateDB implements CommitmentsDB {
     };
   }
 
-  public async getCommitmentOracle(address: AztecAddress, innerCommitment: Fr): Promise<CommitmentDataOracleInputs> {
-    const siloedCommitment = siloCommitment(await CircuitsWasm.get(), address, innerCommitment);
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): shoild be
-    // unique commitment that exists in tree (should be siloed and then made unique via
-    // nonce).  Once public kernel or base rollup circuit injects nonces, this can be updated
-    // to use uniqueSiloedCommitment.
-    const index = (await this.db.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, siloedCommitment.toBuffer()))!;
-    const siblingPath = await this.db.getSiblingPath(MerkleTreeId.PRIVATE_DATA_TREE, index);
-
-    return {
-      commitment: siloedCommitment,
-      siblingPath: siblingPath.toFieldArray(),
-      index,
-    };
+  public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {
+    return await this.db.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, commitment.toBuffer());
   }
 }

@@ -160,13 +160,14 @@ contract PrivateTokenAirdrop {
     fn claim(
         amount: Field,
         secret: Field,
-        owner: Field
+        owner: Field,
+        nonce: Field,
     ) {
         let storage = Storage::init(Context::private(&mut context));
 
         // Remove the claim note if it exists in the set.
-        let note = ClaimNote::new(amount, secret);
-        storage.claims.assert_contains_and_remove(note);
+        let mut note = ClaimNote::new(amount, secret);
+        storage.claims.assert_contains_and_remove(&mut note, nonce);
 
         // Send the value note.
         let balance = storage.balances.at(owner);

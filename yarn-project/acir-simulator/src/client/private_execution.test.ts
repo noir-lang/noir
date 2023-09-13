@@ -365,7 +365,7 @@ describe('Private Execution test suite', () => {
       expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     });
 
-    it('Should be able to claim a note by providing the correct secret', async () => {
+    it('Should be able to claim a note by providing the correct secret and nonce', async () => {
       const amount = 100n;
       const secret = Fr.random();
       const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'claim');
@@ -374,22 +374,11 @@ describe('Private Execution test suite', () => {
       const nonce = new Fr(1n);
       const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
       const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
-
-      oracle.getNotes.mockResolvedValue([
-        {
-          contractAddress,
-          storageSlot,
-          nonce,
-          preimage: [new Fr(amount), secret],
-          innerNoteHash,
-          siloedNullifier: new Fr(0),
-          index: 1n,
-        },
-      ]);
+      oracle.getCommitmentIndex.mockResolvedValue(2n);
 
       const result = await runSimulator({
         abi,
-        args: [amount, secret, recipient],
+        args: [amount, secret, recipient, nonce],
       });
 
       // Check a nullifier has been inserted.
@@ -751,20 +740,7 @@ describe('Private Execution test suite', () => {
       const storageSlot = new Fr(2);
       const innerNoteHash = hash([storageSlot.toBuffer(), noteHash.toBuffer()]);
       const siloedNoteHash = siloCommitment(wasm, contractAddress, Fr.fromBuffer(innerNoteHash));
-      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should insert
-      // uniqueSiloedNoteHash in tree and that should be what is expected in Noir
-      //const uniqueSiloedNoteHash = computeUniqueCommitment(wasm, nonce, Fr.fromBuffer(innerNoteHash));
-
-      const tree = await insertLeaves([siloedNoteHash]);
-
-      oracle.getCommitmentOracle.mockImplementation(async () => {
-        // Check the calculated commitment is correct
-        return Promise.resolve({
-          commitment: siloedNoteHash,
-          siblingPath: (await tree.getSiblingPath(0n, false)).toFieldArray(),
-          index: 0n,
-        });
-      });
+      oracle.getCommitmentIndex.mockResolvedValue(0n);
 
       const result = await runSimulator({
         abi,

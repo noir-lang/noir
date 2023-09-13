@@ -148,9 +148,10 @@ unconstrained fn get_total_points(
 // docs:start:state_vars-SetContains
 fn assert_contains_card<RERUEN_LEN, FILTER_PARAMS>(
     state_var: Set<CardNote, CARD_NOTE_LEN>,
-    card: CardNote,
+    card: &mut CardNote,
+    nonce: Field,
 ) {
-    state_var.assert_contains_and_remove(card);
+    state_var.assert_contains_and_remove(card, nonce);
 }
 // docs:end:state_vars-SetContains
 

@@ -6,9 +6,10 @@ import { createDebugLogger } from '@aztec/foundation/log';
 
 import {
   ACVMField,
+  ONE_ACVM_FIELD,
+  ZERO_ACVM_FIELD,
   fromACVMField,
   toACVMField,
-  toAcvmCommitmentLoadOracleInputs,
   toAcvmL1ToL2MessageLoadOracleInputs,
 } from '../acvm/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
@@ -156,7 +157,7 @@ export class ClientTxExecutionContext {
     // Nullified pending notes are already removed from the list.
     const pendingNotes = this.noteCache.getNotes(contractAddress, storageSlotField);
 
-    const pendingNullifiers = this.noteCache.getNullifiers(contractAddress, storageSlotField);
+    const pendingNullifiers = this.noteCache.getNullifiers(contractAddress);
     const dbNotes = await this.db.getNotes(contractAddress, storageSlotField);
     const dbNotesFiltered = dbNotes.filter(n => !pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
@@ -253,23 +254,12 @@ export class ClientTxExecutionContext {
    * Adding a siloed nullifier into the current set of all pending nullifiers created
    * within the current transaction/execution.
    * @param contractAddress - The contract address.
-   * @param storageSlot - The storage slot.
    * @param innerNullifier - The pending nullifier to add in the list (not yet siloed by contract address).
    * @param innerNoteHash - The inner note hash of the new note.
    * @param contractAddress - The contract address
    */
-  public async handleNullifiedNote(
-    contractAddress: AztecAddress,
-    storageSlot: ACVMField,
-    innerNullifier: ACVMField,
-    innerNoteHash: ACVMField,
-  ) {
-    await this.noteCache.nullifyNote(
-      contractAddress,
-      fromACVMField(storageSlot),
-      fromACVMField(innerNullifier),
-      fromACVMField(innerNoteHash),
-    );
+  public async handleNullifiedNote(contractAddress: AztecAddress, innerNullifier: ACVMField, innerNoteHash: ACVMField) {
+    await this.noteCache.nullifyNote(contractAddress, fromACVMField(innerNullifier), fromACVMField(innerNoteHash));
   }
 
   /**
@@ -285,20 +275,39 @@ export class ClientTxExecutionContext {
   /**
    * Fetches a path to prove existence of a commitment in the db, given its contract side commitment (before silo).
    * @param contractAddress - The contract address.
-   * @param commitment - The commitment.
-   * @returns The commitment data.
+   * @param nonce - The nonce of the note.
+   * @param innerNoteHash - The inner note hash of the note.
+   * @returns 1 if (persistent or transient) note hash exists, 0 otherwise. Value is in ACVMField form.
    */
-  public async getCommitment(contractAddress: AztecAddress, commitment: ACVMField) {
-    const innerNoteHash = fromACVMField(commitment);
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): only works
-    // for noteHashes/commitments created by public functions! Once public kernel or
-    // base rollup circuit injects nonces, this can be used with commitments created by
-    // private functions as well.
-    const commitmentInputs = await this.db.getCommitmentOracle(contractAddress, innerNoteHash);
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1029): support pending commitments here
+  public async checkNoteHashExists(
+    contractAddress: AztecAddress,
+    nonce: ACVMField,
+    innerNoteHash: ACVMField,
+  ): Promise<ACVMField> {
+    const nonceField = fromACVMField(nonce);
+    const innerNoteHashField = fromACVMField(innerNoteHash);
+    if (nonceField.isZero()) {
+      // If nonce is 0, we are looking for a new note created in this transaction.
+      const exists = this.noteCache.checkNoteExists(contractAddress, innerNoteHashField);
+      if (exists) {
+        return ONE_ACVM_FIELD;
+      }
+      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+      // Currently it can also be a note created from public if nonce is 0.
+      // If we can't find a matching new note, keep looking for the match from the notes created in previous transactions.
+    }
+
+    // If nonce is zero, SHOULD only be able to reach this point if note was publicly created
     const wasm = await CircuitsWasm.get();
-    const siloedNoteHash = siloCommitment(wasm, contractAddress, innerNoteHash);
-    this.gotNotes.set(siloedNoteHash.value, commitmentInputs.index);
-    return toAcvmCommitmentLoadOracleInputs(commitmentInputs, this.historicBlockData.privateDataTreeRoot);
+    let noteHashToLookUp = siloCommitment(wasm, contractAddress, innerNoteHashField);
+    if (!nonceField.isZero()) {
+      noteHashToLookUp = computeUniqueCommitment(wasm, nonceField, noteHashToLookUp);
+    }
+
+    const index = await this.db.getCommitmentIndex(noteHashToLookUp);
+    if (index !== undefined) {
+      this.gotNotes.set(noteHashToLookUp.value, index);
+    }
+    return index !== undefined ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
   }
 }

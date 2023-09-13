@@ -6,7 +6,6 @@ mod arguments;
 mod call_private_function;
 mod context;
 mod debug_log;
-mod get_commitment;
 mod get_l1_to_l2_message;
 mod get_public_key;
 mod get_secret_key;

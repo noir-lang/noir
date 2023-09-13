@@ -72,13 +72,14 @@ export class UnconstrainedFunctionExecution {
           +offset,
           +returnSize,
         ),
+      checkNoteHashExists: ([nonce], [innerNoteHash]) =>
+        this.context.checkNoteHashExists(this.contractAddress, nonce, innerNoteHash),
       getRandomField: () => Promise.resolve(toACVMField(Fr.random())),
       debugLog: (...params) => {
         this.log(oracleDebugCallToFormattedStr(params));
         return Promise.resolve(ZERO_ACVM_FIELD);
       },
       getL1ToL2Message: ([msgKey]) => this.context.getL1ToL2Message(fromACVMField(msgKey)),
-      getCommitment: ([commitment]) => this.context.getCommitment(this.contractAddress, commitment),
       storageRead: async ([slot], [numberOfElements]) => {
         if (!aztecNode) {
           const errMsg = `Aztec node is undefined, cannot read storage`;
