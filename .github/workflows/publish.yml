@@ -29,12 +29,6 @@ jobs:
     runs-on: macos-latest
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
     strategy:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
@@ -52,27 +46,20 @@ jobs:
           echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
         with:
           targets: ${{ matrix.target }}
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
       - name: Build environment and Compile
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |
@@ -111,12 +98,6 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
     strategy:
       fail-fast: false
       matrix:
@@ -128,16 +109,16 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
         with:
           targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Install Cross
         uses: taiki-e/install-action@v2
@@ -146,13 +127,6 @@ jobs:
 
       - name: Build Nargo
         run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |

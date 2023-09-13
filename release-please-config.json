@@ -17,6 +17,11 @@
           "type": "json",
           "path": "compiler/wasm/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noirc_abi_wasm/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }

@@ -1,21 +1,13 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
+use noirc_driver::DebugFile;
 use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     ops::Range,
-    path::PathBuf,
 };
 
 use fm::{FileId, FileManager, PathString};
-
-/// For a given file, we store the source code and the path to the file
-/// so consumers of the debug artifact can reconstruct the original source code structure.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DebugFile {
-    pub source: String,
-    pub path: PathBuf,
-}
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
 /// along with a map of file Id to the source code so locations in debug info can be mapped to source code they point to.

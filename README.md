@@ -34,7 +34,6 @@ ACIR Supported OPCODES:
 - Sha256
 - Blake2s
 - Schnorr signature verification
-- MerkleMembership
 - Pedersen
 - HashToField
 
