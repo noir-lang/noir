@@ -117,7 +117,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/result
+          path: ./compiler/wasm
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
