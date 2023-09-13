@@ -108,7 +108,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noirc_abi_wasm
-          path: ./result
+          path: ./tooling/noirc_abi_wasm
 
       - name: Query playwright version
         working-directory: ./tooling/noirc_abi_wasm
