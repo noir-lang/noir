@@ -1,18 +1,21 @@
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::{DataFlowGraph, CallStack},
-    instruction::Intrinsic,
-    map::Id,
-    types::Type,
-    value::{Value, ValueId},
+use crate::ssa::{
+    ir::{
+        basic_block::BasicBlockId,
+        dfg::{CallStack, DataFlowGraph},
+        instruction::Intrinsic,
+        map::Id,
+        types::Type,
+        value::{Value, ValueId},
+    },
+    opt::flatten_cfg::ValueMerger,
 };
-use crate::ssa::opt::flatten_cfg::merge_values_pub;
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
 
@@ -97,19 +100,20 @@ pub(super) fn simplify_call(
 
                 // TODO: This is the user-facing length, we need to handle the element_type size
                 // to appropriately handle arrays of complex types
-                dbg!(element_type.element_size());
+                // dbg!(element_type.element_size());
                 if element_type.element_size() != 1 {
                     // Old code before implementing multiple slice mergers
                     for elem in &arguments[2..] {
                         slice.push_back(*elem);
                     }
 
-                    let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                    let new_slice_length =
+                        update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
 
                     let new_slice = dfg.make_array(slice, element_type);
-                    return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+                    return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
                 }
-                // For nested arrays 
+                // For nested arrays
                 // let element_size = dfg.make_constant((element_type.element_size() as u128).into(), Type::field());
                 // let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
                 // let flattened_len = dfg.insert_instruction_and_results(
@@ -164,16 +168,21 @@ pub(super) fn simplify_call(
                         call_stack.clone(),
                     )
                     .first();
-                let new_slice = merge_values_pub(
+
+                let store_values = &HashMap::default();
+                let outer_block_stores = &HashMap::default();
+                let slice_sizes = &mut HashMap::default();
+                let mut value_merger =
+                    ValueMerger::new(dfg, block, store_values, outer_block_stores, slice_sizes);
+                let new_slice = value_merger.merge_values(
                     len_not_equals_capacity,
                     len_equals_capacity,
                     set_last_slice_value,
                     new_slice,
-                    block,
-                    dfg,
                 );
+
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
-                // array set multiple elements for nested arrays 
+                // array set multiple elements for nested arrays
                 // let mut set_last_slice_value_instr = new_slice;
                 // let mut set_last_slice_value = new_slice;
                 // let mut flattened_index = flattened_len;
@@ -217,24 +226,42 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePopBack => {
             let slice = dfg.get_array_constant(arguments[1]);
-            dbg!(slice.clone());
             if let Some((_, typ)) = slice {
                 let element_count = typ.element_size();
                 let mut results = VecDeque::with_capacity(element_count + 1);
 
                 let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
-                let get_last_elem_instr = Instruction::ArrayGet { array: arguments[1], index: new_slice_length };
-                let get_last_elem = dfg
+                let element_size = dfg.make_constant((element_count as u128).into(), Type::field());
+                let flattened_len_instr =
+                    Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
+                let mut flattened_len = dfg
                     .insert_instruction_and_results(
-                        get_last_elem_instr,
+                        flattened_len_instr,
                         block,
-                        Some(vec![typ]),
+                        None,
                         CallStack::new(),
                     )
                     .first();
+                flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
+                let mut flattened_index = flattened_len;
+                for _ in 0..element_count {
+                    let get_last_elem_instr =
+                        Instruction::ArrayGet { array: arguments[1], index: flattened_index };
+                    let get_last_elem = dfg
+                        .insert_instruction_and_results(
+                            get_last_elem_instr,
+                            block,
+                            Some(vec![typ.clone()]),
+                            CallStack::new(),
+                        )
+                        .first();
+                    results.push_front(get_last_elem);
 
-                results.push_front(get_last_elem);
+                    flattened_index =
+                        update_slice_length(flattened_index, dfg, BinaryOp::Sub, block);
+                }
+
                 results.push_front(arguments[1]);
 
                 results.push_front(new_slice_length);
@@ -251,8 +278,6 @@ pub(super) fn simplify_call(
 
                 // let new_slice = dfg.make_array(slice, typ);
                 // results.push_front(new_slice);
-
-
             } else {
                 SimplifyResult::None
             }
