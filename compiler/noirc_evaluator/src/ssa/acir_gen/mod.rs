@@ -549,7 +549,8 @@ impl Context {
         // - index_var is the index of the array
         // - predicate_index is 0, or the index if the predicate is true
         // - new_value is the optional value when the operation is an array_set
-        //      when there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index
+        //      When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+        //      It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
         let index_const = dfg.get_numeric_constant(index);
         let index_var = self.convert_numeric_value(index, dfg)?;
         let predicate_index =
@@ -567,6 +568,7 @@ impl Context {
                 let not_pred =
                     self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
                 let false_pred = self.acir_context.mul_var(not_pred, dummy)?;
+                // predicate*value + (1-predicate)*dummy
                 Some(self.acir_context.add_var(true_pred, false_pred)?)
             }
         } else {
@@ -602,6 +604,7 @@ impl Context {
                                 .acir_context
                                 .is_constant_one(&self.current_side_effects_enabled_var)
                             {
+                                // Report the error if side effects are enabled.
                                 if index >= array_size {
                                     let call_stack = self.acir_context.get_call_stack();
                                     return Err(RuntimeError::IndexOutOfBounds {
