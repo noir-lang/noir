@@ -545,12 +545,35 @@ impl Context {
             }
         };
 
+        // We compute some AcirVars:
+        // - index_var is the index of the array
+        // - predicate_index is 0, or the index if the predicate is true
+        // - new_value is the optional value when the operation is an array_set
+        //      when there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index
         let index_const = dfg.get_numeric_constant(index);
-        // we use predicate*index instead of index if there are side effects, in order to avoid index-out-of-bound with false predicates.
         let index_var = self.convert_numeric_value(index, dfg)?;
         let predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
+        let new_value = if let Some(store) = store_value {
+            let store_var = Some(self.convert_value(store, dfg).into_var()?);
+            if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+                store_var
+            } else {
+                let dummy = self.array_get(instruction, array, predicate_index, dfg)?;
+                let true_pred = self
+                    .acir_context
+                    .mul_var(store_var.unwrap(), self.current_side_effects_enabled_var)?;
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let not_pred =
+                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let false_pred = self.acir_context.mul_var(not_pred, dummy)?;
+                Some(self.acir_context.add_var(true_pred, false_pred)?)
+            }
+        } else {
+            None
+        };
 
+        // Handle constant index: if there is no predicate and we have the array values, we can perform the operation directly on the array
         match dfg.type_of_value(array) {
             Type::Array(_, _) => {
                 match self.convert_value(array, dfg) {
@@ -575,12 +598,11 @@ impl Context {
                                     });
                                 }
                             };
-                            if index >= array_size {
-                                // Ignore the error if side effects are disabled.
-                                if self
-                                    .acir_context
-                                    .is_constant_one(&self.current_side_effects_enabled_var)
-                                {
+                            if self
+                                .acir_context
+                                .is_constant_one(&self.current_side_effects_enabled_var)
+                            {
+                                if index >= array_size {
                                     let call_stack = self.acir_context.get_call_stack();
                                     return Err(RuntimeError::IndexOutOfBounds {
                                         index,
@@ -600,6 +622,11 @@ impl Context {
                                     return Ok(());
                                 }
                             }
+                            // If there is a predicate and the index is not out of range, we can perfom directly the read
+                            else if index < array_size && store_value.is_none() {
+                                self.define_result(dfg, instruction, array[index].clone());
+                                return Ok(());
+                            }
                         }
                     }
                     AcirValue::DynamicArray(_) => (),
@@ -611,34 +638,20 @@ impl Context {
             _ => unreachable!("ICE: expected array or slice type"),
         }
 
+        let new_index = if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
+        {
+            index_var
+        } else {
+            predicate_index
+        };
+
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
-        if let Some(store) = store_value {
-            // In case of side effects:
-            // - we replace the index by predicate*index
-            // - we replace the value by predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index
-            let store_var = self.convert_value(store, dfg).into_var()?;
-            let new_value =
-                if !self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-                    // array value at the index
-                    let dummy = self.array_get(instruction, array, predicate_index, dfg)?;
 
-                    // true_pred = predicate*value
-                    let true_pred = self
-                        .acir_context
-                        .mul_var(store_var, self.current_side_effects_enabled_var)?;
-                    let one = self.acir_context.add_constant(FieldElement::one());
-                    let not_pred =
-                        self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-                    // false_pred = (1-predicate)*dummy
-                    let false_pred = self.acir_context.mul_var(not_pred, dummy)?;
-                    self.acir_context.add_var(true_pred, false_pred)?
-                } else {
-                    store_var
-                };
-            self.array_set(instruction, predicate_index, new_value, dfg, map_array)?;
+        if let Some(new_value) = new_value {
+            self.array_set(instruction, new_index, new_value, dfg, map_array)?;
         } else {
-            self.array_get(instruction, array, predicate_index, dfg)?;
+            self.array_get(instruction, array, new_index, dfg)?;
         }
 
         Ok(())
