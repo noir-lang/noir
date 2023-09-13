@@ -1,29 +1,19 @@
 #!/bin/bash
+# Usage:
+# Bootstraps the repo. End to end tests should be runnable after a bootstrap:
+#   ./bootstrap.sh
+# Run a second time to perform a "light bootstrap", rebuilds code that's changed:
+#   ./bootstrap.sh
+# Force a clean of the repo before performing a full bootstrap, erases untracked files, be careful!
+#   ./bootstrap.sh clean
 set -eu
 
 export CMD=${1:-}
 
 cd "$(dirname "$0")"
 
-# Lightweight bootstrap. Run `./bootstrap.sh clean` to bypass.
-if [ -f .bootstrapped ]; then
-  echo -e '\033[1mRebuild L1 contracts...\033[0m'
-  (cd l1-contracts && forge build)
-
-  echo -e '\n\033[1mUpdate npm deps...\033[0m'
-  (cd yarn-project && yarn install)
-
-  echo -e '\n\033[1mRebuild Noir contracts...\033[0m'
-  (cd yarn-project/noir-contracts && yarn noir:build:all 2> /dev/null)
-
-  echo -e '\n\033[1mRebuild barretenberg wasm...\033[0m'
-  (cd barretenberg/cpp && cmake --build --preset wasm && cmake --build --preset wasm-threads)
-
-  echo -e '\n\033[1mRebuild circuits wasm...\033[0m'
-  (cd circuits/cpp && cmake --build --preset wasm -j --target aztec3-circuits.wasm)
-
-  exit 0
-fi
+# Bump this number to force a full bootstrap.
+VERSION=1
 
 # Remove all untracked files and directories.
 if [ -n "$CMD" ]; then
@@ -34,19 +24,37 @@ if [ -n "$CMD" ]; then
     if [ "$user_input" != "y" ] && [ "$user_input" != "Y" ]; then
       exit 1
     fi
-    rm .bootstrapped
+    rm -f .bootstrapped
     rm -rf .git/hooks/*
     rm -rf .git/modules/*
     git clean -fd
     for SUBMODULE in $(git config --file .gitmodules --get-regexp path | awk '{print $2}'); do
       rm -rf $SUBMODULE
     done
-    git submodule update --init --recursive
-    exit 0
   else
     echo "Unknown command: $CLEAN"
     exit 1
   fi
+fi
+
+# Lightweight bootstrap. Run `./bootstrap.sh clean` to bypass.
+if [[ -f .bootstrapped && $(cat .bootstrapped) -eq "$VERSION" ]]; then
+  echo -e '\033[1mRebuild L1 contracts...\033[0m'
+  (cd l1-contracts && .foundry/bin/forge build)
+
+  echo -e '\n\033[1mUpdate npm deps...\033[0m'
+  (cd yarn-project && yarn install)
+
+  echo -e '\n\033[1mRebuild Noir contracts...\033[0m'
+  (cd yarn-project/noir-contracts && yarn noir:build:all 2> /dev/null)
+
+  echo -e '\n\033[1mRebuild barretenberg wasm...\033[0m'
+  (cd barretenberg/cpp && cmake --build --preset default && cmake --build --preset wasm && cmake --build --preset wasm-threads)
+
+  echo -e '\n\033[1mRebuild circuits wasm...\033[0m'
+  (cd circuits/cpp && cmake --build --preset wasm -j --target aztec3-circuits.wasm)
+
+  exit 0
 fi
 
 git submodule update --init --recursive
@@ -66,4 +74,4 @@ barretenberg/cpp/bootstrap.sh
 circuits/cpp/bootstrap.sh
 yarn-project/bootstrap.sh
 
-touch .bootstrapped
+echo $VERSION > .bootstrapped
