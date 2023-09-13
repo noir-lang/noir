@@ -91,7 +91,9 @@ jobs:
           working-directory: ./tooling/noirc_abi_wasm
 
       - name: Run node tests
-        run: yarn install && yarn workspace @noir-lang/noirc_abi test
+        run: |
+          yarn install --non-interactive --pure-lockfile
+          yarn workspace @noir-lang/noirc_abi test
 
   noirc-abi-wasm-test-browser:
     needs: [noirc-abi-wasm-build]
@@ -134,4 +136,6 @@ jobs:
 
       - name: Run browser tests
         working-directory: ./tooling/noirc_abi_wasm
-        run: yarn install && yarn workspace @noir-lang/noirc_abi test:browser
+        run: |
+          yarn install --non-interactive --pure-lockfile
+          yarn workspace @noir-lang/noirc_abi test:browser

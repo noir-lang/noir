@@ -78,7 +78,7 @@ jobs:
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/          
-          yarn install
+          yarn install --non-interactive --pure-lockfile
           yarn workspace release-tests test
 
       - name: Upload binaries to release tag
@@ -143,7 +143,7 @@ jobs:
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          yarn install
+          yarn install --non-interactive --pure-lockfile
           yarn workspace release-tests test
 
       - name: Upload binaries to release tag

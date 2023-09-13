@@ -73,11 +73,9 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
-      - name: Install `integration-tests` dependencies
-        run: yarn install
-
       - name: Run `integration-tests`
         run: |
+          yarn install --non-interactive --pure-lockfile
           yarn test:integration
           
       - name: Alert on nightly test failure  
