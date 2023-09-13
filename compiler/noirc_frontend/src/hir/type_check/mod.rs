@@ -263,6 +263,7 @@ mod test {
             contract_function_type: None,
             is_internal: None,
             is_unconstrained: false,
+            is_public: false,
             typ: Type::Function(
                 vec![Type::FieldElement, Type::FieldElement],
                 Box::new(Type::Unit),
