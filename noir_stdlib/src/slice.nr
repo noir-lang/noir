@@ -22,16 +22,28 @@ impl<T> [T] {
     #[builtin(slice_pop_front)]
     pub fn pop_front(_self: Self) -> (T, Self) { }
 
+    pub fn insert(self, _index: Field, _elem: T) -> Self {
+        // TODO(#2462): Slice insert with a dynamic index
+        crate::assert_constant(_index);
+        self.__slice_insert(_index, _elem)
+    }
+
     /// Insert an element at a specified index, shifting all elements 
     /// after it to the right
     #[builtin(slice_insert)]
-    pub fn insert(_self: Self, _index: Field, _elem: T) -> Self { }
+    fn __slice_insert(_self: Self, _index: Field, _elem: T) -> Self { }
+
+    pub fn remove(self, _index: Field) -> (Self, T) {
+        // TODO(#2462): Slice remove with a dynamic index
+        crate::assert_constant(_index);
+        self.__slice_remove(_index)
+    }
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the altered slice and 
     /// the removed element
     #[builtin(slice_remove)]
-    pub fn remove(_self: Self, _index: Field) -> (Self, T) { }
+    fn __slice_remove(_self: Self, _index: Field) -> (Self, T) { }
 
     // Append each element of the `other` slice to the end of `self`.
     // This returns a new slice and leaves both input slices unchanged.

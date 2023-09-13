@@ -134,7 +134,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.10.5";
+        version = "0.11.1";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -377,11 +377,11 @@
         ];
 
         buildPhaseCargoCommand = ''
-          bash crates/wasm/buildPhaseCargoCommand.sh release
+          bash compiler/wasm/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
-          bash crates/wasm/installPhase.sh
+          bash compiler/wasm/installPhase.sh
         '';
 
       });
@@ -412,11 +412,11 @@
         ];
 
         buildPhaseCargoCommand = ''
-          bash crates/noirc_abi_wasm/buildPhaseCargoCommand.sh release
+          bash tooling/noirc_abi_wasm/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
-          bash crates/noirc_abi_wasm/installPhase.sh
+          bash tooling/noirc_abi_wasm/installPhase.sh
         '';
 
       });
