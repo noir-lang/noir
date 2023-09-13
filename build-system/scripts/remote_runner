@@ -1,0 +1,26 @@
+#!/bin/bash
+set -eu
+
+ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+echo "Checking out code..."
+
+# IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: .circleci/config.yml
+# Shallow checkout this commit.
+mkdir -p project
+cd project
+git init
+git remote add origin $GIT_REPOSITORY_URL
+# Only download metadata when fetching.
+git config remote.origin.promisor true
+git config remote.origin.partialclonefilter blob:none
+git fetch --depth 1 origin $COMMIT_HASH
+git checkout FETCH_HEAD
+
+echo "Git checkout completed."
+
+BASH_ENV=/tmp/bash_env
+echo "Calling setup env..."
+source ./build-system/scripts/setup_env "$COMMIT_HASH" "$COMMIT_TAG" "$JOB_NAME" "$GIT_REPOSITORY_URL"
+echo "Calling $@..."
+$@

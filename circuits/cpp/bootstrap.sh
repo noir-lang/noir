@@ -16,17 +16,7 @@ if [ -n "${CLEAN:-}" ]; then
   # Clean.
   rm -rf ./build
   rm -rf ./build-wasm
-
-  # Clean barretenberg.
-  rm -rf ./barretenberg/cpp/build
-  rm -rf ./barretenberg/cpp/build-wasm
-  rm -rf ./barretenberg/cpp/src/wasi-sdk-*
 fi
-
-# Install formatting git hook.
-HOOKS_DIR=$(git rev-parse --git-path hooks)
-echo "cd \$(git rev-parse --show-toplevel)/circuits/cpp && ./format.sh staged" > $HOOKS_DIR/pre-commit
-chmod +x $HOOKS_DIR/pre-commit
 
 # Determine system.
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -37,9 +27,6 @@ else
   echo "Unknown OS: $OSTYPE"
   exit 1
 fi
-
-# Download ignition transcripts.
-(cd barretenberg/cpp/srs_db && ./download_ignition.sh 3)
 
 # Pick native toolchain file.
 ARCH=$(uname -m)
@@ -73,9 +60,6 @@ echo "#################################"
 # Build native.
 cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
 cmake --build --preset $PRESET ${@/#/--target }
-
-# Install the webassembly toolchain.
-(cd ./barretenberg/cpp && ./scripts/install-wasi-sdk.sh)
 
 # Build WASM.
 cmake --preset wasm

@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+REPOSITORY=$1
+CPUS=$2
+SCRIPT=$3
+shift 3
+
+# We provide scripts relative to the project root, as that makes more sense.
+# Augment the script path to be relative to the repo root, rather then the project root, for the remote runner.
+SCRIPT=$(query_manifest relativeProjectDir $REPOSITORY)/$SCRIPT
+
+# Specify a TAG_POSTFIX as the JOB_NAME
+mkdir -p /tmp/test-logs
+TAG_POSTFIX=$JOB_NAME cond_spot_run_script $REPOSITORY $CPUS $SCRIPT $@ | tee "/tmp/test-logs/$JOB_NAME.log"

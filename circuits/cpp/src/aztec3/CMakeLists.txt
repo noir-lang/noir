@@ -1,9 +1,16 @@
+if (WASM)
+    link_directories(${CMAKE_SOURCE_DIR}/barretenberg/cpp/build-wasm/lib)
+else()
+    link_directories(${CMAKE_SOURCE_DIR}/barretenberg/cpp/build/lib)
+endif()
+
 add_subdirectory(circuits)
 add_subdirectory(oracle)
 add_subdirectory(dbs)
 add_subdirectory(utils)
 
 if (WASM)
+
     # We can't build a wasm module by just linking to the libraries as that produces, nothing.
     # There are a couple of other ways to avoiding listing all the object files here and leveraging the dependency
     # tree, but they come with the problem that they will import the 'env' object files. We explicitly want to avoid
@@ -24,5 +31,4 @@ if (WASM)
         # TODO revisit implications of whole-archive
         -nostartfiles -Wl,--whole-archive -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
     )
-
 endif()

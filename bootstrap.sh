@@ -34,5 +34,12 @@ if [ ! -f ~/.nvm/nvm.sh ]; then
   exit 1
 fi
 
+# Install pre-commit git hooks.
+HOOKS_DIR=$(git rev-parse --git-path hooks)
+echo "(cd barretenberg/cpp && ./format.sh staged)" > $HOOKS_DIR/pre-commit
+echo "(cd circuits/cpp && ./format.sh staged)" >> $HOOKS_DIR/pre-commit
+chmod +x $HOOKS_DIR/pre-commit
+
+barretenberg/cpp/bootstrap.sh
 circuits/cpp/bootstrap.sh
 yarn-project/bootstrap.sh

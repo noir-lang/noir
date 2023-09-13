@@ -22,12 +22,12 @@
       "package-name": "aztec-packages",
       "extra-files": ["VERSION"]
     },
-    "circuits/cpp/barretenberg/ts": {
+    "barretenberg/ts": {
       "release-type": "node",
       "package-name": "barretenberg.js",
       "component": "barretenberg.js"
     },
-    "circuits/cpp/barretenberg": {
+    "barretenberg": {
       "release-type": "simple",
       "component": "barretenberg",
       "package-name": "barretenberg",

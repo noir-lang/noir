@@ -1,3 +1,5 @@
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-x86_64-linux-clang as bb
+
 FROM alpine:3.17 AS builder
 RUN apk update \
     && apk upgrade \
@@ -13,11 +15,9 @@ RUN apk update \
         perl \
         bash \
         python3
-
+COPY --from=bb /usr/src/barretenberg/cpp /usr/src/barretenberg/cpp
 WORKDIR /usr/src/circuits/cpp
-
 COPY . .
-
 # Configure cmake and check if code is tidy
 RUN cmake --preset default
 RUN ./scripts/tidy.sh fix

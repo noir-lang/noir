@@ -1,0 +1,21 @@
+# We want to explicitly define what's allowed into the context.
+*
+
+# Important cmake files.
+!CMakeLists.txt
+!CMakePresets.json
+!cmake
+
+# Important srs_db files.
+!srs_db/download_ignition.sh
+!srs_db/ignition/checksums
+
+# Source code.
+!src/CMakeLists.txt
+!src/barretenberg
+!src/msgpack-c
+
+# Needed scripts.
+!scripts/install-wasi-sdk.sh
+!./.clang-format
+!./format.sh

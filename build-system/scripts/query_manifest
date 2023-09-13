@@ -3,6 +3,7 @@ set -eu
 CMD=$1
 REPO=$2
 
+ROOT_PATH=${ROOT_PATH:-$PWD}
 MANIFEST=$ROOT_PATH/build_manifest.json
 
 if [ $(jq "has(\"$REPO\")" $MANIFEST) == "false" ]; then
@@ -10,36 +11,65 @@ if [ $(jq "has(\"$REPO\")" $MANIFEST) == "false" ]; then
   exit 1
 fi
 
+function addRebuildPatterns {
+    local TYPE=$(jq -r ".\"$1\".rebuildPatterns | type" $MANIFEST)
+    if [ "$TYPE" == "string" ]; then
+      local FILE=$(jq -r ".\"$1\".rebuildPatterns" $MANIFEST)
+      local BUILD_DIR=$($0 buildDir $1)
+      PATTERNS=(${PATTERNS[@]} $(cat $BUILD_DIR/$FILE))
+    elif [ "$TYPE" == "array" ]; then
+      PATTERNS=(${PATTERNS[@]} $(jq -r ".\"$1\".rebuildPatterns | .[]" $MANIFEST))
+    else
+      >&2 echo "Missing rebuildPatterns property. Either filename as string, or patterns as array."
+      exit 1
+    fi
+}
+
 case "$CMD" in
   dockerfile)
-    jq -r ".\"$REPO\".dockerfile // \"Dockerfile\"" $MANIFEST
+    # In the manifest, the path is relative to buildDir. Return absolute path.
+    BUILD_DIR=$($0 buildDir $REPO)
+    DOCKERFILE=$(jq -r ".\"$REPO\".dockerfile // \"Dockerfile\"" $MANIFEST)
+    echo $BUILD_DIR/$DOCKERFILE
     ;;
   buildDir)
-    jq -r ".\"$REPO\".buildDir" $MANIFEST
+    # In the manifest, the path is relative to the repo root. Return absolute path.
+    BUILD_DIR=$(jq -r ".\"$REPO\".buildDir" $MANIFEST)
+    echo $ROOT_PATH/$BUILD_DIR
     ;;
   projectDir)
+    # In the manifest, the path is relative to the repo root. Return absolute path.
+    PROJECT_DIR=$(jq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $MANIFEST)
+    echo $ROOT_PATH/$PROJECT_DIR
+    ;;
+  relativeProjectDir)
     jq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $MANIFEST
     ;;
   dependencies)
-    ALL_DEPS=()
+    declare -A ALL_DEPS
     add_deps() {
+      if [[ -v ALL_DEPS[$1] ]]; then
+        return
+      fi
+      ALL_DEPS["$1"]=1
       DEPS=($(jq -r ".\"$1\".dependencies // [] | .[]" $MANIFEST))
-      ALL_DEPS=(${ALL_DEPS[@]} ${DEPS[@]})
       for DEP in "${DEPS[@]}"; do
         add_deps $DEP
       done
     }
     add_deps $REPO
-    printf "%s\n" "${ALL_DEPS[@]}" | sort | uniq
+    for KEY in "${!ALL_DEPS[@]}"; do
+      echo $KEY
+    done | sort
     ;;
   rebuildPatterns)
-    ALL_PATTERNS=($(jq -r ".\"$REPO\".rebuildPatterns | .[]" $MANIFEST))
     DEPS=($($0 dependencies $REPO))
+    PATTERNS=()
+    addRebuildPatterns $REPO
     for DEP in "${DEPS[@]}"; do
-      PATTERNS=($(jq -r ".\"$DEP\".rebuildPatterns | .[]" $MANIFEST))
-      ALL_PATTERNS=(${ALL_PATTERNS[@]} ${PATTERNS[@]})
+      addRebuildPatterns $DEP
     done
-    printf "%s\n" "${ALL_PATTERNS[@]}" | sort | uniq
+    printf "%s\n" "${PATTERNS[@]}" | sort | uniq
     ;;
   submodulePath)
     DIR=$($0 buildDir $REPO)

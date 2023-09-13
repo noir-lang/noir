@@ -5,8 +5,8 @@ on:
     branches:
       - master
     paths:
-      - 'circuits/cpp/barretenberg/**'
-      - '!circuits/cpp/barretenberg/.gitrepo'
+      - "barretenberg/**"
+      - "!barretenberg/.gitrepo"
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
         run: |
           # we push using git subrepo (https://github.com/ingydotnet/git-subrepo)
           # with some logic to recover from squashed parent commits
-          SUBREPO_PATH=circuits/cpp/barretenberg
+          SUBREPO_PATH=barretenberg
           # identify ourselves, needed to commit
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com

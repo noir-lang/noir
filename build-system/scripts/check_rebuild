@@ -1,7 +1,5 @@
 #!/bin/bash
-# Fails if any files matching the rebuild patterns, have changed since the base commit.
 # If this script fails (nonzero exit), then the caller should rebuild.
-# The rebuild patterns are taken from the build manifest (computed from set of dependencies).
 set -euo pipefail
 
 TAG=$1
@@ -14,7 +12,7 @@ if ! image_exists $REPOSITORY $TAG; then
   echo "Rebuild required."
   exit 1
 elif image_exists $REPOSITORY tainted; then
-  # If a tainted tag exists, remove it exit with failure to rebuild.
+  # If a tainted tag exists, remove it and exit with failure to rebuild.
   echo "$REPOSITORY has been tainted. Will rebuild."
   exit 1
 else

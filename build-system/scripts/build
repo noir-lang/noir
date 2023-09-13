@@ -93,6 +93,7 @@ fi
 # Pull latest parents that are not ours. We also do not want to pull images suffixed by _, this is how we scope intermediate build images.
 PARENTS=$(cat $DOCKERFILE | sed -n -e 's/^FROM \([^[:space:]]\+\).*/\1/p' | sed '/_$/d' | grep -v $ECR_DEPLOY_URL  | sort | uniq)
 for PARENT in $PARENTS; do
+  [ "$PARENT" == "scratch" ] && continue
   fetch_image $PARENT
 done
 
@@ -118,14 +119,14 @@ done
 # Extract version from commit tag
 # Check if there is a commit tag
 if [[ -n "$COMMIT_TAG" ]]; then
-  
+
   # Check if it's a repo-specific tag
   if [[ "$COMMIT_TAG" == *"/"* ]]; then
     REPO_NAME="${COMMIT_TAG%%/*}"
     COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
     echo "Tag was made for: $REPO_NAME"
     echo "Version: $COMMIT_TAG_VERSION"
-    
+
     # Check if REPO_NAME is equal to REPOSITORY
     if [ "$REPO_NAME" != "$REPOSITORY" ]; then
       echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Ignoring..."
@@ -156,16 +157,16 @@ for STAGE in $STAGES; do
       STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
     fi
   fi
-  
+
   echo "Building stage: $STAGE"
   STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
   # Build our dockerfile, add timing information
   docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
   | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
-  
+
   # We don't want to have redo this stages work when building the final image. Use it as a layer cache.
   CACHE_FROM="--cache-from $STAGE_IMAGE_COMMIT_URI $CACHE_FROM"
-  
+
   echo "Pushing stage: $STAGE"
   retry docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
   echo

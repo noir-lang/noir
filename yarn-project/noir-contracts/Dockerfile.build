@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /usr/src/yarn-project
 COPY . .
 
-WORKDIR /usr/src/yarn-project/noir-contracts 
+WORKDIR /usr/src/yarn-project/noir-contracts
 
 # Download and extract nargo
 ENV NARGO_HOME="/usr/src/yarn-project/noir-contracts/.nargo"

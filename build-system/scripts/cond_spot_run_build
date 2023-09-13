@@ -1,20 +1,7 @@
 #!/bin/bash
 set -eu
-set -o pipefail
 
 REPOSITORY=$1
-shift
-SPEC=$1
-shift
-DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
+CPUS=$2
 
-CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "Content hash tag: cache-$CONTENT_HASH"
-
-cd $(query_manifest buildDir $REPOSITORY)
-
-if ! check_rebuild cache-$CONTENT_HASH $REPOSITORY; then
-  init_submodules $REPOSITORY
-  spot_run_script $CONTENT_HASH $SPEC $BUILD_SYSTEM_PATH/remote_build/remote_build $REPOSITORY $@
-  retry tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH
-fi
+cond_spot_run_script $REPOSITORY $CPUS build $REPOSITORY

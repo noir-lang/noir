@@ -36,7 +36,7 @@ fi
 
 BRANCH="$1"
 COMMIT_MESSAGE="$2"
-SUBREPO_PATH=circuits/cpp/barretenberg # can be changed to another subrepo if useful
+SUBREPO_PATH=barretenberg # can be changed to another subrepo if useful
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 cd "$SCRIPT_DIR"/..
@@ -59,7 +59,7 @@ fi
 
 echo "(branch migrate) Automatic git data fix"
 # Tosses away the .gitrepo changes, as those we only want if pulling from barretenberg master, not PRs (which will go in as aztec commits).
-# because git-subrepo uses 'git rm -r', we fix up .gitmodules after as well. This is an edge-case gotcha using 
+# because git-subrepo uses 'git rm -r', we fix up .gitmodules after as well. This is an edge-case gotcha using
 # git submodules along with git-subrepo.
 
 git checkout HEAD^ -- "$SUBREPO_PATH"/.gitrepo .gitmodules

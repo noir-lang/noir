@@ -1,11 +1,14 @@
 #!/bin/bash
 # Runs a test script on a remote spot instance. Arguments are:
-# 1. Content hash for our repository contents. Used for identify spot jobs and image tags.
-# 2. SPEC: Instance specification filename.
-# 3... ARGS: Arguments to pass to remote_run_script.
+# 1. CONTENT_HASH: Content hash for our repository contents. Used to identify spot jobs and image tags.
+# 2. CPUS: Number of cpus on spot request.
+# 3... ARGS: Script and arguments to run.
+#
+# Env vars:
+# JOB_NAME: Set within setup-env. The job name as per CI.
 set -eu
 CONTENT_HASH=$1
-SPEC=$2
+CPUS=$2
 shift 2
 
 # On any sort of exit (error or not), kill spot request so it doesn't count against quota.
@@ -19,7 +22,7 @@ function on_exit {
 trap on_exit EXIT
 
 # Get spot instance.
-IP=$(request_spot $CONTENT_HASH:$JOB_NAME $SPEC)
+IP=$(request_spot $CONTENT_HASH:$JOB_NAME $CPUS)
 
 # Run script remotely on spot instance, capturing success or failure.
 set +e

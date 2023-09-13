@@ -3,7 +3,7 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 ARG COMMIT_TAG=""
 
 # Remove SRS files (currently not producing proofs)
-RUN rm -rf /usr/src/circuits/cpp/barretenberg/cpp/srs_db/ignition/monomial
+RUN rm -rf /usr/src/barretenberg/cpp/srs_db/ignition/monomial
 COPY . .
 
 # Update aztec-rpc version if COMMIT_TAG has been used

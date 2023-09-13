@@ -28,7 +28,7 @@ All packages need to be included in the [build manifest](`build_manifest.json`),
 
 ## Debugging
 
-Logging goes through the [`info` and `debug`](circuits/cpp/barretenberg/cpp/src/barretenberg/common/log.hpp) functions in C++, and through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
+Logging goes through the [`info` and `debug`](barretenberg/cpp/src/barretenberg/common/log.hpp) functions in C++, and through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
 
 ## Releases
 

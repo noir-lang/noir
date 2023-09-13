@@ -14,7 +14,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     add_compile_options(-fconstexpr-ops-limit=100000000)
 endif()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../barretenberg/cpp/src/msgpack-c/include)
+include_directories(${CMAKE_SOURCE_DIR}/barretenberg/cpp/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/barretenberg/cpp/src/msgpack-c/include)
 
 # I feel this should be limited to ecc, however it's currently used in headers that go across libraries,
 # and there currently isn't an easy way to inherit the DDISABLE_SHENANIGANS parameter.

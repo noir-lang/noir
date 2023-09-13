@@ -1,16 +1,14 @@
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-wasm-linux-clang as bb
+
 FROM ubuntu:lunar AS builder
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget git libssl-dev cmake ninja-build curl binaryen
-
-WORKDIR /usr/src/circuits/cpp/barretenberg/cpp
-COPY ./barretenberg/cpp/scripts/install-wasi-sdk.sh ./scripts/install-wasi-sdk.sh
-RUN ./scripts/install-wasi-sdk.sh
+COPY --from=bb /usr/src/barretenberg/cpp /usr/src/barretenberg/cpp
 WORKDIR /usr/src/circuits/cpp
 COPY . .
-
 RUN cmake --preset wasm && cmake --build --preset wasm --target aztec3-circuits.wasm
 
-FROM alpine:3.17
+FROM scratch
+COPY --from=builder /usr/src/barretenberg/cpp/build-wasm/bin/barretenberg.wasm /usr/src/barretenberg/cpp/build-wasm/bin/primitives.wasm
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm
-COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/build-wasm/bin/barretenberg.wasm /usr/src/circuits/cpp/barretenberg/cpp/build-wasm/bin/primitives.wasm
-COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures

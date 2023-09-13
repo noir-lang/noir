@@ -1,0 +1,17 @@
+FROM alpine:3.18 AS builder
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+        build-base \
+        cmake \
+        ninja \
+        git \
+        curl
+WORKDIR /usr/src/barretenberg/cpp
+COPY . .
+# Build the entire project, as we want to check everything builds under gcc.
+RUN cmake --preset gcc -DCI=ON && cmake --build --preset gcc
+
+FROM alpine:3.18
+RUN apk update && apk add libstdc++
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb

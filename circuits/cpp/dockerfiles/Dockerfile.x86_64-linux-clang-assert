@@ -1,24 +1,25 @@
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-x86_64-linux-clang as bb
+
 FROM alpine:3.17 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
         clang15 \
-        openmp-dev \
         cmake \
         ninja \
         git \
         curl \
         perl
-
+COPY --from=bb /usr/src/barretenberg/cpp /usr/src/barretenberg/cpp
 WORKDIR /usr/src/circuits/cpp
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
 RUN cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset default
 
 FROM alpine:3.17
-RUN apk update && apk add curl openmp bash
-COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/barretenberg/cpp/srs_db
+RUN apk update && apk add curl bash libstdc++
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures /usr/src/circuits/cpp/src/aztec3/circuits/kernel/private/fixtures
 COPY --from=builder /usr/src/circuits/cpp/scripts /usr/src/circuits/cpp/scripts
 COPY --from=builder /usr/src/circuits/cpp/build/bin/*_tests /usr/src/circuits/cpp/build/bin/

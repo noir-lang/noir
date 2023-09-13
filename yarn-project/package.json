@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "node ./yarn-project-base/scripts/update_package_jsons.mjs && yarn workspaces foreach run prepare && workspaces-to-typescript-project-references --tsconfigPath tsconfig.json && prettier -w */tsconfig.json",
-    "prepare:check": "node ./yarn-project-base/scripts/update_package_jsons.mjs --check && yarn workspaces foreach run prepare:check && workspaces-to-typescript-project-references --check --tsconfigPath tsconfig.json",
+    "prepare:check": "node ./yarn-project-base/scripts/update_package_jsons.mjs --check && workspaces-to-typescript-project-references --check --tsconfigPath tsconfig.json",
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
     "formatting": "yarn workspaces foreach -p -v run formatting",
     "formatting:fix": "yarn workspaces foreach -p -v run formatting:fix",

@@ -18,7 +18,6 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
       "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "default",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
@@ -32,9 +31,6 @@
         "CXX": "$env{BREW_PREFIX}/opt/llvm/bin/clang++",
         "LDFLAGS": "-L$env{BREW_PREFIX}/opt/libomp/lib",
         "CPPFLAGS": "-I$env{BREW_PREFIX}/opt/libomp/include"
-      },
-      "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "homebrew"
       }
     },
     {
@@ -45,9 +41,6 @@
       "environment": {
         "CC": "clang-15",
         "CXX": "clang++-15"
-      },
-      "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "clang15"
       }
     },
     {
@@ -76,9 +69,6 @@
       "environment": {
         "CC": "clang-16",
         "CXX": "clang++-16"
-      },
-      "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "clang16"
       }
     },
     {
@@ -107,9 +97,6 @@
       "environment": {
         "CC": "gcc",
         "CXX": "g++"
-      },
-      "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "gcc"
       }
     },
     {
@@ -120,9 +107,6 @@
       "environment": {
         "CC": "gcc-10",
         "CXX": "g++-10"
-      },
-      "cacheVariables": {
-        "CMAKE_BBERG_PRESET": "gcc10"
       }
     },
     {
@@ -139,8 +123,7 @@
       "inherits": "default",
       "binaryDir": "build-fuzzing",
       "cacheVariables": {
-        "FUZZING": "ON",
-        "CMAKE_BBERG_PRESET": "fuzzing"
+        "FUZZING": "ON"
       }
     },
     {
@@ -151,8 +134,7 @@
       "binaryDir": "build-coverage",
       "cacheVariables": {
         "COVERAGE": "ON",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_BBERG_PRESET": "coverage"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
@@ -178,7 +160,6 @@
         "CMAKE_C_COMPILER_WORKS": "ON",
         "CMAKE_CXX_COMPILER_WORKS": "ON",
         "CMAKE_EXE_LINKER_FLAGS": "-O3",
-        "CMAKE_BBERG_PRESET": "wasm",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },

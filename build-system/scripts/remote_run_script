@@ -1,17 +1,30 @@
 #!/bin/bash
+# Copies the runner script to the remote instance, runs it giving it script and args to run.
+# The runner script checks out the repository first and runs setup-env.
+#
+# 1. IP: The IP address of the system to run the script on.
+# 2... ARGS: Script and arguments to run.
+#
+# e.g. remote_run_script 1.2.3.4 build my_repo
 set -eu
 
 IP=$1
-FULL_PATH=$2
-shift 2
+shift
 
 SSH_CONFIG_PATH=${SSH_CONFIG_PATH:-$BUILD_SYSTEM_PATH/remote/ssh_config}
-DIR_NAME=$(dirname $FULL_PATH)
-SCRIPT_NAME=$(basename $FULL_PATH)
 
-# Copy all files in script directory to spot instance.
-scp -F $SSH_CONFIG_PATH $DIR_NAME/* $IP:.
-scp -rF $SSH_CONFIG_PATH $BUILD_SYSTEM_PATH $BUILD_SYSTEM_PATH/../.git $BUILD_SYSTEM_PATH/../build_manifest.json $IP:.
+# Copy the runner script to spot instance. This is what we actually run.
+scp -rF $SSH_CONFIG_PATH $BUILD_SYSTEM_PATH/scripts/remote_runner $IP:.
 
 # Run script on remote instance, passing environment variables.
-ssh -A -F $SSH_CONFIG_PATH $IP "COMMIT_HASH=$COMMIT_HASH COMMIT_TAG=$COMMIT_TAG JOB_NAME=$JOB_NAME GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL DOCKERHUB_PASSWORD=$DOCKERHUB_PASSWORD ECR_DEPLOY_URL=$ECR_DEPLOY_URL ECR_URL=$ECR_URL ./$SCRIPT_NAME $@"
+echo "Running ./remote_runner $@ on $IP..."
+ssh -A -F $SSH_CONFIG_PATH $IP "
+  export COMMIT_HASH=$COMMIT_HASH
+  export COMMIT_TAG=$COMMIT_TAG
+  export JOB_NAME=$JOB_NAME
+  export GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL
+  export DOCKERHUB_PASSWORD=$DOCKERHUB_PASSWORD
+  export ECR_DEPLOY_URL=$ECR_DEPLOY_URL
+  export ECR_URL=$ECR_URL
+  ./remote_runner $@
+"

@@ -10,7 +10,7 @@ import { G1AffineElement } from './verification_key.js';
 /**
  * Contains the aggregated proof of all the previous kernel iterations.
  *
- * See circuits/cpp/barretenberg/cpp/src/barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp
+ * See barretenberg/cpp/src/barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp
  * for more context.
  */
 export class AggregationObject {

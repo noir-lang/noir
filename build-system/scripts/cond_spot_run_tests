@@ -1,4 +1,0 @@
-#!/bin/bash
-set -eu
-
-cond_spot_run_test_script ./scripts/run_tests $@

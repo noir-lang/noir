@@ -33,9 +33,10 @@ $(git rev-parse --show-toplevel)/build-system/scripts/retry docker pull $IMAGE_U
 RUN_ARGS="$@" # helper var necessary for some reason to pass all args to docker run
 time docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -xe; \
+  mv /usr/src/barretenberg /usr/src/circuits/cpp/; \
   cd /usr/src/circuits/cpp/barretenberg/cpp/srs_db; \
-  ln -sf /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \
   cd /usr/src/circuits/cpp; \
+  ln -sf /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/srs_db; \
   export PATH=\$PATH:~/.wasmtime/bin/; \
   ./scripts/run_tests_local $RUN_ARGS;"

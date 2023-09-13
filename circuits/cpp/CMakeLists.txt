@@ -139,10 +139,6 @@ if(COVERAGE)
     )
 endif()
 
-# include barretenberg as ExternalProject
-# (needs WASM to be set already)
-include(cmake/barretenberg.cmake)
-
 include(cmake/build.cmake)
 include(GNUInstallDirs)
 include(cmake/arch.cmake)

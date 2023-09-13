@@ -49,7 +49,7 @@ checkout: &checkout
       echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
 
       chmod 0600 .ssh/id_rsa
-      # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/remote_build/remote_build
+      # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/scripts/remote_runner
       # Shallow checkout this commit.
       mkdir -p project
       cd project
@@ -140,7 +140,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib-tests
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 stdlib-tests
       - *save_logs
 
   barretenberg-dsl-tests:
@@ -152,7 +152,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 dsl_tests
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 dsl_tests
       - *save_logs
 
   barretenberg-tests:
@@ -164,7 +164,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_test_script ./scripts/bb-tests.sh barretenberg-x86_64-linux-clang-assert
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/bb-tests.sh
       - *save_logs
 
   barretenberg-honk-tests:
@@ -176,7 +176,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 honk_tests
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 honk_tests
       - *save_logs
 
   barretenberg-proof-system-tests:
@@ -188,7 +188,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 proof_system_tests
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 proof_system_tests
       - *save_logs
 
   barretenberg-stdlib-recursion-turbo-tests:
@@ -200,7 +200,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_recursion_tests --gtest_filter=*turbo*
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 stdlib_recursion_tests --gtest_filter=*turbo*
       - *save_logs
 
   barretenberg-stdlib-recursion-ultra-tests:
@@ -212,7 +212,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 3 stdlib_recursion_tests --gtest_filter=-*turbo*
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 stdlib_recursion_tests --gtest_filter=-*turbo*
       - *save_logs
 
   barretenberg-join-split-tests:
@@ -224,7 +224,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 3 join_split_example_proofs_join_split_tests --gtest_filter=-*full_proof*
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 join_split_example_proofs_join_split_tests --gtest_filter=-*full_proof*
       - *save_logs
 
   # barretenberg-benchmark-aggregator:
@@ -271,7 +271,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: cond_spot_run_tests bb.js
+          command: cond_spot_run_test bb.js 32 ./scripts/run_tests
 
   bb-js-acir-tests:
     docker:
@@ -348,7 +348,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests circuits-wasm-linux-clang-assert 1 wasm scripts/a3-tests -*.skip*:*.circuit*
+          command: cond_spot_run_test circuits-wasm-linux-clang-assert 32 ./scripts/run_tests 1 wasm scripts/a3-tests -*.skip*:*.circuit*
       - *save_logs
 
   circuits-x86_64-tests:
@@ -360,17 +360,8 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 x86_64 scripts/a3-tests -*.skip*
+          command: cond_spot_run_test circuits-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 x86_64 scripts/a3-tests -*.skip*
       - *save_logs
-
-  circuits-end:
-    docker:
-      - image: cimg/base:current
-    resource_class: small
-    steps:
-      - run:
-          name: "Noop"
-          command: echo Noop
 
   l1-contracts:
     machine:
@@ -390,12 +381,6 @@ jobs:
     steps:
       - *checkout
       - *setup_env
-      # We make the build_manifest in the root available to yarn-project. We should be injecting another
-      # build context to docker instead, but that requires modifying the build script from build-system
-      # to accept arbitrary arguments to be passed to docker build, so we avoid it for now.
-      - run:
-          name: "Make build manifest available"
-          command: cp build_manifest.json yarn-project/
       - run:
           name: "Build"
           command: build yarn-project-base
@@ -673,8 +658,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_2_rpc_servers.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_2_rpc_servers.test.ts
 
   e2e-multiple-accounts-1-enc-key:
     machine:
@@ -685,8 +669,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_multiple_accounts_1_enc_key.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_multiple_accounts_1_enc_key.test.ts
 
   e2e-deploy-contract:
     machine:
@@ -697,8 +680,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_deploy_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_deploy_contract.test.ts
 
   e2e-lending-contract:
     machine:
@@ -709,8 +691,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_lending_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_lending_contract.test.ts
 
   e2e-token-contract:
     machine:
@@ -734,8 +715,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_private_token_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_private_token_contract.test.ts
 
   e2e-sandbox-example:
     machine:
@@ -745,8 +725,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_sandbox_example.test.ts ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_sandbox_example.test.ts ./scripts/docker-compose-e2e-sandbox.yml
 
   e2e-multi-transfer-contract:
     machine:
@@ -756,8 +735,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_multi_transfer.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_multi_transfer.test.ts
 
   e2e-block-building:
     machine:
@@ -768,8 +746,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_block_building.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_block_building.test.ts
 
   e2e-nested-contract:
     machine:
@@ -780,8 +757,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_nested_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_nested_contract.test.ts
 
   e2e-non-contract-account:
     machine:
@@ -792,8 +768,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_non_contract_account.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_non_contract_account.test.ts
 
   e2e-cross-chain-messaging:
     machine:
@@ -804,8 +779,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_cross_chain_messaging.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_cross_chain_messaging.test.ts
 
   e2e-public-cross-chain-messaging:
     machine:
@@ -816,8 +790,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_public_cross_chain_messaging.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_public_cross_chain_messaging.test.ts
 
   e2e-public-to-private-messaging:
     machine:
@@ -828,8 +801,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_public_to_private_messaging.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_public_to_private_messaging.test.ts
 
   e2e-account-contracts:
     machine:
@@ -840,8 +812,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_account_contracts.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_account_contracts.test.ts
 
   e2e-escrow-contract:
     machine:
@@ -851,8 +822,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_escrow_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_escrow_contract.test.ts
 
   e2e-pending-commitments-contract:
     machine:
@@ -863,8 +833,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
 
   e2e-ordering:
     machine:
@@ -875,8 +844,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_ordering.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_ordering.test.ts
 
   uniswap-trade-on-l1-from-l2:
     machine:
@@ -887,8 +855,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts
 
   integration-archiver-l1-to-l2:
     machine:
@@ -899,8 +866,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local integration_archiver_l1_to_l2.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local integration_archiver_l1_to_l2.test.ts
 
   integration-l1-publisher:
     machine:
@@ -911,8 +877,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local integration_l1_publisher.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local integration_l1_publisher.test.ts
 
   e2e-public-token-contract:
     machine:
@@ -923,8 +888,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_public_token_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_public_token_contract.test.ts
 
   e2e-cli:
     machine:
@@ -935,8 +899,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_cli.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_cli.test.ts
 
   e2e-p2p:
     machine:
@@ -946,8 +909,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_p2p_network.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_p2p_network.test.ts
 
   e2e-browser-sandbox:
     machine:
@@ -957,8 +919,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_aztec_js_browser.test.ts ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_aztec_js_browser.test.ts ./scripts/docker-compose-e2e-sandbox.yml
 
   e2e-card-game:
     machine:
@@ -968,8 +929,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_card_game.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_card_game.test.ts
 
   aztec-rpc-sandbox:
     machine:
@@ -979,8 +939,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local aztec_rpc_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local aztec_rpc_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
 
   cli-docs-sandbox:
     machine:
@@ -990,8 +949,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local cli_docs_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local cli_docs_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
 
   guides-writing-an-account-contract:
     machine:
@@ -1002,8 +960,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local guides/writing_an_account_contract.test.ts
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local guides/writing_an_account_contract.test.ts
 
   guides-dapp-testing:
     machine:
@@ -1013,9 +970,8 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local guides/dapp_testing.test.ts ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/end-to-end
-        
+          command: cond_run_script end-to-end ./scripts/run_tests_local guides/dapp_testing.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+
   guides-sample-dapp:
     machine:
       image: ubuntu-2004:202010-01
@@ -1024,8 +980,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local sample-dapp ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/end-to-end
+          command: cond_run_script end-to-end ./scripts/run_tests_local sample-dapp ./scripts/docker-compose-e2e-sandbox.yml
 
   e2e-canary-test:
     machine:
@@ -1035,8 +990,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script canary-build $JOB_NAME ./scripts/run_tests uniswap_trade_on_l1_from_l2.test.ts canary-build ./scripts/docker-compose-e2e-sandbox.yml
-          working_directory: yarn-project/canary
+          command: cond_run_script canary-build ./scripts/run_tests uniswap_trade_on_l1_from_l2.test.ts canary-build ./scripts/docker-compose-e2e-sandbox.yml
 
   build-docs:
     machine:
@@ -1299,14 +1253,6 @@ bb_test: &bb_test
   requires:
     - barretenberg-x86_64-linux-clang-assert
   <<: *defaults
-circuits-wasm-test: &circuits-wasm-test
-  requires:
-    - circuits-wasm-linux-clang-assert
-  <<: *defaults
-circuits-x86_64-test: &circuits-x86_64-test
-  requires:
-    - circuits-x86_64-linux-clang-assert
-  <<: *defaults
 
 workflows:
   system:
@@ -1314,6 +1260,8 @@ workflows:
       equal: [system, << pipeline.parameters.workflow >>]
     jobs:
       - build-docs: *defaults
+
+      # Barretenberg
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
       - barretenberg-x86_64-linux-clang-assert: *defaults
@@ -1339,6 +1287,10 @@ workflows:
       #         only:
       #           - master
       #     <<: *defaults
+      - barretenberg-acir-tests-bb:
+          requires:
+            - barretenberg-x86_64-linux-clang-assert
+          <<: *defaults
       - bb-js:
           requires:
             - barretenberg-wasm-linux-clang
@@ -1347,38 +1299,54 @@ workflows:
           requires:
             - bb-js
           <<: *defaults
-      - barretenberg-acir-tests-bb:
-          requires:
-            - barretenberg-x86_64-linux-clang-assert
-          <<: *defaults
       - bb-js-acir-tests:
           requires:
             - bb-js
           <<: *defaults
-      - circuits-wasm-linux-clang: *defaults
-      - circuits-wasm-linux-clang-assert: *defaults
-      - circuits-x86_64-linux-clang-tidy: *defaults
-      - circuits-x86_64-linux-clang: *defaults
-      - circuits-x86_64-linux-clang-assert: *defaults
-      - circuits-wasm-tests:
-          <<: *circuits-wasm-test
-      - circuits-x86_64-tests:
-          <<: *circuits-x86_64-test
 
-      - circuits-end:
+      # Circuits
+      - circuits-wasm-linux-clang:
           requires:
-            - circuits-wasm-linux-clang
-            - circuits-wasm-linux-clang-assert
-            - circuits-x86_64-linux-clang-tidy
-            - circuits-x86_64-linux-clang
-            - circuits-x86_64-linux-clang-assert
-            - circuits-wasm-tests
-            - circuits-x86_64-tests
+            - barretenberg-wasm-linux-clang
           <<: *defaults
+      - circuits-wasm-linux-clang-assert:
+          requires:
+            - barretenberg-wasm-linux-clang
+          <<: *defaults
+      - circuits-x86_64-linux-clang-tidy:
+          requires:
+            - barretenberg-x86_64-linux-clang
+          <<: *defaults
+      - circuits-x86_64-linux-clang:
+          requires:
+            - barretenberg-x86_64-linux-clang
+          <<: *defaults
+      - circuits-x86_64-linux-clang-assert:
+          requires:
+            - barretenberg-x86_64-linux-clang
+          <<: *defaults
+      - circuits-wasm-tests:
+          requires:
+            - circuits-wasm-linux-clang-assert
+          <<: *defaults
+      - circuits-x86_64-tests:
+          requires:
+            - circuits-x86_64-linux-clang-assert
+          <<: *defaults
+
+      # - circuits-end:
+      #     requires:
+      #       - circuits-wasm-linux-clang
+      #       - circuits-x86_64-linux-clang-tidy
+      #       - circuits-x86_64-linux-clang
+      #       - circuits-wasm-tests
+      #       - circuits-x86_64-tests
+      #     <<: *defaults
 
       - l1-contracts: *defaults
       - noir-contracts-build: *defaults
 
+      # Yarn Project
       - yarn-project-base:
           requires:
             - circuits-wasm-linux-clang
@@ -1506,6 +1474,7 @@ workflows:
             - guides-sample-dapp
           <<: *defaults
 
+      # Deployment and Canary tests
       - deploy-dockerhub:
           requires:
             - e2e-end

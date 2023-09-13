@@ -1,0 +1,23 @@
+FROM alpine:3.18 AS builder
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+        build-base \
+        clang16 \
+        cmake \
+        ninja \
+        git \
+        curl \
+        perl
+WORKDIR /usr/src/barretenberg/cpp
+COPY . .
+# Build bb binary. Everything else is built as part linux-clang-assert.
+RUN cmake --preset default && cmake --build --preset default --target bb
+
+FROM alpine:3.18
+WORKDIR /usr/src/barretenberg/cpp
+COPY . .
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+# Copy libs for consuming projects.
+COPY --from=builder /usr/src/barretenberg/cpp/build/lib/libbarretenberg.a /usr/src/barretenberg/cpp/build/lib/libbarretenberg.a
+COPY --from=builder /usr/src/barretenberg/cpp/build/lib/libenv.a /usr/src/barretenberg/cpp/build/lib/libenv.a

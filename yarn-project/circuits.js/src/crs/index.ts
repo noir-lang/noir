@@ -145,7 +145,7 @@ export class Crs {
        */
       const SRS_DEV_PATH =
         dirname(fileURLToPath(import.meta.url)) +
-        '/../../../../circuits/cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
+        '/../../../../barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
       this.crs = existsSync(SRS_DEV_PATH) ? new FileCrs(numPoints, SRS_DEV_PATH) : new NetCrs(numPoints);
     } else {
       this.crs = new NetCrs(numPoints);

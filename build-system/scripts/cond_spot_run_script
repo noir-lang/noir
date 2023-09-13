@@ -1,31 +1,34 @@
 #!/bin/bash
-# Conditionally runs a script on a remote spot instance if any dependent code has changed between
-# the last successful run and the present commit.
-#
-# It's expected to be run from the project directory, and that there be a directory called `scripts`
-# containing the given named script to execute on the remote machine.
-#
-# This script is only useful if there is nothing to do in the event there is no rebuild. This is fine
-# for running a suite of tests for example, but is not useful for performing a build, as even if a
-# build has nothing to do, the previous images are retagged with the new commit hash for upstream jobs.
+# Conditionally runs a script on a remote spot instance if the REPOSITORY content hash has changed and we haven't had a
+# successful run.
+# The TAG_POSTFIX is used by cond_spot_run_test whereby we use an image tag postfixed with JOB_NAME to identifify if
+# we need to re-run the job due to prior failures.
 #
 # Arguments are:
 # 1. REPOSITORY: The project repository name in ECR. Used to determine if there are changes since last success.
-# 2. SUCCESS_TAG: To track if this job needs to be run, the repository image is tagged with a prefix after a
-#    successful run. The script will only run if there were relevant code changes since the last successful commit.
-# 3... ARGS: Arguments to pass to spot_run_script.
+# 2. CPUS: Number of cpus on spot request.
+# 3... ARGS: Script and arguments to run.
+#
+# Env vars are:
+# TAG_POSTFIX: Optional. If provided we check for the image tag with this postfix to determine if re-run is required.
 set -eu
 
 REPOSITORY=$1
-shift
-SUCCESS_TAG=$1
-shift
+CPUS=$2
+shift 2
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "Content hash tag: cache-$CONTENT_HASH-$SUCCESS_TAG"
+BASE_TAG=cache-$CONTENT_HASH
+SUCCESS_TAG=$BASE_TAG
 
-if ! check_rebuild cache-$CONTENT_HASH-$SUCCESS_TAG $REPOSITORY; then
+if [ -n "${TAG_POSTFIX:-}" ]; then
+  SUCCESS_TAG=$BASE_TAG-$TAG_POSTFIX
+fi
+
+echo "Content hash: $CONTENT_HASH"
+
+if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   init_submodules $REPOSITORY
-  spot_run_script $CONTENT_HASH $@
-  retry tag_remote_image $REPOSITORY cache-$CONTENT_HASH cache-$CONTENT_HASH-$SUCCESS_TAG
+  spot_run_script $CONTENT_HASH $CPUS $@
+  retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
 fi

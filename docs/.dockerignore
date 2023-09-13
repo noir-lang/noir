@@ -13,7 +13,7 @@ Release/
 circuits/cpp/build/
 circuits/cpp/build-wasm/
 circuits/cpp/build-coverage/
-circuits/cpp/barretenberg/
+barretenberg/
 
 # Ignore Node.js build artifacts
 */node_modules/

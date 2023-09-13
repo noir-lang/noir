@@ -1,0 +1,23 @@
+#!/bin/bash
+# Conditionally runs a script if the REPOSITORY content hash has changed and we haven't had a successful run.
+#
+# Arguments are:
+# 1. REPOSITORY: The project repository name in ECR. Used to determine if there are changes since last success.
+# 2... ARGS: Script and arguments to run.
+set -eu
+
+REPOSITORY=$1
+shift
+
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+BASE_TAG=cache-$CONTENT_HASH
+SUCCESS_TAG=$BASE_TAG-$JOB_NAME
+
+echo "Content hash: $CONTENT_HASH"
+
+if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
+  init_submodules $REPOSITORY
+  cd $(query_manifest projectDir $REPOSITORY)
+  $@
+  retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
+fi
