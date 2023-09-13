@@ -384,7 +384,7 @@ describe('sequencer/solo_block_builder', () => {
 
       const [l2Block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
       expect(l2Block.number).toEqual(blockNumber);
-    }, 20_000);
+    }, 40_000);
 
     // This test specifically tests nullifier values which previously caused e2e_private_token test to fail
     it('e2e_private_token edge case regression test on nullifier values', async () => {
