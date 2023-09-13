@@ -1,0 +1,16 @@
+{
+  "name": "@noir-lang/noir_js",
+  "collaborators": [
+    "The Noir Team <team@noir-lang.org>"
+  ],
+  "version": "0.10.3",
+  "packageManager": "yarn@3.5.1",
+  "license": "ISC",
+  "scripts": {
+    "build": ""
+  },
+  "dependencies": {
+    "@noir-lang/acvm_js": "0.26.1",
+    "@noir-lang/noirc_abi": "0.10.3"
+  }
+}
