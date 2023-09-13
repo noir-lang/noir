@@ -4636,8 +4636,3 @@ dependencies = [
  "quote",
  "syn 2.0.26",
 ]
-
-[[patch.unused]]
-name = "acvm"
-version = "0.26.0"
-source = "git+https://github.com/noir-lang/acvm?branch=kw/add-low-high-test#42c782a719f60b15fefe1b1e11d36b9b257f4be7"
