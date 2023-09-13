@@ -136,7 +136,7 @@ impl From<ParserError> for Diagnostic {
                     ),
                     ParserErrorReason::ForLoopDefaultTypeChanging => Diagnostic::simple_warning(
                         "The default type for the incrementor in a for-loop will be changed.".into(),
-                        "The default type in a for-loop will be changing from `Field` to `u64`".into(),
+                        "The default type in a for-loop will be changing from Field to u64".into(),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(
