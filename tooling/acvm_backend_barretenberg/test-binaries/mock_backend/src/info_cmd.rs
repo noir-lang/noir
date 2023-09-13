@@ -14,6 +14,7 @@ const INFO_RESPONSE: &str = r#"{
         "range",
         "sha256",
         "blake2s",
+        "keccak256",
         "schnorr_verify",
         "pedersen",
         "hash_to_field_128_security",
