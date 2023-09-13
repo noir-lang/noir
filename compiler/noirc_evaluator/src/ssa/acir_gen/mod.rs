@@ -625,7 +625,7 @@ impl Context {
                                     return Ok(());
                                 }
                             }
-                            // If there is a predicate and the index is not out of range, we can perfom directly the read
+                            // If there is a predicate and the index is not out of range, we can directly perform the read
                             else if index < array_size && store_value.is_none() {
                                 self.define_result(dfg, instruction, array[index].clone());
                                 return Ok(());
