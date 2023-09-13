@@ -11,18 +11,46 @@ if [ $(jq "has(\"$REPO\")" $MANIFEST) == "false" ]; then
   exit 1
 fi
 
-function addRebuildPatterns {
-    local TYPE=$(jq -r ".\"$1\".rebuildPatterns | type" $MANIFEST)
-    if [ "$TYPE" == "string" ]; then
-      local FILE=$(jq -r ".\"$1\".rebuildPatterns" $MANIFEST)
-      local BUILD_DIR=$($0 buildDir $1)
-      PATTERNS=(${PATTERNS[@]} $(cat $BUILD_DIR/$FILE))
-    elif [ "$TYPE" == "array" ]; then
-      PATTERNS=(${PATTERNS[@]} $(jq -r ".\"$1\".rebuildPatterns | .[]" $MANIFEST))
-    else
-      >&2 echo "Missing rebuildPatterns property. Either filename as string, or patterns as array."
+function get_deps {
+  local TYPE=$(jq -r ".\"$1\".dependencies | type" $MANIFEST)
+  if [ "$TYPE" == "string" ]; then
+    # Execute string as command relative to buildDir to retrieve dependencies.
+    local CMD=$BUILD_DIR/$(jq -r ".\"$1\".dependencies")
+    if [ ! -f "$CMD" ]; then
+      >&2 echo "Dependency script not found: $CMD"
       exit 1
     fi
+    local PROJECT_DIR=$($0 projectDir $1)
+    DEPS=($($CMD $PROJECT_DIR))
+  elif [ "$TYPE" == "null" ]; then
+    # Execute default script relative to buildDir to retrieve dependencies.
+    local CMD=$BUILD_DIR/scripts/get_dependencies.sh
+    if [ ! -f "$CMD" ]; then
+      >&2 echo "Dependency script not found: $CMD"
+      exit 1
+    fi
+    local PROJECT_DIR=$($0 projectDir $1)
+    DEPS=($($CMD $PROJECT_DIR))
+  elif [ "$TYPE" == "array" ]; then
+    DEPS=($(jq -r ".\"$1\".dependencies // [] | .[]" $MANIFEST))
+  else
+    >&2 echo "dependencies must be a array, string or null."
+    exit 1
+  fi
+}
+
+function add_rebuild_patterns {
+  local TYPE=$(jq -r ".\"$1\".rebuildPatterns | type" $MANIFEST)
+  if [ "$TYPE" == "string" ]; then
+    local FILE=$(jq -r ".\"$1\".rebuildPatterns" $MANIFEST)
+    local BUILD_DIR=$($0 buildDir $1)
+    PATTERNS=(${PATTERNS[@]} $(cat $BUILD_DIR/$FILE))
+  elif [ "$TYPE" == "array" ]; then
+    PATTERNS=(${PATTERNS[@]} $(jq -r ".\"$1\".rebuildPatterns | .[]" $MANIFEST))
+  else
+    >&2 echo "Missing rebuildPatterns property. Either filename as string, or patterns as array."
+    exit 1
+  fi
 }
 
 case "$CMD" in
@@ -46,13 +74,14 @@ case "$CMD" in
     jq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $MANIFEST
     ;;
   dependencies)
+    BUILD_DIR=$($0 buildDir $REPO)
     declare -A ALL_DEPS
     add_deps() {
       if [[ -v ALL_DEPS[$1] ]]; then
         return
       fi
       ALL_DEPS["$1"]=1
-      DEPS=($(jq -r ".\"$1\".dependencies // [] | .[]" $MANIFEST))
+      get_deps $1
       for DEP in "${DEPS[@]}"; do
         add_deps $DEP
       done
@@ -65,9 +94,9 @@ case "$CMD" in
   rebuildPatterns)
     DEPS=($($0 dependencies $REPO))
     PATTERNS=()
-    addRebuildPatterns $REPO
+    add_rebuild_patterns $REPO
     for DEP in "${DEPS[@]}"; do
-      addRebuildPatterns $DEP
+      add_rebuild_patterns $DEP
     done
     printf "%s\n" "${PATTERNS[@]}" | sort | uniq
     ;;
