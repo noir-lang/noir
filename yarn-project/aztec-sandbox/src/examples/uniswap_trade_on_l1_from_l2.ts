@@ -217,7 +217,7 @@ async function main() {
 
   // 3. Claim WETH on L2
   logger('Minting weth on L2');
-  // Call the mint tokens function on the noir contract
+  // Call the mint tokens function on the Aztec.nr contract
   const consumptionTx = wethL2Contract.methods
     .mint(wethAmountToBridge, owner.address, messageKey, secret, ethAccount.toField())
     .send();
@@ -298,7 +298,7 @@ async function main() {
 
   // 6. claim dai on L2
   logger('Consuming messages to mint dai on L2');
-  // Call the mint tokens function on the noir contract
+  // Call the mint tokens function on the Aztec.nr contract
   const daiMintTx = daiL2Contract.methods
     .mint(daiAmountToBridge, owner.address, depositDaiMessageKey, secret, ethAccount.toField())
     .send();

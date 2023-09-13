@@ -2,7 +2,11 @@
 title: Components
 ---
 
-<!-- TODO: Mike to edit. This is a copy of milestone1-1, which actually contained a comprehensive explanation of components (if we remove the json rpc command suggestions) -->
+<!-- TODO: This is a copy of milestone1-1, which actually contained a comprehensive explanation of components (if we remove the json rpc command suggestions) -->
+
+:::TODO Outdated
+This page needs to be updated.
+:::
 
 import Disclaimer from '../../misc/common/\_disclaimer.mdx';
 
@@ -84,10 +88,10 @@ Responsibilities:
 
 These tasks are lower priority than providing a handcrafted ABI.
 
-- The ability for a dev to enclose a collection of Noir functions in a 'contract scope'.
-- The ability to create a Noir contract abi from the above.
+- The ability for a dev to enclose a collection of Aztec.nr functions in a 'contract scope'.
+- The ability to create an Aztec.nr contract abi from the above.
 
-Design a Noir Contract ABI, similar to a Solidity ABI which is output by Solc (see [here](https://docs.soliditylang.org/en/v0.8.13/abi-spec.html#json)). It might include for each function:
+Design an Aztec.nr Contract ABI, similar to a Solidity ABI which is output by Solc (see [here](https://docs.soliditylang.org/en/v0.8.13/abi-spec.html#json)). It might include for each function:
 
 - ACIR opcodes (akin to Solidity bytecode).
 - Function name and parameter names & types.
@@ -109,7 +113,7 @@ aztec.js should always be stateless. It offers the ability to interact with stat
 The analogous AC component would be the AztecSdk (wraps the CoreSdk which is more analogous to the private client).
 
 - Allows a user to create an Aztec keypair. Call `create_account` on Wallet.
-- Create a `Contract` instance (similar to web3.js), given a path to a Noir Contract ABI.
+- Create a `Contract` instance (similar to web3.js), given a path to an Aztec.nr Contract ABI.
 - Construct `tx_request` by calling e.g. `contract.get_deployment_request(constructor_args)`.
 - Call wallet `sign_tx_request(tx_request)` to get signature.
 - Call `simulate_tx(signed_tx_request)` on the Private Client. In future this would help compute gas, for now we won't actually return gas (it's hard). Returns success or failure, so client knows if it should proceed, and computed kernel circuit public outputs.

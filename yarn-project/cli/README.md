@@ -135,7 +135,7 @@ aztec-cli create-account
 
 ### deploy
 
-Deploys a compiled Noir contract to Aztec.
+Deploys a compiled Aztec.nr contract to Aztec.
 
 Syntax:
 
@@ -145,12 +145,12 @@ aztec-cli deploy <contractAbi> [options]
 
 Options:
 
-- `-c, --contract-abi <fileLocation>`: Path to the compiled Noir contract's ABI file in JSON format. You can also use one of Aztec's example contracts found in [@aztec/noir-contracts](https://www.npmjs.com/package/@aztec/noir-contracts), e.g. PrivateTokenContractAbi. You can get a full ist of the available contracts with `aztec-cli example-contracts`
+- `-c, --contract-abi <fileLocation>`: Path to the compiled Aztec.nr contract's ABI file in JSON format. You can also use one of Aztec's example contracts found in [@aztec/noir-contracts](https://www.npmjs.com/package/@aztec/noir-contracts), e.g. PrivateTokenContractAbi. You can get a full ist of the available contracts with `aztec-cli example-contracts`
 - `-a, --args <constructorArgs...>` (optional): Contract constructor arguments Default: [].
 - `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 - `-k, --public-key <string>`: Public key of the deployer. If not provided, it will check the RPC for existing ones.
 
-This command deploys a compiled Noir contract to Aztec. It requires the path to the contract's ABI file in JSON format. Optionally, you can specify the public key of the deployer and provide constructor arguments for the contract. The command displays the address of the deployed contract.
+This command deploys a compiled Aztec.nr contract to Aztec. It requires the path to the contract's ABI file in JSON format. Optionally, you can specify the public key of the deployer and provide constructor arguments for the contract. The command displays the address of the deployed contract.
 
 Example usage:
 

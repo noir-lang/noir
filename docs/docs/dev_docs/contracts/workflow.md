@@ -1,4 +1,4 @@
-# Noir contract workflow
+# Aztec.nr smart contract workflow
 
  ## Write
 

@@ -96,7 +96,7 @@ export interface StructType extends BasicType<'struct'> {
 }
 
 /**
- * Noir function types.
+ * Aztec.nr function types.
  */
 export enum FunctionType {
   SECRET = 'secret',

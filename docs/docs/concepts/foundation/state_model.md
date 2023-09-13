@@ -10,7 +10,7 @@ import Disclaimer from '../../misc/common/\_disclaimer.mdx';
 
 ## Private State
 
-Private state must be treated differently from public state and this must be expressed in the semantics of the Noir language.
+Private state must be treated differently from public state and this must be expressed in the semantics of Aztec.nr.
 
 Private state is encrypted and therefore is "owned" by a user or a set of users (via shared secrets) that are able to decrypt the state.
 
@@ -22,12 +22,12 @@ Modification of state variables can be emulated by nullifying the a state record
 
 ### Abstracting UTXO's from App's / Users
 
-The goal of Noir's contract syntax is abstract the UTXO model away from an app user / developer, contract developers are the only actor who should have to think about UTXO's.
+The goal of the Aztec.nr smart contract library is to abstract the UTXO model away from an app user / developer, contract developers are the only actor who should have to think about UTXO's.
 
 This is achieved with two main features:
 
 1. Users sign over transactions, not over specific UTXO's
-2. Noir contracts support developer defined `unconstrained` getter functions to help dApp's make sense of UTXO's. e.g `getBalance()`. These functions can be called outside of a transaction context to read private state.
+2. Aztec.nr contracts support developer defined `unconstrained` getter functions to help dApp's make sense of UTXO's. e.g `getBalance()`. These functions can be called outside of a transaction context to read private state.
 
 
 ### The lifecycle of a note

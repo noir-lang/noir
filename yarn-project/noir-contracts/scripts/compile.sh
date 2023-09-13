@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Compiles noir contracts in parallel, bubbling any compilation errors
+# Compiles Aztec.nr contracts in parallel, bubbling any compilation errors
 
 source ./scripts/catch.sh
 source ./scripts/nargo_check.sh

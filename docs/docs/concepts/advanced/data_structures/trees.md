@@ -25,11 +25,11 @@ So, if an app needs to edit a private state variable (which will be represented 
 
 ### Example Note
 
-An example blob of data might be defined in a Noir Contract as:
+An example blob of data might be defined in an Aztec.nr Contract as:
 
 ```rust
 struct MyNote {
-    storage_slot: Field, // determined by the Noir Contract
+    storage_slot: Field, // determined by the Aztec.nr Contract
     value: Field,
     owner_public_key: Point, // The owner of this private state
                              // (and the person who may edit it).
@@ -37,7 +37,7 @@ struct MyNote {
 }
 ```
 
-The note might be committed-to, within a function of the Noir Contract as:
+The note might be committed-to, within a function of the Aztec.nr Contract as:
 
 ```rust
 note_hash: Field = pedersen::compress(

@@ -2,7 +2,7 @@
 
 List common errors.
 
-There are two kinds of errors: errors in a noir contract, and errors spat out by an Aztec Sandbox node!
+There are two kinds of errors: errors in an Aztec.nr contract, and errors spat out by an Aztec Sandbox node!
 
 Maybe even auto-generate error docs, based on error codes in our codebase.
 

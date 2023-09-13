@@ -5,7 +5,7 @@ import { ContractCommitmentProvider, ContractDatabase } from '@aztec/types';
 import { ContractTree } from '../contract_tree/index.js';
 
 /**
- * ContractDataOracle serves as a data manager and retriever for noir contracts.
+ * ContractDataOracle serves as a data manager and retriever for Aztec.nr contracts.
  * It provides methods to obtain contract addresses, function ABI, bytecode, and membership witnesses
  * from a given contract address and function selector. The class maintains a cache of ContractTree instances
  * to efficiently serve the requested data. It interacts with the ContractDatabase and AztecNode to fetch

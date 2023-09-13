@@ -223,7 +223,7 @@ describe('Private Execution test suite', () => {
       const storageSlot = Fr.random();
       const note = buildNote(60n, owner, storageSlot);
 
-      // Should be the same as how we compute the values for the ValueNote in the noir library.
+      // Should be the same as how we compute the values for the ValueNote in the Aztec.nr library.
       const valueNoteHash = pedersenPlookupCommitInputs(
         circuitsWasm,
         note.preimage.map(f => f.toBuffer()),
@@ -451,7 +451,7 @@ describe('Private Execution test suite', () => {
       const storageSlot = Fr.random();
       const note = buildNote(60n, owner, storageSlot);
 
-      // Should be the same as how we compute the values for the ValueNote in the noir library.
+      // Should be the same as how we compute the values for the ValueNote in the Aztec.nr library.
       const valueNoteHash = pedersenPlookupCommitInputs(
         circuitsWasm,
         note.preimage.map(f => f.toBuffer()),
@@ -627,7 +627,7 @@ describe('Private Execution test suite', () => {
       expect(result.nestedExecutions).toHaveLength(1);
       expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
 
-      // check that Noir calculated the call stack item hash like cpp does
+      // check that Aztec.nr calculated the call stack item hash like cpp does
       const wasm = await CircuitsWasm.get();
       const expectedCallStackItemHash = computeCallStackItemHash(wasm, result.nestedExecutions[0].callStackItem);
       expect(result.callStackItem.publicInputs.privateCallStack[0]).toEqual(expectedCallStackItemHash);

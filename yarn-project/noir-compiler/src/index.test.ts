@@ -39,7 +39,7 @@ describe('noir-compiler', () => {
       expect(result).toMatchSnapshot();
     });
 
-    it('generates noir external interface', () => {
+    it('generates Aztec.nr external interface', () => {
       const result = generateNoirContractInterface(compiled[0]);
       expect(result).toMatchSnapshot();
     });

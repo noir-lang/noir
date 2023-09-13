@@ -6,7 +6,7 @@ import { mockVerificationKey } from '../mocked_keys.js';
 import { NoirCompilationArtifacts, NoirFunctionEntry } from '../noir_artifact.js';
 
 /**
- * Generates an Aztec ABI for a Noir function build artifact. Replaces verification key with a mock value.
+ * Generates an Aztec ABI for a Aztec.nr function build artifact. Replaces verification key with a mock value.
  * @param fn - Noir function entry.
  * @returns Aztec ABI function entry.
  */

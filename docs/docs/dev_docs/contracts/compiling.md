@@ -1,10 +1,10 @@
 # Compiling contracts
 
-Once you have written a [contract](../contracts/main.md) in Noir, you will need to compile it into an [artifact](./abi.md) in order to use it.
+Once you have written a [contract](../contracts/main.md) in Aztec.nr, you will need to compile it into an [artifact](./abi.md) in order to use it.
 
 In this guide we will cover how to do so, both using the CLI and programmatically.
 
-We'll also cover how to generate a helper [TypeScript interface](#typescript-interfaces) and a [Noir interface](#noir-interfaces) for easily interacting with your contract from your typescript app and from other noir contracts, respectively.
+We'll also cover how to generate a helper [TypeScript interface](#typescript-interfaces) and an [Aztec.nr interface](#noir-interfaces) for easily interacting with your contract from your typescript app and from other Aztec.nr contracts, respectively.
 
 ## Prerequisites
 
@@ -76,13 +76,13 @@ export class PrivateTokenContract extends ContractBase {
 
 Read more about interacting with contracts using `aztec.js` [here](../dapps/main.md).
 
-### Noir interfaces
+### Aztec.nr interfaces
 
-A Noir contract can [call a function](./functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serialising the arguments, which is not type-safe.
+An Aztec.nr contract can [call a function](./functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serialising the arguments, which is not type-safe.
 
 To make this easier, the compiler can generate contract interface structs that expose a convenience method for each function listed in a given contract ABI. These structs are intended to be used from another contract project that calls into the current one. For each contract, two interface structs are generated: one to be used from private functions with a `PrivateContext`, and one to be used from open functions with a `PublicContext`.
 
-To generate them, include a `--interface` option in the compile command with a path to the target folder for the generated Noir interface files:
+To generate them, include a `--interface` option in the compile command with a path to the target folder for the generated Aztec.nr interface files:
 
 ```
 aztec-cli compile --interface ./path/to/another_aztec_contract_project/src ./path/to/my_aztec_contract_project
@@ -128,7 +128,7 @@ impl PrivateTokenPrivateContextInterface {
 }
 ```
 
-Read more about how to use the Noir interfaces [here](./functions.md#contract-interface).
+Read more about how to use the Aztec.nr interfaces [here](./functions.md#contract-interface).
 
 :::info
 At the moment, the compiler generates these interfaces from already compiled ABIs, and not from source code. This means that you should not import a generated interface from within the same project as its source contract, or you risk circular references.
@@ -143,9 +143,9 @@ npm install @aztec/noir-compiler
 `
 
 The compiler exposes the following functions:
-- `compileUsingNargo`: Compiles a Noir project in the target folder using the `nargo` binary available on the shell `PATH` and returns the generated ABIs.
+- `compileUsingNargo`: Compiles an Aztec.nr project in the target folder using the `nargo` binary available on the shell `PATH` and returns the generated ABIs.
 - `generateTypescriptContractInterface`: Generates a typescript class for the given contract ABI.
-- `generateNoirContractInterface`: Generates a Noir interface struct for the given contract ABI.
+- `generateNoirContractInterface`: Generates a Aztec.nr interface struct for the given contract ABI.
 
 ## Next steps
 

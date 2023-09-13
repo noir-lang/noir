@@ -127,11 +127,11 @@ export function toAcvmCallPrivateStackItem(item: PrivateCallStackItem): ACVMFiel
 
 /**
  * Converts a public call stack item with the request for executing a public function to
- * a set of ACVM fields accepted by the enqueue_public_function_call_oracle Noir function.
+ * a set of ACVM fields accepted by the enqueue_public_function_call_oracle Aztec.nr function.
  * Note that only the fields related to the request are serialized: those related to the result
  * are empty since this is just an execution request, so we don't send them to the circuit.
  * @param item - The public call stack item to serialize to be passed onto Noir.
- * @returns The fields expected by the enqueue_public_function_call_oracle Noir function.
+ * @returns The fields expected by the enqueue_public_function_call_oracle Aztec.nr function.
  */
 export async function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): Promise<ACVMField[]> {
   return [

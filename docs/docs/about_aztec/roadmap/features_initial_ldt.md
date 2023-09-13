@@ -8,7 +8,7 @@ Devs should be able to quickly spin up local, emulated instances of an Ethereum 
 
 Here's a summary of the features we intend to support with the first release of the Aztec Sandbox.
 
-## Noir Contracts
+## Aztec.nr Contracts
 
 - Noir `contract` scopes.
   - Declare a `contract`, containing a collection of state variables and functions.
@@ -21,7 +21,7 @@ Here's a summary of the features we intend to support with the first release of 
 - public functions
   - May read and modify public state.
 - `constructor` functions, for initialising contract state.
-- `import` other Noir contracts, so their functions may be called.
+- `import` other Aztec.nr contracts, so their functions may be called.
 - Nested function calls, for contract composability
   - private functions can call private functions of other contracts, and receive return values.
   - private functions can call public functions any contract.
@@ -29,14 +29,14 @@ Here's a summary of the features we intend to support with the first release of 
   - public functions can call public functions of other contracts, and receive return values.
   - private functions can be called recursively.
   - public functions can be called recursively.
-- Send messages from Noir contracts to Ethereum L1, for consumption by L1 smart contracts.
+- Send messages from Aztec.nr contracts to Ethereum L1, for consumption by L1 smart contracts.
   - Useful, for example, if writing an app to withdraw funds from L2 to L1.
 - Consume messages which have been sent by:
   - L1 functions.
     - Useful, for example, if writing an app to deposit funds from L1 to L2.
   - public L2 functions.
-- Emit `event` data from a Noir Contract.
-  - Allows applications to subscribe to events which have been emitted by a Noir contract's functions, for example.
+- Emit `event` data from a Aztec.nr Contract.
+  - Allows applications to subscribe to events which have been emitted by a Aztec.nr contract's functions, for example.
 - Write `unconstrained` functions.
   - These allow developers to write `pure` and `view` functions, which can perform calculations and retrieve state. E.g. for fetching contract-specific information, which may then be consumed by a dapp, without having to generate a zero-knowledge proof or interact with the 'network'.
 
@@ -46,13 +46,13 @@ A typescript wrapper for making RPC calls to an Aztec LDT node.
 
 - Similar in purpose to `web3.js`/`ethers.js`/`viem`, but for interacting with Aztec Network nodes. The RPC interface for an Aztec node is necessarily different from that of an Ethereum node, because it deals with encrypted transactions and state variables.
 - A library for public/private key management.
-- Construct `Contract` instances from a Noir contract's JSON ABI.
+- Construct `Contract` instances from a Aztec.nr contract's JSON ABI.
 - Deploy new contracts to the Aztec LDT.
 - Construct tx requests, passing arguments to a function of a contract.
 - Sign tx requests.
 - Send txs to the LDT node, for simulating.
 - Send txs to the LDT node, to be sent to the LDT network.
-- Call `unconstrained` functions of a Noir contract, to perform `pure` calculations or retrieve state.
+- Call `unconstrained` functions of a Aztec.nr contract, to perform `pure` calculations or retrieve state.
 
 ## Aztec Local Developer Testnet Node
 

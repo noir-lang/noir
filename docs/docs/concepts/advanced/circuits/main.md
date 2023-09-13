@@ -7,7 +7,7 @@ title: Circuits
 In Aztec, circuits come from two sources:
 
 1. Core protocol circuits
-2. User-written circuits (written as Noir Contracts and deployed to the network)
+2. User-written circuits (written as Aztec.nr Contracts and deployed to the network)
 
 This page focusses on the core protocol circuits. These circuits check that the rules of the protocol are being adhered to.
 

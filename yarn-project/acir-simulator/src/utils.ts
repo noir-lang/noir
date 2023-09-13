@@ -3,7 +3,7 @@ import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barret
 import { Fr } from '@aztec/foundation/fields';
 
 /**
- * A point in the format that noir uses.
+ * A point in the format that Aztec.nr uses.
  */
 export type NoirPoint = {
   /** The x coordinate. */

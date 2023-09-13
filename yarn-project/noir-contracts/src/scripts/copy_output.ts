@@ -88,7 +88,7 @@ const main = () => {
   writeFileSync(tsInterfaceDestFilePath, generateTypescriptContractInterface(artifactJson, tsAbiImportPath));
   log(`Written ${tsInterfaceDestFilePath}`);
 
-  // Write a .nr contract interface, for consumption by other Noir Contracts
+  // Write a .nr contract interface, for consumption by other Aztec.nr contracts
   if (INTERFACE_CONTRACTS.includes(name)) {
     const projectDirPath = `src/contracts/${projectName}`;
     const noirInterfaceDestFilePath = `${projectDirPath}/src/interface.nr`;
@@ -96,7 +96,7 @@ const main = () => {
       writeFileSync(noirInterfaceDestFilePath, generateNoirContractInterface(artifactJson));
       log(`Written ${noirInterfaceDestFilePath}`);
     } catch (err) {
-      log(`Error generating noir interface for ${name}: ${err}`);
+      log(`Error generating Aztec.nr interface for ${name}: ${err}`);
     }
   }
 };

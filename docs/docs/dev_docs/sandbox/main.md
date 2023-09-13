@@ -2,7 +2,7 @@
 
 ## What is the Aztec Sandbox?
 
-The Aztec Sandbox is local development system against which you can build and test Noir contracts in a fast, safe, and free environment.
+The Aztec Sandbox is local development system against which you can build and test Aztec.nr contracts in a fast, safe, and free environment.
 
 To learn more and to download to for yourself you can visit the [website](https://sandbox.aztec.network).
 

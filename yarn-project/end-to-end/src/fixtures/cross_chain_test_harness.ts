@@ -166,7 +166,7 @@ export class CrossChainTestHarness {
 
   async consumeMessageOnAztecAndMintSecretly(bridgeAmount: bigint, messageKey: Fr, secret: Fr) {
     this.logger('Consuming messages on L2 secretively');
-    // Call the mint tokens function on the noir contract
+    // Call the mint tokens function on the Aztec.nr contract
     const consumptionTx = this.l2Contract.methods
       .mint(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
       .send();
@@ -178,7 +178,7 @@ export class CrossChainTestHarness {
 
   async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, messageKey: Fr, secret: Fr) {
     this.logger('Consuming messages on L2 Publicly');
-    // Call the mint tokens function on the noir contract
+    // Call the mint tokens function on the Aztec.nr contract
     const consumptionTx = this.l2Contract.methods
       .mintPublic(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
       .send();

@@ -382,7 +382,7 @@ Otherwise, it will throw an error.
 const timestamp = await cc.eth.timestamp();
 const newTimestamp = timestamp + 100_000_000;
 await cc.aztec.warp(newTimestamp);
-// any noir contract calls that make use of current timestamp 
+// any Aztec.nr contract calls that make use of current timestamp 
 // and is executed in the next rollup block will now read `newTimestamp`
 ```
 
@@ -395,7 +395,7 @@ public computeSlotInMap(baseSlot: Fr | bigint, key: Fr | bigint): Fr
 
 #### Description
 Compute storage slot for a map key.
-The baseSlot is specified in the noir contract. 
+The baseSlot is specified in the Aztec.nr contract. 
 
 #### Example  
 ```rust

@@ -1,4 +1,4 @@
-# Noir contracts
+# Aztec.nr contracts
 
 This package contains the source code and the Aztec ABIs for the example contracts used in tests.
 

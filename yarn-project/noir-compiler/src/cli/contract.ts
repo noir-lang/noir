@@ -8,7 +8,7 @@ import path, { resolve } from 'path';
 import { compileUsingNargo, generateNoirContractInterface, generateTypescriptContractInterface } from '../index.js';
 
 /**
- * Registers a 'contract' command on the given commander program that compiles a Noir contract project.
+ * Registers a 'contract' command on the given commander program that compiles an Aztec.nr contract project.
  * @param program - Commander program.
  * @param log - Optional logging function.
  * @returns The program with the command registered.
@@ -16,10 +16,10 @@ import { compileUsingNargo, generateNoirContractInterface, generateTypescriptCon
 export function compileContract(program: Command, name = 'contract', log: LogFn = () => {}): Command {
   return program
     .command(name)
-    .argument('<project-path>', 'Path to the noir project to compile')
+    .argument('<project-path>', 'Path to the Aztec.nr project to compile')
     .option('-o, --outdir <path>', 'Output folder for the binary artifacts, relative to the project path', 'target')
     .option('-ts, --typescript <path>', 'Optional output folder for generating typescript wrappers', undefined)
-    .option('-i, --interface <path>', 'Optional output folder for generating noir contract interface', undefined)
+    .option('-i, --interface <path>', 'Optional output folder for generating an Aztec.nr contract interface', undefined)
     .description('Compiles the contracts in the target project')
 
     .action(
@@ -48,7 +48,9 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
 
           if (noirInterface) {
             const noirInterfacePath = resolve(projectPath, noirInterface, `${contract.name}_interface.nr`);
-            log(`Writing ${contract.name} Noir external interface to ${path.relative(currentDir, noirInterfacePath)}`);
+            log(
+              `Writing ${contract.name} Aztec.nr external interface to ${path.relative(currentDir, noirInterfacePath)}`,
+            );
             const noirWrapper = generateNoirContractInterface(contract);
             mkdirpSync(path.dirname(noirInterfacePath));
             writeFileSync(noirInterfacePath, noirWrapper);

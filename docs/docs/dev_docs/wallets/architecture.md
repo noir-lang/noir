@@ -8,7 +8,7 @@ Architecture-wise, a wallet is an instance of an **Aztec RPC Server** which mana
 
 Additionally, a wallet must be able to handle one or more [account contract implementations](../../concepts/foundation/accounts/main.md#account-contracts-and-wallets). When a user creates a new account, the account is represented on-chain by an account contract. The wallet is responsible for deploying and interacting with this contract. A wallet may support multiple flavours of accounts, such as an account that uses ECDSA signatures, or one that relies on WebAuthn, or one that requires multi-factor authentication. For a user, the choice of what account implementation to use is then determined by the wallet they interact with.
 
-In code, this translates to a wallet implementing an **Entrypoint** interface that defines [how to create an _execution request_ out of an array of _function calls_](./main.md#transaction-lifecycle) for the specific implementation of an account contract. Think of the entrypoint interface as the Javascript counterpart of an account contract, or the piece of code that knows how to format and authenticate a transaction based on the rules defined in Noir by the user's account.
+In code, this translates to a wallet implementing an **Entrypoint** interface that defines [how to create an _execution request_ out of an array of _function calls_](./main.md#transaction-lifecycle) for the specific implementation of an account contract. Think of the entrypoint interface as the Javascript counterpart of an account contract, or the piece of code that knows how to format and authenticate a transaction based on the rules defined in Aztec.nr by the user's account.
 
 ## Entrypoint interface
 

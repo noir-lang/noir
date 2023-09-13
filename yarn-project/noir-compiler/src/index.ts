@@ -12,7 +12,7 @@ export { generateTypescriptContractInterface } from './contract-interface-gen/ty
 export { generateAztecAbi };
 
 /**
- * Compile Noir contracts in project path using a nargo binary available in the shell.
+ * Compile Aztec.nr contracts in project path using a nargo binary available in the shell.
  * @param projectPath - Path to project.
  * @param opts - Compiler options.
  * @returns Compiled artifacts.

@@ -16,7 +16,7 @@ set -eu
 
 yarn install --immutable
 
-# Build the necessary dependencies for noir contracts typegen.
+# Build the necessary dependencies for Aztec.nr contracts typegen.
 for DIR in foundation noir-compiler circuits.js; do
   echo "Building $DIR..."
   cd $DIR
@@ -24,7 +24,7 @@ for DIR in foundation noir-compiler circuits.js; do
   cd ..
 done
 
-# Run remake bindings before building noir contracts or l1 contracts as they depend on files created by it.
+# Run remake bindings before building Aztec.nr contracts or l1 contracts as they depend on files created by it.
 yarn --cwd circuits.js remake-bindings
 yarn --cwd circuits.js remake-constants
 

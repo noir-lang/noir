@@ -26,7 +26,7 @@ For static calls, new commitments aren't allowed
 For static calls, new nullifiers aren't allowed
 
 #### 2009 - PRIVATE_KERNEL__NON_PRIVATE_FUNCTION_EXECUTED_WITH_PRIVATE_KERNEL
-You cannot execute a public noir function in the private kernel
+You cannot execute a public Aztec.nr function in the private kernel
 
 #### 2011 - PRIVATE_KERNEL__UNSUPPORTED_OP
 You are trying to do something that is currently unsupported in the private kernel. If this is a blocker feel free to open up an issue on our monorepo [aztec3-packages](https://github.com/AztecProtocol/aztec3-packages/tree/master) or reach out to us on discord
@@ -34,7 +34,7 @@ You are trying to do something that is currently unsupported in the private kern
 Note that certain operations are unsupported on certain versions of the private kernel. Eg static calls are allowed for all but the initial iteration of the private kernel (which initialises the kernel for subsequent function calls).
 
 #### 2012 - PRIVATE_KERNEL__CONTRACT_ADDRESS_MISMATCH
-For the initial iteration of the private kernel, only the expected noir contract should be the entrypoint. Static and delegate calls are not allowed in the initial iteration.
+For the initial iteration of the private kernel, only the expected Aztec.nr contract should be the entrypoint. Static and delegate calls are not allowed in the initial iteration.
 
 #### 2013 - PRIVATE_KERNEL__NON_PRIVATE_KERNEL_VERIFIED_WITH_PRIVATE_KERNEL
 The previous kernel iteration within the private kernel must also be private
@@ -46,7 +46,7 @@ A constructor must be executed as the first tx in the recursion i.e. a construct
 Confirms that the TxRequest (user's intent) matches the private call being executed. This error may happen when:
 * origin address of tx_request doesn't match call_stack_item's contract_address
 * tx_request.function_data doesn't match call_stack_item.function_data
-* noir function args passed to tx_request doesn't match args in the call_stack_item
+* Aztec.nr function args passed to tx_request doesn't match args in the call_stack_item
 
 #### 2018 - PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH
 Given a read request and provided witness, we check that the merkle root obtained from the witness' sibling path and it's leaf is similar to the historic state root we want to read against. This is a sanity check to ensure we are reading from the right state. 
@@ -65,7 +65,7 @@ But for non transient reads, we do a merkle membership check. Redas are done at 
 You are trying to do something that is currently unsupported in the public kernel. If this is a blocker feel free to open up an issue on our monorepo [aztec3-packages](https://github.com/AztecProtocol/aztec3-packages/tree/master) or reach out to us on discord
 
 #### 3002 - PUBLIC_KERNEL__PRIVATE_FUNCTION_NOT_ALLOWED
-Calling a private noir function in a public kernel is not allowed. 
+Calling a private Aztec.nr function in a public kernel is not allowed. 
 
 #### 3005 - PUBLIC_KERNEL__NON_EMPTY_PRIVATE_CALL_STACK
 Public functions are executed after all the private functions are (see [private-public execution](../../concepts/foundation/communication/public_private_calls.md)). As such, private call stack must be empty when executing in the public kernel.
@@ -109,7 +109,7 @@ The L1 chain ID you used in your proof generation (for your private transaction)
 #### 4008 - BASE__INVALID_VERSION
 Same as [section 4007](#4007---base__invalid_chain_id) except the `version` refers to the version of the Aztec L2 instance.
 
-Some scary bugs like `4003 - BASE__INVALID_NULLIFIER_SUBTREE` and `4004 - BASE__INVALID_NULLIFIER_RANGE` which are to do malformed nullifier trees (see [Indexed Merkle Trees](../../concepts/advanced/data_structures/indexed_merkle_tree.md)) etc may seem unrelated at a glance, but at a closer look may be because of some bug in an application's Noir code. Same is true for certain instances of `7008 - MEMBERSHIP_CHECK_FAILED`.
+Some scary bugs like `4003 - BASE__INVALID_NULLIFIER_SUBTREE` and `4004 - BASE__INVALID_NULLIFIER_RANGE` which are to do malformed nullifier trees (see [Indexed Merkle Trees](../../concepts/advanced/data_structures/indexed_merkle_tree.md)) etc may seem unrelated at a glance, but at a closer look may be because of some bug in an application's Aztec.nr code. Same is true for certain instances of `7008 - MEMBERSHIP_CHECK_FAILED`.
 
 
 ### Generic circuit errors
@@ -119,7 +119,7 @@ Circuits work by having a fixed size array. As such, we have limits on how many 
 
 * too many new commitments in one tx
 * too many new nullifiers in one tx
-    - Note: Nullifiers may be created even outside the context of your noir code. Eg, when creating a contract, we add a nullifier for its address to prevent same address from ever occurring. Similarly, we add a nullifier for your transaction hash too. 
+    - Note: Nullifiers may be created even outside the context of your Aztec.nr code. Eg, when creating a contract, we add a nullifier for its address to prevent same address from ever occurring. Similarly, we add a nullifier for your transaction hash too. 
 * too many private function calls in one tx (i.e. call stack size exceeded)
 * too many public function calls in one tx (i.e. call stack size exceeded)
 * too many new L2 to L1 messages in one tx
@@ -159,7 +159,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 
 * "Public call stack size exceeded" - In Aztec, the sequencer executes all enqueued public functions in a transaction (to prevent race conditions - see [private-public execution](../../concepts/foundation/communication/public_private_calls.md)). This error says there are too many public functions requested. 
 
-* "Array size exceeds target length" - happens if you add more items than allowed by the constants set due to our circuit limitations (eg sending too many L2 to L1 messages or creating a function that exceeds the call stack length or return more values than what Noir functions allows)
+* "Array size exceeds target length" - happens if you add more items than allowed by the constants set due to our circuit limitations (eg sending too many L2 to L1 messages or creating a function that exceeds the call stack length or returns more values than what Aztec.nr functions allow)
 
 * "Failed to publish block" - Happens when sequencer tries to submit its L2 block + proof to the rollup contract. Use the CLI to find any solidity error and then refer the [Contract errors section](#l1-aztec-contract-errors).
 

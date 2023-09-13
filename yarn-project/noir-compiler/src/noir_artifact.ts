@@ -1,9 +1,9 @@
 import { ABIParameter, ABIType, DebugFileMap, DebugInfo } from '@aztec/foundation/abi';
 
-/** The noir function types. */
+/** The Aztec.nr function types. */
 type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
 
-/** The ABI of a noir function. */
+/** The ABI of an Aztec.nr function. */
 interface NoirFunctionAbi {
   /** The parameters of the function. */
   parameters: ABIParameter[];
@@ -16,7 +16,7 @@ interface NoirFunctionAbi {
 }
 
 /**
- * The compilation result of a noir function.
+ * The compilation result of an Aztec.nr function.
  */
 export interface NoirFunctionEntry {
   /** The name of the function. */
@@ -36,7 +36,7 @@ export interface NoirFunctionEntry {
 }
 
 /**
- * The compilation result of a noir contract.
+ * The compilation result of an Aztec.nr contract.
  */
 export interface NoirCompiledContract {
   /** The name of the contract. */
@@ -48,7 +48,7 @@ export interface NoirCompiledContract {
 }
 
 /**
- * The debug metadata of a noir contract.
+ * The debug metadata of an Aztec.nr contract.
  */
 export interface NoirDebugMetadata {
   /**

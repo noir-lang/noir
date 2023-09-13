@@ -148,10 +148,10 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
   program
     .command('deploy')
-    .description('Deploys a compiled Noir contract to Aztec.')
+    .description('Deploys a compiled Aztec.nr contract to Aztec.')
     .argument(
       '<abi>',
-      "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
+      "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
     )
     .option('-a, --args <constructorArgs...>', 'Contract constructor arguments', [])
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
@@ -360,7 +360,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('-a, --args [functionArgs...]', 'Function arguments', [])
     .requiredOption(
       '-c, --contract-abi <fileLocation>',
-      "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
+      "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
     )
     .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.')
     .option('-k, --private-key <string>', "The sender's private key.", PRIVATE_KEY)
@@ -406,7 +406,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('-a, --args [functionArgs...]', 'Function arguments', [])
     .requiredOption(
       '-c, --contract-abi <fileLocation>',
-      "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
+      "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
     )
     .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.')
     .option('-f, --from <string>', 'Public key of the TX viewer. If empty, will try to find account in RPC.')
@@ -438,7 +438,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .argument('<encodedString>', 'The encoded hex string')
     .requiredOption(
       '-c, --contract-abi <fileLocation>',
-      "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
+      "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
     )
     .requiredOption('-p, --parameter <parameterName>', 'The name of the struct parameter to decode into')
     .action(async (encodedString, options) => {

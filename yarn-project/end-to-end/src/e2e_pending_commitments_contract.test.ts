@@ -64,7 +64,7 @@ describe('e2e_pending_commitments_contract', () => {
     return contract;
   };
 
-  it('Noir function can "get" notes it just "inserted"', async () => {
+  it('Aztec.nr function can "get" notes it just "inserted"', async () => {
     const mintAmount = 65n;
 
     const deployedContract = await deployContract();
@@ -76,7 +76,7 @@ describe('e2e_pending_commitments_contract', () => {
     expect(receipt.status).toBe(TxStatus.MINED);
   }, 60_000);
 
-  it('Squash! Noir function can "create" and "nullify" note in the same TX', async () => {
+  it('Squash! Aztec.nr function can "create" and "nullify" note in the same TX', async () => {
     // Kernel will squash the noteHash and its nullifier.
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     const mintAmount = 65n;
@@ -101,7 +101,7 @@ describe('e2e_pending_commitments_contract', () => {
     await expectNullifiersSquashedExcept(0);
   }, 60_000);
 
-  it('Squash! Noir function can "create" 2 notes and "nullify" both in the same TX', async () => {
+  it('Squash! Aztec.nr function can "create" 2 notes and "nullify" both in the same TX', async () => {
     // Kernel will squash both noteHashes and their nullifier.
     // Realistic way to describe this test is "Mint notes A and B, then burn both in the same transaction"
     const mintAmount = 65n;
@@ -125,7 +125,7 @@ describe('e2e_pending_commitments_contract', () => {
     await expectNullifiersSquashedExcept(0);
   }, 60_000);
 
-  it('Squash! Noir function can "create" 2 notes and "nullify" 1 in the same TX (kernel will squash one note + nullifier)', async () => {
+  it('Squash! Aztec.nr function can "create" 2 notes and "nullify" 1 in the same TX (kernel will squash one note + nullifier)', async () => {
     // Kernel will squash one noteHash and its nullifier.
     // The other note will become persistent!
     // Realistic way to describe this test is "Mint notes A and B, then burn note A in the same transaction"
@@ -150,7 +150,7 @@ describe('e2e_pending_commitments_contract', () => {
     await expectNullifiersSquashedExcept(0);
   }, 60_000);
 
-  it('Squash! Noir function can nullify a pending note and a persistent in the same TX', async () => {
+  it('Squash! Aztec.nr function can nullify a pending note and a persistent in the same TX', async () => {
     // Create 1 note in isolated TX.
     // Then, in a separate TX, create 1 new note and nullify BOTH notes.
     // In this second TX, the kernel will squash one note + nullifier,

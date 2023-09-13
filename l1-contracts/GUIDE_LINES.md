@@ -5,7 +5,7 @@ In the following, there will be guidelines for the process of writing readable, 
 - when optimizing
 - when reviewing. 
 
-In general the language of choice will be Solidity for our L1 contracts, so most of the specific style rules will be having that in mind, but the process for writing it can be adapted slightly for vyper, and will have an extension when Noir contracts are more mature. 
+In general the language of choice will be Solidity for our L1 contracts, so most of the specific style rules will be having that in mind, but the process for writing it can be adapted slightly for vyper, and will have an extension when Aztec.nr contracts are more mature. 
 
 ![](https://media.tenor.com/ry_sCXk6wH0AAAAC/pirates-caribbean-code.gif)
 

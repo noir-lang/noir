@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ContractDao } from './contract_dao.js';
 
 /**
- * Represents a ContractDatabase interface for managing noir contracts.
+ * Represents a ContractDatabase interface for managing Aztec.nr contracts.
  * Provides methods for adding and retrieving ContractDao objects by their associated addresses.
  */
 export interface ContractDatabase {

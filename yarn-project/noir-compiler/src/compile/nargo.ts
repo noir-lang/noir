@@ -19,7 +19,7 @@ export type CompileOpts = {
 };
 
 /**
- * A class that compiles noir contracts using nargo via the shell.
+ * A class that compiles Aztec.nr contracts using nargo via the shell.
  */
 export class NargoContractCompiler {
   private log: LogFn;
@@ -28,8 +28,8 @@ export class NargoContractCompiler {
   }
 
   /**
-   * Compiles the contracts in projectPath and returns the Noir artifact.
-   * @returns Noir artifact of the compiled contracts.
+   * Compiles the contracts in projectPath and returns the Aztec.nr artifact.
+   * @returns Aztec.nr artifact of the compiled contracts.
    */
   public compile(): Promise<NoirCompilationArtifacts[]> {
     const stdio = this.opts.quiet ? 'ignore' : 'inherit';

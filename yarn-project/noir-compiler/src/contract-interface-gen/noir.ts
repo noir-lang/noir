@@ -134,8 +134,8 @@ function generateSerialisation(parameters: ABIParameter[]) {
 }
 
 /**
- * Generate a function interface for a particular function of the Noir Contract being processed. This function will be a method of the ContractInterface struct being created here.
- * @param functionData - Data relating to the function, which can be used to generate a callable Noir Function.
+ * Generate a function interface for a particular function of the Aztec.nr Contract being processed. This function will be a method of the ContractInterface struct being created here.
+ * @param functionData - Data relating to the function, which can be used to generate a callable Aztec.nr Function.
  * @param kind - Whether this interface will be used from private or public functions.
  * @returns A code string.
  */
@@ -272,7 +272,7 @@ ${contractImpl}
 
 /**
  * Generates the Noir code to represent an interface for calling a contract.
- * @param abi - The compiled Noir artifact.
+ * @param abi - The compiled Aztec.nr artifact.
  * @returns The corresponding ts code.
  */
 export function generateNoirContractInterface(abi: ContractAbi) {

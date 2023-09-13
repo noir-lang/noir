@@ -401,7 +401,7 @@ library Decoder {
 
     // Iterate until all the logs were processed
     while (remainingLogsLength > 0) {
-      // The length of the logs emitted by Noir from the function call corresponding to this kernel iteration
+      // The length of the logs emitted by Aztec.nr from the function call corresponding to this kernel iteration
       uint256 privateCircuitPublicInputLogsLength = read4(_l2Block, offset);
       offset += 0x4;
 

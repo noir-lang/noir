@@ -243,7 +243,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     // 3. Claim WETH on L2
     logger('Minting weth on L2');
-    // Call the mint tokens function on the noir contract
+    // Call the mint tokens function on the Aztec.nr contract
     const consumptionTx = wethL2Contract.methods
       .mint(wethAmountToBridge, owner, messageKey, secret, ethAccount.toField())
       .send();
@@ -324,7 +324,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     // 6. claim dai on L2
     logger('Consuming messages to mint dai on L2');
-    // Call the mint tokens function on the noir contract
+    // Call the mint tokens function on the Aztec.nr contract
     const daiMintTx = daiL2Contract.methods
       .mint(daiAmountToBridge, owner, depositDaiMessageKey, secret, ethAccount.toField())
       .send();

@@ -14,7 +14,7 @@ For the sake of simplicity, we will hardcode the signing public key into the con
 
 ## The account contract
 
-Let's start with the account contract itself in Noir. Create [a new Noir contract project](../contracts/main.md) that will contain a file with the code for the account contract, with a hardcoded public key:
+Let's start with the account contract itself in Aztec.nr. Create [a new Aztec.nr contract project](../contracts/main.md) that will contain a file with the code for the account contract, with a hardcoded public key:
 
 #include_code contract yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
@@ -54,7 +54,7 @@ Note the usage of the `_with_packed_args` variant of [`call_public_function` and
 
 ## The typescript side of things
 
-Now that we have a valid Noir account contract, we need to write the typescript glue code that will take care of formatting and authenticating transactions so they can be processed by our contract, as well as deploying the contract during account setup. This takes the form of implementing the `AccountContract` interface:
+Now that we have a valid Aztec.nr account contract, we need to write the typescript glue code that will take care of formatting and authenticating transactions so they can be processed by our contract, as well as deploying the contract during account setup. This takes the form of implementing the `AccountContract` interface:
 
 #include_code account-contract-interface yarn-project/aztec.js/src/account/contract/index.ts typescript
 

@@ -10,7 +10,7 @@
     "entryPoints": [
       "./src/index.ts"
     ],
-    "name": "Aztec noir compiler",
+    "name": "Aztec.nr compiler",
     "tsconfig": "./tsconfig.json"
   },
   "bin": {

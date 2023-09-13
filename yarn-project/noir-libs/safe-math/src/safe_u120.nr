@@ -259,7 +259,6 @@ fn test_mul_div_up_ghost_overflow() {
 
 // It should not be possible for us to overflow `mul_div_up` through the adder, since that require the divisor to be 1
 // since we otherwise would not be at the max value. If divisor is 1, adder is 0.
-
 #[test(should_fail)]
 fn test_mul_div_up_zero_divisor() {
     let a = SafeU120::new(6);
