@@ -9,7 +9,6 @@ fi
 
 # Update noir
 ./scripts/install_noir.sh
-./scripts/install_noir_backend.sh
 
 # Use yarn script to compile and create types
 yarn 
