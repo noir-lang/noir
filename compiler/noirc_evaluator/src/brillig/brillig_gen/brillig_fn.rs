@@ -17,12 +17,16 @@ use crate::{
 };
 use fxhash::FxHashMap as HashMap;
 
+use super::variable_liveness::VariableLiveness;
+
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
     /// Map from SSA values to register or memory.
     pub(crate) ssa_value_to_brillig_variable: HashMap<ValueId, RegisterOrMemory>,
 
     pub(crate) blocks: Vec<BasicBlockId>,
+
+    pub(crate) liveness: VariableLiveness,
 }
 
 impl FunctionContext {
@@ -36,6 +40,7 @@ impl FunctionContext {
             function_id: id,
             ssa_value_to_brillig_variable: HashMap::default(),
             blocks: reverse_post_order,
+            liveness: VariableLiveness::from_function(function),
         }
     }
 

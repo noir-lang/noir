@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
@@ -19,6 +21,7 @@ use iter_extended::vecmap;
 
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_fn::FunctionContext;
+use super::variable_liveness::compute_defined_variables;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligBlock<'block> {
@@ -27,6 +30,8 @@ pub(crate) struct BrilligBlock<'block> {
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext,
+
+    available_variables: HashSet<ValueId>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -37,7 +42,15 @@ impl<'block> BrilligBlock<'block> {
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
-        let mut brillig_block = BrilligBlock { function_context, block_id, brillig_context };
+        let available_variables = function_context
+            .liveness
+            .get_live_in(&block_id)
+            .union(&compute_defined_variables(&dfg[block_id], dfg))
+            .cloned()
+            .collect();
+
+        let mut brillig_block =
+            BrilligBlock { function_context, block_id, brillig_context, available_variables };
 
         brillig_block.convert_block(dfg);
     }
@@ -59,6 +72,7 @@ impl<'block> BrilligBlock<'block> {
         // Process the block's terminator instruction
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
+
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
 
@@ -958,12 +972,22 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
-        let value = &dfg[dfg.resolve(value_id)];
+        let value_id = dfg.resolve(value_id);
+        let value = &dfg[value_id];
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
+                assert!(
+                    self.available_variables.contains(&value_id),
+                    "ICE: unavailable variable {:?} {} in block {} in function {} with available vars {:?}",
+                    value,
+                    value_id,
+                    self.block_id,
+                    self.function_context.function_id,
+                    self.available_variables,
+                );
                 self.function_context.get_variable(value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {

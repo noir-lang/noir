@@ -39,146 +39,185 @@ fn find_back_edges(
     back_edges
 }
 
-fn compute_killed(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
-    let mut killed = HashSet::new();
+pub(crate) fn compute_defined_variables(
+    block: &BasicBlock,
+    dfg: &DataFlowGraph,
+) -> HashSet<ValueId> {
+    let mut defined_vars = HashSet::new();
 
     for parameter in block.parameters() {
-        killed.insert(*parameter);
+        defined_vars.insert(dfg.resolve(*parameter));
     }
 
     for instruction_id in block.instructions() {
         let result_values = dfg.instruction_results(*instruction_id);
         for result_value in result_values {
-            killed.insert(*result_value);
+            defined_vars.insert(dfg.resolve(*result_value));
         }
     }
 
-    killed
+    defined_vars
 }
 
 fn compute_before_def(
     block: &BasicBlock,
     dfg: &DataFlowGraph,
-    killed: &HashSet<ValueId>,
+    defined_in_block: &HashSet<ValueId>,
 ) -> HashSet<ValueId> {
     let mut before_def = HashSet::new();
+
+    fn process_value(
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+        before_def: &mut HashSet<ValueId>,
+        defined_in_this_block: &HashSet<ValueId>,
+    ) {
+        let value_id = dfg.resolve(value_id);
+        let value = &dfg[value_id];
+        match value {
+            Value::Instruction { .. } | Value::Param { .. } => {
+                if !defined_in_this_block.contains(&value_id) {
+                    before_def.insert(value_id);
+                }
+            }
+            Value::Array { array, .. } => {
+                array.iter().for_each(|item_id| {
+                    process_value(*item_id, dfg, before_def, defined_in_this_block);
+                });
+            }
+            _ => {}
+        }
+    }
 
     for instruction_id in block.instructions() {
         let instruction = &dfg[*instruction_id];
         instruction.for_each_value(|value_id| {
-            let value = &dfg[value_id];
-            match value {
-                Value::Instruction { .. } | Value::Param { .. } => {
-                    if !killed.contains(&value_id) {
-                        before_def.insert(value_id);
-                    }
-                }
-                // TODO Handle array items here
-                _ => {}
-            }
+            process_value(value_id, dfg, &mut before_def, defined_in_block);
+        });
+    }
+
+    if let Some(terminator) = block.terminator() {
+        terminator.for_each_value(|value_id| {
+            process_value(value_id, dfg, &mut before_def, defined_in_block);
         });
     }
 
     before_def
 }
 
-fn compute_live_in_recursive(
-    func: &Function,
-    block_id: BasicBlockId,
-    back_edges: &HashSet<BackEdge>,
-    live_ins: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
-) {
-    let block = &func.dfg[block_id];
+pub(crate) struct VariableLiveness {
+    cfg: ControlFlowGraph,
+    post_order: PostOrder,
+    live_in: HashMap<BasicBlockId, HashSet<ValueId>>,
+}
 
-    let killed = compute_killed(block, &func.dfg);
-    let before_def = compute_before_def(block, &func.dfg, &killed);
+impl VariableLiveness {
+    pub(crate) fn from_function(func: &Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(func);
+        let post_order = PostOrder::with_function(func);
 
-    let mut live_out = HashSet::new();
+        let mut instance = Self { cfg, post_order, live_in: HashMap::new() };
 
-    for successor_id in block.successors() {
-        if !back_edges.contains(&BackEdge { start: block_id, header: successor_id }) {
-            if !live_ins.contains_key(&successor_id) {
-                compute_live_in_recursive(func, successor_id, back_edges, live_ins);
+        instance.compute_live_in_of_blocks(func);
+
+        instance
+    }
+
+    pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &HashSet<ValueId> {
+        self.live_in.get(block_id).expect("Live ins should have been calculated")
+    }
+
+    pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> HashSet<ValueId> {
+        let mut live_out = HashSet::new();
+        for successor_id in self.cfg.successors(*block_id) {
+            live_out.extend(self.get_live_in(&successor_id));
+        }
+        live_out
+    }
+
+    fn compute_live_in_recursive(
+        &mut self,
+        func: &Function,
+        block_id: BasicBlockId,
+        back_edges: &HashSet<BackEdge>,
+    ) {
+        let block = &func.dfg[block_id];
+
+        let defined = compute_defined_variables(block, &func.dfg);
+        let before_def = compute_before_def(block, &func.dfg, &defined);
+
+        let mut live_out = HashSet::new();
+
+        for successor_id in block.successors() {
+            if !back_edges.contains(&BackEdge { start: block_id, header: successor_id }) {
+                if !self.live_in.contains_key(&successor_id) {
+                    self.compute_live_in_recursive(func, successor_id, back_edges);
+                }
+                live_out.extend(
+                    self.live_in
+                        .get(&successor_id)
+                        .expect("Live ins for successor should have been calculated"),
+                );
             }
-            live_out.extend(
-                live_ins
-                    .get(&successor_id)
-                    .expect("Live ins for successor should have been calculated"),
-            );
         }
+
+        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+        let difference = live_out.difference(&defined).cloned().collect();
+        self.live_in.insert(block_id, before_def.union(&difference).cloned().collect());
     }
 
-    // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+    fn compute_loop_body(&self, edge: BackEdge) -> HashSet<BasicBlockId> {
+        let mut loop_blocks = HashSet::new();
+        loop_blocks.insert(edge.header);
+        loop_blocks.insert(edge.start);
 
-    let difference = live_out.difference(&killed).cloned().collect();
-    live_ins.insert(block_id, before_def.union(&difference).cloned().collect());
-}
+        let mut stack = vec![edge.start];
 
-fn compute_loop_body(edge: BackEdge, cfg: &ControlFlowGraph) -> HashSet<BasicBlockId> {
-    let mut blocks = HashSet::new();
-    blocks.insert(edge.header);
-
-    let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-        if !blocks.contains(&block) {
-            blocks.insert(block);
-            stack.push(block);
+        while let Some(block) = stack.pop() {
+            for predecessor in self.cfg.predecessors(block) {
+                if !loop_blocks.contains(&predecessor) {
+                    loop_blocks.insert(predecessor);
+                    stack.push(predecessor);
+                }
+            }
         }
-    };
 
-    // Starting from the back edge of the loop, each predecessor of this block until
-    // the header is within the loop.
-    let mut stack = vec![];
-    insert(edge.start, &mut stack);
-
-    while let Some(block) = stack.pop() {
-        for predecessor in cfg.predecessors(block) {
-            insert(predecessor, &mut stack);
-        }
+        loop_blocks
     }
 
-    blocks
-}
-
-fn update_live_ins_within_loop(
-    cfg: &ControlFlowGraph,
-    live_ins: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
-    back_edge: BackEdge,
-) {
-    let header_live_ins =
-        live_ins.get(&back_edge.header).expect("Live ins should have been calculated").clone();
-    let body = compute_loop_body(back_edge, cfg);
-    for body_block_id in body {
-        live_ins
-            .get_mut(&body_block_id)
+    fn update_live_ins_within_loop(&mut self, back_edge: BackEdge) {
+        let header_live_ins = self
+            .live_in
+            .get(&back_edge.header)
             .expect("Live ins should have been calculated")
-            .extend(&header_live_ins);
-    }
-}
-
-pub(crate) fn compute_live_in_of_blocks(
-    func: &Function,
-) -> HashMap<BasicBlockId, HashSet<ValueId>> {
-    let cfg = ControlFlowGraph::with_function(func);
-    let post_order = PostOrder::with_function(func);
-
-    let mut live_in = HashMap::new();
-    let back_edges = find_back_edges(func, &cfg, &post_order);
-
-    // First pass, propagate up the live_ins skipping back edges
-    compute_live_in_recursive(func, func.entry_block(), &back_edges, &mut live_in);
-
-    // Second pass, propagate header live_ins to the loop bodies
-    for back_edge in back_edges {
-        update_live_ins_within_loop(&cfg, &mut live_in, back_edge);
+            .clone();
+        let body = self.compute_loop_body(back_edge);
+        for body_block_id in body {
+            self.live_in
+                .get_mut(&body_block_id)
+                .expect("Live ins should have been calculated")
+                .extend(&header_live_ins);
+        }
     }
 
-    live_in
+    fn compute_live_in_of_blocks(&mut self, func: &Function) {
+        let back_edges = find_back_edges(func, &self.cfg, &self.post_order);
+
+        // First pass, propagate up the live_ins skipping back edges
+        self.compute_live_in_recursive(func, func.entry_block(), &back_edges);
+
+        // Second pass, propagate header live_ins to the loop bodies
+        for back_edge in back_edges {
+            self.update_live_ins_within_loop(back_edge);
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use std::collections::HashSet;
 
+    use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::BinaryOp;
@@ -248,12 +287,12 @@ mod test {
 
         let ssa = builder.finish();
         let func = ssa.main();
-        let live_in = super::compute_live_in_of_blocks(func);
+        let liveness = VariableLiveness::from_function(func);
 
-        assert!(live_in.get(&func.entry_block()).unwrap().is_empty());
-        assert_eq!(live_in.get(&b2).unwrap(), &HashSet::from([v3, v0]));
-        assert_eq!(live_in.get(&b1).unwrap(), &HashSet::from([v3, v1]));
-        assert_eq!(live_in.get(&b3).unwrap(), &HashSet::from([v3]));
+        assert!(liveness.get_live_in(&func.entry_block()).is_empty());
+        assert_eq!(liveness.get_live_in(&b2), &HashSet::from([v3, v0]));
+        assert_eq!(liveness.get_live_in(&b1), &HashSet::from([v3, v1]));
+        assert_eq!(liveness.get_live_in(&b3), &HashSet::from([v3]));
     }
 
     #[test]
@@ -376,17 +415,16 @@ mod test {
         let ssa = builder.finish();
         let func = ssa.main();
 
-        let live_in = super::compute_live_in_of_blocks(func);
+        let liveness = VariableLiveness::from_function(func);
 
-        println!("{:?}", vec![v0, v1, v3, v4, v6, v7, v10, v11, v12, v13, v15, v16, v17]);
-        assert!(live_in.get(&func.entry_block()).unwrap().is_empty());
-        assert_eq!(live_in.get(&b1).unwrap(), &HashSet::from([v0, v1, v3]));
-        assert_eq!(live_in.get(&b3).unwrap(), &HashSet::from([v3]));
-        assert_eq!(live_in.get(&b2).unwrap(), &HashSet::from([v0, v1, v3, v4]));
-        assert_eq!(live_in.get(&b4).unwrap(), &HashSet::from([v0, v1, v3, v4, v6]));
-        assert_eq!(live_in.get(&b6).unwrap(), &HashSet::from([v0, v1, v3, v4]));
-        assert_eq!(live_in.get(&b5).unwrap(), &HashSet::from([v0, v1, v3, v4, v6, v7]));
-        assert_eq!(live_in.get(&b7).unwrap(), &HashSet::from([v0, v1, v3, v4, v6, v7]));
-        assert_eq!(live_in.get(&b8).unwrap(), &HashSet::from([v0, v1, v3, v4, v6, v7]));
+        assert!(liveness.get_live_in(&func.entry_block()).is_empty());
+        assert_eq!(liveness.get_live_in(&b1), &HashSet::from([v0, v1, v3]));
+        assert_eq!(liveness.get_live_in(&b3), &HashSet::from([v3]));
+        assert_eq!(liveness.get_live_in(&b2), &HashSet::from([v0, v1, v3, v4]));
+        assert_eq!(liveness.get_live_in(&b4), &HashSet::from([v0, v1, v3, v4, v6]));
+        assert_eq!(liveness.get_live_in(&b6), &HashSet::from([v0, v1, v3, v4]));
+        assert_eq!(liveness.get_live_in(&b5), &HashSet::from([v0, v1, v3, v4, v6, v7]));
+        assert_eq!(liveness.get_live_in(&b7), &HashSet::from([v0, v1, v3, v4, v6, v7]));
+        assert_eq!(liveness.get_live_in(&b8), &HashSet::from([v0, v1, v3, v4, v6, v7]));
     }
 }
