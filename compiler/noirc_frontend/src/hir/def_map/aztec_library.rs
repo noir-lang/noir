@@ -327,7 +327,9 @@ fn create_context(ty: &str, params: &[(Pattern, UnresolvedType, Visibility)]) ->
                     UnresolvedTypeData::FieldElement => add_field_to_hasher(identifier),
                     // Add the integer to the hasher, casted to a field
                     // `hasher.add({ident} as Field)`
-                    UnresolvedTypeData::Integer(..) => add_int_to_hasher(identifier),
+                    UnresolvedTypeData::Integer(..) | UnresolvedTypeData::Bool => {
+                        add_cast_to_hasher(identifier)
+                    }
                     _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
                 };
                 injected_expressions.push(expression);
@@ -613,7 +615,7 @@ fn add_field_to_hasher(identifier: &Ident) -> Statement {
     ))
 }
 
-fn add_int_to_hasher(identifier: &Ident) -> Statement {
+fn add_cast_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident} as Field)`
     // `{ident} as Field`
     let cast_operation = cast(
