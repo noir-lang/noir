@@ -14,7 +14,7 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
-    opt::flatten_cfg::ValueMerger,
+    opt::flatten_cfg::value_merger::ValueMerger,
 };
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
@@ -171,9 +171,8 @@ pub(super) fn simplify_call(
 
                 let store_values = &HashMap::default();
                 let outer_block_stores = &HashMap::default();
-                let slice_sizes = &mut HashMap::default();
                 let mut value_merger =
-                    ValueMerger::new(dfg, block, store_values, outer_block_stores, slice_sizes);
+                    ValueMerger::new(dfg, block, store_values, outer_block_stores);
                 let new_slice = value_merger.merge_values(
                     len_not_equals_capacity,
                     len_equals_capacity,
