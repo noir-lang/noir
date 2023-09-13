@@ -1,7 +1,6 @@
 {
   "name": "integration-tests",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "test": "yarn test:browser",
@@ -9,10 +8,6 @@
     "test:integration:browser": "web-test-runner test//integration/browser/**/*.test.ts",
     "test:integration:browser:watch": "web-test-runner test/integration/browser/**/*.test.ts --watch"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-
   "dependencies": {
     "@aztec/bb.js": "^0.5.1",
     "@noir-lang/acvm_js": "^0.26.0",
