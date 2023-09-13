@@ -702,9 +702,8 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_token_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end ./scripts/run_tests_local e2e_token_contract.test.ts
           working_directory: yarn-project/end-to-end
-
 
   e2e-private-token-contract:
     machine:

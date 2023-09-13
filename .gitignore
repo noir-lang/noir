@@ -6,3 +6,4 @@ node_modules
 build/
 .idea
 cmake-build-debug
+.bootstrapped
