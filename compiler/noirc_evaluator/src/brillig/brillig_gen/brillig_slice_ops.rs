@@ -328,6 +328,7 @@ mod tests {
         let function_context = FunctionContext {
             function_id: Id::test_new(0),
             ssa_value_to_brillig_variable: HashMap::default(),
+            blocks: vec![],
         };
         let brillig_context = create_context();
         (function_context, brillig_context)

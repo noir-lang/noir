@@ -25,7 +25,7 @@ use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
 pub mod abi_gen;
 mod acir_gen;
-mod function_builder;
+pub mod function_builder;
 pub mod ir;
 mod opt;
 pub mod ssa_gen;

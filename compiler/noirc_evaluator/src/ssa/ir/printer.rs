@@ -6,6 +6,8 @@ use std::{
 
 use iter_extended::vecmap;
 
+use crate::ssa::ir::post_order::PostOrder;
+
 use super::{
     basic_block::BasicBlockId,
     function::Function,
@@ -15,8 +17,17 @@ use super::{
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
+    println!("Printing in reverse post order");
+
     writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
-    display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
+    let mut reverse_post_order = Vec::new();
+    reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
+    reverse_post_order.reverse();
+
+    for block_id in reverse_post_order {
+        display_block(function, block_id, f)?;
+    }
+
     write!(f, "}}")
 }
 

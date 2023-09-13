@@ -7,8 +7,10 @@ use crate::{
         BrilligContext,
     },
     ssa::ir::{
+        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        post_order::PostOrder,
         types::{CompositeType, Type},
         value::ValueId,
     },
@@ -19,9 +21,24 @@ pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
     /// Map from SSA values to register or memory.
     pub(crate) ssa_value_to_brillig_variable: HashMap<ValueId, RegisterOrMemory>,
+
+    pub(crate) blocks: Vec<BasicBlockId>,
 }
 
 impl FunctionContext {
+    pub(crate) fn new(function: &Function) -> Self {
+        let id = function.id();
+        let mut reverse_post_order = Vec::new();
+        reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
+        reverse_post_order.reverse();
+
+        Self {
+            function_id: id,
+            ssa_value_to_brillig_variable: HashMap::default(),
+            blocks: reverse_post_order,
+        }
+    }
+
     /// For a given SSA value id, create and cache the a corresponding variable.
     /// This will allocate the needed registers for the variable.
     pub(crate) fn create_variable(
