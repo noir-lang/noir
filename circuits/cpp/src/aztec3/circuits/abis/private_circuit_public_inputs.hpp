@@ -9,7 +9,6 @@
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
 
-#include "barretenberg/common/serialize.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {

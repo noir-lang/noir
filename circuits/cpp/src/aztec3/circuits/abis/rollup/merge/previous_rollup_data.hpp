@@ -1,5 +1,4 @@
 #pragma once
-#include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/constants.hpp"

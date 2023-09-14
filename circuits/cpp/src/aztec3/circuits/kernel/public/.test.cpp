@@ -6,12 +6,8 @@
 #include "aztec3/circuits/abis/call_stack_item.hpp"
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
-#include "aztec3/circuits/abis/contract_deployment_data.hpp"
-#include "aztec3/circuits/abis/function_data.hpp"
-#include "aztec3/circuits/abis/historic_block_data.hpp"
-#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/contract_storage_update_request.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
-#include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_call_data.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
 #include "aztec3/circuits/abis/tx_context.hpp"
@@ -26,7 +22,7 @@
 
 #include <array>
 
-namespace {
+namespace aztec3::circuits::kernel::public_kernel {
 using DummyCircuitBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
 using NT = aztec3::utils::types::NativeTypes;
@@ -34,6 +30,8 @@ using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CombinedAccumulatedData;
 using aztec3::circuits::abis::CombinedConstantData;
+using aztec3::circuits::abis::ContractStorageRead;
+using aztec3::circuits::abis::ContractStorageUpdateRequest;
 using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
@@ -45,10 +43,6 @@ using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::public_kernel::PublicCallData;
 using aztec3::utils::source_arrays_are_in_target;
-}  // namespace
-
-namespace aztec3::circuits::kernel::public_kernel {
-
 using PublicCallStackItem = CallStackItem<NT, aztec3::circuits::abis::PublicTypes>;
 
 template <size_t SIZE>

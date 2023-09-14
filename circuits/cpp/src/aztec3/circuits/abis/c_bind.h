@@ -1,5 +1,3 @@
-#include "aztec3/circuits/hash.hpp"
-
 #include <barretenberg/barretenberg.hpp>
 
 #include <algorithm>

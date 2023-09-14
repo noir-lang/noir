@@ -7,6 +7,8 @@
 
 namespace aztec3::circuits::kernel::public_kernel {
 
+using aztec3::utils::array_pop;
+
 void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
                                   KernelCircuitPublicInputs<NT>& circuit_outputs)
 {

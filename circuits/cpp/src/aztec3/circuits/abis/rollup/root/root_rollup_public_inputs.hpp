@@ -3,9 +3,6 @@
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/global_variables.hpp"
 #include "aztec3/constants.hpp"
-#include "aztec3/utils/types/circuit_types.hpp"
-#include "aztec3/utils/types/convert.hpp"
-#include "aztec3/utils/types/native_types.hpp"
 
 #include <barretenberg/barretenberg.hpp>
 
