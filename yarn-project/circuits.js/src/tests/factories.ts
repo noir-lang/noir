@@ -10,6 +10,7 @@ import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
+  CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
   CONTRACT_TREE_HEIGHT,
   CallContext,
   CircuitType,
@@ -29,6 +30,7 @@ import {
   G1AffineElement,
   HISTORIC_BLOCKS_TREE_HEIGHT,
   HistoricBlockData,
+  KERNELS_PER_BASE_ROLLUP,
   KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -36,6 +38,7 @@ import {
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
@@ -43,20 +46,24 @@ import {
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
+  NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_FIELDS_PER_SHA256,
   NewContractData,
   NullifierLeafPreimage,
   OptionallyRevealedData,
+  PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PRIVATE_DATA_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
   Point,
@@ -876,10 +883,7 @@ export function makeMergeRollupInputs(seed = 0): MergeRollupInputs {
  * @returns A base rollup inputs.
  */
 export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
-  const kernelData: [PreviousKernelData, PreviousKernelData] = [
-    makePreviousKernelData(seed + 0x100),
-    makePreviousKernelData(seed + 0x200),
-  ];
+  const kernelData = makeTuple(KERNELS_PER_BASE_ROLLUP, x => makePreviousKernelData(seed + (x + 1) * 0x100));
 
   const startPrivateDataTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x100);
   const startNullifierTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x200);
@@ -887,41 +891,37 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const startPublicDataTreeRoot = fr(seed + 0x400);
   const startHistoricBlocksTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x500);
 
-  const lowNullifierLeafPreimages = range(2 * MAX_NEW_NULLIFIERS_PER_TX, seed + 0x1000).map(
+  const lowNullifierLeafPreimages = makeTuple(
+    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
     x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), x + 0x200),
+    seed + 0x1000,
   );
 
-  const lowNullifierMembershipWitness = range(2 * MAX_NEW_NULLIFIERS_PER_TX, seed + 0x2000).map(x =>
-    makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
+  const lowNullifierMembershipWitness = makeTuple(
+    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+    x => makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
+    seed + 0x2000,
   );
 
-  const newCommitmentsSubtreeSiblingPath = range(
-    PRIVATE_DATA_TREE_HEIGHT - BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
-    seed + 0x3000,
-  ).map(x => fr(x));
+  const newCommitmentsSubtreeSiblingPath = makeTuple(PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x3000);
+  const newNullifiersSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x4000);
+  const newContractsSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x5000);
 
-  const newNullifiersSubtreeSiblingPath = range(
-    NULLIFIER_TREE_HEIGHT - BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
-    seed + 0x4000,
-  ).map(x => fr(x));
-
-  const newContractsSubtreeSiblingPath = range(
-    CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
-    seed + 0x5000,
-  ).map(x => fr(x));
-
-  const newPublicDataUpdateRequestsSiblingPaths = range(2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, seed + 0x6000).map(
-    x => range(PUBLIC_DATA_TREE_HEIGHT, x).map(fr),
+  const newPublicDataUpdateRequestsSiblingPaths = makeTuple(
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
+    x => makeTuple(PUBLIC_DATA_TREE_HEIGHT, fr, x),
+    seed + 0x6000,
   );
 
-  const newPublicDataReadsSiblingPaths = range(2 * MAX_PUBLIC_DATA_READS_PER_TX, seed + 0x6000).map(x =>
-    range(PUBLIC_DATA_TREE_HEIGHT, x).map(fr),
+  const newPublicDataReadsSiblingPaths = makeTuple(
+    MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
+    x => makeTuple(PUBLIC_DATA_TREE_HEIGHT, fr, x),
+    seed + 0x6000,
   );
 
-  const historicBlocksTreeRootMembershipWitnesses: BaseRollupInputs['historicBlocksTreeRootMembershipWitnesses'] = [
-    makeMembershipWitness(HISTORIC_BLOCKS_TREE_HEIGHT, seed + 0x7000),
-    makeMembershipWitness(HISTORIC_BLOCKS_TREE_HEIGHT, seed + 0x8000),
-  ];
+  const historicBlocksTreeRootMembershipWitnesses = makeTuple(KERNELS_PER_BASE_ROLLUP, x =>
+    makeMembershipWitness(HISTORIC_BLOCKS_TREE_HEIGHT, seed + x * 0x1000 + 0x7000),
+  );
 
   const constants = makeConstantBaseRollupData(0x100);
 

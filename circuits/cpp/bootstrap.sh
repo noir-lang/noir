@@ -62,5 +62,10 @@ cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
 cmake --build --preset $PRESET ${@/#/--target }
 
 # Build WASM.
-cmake --preset wasm
-cmake --build --preset wasm
+if [ -n "${WASM_DEBUG:-}" ] ; then
+  cmake --preset wasm-dbg
+  cmake --build --preset wasm-dbg
+else
+  cmake --preset wasm
+  cmake --build --preset wasm
+fi

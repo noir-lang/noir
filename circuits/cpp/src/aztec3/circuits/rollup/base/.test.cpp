@@ -64,67 +64,57 @@ class base_rollup_tests : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../barretenberg/cpp/srs_db/ignition"); }
 
-    static void run_cbind(BaseRollupInputs& base_rollup_inputs,
-                          BaseOrMergeRollupPublicInputs& expected_public_inputs,
-                          bool compare_pubins = true,
-                          bool assert_no_circuit_failure = true)
-    {
-        info("Retesting via cbinds....");
-        // TODO(banks12) might be able to get rid of proving key buffer
-        uint8_t const* pk_buf = nullptr;
-        size_t const pk_size = base_rollup__init_proving_key(&pk_buf);
-        (void)pk_size;
-        // info("Proving key size: ", pk_size);
+    // TODO(1998): uncomment once https://github.com/AztecProtocol/aztec-packages/issues/1998 is solved and
+    //             use new pattern such as call_func_and_wrapper from test_helper.hpp
 
-        // TODO(banks12) might be able to get rid of verification key buffer
-        uint8_t const* vk_buf = nullptr;
-        size_t const vk_size = base_rollup__init_verification_key(pk_buf, &vk_buf);
-        (void)vk_size;
-        // info("Verification key size: ", vk_size);
+    //     static void run_cbind(BaseRollupInputs& base_rollup_inputs,
+    //                           BaseOrMergeRollupPublicInputs& expected_public_inputs,
+    //                           bool compare_pubins = true,
+    //                           bool assert_no_circuit_failure = true)
+    //     {
+    //         info("Retesting via cbinds....");
 
-        std::vector<uint8_t> base_rollup_inputs_vec;
-        serialize::write(base_rollup_inputs_vec, base_rollup_inputs);
+    //         std::vector<uint8_t> base_rollup_inputs_vec;
+    //         serialize::write(base_rollup_inputs_vec, base_rollup_inputs);
 
-        // uint8_t const* proof_data;
-        // size_t proof_data_size;
-        uint8_t const* public_inputs_buf = nullptr;
-        size_t public_inputs_size = 0;
-        // info("simulating circuit via cbind");
-        uint8_t* const circuit_failure_ptr =
-            base_rollup__sim(base_rollup_inputs_vec.data(), &public_inputs_size, &public_inputs_buf);
+    //         // uint8_t const* proof_data;
+    //         // size_t proof_data_size;
+    //         uint8_t const* public_inputs_buf = nullptr;
+    //         size_t public_inputs_size = 0;
+    //         // info("simulating circuit via cbind");
+    //         uint8_t* const circuit_failure_ptr =
+    //             base_rollup__sim(base_rollup_inputs_vec.data(), &public_inputs_size, &public_inputs_buf);
 
-        ASSERT_TRUE(assert_no_circuit_failure ? circuit_failure_ptr == nullptr : circuit_failure_ptr != nullptr);
-        // info("Proof size: ", proof_data_size);
-        // info("PublicInputs size: ", public_inputs_size);
+    //         ASSERT_TRUE(assert_no_circuit_failure ? circuit_failure_ptr == nullptr : circuit_failure_ptr != nullptr);
+    //         // info("Proof size: ", proof_data_size);
+    //         // info("PublicInputs size: ", public_inputs_size);
 
-        if (compare_pubins) {
-            BaseOrMergeRollupPublicInputs public_inputs;
-            uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
-            serialize::read(public_inputs_buf_tmp, public_inputs);
-            ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
-            for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
-                ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
-            }
+    //         if (compare_pubins) {
+    //             BaseOrMergeRollupPublicInputs public_inputs;
+    //             uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
+    //             serialize::read(public_inputs_buf_tmp, public_inputs);
+    //             ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
+    //             for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
+    //                 ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
+    //             }
 
-            std::vector<uint8_t> expected_public_inputs_vec;
-            serialize::write(expected_public_inputs_vec, expected_public_inputs);
+    //             std::vector<uint8_t> expected_public_inputs_vec;
+    //             serialize::write(expected_public_inputs_vec, expected_public_inputs);
 
-            ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
-            // Just compare the first 10 bytes of the serialized public outputs
-            if (public_inputs_size > 10) {
-                // for (size_t 0; i < public_inputs_size; i++) {
-                for (size_t i = 0; i < 10; i++) {
-                    ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
-                }
-            }
-        }
+    //             ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
+    //             // Just compare the first 10 bytes of the serialized public outputs
+    //             if (public_inputs_size > 10) {
+    //                 // for (size_t 0; i < public_inputs_size; i++) {
+    //                 for (size_t i = 0; i < 10; i++) {
+    //                     ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
+    //                 }
+    //             }
+    //         }
 
-        free((void*)pk_buf);
-        free((void*)vk_buf);
-        // free((void*)proof_data);
-        free((void*)public_inputs_buf);
-        // info("finished retesting via cbinds...");
-    }
+    //         // free((void*)proof_data);
+    //         free((void*)public_inputs_buf);
+    //         // info("finished retesting via cbinds...");
+    //     }
 };
 
 TEST_F(base_rollup_tests, native_no_new_contract_leafs)
@@ -154,7 +144,8 @@ TEST_F(base_rollup_tests, native_no_new_contract_leafs)
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expectedEndContractTreeSnapshot);
     ASSERT_EQ(outputs.start_contract_tree_snapshot, emptyInputs.start_contract_tree_snapshot);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(emptyInputs, outputs);
+    // TODO(1998): see above
+    //  run_cbind(emptyInputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_contract_leaf_inserted)
@@ -199,7 +190,8 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted)
     ASSERT_EQ(outputs.start_contract_tree_snapshot, inputs.start_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_end_contracts_snapshot);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_contract_leaf_inserted_in_non_empty_snapshot_tree)
@@ -255,7 +247,8 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted_in_non_empty_snapshot_tr
     ASSERT_EQ(outputs.start_contract_tree_snapshot, inputs.start_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_end_contracts_snapshot);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_new_commitments_tree)
@@ -297,7 +290,8 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
     ASSERT_EQ(outputs.start_private_data_tree_snapshot, inputs.start_private_data_tree_snapshot);
     ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_end_commitments_snapshot);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 template <size_t N> NT::fr calc_root(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath)
@@ -477,8 +471,8 @@ TEST_F(base_rollup_tests, native_nullifier_tree_regression)
     // This test runs after some data has already been inserted into the tree
     // This test will pre-populate the tree with 6 * KERNEL_NEW_NULLIFIERS_LENGTH values (0 item + 6 *
     // KERNEL_NEW_NULLIFIERS_LENGTH -1 more) simulating that a rollup inserting two random values has already
-    // succeeded. Note that this corresponds to 3 (1 already initialized and 2 new ones) base rollups. This rollup then
-    // adds two further random values that will end up having their low nullifiers point at each other
+    // succeeded. Note that this corresponds to 3 (1 already initialized and 2 new ones) base rollups. This rollup
+    // then adds two further random values that will end up having their low nullifiers point at each other
     std::vector<fr> initial_values(6 * MAX_NEW_NULLIFIERS_PER_TX - 1, 0);
     for (size_t i = 0; i < 2 * MAX_NEW_NULLIFIERS_PER_TX - 1; i++) {
         initial_values[i] = i + 1;
@@ -585,14 +579,14 @@ TEST_F(base_rollup_tests, native_empty_block_calldata_hash)
     ASSERT_TRUE(compare_field_hash_to_expected(output_calldata_hash, expected_calldata_hash) == true);
 
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_calldata_hash)
 {
-    // Execute the base rollup circuit with nullifiers, commitments and a contract deployment. Then check the calldata
-    // hash against the expected value.
+    // Execute the base rollup circuit with nullifiers, commitments and a contract deployment. Then check the
+    // calldata hash against the expected value.
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
     // Commitments inserted are [1,2,3,4,5,6,7,8 ...]. Nullifiers inserted are [8,9,10,11,12,13,14,15 ...]
@@ -630,7 +624,8 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     ASSERT_EQ(expected_calldata_hash, output_calldata_hash);
 
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_compute_membership_historic_blocks_tree_negative)
@@ -676,7 +671,8 @@ TEST_F(base_rollup_tests, native_constants_dont_change)
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
     ASSERT_EQ(inputs.constants, outputs.constants);
     EXPECT_FALSE(builder.failed());
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_constants_dont_match_kernels_chain_id)
@@ -730,7 +726,8 @@ TEST_F(base_rollup_tests, native_cbind_0)
     // @todo Error handling?
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     BaseOrMergeRollupPublicInputs ignored_public_inputs;
-    run_cbind(inputs, ignored_public_inputs, false);
+    // TODO(1998): see above
+    // run_cbind(inputs, ignored_public_inputs, false);
 }
 
 TEST_F(base_rollup_tests, native_single_public_state_read)
@@ -765,7 +762,8 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_single_public_state_write)
@@ -803,7 +801,8 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_NE(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
@@ -823,7 +822,8 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
-    // We set up reads and writes such that the right tx will read or write to indices already modified by the left tx
+    // We set up reads and writes such that the right tx will read or write to indices already modified by the left
+    // tx
     kernel_data[0].public_inputs.end.public_data_reads[0] = make_public_read(fr(1), fr(101));
     kernel_data[0].public_inputs.end.public_data_reads[1] = make_public_read(fr(2), fr(102));
     kernel_data[0].public_inputs.end.public_data_update_requests[0] =
@@ -850,7 +850,8 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_NE(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
-    run_cbind(inputs, outputs);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, native_invalid_public_state_read)
@@ -889,7 +890,8 @@ TEST_F(base_rollup_tests, native_invalid_public_state_read)
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
     ASSERT_TRUE(builder.failed());
-    run_cbind(inputs, outputs, true, false);
+    // TODO(1998): see above
+    // run_cbind(inputs, outputs, true, false);
 }
 
 }  // namespace aztec3::circuits::rollup::base::native_base_rollup_circuit

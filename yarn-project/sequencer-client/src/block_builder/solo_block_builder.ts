@@ -2,17 +2,29 @@ import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
+  CONTRACT_SUBTREE_HEIGHT,
+  CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
   CircuitsWasm,
   ConstantRollupData,
   GlobalVariables,
   HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+  MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
+  MAX_PUBLIC_DATA_READS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
+  NULLIFIER_SUBTREE_HEIGHT,
+  NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NullifierLeafPreimage,
+  PRIVATE_DATA_SUBTREE_HEIGHT,
+  PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH,
+  PUBLIC_DATA_TREE_HEIGHT,
   PreviousKernelData,
   PreviousRollupData,
   Proof,
@@ -593,22 +605,38 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected async processPublicDataUpdateRequests(tx: ProcessedTx) {
-    const newPublicDataUpdateRequestsSiblingPaths: Fr[][] = [];
-    for (const publicDataUpdateRequest of tx.data.end.publicDataUpdateRequests) {
-      const index = publicDataUpdateRequest.leafIndex.value;
+    const newPublicDataUpdateRequestsSiblingPaths: Tuple<
+      Tuple<Fr, typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    > = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, () => makeTuple(PUBLIC_DATA_TREE_HEIGHT, Fr.zero));
+    for (const i in tx.data.end.publicDataUpdateRequests) {
+      const index = tx.data.end.publicDataUpdateRequests[i].leafIndex.value;
+      await this.db.updateLeaf(
+        MerkleTreeId.PUBLIC_DATA_TREE,
+        tx.data.end.publicDataUpdateRequests[i].newValue.toBuffer(),
+        index,
+      );
       const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
-      await this.db.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, publicDataUpdateRequest.newValue.toBuffer(), index);
-      newPublicDataUpdateRequestsSiblingPaths.push(path.toFieldArray());
+      const array = path.toFieldArray();
+      newPublicDataUpdateRequestsSiblingPaths[i] = makeTuple(PUBLIC_DATA_TREE_HEIGHT, j =>
+        j < array.length ? array[j] : Fr.ZERO,
+      );
     }
     return newPublicDataUpdateRequestsSiblingPaths;
   }
 
   protected async getPublicDataReadsSiblingPaths(tx: ProcessedTx) {
-    const newPublicDataReadsSiblingPaths: Fr[][] = [];
-    for (const publicDataRead of tx.data.end.publicDataReads) {
-      const index = publicDataRead.leafIndex.value;
+    const newPublicDataReadsSiblingPaths: Tuple<
+      Tuple<Fr, typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_READS_PER_TX
+    > = makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => makeTuple(PUBLIC_DATA_TREE_HEIGHT, Fr.zero));
+    for (const i in tx.data.end.publicDataReads) {
+      const index = tx.data.end.publicDataReads[i].leafIndex.value;
       const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, index);
-      newPublicDataReadsSiblingPaths.push(path.toFieldArray());
+      const array = path.toFieldArray();
+      newPublicDataReadsSiblingPaths[i] = makeTuple(PUBLIC_DATA_TREE_HEIGHT, j =>
+        j < array.length ? array[j] : Fr.ZERO,
+      );
     }
     return newPublicDataReadsSiblingPaths;
   }
@@ -626,13 +654,22 @@ export class SoloBlockBuilder implements BlockBuilder {
     const startHistoricBlocksTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.BLOCKS_TREE);
 
     // Get the subtree sibling paths for the circuit
-    const newCommitmentsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
+    const newCommitmentsSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
       MerkleTreeId.PRIVATE_DATA_TREE,
-      BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
+      PRIVATE_DATA_SUBTREE_HEIGHT,
     );
-    const newContractsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
+
+    const newCommitmentsSubtreeSiblingPath = makeTuple(PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH, i =>
+      i < newCommitmentsSubtreeSiblingPathArray.length ? newCommitmentsSubtreeSiblingPathArray[i] : Fr.ZERO,
+    );
+
+    const newContractsSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
       MerkleTreeId.CONTRACT_TREE,
-      BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
+      CONTRACT_SUBTREE_HEIGHT,
+    );
+
+    const newContractsSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, i =>
+      i < newContractsSubtreeSiblingPathArray.length ? newContractsSubtreeSiblingPathArray[i] : Fr.ZERO,
     );
 
     // Update the contract and private data trees with the new items being inserted to get the new roots
@@ -658,11 +695,17 @@ export class SoloBlockBuilder implements BlockBuilder {
     const rightPublicDataReadSiblingPaths = await this.getPublicDataReadsSiblingPaths(right);
     const rightPublicDataUpdateRequestsSiblingPaths = await this.processPublicDataUpdateRequests(right);
 
-    const newPublicDataReadsSiblingPaths = [...leftPublicDataReadSiblingPaths, ...rightPublicDataReadSiblingPaths];
-    const newPublicDataUpdateRequestsSiblingPaths = [
-      ...leftPublicDataUpdateRequestsSiblingPaths,
-      ...rightPublicDataUpdateRequestsSiblingPaths,
-    ];
+    const newPublicDataReadsSiblingPaths = makeTuple(MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP, i =>
+      i < MAX_PUBLIC_DATA_READS_PER_TX
+        ? leftPublicDataReadSiblingPaths[i]
+        : rightPublicDataReadSiblingPaths[i - MAX_PUBLIC_DATA_READS_PER_TX],
+    );
+
+    const newPublicDataUpdateRequestsSiblingPaths = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP, i =>
+      i < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+        ? leftPublicDataUpdateRequestsSiblingPaths[i]
+        : rightPublicDataUpdateRequestsSiblingPaths[i - MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    );
 
     // Update the nullifier tree, capturing the low nullifier info for each individual operation
     const newNullifiers = [...left.data.end.newNullifiers, ...right.data.end.newNullifiers];
@@ -670,7 +713,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const [nullifierWitnessLeaves, newNullifiersSubtreeSiblingPath] = await this.db.batchInsert(
       MerkleTreeId.NULLIFIER_TREE,
       newNullifiers.map(fr => fr.toBuffer()),
-      BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+      NULLIFIER_SUBTREE_HEIGHT,
     );
     if (nullifierWitnessLeaves === undefined) {
       throw new Error(`Could not craft nullifier batch insertion proofs`);
@@ -682,6 +725,8 @@ export class SoloBlockBuilder implements BlockBuilder {
         MembershipWitness.fromBufferArray(l.index, assertLength(l.siblingPath.toBufferArray(), NULLIFIER_TREE_HEIGHT)),
       );
 
+    const newNullifiersSubtreeSiblingPathArray = newNullifiersSubtreeSiblingPath.toFieldArray();
+
     return BaseRollupInputs.from({
       constants,
       startNullifierTreeSnapshot,
@@ -691,14 +736,25 @@ export class SoloBlockBuilder implements BlockBuilder {
       startHistoricBlocksTreeSnapshot,
       newCommitmentsSubtreeSiblingPath,
       newContractsSubtreeSiblingPath,
-      newNullifiersSubtreeSiblingPath: newNullifiersSubtreeSiblingPath.toFieldArray(),
+      newNullifiersSubtreeSiblingPath: makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, i =>
+        i < newNullifiersSubtreeSiblingPathArray.length ? newNullifiersSubtreeSiblingPathArray[i] : Fr.ZERO,
+      ),
       newPublicDataUpdateRequestsSiblingPaths,
       newPublicDataReadsSiblingPaths,
-      lowNullifierLeafPreimages: nullifierWitnessLeaves.map(
-        ({ leafData }) =>
-          new NullifierLeafPreimage(new Fr(leafData.value), new Fr(leafData.nextValue), Number(leafData.nextIndex)),
+      lowNullifierLeafPreimages: makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i =>
+        i < nullifierWitnessLeaves.length
+          ? new NullifierLeafPreimage(
+              new Fr(nullifierWitnessLeaves[i].leafData.value),
+              new Fr(nullifierWitnessLeaves[i].leafData.nextValue),
+              Number(nullifierWitnessLeaves[i].leafData.nextIndex),
+            )
+          : new NullifierLeafPreimage(Fr.ZERO, Fr.ZERO, 0),
       ),
-      lowNullifierMembershipWitness: lowNullifierMembershipWitnesses,
+      lowNullifierMembershipWitness: makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i =>
+        i < lowNullifierMembershipWitnesses.length
+          ? lowNullifierMembershipWitnesses[i]
+          : this.makeEmptyMembershipWitness(NULLIFIER_TREE_HEIGHT),
+      ),
       kernelData: [this.getKernelDataFor(left), this.getKernelDataFor(right)],
       historicBlocksTreeRootMembershipWitnesses: [
         await this.getHistoricTreesMembershipWitnessFor(left),

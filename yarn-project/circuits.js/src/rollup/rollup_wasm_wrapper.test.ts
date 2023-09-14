@@ -1,22 +1,23 @@
 import {
   AggregationObject,
+  BaseOrMergeRollupPublicInputs,
   CircuitError,
   MergeRollupInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
   VerificationKey,
+  baseRollupSim,
+  mergeRollupSim,
+  rootRollupSim,
 } from '../index.js';
 import { makeBaseRollupInputs, makeMergeRollupInputs, makeRootRollupInputs } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
-import { RollupWasmWrapper, mergeRollupSim, rootRollupSim } from './rollup_wasm_wrapper.js';
 
 describe('rollup/rollup_wasm_wrapper', () => {
   let wasm: CircuitsWasm;
-  let rollupWasm: RollupWasmWrapper;
 
   beforeAll(async () => {
     wasm = await CircuitsWasm.get();
-    rollupWasm = new RollupWasmWrapper(wasm);
   });
 
   const makeBaseRollupInputsForCircuit = () => {
@@ -54,11 +55,13 @@ describe('rollup/rollup_wasm_wrapper', () => {
   // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1586
   it.skip('calls base_rollup__sim', () => {
     const input = makeBaseRollupInputsForCircuit();
+    const output = baseRollupSim(wasm, input);
+    expect(output instanceof BaseOrMergeRollupPublicInputs).toBeTruthy();
 
-    const output = rollupWasm.simulateBaseRollup(input);
-    expect(output.startContractTreeSnapshot).toEqual(input.startContractTreeSnapshot);
-    expect(output.startNullifierTreeSnapshot).toEqual(input.startNullifierTreeSnapshot);
-    expect(output.startPrivateDataTreeSnapshot).toEqual(input.startPrivateDataTreeSnapshot);
+    const publicInputs = output as BaseOrMergeRollupPublicInputs;
+    expect(publicInputs.startContractTreeSnapshot).toEqual(input.startContractTreeSnapshot);
+    expect(publicInputs.startNullifierTreeSnapshot).toEqual(input.startNullifierTreeSnapshot);
+    expect(publicInputs.startPrivateDataTreeSnapshot).toEqual(input.startPrivateDataTreeSnapshot);
   });
 
   it('calls merge_rollup__sim', () => {
@@ -104,7 +107,9 @@ describe('rollup/rollup_wasm_wrapper', () => {
     for (const rd of input.previousRollupData) {
       rd.vk = VerificationKey.makeFake();
       rd.baseOrMergeRollupPublicInputs.endAggregationObject = AggregationObject.makeFake();
-      rd.baseOrMergeRollupPublicInputs = rollupWasm.simulateBaseRollup(makeBaseRollupInputsForCircuit());
+      const output = baseRollupSim(wasm, makeBaseRollupInputsForCircuit());
+      expect(output instanceof BaseOrMergeRollupPublicInputs).toBeTruthy();
+      rd.baseOrMergeRollupPublicInputs = output as BaseOrMergeRollupPublicInputs;
     }
     fixPreviousRollupInputs(input);
 

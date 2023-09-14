@@ -1,7 +1,6 @@
 import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
-  BaseRollupInputs,
   CircuitsWasm,
   Fr,
   GlobalVariables,
@@ -11,6 +10,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  NULLIFIER_SUBTREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   Proof,
   PublicDataUpdateRequest,
@@ -138,7 +138,7 @@ describe('sequencer/solo_block_builder', () => {
     await expectsDb.batchInsert(
       MerkleTreeId.NULLIFIER_TREE,
       flatMap(txs, tx => tx.data.end.newNullifiers.map(x => x.toBuffer())),
-      BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+      NULLIFIER_SUBTREE_HEIGHT,
     );
     for (const write of txs.flatMap(tx => tx.data.end.publicDataUpdateRequests)) {
       await expectsDb.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, write.newValue.toBuffer(), write.leafIndex.value);
@@ -411,7 +411,7 @@ describe('sequencer/solo_block_builder', () => {
       await builderDb.batchInsert(
         MerkleTreeId.NULLIFIER_TREE,
         updateVals.map(v => toBufferBE(v, 32)),
-        BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+        NULLIFIER_SUBTREE_HEIGHT,
       );
 
       const [l2Block] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);

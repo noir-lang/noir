@@ -1,11 +1,11 @@
 import {
-  BaseRollupInputs,
   CONTRACT_TREE_HEIGHT,
   CircuitsWasm,
   Fr,
   GlobalVariables,
   HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_TREE_HEIGHT,
+  NULLIFIER_SUBTREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
@@ -562,7 +562,7 @@ export class MerkleTrees implements MerkleTreeDb {
       // Sync the indexed trees
       await (this.trees[MerkleTreeId.NULLIFIER_TREE] as StandardIndexedTree).batchInsert(
         l2Block.newNullifiers.map(fr => fr.toBuffer()),
-        BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+        NULLIFIER_SUBTREE_HEIGHT,
       );
 
       // Sync the public data tree

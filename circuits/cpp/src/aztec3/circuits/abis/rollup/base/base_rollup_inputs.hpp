@@ -13,8 +13,9 @@ namespace aztec3::circuits::abis {
 
 template <typename NCT> struct BaseRollupInputs {
     using fr = typename NCT::fr;
+    using boolean = typename NCT::boolean;
 
-    std::array<PreviousKernelData<NCT>, 2> kernel_data{};
+    std::array<PreviousKernelData<NCT>, KERNELS_PER_BASE_ROLLUP> kernel_data{};
 
     AppendOnlyTreeSnapshot<NCT> start_private_data_tree_snapshot{};
     AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot{};
@@ -22,8 +23,8 @@ template <typename NCT> struct BaseRollupInputs {
     fr start_public_data_tree_root{};
     AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
 
-    std::array<NullifierLeafPreimage<NCT>, 2 * MAX_NEW_NULLIFIERS_PER_TX> low_nullifier_leaf_preimages{};
-    std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, 2 * MAX_NEW_NULLIFIERS_PER_TX>
+    std::array<NullifierLeafPreimage<NCT>, MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP> low_nullifier_leaf_preimages{};
+    std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>
         low_nullifier_membership_witness{};
 
     // For inserting the new subtrees into their respective trees:
@@ -31,12 +32,13 @@ template <typename NCT> struct BaseRollupInputs {
     std::array<fr, PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH> new_commitments_subtree_sibling_path{};
     std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> new_nullifiers_subtree_sibling_path{};
     std::array<fr, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH> new_contracts_subtree_sibling_path{};
-    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>
+    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP>
         new_public_data_update_requests_sibling_paths{};
-    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_READS_PER_TX>
+    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP>
         new_public_data_reads_sibling_paths{};
 
-    std::array<MembershipWitness<NCT, HISTORIC_BLOCKS_TREE_HEIGHT>, 2> historic_blocks_tree_root_membership_witnesses{};
+    std::array<MembershipWitness<NCT, HISTORIC_BLOCKS_TREE_HEIGHT>, KERNELS_PER_BASE_ROLLUP>
+        historic_blocks_tree_root_membership_witnesses{};
 
     ConstantRollupData<NCT> constants{};
 
@@ -56,7 +58,11 @@ template <typename NCT> struct BaseRollupInputs {
                    new_public_data_reads_sibling_paths,
                    historic_blocks_tree_root_membership_witnesses,
                    constants);
-    bool operator==(BaseRollupInputs<NCT> const&) const = default;
+
+    boolean operator==(BaseRollupInputs<NCT> const& other) const
+    {
+        return msgpack_derived_equals<boolean>(*this, other);
+    };
 };
 
 }  // namespace aztec3::circuits::abis

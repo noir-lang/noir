@@ -14,6 +14,7 @@ const uint32_t MERGE_ROLLUP_TYPE = 1;
 template <typename NCT> struct BaseOrMergeRollupPublicInputs {
     using fr = typename NCT::fr;
     using AggregationObject = typename NCT::AggregationObject;
+    using boolean = typename NCT::boolean;
 
     uint32_t rollup_type;
     // subtree  height is always 0 for base.
@@ -52,7 +53,10 @@ template <typename NCT> struct BaseOrMergeRollupPublicInputs {
                    start_public_data_tree_root,
                    end_public_data_tree_root,
                    calldata_hash);
-    bool operator==(BaseOrMergeRollupPublicInputs<NCT> const&) const = default;
+    boolean operator==(BaseOrMergeRollupPublicInputs<NCT> const& other) const
+    {
+        return msgpack_derived_equals<boolean>(*this, other);
+    };
 };
 
 }  // namespace aztec3::circuits::abis

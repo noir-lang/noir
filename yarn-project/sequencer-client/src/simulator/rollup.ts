@@ -4,9 +4,9 @@ import {
   CircuitError,
   CircuitsWasm,
   MergeRollupInputs,
-  RollupWasmWrapper,
   RootRollupInputs,
   RootRollupPublicInputs,
+  baseRollupSim,
   mergeRollupSim,
   rootRollupSim,
 } from '@aztec/circuits.js';
@@ -17,11 +17,9 @@ import { RollupSimulator } from './index.js';
  * Implements the rollup circuit simulator using the wasm circuits implementation.
  */
 export class WasmRollupCircuitSimulator implements RollupSimulator {
-  private rollupWasmWrapper: RollupWasmWrapper;
   private wasm: CircuitsWasm;
 
   constructor(wasm: CircuitsWasm) {
-    this.rollupWasmWrapper = new RollupWasmWrapper(wasm);
     this.wasm = wasm;
   }
 
@@ -39,7 +37,12 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
-    return Promise.resolve(this.rollupWasmWrapper.simulateBaseRollup(input));
+    const result = baseRollupSim(this.wasm, input);
+    if (result instanceof CircuitError) {
+      throw new CircuitError(result.code, result.message);
+    }
+
+    return Promise.resolve(result);
   }
   /**
    * Simulates the merge rollup circuit from its inputs.

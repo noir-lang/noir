@@ -1,3 +1,4 @@
+import { makeTuple } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import {
   Tuple,
@@ -78,6 +79,15 @@ export class SiblingPath<N extends number> {
    */
   public toFieldArray(): Fr[] {
     return this.data.map(buf => Fr.fromBuffer(buf));
+  }
+
+  /**
+   * Convert Sibling Path object into a tuple of field elements.
+   * @returns A tuple representation of the sibling path.
+   */
+  public toTuple<N extends number>(): Tuple<Fr, N> {
+    const array = this.toFieldArray();
+    return makeTuple(array.length as N, i => array[i], 0);
   }
 
   /**

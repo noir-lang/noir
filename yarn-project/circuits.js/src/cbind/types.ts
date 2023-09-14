@@ -119,6 +119,8 @@ export {
   TxRequest,
   PreviousRollupData,
   AppendOnlyTreeSnapshot,
+  BaseRollupInputs,
+  NullifierLeafPreimage,
   BaseOrMergeRollupPublicInputs,
   ConstantRollupData,
   MergeRollupInputs,

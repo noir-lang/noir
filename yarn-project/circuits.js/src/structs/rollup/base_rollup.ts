@@ -1,19 +1,19 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import {
-  CONTRACT_TREE_HEIGHT,
+  CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
   HISTORIC_BLOCKS_TREE_HEIGHT,
-  MAX_NEW_COMMITMENTS_PER_TX,
-  MAX_NEW_CONTRACTS_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_PUBLIC_DATA_READS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  KERNELS_PER_BASE_ROLLUP,
+  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+  MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP,
+  NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_HEIGHT,
+  PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../cbind/constants.gen.js';
-import { FieldsOf, assertItemsLength, assertMemberLength } from '../../utils/jsUtils.js';
+import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { GlobalVariables } from '../global_variables.js';
 import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
@@ -118,26 +118,11 @@ export class ConstantRollupData {
  * Inputs to the base rollup circuit.
  */
 export class BaseRollupInputs {
-  /**
-   * Height of the private data subtree which is to be inserted into the private data tree.
-   * Note: There are notes from 2 kernels being processed here so kernel new commitments length is multiplied by 2.
-   */
-  public static PRIVATE_DATA_SUBTREE_HEIGHT = Math.log2(MAX_NEW_COMMITMENTS_PER_TX * 2);
-  /**
-   * Height of the contract subtree which is to be inserted into the contract tree.
-   */
-  public static CONTRACT_SUBTREE_HEIGHT = Math.log2(MAX_NEW_CONTRACTS_PER_TX * 2);
-  /**
-   * Height of the nullifier subtree which is to be inserted into the nullifier tree.
-   */
-  public static NULLIFIER_SUBTREE_HEIGHT = Math.log2(MAX_NEW_NULLIFIERS_PER_TX * 2);
-
   constructor(
     /**
      * Data of the 2 kernels that preceded this base rollup circuit.
      */
-    public kernelData: [PreviousKernelData, PreviousKernelData],
-
+    public kernelData: Tuple<PreviousKernelData, typeof KERNELS_PER_BASE_ROLLUP>,
     /**
      * Snapshot of the private data tree at the start of the base rollup circuit.
      */
@@ -163,70 +148,55 @@ export class BaseRollupInputs {
      * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
      * See `StandardIndexedTree.batchInsert` function for more details.
      */
-    public lowNullifierLeafPreimages: NullifierLeafPreimage[],
+    public lowNullifierLeafPreimages: Tuple<NullifierLeafPreimage, typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>,
     /**
      * Membership witnesses for the nullifiers which need to be updated to perform the batch insertion of the new
      * nullifiers.
      */
-    public lowNullifierMembershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>[],
-
+    public lowNullifierMembershipWitness: Tuple<
+      MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>,
+      typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP
+    >,
     /**
      * Sibling path "pointing to" where the new commitments subtree should be inserted into the private data tree.
      */
-    public newCommitmentsSubtreeSiblingPath: Fr[],
+    public newCommitmentsSubtreeSiblingPath: Tuple<Fr, typeof PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
      * Sibling path "pointing to" where the new nullifiers subtree should be inserted into the nullifier tree.
      */
-    public newNullifiersSubtreeSiblingPath: Fr[],
+    public newNullifiersSubtreeSiblingPath: Tuple<Fr, typeof NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
      * Sibling path "pointing to" where the new contracts subtree should be inserted into the contract tree.
      */
-    public newContractsSubtreeSiblingPath: Fr[],
+    public newContractsSubtreeSiblingPath: Tuple<Fr, typeof CONTRACT_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
      * Sibling paths of leaves which are to be affected by the public data update requests.
      * Each item in the array is the sibling path that corresponds to an update request.
      */
-    public newPublicDataUpdateRequestsSiblingPaths: Fr[][],
+    public newPublicDataUpdateRequestsSiblingPaths: Tuple<
+      Tuple<Fr, typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_BASE_ROLLUP
+    >,
     /**
      * Sibling paths of leaves which are to be read by the public data reads.
      * Each item in the array is the sibling path that corresponds to a read request.
      */
-    public newPublicDataReadsSiblingPaths: Fr[][],
+    public newPublicDataReadsSiblingPaths: Tuple<
+      Tuple<Fr, typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_READS_PER_BASE_ROLLUP
+    >,
     /**
      * Membership witnesses of historic blocks referred by each of the 2 kernels.
      */
-    public historicBlocksTreeRootMembershipWitnesses: [
+    public historicBlocksTreeRootMembershipWitnesses: Tuple<
       MembershipWitness<typeof HISTORIC_BLOCKS_TREE_HEIGHT>,
-      MembershipWitness<typeof HISTORIC_BLOCKS_TREE_HEIGHT>,
-    ],
-
+      typeof KERNELS_PER_BASE_ROLLUP
+    >,
     /**
      * Data which is not modified by the base rollup circuit.
      */
     public constants: ConstantRollupData,
-  ) {
-    assertMemberLength(this, 'lowNullifierLeafPreimages', 2 * MAX_NEW_NULLIFIERS_PER_TX);
-    assertMemberLength(this, 'lowNullifierMembershipWitness', 2 * MAX_NEW_NULLIFIERS_PER_TX);
-    assertMemberLength(
-      this,
-      'newCommitmentsSubtreeSiblingPath',
-      PRIVATE_DATA_TREE_HEIGHT - BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
-    );
-    assertMemberLength(
-      this,
-      'newNullifiersSubtreeSiblingPath',
-      NULLIFIER_TREE_HEIGHT - BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
-    );
-    assertMemberLength(
-      this,
-      'newContractsSubtreeSiblingPath',
-      CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
-    );
-    assertMemberLength(this, 'newPublicDataUpdateRequestsSiblingPaths', 2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX);
-    assertMemberLength(this, 'newPublicDataReadsSiblingPaths', 2 * MAX_PUBLIC_DATA_READS_PER_TX);
-    assertItemsLength(this, 'newPublicDataUpdateRequestsSiblingPaths', PUBLIC_DATA_TREE_HEIGHT);
-    assertItemsLength(this, 'newPublicDataReadsSiblingPaths', PUBLIC_DATA_TREE_HEIGHT);
-  }
+  ) {}
 
   static from(fields: FieldsOf<BaseRollupInputs>): BaseRollupInputs {
     return new BaseRollupInputs(...BaseRollupInputs.getFields(fields));

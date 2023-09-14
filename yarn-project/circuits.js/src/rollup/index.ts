@@ -1,1 +1,1 @@
-export * from './rollup_wasm_wrapper.js';
+export { baseRollupSim, mergeRollupSim, rootRollupSim } from '../cbind/circuits.gen.js';
