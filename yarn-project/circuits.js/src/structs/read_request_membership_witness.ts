@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import { MAX_NEW_COMMITMENTS_PER_CALL, PRIVATE_DATA_TREE_HEIGHT } from '../cbind/constants.gen.js';
-import { assertMemberLength, makeTuple, range } from '../utils/jsUtils.js';
+import { makeTuple, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { MembershipWitness } from './membership_witness.js';
 
@@ -33,7 +33,6 @@ export class ReadRequestMembershipWitness {
      */
     public hintToCommitment: Fr,
   ) {
-    assertMemberLength(this, 'siblingPath', PRIVATE_DATA_TREE_HEIGHT);
     if (hintToCommitment.value > MAX_NEW_COMMITMENTS_PER_CALL) {
       throw new Error(
         `Expected ReadRequestMembershipWitness' hintToCommitment(${hintToCommitment}) to be <= NEW_COMMITMENTS_LENGTH(${MAX_NEW_COMMITMENTS_PER_CALL})`,

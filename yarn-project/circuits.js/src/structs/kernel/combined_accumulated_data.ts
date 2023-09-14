@@ -14,7 +14,7 @@ import {
   MAX_READ_REQUESTS_PER_TX,
   NUM_FIELDS_PER_SHA256,
 } from '../../cbind/constants.gen.js';
-import { assertMemberLength, makeTuple } from '../../index.js';
+import { makeTuple } from '../../index.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject, AztecAddress, EthAddress, Fr, FunctionData } from '../index.js';
 
@@ -346,21 +346,7 @@ export class CombinedAccumulatedData {
      * All the public data reads made in this transaction.
      */
     public publicDataReads: Tuple<PublicDataRead, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
-  ) {
-    assertMemberLength(this, 'readRequests', MAX_READ_REQUESTS_PER_TX);
-    assertMemberLength(this, 'newCommitments', MAX_NEW_COMMITMENTS_PER_TX);
-    assertMemberLength(this, 'newNullifiers', MAX_NEW_NULLIFIERS_PER_TX);
-    assertMemberLength(this, 'nullifiedCommitments', MAX_NEW_NULLIFIERS_PER_TX);
-    assertMemberLength(this, 'privateCallStack', MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
-    assertMemberLength(this, 'publicCallStack', MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
-    assertMemberLength(this, 'newL2ToL1Msgs', MAX_NEW_L2_TO_L1_MSGS_PER_TX);
-    assertMemberLength(this, 'encryptedLogsHash', NUM_FIELDS_PER_SHA256);
-    assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
-    assertMemberLength(this, 'newContracts', MAX_NEW_CONTRACTS_PER_TX);
-    assertMemberLength(this, 'optionallyRevealedData', MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX);
-    assertMemberLength(this, 'publicDataUpdateRequests', MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX);
-    assertMemberLength(this, 'publicDataReads', MAX_PUBLIC_DATA_READS_PER_TX);
-  }
+  ) {}
 
   toBuffer() {
     return serializeToBuffer(
@@ -527,18 +513,7 @@ export class FinalAccumulatedData {
      * All the optionally revealed data in this transaction.
      */
     public optionallyRevealedData: Tuple<OptionallyRevealedData, typeof MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX>,
-  ) {
-    assertMemberLength(this, 'newCommitments', MAX_NEW_COMMITMENTS_PER_TX);
-    assertMemberLength(this, 'newNullifiers', MAX_NEW_NULLIFIERS_PER_TX);
-    assertMemberLength(this, 'nullifiedCommitments', MAX_NEW_NULLIFIERS_PER_TX);
-    assertMemberLength(this, 'privateCallStack', MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
-    assertMemberLength(this, 'publicCallStack', MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
-    assertMemberLength(this, 'newL2ToL1Msgs', MAX_NEW_L2_TO_L1_MSGS_PER_TX);
-    assertMemberLength(this, 'encryptedLogsHash', NUM_FIELDS_PER_SHA256);
-    assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
-    assertMemberLength(this, 'newContracts', MAX_NEW_CONTRACTS_PER_TX);
-    assertMemberLength(this, 'optionallyRevealedData', MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX);
-  }
+  ) {}
 
   toBuffer() {
     return serializeToBuffer(

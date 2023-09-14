@@ -8,7 +8,7 @@ import {
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
 } from '../../cbind/constants.gen.js';
-import { FieldsOf, assertMemberLength } from '../../utils/jsUtils.js';
+import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { PrivateCallStackItem } from '../call_stack_item.js';
 import { Fr } from '../index.js';
@@ -62,10 +62,7 @@ export class PrivateCallData {
      * The hash of the ACIR of the function being invoked.
      */
     public acirHash: Fr,
-  ) {
-    assertMemberLength(this, 'privateCallStackPreimages', MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL);
-    assertMemberLength(this, 'readRequestMembershipWitnesses', MAX_READ_REQUESTS_PER_CALL);
-  }
+  ) {}
 
   /**
    * Serialize into a field array. Low-level utility.

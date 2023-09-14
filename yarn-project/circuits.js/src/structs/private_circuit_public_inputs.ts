@@ -11,7 +11,7 @@ import {
   NUM_FIELDS_PER_SHA256,
   RETURN_VALUES_LENGTH,
 } from '../cbind/constants.gen.js';
-import { FieldsOf, assertMemberLength, makeTuple } from '../utils/jsUtils.js';
+import { FieldsOf, makeTuple } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
 import { HistoricBlockData } from './index.js';
@@ -99,18 +99,7 @@ export class PrivateCircuitPublicInputs {
      * Version of the instance.
      */
     public version: Fr,
-  ) {
-    assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
-    assertMemberLength(this, 'readRequests', MAX_READ_REQUESTS_PER_CALL);
-    assertMemberLength(this, 'newCommitments', MAX_NEW_COMMITMENTS_PER_CALL);
-    assertMemberLength(this, 'newNullifiers', MAX_NEW_NULLIFIERS_PER_CALL);
-    assertMemberLength(this, 'nullifiedCommitments', MAX_NEW_NULLIFIERS_PER_CALL);
-    assertMemberLength(this, 'privateCallStack', MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL);
-    assertMemberLength(this, 'publicCallStack', MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
-    assertMemberLength(this, 'newL2ToL1Msgs', MAX_NEW_L2_TO_L1_MSGS_PER_CALL);
-    assertMemberLength(this, 'encryptedLogsHash', NUM_FIELDS_PER_SHA256);
-    assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
-  }
+  ) {}
   /**
    * Create PrivateCircuitPublicInputs from a fields dictionary.
    * @param fields - The dictionary.
