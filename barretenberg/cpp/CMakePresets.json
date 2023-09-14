@@ -51,6 +51,20 @@
         "DISABLE_ASM": "ON"
       }
     },
+    {"name":"asan",
+    "displayName": "Debugging build with address sanitizer on Clang-16",
+  "description": "Build with address sanitizer on clang16 with debugging information",
+  "inherits":"clang16-dbg",
+      "binaryDir": "build-asan",
+"environment": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "cacheVariables": {
+        "ENABLE_ASAN": "ON",
+        "DISABLE_ASM": "ON" 
+      }
+
+},
     {
       "name": "gcc",
       "displayName": "Build with GCC",
@@ -82,7 +96,7 @@
       "name": "fuzzing",
       "displayName": "Build with fuzzing",
       "description": "Build default preset but with fuzzing enabled",
-      "inherits": "default",
+      "inherits": "clang16",
       "binaryDir": "build-fuzzing",
       "cacheVariables": {
         "FUZZING": "ON"
@@ -179,6 +193,10 @@
       "name": "clang16-dbg",
       "inherits": "default",
       "configurePreset": "clang16-dbg"
+    },{
+      "name": "asan",
+      "inherits": "default",
+      "configurePreset": "asan"
     },
     {
       "name": "gcc",
@@ -197,7 +215,7 @@
     },
     {
       "name": "fuzzing",
-      "inherits": "default",
+      "inherits": "clang16",
       "configurePreset": "fuzzing"
     },
     { 
@@ -259,6 +277,11 @@
       "name": "clang16-dbg",
       "inherits": "default",
       "configurePreset": "clang16-dbg"
+    },
+  {
+      "name": "asan",
+      "inherits": "default",
+      "configurePreset": "asan"
     },
     {
       "name": "gcc",
