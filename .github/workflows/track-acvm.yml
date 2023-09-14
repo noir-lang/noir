@@ -29,6 +29,7 @@ jobs:
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
             jq '.dependencies["@noir-lang/acvm_js"] = "^'${CURRENT_VERSION}'"' compiler/integration-tests/package.json > tmp.json && mv tmp.json compiler/integration-tests/package.json
+            echo "acvm_version=$CURRENT_VERSION" >> $GITHUB_ENV
             echo "acvm_changed=true" >> $GITHUB_ENV
           else
             echo "acvm version remains the same."
@@ -45,7 +46,7 @@ jobs:
         if: env.acvm_changed == 'true'
         run: |
           git add compiler/integration-tests/package.json
-          git commit -m "Update ACVM version to $CURRENT_VERSION" || echo "No changes to commit"
+          git commit -m "Update ACVM version to env.acvm_version"
 
           # TODO: Change this so it pushes to master
           git push origin jb-track-acvm-integration-tests
