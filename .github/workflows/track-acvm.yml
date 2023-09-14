@@ -9,8 +9,6 @@ on:
 jobs:
   check_and_update_version:
     runs-on: ubuntu-latest
-    outputs:
-      acvm_changed: ${{ steps.check_and_update_version.outputs.acvm_changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,13 +35,13 @@ jobs:
           fi
 
       - name: Configure git
-        if: steps.check_and_update_version.outputs.acvm_changed == 'true'
+        if: env.acvm_changed == 'true'
         run: |
           git config user.name kevaundray
           git config user.email kevtheappdev@gmail.com
 
       - name: Commit changes
-        if: steps.check_and_update_version.outputs.acvm_changed == 'true'
+        if: env.acvm_changed == 'true'
         run: |
           git add compile/integration-tests/package.json
           git commit -m "Update ACVM version to $CURRENT_VERSION" || echo "No changes to commit"
