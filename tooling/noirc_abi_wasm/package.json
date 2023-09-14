@@ -27,5 +27,9 @@
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+  },
+  "devDependencies": {
+    "eslint": "^8.40.0",
+    "mocha": "^10.2.0"
   }
 }
