@@ -23,12 +23,23 @@ jobs:
           # Extract acvm version from the previous commit's Cargo.lock
           PREVIOUS_VERSION=$(git show HEAD~1:Cargo.lock | awk '/name = "acvm"/ {getline; print $3}' | tr -d '"')
 
-          echo "Current Version: $CURRENT_VERSION"
-          echo "Previous Version: $PREVIOUS_VERSION"
+          echo "Current ACVM Version: $CURRENT_VERSION"
+          echo "Previous ACVM Version: $PREVIOUS_VERSION"
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "acvm version changed!"
-            exit 1
+            # Update package.json with the new version
+            jq '.dependencies["@noir-lang/acvm_js"] = "^'${CURRENT_VERSION}'"' compile/integration-tests/package.json > tmp.json && mv tmp.json compile/integration-tests/package.json
           else
-            echo "acvm version remains the same."
+            echo "no changes needed."
           fi
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
+      - name: Commit changes
+        run: |
+          git add compile/integration-tests/package.json
+          git commit -m "Update ACVM version to $CURRENT_VERSION" || echo "No changes to commit"
+          git push origin jb-track-acvm-integration-tests
