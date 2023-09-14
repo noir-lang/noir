@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      # TODO: remove this to merge
       - jb-track-acvm-integration-tests
 
 jobs:
@@ -13,40 +12,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: Check acvm version change
         run: |
           # Extract acvm version from the current Cargo.lock
           CURRENT_VERSION=$(awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
-
-          # Extract acvm version from the previous commit's Cargo.lock
-          PREVIOUS_VERSION=$(git show HEAD~1:Cargo.lock | awk '/name = "acvm"/ {getline; print $3}' | tr -d '"')
+          INTEGRATION_TEST_VERSION=$(jq '.dependencies["@noir-lang/acvm_js"]' compiler/integration-tests/package.json | tr -d '"')
 
           echo "Current ACVM Version: $CURRENT_VERSION"
-          echo "Previous ACVM Version: $PREVIOUS_VERSION"
+          echo "Integration Test ACVM Version: $INTEGRATION_TEST_VERSION"
 
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            jq '.dependencies["@noir-lang/acvm_js"] = "^'${CURRENT_VERSION}'"' compiler/integration-tests/package.json > tmp.json && mv tmp.json compiler/integration-tests/package.json
-            echo "acvm_version=$CURRENT_VERSION" >> $GITHUB_ENV
-            echo "acvm_changed=true" >> $GITHUB_ENV
+          if [ "$CURRENT_VERSION" != "$INTEGRATION_TEST_VERSION" ]; then
+            exit 1
           else
-            echo "acvm version remains the same."
-            echo "acvm_changed=false" >> $GITHUB_ENV
+            echo "ACVM version is a match."
           fi
-
-      - name: Configure git
-        if: env.acvm_changed == 'true'
-        run: |
-          git config user.name kevaundray
-          git config user.email kevtheappdev@gmail.com
-
-      - name: Commit changes
-        if: env.acvm_changed == 'true'
-        run: |
-          git add compiler/integration-tests/package.json
-          git commit -m "Update ACVM version to ${{ env.acvm_version }}"
-
-          # TODO: Change this so it pushes to master
-          git push origin jb-track-acvm-integration-tests
