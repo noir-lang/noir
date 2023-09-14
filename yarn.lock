@@ -392,7 +392,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/noir-source-resolver@^1.1.4, @noir-lang/noir-source-resolver@workspace:*, @noir-lang/noir-source-resolver@workspace:compiler/source-resolver":
+"@noir-lang/noir-source-resolver@workspace:*, @noir-lang/noir-source-resolver@workspace:compiler/source-resolver":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir-source-resolver@workspace:compiler/source-resolver"
   dependencies:
@@ -405,12 +405,13 @@ __metadata:
 "@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
-  peerDependencies:
-    "@noir-lang/noir-source-resolver": ^1.1.3
+  dependencies:
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
     "@web/test-runner-webdriver": ^0.7.0
+  peerDependencies:
+    "@noir-lang/noir-source-resolver": ^1.1.3
   languageName: unknown
   linkType: soft
 
@@ -432,7 +433,6 @@ __metadata:
   resolution: "@noir-lang/root@workspace:."
   dependencies:
     "@esm-bundle/chai": ^4.3.4-fix.0
-    "@noir-lang/noir-source-resolver": ^1.1.4
     "@typescript-eslint/eslint-plugin": ^5.59.5
     "@typescript-eslint/parser": ^5.59.5
     chai: ^4.3.7
