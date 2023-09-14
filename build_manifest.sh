@@ -26,9 +26,9 @@ PROJECTS=(
   # circuits-x86_64-linux-clang-assert:circuits/cpp:./dockerfiles/Dockerfile.x86_64-linux-clang-assert:circuits-x86_64-linux-clang-assert
   circuits-wasm-linux-clang:circuits/cpp:./dockerfiles/Dockerfile.wasm-linux-clang:circuits-wasm-linux-clang
   l1-contracts:l1-contracts
-  noir-contracts:yarn-project:DockerFile.build:noir-contracts-build
+  noir-contracts:yarn-project:noir-contracts/Dockerfile.build:noir-contracts-build
+  yarn-project-base:yarn-project:yarn-project-base/Dockerfile
   noir-contracts:yarn-project
-  yarn-project-base:yarn-project
   end-to-end:yarn-project
   aztec-sandbox:yarn-project
 )

@@ -38,7 +38,7 @@ for E in ${PROJECTS[@]}; do
   ARR=(${E//:/ })
   PROJECT_DIR_NAME=${ARR[0]}
   WORKING_DIR=${ARR[1]}
-  DOCKERFILE=${ARR[2]}
+  DOCKERFILE=${ARR[2]:-Dockerfile}
   REPO=${ARR[3]:-$PROJECT_DIR_NAME}
   LAUNCH=${ARR[4]:-}
 
@@ -66,7 +66,7 @@ for E in ${PROJECTS[@]}; do
   echo
 
   time docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $ECR_DEPLOY_URL/$REPO:latest .
-  retry docker tag $ECR_DEPLOY_URL/$REPO:latest aztecprotocol/$REPO:latest
+  docker tag $ECR_DEPLOY_URL/$REPO:latest aztecprotocol/$REPO:latest
 
   if [ "$PROJECT_DIR_NAME" = "$TARGET_PROJECT" ]; then
     if [ -n "$LAUNCH" ]; then
