@@ -83,6 +83,7 @@ jobs:
   dispatch-publish-abi-wasm:
     name: Dispatch to publish-abi_wasm workflow
     needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger publish-abi_wasm.yml workflow
