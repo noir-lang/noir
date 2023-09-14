@@ -1,0 +1,38 @@
+#!/bin/bash
+# This script:
+# 1. Logs into ECR and ensures we have the given repository
+# 2. Computes the image uri of the cached images for the given repository given the list of architectures
+# 3. Creates a manifest list using a platform agnositc image uri, adds each image to it
+# 4. Pushes the manifest list 
+
+set -e
+
+REPOSITORY=$1
+FINAL_IMAGE_NAME=$2
+ARCH_LIST=$3
+
+# Ensure ECR repository exists.
+retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
+
+CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
+echo "Content hash: $CONTENT_HASH"
+
+FINAL=$ECR_URL/$FINAL_IMAGE_NAME:cache-$CONTENT_HASH
+
+echo "Creating manifest list $FINAL..."
+
+export DOCKER_CLI_EXPERIMENTAL=enabled
+
+OLD_IFS=$IFS
+IFS=','
+for A in $ARCH_LIST
+do
+  IMAGE=$ECR_URL/$FINAL_IMAGE_NAME:cache-$CONTENT_HASH-$A
+  echo "Adding image $IMAGE to manifest list"
+  docker manifest create $FINAL \
+  --amend $IMAGE
+done
+IFS=$OLD_IFS
+unset OLD_IFS
+
+docker manifest push --purge $FINAL

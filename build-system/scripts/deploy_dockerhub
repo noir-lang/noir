@@ -7,8 +7,22 @@ if [ -z "$COMMIT_TAG" ]; then
 fi
 
 REPOSITORY=$1
+ARCH=${2:-""}
+
+echo "Repo: $REPOSITORY"
+echo "Arch: $ARCH"
+
+ACCOUNT="aztecprotocol"
+USERNAME="aztecprotocolci"
+
 IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
-IMAGE_LATEST_URI=aztecprotocol/$REPOSITORY:latest
+
+IMAGE_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
+if [[ -n "$ARCH" ]]; then
+  IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
+  IMAGE_LATEST_URI=$IMAGE_LATEST_URI-$ARCH
+fi
+
 COMMIT_TAG_VERSION=$COMMIT_TAG # default unless repo-specific
 # Check if it's a repo-specific tag
 if [[ "$COMMIT_TAG" == *"/"* ]]; then
@@ -24,7 +38,10 @@ if [[ "$COMMIT_TAG" == *"/"* ]]; then
   fi
 fi
 IMAGE_TAG=$COMMIT_TAG_VERSION
-IMAGE_DEPLOY_URI=aztecprotocol/$REPOSITORY:$IMAGE_TAG
+IMAGE_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
+if [[ -n "$ARCH" ]]; then
+  IMAGE_DEPLOY_URI=$IMAGE_DEPLOY_URI-$ARCH
+fi
 
 # Check it's a valid semver.
 VERSION=$(npx semver $COMMIT_TAG_VERSION)
@@ -39,13 +56,17 @@ echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
 retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 
 # Login to dockerhub.
-echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin
+echo "$DOCKERHUB_PASSWORD" | docker login -u $USERNAME --password-stdin
 
+echo "Pulling $IMAGE_COMMIT_URI"
 # Pull image.
 retry docker pull $IMAGE_COMMIT_URI
 
+echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_DEPLOY_URI"
 # Tag with commit tag
 retry docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
+
+echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_LATEST_URI"
 # Tag with :latest
 retry docker tag $IMAGE_COMMIT_URI $IMAGE_LATEST_URI
 

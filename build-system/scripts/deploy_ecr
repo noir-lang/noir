@@ -2,7 +2,11 @@
 set -eu
 
 REPOSITORY=$1
+ARCH=${2:-""}
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
+if [[ -n "$ARCH" ]]; then
+  IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
+fi
 
 # Login to build region and pull the build.
 retry ensure_repo $REPOSITORY $ECR_REGION
@@ -11,9 +15,12 @@ retry docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
 # Ensure ECR repository exists in deployment region.
 retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 
-# Push image to deployment repo with commit hash tag e.g:
-# falafel:deadbeefcafebabe1337c0de
+# Push image to deployment repo with commit hash tag and optional architecture e.g:
+# falafel:deadbeefcafebabe1337c0de-x86_64
 IMAGE_DEPLOY_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
+if [[ -n "$ARCH" ]]; then
+  IMAGE_DEPLOY_COMMIT_URI=$IMAGE_DEPLOY_COMMIT_URI-$ARCH
+fi
 retry docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_COMMIT_URI
 retry docker push $IMAGE_DEPLOY_COMMIT_URI
 

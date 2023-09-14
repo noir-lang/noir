@@ -572,7 +572,7 @@ jobs:
           name: "Build and test"
           command: build aztec-rpc
 
-  aztec-sandbox:
+  aztec-sandbox-base:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -581,7 +581,40 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: force_deploy_build aztec-sandbox
+          command: force_deploy_build aztec-sandbox-base false
+
+  aztec-sandbox-x86_64:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: force_deploy_build aztec-sandbox false x86_64
+
+  aztec-sandbox-arm64:
+    machine:
+      image: ubuntu-2204:2023.07.1
+    resource_class: arm.large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: force_deploy_build aztec-sandbox false arm64
+
+  aztec-sandbox-ecr-manifest:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Create ECR manifest"
+          command: create_ecr_manifest aztec-sandbox-base aztec-sandbox x86_64,arm64
 
   circuits-js:
     machine:
@@ -1146,6 +1179,7 @@ jobs:
           command: |
             deploy_ecr aztec-sandbox
             deploy_npm aztec-sandbox
+
   deploy-dockerhub:
     machine:
       image: ubuntu-2004:202010-01
@@ -1157,8 +1191,11 @@ jobs:
           name: "deploy-sandbox"
           working_directory: aztec-sandbox
           command: |
-            deploy_ecr aztec-sandbox
-            deploy_dockerhub aztec-sandbox
+            deploy_ecr aztec-sandbox x86_64
+            deploy_ecr aztec-sandbox arm64
+            deploy_dockerhub aztec-sandbox x86_64
+            deploy_dockerhub aztec-sandbox arm64
+            create_dockerhub_manifest aztec-sandbox x86_64,arm64
 
   deploy-end:
     docker:
@@ -1373,8 +1410,23 @@ workflows:
       - types: *yarn_project
       - circuits-js: *yarn_project
       - rollup-provider: *yarn_project
-      - aztec-sandbox: *yarn_project
+      - aztec-sandbox-base: *yarn_project
       - canary: *yarn_project
+
+      - aztec-sandbox-x86_64:
+          requires:
+            - aztec-sandbox-base
+          <<: *defaults
+      - aztec-sandbox-arm64:
+          requires:
+            - aztec-sandbox-base
+          <<: *defaults
+
+      - aztec-sandbox-ecr-manifest:
+          requires:
+            - aztec-sandbox-x86_64
+            - aztec-sandbox-arm64
+          <<: *defaults
 
       - e2e-join:
           requires:
@@ -1399,7 +1451,7 @@ workflows:
             - types
             - circuits-js
             - rollup-provider
-            - aztec-sandbox
+            - aztec-sandbox-ecr-manifest
             - canary
           <<: *defaults
 
@@ -1472,7 +1524,7 @@ workflows:
             - guides-sample-dapp
           <<: *defaults
 
-      # Deployment and Canary tests
+        # Deployment and Canary tests
       - deploy-dockerhub:
           requires:
             - e2e-end

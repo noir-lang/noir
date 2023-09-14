@@ -26,6 +26,7 @@ set -euo pipefail
 
 REPOSITORY=$1
 FORCE_BUILD=${2:-"false"}
+ARCH=${3:-""}
 DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
 PROJECT_DIR=$(query_manifest projectDir $REPOSITORY)
 BUILD_DIR=$(query_manifest buildDir $REPOSITORY)
@@ -34,6 +35,7 @@ echo "Repository: $REPOSITORY"
 echo "Working directory: $PWD"
 echo "Dockerfile: $DOCKERFILE"
 echo "Build directory: $BUILD_DIR"
+echo "Arch: $ARCH"
 
 # Fetch images with retries
 function fetch_image() {
@@ -112,7 +114,8 @@ for PARENT in $PARENTS; do
   echo "Pulling dependency $PARENT_REPO..."
   fetch_image $PARENT_IMAGE_URI
   # Tag it to look like an official release as that's what we use in Dockerfiles.
-  retry docker tag $PARENT_IMAGE_URI $ECR_DEPLOY_URL/$PARENT
+  TAG=$ECR_DEPLOY_URL/$PARENT
+  retry docker tag $PARENT_IMAGE_URI $TAG
 done
 
 
@@ -183,6 +186,9 @@ fi
 
 # Build the actual image and give it a commit tag.
 IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
+if [[ -n "$ARCH" ]]; then
+  IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
+fi
 echo "Building image: $IMAGE_COMMIT_URI"
 # Build our dockerfile, add timing information
 docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \

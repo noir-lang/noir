@@ -112,9 +112,14 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-rpc"
   },
-  "aztec-sandbox": {
+  "aztec-sandbox-base": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-sandbox"
+  },
+  "aztec-sandbox": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/aztec-sandbox",
+    "dockerfile": "Dockerfile.final"
   },
   "aztec.js": {
     "buildDir": "yarn-project",

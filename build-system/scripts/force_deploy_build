@@ -2,16 +2,18 @@
 #
 # This script forces a build if we're in a deployment run, otherwise runs `build` as usual
 #
-# usage: ./deploy_force_build <repository>
-# example: ./deploy_force_build aztec-sandbox
+# usage: ./deploy_force_build <repository> <force-build>
+# example: ./deploy_force_build aztec-sandbox true
 set -e
 
 REPOSITORY=$1
-FORCE_BUILD=${2:-"false"}
+shift
+FORCE_BUILD=$1
+shift
 
 # if FORCE_BUILD is already set, just continue with it
 if [[ $FORCE_BUILD == 'true' ]]; then
-  build $REPOSITORY true
+  build $REPOSITORY true $@
   exit 0
 fi
 
@@ -37,12 +39,12 @@ if [[ -n "${COMMIT_TAG:-}" ]]; then
   VERSION=$(npx semver $COMMIT_TAG_VERSION)
   if [ -z "$VERSION" ]; then
     # Not a version tag, build normally
-    build $REPOSITORY
+    build $REPOSITORY false $@
   else
     # Force build
-    build $REPOSITORY true
+    build $REPOSITORY true $@
   fi
 else
   # Not a tagged commit, build normally
-  build $REPOSITORY
+  build $REPOSITORY false $@
 fi
