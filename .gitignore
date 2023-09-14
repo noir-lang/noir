@@ -5,6 +5,15 @@ examples/9
 node_modules
 pkg/
 
+# Yarn
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
 # Source resolver
 compiler/source-resolver/node_modules
 compiler/source-resolver/lib

@@ -138,7 +138,7 @@ jobs:
           npx playwright install-deps
           cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
           cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
-          yarn install --non-interactive --pure-lockfile
+          yarn install --immutable
           yarn workspace @noir-lang/noir-source-resolver build
           
       - name: Run tests
