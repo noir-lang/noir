@@ -27,12 +27,10 @@ jobs:
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
-        working-directory: ./tooling/noir_js
-        run: npm install
+        run: yarn install --immutable
 
-      - name: Build noir-source-resolver
-        working-directory: ./tooling/noir_js
-        run: npm run build
+      - name: Build noir_js
+        run: yarn workspace @noir-lang/noir_js build
 
       - name: Publish to NPM
         working-directory: ./tooling/noir_js
