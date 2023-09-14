@@ -192,7 +192,7 @@ struct Context<'f> {
     /// are overwritten as new stores are found. This overwriting is the desired behavior,
     /// as we want the most update to date value to be stored at a given address as
     /// we walk through blocks to flatten.
-    outer_block_stores: HashMap<ValueId, Store>,
+    outer_block_stores: HashMap<ValueId, ValueId>,
 
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
@@ -275,10 +275,7 @@ impl<'f> Context<'f> {
             for instruction in instructions {
                 let (instruction, _) = self.inserter.map_instruction(instruction);
                 if let Instruction::Store { address, value } = instruction {
-                    let load = Instruction::Load { address };
-                    let load_type = Some(vec![self.inserter.function.dfg.type_of_value(value)]);
-                    let old_value = self.insert_instruction_with_typevars(load, load_type).first();
-                    self.outer_block_stores.insert(address, Store { old_value, new_value: value });
+                    self.outer_block_stores.insert(address, value);
                 }
             }
         }
@@ -501,8 +498,8 @@ impl<'f> Context<'f> {
         let mut value_merger = ValueMerger::new(
             &mut self.inserter.function.dfg,
             block,
-            &self.store_values,
-            &self.outer_block_stores,
+            Some(&self.store_values),
+            Some(&self.outer_block_stores),
         );
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -550,8 +547,8 @@ impl<'f> Context<'f> {
         let mut value_merger = ValueMerger::new(
             &mut self.inserter.function.dfg,
             block,
-            &self.store_values,
-            &self.outer_block_stores,
+            Some(&self.store_values),
+            Some(&self.outer_block_stores),
         );
 
         // Merging must occur in a separate loop as we cannot `*self` as mutable more than one at a time

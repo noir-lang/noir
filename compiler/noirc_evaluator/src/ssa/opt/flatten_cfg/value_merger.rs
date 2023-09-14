@@ -14,8 +14,8 @@ use crate::ssa::opt::flatten_cfg::Store;
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
-    store_values: &'a HashMap<ValueId, Store>,
-    outer_block_stores: &'a HashMap<ValueId, Store>,
+    store_values: Option<&'a HashMap<ValueId, Store>>,
+    outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
     slice_sizes: HashMap<ValueId, usize>,
 }
 
@@ -23,8 +23,8 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        store_values: &'a HashMap<ValueId, Store>,
-        outer_block_stores: &'a HashMap<ValueId, Store>,
+        store_values: Option<&'a HashMap<ValueId, Store>>,
+        outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
     ) -> Self {
         ValueMerger {
             dfg,
@@ -258,28 +258,27 @@ impl<'a> ValueMerger<'a> {
                         len
                     }
                     Instruction::Load { address } => {
-                        let outer_store = self
-                            .outer_block_stores
+                        let outer_block_stores = self.outer_block_stores.expect("ICE: A map of previous stores is required in order to resolve a slice load");
+                        let store_values = self.store_values.expect("ICE: A map of previous stores is required in order to resolve a slice load");
+                        let store_value = outer_block_stores
                             .get(address)
                             .expect("ICE: load in merger should have store from outer block");
-                        dbg!(self.slice_sizes.get(&outer_store.new_value));
-                        if let Some(len) = self.slice_sizes.get(&outer_store.new_value) {
-                            dbg!(outer_store.new_value);
-                            dbg!(len);
+
+                        if let Some(len) = self.slice_sizes.get(store_value) {
                             return *len;
                         }
 
-                        let context_store = if let Some(store) = self.store_values.get(address) {
+                        let store_value = if let Some(store) = store_values.get(address) {
                             if let Some(len) = self.slice_sizes.get(&store.new_value) {
                                 return *len;
                             }
 
-                            store
+                            store.new_value
                         } else {
-                            outer_store
+                            *store_value
                         };
 
-                        self.get_slice_length(context_store.new_value)
+                        self.get_slice_length(store_value)
                     }
                     Instruction::Call { func, arguments } => {
                         let func = &self.dfg[*func];

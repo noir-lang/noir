@@ -158,10 +158,8 @@ pub(super) fn simplify_call(
                     )
                     .first();
 
-                let store_values = &HashMap::default();
-                let outer_block_stores = &HashMap::default();
                 let mut value_merger =
-                    ValueMerger::new(dfg, block, store_values, outer_block_stores);
+                    ValueMerger::new(dfg, block, None, None);
                 let new_slice = value_merger.merge_values(
                     len_not_equals_capacity,
                     len_equals_capacity,
