@@ -1,6 +1,10 @@
-import { fileURLToPath } from 'url';
+import { defaultReporter } from "@web/test-runner";
+import { summaryReporter } from "@web/test-runner";
+import { fileURLToPath } from "url";
 import { esbuildPlugin } from "@web/dev-server-esbuild";
 import { playwrightLauncher } from "@web/test-runner-playwright";
+
+const reporter = process.env.CI ? summaryReporter() : defaultReporter();
 
 export default {
   browsers: [
@@ -22,4 +26,6 @@ export default {
     },
   },
   rootDir:  fileURLToPath(new URL('./../../', import.meta.url)),
+  reporters: [reporter],
+
 };

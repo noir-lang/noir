@@ -12,6 +12,10 @@
       "import": "./lib/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noir-lang/noir.git"
+  },
   "scripts": {
     "clean-modules": "rm -rf lib",
     "build:node": "tsc -p tsconfig.cjs.json",
