@@ -8,7 +8,6 @@
   "license": "(MIT OR Apache-2.0)",
   "dependencies": {
     "@noir-lang/acvm_js": "0.26.1",
-    "@noir-lang/noirc_abi": "0.10.3",
-    "@aztec/bb.js": "0.6.7"
+    "@noir-lang/noirc_abi": "0.10.3"
   }
 }
