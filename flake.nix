@@ -340,7 +340,8 @@
           jq
           binaryen
           yarn
-          rust-bin.stable."1.66.1".default
+          # rust-bin.stable."1.66.1".default
+          rustToolchain
           rust-analyzer
           rustup
           nodejs-18_x 
