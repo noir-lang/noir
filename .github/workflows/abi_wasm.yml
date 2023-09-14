@@ -75,7 +75,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: [build]
-  
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
@@ -85,7 +85,7 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-    
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
@@ -94,7 +94,7 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
-          
+
       - name: Run browser tests
         run: yarn workspace @noir-lang/noirc_abi test:browser
 
