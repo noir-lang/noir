@@ -1,4 +1,5 @@
 name: Install Playwright
+description: Installs Playwright and its dependencies and caches them.
 
 runs:
   using: composite
