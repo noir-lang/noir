@@ -47,7 +47,7 @@ jobs:
 
       - name: Commit updates
         run: |
-          git add tooling/noir_js/package-lock.json
+          git add yarn.lock
           git add tooling/noir_js/package.json
           git commit -m "chore: Update noir-js to ${{ env.NEW_VERSION }}"
           git push
