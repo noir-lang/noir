@@ -20,7 +20,22 @@
         },
         {
           "type": "json",
+          "path": "compiler/source-resolver/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
           "path": "tooling/noirc_abi_wasm/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "compiler/integration-tests/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "release-tests/package.json",
           "jsonpath": "$.version"
         }
       ]
