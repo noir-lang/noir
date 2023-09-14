@@ -95,12 +95,8 @@ pub(super) fn simplify_call(
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, element_type)) = slice {
-                // The capacity must be an integer so that we can compare it against the slice length which is represented as a field
-                let capacity = dfg.make_constant((slice.len() as u128).into(), Type::unsigned(64));
-
                 // TODO: This is the user-facing length, we need to handle the element_type size
                 // to appropriately handle arrays of complex types
-                // dbg!(element_type.element_size());
                 if element_type.element_size() != 1 {
                     // Old code before implementing multiple slice mergers
                     for elem in &arguments[2..] {
@@ -113,16 +109,9 @@ pub(super) fn simplify_call(
                     let new_slice = dfg.make_array(slice, element_type);
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
                 }
-                // For nested arrays
-                // let element_size = dfg.make_constant((element_type.element_size() as u128).into(), Type::field());
-                // let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
-                // let flattened_len = dfg.insert_instruction_and_results(
-                //     flattened_len_instr, block, None, CallStack::new()).first();
-                // let len_equals_capacity_instr = Instruction::Binary(Binary {
-                //     lhs: flattened_len,
-                //     operator: BinaryOp::Eq,
-                //     rhs: capacity,
-                // });
+
+                // The capacity must be an integer so that we can compare it against the slice length which is represented as a field
+                let capacity = dfg.make_constant((slice.len() as u128).into(), Type::unsigned(64));
                 let len_equals_capacity_instr = Instruction::Binary(Binary {
                     lhs: arguments[0],
                     operator: BinaryOp::Eq,
@@ -181,29 +170,6 @@ pub(super) fn simplify_call(
                 );
 
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
-                // array set multiple elements for nested arrays
-                // let mut set_last_slice_value_instr = new_slice;
-                // let mut set_last_slice_value = new_slice;
-                // let mut flattened_index = flattened_len;
-                // let one = dfg.make_constant(FieldElement::one(), Type::field());
-                // for elem in &arguments[2..] {
-                //     let set_last_slice_value_instr = Instruction::ArraySet {
-                //         array: set_last_slice_value,
-                //         index: flattened_index,
-                //         value: *elem,
-                //         length: Some(new_slice_length),
-                //     };
-                //     set_last_slice_value = dfg
-                //     .insert_instruction_and_results(
-                //         set_last_slice_value_instr,
-                //         block,
-                //         None,
-                //         CallStack::new(),
-                //     )
-                //     .first();
-                //     let flattened_index_instr = Instruction::binary(BinaryOp::Add, flattened_index, one);
-                //     flattened_index = dfg.insert_instruction_and_results(flattened_index_instr, block, None, CallStack::new()).first();
-                // }
             } else {
                 SimplifyResult::None
             }
@@ -244,6 +210,7 @@ pub(super) fn simplify_call(
                     .first();
                 flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
                 let mut flattened_index = flattened_len;
+                // We must pop multiple elements in the case of a slice of tuples
                 for _ in 0..element_count {
                     let get_last_elem_instr =
                         Instruction::ArrayGet { array: arguments[1], index: flattened_index };
@@ -265,18 +232,6 @@ pub(super) fn simplify_call(
 
                 results.push_front(new_slice_length);
                 SimplifyResult::SimplifiedToMultiple(results.into())
-
-                // Old code
-                // We must pop multiple elements in the case of a slice of tuples
-                // for _ in 0..element_count {
-                //     let elem = slice
-                //         .pop_back()
-                //         .expect("There are no elements in this slice to be removed");
-                //     results.push_front(elem);
-                // }
-
-                // let new_slice = dfg.make_array(slice, typ);
-                // results.push_front(new_slice);
             } else {
                 SimplifyResult::None
             }
