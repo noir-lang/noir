@@ -32,6 +32,10 @@ jobs:
         run: |
           npm i wasm-opt -g
 
+      - name: Install wasm32-unknown-unknwown target
+        run: |
+          rustup target add wasm32-unknown-unknown
+
       - name: Build noirc_abi
         run: yarn workspace @noir-lang/noirc_abi build
 
