@@ -2,8 +2,9 @@ name: Track ACVM for Integration Tests
 
 on:
   push:
-    branches:
-      - '*'
+    paths:
+      - 'Cargo.lock'
+      - 'yarn.lock'
 
 jobs:
   check_matching_version:
