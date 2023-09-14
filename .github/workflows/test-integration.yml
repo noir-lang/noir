@@ -53,6 +53,8 @@ jobs:
         run: |
           nix build -L .#wasm
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+          cp -r ./result/nodejs ./compiler/wasm
+          cp -r ./result/web ./compiler/wasm
 
       - name: Upload `noir_wasm` artifact
         uses: actions/upload-artifact@v3
@@ -65,6 +67,8 @@ jobs:
         run: |
           nix build -L .#noirc_abi_wasm
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/web ./tooling/noirc_abi_wasm
 
       - name: Upload `noirc_abi_wasm` artifact
         uses: actions/upload-artifact@v3
