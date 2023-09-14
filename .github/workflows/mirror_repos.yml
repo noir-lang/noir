@@ -50,7 +50,7 @@ jobs:
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
 
-          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master; then
             git fetch # in case a commit came after this
             git rebase origin/master
             git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
@@ -71,7 +71,7 @@ jobs:
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
 
-          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master; then
             git fetch # in case a commit came after this
             git rebase origin/master
             git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
@@ -92,7 +92,7 @@ jobs:
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
 
-          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main; then
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master; then
             git fetch # in case a commit came after this
             git rebase origin/master
             git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"

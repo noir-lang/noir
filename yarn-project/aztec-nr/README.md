@@ -4,7 +4,7 @@
   <h1>Aztec.nr</h1>
 
   <p>
-    <strong>Aztec Smart Contract Development Framework</strong>
+    <strong>Aztec Smart Contract Framework</strong>
   </p>
 
   <p>
@@ -18,7 +18,7 @@
 
 # Aztec.nr
 
-`Aztec-nr` is a [Noir](https://noir-lang.org) framework for contract development on [Aztec](aztec.network).
+`Aztec-nr` is a [Noir](https://noir-lang.org) framework for smart contracts on [Aztec](aztec.network).
 
 ### Directory Structure
 ```
