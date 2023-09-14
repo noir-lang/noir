@@ -4,10 +4,6 @@ description: Installs the workspace's yarn dependencies and caches them
 runs:
   using: composite
   steps:
-    - name: Install node
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18.17.1
     - name: Cache
       uses: actions/cache@v3
       id: cache
