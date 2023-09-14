@@ -139,7 +139,8 @@ jobs:
           cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
           cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
           yarn install --non-interactive --pure-lockfile
-
+          yarn workspace @noir-lang/noir-source-resolver build
+          
       - name: Run tests
         run: |
           yarn workspace @noir-lang/noir_wasm test:browser
