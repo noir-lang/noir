@@ -14,6 +14,28 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Install cargo and wasm-bindgen
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          cargo install wasm-bindgen-cli
+
+      - name: Install toml2json
+        run: |
+          source $HOME/.cargo/env
+          cargo install toml2json
+
+      - name: Install wasm-opt (from binaryen)
+        run: |
+          sudo apt-get install -y cmake
+          git clone https://github.com/WebAssembly/binaryen.git
+          cd binaryen
+          cmake . && make
+          sudo make install
+
       - name: Build noirc_abi
         run: yarn workspace @noir-lang/noirc_abi build
 
