@@ -1,0 +1,39 @@
+{
+  "name": "@noir-lang/noir-source-resolver",
+  "version": "1.1.4",
+  "license": "MIT",
+  "main": "./lib-node/index_node.js",
+  "types": "./types/index_node.d.ts",
+  "module": "./lib/index.js",
+  "browser": "./lib/index.js",
+  "exports": {
+    ".": {
+      "require": "./lib-node/index_node.js",
+      "import": "./lib/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noir-lang/noir.git"
+  },
+  "scripts": {
+    "clean-modules": "rm -rf lib",
+    "build:node": "tsc -p tsconfig.cjs.json",
+    "build:web": "tsc -p tsconfig.esm.json",
+    "build": "npm run clean-modules && npm run build:node && npm run build:web && npm run generate-types",
+    "test": "ava",
+    "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.7",
+    "ava": "^5.2.0",
+    "typescript": "4.9.4"
+  },
+  "files": [
+    "lib",
+    "lib-node",
+    "src",
+    "types",
+    "package.json"
+  ]
+}

@@ -1,0 +1,26 @@
+name: Setup
+
+inputs:
+  working-directory:
+    default: ./
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Install node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.17.1
+    - name: Cache
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: "**/node_modules"
+        key: yarn-v1-${{ hashFiles('**/yarn.lock') }}
+    - name: Install
+      run: |
+        cd ${{ inputs.working-directory }}
+        yarn --immutable
+      shell: bash
+      if: steps.cache.outputs.cache-hit != 'true'
