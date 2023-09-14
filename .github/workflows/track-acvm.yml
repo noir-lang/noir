@@ -30,6 +30,11 @@ jobs:
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
             # Update package.json with the new version
+            ls
+            cd compile
+            ls
+            cd integration-tests
+            ls
             jq '.dependencies["@noir-lang/acvm_js"] = "^'${CURRENT_VERSION}'"' compile/integration-tests/package.json > tmp.json && mv tmp.json compile/integration-tests/package.json
             echo "acvm_changed=true" >> $GITHUB_ENV
           else
