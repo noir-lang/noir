@@ -18,15 +18,21 @@ retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 # Push image to deployment repo with commit hash tag and optional architecture e.g:
 # falafel:deadbeefcafebabe1337c0de-x86_64
 IMAGE_DEPLOY_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
+CURRENT_TAG=$COMMIT_HASH
+NEW_TAG_COMMIT_TAG=$PROJECT-$COMMIT_TAG
+NEW_TAG_DEPLOY_TAG=$DEPLOY_TAG
 if [[ -n "$ARCH" ]]; then
   IMAGE_DEPLOY_COMMIT_URI=$IMAGE_DEPLOY_COMMIT_URI-$ARCH
+  CURRENT_TAG=$CURRENT_TAG-$ARCH
+  NEW_TAG_COMMIT_TAG=$NEW_TAG_COMMIT_TAG-$ARCH
+  NEW_TAG_DEPLOY_TAG=$NEW_TAG_DEPLOY_TAG-$ARCH
 fi
 retry docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_COMMIT_URI
 retry docker push $IMAGE_DEPLOY_COMMIT_URI
 
 # Tag image with full version if we have one. Allows deployment of precise image version if rollback needed.
 if [ -n "${COMMIT_TAG:-}" ]; then
-  retry tag_remote_image $REPOSITORY $COMMIT_HASH $PROJECT-$COMMIT_TAG $ECR_DEPLOY_REGION
+  retry tag_remote_image $REPOSITORY $CURRENT_TAG $NEW_TAG_COMMIT_TAG $ECR_DEPLOY_REGION
 fi
 
-retry tag_remote_image $REPOSITORY $COMMIT_HASH $DEPLOY_TAG $ECR_DEPLOY_REGION
+retry tag_remote_image $REPOSITORY $CURRENT_TAG $NEW_TAG_DEPLOY_TAG $ECR_DEPLOY_REGION

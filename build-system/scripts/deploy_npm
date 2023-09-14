@@ -9,7 +9,7 @@ readonly STANDALONE=${2:-}
 
 extract_repo $REPOSITORY /usr/src project
 
-cd project/src/$(query_manifest projectDir $REPOSITORY)
+cd $(query_manifest projectDir $REPOSITORY)
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
 
