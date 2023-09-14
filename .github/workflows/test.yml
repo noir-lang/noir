@@ -3,6 +3,9 @@ name: Test
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -14,8 +17,6 @@ jobs:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
-    env:
-      CACHED_PATH: /tmp/nix-cache
 
     strategy:
       fail-fast: false
@@ -23,50 +24,22 @@ jobs:
         include:
           - os: ubuntu
             runner: ubuntu-latest
-            target: x86_64-linux
+            target: x86_64-unknown-linux-gnu
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v22
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          targets: ${{ matrix.target }}
 
-      - uses: cachix/cachix-action@v12
+      - uses: Swatinem/rust-cache@v2
         with:
-          name: barretenberg
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Restore nix store cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
-
-      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
-      - name: Copy cache into nix store
-        if: steps.cache.outputs.cache-hit == 'true'
-        # We don't check the signature because we're the one that created the cache
-        run: |
-          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
-            path=$(head -n 1 "$narinfo" | awk '{print $2}')
-            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
-          done
-
-      - name: Run `nix flake check`
-        run: |
-          nix flake check -L
-
-      - name: Export cache from nix store
-        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        run: |
-          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#native-cargo-artifacts
-
-      - uses: actions/cache/save@v3
-        # Write a cache entry even if the tests fail but don't create any for the merge queue.
-        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Run tests
+        run: cargo test --workspace --locked --release

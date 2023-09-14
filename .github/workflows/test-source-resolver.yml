@@ -1,0 +1,29 @@
+name: Test Source Resolver
+
+on:
+  push:
+    paths:
+      - "compiler/source-resolver/**"
+  pull_request:
+    paths:
+      - "compiler/source-resolver/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        working-directory: ./compiler/source-resolver
+        run: npm install
+
+      - name: Build noir-source-resolver
+        working-directory: ./compiler/source-resolver
+        run: npm run build
+
+      - name: Run tests
+        working-directory: ./compiler/source-resolver
+        run: npm run test
