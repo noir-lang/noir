@@ -24,6 +24,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 
 import { createCompatibleClient } from './client.js';
 import { encodeArgs, parseStructString } from './encoding.js';
+import { unboxContract } from './unbox.js';
 import {
   deployAztecContracts,
   getAbiFunction,
@@ -472,6 +473,18 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const abisList = await getExampleContractArtifacts();
       const names = Object.keys(abisList);
       names.forEach(name => log(name));
+    });
+
+  program
+    .command('unbox')
+    .description(
+      'Unboxes an example contract from @aztec/boxes.  Also Copies `noir-libs` dependencies and setup simple frontend for the contract using its ABI.',
+    )
+    .argument('<contractName>', 'Name of the contract to unbox, e.g. "PrivateToken"')
+    .argument('[localDirectory]', 'Local directory to unbox to (relative or absolute), defaults to `<contractName>`')
+    .action(async (contractName, localDirectory) => {
+      const unboxTo: string = localDirectory ? localDirectory : contractName;
+      await unboxContract(contractName, unboxTo, version, log);
     });
 
   program

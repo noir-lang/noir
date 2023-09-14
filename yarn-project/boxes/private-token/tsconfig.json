@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dest",
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "target": "es2020",
+    "lib": [
+      "esnext",
+      "dom",
+      "DOM.Iterable"
+    ],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "declaration": true,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "inlineSourceMap": true,
+    "declarationMap": true,
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "composite": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src",
+    "src/**/*.json"
+  ],
+  "references": [
+    {
+      "path": "../../aztec.js"
+    },
+    {
+      "path": "../../circuits.js"
+    },
+    {
+      "path": "../../cli"
+    },
+    {
+      "path": "../../foundation"
+    },
+    {
+      "path": "../../noir-compiler"
+    },
+    {
+      "path": "../../types"
+    }
+  ]
+}

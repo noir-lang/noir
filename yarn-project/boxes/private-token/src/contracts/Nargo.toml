@@ -1,0 +1,9 @@
+[package]
+name = "private_token_contract"
+authors = [""]
+compiler_version = "0.1"
+type = "contract"
+
+[dependencies]
+aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/noir-libs/noir-aztec" }
+value_note = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/noir-libs/value-note" }

@@ -5,8 +5,8 @@
   "type": "module",
   "exports": {
     "node": "./dest/index.js",
-    "default": "./dest/main.js",
-    "import": "./dest/index.js"
+    "import": "./dest/index.js",
+    "default": "./dest/main.js"
   },
   "typedocOptions": {
     "entryPoints": [
