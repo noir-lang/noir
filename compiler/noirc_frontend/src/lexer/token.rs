@@ -374,6 +374,16 @@ impl Attributes {
         Self { primary: None, secondary: Vec::new() }
     }
 
+    /// Returns true if one of the secondary attributes is `contract_library_method`
+    ///
+    /// This is useful for finding out if we should compile a contract method
+    /// as an entry point or not.
+    pub fn has_contract_library_method(&self) -> bool {
+        self.secondary
+            .iter()
+            .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
@@ -454,6 +464,9 @@ impl Attribute {
             }
             // Secondary attributes
             ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
+            ["contract_library_method"] => {
+                Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
+            }
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
                     return Err(LexerErrorKind::MalformedFuncAttribute {
@@ -527,6 +540,10 @@ impl fmt::Display for PrimaryAttribute {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum SecondaryAttribute {
     Deprecated(Option<String>),
+    // This is an attribute to specify that a function
+    // is a helper method for a contract and should not be seen as
+    // the entry point.
+    ContractLibraryMethod,
     Custom(String),
 }
 
@@ -538,6 +555,7 @@ impl fmt::Display for SecondaryAttribute {
                 write!(f, r#"#[deprecated("{note}")]"#)
             }
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
+            SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
         }
     }
 }
@@ -559,6 +577,7 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
             SecondaryAttribute::Custom(string) => string,
+            SecondaryAttribute::ContractLibraryMethod => "",
         }
     }
 }
