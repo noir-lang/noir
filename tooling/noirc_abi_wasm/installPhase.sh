@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+set -x
+
 export self_path=$(dirname "$(readlink -f "$0")")
 
 mkdir -p $out
