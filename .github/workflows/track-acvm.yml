@@ -3,11 +3,10 @@ name: Track ACVM for Integration Tests
 on:
   push:
     branches:
-      - master
-      - jb-track-acvm-integration-tests
+      - '*'
 
 jobs:
-  check_and_update_version:
+  check_matching_version:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
