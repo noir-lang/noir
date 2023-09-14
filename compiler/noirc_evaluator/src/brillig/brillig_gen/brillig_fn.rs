@@ -4,13 +4,11 @@ use iter_extended::vecmap;
 use crate::{
     brillig::brillig_ir::{
         artifact::{BrilligParameter, Label},
-        BrilligContext,
+        extract_register, BrilligContext,
     },
     ssa::ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        post_order::PostOrder,
         types::{CompositeType, Type},
         value::ValueId,
     },
@@ -24,22 +22,15 @@ pub(crate) struct FunctionContext {
     /// Map from SSA values to register or memory.
     pub(crate) ssa_value_to_brillig_variable: HashMap<ValueId, RegisterOrMemory>,
 
-    pub(crate) blocks: Vec<BasicBlockId>,
-
     pub(crate) liveness: VariableLiveness,
 }
 
 impl FunctionContext {
     pub(crate) fn new(function: &Function) -> Self {
         let id = function.id();
-        let mut reverse_post_order = Vec::new();
-        reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
-        reverse_post_order.reverse();
-
         Self {
             function_id: id,
             ssa_value_to_brillig_variable: HashMap::default(),
-            blocks: reverse_post_order,
             liveness: VariableLiveness::from_function(function),
         }
     }
@@ -122,34 +113,7 @@ impl FunctionContext {
         dfg: &DataFlowGraph,
     ) -> RegisterIndex {
         let variable = self.create_variable(brillig_context, value, dfg);
-        self.extract_register(variable)
-    }
-
-    pub(crate) fn extract_register(&self, variable: RegisterOrMemory) -> RegisterIndex {
-        match variable {
-            RegisterOrMemory::RegisterIndex(register_index) => register_index,
-            _ => unreachable!("ICE: Expected register, got {variable:?}"),
-        }
-    }
-
-    pub(crate) fn extract_heap_array(&self, variable: RegisterOrMemory) -> HeapArray {
-        match variable {
-            RegisterOrMemory::HeapArray(array) => array,
-            _ => unreachable!("ICE: Expected array, got {variable:?}"),
-        }
-    }
-
-    /// Collects the registers that a given variable is stored in.
-    pub(crate) fn extract_registers(&self, variable: RegisterOrMemory) -> Vec<RegisterIndex> {
-        match variable {
-            RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
-            RegisterOrMemory::HeapArray(array) => {
-                vec![array.pointer]
-            }
-            RegisterOrMemory::HeapVector(vector) => {
-                vec![vector.pointer, vector.size]
-            }
-        }
+        extract_register(variable)
     }
 
     /// Creates a function label from a given SSA function id.

@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+    extract_heap_array, extract_register, extract_registers, BrilligBinaryOp, BrilligContext,
+    BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::{
@@ -31,7 +32,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext,
 
-    available_variables: HashSet<ValueId>,
+    pub(crate) available_variables: HashSet<ValueId>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -144,7 +145,7 @@ impl<'block> BrilligBlock<'block> {
                     .iter()
                     .flat_map(|value_id| {
                         let return_variable = self.convert_ssa_value(*value_id, dfg);
-                        self.function_context.extract_registers(return_variable)
+                        extract_registers(return_variable)
                     })
                     .collect();
                 self.brillig_context.return_instruction(&return_registers);
@@ -368,8 +369,7 @@ impl<'block> BrilligBlock<'block> {
                     // or an array in the case of an array.
                     if let Type::Numeric(_) = dfg.type_of_value(param_id) {
                         let len_variable = self.convert_ssa_value(arguments[0], dfg);
-                        let len_register_index =
-                            self.function_context.extract_register(len_variable);
+                        let len_register_index = extract_register(len_variable);
                         self.brillig_context.mov_instruction(result_register, len_register_index);
                     } else {
                         self.convert_ssa_array_len(arguments[0], result_register, dfg);
@@ -402,7 +402,7 @@ impl<'block> BrilligBlock<'block> {
                         results[0],
                         dfg,
                     );
-                    let target_len = self.function_context.extract_register(target_len_variable);
+                    let target_len = extract_register(target_len_variable);
 
                     let target_slice = self.function_context.create_variable(
                         self.brillig_context,
@@ -434,7 +434,7 @@ impl<'block> BrilligBlock<'block> {
                         results[0],
                         dfg,
                     );
-                    let target_len = self.function_context.extract_register(target_len_variable);
+                    let target_len = extract_register(target_len_variable);
 
                     let target_slice = self.function_context.create_variable(
                         self.brillig_context,
@@ -540,7 +540,7 @@ impl<'block> BrilligBlock<'block> {
             .iter()
             .flat_map(|argument_id| {
                 let variable_to_pass = self.convert_ssa_value(*argument_id, dfg);
-                self.function_context.extract_registers(variable_to_pass)
+                extract_registers(variable_to_pass)
             })
             .collect();
 
@@ -566,9 +566,7 @@ impl<'block> BrilligBlock<'block> {
         // Collect the registers that should have been returned
         let returned_registers: Vec<RegisterIndex> = variables_assigned_to
             .iter()
-            .flat_map(|returned_variable| {
-                self.function_context.extract_registers(*returned_variable)
-            })
+            .flat_map(|returned_variable| extract_registers(*returned_variable))
             .collect();
 
         assert!(
@@ -888,7 +886,7 @@ impl<'block> BrilligBlock<'block> {
     ) {
         let source_len_variable =
             self.function_context.get_or_create_variable(self.brillig_context, source_value, dfg);
-        let source_len = self.function_context.extract_register(source_len_variable);
+        let source_len = extract_register(source_len_variable);
 
         self.brillig_context.usize_op(source_len, target_len, binary_op, 1);
     }
@@ -998,7 +996,7 @@ impl<'block> BrilligBlock<'block> {
                     value_id,
                     dfg,
                 );
-                let register_index = self.function_context.extract_register(new_variable);
+                let register_index = extract_register(new_variable);
 
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 new_variable
@@ -1061,7 +1059,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) -> RegisterIndex {
         let variable = self.convert_ssa_value(value_id, dfg);
-        self.function_context.extract_register(variable)
+        extract_register(variable)
     }
 
     fn allocate_external_call_result(
@@ -1078,7 +1076,7 @@ impl<'block> BrilligBlock<'block> {
             Type::Array(..) => {
                 let variable =
                     self.function_context.create_variable(self.brillig_context, result, dfg);
-                let array = self.function_context.extract_heap_array(variable);
+                let array = extract_heap_array(variable);
                 self.brillig_context.allocate_fixed_length_array(array.pointer, array.size);
                 variable
             }

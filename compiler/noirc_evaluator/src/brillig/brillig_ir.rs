@@ -961,6 +961,33 @@ impl BrilligContext {
     }
 }
 
+pub(crate) fn extract_register(variable: RegisterOrMemory) -> RegisterIndex {
+    match variable {
+        RegisterOrMemory::RegisterIndex(register_index) => register_index,
+        _ => unreachable!("ICE: Expected register, got {variable:?}"),
+    }
+}
+
+pub(crate) fn extract_heap_array(variable: RegisterOrMemory) -> HeapArray {
+    match variable {
+        RegisterOrMemory::HeapArray(array) => array,
+        _ => unreachable!("ICE: Expected array, got {variable:?}"),
+    }
+}
+
+/// Collects the registers that a given variable is stored in.
+pub(crate) fn extract_registers(variable: RegisterOrMemory) -> Vec<RegisterIndex> {
+    match variable {
+        RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
+        RegisterOrMemory::HeapArray(array) => {
+            vec![array.pointer]
+        }
+        RegisterOrMemory::HeapVector(vector) => {
+            vec![vector.pointer, vector.size]
+        }
+    }
+}
+
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone)]
 pub(crate) enum BrilligBinaryOp {

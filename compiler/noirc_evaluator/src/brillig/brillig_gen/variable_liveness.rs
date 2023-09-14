@@ -8,6 +8,7 @@ use crate::ssa::ir::{
     dfg::DataFlowGraph,
     dom::DominatorTree,
     function::Function,
+    instruction::{Instruction, InstructionId},
     post_order::PostOrder,
     value::{Value, ValueId},
 };
@@ -59,56 +60,74 @@ pub(crate) fn compute_defined_variables(
     defined_vars
 }
 
+fn collect_variables(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
+    let value_id = dfg.resolve(value_id);
+    let value = &dfg[value_id];
+
+    match value {
+        Value::Instruction { .. } | Value::Param { .. } => {
+            vec![value_id]
+        }
+        Value::Array { array, .. } => {
+            let mut value_ids = Vec::new();
+
+            array.iter().for_each(|item_id| {
+                let underlying_ids = collect_variables(*item_id, dfg);
+                value_ids.extend(underlying_ids);
+            });
+
+            value_ids
+        }
+        _ => {
+            vec![]
+        }
+    }
+}
+
+pub(crate) fn variables_used(instruction: &Instruction, dfg: &DataFlowGraph) -> Vec<ValueId> {
+    let mut used = Vec::new();
+
+    instruction.for_each_value(|value_id| {
+        let underlying_ids = collect_variables(value_id, dfg);
+        used.extend(underlying_ids);
+    });
+
+    used
+}
+
+pub(crate) fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
+    let mut used = HashSet::new();
+
+    for instruction_id in block.instructions() {
+        let instruction = &dfg[*instruction_id];
+        used.extend(variables_used(instruction, dfg));
+    }
+
+    if let Some(terminator) = block.terminator() {
+        terminator.for_each_value(|value_id| {
+            used.extend(collect_variables(value_id, dfg));
+        });
+    }
+
+    used
+}
+
 fn compute_before_def(
     block: &BasicBlock,
     dfg: &DataFlowGraph,
     defined_in_block: &HashSet<ValueId>,
 ) -> HashSet<ValueId> {
-    let mut before_def = HashSet::new();
-
-    fn process_value(
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-        before_def: &mut HashSet<ValueId>,
-        defined_in_this_block: &HashSet<ValueId>,
-    ) {
-        let value_id = dfg.resolve(value_id);
-        let value = &dfg[value_id];
-        match value {
-            Value::Instruction { .. } | Value::Param { .. } => {
-                if !defined_in_this_block.contains(&value_id) {
-                    before_def.insert(value_id);
-                }
-            }
-            Value::Array { array, .. } => {
-                array.iter().for_each(|item_id| {
-                    process_value(*item_id, dfg, before_def, defined_in_this_block);
-                });
-            }
-            _ => {}
-        }
-    }
-
-    for instruction_id in block.instructions() {
-        let instruction = &dfg[*instruction_id];
-        instruction.for_each_value(|value_id| {
-            process_value(value_id, dfg, &mut before_def, defined_in_block);
-        });
-    }
-
-    if let Some(terminator) = block.terminator() {
-        terminator.for_each_value(|value_id| {
-            process_value(value_id, dfg, &mut before_def, defined_in_block);
-        });
-    }
-
-    before_def
+    variables_used_in_block(block, dfg)
+        .into_iter()
+        .filter(|id| !defined_in_block.contains(id))
+        .collect()
 }
 
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
     live_in: HashMap<BasicBlockId, HashSet<ValueId>>,
+    last_uses: HashMap<BasicBlockId, HashMap<InstructionId, HashSet<ValueId>>>,
 }
 
 impl VariableLiveness {
@@ -116,23 +135,36 @@ impl VariableLiveness {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
 
-        let mut instance = Self { cfg, post_order, live_in: HashMap::new() };
+        let mut instance =
+            Self { cfg, post_order, live_in: HashMap::new(), last_uses: HashMap::new() };
 
         instance.compute_live_in_of_blocks(func);
+
+        instance.compute_last_uses(func);
 
         instance
     }
 
+    /// The set of values that are live before the block starts executing
     pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &HashSet<ValueId> {
         self.live_in.get(block_id).expect("Live ins should have been calculated")
     }
 
+    /// The set of values that are live after the block has finished executed
     pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> HashSet<ValueId> {
         let mut live_out = HashSet::new();
         for successor_id in self.cfg.successors(*block_id) {
             live_out.extend(self.get_live_in(&successor_id));
         }
         live_out
+    }
+
+    /// A map of instruction id to the set of values that die after the instruction has executed
+    pub(crate) fn get_last_uses(
+        &self,
+        block_id: &BasicBlockId,
+    ) -> &HashMap<InstructionId, HashSet<ValueId>> {
+        self.last_uses.get(block_id).expect("Last uses should have been calculated")
     }
 
     fn compute_live_in_recursive(
@@ -209,6 +241,29 @@ impl VariableLiveness {
         // Second pass, propagate header live_ins to the loop bodies
         for back_edge in back_edges {
             self.update_live_ins_within_loop(back_edge);
+        }
+    }
+
+    fn compute_last_uses(&mut self, func: &Function) {
+        for block_id in func.reachable_blocks() {
+            let block = &func.dfg[block_id];
+            let live_out = self.get_live_out(&block_id);
+
+            let mut used_after: HashSet<ValueId> = HashSet::new();
+            let mut block_last_uses: HashMap<InstructionId, HashSet<ValueId>> = HashMap::new();
+
+            for instruction_id in block.instructions().iter().rev() {
+                let instruction = &func.dfg[*instruction_id];
+                let instruction_last_uses = variables_used(instruction, &func.dfg)
+                    .into_iter()
+                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                    .collect();
+
+                used_after.extend(&instruction_last_uses);
+                block_last_uses.insert(*instruction_id, instruction_last_uses);
+            }
+
+            self.last_uses.insert(block_id, block_last_uses);
         }
     }
 }
