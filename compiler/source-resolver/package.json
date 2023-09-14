@@ -17,7 +17,7 @@
     "build:node": "tsc -p tsconfig.cjs.json",
     "build:web": "tsc -p tsconfig.esm.json",
     "build": "npm run clean-modules && npm run build:node && npm run build:web && npm run generate-types",
-    "test": "node_modules/.bin/ava",
+    "test": "ava",
     "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types"
   },
   "devDependencies": {
