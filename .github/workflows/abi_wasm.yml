@@ -72,6 +72,20 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 10
 
+  noirc-abi-wasm-test:
+    needs: [noirc-abi-wasm-build]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Download noirc_abi_wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+    
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
