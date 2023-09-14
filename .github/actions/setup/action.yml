@@ -1,4 +1,4 @@
-name: Setup
+name: Install Yarn dependencies
 
 runs:
   using: composite

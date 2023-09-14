@@ -135,10 +135,11 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
       - name: Install dependencies
         run: |
-          npx playwright install
-          npx playwright install-deps
           cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
           cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
           yarn workspace @noir-lang/noir-source-resolver build

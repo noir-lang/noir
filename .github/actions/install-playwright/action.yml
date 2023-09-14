@@ -1,0 +1,25 @@
+name: Install Playwright
+
+runs:
+  using: composite
+  steps:
+    - name: Query playwright version
+      shell: bash
+      working-directory: ./tooling/noirc_abi_wasm
+      run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+
+    - name: Cache playwright binaries
+      uses: actions/cache@v3
+      id: playwright-cache
+      with:
+        path: |
+          ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+
+    - name: Install playwright deps
+      shell: bash
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+      working-directory: ./tooling/noirc_abi_wasm
+      run: |
+        npx playwright install
+        npx playwright install-deps
