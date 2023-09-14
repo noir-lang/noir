@@ -1,0 +1,24 @@
+name: Release and Publish Noir Js
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-noir-js:
+    name: Release and Publish Noir Js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build noir_js
+        run: yarn workspace @noir-lang/noir_js build
+
+      - name: Publish to NPM
+        working-directory: ./tooling/noir_js
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}

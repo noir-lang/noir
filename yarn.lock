@@ -385,6 +385,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noir-lang/acvm_js@npm:0.26.1":
+  version: 0.26.1
+  resolution: "@noir-lang/acvm_js@npm:0.26.1"
+  checksum: ae8cb6e31610cd8aa392855342d0c953a1bc4cd9e07236340341afa5815696a69a6635c38241f1d6a5dd30c5a8ae49234f2ba8b71d46c5d1a46756ff6f4dde3a
+  languageName: node
+  linkType: hard
+
 "@noir-lang/acvm_js@npm:^0.26.0":
   version: 0.26.0
   resolution: "@noir-lang/acvm_js@npm:0.26.0"
@@ -399,6 +406,15 @@ __metadata:
     "@types/node": ^20.5.7
     ava: ^5.2.0
     typescript: 4.9.4
+  languageName: unknown
+  linkType: soft
+
+"@noir-lang/noir_js@workspace:tooling/noir_js":
+  version: 0.0.0-use.local
+  resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
+  dependencies:
+    "@noir-lang/acvm_js": 0.26.1
+    "@noir-lang/noirc_abi": "workspace:*"
   languageName: unknown
   linkType: soft
 
