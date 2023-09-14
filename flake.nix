@@ -102,8 +102,6 @@
       wasmConfig = environment // config // {
         CARGO_TARGET_DIR = "./target";
 
-        CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
-
         nativeBuildInputs = with pkgs; [
           which
           git
@@ -119,10 +117,13 @@
 
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       native-cargo-artifacts = craneLib.buildDepsOnly (nativeConfig // {
-        pname = "native";
+        pname = "nargo";
       });
-      wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
-        pname = "wasm";
+      noir-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
+        pname = "noir_wasm";
+      });
+      noirc-abi-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
+        pname = "noirc_abi_wasm";
       });
 
       nargo = craneLib.buildPackage (nativeConfig // {
@@ -141,9 +142,9 @@
 
         inherit GIT_COMMIT GIT_DIRTY;
 
-        cargoArtifacts = wasm-cargo-artifacts;
+        cargoArtifacts = noir-wasm-cargo-artifacts;
 
-        cargoExtraArgs = "--package ${pname}";
+        cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
 
         buildPhaseCargoCommand = ''
           bash compiler/wasm/buildPhaseCargoCommand.sh release
@@ -162,9 +163,9 @@
 
         inherit GIT_COMMIT GIT_DIRTY;
 
-        cargoArtifacts = wasm-cargo-artifacts;
+        cargoArtifacts = noirc-abi-wasm-cargo-artifacts;
 
-        cargoExtraArgs = "--package ${pname}";
+        cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
 
         buildPhaseCargoCommand = ''
           bash tooling/noirc_abi_wasm/buildPhaseCargoCommand.sh release
@@ -217,7 +218,8 @@
 
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
-        inherit wasm-cargo-artifacts;
+        inherit noir-wasm-cargo-artifacts;
+        inherit noirc-abi-wasm-cargo-artifacts;
       };
 
       # Setup the environment to match the environment settings, the inputs from our checks derivations,
