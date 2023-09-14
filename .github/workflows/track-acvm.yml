@@ -46,7 +46,7 @@ jobs:
         if: env.acvm_changed == 'true'
         run: |
           git add compiler/integration-tests/package.json
-          git commit -m "Update ACVM version to env.acvm_version"
+          git commit -m "Update ACVM version to ${{ env.acvm_version }}"
 
           # TODO: Change this so it pushes to master
           git push origin jb-track-acvm-integration-tests
