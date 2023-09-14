@@ -47,8 +47,8 @@ jobs:
       - name: Build noirc_abi_wasm
         run: |
           nix build -L .#noirc_abi_wasm
-          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
-          cp -r ./result/web ./tooling/noirc_abi_wasm
+          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
 
       - name: Export cache from nix store
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
