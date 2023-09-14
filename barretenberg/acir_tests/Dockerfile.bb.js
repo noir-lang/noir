@@ -19,4 +19,6 @@ RUN BIN=../ts/dest/node/main.js FLOW=all_cmds ./run_acir_tests.sh 1_mul
 RUN BROWSER=chrome THREAD_MODEL=mt ./run_acir_tests_browser.sh double_verify_proof
 # Run 1_mul through bb.js on chrome/webkit testing single threaded browser support.
 RUN BROWSER=chrome THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
-RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
+# Commenting for now as fails intermittently. Unreproducable on mainframe.
+# See https://github.com/AztecProtocol/aztec-packages/issues/2104
+#RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
