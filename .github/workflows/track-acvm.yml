@@ -9,6 +9,8 @@ on:
 jobs:
   check_version:
     runs-on: ubuntu-latest
+    outputs:
+      acvm_changed: ${{ steps.check_acvm.outputs.acvm_changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,17 +30,21 @@ jobs:
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
             # Update package.json with the new version
+            echo "::set-output name=acvm_changed::true"
             jq '.dependencies["@noir-lang/acvm_js"] = "^'${CURRENT_VERSION}'"' compile/integration-tests/package.json > tmp.json && mv tmp.json compile/integration-tests/package.json
           else
-            echo "no changes needed."
+            echo "acvm version remains the same."
+            echo "::set-output name=acvm_changed::false"
           fi
 
       - name: Configure git
+        if: steps.check_acvm.outputs.acvm_changed == 'true'
         run: |
           git config user.name kevaundray
           git config user.email kevtheappdev@gmail.com
 
       - name: Commit changes
+        if: steps.check_acvm.outputs.acvm_changed == 'true'
         run: |
           git add compile/integration-tests/package.json
           git commit -m "Update ACVM version to $CURRENT_VERSION" || echo "No changes to commit"
