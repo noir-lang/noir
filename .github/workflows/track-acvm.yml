@@ -16,7 +16,7 @@ jobs:
         run: |
           # Extract acvm version from the current Cargo.lock
           CURRENT_VERSION=$(awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
-          INTEGRATION_TEST_VERSION=$(jq '.dependencies["@noir-lang/acvm_js"]' compiler/integration-tests/package.json | tr -d '"' | sed 's/^[^0-9]*//')
+          INTEGRATION_TEST_VERSION=$(yarn workspace integration-tests info @noir-lang/acvm_js --json | jq .children.Version | tr -d '"')
 
           echo "Current ACVM Version: $CURRENT_VERSION"
           echo "Integration Test ACVM Version: $INTEGRATION_TEST_VERSION"
