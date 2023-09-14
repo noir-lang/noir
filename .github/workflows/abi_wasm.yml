@@ -90,14 +90,11 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run node tests
-        run: |
-          yarn workspace @noir-lang/noirc_abi test
+        run: yarn workspace @noir-lang/noirc_abi test
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
           
       - name: Run browser tests
-        working-directory: ./tooling/noirc_abi_wasm
-        run: |
-          yarn workspace @noir-lang/noirc_abi test:browser
+        run: yarn workspace @noir-lang/noirc_abi test:browser
 
