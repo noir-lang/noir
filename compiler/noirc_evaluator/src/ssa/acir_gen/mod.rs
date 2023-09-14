@@ -687,27 +687,7 @@ impl Context {
         }
 
         let read = self.acir_context.read_from_memory(block_id, &var_index)?;
-        let typ = match dfg.type_of_value(array) {
-            Type::Array(typ, _) => {
-                if typ.len() != 1 {
-                    // TODO(#2461)
-                    unimplemented!(
-                        "Non-const array indices is not implemented for non-homogenous array"
-                    );
-                }
-                typ[0].clone()
-            }
-            Type::Slice(typ) => {
-                if typ.len() != 1 {
-                    // TODO(#2461)
-                    unimplemented!(
-                        "Non-const array indices is not implemented for non-homogenous array"
-                    );
-                }
-                typ[0].clone()
-            }
-            _ => unreachable!("ICE - expected an array"),
-        };
+        let typ = dfg.type_of_value(array);
         let typ = AcirType::from(typ);
         self.define_result(dfg, instruction, AcirValue::Var(read, typ));
         Ok(read)
@@ -744,16 +724,25 @@ impl Context {
 
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
+        //
+        // A slice's size must be fetched from the SSA value that represents the slice.
+        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
+        // and may contain data for which we want to restrict access. The true slice length is tracked in a
+        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
         let len = match dfg.type_of_value(array) {
-            Type::Array(_, len) => len,
-            Type::Slice(_) => {
+            Type::Array(typ, len) => {
+                // Flatten the array length to handle arrays of complex types
+                len * typ.len()
+            }
+            Type::Slice(typ) => {
+                // Fetch the true length of the slice from the array_set instruction
                 let length = length
                     .expect("ICE: array set on slice must have a length associated with the call");
                 let length_acir_var = self.convert_value(length, dfg).into_var()?;
                 let len = self.acir_context.var_to_expression(length_acir_var)?.to_const();
                 let len = len
                     .expect("ICE: slice length should be fully tracked and constant by ACIR gen");
-                len.to_u128() as usize
+                len.to_u128() as usize * typ.len()
             }
             _ => unreachable!("ICE - expected an array"),
         };
