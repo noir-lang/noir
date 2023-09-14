@@ -1,0 +1,34 @@
+name: Track ACVM for Integration Tests
+
+on:
+  push:
+    branches:
+      - master
+      - jb-track-acvm-integration-tests
+
+jobs:
+  check_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check acvm version change
+        run: |
+          # Extract acvm version from the current Cargo.lock
+          CURRENT_VERSION=$(cat Cargo.lock | grep -A 2 "\[package\]\nname = \"acvm\"" | grep "version" | sed 's/version = \"//g' | sed 's/\"//g' | tr -d ' ')
+
+          # Extract acvm version from the previous commit's Cargo.lock
+          PREVIOUS_VERSION=$(git show HEAD~1:Cargo.lock | grep -A 2 "\[package\]\nname = \"acvm\"" | grep "version" | sed 's/version = \"//g' | sed 's/\"//g' | tr -d ' ')
+
+          echo "Current Version: $CURRENT_VERSION"
+          echo "Previous Version: $PREVIOUS_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "acvm version changed!"
+            exit 1
+          else
+            echo "acvm version remains the same."
+          fi
