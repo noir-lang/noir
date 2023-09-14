@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      # TODO: remove this to merge
       - jb-track-acvm-integration-tests
 
 jobs:
@@ -45,4 +46,6 @@ jobs:
         run: |
           git add compiler/integration-tests/package.json
           git commit -m "Update ACVM version to $CURRENT_VERSION" || echo "No changes to commit"
+
+          # TODO: Change this so it pushes to master
           git push origin jb-track-acvm-integration-tests
