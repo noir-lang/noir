@@ -117,7 +117,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm
+          path: ./compiler/wasm/downloaded
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -136,6 +136,8 @@ jobs:
         run: |
           npx playwright install
           npx playwright install-deps
+          cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
+          cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
           yarn install --non-interactive --pure-lockfile
 
       - name: Run tests
