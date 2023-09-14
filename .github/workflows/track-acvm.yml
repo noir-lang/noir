@@ -21,7 +21,7 @@ jobs:
           CURRENT_VERSION=$(awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
 
           # Extract acvm version from the previous commit's Cargo.lock
-          PREVIOUS_VERSION=$(git show HEAD~1:Cargo.lock | awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
+          PREVIOUS_VERSION=$(git show HEAD~1:Cargo.lock | awk '/name = "acvm"/ {getline; print $3}' | tr -d '"')
 
           echo "Current Version: $CURRENT_VERSION"
           echo "Previous Version: $PREVIOUS_VERSION"
