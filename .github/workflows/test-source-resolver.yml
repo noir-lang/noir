@@ -16,8 +16,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: yarn install --immutable
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
       - name: Build noir-source-resolver
         run: yarn workspace @noir-lang/noir-source-resolver build

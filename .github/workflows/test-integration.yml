@@ -77,10 +77,11 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
       - name: Run `integration-tests`
-        run: |
-          yarn install --immutable
-          yarn test:integration
+        run: yarn test:integration
           
       - name: Alert on nightly test failure  
         uses: JasonEtco/create-an-issue@v2

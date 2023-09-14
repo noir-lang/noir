@@ -74,11 +74,13 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      - name: Test built artifact
+      - name: Install Yarn dependencies
         if: matrix.target == 'x86_64-apple-darwin'
+        uses: ./.github/actions/setup
+
+      - name: Test built artifact
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/          
-          yarn install --immutable
           yarn workspace release-tests test
 
       - name: Upload binaries to release tag
@@ -139,11 +141,14 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        uses: ./.github/actions/setup
+
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          yarn install --immutable
           yarn workspace release-tests test
 
       - name: Upload binaries to release tag

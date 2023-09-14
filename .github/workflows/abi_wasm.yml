@@ -72,9 +72,8 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 10
 
-      - name: Install workspace dependencies
-        run: |
-          yarn install --immutable
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
       - name: Run node tests
         run: |
