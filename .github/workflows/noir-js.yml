@@ -30,11 +30,7 @@ jobs:
 
       - name: Install wasm-opt (from binaryen)
         run: |
-          sudo apt-get install -y cmake
-          git clone https://github.com/WebAssembly/binaryen.git
-          cd binaryen
-          cmake . && make
-          sudo make install
+          npm i wasm-opt -g
 
       - name: Build noirc_abi
         run: yarn workspace @noir-lang/noirc_abi build
