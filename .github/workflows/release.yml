@@ -79,3 +79,17 @@ jobs:
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  dispatch-publish-abi-wasm:
+    name: Dispatch to publish-abi_wasm workflow
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish-abi_wasm.yml workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-abi_wasm.yml
+          repo: ${{ github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
