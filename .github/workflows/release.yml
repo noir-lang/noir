@@ -91,3 +91,4 @@ jobs:
           workflow: publish-abi_wasm.yml
           repo: ${{ github.repository }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
