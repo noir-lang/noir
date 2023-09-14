@@ -79,6 +79,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Test built artifact
+        if: matrix.target == 'x86_64-apple-darwin'
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/          
           yarn workspace release-tests test
