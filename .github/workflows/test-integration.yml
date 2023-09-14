@@ -79,7 +79,7 @@ jobs:
 
       - name: Run `integration-tests`
         run: |
-          yarn install --non-interactive --pure-lockfile
+          yarn install --immutable
           yarn test:integration
           
       - name: Alert on nightly test failure  
