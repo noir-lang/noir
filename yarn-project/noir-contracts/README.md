@@ -30,6 +30,13 @@ It has prebuilt binaries and is super easy to install using `noirup`
   noirup -v aztec
   ```
 
+> Pinning Aztec flavoured noir releases  
+> Aztec noir is released with semver alongside noir. If you would like to pin to a specific version you can run:
+> ```bash
+> noirup -v <noir-version>-aztec.<patch version>
+> ```
+> e.g `noirup -v 0.11.1-aztec.0`
+
 ### Building from source (If working with custom features)
 
 - Install [noirup](https://github.com/noir-lang/noirup)
