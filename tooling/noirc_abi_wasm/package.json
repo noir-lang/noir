@@ -21,7 +21,6 @@
     "type": "git",
     "url": "https://github.com/noir-lang/noir.git"
   },
-  "packageManager": "yarn@3.5.1",
   "scripts": {
     "build": "bash ./build.sh",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
