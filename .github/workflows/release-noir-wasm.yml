@@ -1,0 +1,81 @@
+name: Update & Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: false
+
+jobs:
+  update-and-publish:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/checkout@v3
+        with:
+          repository: "noir-lang/noir"
+          ref: ${{ inputs.noir-ref || 'master' }}
+          path: ".cache/noir"
+
+      - name: Collect Revision
+        id: collect-rev
+        working-directory: ".cache/noir"
+        run: |
+          echo "NOIR_REV_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-22.05
+
+      - name: Build with Nix
+        run: |
+          nix build -L github:noir-lang/noir/master#wasm
+
+      - name: Configure git
+        run: |
+          git config user.name kobyhallx
+          git config user.email koby@aztecprotocol.com
+
+      - name: Copy output
+        run: |
+          cp -r $(readlink result)/* .
+
+      - name: Update version with git hash
+        if: ${{ !inputs.noir-ref }}
+        # This will generate the prerelease with something like `.0` but that is okay because it is proper SemVer
+        run: |
+          npm version --no-git-tag-version --preid ${{ steps.collect-rev.outputs.NOIR_REV_SHORT }} prerelease
+
+      - name: Commit updates
+        run: |
+          git add .
+          git commit -m "tracking noir@${{ steps.collect-rev.outputs.NOIR_REV_SHORT }}"
+          git push --force
+
+      - name: Publish to npm (nightly tag)
+        if: ${{ !inputs.noir-ref }}
+        run: |
+          npm publish --tag nightly
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm (latest tag)
+        if: ${{ inputs.noir-ref }}
+        run: |
+          npm publish --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
