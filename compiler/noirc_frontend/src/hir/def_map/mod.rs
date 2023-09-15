@@ -86,7 +86,7 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let ast = parse_file(&context.file_manager, root_file_id, errors);
 
         #[cfg(feature = "aztec")]
         let ast = aztec_library::transform(ast, &crate_id, context, errors);
@@ -237,7 +237,7 @@ pub struct Contract {
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(
-    fm: &mut FileManager,
+    fm: &FileManager,
     file_id: FileId,
     all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {
