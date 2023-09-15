@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  noirc-abi-wasm-build:
+  build:
     runs-on: ubuntu-latest
     env:
       CACHED_PATH: /tmp/nix-cache
@@ -77,6 +77,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+  test:
+    runs-on: ubuntu-latest
+    needs: [build]
+  
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+  
       - name: Checkout sources
         uses: actions/checkout@v3
 

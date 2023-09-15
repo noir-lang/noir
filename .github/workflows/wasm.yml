@@ -142,7 +142,7 @@ jobs:
         run: |
           cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
           cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
-          yarn workspace @noir-lang/noir-source-resolver build
+          yarn workspace @noir-lang/source-resolver build
           
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node

@@ -125,7 +125,7 @@ impl PartialEq<Ident> for Ident {
 
 impl PartialOrd for Ident {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.contents.partial_cmp(&other.0.contents)
+        Some(self.cmp(other))
     }
 }
 

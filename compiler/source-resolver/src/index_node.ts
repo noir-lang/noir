@@ -1,8 +1,8 @@
 /// <reference types="node" />
 
-import { initialiseResolver, read_file } from './index.js';
+import { initializeResolver, read_file } from './index.js';
 
-initialiseResolver((source_id: String) => {
+initializeResolver((source_id: String) => {
     let fileContent = "";
     try {
         const fs = require("fs");
@@ -15,6 +15,6 @@ initialiseResolver((source_id: String) => {
     return fileContent;
 });
 
-export { initialiseResolver, read_file };
+export { initializeResolver, read_file };
 
 
