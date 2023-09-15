@@ -1,5 +1,6 @@
 #pragma once
 
+#include "barretenberg/honk/instance/prover_instance.hpp"
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/proof_system/verifier.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
@@ -18,6 +19,7 @@ template <StandardFlavor Flavor> class StandardComposer_ {
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;
     using CommitmentKey = typename Flavor::CommitmentKey;
+    using Instance = ProverInstance_<Flavor>;
 
     static constexpr std::string_view NAME_STRING = "StandardHonk";
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
@@ -29,14 +31,11 @@ template <StandardFlavor Flavor> class StandardComposer_ {
 
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<CommitmentKey> commitment_key;
-
-    size_t total_num_gates;     // total num gates prior to computing dyadic size
-    size_t dyadic_circuit_size; // final dyadic circuit size
-    size_t num_public_inputs;
+    ;
 
     bool computed_witness = false;
     // TODO(Luke): use make_shared
-    // TODO(#637): design the crs factory better
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/637): design the crs factory better
     StandardComposer_()
     {
         if constexpr (IsGrumpkinFlavor<Flavor>) {
@@ -64,18 +63,15 @@ template <StandardFlavor Flavor> class StandardComposer_ {
     StandardComposer_& operator=(const StandardComposer_& other) = delete;
     ~StandardComposer_() = default;
 
-    std::shared_ptr<ProvingKey> compute_proving_key(const CircuitBuilder& circuit_constructor);
-    std::shared_ptr<VerificationKey> compute_verification_key(const CircuitBuilder& circuit_constructor);
+    std::shared_ptr<Instance> create_instance(CircuitBuilder& circuit);
 
-    StandardVerifier_<Flavor> create_verifier(const CircuitBuilder& circuit_constructor);
+    StandardProver_<Flavor> create_prover(std::shared_ptr<Instance>);
+    StandardVerifier_<Flavor> create_verifier(std::shared_ptr<Instance>);
 
-    StandardProver_<Flavor> create_prover(const CircuitBuilder& circuit_constructor);
-
-    void compute_witness(const CircuitBuilder& circuit_constructor, const size_t minimum_circuit_size = 0);
-
-    void compute_commitment_key(size_t circuit_size)
+    std::shared_ptr<CommitmentKey> compute_commitment_key(size_t circuit_size)
     {
         commitment_key = std::make_shared<CommitmentKey>(circuit_size, crs_factory_);
+        return commitment_key;
     };
 };
 

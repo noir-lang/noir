@@ -18,7 +18,7 @@ using namespace proof_system::honk;
 #define TYPE_ALIASES                                                                                                   \
     using Flavor = TypeParam;                                                                                          \
     using FF = typename Flavor::FF;                                                                                    \
-    using CircuitBuilder = StandardCircuitBuilder_<FF>;                                                                \
+    using CircuitBuilder = proof_system::StandardCircuitBuilder_<FF>;                                                  \
     using Composer = StandardComposer_<Flavor>;
 
 namespace test_standard_honk_composer {
@@ -28,7 +28,7 @@ template <typename Flavor> class StandardHonkComposerTests : public ::testing::T
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
     virtual void SetUp()
     {
-        if constexpr (IsGrumpkinFlavor<Flavor>) {
+        if constexpr (proof_system::IsGrumpkinFlavor<Flavor>) {
             barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
         } else {
             barretenberg::srs::init_crs_factory("../srs_db/ignition");
@@ -50,15 +50,16 @@ TYPED_TEST_SUITE(StandardHonkComposerTests, FlavorTypes);
 TYPED_TEST(StandardHonkComposerTests, SigmaIDCorrectness)
 {
     TYPE_ALIASES
-    auto test_permutation = [](CircuitBuilder& circuit_constructor, Composer& composer) {
-        auto prover = composer.create_prover(circuit_constructor);
-        auto proving_key = prover.key;
+    auto test_permutation = [](CircuitBuilder& builder, Composer& composer) {
+        auto instance = composer.create_instance(builder);
+        auto prover = composer.create_prover(instance);
+        auto proving_key = instance->proving_key;
 
         const auto n = proving_key->circuit_size;
 
-        auto public_inputs = circuit_constructor.get_public_inputs();
+        auto public_inputs = builder.get_public_inputs();
         auto num_public_inputs = public_inputs.size();
-        auto num_gates = circuit_constructor.get_num_gates();
+        auto num_gates = builder.get_num_gates();
 
         // Using the same random beta and gamma as in the permutation argument
         FF beta = FF::random_element();
@@ -131,30 +132,30 @@ TYPED_TEST(StandardHonkComposerTests, SigmaIDCorrectness)
         EXPECT_EQ(left, right);
     };
 
-    auto circuit_constructor = CircuitBuilder();
+    auto builder = CircuitBuilder();
     FF a = FF::one();
-    uint32_t a_idx = circuit_constructor.add_variable(a);
+    uint32_t a_idx = builder.add_variable(a);
     FF b = FF::one();
     FF c = a + b;
-    uint32_t b_idx = circuit_constructor.add_variable(b);
-    uint32_t c_idx = circuit_constructor.add_variable(c);
+    uint32_t b_idx = builder.add_variable(b);
+    uint32_t c_idx = builder.add_variable(c);
     FF d = a + c;
-    uint32_t d_idx = circuit_constructor.add_public_variable(d);
+    uint32_t d_idx = builder.add_public_variable(d);
 
-    uint32_t e_idx = circuit_constructor.put_constant_variable(d);
-    circuit_constructor.assert_equal(e_idx, d_idx, "");
+    uint32_t e_idx = builder.put_constant_variable(d);
+    builder.assert_equal(e_idx, d_idx, "");
 
-    circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-    circuit_constructor.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
-    circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-    circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-    circuit_constructor.create_add_gate({ b_idx, a_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+    builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+    builder.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
+    builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+    builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+    builder.create_add_gate({ b_idx, a_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
     for (size_t i = 0; i < 30; ++i) {
-        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+        builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
     }
 
     auto composer = Composer();
-    test_permutation(circuit_constructor, composer);
+    test_permutation(builder, composer);
 }
 
 /**
@@ -166,25 +167,25 @@ TYPED_TEST(StandardHonkComposerTests, LagrangeCorrectness)
     TYPE_ALIASES
     using Polynomial = typename Flavor::Polynomial;
     // Create a dummy circuit with a few gates
-    auto circuit_constructor = CircuitBuilder();
+    auto builder = CircuitBuilder();
     FF a = FF::one();
-    uint32_t a_idx = circuit_constructor.add_variable(a);
+    uint32_t a_idx = builder.add_variable(a);
     FF b = FF::one();
     FF c = a + b;
     FF d = a + c;
-    uint32_t b_idx = circuit_constructor.add_variable(b);
-    uint32_t c_idx = circuit_constructor.add_variable(c);
-    uint32_t d_idx = circuit_constructor.add_variable(d);
+    uint32_t b_idx = builder.add_variable(b);
+    uint32_t c_idx = builder.add_variable(c);
+    uint32_t d_idx = builder.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-        circuit_constructor.create_add_gate(
-            { d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
+        builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+        builder.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
     }
 
     // Generate proving key
     auto composer = Composer();
-    auto prover = composer.create_prover(circuit_constructor);
-    auto proving_key = prover.key;
+    auto instance = composer.create_instance(builder);
+    auto prover = composer.create_prover(instance);
+    auto proving_key = instance->proving_key;
 
     // Generate a random polynomial
     Polynomial random_polynomial = Polynomial(proving_key->circuit_size);
@@ -225,19 +226,17 @@ TYPED_TEST(StandardHonkComposerTests, AssertEquals)
      * @brief A function that creates a simple circuit with repeated gates, leading to large permutation cycles
      *
      */
-    auto create_simple_circuit = [](auto& circuit_constructor) {
+    auto create_simple_circuit = [](auto& builder) {
         FF a = FF::one();
-        uint32_t a_idx = circuit_constructor.add_variable(a);
+        uint32_t a_idx = builder.add_variable(a);
         FF b = FF::one();
         FF c = a + b;
-        uint32_t b_idx = circuit_constructor.add_variable(b);
-        uint32_t c_idx = circuit_constructor.add_variable(c);
+        uint32_t b_idx = builder.add_variable(b);
+        uint32_t c_idx = builder.add_variable(c);
 
         for (size_t i = 0; i < 10; i++) {
-            circuit_constructor.create_add_gate(
-                { a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-            circuit_constructor.create_add_gate(
-                { b_idx, a_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+            builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+            builder.create_add_gate({ b_idx, a_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
         }
         return std::make_tuple(a_idx, b_idx);
     };
@@ -245,10 +244,11 @@ TYPED_TEST(StandardHonkComposerTests, AssertEquals)
      * @brief A function that computes the largest cycle from the sigma permutation generated by the composer
      *
      */
-    auto get_maximum_cycle = [](auto& circuit_constructor, auto& composer) {
+    auto get_maximum_cycle = [](auto& builder, auto& composer) {
         // Compute the proving key for sigma polynomials
-        auto prover = composer.create_prover(circuit_constructor);
-        auto proving_key = prover.key;
+        auto instance = composer.create_instance(builder);
+        auto prover = composer.create_prover(instance);
+        auto proving_key = instance->proving_key;
 
         auto permutation_length = composer.NUM_WIRES * proving_key->circuit_size;
         auto sigma_polynomials = proving_key->get_sigma_polynomials();
@@ -302,23 +302,23 @@ TYPED_TEST(StandardHonkComposerTests, AssertEquals)
     };
 
     // Get 2 circuits
-    auto circuit_constructor_no_assert_equal = CircuitBuilder();
-    auto circuit_constructor_with_assert_equal = CircuitBuilder();
+    auto builder_no_assert_equal = CircuitBuilder();
+    auto builder_with_assert_equal = CircuitBuilder();
 
     // Construct circuits
-    create_simple_circuit(circuit_constructor_no_assert_equal);
-    auto assert_eq_params = create_simple_circuit(circuit_constructor_with_assert_equal);
+    create_simple_circuit(builder_no_assert_equal);
+    auto assert_eq_params = create_simple_circuit(builder_with_assert_equal);
 
     // Use assert_equal on one of them
-    circuit_constructor_with_assert_equal.assert_equal(std::get<0>(assert_eq_params),
-                                                       std::get<1>(assert_eq_params),
-                                                       "Equality asssertion in standard honk composer test");
+    builder_with_assert_equal.assert_equal(std::get<0>(assert_eq_params),
+                                           std::get<1>(assert_eq_params),
+                                           "Equality asssertion in standard honk composer test");
 
     // Check that the maximum cycle in the one, where we used assert_equal, is twice as long
     auto composer_no_assert_equal = Composer();
     auto composer_with_assert_equal = Composer();
-    EXPECT_EQ(get_maximum_cycle(circuit_constructor_with_assert_equal, composer_with_assert_equal),
-              get_maximum_cycle(circuit_constructor_no_assert_equal, composer_no_assert_equal) * 2);
+    EXPECT_EQ(get_maximum_cycle(builder_with_assert_equal, composer_with_assert_equal),
+              get_maximum_cycle(builder_no_assert_equal, composer_no_assert_equal) * 2);
 }
 
 TYPED_TEST(StandardHonkComposerTests, VerificationKeyCreation)
@@ -326,41 +326,41 @@ TYPED_TEST(StandardHonkComposerTests, VerificationKeyCreation)
     TYPE_ALIASES
 
     // Create a composer and a dummy circuit with a few gates
-    auto circuit_constructor = CircuitBuilder();
+    auto builder = CircuitBuilder();
     FF a = FF::one();
-    uint32_t a_idx = circuit_constructor.add_variable(a);
+    uint32_t a_idx = builder.add_variable(a);
     FF b = FF::one();
     FF c = a + b;
     FF d = a + c;
-    uint32_t b_idx = circuit_constructor.add_variable(b);
-    uint32_t c_idx = circuit_constructor.add_variable(c);
-    uint32_t d_idx = circuit_constructor.add_variable(d);
+    uint32_t b_idx = builder.add_variable(b);
+    uint32_t c_idx = builder.add_variable(c);
+    uint32_t d_idx = builder.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-        circuit_constructor.create_add_gate(
-            { d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
+        builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+        builder.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
     }
 
     auto composer = Composer();
-    composer.create_prover(circuit_constructor);
-    auto verification_key = composer.compute_verification_key(circuit_constructor);
+    auto instance = composer.create_instance(builder);
+    auto verification_key = instance->compute_verification_key();
     // There is nothing we can really check apart from the fact that constraint selectors and permutation selectors
     // were committed to, we simply check that the verification key now contains the appropriate number of
     // constraint and permutation selector commitments. This method should work with any future arithemtization.
-    EXPECT_EQ(verification_key->size(), circuit_constructor.selectors.size() + composer.NUM_WIRES * 2 + 2);
+    EXPECT_EQ(verification_key->size(), builder.selectors.size() + composer.NUM_WIRES * 2 + 2);
 }
 
 TYPED_TEST(StandardHonkComposerTests, BaseCase)
 {
     TYPE_ALIASES
-    auto circuit_constructor = CircuitBuilder();
+    auto builder = CircuitBuilder();
     FF a = 1;
-    circuit_constructor.add_variable(a);
+    builder.add_variable(a);
 
     auto composer = Composer();
-    auto prover = composer.create_prover(circuit_constructor);
+    auto instance = composer.create_instance(builder);
+    auto prover = composer.create_prover(instance);
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier(circuit_constructor);
+    auto verifier = composer.create_verifier(instance);
     bool verified = verifier.verify_proof(proof);
     ASSERT_TRUE(verified);
 }
@@ -369,29 +369,33 @@ TYPED_TEST(StandardHonkComposerTests, TwoGates)
 {
     TYPE_ALIASES
     auto run_test = [](bool expect_verified) {
-        auto circuit_constructor = CircuitBuilder();
+        if constexpr (proof_system::IsGrumpkinFlavor<Flavor>) {
+            barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+        }
+        auto builder = CircuitBuilder();
         // 1 + 1 - 2 = 0
         uint32_t w_l_1_idx;
         if (expect_verified) {
-            w_l_1_idx = circuit_constructor.add_variable(1);
+            w_l_1_idx = builder.add_variable(1);
         } else {
-            w_l_1_idx = circuit_constructor.add_variable(0);
+            w_l_1_idx = builder.add_variable(0);
         }
-        uint32_t w_r_1_idx = circuit_constructor.add_variable(1);
-        uint32_t w_o_1_idx = circuit_constructor.add_variable(2);
-        circuit_constructor.create_add_gate({ w_l_1_idx, w_r_1_idx, w_o_1_idx, 1, 1, -1, 0 });
+        uint32_t w_r_1_idx = builder.add_variable(1);
+        uint32_t w_o_1_idx = builder.add_variable(2);
+        builder.create_add_gate({ w_l_1_idx, w_r_1_idx, w_o_1_idx, 1, 1, -1, 0 });
 
         // 2 * 2 - 4 = 0
-        uint32_t w_l_2_idx = circuit_constructor.add_variable(2);
-        uint32_t w_r_2_idx = circuit_constructor.add_variable(2);
-        uint32_t w_o_2_idx = circuit_constructor.add_variable(4);
-        circuit_constructor.create_mul_gate({ w_l_2_idx, w_r_2_idx, w_o_2_idx, 1, -1, 0 });
+        uint32_t w_l_2_idx = builder.add_variable(2);
+        uint32_t w_r_2_idx = builder.add_variable(2);
+        uint32_t w_o_2_idx = builder.add_variable(4);
+        builder.create_mul_gate({ w_l_2_idx, w_r_2_idx, w_o_2_idx, 1, -1, 0 });
 
         auto composer = Composer();
-        auto prover = composer.create_prover(circuit_constructor);
+        auto instance = composer.create_instance(builder);
+        auto prover = composer.create_prover(instance);
         auto proof = prover.construct_proof();
 
-        auto verifier = composer.create_verifier(circuit_constructor);
+        auto verifier = composer.create_verifier(instance);
         bool verified = verifier.verify_proof(proof);
 
         EXPECT_EQ(verified, expect_verified);
@@ -405,10 +409,15 @@ TYPED_TEST(StandardHonkComposerTests, SumcheckEvaluations)
 {
     TYPE_ALIASES
     auto run_test = [](bool expected_result) {
-        auto circuit_constructor = CircuitBuilder();
+        if constexpr (proof_system::IsGrumpkinFlavor<Flavor>) {
+            barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+        } else {
+            barretenberg::srs::init_crs_factory("../srs_db/ignition");
+        }
+        auto builder = CircuitBuilder();
         FF a = FF::one();
         // Construct a small but non-trivial circuit
-        uint32_t a_idx = circuit_constructor.add_public_variable(a);
+        uint32_t a_idx = builder.add_public_variable(a);
         FF b = FF::one();
         FF c = a + b;
         FF d = a + c;
@@ -417,20 +426,19 @@ TYPED_TEST(StandardHonkComposerTests, SumcheckEvaluations)
             d += 1;
         };
 
-        uint32_t b_idx = circuit_constructor.add_variable(b);
-        uint32_t c_idx = circuit_constructor.add_variable(c);
-        uint32_t d_idx = circuit_constructor.add_variable(d);
-        for (size_t i = 0; i < 16; i++) {
-            circuit_constructor.create_add_gate(
-                { a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-            circuit_constructor.create_add_gate(
-                { d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
+        uint32_t b_idx = builder.add_variable(b);
+        uint32_t c_idx = builder.add_variable(c);
+        uint32_t d_idx = builder.add_variable(d);
+        for (size_t i = 0; i < 4; i++) {
+            builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+            builder.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
         }
 
         auto composer = Composer();
-        auto prover = composer.create_prover(circuit_constructor);
+        auto instance = composer.create_instance(builder);
+        auto prover = composer.create_prover(instance);
         auto proof = prover.construct_proof();
-        auto verifier = composer.create_verifier(circuit_constructor);
+        auto verifier = composer.create_verifier(instance);
         bool verified = verifier.verify_proof(proof);
         ASSERT_EQ(verified, expected_result);
     };

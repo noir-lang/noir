@@ -1,9 +1,9 @@
 #pragma once
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/standard_grumpkin.hpp"
+#include "barretenberg/honk/instance/prover_instance.hpp"
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
-#include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/proof_system/work_queue.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
@@ -24,10 +24,10 @@ template <StandardFlavor Flavor> class StandardProver_ {
     using CommitmentKey = typename Flavor::CommitmentKey;
     using PCS = typename Flavor::PCS;
     using Curve = typename Flavor::Curve;
+    using Instance = ProverInstance_<Flavor>;
 
   public:
-    explicit StandardProver_(std::shared_ptr<ProvingKey> input_key, std::shared_ptr<CommitmentKey> commitment_key);
-
+    explicit StandardProver_(std::shared_ptr<Instance>);
     void execute_preamble_round();
     void execute_wire_commitments_round();
     void execute_tables_round();
@@ -51,17 +51,10 @@ template <StandardFlavor Flavor> class StandardProver_ {
 
     std::vector<FF> public_inputs;
 
-    proof_system::RelationParameters<FF> relation_parameters;
-
-    std::shared_ptr<ProvingKey> key;
-
-    // Container for spans of all polynomials required by the prover (i.e. all multivariates evaluated by Sumcheck).
-    ProverPolynomials prover_polynomials;
-
     CommitmentLabels commitment_labels;
 
     // Container for d + 1 Fold polynomials produced by Gemini
-    std::vector<Polynomial> fold_polynomials;
+    std::vector<Polynomial> gemini_polynomials;
 
     Polynomial batched_quotient_Q; // batched quotient poly computed by Shplonk
     FF nu_challenge;               // needed in both Shplonk rounds
@@ -69,6 +62,8 @@ template <StandardFlavor Flavor> class StandardProver_ {
     Polynomial quotient_W;
 
     work_queue<Curve> queue;
+
+    std::shared_ptr<Instance> instance;
 
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
     pcs::gemini::ProverOutput<Curve> gemini_output;

@@ -470,31 +470,6 @@ void compute_standard_honk_id_polynomials(auto proving_key) // TODO(Cody): provi
 }
 
 /**
- * @brief Compute sigma permutations for standard honk and put them into polynomial cache
- *
- * @details These permutations don't involve sets. We only care about equating one witness value to another. The
- * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based
- on
- * the witness vector and index within the vector. These values are permuted to account for wire copy cycles
- *
- * @tparam program_width
- * @tparam CircuitBuilder
- * @param circuit_constructor
- * @param key
- */
-// TODO(#293): Update this (and all similar functions) to take a smart pointer.
-template <typename Flavor>
-void compute_standard_honk_sigma_permutations(const typename Flavor::CircuitBuilder& circuit_constructor,
-                                              typename Flavor::ProvingKey* proving_key)
-{
-    // Compute the permutation table specifying which element becomes which
-    auto mapping = compute_permutation_mapping<Flavor, /*generalized=*/false>(circuit_constructor, proving_key);
-    // Compute Honk-style sigma polynomial from the permutation table
-    compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
-        proving_key->get_sigma_polynomials(), mapping.sigmas, proving_key);
-}
-
-/**
  * @brief Compute sigma permutation polynomials for standard plonk and put them in the polynomial cache
  *
  * @tparam program_width Number of wires
@@ -552,6 +527,31 @@ void compute_plonk_generalized_sigma_permutations(const typename Flavor::Circuit
     // Compute the monomial and coset-ffts for sigmas and IDs
     compute_monomial_and_coset_fft_polynomials_from_lagrange<Flavor::NUM_WIRES>("sigma", key);
     compute_monomial_and_coset_fft_polynomials_from_lagrange<Flavor::NUM_WIRES>("id", key);
+}
+
+/**
+ * @brief Compute sigma permutations for standard honk and put them into polynomial cache
+ *
+ * @details These permutations don't involve sets. We only care about equating one witness value to another. The
+ * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based
+ on
+ * the witness vector and index within the vector. These values are permuted to account for wire copy cycles
+ *
+ * @tparam program_width
+ * @tparam CircuitBuilder
+ * @param circuit_constructor
+ * @param key
+ */
+// TODO(#293): Update this (and all similar functions) to take a smart pointer.
+template <typename Flavor>
+void compute_standard_honk_sigma_permutations(const typename Flavor::CircuitBuilder& circuit_constructor,
+                                              typename Flavor::ProvingKey* proving_key)
+{
+    // Compute the permutation table specifying which element becomes which
+    auto mapping = compute_permutation_mapping<Flavor, /*generalized=*/false>(circuit_constructor, proving_key);
+    // Compute Honk-style sigma polynomial from the permutation table
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping<Flavor>(
+        proving_key->get_sigma_polynomials(), mapping.sigmas, proving_key);
 }
 
 /**

@@ -7,7 +7,7 @@ namespace test_sumcheck_polynomials {
 
 template <typename Flavor> class PartialEvaluationTests : public testing::Test {};
 
-using Flavors = testing::Types<honk::flavor::Standard>;
+using Flavors = testing::Types<proof_system::honk::flavor::Standard>;
 
 TYPED_TEST_SUITE(PartialEvaluationTests, Flavors);
 
@@ -41,7 +41,7 @@ TYPED_TEST(PartialEvaluationTests, TwoRoundsSpecial)
 {
     using Flavor = TypeParam;
     using FF = typename Flavor::FF;
-    using Transcript = honk::ProverTranscript<FF>;
+    using Transcript = proof_system::honk::ProverTranscript<FF>;
 
     // values here are chosen to check another test
     const size_t multivariate_d(2);
@@ -79,7 +79,7 @@ TYPED_TEST(PartialEvaluationTests, TwoRoundsGeneric)
 {
     using Flavor = TypeParam;
     using FF = typename Flavor::FF;
-    using Transcript = honk::ProverTranscript<FF>;
+    using Transcript = proof_system::honk::ProverTranscript<FF>;
 
     const size_t multivariate_d(2);
     const size_t multivariate_n(1 << multivariate_d);
@@ -136,7 +136,7 @@ TYPED_TEST(PartialEvaluationTests, ThreeRoundsSpecial)
 {
     using Flavor = TypeParam;
     using FF = typename Flavor::FF;
-    using Transcript = honk::ProverTranscript<FF>;
+    using Transcript = proof_system::honk::ProverTranscript<FF>;
 
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
@@ -187,7 +187,7 @@ TYPED_TEST(PartialEvaluationTests, ThreeRoundsGeneric)
 {
     using Flavor = TypeParam;
     using FF = typename Flavor::FF;
-    using Transcript = honk::ProverTranscript<FF>;
+    using Transcript = proof_system::honk::ProverTranscript<FF>;
 
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
@@ -238,7 +238,7 @@ TYPED_TEST(PartialEvaluationTests, ThreeRoundsGenericMultiplePolys)
 {
     using Flavor = TypeParam;
     using FF = typename Flavor::FF;
-    using Transcript = honk::ProverTranscript<FF>;
+    using Transcript = proof_system::honk::ProverTranscript<FF>;
 
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);

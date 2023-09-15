@@ -15,7 +15,7 @@
 
 using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
-using Flavor = honk::flavor::Standard; // TODO(Cody): Generalize this test.
+using Flavor = proof_system::honk::flavor::Standard; // TODO(Cody): Generalize this test.
 using FF = typename Flavor::FF;
 using ProverPolynomials = typename Flavor::ProverPolynomials;
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
@@ -406,78 +406,44 @@ TEST_F(SumcheckTests, ProverAndVerifierLonger)
  */
 TEST_F(SumcheckTests, RealCircuitStandard)
 {
-    using Flavor = honk::flavor::Standard;
-    using FF = typename Flavor::FF;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
-
     // Create a composer and a dummy circuit with a few gates
-    auto circuit_constructor = StandardCircuitBuilder();
-    fr a = fr::one();
+    auto builder = proof_system::StandardCircuitBuilder();
+    FF a = FF::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
-    uint32_t a_idx = circuit_constructor.add_public_variable(a);
-    fr b = fr::one();
-    fr c = a + b;
-    fr d = a + c;
-    uint32_t b_idx = circuit_constructor.add_variable(b);
-    uint32_t c_idx = circuit_constructor.add_variable(c);
-    uint32_t d_idx = circuit_constructor.add_variable(d);
+    uint32_t a_idx = builder.add_public_variable(a);
+    FF b = FF::one();
+    FF c = a + b;
+    FF d = a + c;
+    uint32_t b_idx = builder.add_variable(b);
+    uint32_t c_idx = builder.add_variable(c);
+    uint32_t d_idx = builder.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-        circuit_constructor.create_add_gate(
-            { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+        builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
+        builder.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
     }
     // Create a prover (it will compute proving key and witness)
     auto composer = StandardComposer();
-    auto prover = composer.create_prover(circuit_constructor);
+    auto instance = composer.create_instance(builder);
 
     // Generate beta and gamma
-    fr beta = fr::random_element();
-    fr gamma = fr::random_element();
+    FF beta = FF::random_element();
+    FF gamma = FF::random_element();
 
-    // Compute public input delta
-    const auto public_inputs = circuit_constructor.get_public_inputs();
-    auto public_input_delta =
-        honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
-
-    proof_system::RelationParameters<FF> relation_parameters{
-        .beta = beta,
-        .gamma = gamma,
-        .public_input_delta = public_input_delta,
-    };
-
-    ProverPolynomials prover_polynomials;
-
-    prover_polynomials.w_l = prover.key->w_l;
-    prover_polynomials.w_r = prover.key->w_r;
-    prover_polynomials.w_o = prover.key->w_o;
-    prover_polynomials.q_m = prover.key->q_m;
-    prover_polynomials.q_l = prover.key->q_l;
-    prover_polynomials.q_r = prover.key->q_r;
-    prover_polynomials.q_o = prover.key->q_o;
-    prover_polynomials.q_c = prover.key->q_c;
-    prover_polynomials.sigma_1 = prover.key->sigma_1;
-    prover_polynomials.sigma_2 = prover.key->sigma_2;
-    prover_polynomials.sigma_3 = prover.key->sigma_3;
-    prover_polynomials.id_1 = prover.key->id_1;
-    prover_polynomials.id_2 = prover.key->id_2;
-    prover_polynomials.id_3 = prover.key->id_3;
-    prover_polynomials.lagrange_first = prover.key->lagrange_first;
-    prover_polynomials.lagrange_last = prover.key->lagrange_last;
-
-    // Compute grand product polynomial
-    grand_product_library::compute_grand_products<Flavor>(prover.key, prover_polynomials, relation_parameters);
+    instance->initialise_prover_polynomials();
+    instance->compute_grand_product_polynomials(beta, gamma);
 
     auto prover_transcript = ProverTranscript<FF>::init_empty();
+    auto circuit_size = instance->proving_key->circuit_size;
 
-    auto sumcheck_prover = SumcheckProver<Flavor>(prover.key->circuit_size, prover_transcript);
+    auto sumcheck_prover = SumcheckProver<Flavor>(circuit_size, prover_transcript);
 
-    auto prover_output = sumcheck_prover.prove(prover_polynomials, relation_parameters);
+    auto prover_output = sumcheck_prover.prove(instance->prover_polynomials, instance->relation_parameters);
 
     auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(prover.key->circuit_size);
+    auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
 
-    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
+    std::optional verifier_output = sumcheck_verifier.verify(instance->relation_parameters, verifier_transcript);
 
     ASSERT_TRUE(verifier_output.has_value());
 }
@@ -488,56 +454,55 @@ TEST_F(SumcheckTests, RealCircuitStandard)
  */
 TEST_F(SumcheckTests, RealCircuitUltra)
 {
-    using Flavor = honk::flavor::Ultra;
+    using Flavor = flavor::Ultra;
     using FF = typename Flavor::FF;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
 
     // Create a composer and a dummy circuit with a few gates
-    auto circuit_constructor = UltraCircuitBuilder();
-    fr a = fr::one();
+    auto builder = proof_system::UltraCircuitBuilder();
+    FF a = FF::one();
 
     // Add some basic add gates, with a public input for good measure
-    uint32_t a_idx = circuit_constructor.add_public_variable(a);
-    fr b = fr::one();
-    fr c = a + b;
-    fr d = a + c;
-    uint32_t b_idx = circuit_constructor.add_variable(b);
-    uint32_t c_idx = circuit_constructor.add_variable(c);
-    uint32_t d_idx = circuit_constructor.add_variable(d);
+    uint32_t a_idx = builder.add_public_variable(a);
+    FF b = FF::one();
+    FF c = a + b;
+    FF d = a + c;
+    uint32_t b_idx = builder.add_variable(b);
+    uint32_t c_idx = builder.add_variable(c);
+    uint32_t d_idx = builder.add_variable(d);
     for (size_t i = 0; i < 16; i++) {
-        circuit_constructor.create_add_gate({ a_idx, b_idx, c_idx, 1, 1, -1, 0 });
-        circuit_constructor.create_add_gate({ d_idx, c_idx, a_idx, 1, -1, -1, 0 });
+        builder.create_add_gate({ a_idx, b_idx, c_idx, 1, 1, -1, 0 });
+        builder.create_add_gate({ d_idx, c_idx, a_idx, 1, -1, -1, 0 });
     }
 
     // Add a big add gate with use of next row to test q_arith = 2
-    fr e = a + b + c + d;
-    uint32_t e_idx = circuit_constructor.add_variable(e);
+    FF e = a + b + c + d;
+    uint32_t e_idx = builder.add_variable(e);
 
-    uint32_t zero_idx = circuit_constructor.zero_idx;
-    circuit_constructor.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true); // use next row
-    circuit_constructor.create_big_add_gate({ zero_idx, zero_idx, zero_idx, e_idx, 0, 0, 0, 0, 0 }, false);
+    uint32_t zero_idx = builder.zero_idx;
+    builder.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true); // use next row
+    builder.create_big_add_gate({ zero_idx, zero_idx, zero_idx, e_idx, 0, 0, 0, 0, 0 }, false);
 
     // Add some lookup gates (related to pedersen hashing)
-    barretenberg::fr pedersen_input_value = fr::random_element();
-    const fr input_hi = uint256_t(pedersen_input_value).slice(126, 256);
-    const fr input_lo = uint256_t(pedersen_input_value).slice(0, 126);
-    const auto input_hi_index = circuit_constructor.add_variable(input_hi);
-    const auto input_lo_index = circuit_constructor.add_variable(input_lo);
+    auto pedersen_input_value = FF::random_element();
+    const FF input_hi = uint256_t(pedersen_input_value).slice(126, 256);
+    const FF input_lo = uint256_t(pedersen_input_value).slice(0, 126);
+    const auto input_hi_index = builder.add_variable(input_hi);
+    const auto input_lo_index = builder.add_variable(input_lo);
 
     const auto sequence_data_hi = plookup::get_lookup_accumulators(plookup::MultiTableId::PEDERSEN_LEFT_HI, input_hi);
     const auto sequence_data_lo = plookup::get_lookup_accumulators(plookup::MultiTableId::PEDERSEN_LEFT_LO, input_lo);
 
-    circuit_constructor.create_gates_from_plookup_accumulators(
+    builder.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::PEDERSEN_LEFT_HI, sequence_data_hi, input_hi_index);
-    circuit_constructor.create_gates_from_plookup_accumulators(
+    builder.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::PEDERSEN_LEFT_LO, sequence_data_lo, input_lo_index);
 
     // Add a sort gate (simply checks that consecutive inputs have a difference of < 4)
-    a_idx = circuit_constructor.add_variable(FF(0));
-    b_idx = circuit_constructor.add_variable(FF(1));
-    c_idx = circuit_constructor.add_variable(FF(2));
-    d_idx = circuit_constructor.add_variable(FF(3));
-    circuit_constructor.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
+    a_idx = builder.add_variable(FF(0));
+    b_idx = builder.add_variable(FF(1));
+    c_idx = builder.add_variable(FF(2));
+    d_idx = builder.add_variable(FF(3));
+    builder.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
 
     // Add an elliptic curve addition gate
     grumpkin::g1::affine_element p1 = crypto::generators::get_generator_data({ 0, 0 }).generator;
@@ -549,52 +514,51 @@ TEST_F(SumcheckTests, RealCircuitUltra)
 
     grumpkin::g1::affine_element p3(grumpkin::g1::element(p1) - grumpkin::g1::element(p2_endo));
 
-    uint32_t x1 = circuit_constructor.add_variable(p1.x);
-    uint32_t y1 = circuit_constructor.add_variable(p1.y);
-    uint32_t x2 = circuit_constructor.add_variable(p2.x);
-    uint32_t y2 = circuit_constructor.add_variable(p2.y);
-    uint32_t x3 = circuit_constructor.add_variable(p3.x);
-    uint32_t y3 = circuit_constructor.add_variable(p3.y);
+    uint32_t x1 = builder.add_variable(p1.x);
+    uint32_t y1 = builder.add_variable(p1.y);
+    uint32_t x2 = builder.add_variable(p2.x);
+    uint32_t y2 = builder.add_variable(p2.y);
+    uint32_t x3 = builder.add_variable(p3.x);
+    uint32_t y3 = builder.add_variable(p3.y);
 
-    circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta_scalar, -1 });
+    builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta_scalar, -1 });
 
     // Add some RAM gates
     uint32_t ram_values[8]{
-        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
-        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
-        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
-        circuit_constructor.add_variable(fr::random_element()), circuit_constructor.add_variable(fr::random_element()),
+        builder.add_variable(FF::random_element()), builder.add_variable(FF::random_element()),
+        builder.add_variable(FF::random_element()), builder.add_variable(FF::random_element()),
+        builder.add_variable(FF::random_element()), builder.add_variable(FF::random_element()),
+        builder.add_variable(FF::random_element()), builder.add_variable(FF::random_element()),
     };
 
-    size_t ram_id = circuit_constructor.create_RAM_array(8);
+    size_t ram_id = builder.create_RAM_array(8);
 
     for (size_t i = 0; i < 8; ++i) {
-        circuit_constructor.init_RAM_element(ram_id, i, ram_values[i]);
+        builder.init_RAM_element(ram_id, i, ram_values[i]);
     }
 
-    a_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(5));
+    a_idx = builder.read_RAM_array(ram_id, builder.add_variable(5));
     EXPECT_EQ(a_idx != ram_values[5], true);
 
-    b_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(4));
-    c_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(1));
+    b_idx = builder.read_RAM_array(ram_id, builder.add_variable(4));
+    c_idx = builder.read_RAM_array(ram_id, builder.add_variable(1));
 
-    circuit_constructor.write_RAM_array(
-        ram_id, circuit_constructor.add_variable(4), circuit_constructor.add_variable(500));
-    d_idx = circuit_constructor.read_RAM_array(ram_id, circuit_constructor.add_variable(4));
+    builder.write_RAM_array(ram_id, builder.add_variable(4), builder.add_variable(500));
+    d_idx = builder.read_RAM_array(ram_id, builder.add_variable(4));
 
-    EXPECT_EQ(circuit_constructor.get_variable(d_idx), 500);
+    EXPECT_EQ(builder.get_variable(d_idx), 500);
 
     // ensure these vars get used in another arithmetic gate
-    const auto e_value = circuit_constructor.get_variable(a_idx) + circuit_constructor.get_variable(b_idx) +
-                         circuit_constructor.get_variable(c_idx) + circuit_constructor.get_variable(d_idx);
-    e_idx = circuit_constructor.add_variable(e_value);
+    const auto e_value = builder.get_variable(a_idx) + builder.get_variable(b_idx) + builder.get_variable(c_idx) +
+                         builder.get_variable(d_idx);
+    e_idx = builder.add_variable(e_value);
 
-    circuit_constructor.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true);
-    circuit_constructor.create_big_add_gate(
+    builder.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, -1, -1, -1, -1, 0 }, true);
+    builder.create_big_add_gate(
         {
-            circuit_constructor.zero_idx,
-            circuit_constructor.zero_idx,
-            circuit_constructor.zero_idx,
+            builder.zero_idx,
+            builder.zero_idx,
+            builder.zero_idx,
             e_idx,
             0,
             0,
@@ -606,92 +570,29 @@ TEST_F(SumcheckTests, RealCircuitUltra)
 
     // Create a prover (it will compute proving key and witness)
     auto composer = UltraComposer();
-    auto prover = composer.create_prover(circuit_constructor);
+    auto instance = composer.create_instance(builder);
 
     // Generate eta, beta and gamma
-    fr eta = fr::random_element();
-    fr beta = fr::random_element();
-    fr gamma = fr::random_element();
+    FF eta = FF::random_element();
+    FF beta = FF::random_element();
+    FF gamma = FF::random_element();
 
-    // Compute public input delta
-    const auto public_inputs = circuit_constructor.get_public_inputs();
-    size_t pub_inputs_offset = Flavor::has_zero_row ? 1 : 0;
-    auto public_input_delta = honk::compute_public_input_delta<Flavor>(
-        public_inputs, beta, gamma, prover.key->circuit_size, pub_inputs_offset);
-    auto lookup_grand_product_delta =
-        honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
-
-    proof_system::RelationParameters<FF> relation_parameters{
-        .eta = eta,
-        .beta = beta,
-        .gamma = gamma,
-        .public_input_delta = public_input_delta,
-        .lookup_grand_product_delta = lookup_grand_product_delta,
-    };
-
-    // Compute sorted witness-table accumulator
-    prover.key->sorted_accum = prover_library::compute_sorted_list_accumulator<Flavor>(prover.key, eta);
-
-    // Add RAM/ROM memory records to wire four
-    prover_library::add_plookup_memory_records_to_wire_4<Flavor>(prover.key, eta);
-
-    ProverPolynomials prover_polynomials;
-
-    prover_polynomials.w_l = prover.key->w_l;
-    prover_polynomials.w_r = prover.key->w_r;
-    prover_polynomials.w_o = prover.key->w_o;
-    prover_polynomials.w_4 = prover.key->w_4;
-    prover_polynomials.w_l_shift = prover.key->w_l.shifted();
-    prover_polynomials.w_r_shift = prover.key->w_r.shifted();
-    prover_polynomials.w_o_shift = prover.key->w_o.shifted();
-    prover_polynomials.w_4_shift = prover.key->w_4.shifted();
-    prover_polynomials.sorted_accum = prover.key->sorted_accum;
-    prover_polynomials.sorted_accum_shift = prover.key->sorted_accum.shifted();
-    prover_polynomials.table_1 = prover.key->table_1;
-    prover_polynomials.table_2 = prover.key->table_2;
-    prover_polynomials.table_3 = prover.key->table_3;
-    prover_polynomials.table_4 = prover.key->table_4;
-    prover_polynomials.table_1_shift = prover.key->table_1.shifted();
-    prover_polynomials.table_2_shift = prover.key->table_2.shifted();
-    prover_polynomials.table_3_shift = prover.key->table_3.shifted();
-    prover_polynomials.table_4_shift = prover.key->table_4.shifted();
-    prover_polynomials.z_lookup = prover.key->z_lookup;
-    prover_polynomials.z_lookup_shift = prover.key->z_lookup.shifted();
-    prover_polynomials.q_m = prover.key->q_m;
-    prover_polynomials.q_l = prover.key->q_l;
-    prover_polynomials.q_r = prover.key->q_r;
-    prover_polynomials.q_o = prover.key->q_o;
-    prover_polynomials.q_c = prover.key->q_c;
-    prover_polynomials.q_4 = prover.key->q_4;
-    prover_polynomials.q_arith = prover.key->q_arith;
-    prover_polynomials.q_sort = prover.key->q_sort;
-    prover_polynomials.q_elliptic = prover.key->q_elliptic;
-    prover_polynomials.q_aux = prover.key->q_aux;
-    prover_polynomials.q_lookup = prover.key->q_lookup;
-    prover_polynomials.sigma_1 = prover.key->sigma_1;
-    prover_polynomials.sigma_2 = prover.key->sigma_2;
-    prover_polynomials.sigma_3 = prover.key->sigma_3;
-    prover_polynomials.sigma_4 = prover.key->sigma_4;
-    prover_polynomials.id_1 = prover.key->id_1;
-    prover_polynomials.id_2 = prover.key->id_2;
-    prover_polynomials.id_3 = prover.key->id_3;
-    prover_polynomials.id_4 = prover.key->id_4;
-    prover_polynomials.lagrange_first = prover.key->lagrange_first;
-    prover_polynomials.lagrange_last = prover.key->lagrange_last;
-
-    grand_product_library::compute_grand_products<Flavor>(prover.key, prover_polynomials, relation_parameters);
+    instance->initialise_prover_polynomials();
+    instance->compute_sorted_accumulator_polynomials(eta);
+    instance->compute_grand_product_polynomials(beta, gamma);
 
     auto prover_transcript = ProverTranscript<FF>::init_empty();
+    auto circuit_size = instance->proving_key->circuit_size;
 
-    auto sumcheck_prover = SumcheckProver<Flavor>(prover.key->circuit_size, prover_transcript);
+    auto sumcheck_prover = SumcheckProver<Flavor>(circuit_size, prover_transcript);
 
-    auto prover_output = sumcheck_prover.prove(prover_polynomials, relation_parameters);
+    auto prover_output = sumcheck_prover.prove(instance->prover_polynomials, instance->relation_parameters);
 
     auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(prover.key->circuit_size);
+    auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
 
-    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
+    std::optional verifier_output = sumcheck_verifier.verify(instance->relation_parameters, verifier_transcript);
 
     ASSERT_TRUE(verifier_output.has_value());
 }

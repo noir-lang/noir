@@ -1,6 +1,5 @@
 #include "prover.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
-#include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
@@ -16,50 +15,12 @@ namespace proof_system::honk {
  * @tparam settings Settings class.
  * */
 template <StandardFlavor Flavor>
-StandardProver_<Flavor>::StandardProver_(const std::shared_ptr<ProvingKey> input_key,
-                                         const std::shared_ptr<CommitmentKey> commitment_key)
-    : key(input_key)
-    , queue(commitment_key, transcript)
-    , pcs_commitment_key(commitment_key)
+StandardProver_<Flavor>::StandardProver_(std::shared_ptr<Instance> inst)
+    : queue(inst->commitment_key, transcript)
+    , instance(std::move(inst))
+    , pcs_commitment_key(instance->commitment_key)
 {
-    prover_polynomials.q_c = key->q_c;
-    prover_polynomials.q_l = key->q_l;
-    prover_polynomials.q_r = key->q_r;
-    prover_polynomials.q_o = key->q_o;
-    prover_polynomials.q_m = key->q_m;
-    prover_polynomials.sigma_1 = key->sigma_1;
-    prover_polynomials.sigma_2 = key->sigma_2;
-    prover_polynomials.sigma_3 = key->sigma_3;
-    prover_polynomials.id_1 = key->id_1;
-    prover_polynomials.id_2 = key->id_2;
-    prover_polynomials.id_3 = key->id_3;
-    prover_polynomials.lagrange_first = key->lagrange_first;
-    prover_polynomials.lagrange_last = key->lagrange_last;
-    prover_polynomials.w_l = key->w_l;
-    prover_polynomials.w_r = key->w_r;
-    prover_polynomials.w_o = key->w_o;
-
-    // Add public inputs to transcript from the second wire polynomial
-    std::span<FF> public_wires_source = prover_polynomials.w_r;
-
-    for (size_t i = 0; i < key->num_public_inputs; ++i) {
-        public_inputs.emplace_back(public_wires_source[i]);
-    }
-}
-
-/**
- * - Add commitment to wires 1,2,3 to work queue
- * - Add PI to transcript (I guess PI will stay in w_2 for now?)
- *
- * */
-template <StandardFlavor Flavor> void StandardProver_<Flavor>::compute_wire_commitments()
-{
-    size_t wire_idx = 0; // TODO(#391) zip
-    auto wire_polys = key->get_wires();
-    for (auto& label : commitment_labels.get_wires()) {
-        queue.add_commitment(wire_polys[wire_idx], label);
-        ++wire_idx;
-    }
+    instance->initialise_prover_polynomials();
 }
 
 /**
@@ -68,24 +29,31 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::compute_wire_comm
  * */
 template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_preamble_round()
 {
-    const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
-    const auto num_public_inputs = static_cast<uint32_t>(key->num_public_inputs);
+    const auto circuit_size = static_cast<uint32_t>(instance->proving_key->circuit_size);
+    const auto num_public_inputs = static_cast<uint32_t>(instance->proving_key->num_public_inputs);
 
     transcript.send_to_verifier("circuit_size", circuit_size);
     transcript.send_to_verifier("public_input_size", num_public_inputs);
 
-    for (size_t i = 0; i < key->num_public_inputs; ++i) {
-        auto public_input_i = public_inputs[i];
+    for (size_t i = 0; i < instance->proving_key->num_public_inputs; ++i) {
+        auto public_input_i = instance->public_inputs[i];
         transcript.send_to_verifier("public_input_" + std::to_string(i), public_input_i);
     }
 }
 
 /**
- * - compute wire commitments
+ * - Add commitment to wires 1,2,3 to work queue
+ * - Add PI to transcript (I guess PI will stay in w_2 for now?)
+ *
  * */
 template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_wire_commitments_round()
 {
-    compute_wire_commitments();
+    size_t wire_idx = 0; // TODO(#391) zip
+    auto wire_polys = instance->proving_key->get_wires();
+    for (auto& label : commitment_labels.get_wires()) {
+        queue.add_commitment(wire_polys[wire_idx], label);
+        ++wire_idx;
+    }
 }
 
 /**
@@ -105,17 +73,9 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_grand_pro
     // Compute and store parameters required by relations in Sumcheck
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
-    auto public_input_delta = compute_public_input_delta<Flavor>(public_inputs, beta, gamma, key->circuit_size);
+    instance->compute_grand_product_polynomials(beta, gamma);
 
-    relation_parameters = proof_system::RelationParameters<FF>{
-        .beta = beta,
-        .gamma = gamma,
-        .public_input_delta = public_input_delta,
-    };
-
-    grand_product_library::compute_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
-
-    queue.add_commitment(key->z_perm, commitment_labels.z_perm);
+    queue.add_commitment(instance->proving_key->z_perm, commitment_labels.z_perm);
 }
 
 /**
@@ -127,9 +87,9 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_relation_
 {
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
-    auto sumcheck = Sumcheck(key->circuit_size, transcript);
+    auto sumcheck = Sumcheck(instance->proving_key->circuit_size, transcript);
 
-    sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters);
+    sumcheck_output = sumcheck.prove(instance->prover_polynomials, instance->relation_parameters);
 }
 
 /**
@@ -144,6 +104,8 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_univariat
     // Generate batching challenge ρ and powers 1,ρ,…,ρᵐ⁻¹
     FF rho = transcript.get_challenge("rho");
     std::vector<FF> rhos = pcs::gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
+    auto key = instance->proving_key;
+    auto prover_polynomials = instance->prover_polynomials;
 
     // Batch the unshifted polynomials and the to-be-shifted polynomials using ρ
     Polynomial batched_poly_unshifted(key->circuit_size); // batched unshifted polynomials
@@ -160,12 +122,12 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_univariat
     };
 
     // Compute d-1 polynomials Fold^(i), i = 1, ..., d-1.
-    fold_polynomials = Gemini::compute_fold_polynomials(
+    gemini_polynomials = Gemini::compute_gemini_polynomials(
         sumcheck_output.challenge_point, std::move(batched_poly_unshifted), std::move(batched_poly_to_be_shifted));
 
     // Compute and add to trasnscript the commitments [Fold^(i)], i = 1, ..., d-1
     for (size_t l = 0; l < key->log_circuit_size - 1; ++l) {
-        queue.add_commitment(fold_polynomials[l + 2], "Gemini:FOLD_" + std::to_string(l + 1));
+        queue.add_commitment(gemini_polynomials[l + 2], "Gemini:FOLD_" + std::to_string(l + 1));
     }
 }
 
@@ -179,9 +141,9 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_pcs_evalu
 {
     const FF r_challenge = transcript.get_challenge("Gemini:r");
     gemini_output = Gemini::compute_fold_polynomial_evaluations(
-        sumcheck_output.challenge_point, std::move(fold_polynomials), r_challenge);
+        sumcheck_output.challenge_point, std::move(gemini_polynomials), r_challenge);
 
-    for (size_t l = 0; l < key->log_circuit_size; ++l) {
+    for (size_t l = 0; l < instance->proving_key->log_circuit_size; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
         const auto& evaluation = gemini_output.opening_pairs[l + 1].evaluation;
         transcript.send_to_verifier(label, evaluation);

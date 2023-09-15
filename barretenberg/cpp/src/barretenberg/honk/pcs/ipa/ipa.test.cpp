@@ -131,19 +131,19 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
 
     auto prover_transcript = ProverTranscript<Fr>::init_empty();
 
-    auto fold_polynomials = GeminiProver::compute_fold_polynomials(
+    auto gemini_polynomials = GeminiProver::compute_gemini_polynomials(
         mle_opening_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
 
     for (size_t l = 0; l < log_n - 1; ++l) {
         std::string label = "FOLD_" + std::to_string(l + 1);
-        auto commitment = this->ck()->commit(fold_polynomials[l + 2]);
+        auto commitment = this->ck()->commit(gemini_polynomials[l + 2]);
         prover_transcript.send_to_verifier(label, commitment);
     }
 
     const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
 
-    const auto [gemini_opening_pairs, gemini_witnesses] =
-        GeminiProver::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
+    const auto [gemini_opening_pairs, gemini_witnesses] = GeminiProver::compute_fold_polynomial_evaluations(
+        mle_opening_point, std::move(gemini_polynomials), r_challenge);
 
     for (size_t l = 0; l < log_n; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);

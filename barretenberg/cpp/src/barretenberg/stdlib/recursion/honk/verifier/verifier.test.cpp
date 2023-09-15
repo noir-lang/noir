@@ -112,13 +112,14 @@ template <typename UseGoblinFlag> class RecursiveVerifierTest : public testing::
     {
         // Create proof of inner circuit
         InnerComposer inner_composer;
-        auto prover = inner_composer.create_prover(inner_circuit);
+        auto instance = inner_composer.create_instance(inner_circuit);
+        auto prover = inner_composer.create_prover(instance);
         auto proof_to_recursively_verify = prover.construct_proof();
 
-        info("Inner circuit size = ", prover.key->circuit_size);
+        info("Inner circuit size = ", instance->proving_key->circuit_size);
 
         // Compute native verification key
-        const auto native_verification_key = inner_composer.compute_verification_key(inner_circuit);
+        const auto native_verification_key = instance->compute_verification_key();
 
         // Instantiate the recursive verification key from the native verification key
         auto verification_key = std::make_shared<VerificationKey>(&outer_builder, native_verification_key);
@@ -128,7 +129,7 @@ template <typename UseGoblinFlag> class RecursiveVerifierTest : public testing::
         auto pairing_points = verifier.verify_proof(proof_to_recursively_verify);
 
         // For testing purposes only, perform native verification and compare the result
-        auto native_verifier = inner_composer.create_verifier(inner_circuit);
+        auto native_verifier = inner_composer.create_verifier(instance);
         auto native_result = native_verifier.verify_proof(proof_to_recursively_verify);
 
         // Extract the pairing points from the recursive verifier output and perform the pairing natively. The result
@@ -187,8 +188,9 @@ template <typename UseGoblinFlag> class RecursiveVerifierTest : public testing::
 
         // Compute native verification key
         InnerComposer inner_composer;
-        auto prover = inner_composer.create_prover(inner_circuit); // A prerequisite for computing VK
-        const auto native_verification_key = inner_composer.compute_verification_key(inner_circuit);
+        auto instance = inner_composer.create_instance(inner_circuit);
+        auto prover = inner_composer.create_prover(instance); // A prerequisite for computing VK
+        const auto native_verification_key = instance->compute_verification_key();
 
         // Instantiate the recursive verification key from the native verification key
         auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, native_verification_key);

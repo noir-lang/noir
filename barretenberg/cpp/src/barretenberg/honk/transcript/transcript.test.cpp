@@ -11,16 +11,26 @@
 using namespace proof_system::honk;
 
 template <typename Flavor> class TranscriptTests : public testing::Test {
-  public:
+  protected:
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/640): The Standard Honk on Grumpkin test suite fails
+    // unless the SRS is initialised for every test.
+    virtual void SetUp()
+    {
+        if constexpr (proof_system::IsGrumpkinFlavor<Flavor>) {
+            barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+        } else {
+            barretenberg::srs::init_crs_factory("../srs_db/ignition");
+        }
+    };
+
     using FF = typename Flavor::FF;
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
 
     /**
      * @brief Construct a manifest for a standard Honk proof
      *
-     * @details This is where we define the "Manifest" for a Standard Honk proof. The tests in this suite are intented
-     * to warn the developer if the Prover/Verifier has deviated from this manifest, however, the Transcript class is
-     * not otherwise contrained to follow the manifest.
+     * @details This is where we define the "Manifest" for a Standard Honk proof. The tests in this suite are
+     * intented to warn the developer if the Prover/Verifier has deviated from this manifest, however, the
+     * Transcript class is not otherwise contrained to follow the manifest.
      *
      * @note Entries in the manifest consist of a name string and a size (bytes), NOT actual data.
      *
@@ -85,7 +95,7 @@ template <typename Flavor> class TranscriptTests : public testing::Test {
 
         round++;
         // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
-        if constexpr (IsGrumpkinFlavor<Flavor>) {
+        if constexpr (proof_system::IsGrumpkinFlavor<Flavor>) {
             manifest_expected.add_entry(round, "IPA:poly_degree", size_uint64);
             manifest_expected.add_challenge(round, "IPA:generator_challenge");
 
@@ -122,17 +132,18 @@ TYPED_TEST(TranscriptTests, ProverManifestConsistency)
     using Flavor = TypeParam;
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
     typename Flavor::FF a = 1;
-    auto circuit_constructor = typename Flavor::CircuitBuilder();
-    circuit_constructor.add_variable(a);
-    circuit_constructor.add_public_variable(a);
+    auto builder = typename Flavor::CircuitBuilder();
+    builder.add_variable(a);
+    builder.add_public_variable(a);
 
     // Automatically generate a transcript manifest by constructing a proof
     auto composer = StandardComposer_<Flavor>();
-    auto prover = composer.create_prover(circuit_constructor);
-    plonk::proof proof = prover.construct_proof();
+    auto instance = composer.create_instance(builder);
+    auto prover = composer.create_prover(instance);
+    auto proof = prover.construct_proof();
 
     // Check that the prover generated manifest agrees with the manifest hard coded in this suite
-    auto manifest_expected = TestFixture::construct_standard_honk_manifest(prover.key->circuit_size);
+    auto manifest_expected = TestFixture::construct_standard_honk_manifest(instance->proving_key->circuit_size);
     auto prover_manifest = prover.transcript.get_manifest();
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < manifest_expected.size(); ++round) {
@@ -150,17 +161,18 @@ TYPED_TEST(TranscriptTests, VerifierManifestConsistency)
     using Flavor = TypeParam;
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
     typename Flavor::FF a = 1;
-    auto circuit_constructor = typename Flavor::CircuitBuilder();
-    circuit_constructor.add_variable(a);
-    circuit_constructor.add_public_variable(a);
+    auto builder = typename Flavor::CircuitBuilder();
+    builder.add_variable(a);
+    builder.add_public_variable(a);
 
     // Automatically generate a transcript manifest in the prover by constructing a proof
     auto composer = StandardComposer_<Flavor>();
-    auto prover = composer.create_prover(circuit_constructor);
-    plonk::proof proof = prover.construct_proof();
+    auto instance = composer.create_instance(builder);
+    auto prover = composer.create_prover(instance);
+    auto proof = prover.construct_proof();
 
     // Automatically generate a transcript manifest in the verifier by verifying a proof
-    auto verifier = composer.create_verifier(circuit_constructor);
+    auto verifier = composer.create_verifier(instance);
     verifier.verify_proof(proof);
     prover.transcript.print();
     verifier.transcript.print();
@@ -277,30 +289,34 @@ TYPED_TEST(TranscriptTests, VerifierMistake)
     EXPECT_NE(prover_transcript.get_manifest(), verifier_transcript.get_manifest());
 }
 
+class UltraTranscriptTests : public ::testing::Test {
+  public:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+
 /**
  * @brief Ensure consistency between the manifest generated by the ultra honk prover over the course of proof
  * construction and the one generated by the verifier over the course of proof verification.
  *
  */
-// TODO(Mara): This is not a typed test and we should have a construct_ultra_honk_manifest as well.
-TYPED_TEST(TranscriptTests, UltraVerifierManifestConsistency)
+TEST_F(UltraTranscriptTests, UltraVerifierManifestConsistency)
 {
+
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    auto circuit_constructor = proof_system::UltraCircuitBuilder();
+    auto builder = proof_system::UltraCircuitBuilder();
 
-    // fr a = 2;
-    // circuit_constructor.add_variable(a);
-    // circuit_constructor.add_public_variable(a);
-
-    circuit_constructor.add_gates_to_ensure_all_polys_are_non_zero();
+    auto a = 2;
+    builder.add_variable(a);
+    builder.add_public_variable(a);
 
     // Automatically generate a transcript manifest in the prover by constructing a proof
     auto composer = UltraComposer();
-    auto prover = composer.create_prover(circuit_constructor);
-    plonk::proof proof = prover.construct_proof();
+    auto instance = composer.create_instance(builder);
+    auto prover = composer.create_prover(instance);
+    auto proof = prover.construct_proof();
 
     // Automatically generate a transcript manifest in the verifier by verifying a proof
-    auto verifier = composer.create_verifier(circuit_constructor);
+    auto verifier = composer.create_verifier(instance);
     verifier.verify_proof(proof);
 
     prover.transcript.print();
@@ -311,6 +327,48 @@ TYPED_TEST(TranscriptTests, UltraVerifierManifestConsistency)
     auto verifier_manifest = verifier.transcript.get_manifest();
 
     // Note: a manifest can be printed using manifest.print()
+    for (size_t round = 0; round < prover_manifest.size(); ++round) {
+        ASSERT_EQ(prover_manifest[round], verifier_manifest[round])
+            << "Prover/Verifier manifest discrepency in round " << round;
+    }
+}
+
+TEST_F(UltraTranscriptTests, FoldingManifestTest)
+{
+    auto builder_one = proof_system::UltraCircuitBuilder();
+    auto a = 2;
+    auto b = 3;
+    builder_one.add_variable(a);
+    builder_one.add_public_variable(a);
+    builder_one.add_public_variable(b);
+
+    auto builder_two = proof_system::UltraCircuitBuilder();
+    a = 3;
+    b = 4;
+    builder_two.add_variable(a);
+    builder_two.add_variable(b);
+    builder_two.add_public_variable(a);
+    builder_two.add_public_variable(b);
+
+    auto composer = UltraComposer();
+    auto instance_one = composer.create_instance(builder_one);
+    auto instance_two = composer.create_instance(builder_two);
+
+    std::vector<std::shared_ptr<ProverInstance>> insts;
+    insts.emplace_back(instance_one);
+    insts.emplace_back(instance_two);
+    auto prover = composer.create_folding_prover(insts);
+    auto verifier = composer.create_folding_verifier(insts);
+
+    auto prover_res = prover.fold_instances();
+    verifier.fold_public_parameters(prover_res.folding_data);
+
+    prover.transcript.print();
+    verifier.transcript.print();
+
+    // Check consistency between the manifests generated by the prover and verifier
+    auto prover_manifest = prover.transcript.get_manifest();
+    auto verifier_manifest = verifier.transcript.get_manifest();
     for (size_t round = 0; round < prover_manifest.size(); ++round) {
         ASSERT_EQ(prover_manifest[round], verifier_manifest[round])
             << "Prover/Verifier manifest discrepency in round " << round;

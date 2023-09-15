@@ -102,12 +102,12 @@ template <typename Curve> class GeminiProver_ {
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
-    static std::vector<Polynomial> compute_fold_polynomials(std::span<const Fr> mle_opening_point,
-                                                            Polynomial&& batched_unshifted,
-                                                            Polynomial&& batched_to_be_shifted);
+    static std::vector<Polynomial> compute_gemini_polynomials(std::span<const Fr> mle_opening_point,
+                                                              Polynomial&& batched_unshifted,
+                                                              Polynomial&& batched_to_be_shifted);
 
     static ProverOutput<Curve> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
-                                                                   std::vector<Polynomial>&& fold_polynomials,
+                                                                   std::vector<Polynomial>&& gemini_polynomials,
                                                                    const Fr& r_challenge);
 }; // namespace proof_system::honk::pcs::gemini
 

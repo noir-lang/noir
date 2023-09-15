@@ -22,11 +22,11 @@ class Ultra {
   public:
     using CircuitBuilder = UltraCircuitBuilder;
     using Curve = curve::BN254;
-    using PCS = pcs::kzg::KZG<Curve>;
+    using FF = Curve::ScalarField;
     using GroupElement = Curve::Element;
     using Commitment = Curve::AffineElement;
     using CommitmentHandle = Curve::AffineElement;
-    using FF = Curve::ScalarField;
+    using PCS = pcs::kzg::KZG<Curve>;
     using Polynomial = barretenberg::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
     using CommitmentKey = pcs::CommitmentKey<Curve>;
@@ -389,6 +389,12 @@ class Ultra {
             lagrange_first = verification_key->lagrange_first;
             lagrange_last = verification_key->lagrange_last;
         }
+    };
+
+    class FoldingParameters {
+      public:
+        FF gate_separation_challenge;
+        FF target_sum;
     };
 };
 

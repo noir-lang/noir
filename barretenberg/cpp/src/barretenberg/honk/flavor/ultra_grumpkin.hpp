@@ -397,6 +397,11 @@ class UltraGrumpkin {
             lagrange_last = verification_key->lagrange_last;
         }
     };
+    class FoldingParameters {
+      public:
+        FF gate_separation_challenge;
+        FF target_sum;
+    };
 };
 
 } // namespace proof_system::honk::flavor

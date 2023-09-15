@@ -1,23 +1,17 @@
 
-#include "prover_library.hpp"
+#include "grand_product_library.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
-#include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "prover.hpp"
 
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
-#include <array>
-#include <cstddef>
 #include <gtest/gtest.h>
-#include <string>
-#include <vector>
 
 using namespace proof_system::honk;
-namespace prover_library_tests {
+namespace grand_product_library_tests {
 
-template <class FF> class ProverLibraryTests : public testing::Test {
+template <class FF> class GrandProductTests : public testing::Test {
 
     using Polynomial = barretenberg::Polynomial<FF>;
 
@@ -216,7 +210,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         static const size_t num_public_inputs = 0;
 
         // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
-        using Flavor = honk::flavor::Ultra;
+        using Flavor = flavor::Ultra;
         auto proving_key = std::make_shared<typename Flavor::ProvingKey>(circuit_size, num_public_inputs);
 
         // Construct mock wire and permutation polynomials.
@@ -375,70 +369,20 @@ template <class FF> class ProverLibraryTests : public testing::Test {
 
         EXPECT_EQ(proving_key->z_lookup, z_lookup_expected);
     };
-
-    /**
-     * @brief Check consistency of the computation of the sorted list accumulator
-     * @details This test compares a simple, unoptimized, easily readable calculation of the sorted list accumulator
-     * to the optimized implementation used by the prover. It's purpose is to provide confidence that some optimization
-     * introduced into the calculation has not changed the result.
-     * @note This test does confirm the correctness of the sorted list accumulator, only that the two implementations
-     * yield an identical result.
-     */
-    static void test_sorted_list_accumulator_construction()
-    {
-        // Construct a proving_key
-        static const size_t circuit_size = 8;
-        static const size_t num_public_inputs = 0;
-        using Flavor = honk::flavor::Ultra;
-        auto proving_key = std::make_shared<typename Flavor::ProvingKey>(circuit_size, num_public_inputs);
-
-        // Get random challenge eta
-        auto eta = FF::random_element();
-
-        // Construct mock sorted list polynomials.
-        std::vector<Polynomial> sorted_lists;
-        auto sorted_list_polynomials = proving_key->get_sorted_polynomials();
-        for (auto& sorted_list_poly : sorted_list_polynomials) {
-            Polynomial random_polynomial = get_random_polynomial(circuit_size);
-            sorted_lists.emplace_back(random_polynomial);
-            populate_span(sorted_list_poly, random_polynomial);
-        }
-
-        // Method 1: computed sorted list accumulator polynomial using prover library method
-        Polynomial sorted_list_accumulator = prover_library::compute_sorted_list_accumulator<Flavor>(proving_key, eta);
-
-        // Method 2: Compute local sorted list accumulator simply and inefficiently
-        const FF eta_sqr = eta.sqr();
-        const FF eta_cube = eta_sqr * eta;
-
-        // Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4
-        Polynomial sorted_list_accumulator_expected{ sorted_lists[0] };
-        for (size_t i = 0; i < circuit_size; ++i) {
-            sorted_list_accumulator_expected[i] +=
-                sorted_lists[1][i] * eta + sorted_lists[2][i] * eta_sqr + sorted_lists[3][i] * eta_cube;
-        }
-
-        EXPECT_EQ(sorted_list_accumulator, sorted_list_accumulator_expected);
-    };
 };
 
 using FieldTypes = testing::Types<barretenberg::fr>;
-TYPED_TEST_SUITE(ProverLibraryTests, FieldTypes);
+TYPED_TEST_SUITE(GrandProductTests, FieldTypes);
 
-TYPED_TEST(ProverLibraryTests, PermutationGrandProduct)
+TYPED_TEST(GrandProductTests, GrandProductPermutation)
 {
-    TestFixture::template test_permutation_grand_product_construction<honk::flavor::Standard>();
-    TestFixture::template test_permutation_grand_product_construction<honk::flavor::Ultra>();
+    TestFixture::template test_permutation_grand_product_construction<flavor::Standard>();
+    TestFixture::template test_permutation_grand_product_construction<flavor::Ultra>();
 }
 
-TYPED_TEST(ProverLibraryTests, LookupGrandProduct)
+TYPED_TEST(GrandProductTests, GrandProductLookup)
 {
     TestFixture::test_lookup_grand_product_construction();
 }
 
-TYPED_TEST(ProverLibraryTests, SortedListAccumulator)
-{
-    TestFixture::test_sorted_list_accumulator_construction();
-}
-
-} // namespace prover_library_tests
+} // namespace grand_product_library_tests

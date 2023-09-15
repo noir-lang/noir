@@ -3,7 +3,6 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/proof_system/lookup_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
-#include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -261,12 +260,12 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_univariatizatio
     };
 
     // Compute d-1 polynomials Fold^(i), i = 1, ..., d-1.
-    fold_polynomials = Gemini::compute_fold_polynomials(
+    gemini_polynomials = Gemini::compute_gemini_polynomials(
         sumcheck_output.challenge_point, std::move(batched_poly_unshifted), std::move(batched_poly_to_be_shifted));
 
     // Compute and add to trasnscript the commitments [Fold^(i)], i = 1, ..., d-1
     for (size_t l = 0; l < key->log_circuit_size - 1; ++l) {
-        queue.add_commitment(fold_polynomials[l + 2], "Gemini:FOLD_" + std::to_string(l + 1));
+        queue.add_commitment(gemini_polynomials[l + 2], "Gemini:FOLD_" + std::to_string(l + 1));
     }
 }
 
@@ -280,7 +279,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_pcs_evaluation_
 {
     const FF r_challenge = transcript.get_challenge("Gemini:r");
     gemini_output = Gemini::compute_fold_polynomial_evaluations(
-        sumcheck_output.challenge_point, std::move(fold_polynomials), r_challenge);
+        sumcheck_output.challenge_point, std::move(gemini_polynomials), r_challenge);
 
     for (size_t l = 0; l < key->log_circuit_size; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);

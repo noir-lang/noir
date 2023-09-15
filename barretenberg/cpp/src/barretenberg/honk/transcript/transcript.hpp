@@ -130,8 +130,9 @@ template <typename FF> class BaseTranscript {
 
   public:
     /**
-     * @brief After all the prover messages have been sent, finalize the round by hashing all the data, create the field
-     * elements and reset the state in preparation for the next round.
+     * @brief After all the prover messages have been sent, finalize the round by hashing all the data and then create
+     * the number of requested challenges which will be increasing powers of the first challenge.  Finally, reset the
+     * state in preparation for the next round.
      *
      * @param labels human-readable names for the challenges for the manifest
      * @return std::array<FF, num_challenges> challenges for this round.
@@ -139,10 +140,6 @@ template <typename FF> class BaseTranscript {
     template <typename... Strings> std::array<FF, sizeof...(Strings)> get_challenges(const Strings&... labels)
     {
         constexpr size_t num_challenges = sizeof...(Strings);
-        constexpr size_t bytes_per_challenge = HASH_OUTPUT_SIZE / num_challenges;
-
-        // Ensure we have enough entropy from the hash function to construct each challenge.
-        static_assert(bytes_per_challenge >= MIN_BYTES_PER_CHALLENGE, "requested too many challenges in this round");
 
         // Add challenge labels for current round to the manifest
         manifest.add_challenge(round_number, labels...);
@@ -152,17 +149,16 @@ template <typename FF> class BaseTranscript {
 
         // Create challenges from bytes.
         std::array<FF, num_challenges> challenges{};
-        for (size_t i = 0; i < num_challenges; ++i) {
-            // Initialize the buffer for the i-th challenge with 0s.
-            std::array<uint8_t, sizeof(FF)> field_element_buffer{};
-            // Copy the i-th chunk of size `bytes_per_challenge` to the start of `field_element_buffer`
-            // The last bytes will be 0,
-            std::copy_n(next_challenge_buffer.begin() + i * bytes_per_challenge,
-                        bytes_per_challenge,
-                        field_element_buffer.begin());
 
-            // Create a FF element from a slice of bytes of next_challenge_buffer.
-            challenges[i] = from_buffer<FF>(field_element_buffer);
+        std::array<uint8_t, sizeof(FF)> field_element_buffer{};
+        std::copy_n(next_challenge_buffer.begin(), HASH_OUTPUT_SIZE, field_element_buffer.begin());
+
+        challenges[0] = from_buffer<FF>(field_element_buffer);
+
+        // TODO(#583): rework the transcript to have a better structure and be able to produce a variable amount of
+        // challenges that are not powers of each other
+        for (size_t i = 1; i < num_challenges; i++) {
+            challenges[i] = challenges[i - 1] * challenges[0];
         }
 
         // Prepare for next round.

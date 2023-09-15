@@ -427,6 +427,12 @@ class GoblinUltra {
             lagrange_ecc_op = verification_key->lagrange_ecc_op;
         }
     };
+
+    class FoldingParameters {
+      public:
+        FF gate_separation_challenge;
+        FF target_sum;
+    };
 };
 
 } // namespace proof_system::honk::flavor

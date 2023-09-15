@@ -24,12 +24,11 @@ template <typename Flavor> UltraVerifier_<Flavor>& UltraVerifier_<Flavor>::opera
     key = other.key;
     pcs_verification_key = (std::move(other.pcs_verification_key));
     commitments.clear();
-    pcs_fr_elements.clear();
     return *this;
 }
 
 /**
- * @brief This function verifies an Ultra Honk proof for given program settings.
+ * @brief This function verifies an Ultra Honk proof for a given Flavor.
  *
  */
 template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
