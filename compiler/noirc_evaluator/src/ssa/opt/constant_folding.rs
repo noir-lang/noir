@@ -500,7 +500,6 @@ mod test {
         //     constrain v6 == Field 11
         // }
         let ssa = ssa.fold_constants();
-        println!("ssa: {ssa}");
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 4);
