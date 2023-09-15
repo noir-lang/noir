@@ -109,9 +109,21 @@ impl BlockVariables {
         }
     }
 
-    /// Gets or creates a constant.
-    /// Constants are a special case in SSA, since they are defined and consumed every time they are used.
-    /// We keep constants block-local
+    /// Creates a constant. Constants are a special case in SSA, since they are "defined" every time they are used.
+    /// We keep constants block-local.
+    pub(crate) fn allocate_constant(
+        &mut self,
+        brillig_context: &mut BrilligContext,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterOrMemory {
+        let value_id = dfg.resolve(value_id);
+        let constant = allocate_value(value_id, brillig_context, dfg);
+        self.available_constants.insert(value_id, constant);
+        constant
+    }
+
+    /// Gets a constant.
     pub(crate) fn get_constant(
         &mut self,
         value_id: ValueId,
@@ -126,22 +138,7 @@ impl BlockVariables {
         self.available_constants.clear();
     }
 
-    /// Gets or creates a constant.
-    /// Constants are a special case in SSA, since they are defined and consumed every time they are used.
-    /// We keep constants block-local.
-    pub(crate) fn allocate_constant(
-        &mut self,
-        brillig_context: &mut BrilligContext,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
-        let value_id = dfg.resolve(value_id);
-        let constant = allocate_value(value_id, brillig_context, dfg);
-        self.available_constants.insert(value_id, constant);
-        constant
-    }
-
-    /// For a given SSA value id, return the corresponding cached allocation.
+    /// For a given block parameter, return the allocation that was done globally to the function.
     pub(crate) fn get_block_param(
         &mut self,
         function_context: &FunctionContext,
