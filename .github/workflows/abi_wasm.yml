@@ -95,8 +95,7 @@ jobs:
           yarn workspace @noir-lang/noirc_abi test
 
       - name: Query playwright version
-        working-directory: ./tooling/noirc_abi_wasm
-        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+        run: echo "PLAYWRIGHT_VERSION=$(yarn workspace noir-lang/noirc_abi_wasm info @web/test-runner-playwright --json | jq .children.Version) | trim -d '"'" >> $GITHUB_ENV
 
       - name: Cache playwright binaries
         uses: actions/cache@v3
@@ -108,13 +107,11 @@ jobs:
 
       - name: Install playwright deps
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: ./tooling/noirc_abi_wasm
         run: |
           npx playwright install
           npx playwright install-deps
           
       - name: Run browser tests
-        working-directory: ./tooling/noirc_abi_wasm
         run: |
           yarn workspace @noir-lang/noirc_abi test:browser
 
