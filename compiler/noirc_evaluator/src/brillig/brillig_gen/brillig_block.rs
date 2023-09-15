@@ -46,9 +46,16 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
-        let params = dfg[block_id].parameters();
-        let variables = BlockVariables::new(live_in, params);
+        let variables =
+            BlockVariables::new(live_in.clone(), function_context.all_block_parameters());
 
+        brillig_context.set_allocated_registers(
+            variables
+                .get_available_variables(function_context)
+                .into_iter()
+                .flat_map(extract_registers)
+                .collect(),
+        );
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
         let mut brillig_block =
@@ -126,21 +133,26 @@ impl<'block> BrilligBlock<'block> {
                     self.create_block_label_for_current_function(*else_destination),
                 );
             }
-            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                let target = &dfg[*destination];
-                for (src, dest) in arguments.iter().zip(target.parameters()) {
-                    // Destination variable might have already been created by another block that jumps to this target
-                    let destination = self.variables.get_or_create_variable(
+            TerminatorInstruction::Jmp {
+                destination: destination_block,
+                arguments,
+                call_stack: _,
+            } => {
+                let target_block = &dfg[*destination_block];
+                for (src, dest) in arguments.iter().zip(target_block.parameters()) {
+                    // Destinations are block parameters so they should have been allocated previously.
+                    let destination = self.variables.get_block_param(
                         self.function_context,
-                        self.brillig_context,
+                        *destination_block,
                         *dest,
                         dfg,
                     );
                     let source = self.convert_ssa_value(*src, dfg);
                     self.pass_variable(source, destination);
                 }
-                self.brillig_context
-                    .jump_instruction(self.create_block_label_for_current_function(*destination));
+                self.brillig_context.jump_instruction(
+                    self.create_block_label_for_current_function(*destination_block),
+                );
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
@@ -204,12 +216,7 @@ impl<'block> BrilligBlock<'block> {
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference => {
                     // This parameter variable might have already been created by another block that jumps to this one.
-                    self.variables.get_or_create_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        *param_id,
-                        dfg,
-                    );
+                    self.variables.get_value(self.function_context, *param_id, dfg);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -579,7 +586,7 @@ impl<'block> BrilligBlock<'block> {
         // Create label for the function that will be called
         let label_of_function_to_call = FunctionContext::function_id_to_function_label(func_id);
 
-        let variables_to_save = self.variables.get_available_variables(self.function_context, dfg);
+        let variables_to_save = self.variables.get_available_variables(self.function_context);
 
         let saved_registers = self
             .brillig_context
@@ -965,7 +972,7 @@ impl<'block> BrilligBlock<'block> {
         binary_op: BinaryIntOp,
     ) {
         let source_len_variable =
-            self.variables.get_variable(self.function_context, source_value, dfg);
+            self.variables.get_value(self.function_context, source_value, dfg);
         let source_len = extract_register(source_len_variable);
 
         self.brillig_context.usize_op(source_len, target_len, binary_op, 1);
@@ -1057,29 +1064,21 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.variables.get_variable(self.function_context, value_id, dfg)
+                self.variables.get_value(self.function_context, value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
-                let new_variable = self.variables.get_or_create_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    value_id,
-                    dfg,
-                );
+                let new_variable =
+                    self.variables.get_or_create_constant(self.brillig_context, value_id, dfg);
                 let register_index = extract_register(new_variable);
 
                 self.brillig_context.const_instruction(register_index, (*constant).into());
                 new_variable
             }
             Value::Array { array, .. } => {
-                let new_variable = self.variables.get_or_create_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    value_id,
-                    dfg,
-                );
+                let new_variable =
+                    self.variables.get_or_create_constant(self.brillig_context, value_id, dfg);
 
                 // Initialize the variable
                 let pointer = match new_variable {

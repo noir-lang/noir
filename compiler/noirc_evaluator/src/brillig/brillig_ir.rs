@@ -104,6 +104,10 @@ impl BrilligContext {
         }
     }
 
+    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<RegisterIndex>) {
+        self.registers = BrilligRegistersContext::from_preallocated_registers(allocated_registers);
+    }
+
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.obj.push_opcode(opcode);

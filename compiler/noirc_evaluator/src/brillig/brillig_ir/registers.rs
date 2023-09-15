@@ -17,11 +17,32 @@ pub(crate) struct BrilligRegistersContext {
 
 impl BrilligRegistersContext {
     /// Initial register allocation
-    pub(crate) fn new() -> BrilligRegistersContext {
-        BrilligRegistersContext {
+    pub(crate) fn new() -> Self {
+        Self {
             deallocated_registers: Vec::new(),
             next_free_register_index: ReservedRegisters::len(),
         }
+    }
+
+    pub(crate) fn from_preallocated_registers(preallocated_registers: Vec<RegisterIndex>) -> Self {
+        let next_free_register_index = preallocated_registers.iter().fold(
+            ReservedRegisters::len(),
+            |free_register_index, preallocated_register| {
+                if preallocated_register.to_usize() < free_register_index {
+                    free_register_index
+                } else {
+                    preallocated_register.to_usize() + 1
+                }
+            },
+        );
+        let mut deallocated_registers = Vec::new();
+        for i in ReservedRegisters::len()..next_free_register_index {
+            if !preallocated_registers.contains(&RegisterIndex::from(i)) {
+                deallocated_registers.push(RegisterIndex::from(i));
+            }
+        }
+
+        Self { deallocated_registers, next_free_register_index }
     }
 
     /// Ensures a register is allocated.
@@ -34,14 +55,6 @@ impl BrilligRegistersContext {
             // If it couldn't yet be, expand the register space.
             self.next_free_register_index = index + 1;
         }
-    }
-
-    /// Lazily iterate over the used registers,
-    /// counting to next_free_register_index while excluding deallocated and reserved registers.
-    pub(crate) fn used_registers_iter(&self) -> impl Iterator<Item = RegisterIndex> + '_ {
-        (ReservedRegisters::NUM_RESERVED_REGISTERS..self.next_free_register_index)
-            .map(RegisterIndex::from)
-            .filter(|&index| !self.deallocated_registers.contains(&index))
     }
 
     /// Creates a new register.

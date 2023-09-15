@@ -1,34 +1,69 @@
+use std::collections::HashSet;
+
 use acvm::brillig_vm::brillig::RegisterOrMemory;
 use iter_extended::vecmap;
 
 use crate::{
-    brillig::brillig_ir::artifact::{BrilligParameter, Label},
+    brillig::brillig_ir::{
+        artifact::{BrilligParameter, Label},
+        BrilligContext,
+    },
     ssa::ir::{
+        basic_block::BasicBlockId,
         function::{Function, FunctionId},
+        post_order::PostOrder,
         types::Type,
         value::ValueId,
     },
 };
 use fxhash::FxHashMap as HashMap;
 
-use super::variable_liveness::VariableLiveness;
+use super::{brillig_block_variables::allocate_value, variable_liveness::VariableLiveness};
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
-    /// Map from SSA values to register or memory. Used for variables read/written across blocks.
+    /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on definition.
     pub(crate) ssa_variable_to_register_or_memory: HashMap<ValueId, RegisterOrMemory>,
-
+    /// Block parameters are pre allocated at the function level.
+    pub(crate) block_parameters: HashMap<BasicBlockId, Vec<ValueId>>,
+    /// The block ids of the function in reverse post order.
+    pub(crate) blocks: Vec<BasicBlockId>,
+    /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
 }
 
 impl FunctionContext {
-    pub(crate) fn new(function: &Function) -> Self {
+    pub(crate) fn new(function: &Function, brillig_context: &mut BrilligContext) -> Self {
         let id = function.id();
+
+        let mut reverse_post_order = Vec::new();
+        reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
+        reverse_post_order.reverse();
+
+        let mut block_parameters = HashMap::default();
+        let mut ssa_variable_to_register_or_memory = HashMap::default();
+
+        for &block_id in &reverse_post_order {
+            let block = &function.dfg[block_id];
+            let parameters = block.parameters().to_vec();
+            parameters.iter().for_each(|&value_id| {
+                let variable = allocate_value(value_id, brillig_context, &function.dfg);
+                ssa_variable_to_register_or_memory.insert(value_id, variable);
+            });
+            block_parameters.insert(block_id, parameters);
+        }
+
         Self {
             function_id: id,
-            ssa_variable_to_register_or_memory: HashMap::default(),
+            ssa_variable_to_register_or_memory,
+            block_parameters,
+            blocks: reverse_post_order,
             liveness: VariableLiveness::from_function(function),
         }
+    }
+
+    pub(crate) fn all_block_parameters(&self) -> HashSet<ValueId> {
+        self.block_parameters.values().flat_map(|parameters| parameters.iter()).cloned().collect()
     }
 
     /// Creates a function label from a given SSA function id.
