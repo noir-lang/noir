@@ -217,6 +217,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
+#[derive(Default)]
 pub struct LegacyParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
@@ -242,7 +243,24 @@ pub struct ParsedModule {
 
 impl ParsedModule {
     pub fn into_legacy(self) -> LegacyParsedModule {
-        todo!()
+        let mut module = LegacyParsedModule::default();
+
+        for item in self.items {
+            match item.kind {
+                ItemKind::Import(import) => module.push_import(import),
+                ItemKind::Function(func) => module.push_function(func),
+                ItemKind::Struct(typ) => module.push_type(typ),
+                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
+                ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
+                ItemKind::Impl(r#impl) => module.push_impl(r#impl),
+                ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
+                ItemKind::Global(global) => module.push_global(global),
+                ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
+                ItemKind::Submodules(submodule) => module.push_submodule(submodule),
+            }
+        }
+
+        module
     }
 }
 
@@ -254,7 +272,7 @@ pub struct Item {
 
 #[derive(Clone, Debug)]
 pub enum ItemKind {
-    Import(ImportStatement),
+    Import(UseTree),
     Function(NoirFunction),
     Struct(NoirStruct),
     Trait(NoirTrait),
@@ -275,50 +293,45 @@ pub struct SubModule {
     pub is_contract: bool,
 }
 
-impl ParsedModule {
-    fn push_function(&mut self, func: NoirFunction, span: Span) {
-        self.items.push(Item { kind: ItemKind::Function(func), span });
+impl LegacyParsedModule {
+    fn push_function(&mut self, func: NoirFunction) {
+        self.functions.push(func);
     }
 
-    fn push_type(&mut self, typ: NoirStruct, span: Span) {
-        self.items.push(Item { kind: ItemKind::Struct(typ), span });
+    fn push_type(&mut self, typ: NoirStruct) {
+        self.types.push(typ);
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait, span: Span) {
-        self.items.push(Item { kind: ItemKind::Trait(noir_trait), span });
+    fn push_trait(&mut self, noir_trait: NoirTrait) {
+        self.traits.push(noir_trait);
     }
 
-    fn push_trait_impl(&mut self, trait_impl: TraitImpl, span: Span) {
-        self.items.push(Item { kind: ItemKind::TraitImpl(trait_impl), span });
+    fn push_trait_impl(&mut self, trait_impl: TraitImpl) {
+        self.trait_impls.push(trait_impl);
     }
 
-    fn push_impl(&mut self, r#impl: TypeImpl, span: Span) {
-        self.items.push(Item { kind: ItemKind::Impl(r#impl), span });
+    fn push_impl(&mut self, r#impl: TypeImpl) {
+        self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, span: Span) {
-        self.items.push(Item { kind: ItemKind::TypeAlias(type_alias), span });
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias) {
+        self.type_aliases.push(type_alias);
     }
 
-    fn push_import(&mut self, import_stmt: UseTree, span: Span) {
-        self.items.extend(
-            import_stmt
-                .desugar(None)
-                .into_iter()
-                .map(|kind| Item { kind: ItemKind::Import(kind), span }),
-        );
+    fn push_import(&mut self, import_stmt: UseTree) {
+        self.imports.extend(import_stmt.desugar(None));
     }
 
-    fn push_module_decl(&mut self, mod_name: Ident, span: Span) {
-        self.items.push(Item { kind: ItemKind::ModuleDecl(mod_name), span });
+    fn push_module_decl(&mut self, mod_name: Ident) {
+        self.module_decls.push(mod_name);
     }
 
-    fn push_submodule(&mut self, submodule: SubModule, span: Span) {
-        self.items.push(Item { kind: ItemKind::Submodules(submodule), span });
+    fn push_submodule(&mut self, submodule: SubModule) {
+        self.submodules.push(submodule);
     }
 
-    fn push_global(&mut self, global: LetStatement, span: Span) {
-        self.items.push(Item { kind: ItemKind::Global(global), span });
+    fn push_global(&mut self, global: LetStatement) {
+        self.globals.push(global);
     }
 }
 

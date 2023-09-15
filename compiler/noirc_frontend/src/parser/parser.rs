@@ -23,13 +23,13 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use super::spanned;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
     ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
     TopLevelStatement,
 };
+use super::{spanned, Item, ItemKind};
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, Statement, UnresolvedType, UnresolvedTypeData,
 };
@@ -77,17 +77,19 @@ fn module() -> impl NoirParser<ParsedModule> {
             .map(|_| ParsedModule::default())
             .then(spanned(top_level_statement(module_parser)).repeated())
             .foldl(|mut program, (statement, span)| {
+                let mut push_item = |kind| program.items.push(Item { kind, span });
+
                 match statement {
-                    TopLevelStatement::Function(f) => program.push_function(f, span),
-                    TopLevelStatement::Module(m) => program.push_module_decl(m, span),
-                    TopLevelStatement::Import(i) => program.push_import(i, span),
-                    TopLevelStatement::Struct(s) => program.push_type(s, span),
-                    TopLevelStatement::Trait(t) => program.push_trait(t, span),
-                    TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t, span),
-                    TopLevelStatement::Impl(i) => program.push_impl(i, span),
-                    TopLevelStatement::TypeAlias(t) => program.push_type_alias(t, span),
-                    TopLevelStatement::SubModule(s) => program.push_submodule(s, span),
-                    TopLevelStatement::Global(c) => program.push_global(c, span),
+                    TopLevelStatement::Function(f) => push_item(ItemKind::Function(f)),
+                    TopLevelStatement::Module(m) => push_item(ItemKind::ModuleDecl(m)),
+                    TopLevelStatement::Import(i) => push_item(ItemKind::Import(i)),
+                    TopLevelStatement::Struct(s) => push_item(ItemKind::Struct(s)),
+                    TopLevelStatement::Trait(t) => push_item(ItemKind::Trait(t)),
+                    TopLevelStatement::TraitImpl(t) => push_item(ItemKind::TraitImpl(t)),
+                    TopLevelStatement::Impl(i) => push_item(ItemKind::Impl(i)),
+                    TopLevelStatement::TypeAlias(t) => push_item(ItemKind::TypeAlias(t)),
+                    TopLevelStatement::SubModule(s) => push_item(ItemKind::Submodules(s)),
+                    TopLevelStatement::Global(c) => push_item(ItemKind::Global(c)),
                     TopLevelStatement::Error => (),
                 }
                 program

@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let files = std::fs::read_dir("tests/source").unwrap();
+        let files = std::fs::read_dir("tests/input").unwrap();
         for file in files {
             let file = file.unwrap();
 

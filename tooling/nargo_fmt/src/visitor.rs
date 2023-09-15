@@ -143,7 +143,6 @@ impl<'a> FmtVisitor<'a> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
-            ExpressionKind::Index(_) => todo!(),
             ExpressionKind::Call(call) => {
                 let callee = self.format_expr(*call.func);
                 let args = call
@@ -162,18 +161,7 @@ impl<'a> FmtVisitor<'a> {
 
                 format!("{lhs} {op} {rhs}")
             }
-            ExpressionKind::If(if_expr) => {
-                let condition = self.format_expr(if_expr.condition);
-                let consequence = self.format_expr(if_expr.consequence);
-                let alternative = if_expr
-                    .alternative
-                    .map_or(String::new(), |alternative| self.format_expr(alternative));
-
-                format!("{condition} {consequence} {alternative}")
-            }
             ExpressionKind::Variable(_) => slice!(self, span.start(), span.end()).to_string(),
-            ExpressionKind::Tuple(_) => todo!(),
-            ExpressionKind::Lambda(_) => todo!(),
             ExpressionKind::Error => unreachable!(),
             // TODO:
             expr => expr.to_string(),
