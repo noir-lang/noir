@@ -274,6 +274,7 @@ mod test {
             return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             return_type: FunctionReturnType::Default(Span::default()),
+            trait_constraints: Vec::new(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
