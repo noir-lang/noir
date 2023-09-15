@@ -386,7 +386,7 @@ __metadata:
   linkType: hard
 
 "@noir-lang/acvm_js@npm:^0.26.0":
-  version: 0.26.0
+  version: 0.26.1
   resolution: "@noir-lang/acvm_js@npm:0.26.0"
   checksum: 3325b611fec4531363cb67682d50ea40cbeaf8da7672c8373cb11bc7786308a14c61804950b4805e071edc9298005039847621a8d79fae185eda2cf981c64b39
   languageName: node
