@@ -2,10 +2,6 @@ name: Release and Publish Source Resolver
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version number"
-        required: false
 
 jobs:
   release-source-resolver:
@@ -14,17 +10,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Bump version
-        working-directory: ./compiler/source-resolver
-        id: bump_version
-        run: |
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            NEW_VERSION=$(npm version patch --no-git-tag-version)
-          else
-            NEW_VERSION=$(npm version ${{ github.event.inputs.version }} --no-git-tag-version)
-          fi
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -37,15 +22,3 @@ jobs:
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Configure git
-        run: |
-          git config user.name kevaundray
-          git config user.email kevtheappdev@gmail.com
-
-      - name: Commit updates
-        run: |
-          git add yarn.lock
-          git add compiler/source-resolver/package.json
-          git commit -m "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
-          git push
