@@ -28,7 +28,7 @@ jobs:
           source $HOME/.cargo/env
           cargo install toml2json
 
-      - name: Install wasm-opt (from binaryen)
+      - name: Install wasm-opt
         run: |
           npm i wasm-opt -g
 
