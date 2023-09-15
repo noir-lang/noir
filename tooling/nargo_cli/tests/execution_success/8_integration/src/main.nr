@@ -1,10 +1,12 @@
+use dep::std;
+
 fn matrix_mul_2(a: [u32; 4], b: [u32; 4]) ->[u32; 4] {
     let mut c = [0 as u32; 4];
     for i in 0..2 {
         for j in 0..2 {
             c[i+2*j] = 0;
             for k in 0..2 {
-               c[i+2*j] += a[i+2*k] * b[k+2*j];
+                c[i+2*j] = std::wrapping_add(  c[i+2*j], std::wrapping_mul(a[i+2*k], b[k+2*j]));
             }
         }
     }
@@ -18,7 +20,7 @@ fn matrix_mul_10(a: [u32; 100], b: [u32; 100]) -> [u32; 100] {
             c[i+10*j] = 0 as u32;
 
             for k in 0..10 {
-               c[i+10*j] += a[i+10*k] * b[k+10*j];
+               c[i+10*j] = std::wrapping_add(c[i+10*j], std::wrapping_mul(a[i+10*k], b[k+10*j]));
             }
         }
     }
@@ -27,7 +29,7 @@ fn matrix_mul_10(a: [u32; 100], b: [u32; 100]) -> [u32; 100] {
 
 
 fn siggy(x: u32) -> u32 {
-    x * (10 as u32)
+    std::wrapping_mul(x , (10 as u32))
 }
 
 
@@ -169,7 +171,11 @@ fn iterate6_1(mut sha_m: [u32; 64], next_chunk: [u8; 64]) -> [u32; 64] {
             | (next_chunk[j + 3] as u32);
     }
     for i in 16..64 {
-        sha_m[i] = sig1(sha_m[i - 2])+(sha_m[i - 7])+(sig0(sha_m[i - 15]))+(sha_m[i - 16]);
+     //   sha_m[i] = sig1(sha_m[i - 2])+(sha_m[i - 7])+(sig0(sha_m[i - 15]))+(sha_m[i - 16]);
+     sha_m[i] = std::wrapping_add(
+        std::wrapping_add(sig1(sha_m[i - 2]),sha_m[i - 7]), 
+        std::wrapping_add(sig0(sha_m[i - 15]), sha_m[i - 16])
+     );
     }
     sha_m
 }
@@ -187,16 +193,16 @@ fn iterate6_2(sha_m: [u32; 64], mut hash: [u32; 8]) -> [u32; 8] {
     let mut h = 8 as u32;
 
     for i in 0..11 { 
-        t1 = h + ep1(e) + ch(e, f, g) + sha_m[i];
-        t2 = epo(a) + maj(a, b, c);
+        t1 = std::wrapping_add(std::wrapping_add(std::wrapping_add(h, ep1(e)), ch(e, f, g)), sha_m[i]);
+        t2 = std::wrapping_add(epo(a), maj(a, b, c));
         h = g;
         g = f;
         f = e;
-        e = d+t1;
+        e = std::wrapping_add(d,t1);
         d = c;
         c = b;
         b = a;
-        a = t1+t2;
+        a = std::wrapping_add(t1,t2);
     }
 
     hash[0] = hash[0]+a;
@@ -211,7 +217,7 @@ fn iterate6_2(sha_m: [u32; 64], mut hash: [u32; 8]) -> [u32; 8] {
 }
 
 fn rot_right(a: u32, b: u32) -> u32 {
-    ((a >> b) | (a << (32 as u32 - b)))
+   (a >> b) |  std::wrapping_shift_left(a, 32 as u32 - b)
 }
 
 
@@ -252,10 +258,10 @@ fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32])
     a = test4(a);
     assert(a[3] == 20);
     a = test4(c);
-    assert(a[3] == c[1] * 10);
+    assert(a[3] == std::wrapping_mul(c[1], 10));
 
-    d[0] += c[0];
-    d[0] += c[1];
+    d[0] = std::wrapping_add(d[0],c[0]);
+    d[0] = std::wrapping_add(d[0],c[1]);
     assert(d[0] == 2739986880);
 
     let h = iterate1(1);
