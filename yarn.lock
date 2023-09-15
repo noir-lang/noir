@@ -22,9 +22,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:^0.5.1":
-  version: 0.5.1
-  resolution: "@aztec/bb.js@npm:0.5.1"
+"@aztec/bb.js@npm:^0.6.7":
+  version: 0.6.7
+  resolution: "@aztec/bb.js@npm:0.6.7"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -32,7 +32,7 @@ __metadata:
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: 0a191106e6c6eb842181bf856779b2b461136e07a60068b9ae15e9f2e42f993fe4122c343f5946bc16654ef560b227850e8cba3a10c7c3a0a3940d606647f694
+  checksum: 9067e9c4c5e51de173261bb5feebe6c4f6fc2be0381e2b30301fd5ed6794c5a20f5242427b7701384bc6285cd65e04e2fa914010923d1671cf59c8674b6545eb
   languageName: node
   linkType: hard
 
@@ -4281,7 +4281,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": ^0.5.1
+    "@aztec/bb.js": ^0.6.7
     "@noir-lang/acvm_js": ^0.26.1
     "@noir-lang/noir_wasm": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
