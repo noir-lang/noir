@@ -1,15 +1,11 @@
-use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::RegisterOrMemory;
 use iter_extended::vecmap;
 
 use crate::{
-    brillig::brillig_ir::{
-        artifact::{BrilligParameter, Label},
-        extract_register, BrilligContext,
-    },
+    brillig::brillig_ir::artifact::{BrilligParameter, Label},
     ssa::ir::{
-        dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        types::{CompositeType, Type},
+        types::Type,
         value::ValueId,
     },
 };
@@ -19,8 +15,8 @@ use super::variable_liveness::VariableLiveness;
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
-    /// Map from SSA values to register or memory.
-    pub(crate) ssa_value_to_brillig_variable: HashMap<ValueId, RegisterOrMemory>,
+    /// Map from SSA values to register or memory. Used for variables read/written across blocks.
+    pub(crate) ssa_variable_to_register_or_memory: HashMap<ValueId, RegisterOrMemory>,
 
     pub(crate) liveness: VariableLiveness,
 }
@@ -30,90 +26,9 @@ impl FunctionContext {
         let id = function.id();
         Self {
             function_id: id,
-            ssa_value_to_brillig_variable: HashMap::default(),
+            ssa_variable_to_register_or_memory: HashMap::default(),
             liveness: VariableLiveness::from_function(function),
         }
-    }
-
-    /// For a given SSA value id, create and cache the a corresponding variable.
-    /// This will allocate the needed registers for the variable.
-    pub(crate) fn create_variable(
-        &mut self,
-        brillig_context: &mut BrilligContext,
-        value: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
-        let value = dfg.resolve(value);
-        let typ = dfg.type_of_value(value);
-
-        let variable = match typ {
-            Type::Numeric(_) | Type::Reference => {
-                let register = brillig_context.allocate_register();
-                RegisterOrMemory::RegisterIndex(register)
-            }
-            Type::Array(item_typ, elem_count) => {
-                let pointer_register = brillig_context.allocate_register();
-                let size = compute_array_length(&item_typ, elem_count);
-                RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_register, size })
-            }
-            Type::Slice(_) => {
-                let pointer_register = brillig_context.allocate_register();
-                let size_register = brillig_context.allocate_register();
-                RegisterOrMemory::HeapVector(HeapVector {
-                    pointer: pointer_register,
-                    size: size_register,
-                })
-            }
-            Type::Function => {
-                unreachable!("ICE: Function values should have been removed from the SSA")
-            }
-        };
-
-        // Cache the `ValueId` so that if we call get_variable, it will
-        // return the registers that have just been created.
-        //
-        // WARNING: This assumes that a registers won't be reused for a different value.
-        // If you overwrite the registers, then the cache will be invalid.
-
-        if self.ssa_value_to_brillig_variable.insert(value, variable).is_some() {
-            unreachable!("ICE: ValueId {value:?} was already in cache");
-        }
-
-        variable
-    }
-
-    /// For a given SSA value id, return the corresponding cached variable.
-    pub(crate) fn get_variable(&mut self, value: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
-        let value = dfg.resolve(value);
-        *self
-            .ssa_value_to_brillig_variable
-            .get(&value)
-            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value}"))
-    }
-
-    pub(crate) fn get_or_create_variable(
-        &mut self,
-        brillig_context: &mut BrilligContext,
-        value: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> RegisterOrMemory {
-        let value = dfg.resolve(value);
-        if let Some(variable) = self.ssa_value_to_brillig_variable.get(&value) {
-            return *variable;
-        }
-
-        self.create_variable(brillig_context, value, dfg)
-    }
-
-    /// Creates a variable that fits in a single register and returns the register.
-    pub(crate) fn create_register_variable(
-        &mut self,
-        brillig_context: &mut BrilligContext,
-        value: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> RegisterIndex {
-        let variable = self.create_variable(brillig_context, value, dfg);
-        extract_register(variable)
     }
 
     /// Creates a function label from a given SSA function id.
@@ -160,9 +75,4 @@ impl FunctionContext {
             })
             .collect()
     }
-}
-
-/// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
-    item_typ.len() * elem_count
 }

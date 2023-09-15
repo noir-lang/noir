@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use im::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -40,10 +38,7 @@ fn find_back_edges(
     back_edges
 }
 
-pub(crate) fn compute_defined_variables(
-    block: &BasicBlock,
-    dfg: &DataFlowGraph,
-) -> HashSet<ValueId> {
+fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
     let mut defined_vars = HashSet::new();
 
     for parameter in block.parameters() {
@@ -84,7 +79,7 @@ fn collect_variables(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
     }
 }
 
-pub(crate) fn variables_used(instruction: &Instruction, dfg: &DataFlowGraph) -> Vec<ValueId> {
+fn variables_used(instruction: &Instruction, dfg: &DataFlowGraph) -> Vec<ValueId> {
     let mut used = Vec::new();
 
     instruction.for_each_value(|value_id| {
@@ -95,7 +90,7 @@ pub(crate) fn variables_used(instruction: &Instruction, dfg: &DataFlowGraph) -> 
     used
 }
 
-pub(crate) fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
+fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
     let mut used = HashSet::new();
 
     for instruction_id in block.instructions() {
@@ -251,6 +246,14 @@ impl VariableLiveness {
 
             let mut used_after: HashSet<ValueId> = HashSet::new();
             let mut block_last_uses: HashMap<InstructionId, HashSet<ValueId>> = HashMap::new();
+
+            // First, handle the terminator
+            if let Some(terminator_instruction) = block.terminator() {
+                terminator_instruction.for_each_value(|value_id| {
+                    let underlying_vars = collect_variables(value_id, &func.dfg);
+                    used_after.extend(underlying_vars);
+                });
+            }
 
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];

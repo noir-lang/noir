@@ -318,6 +318,7 @@ mod tests {
     use acvm::brillig_vm::brillig::{RegisterIndex, RegisterOrMemory};
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
+    use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
     use crate::brillig::brillig_ir::tests::{create_and_run_vm, create_context};
@@ -340,12 +341,8 @@ mod tests {
         function_context: &'a mut FunctionContext,
         brillig_context: &'a mut BrilligContext,
     ) -> BrilligBlock<'a> {
-        BrilligBlock {
-            function_context,
-            block_id: Id::test_new(0),
-            brillig_context,
-            available_variables: HashSet::new(),
-        }
+        let variables = BlockVariables::new(&HashSet::new(), &[]);
+        BrilligBlock { function_context, block_id: Id::test_new(0), brillig_context, variables }
     }
 
     #[test]

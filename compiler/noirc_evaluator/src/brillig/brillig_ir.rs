@@ -243,7 +243,7 @@ impl BrilligContext {
 
     /// This instruction will issue a loop that will iterate iteration_count times
     /// The body of the loop should be issued by the caller in the on_iteration closure.
-    fn loop_instruction<F>(&mut self, iteration_count: RegisterIndex, on_iteration: F)
+    pub(crate) fn loop_instruction<F>(&mut self, iteration_count: RegisterIndex, on_iteration: F)
     where
         F: FnOnce(&mut BrilligContext, RegisterIndex),
     {
@@ -721,13 +721,14 @@ impl BrilligContext {
     }
 
     /// Saves all of the registers that have been used up until this point.
-    fn save_all_used_registers(&mut self) -> Vec<RegisterIndex> {
+    fn save_registers_of_vars(&mut self, vars: &[RegisterOrMemory]) -> Vec<RegisterIndex> {
         // Save all of the used registers at this point in memory
         // because the function call will/may overwrite them.
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
-        let mut used_registers: Vec<_> = self.registers.used_registers_iter().collect();
+        let mut used_registers: Vec<_> =
+            vars.iter().flat_map(|var| extract_registers(*var)).collect();
 
         // Also dump the previous stack pointer
         used_registers.push(ReservedRegisters::previous_stack_pointer());
@@ -806,9 +807,10 @@ impl BrilligContext {
     pub(crate) fn pre_call_save_registers_prep_args(
         &mut self,
         arguments: &[RegisterIndex],
+        variables_to_save: &[RegisterOrMemory],
     ) -> Vec<RegisterIndex> {
         // Save all the registers we have used to the stack.
-        let saved_registers = self.save_all_used_registers();
+        let saved_registers = self.save_registers_of_vars(variables_to_save);
 
         // Move argument values to the front of the registers
         //
