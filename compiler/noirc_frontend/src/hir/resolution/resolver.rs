@@ -17,7 +17,7 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
-use crate::hir_def::traits::Trait;
+use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::token::PrimaryAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -37,8 +37,8 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
     Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility,
-    ERROR_IDENT,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -669,6 +669,18 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// TODO: This is currently only respected for generic free functions
+    /// there's a bunch of other places where this guy can pop up
+    fn resolve_trait_constraints(
+        &mut self,
+        where_clause: &Vec<UnresolvedTraitConstraint>,
+    ) -> Vec<TraitConstraint> {
+        vecmap(where_clause, |constraint| TraitConstraint {
+            typ: self.resolve_type(constraint.typ.clone()),
+            trait_id: constraint.trait_bound.trait_id,
+        })
+    }
+
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
@@ -767,6 +779,7 @@ impl<'a> Resolver<'a> {
             return_visibility: func.def.return_visibility,
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
+            trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
         }
     }
 
