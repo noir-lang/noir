@@ -146,7 +146,7 @@ function generateAbiGetter(name: string) {
 function generateAbiStatement(name: string, abiImportPath: string) {
   const stmts = [
     `import ${name}ContractAbiJson from '${abiImportPath}' assert { type: 'json' };`,
-    `export const ${name}ContractAbi = ${name}ContractAbiJson as unknown as ContractAbi;`,
+    `export const ${name}ContractAbi = ${name}ContractAbiJson as ContractAbi;`,
   ];
   return stmts.join('\n');
 }

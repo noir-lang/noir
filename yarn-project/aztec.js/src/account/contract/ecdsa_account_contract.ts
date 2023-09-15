@@ -13,7 +13,7 @@ import { BaseAccountContract } from './base_account_contract.js';
  */
 export class EcdsaAccountContract extends BaseAccountContract {
   constructor(private signingPrivateKey: Buffer) {
-    super(EcdsaAccountContractAbi as unknown as ContractAbi);
+    super(EcdsaAccountContractAbi as ContractAbi);
   }
 
   async getDeploymentArgs() {

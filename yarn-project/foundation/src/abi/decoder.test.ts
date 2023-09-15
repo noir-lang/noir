@@ -1,4 +1,4 @@
-import { FunctionAbi } from './abi.js';
+import { ABIParameterVisibility, FunctionAbi } from './abi.js';
 import { decodeFunctionSignature, decodeFunctionSignatureWithParameterNames } from './decoder.js';
 
 describe('abi/decoder', () => {
@@ -20,7 +20,7 @@ describe('abi/decoder', () => {
             { name: 'secretHash', type: { kind: 'field' } },
           ],
         },
-        visibility: 'private',
+        visibility: 'private' as ABIParameterVisibility,
       },
       {
         name: 'aDeepStruct',
@@ -58,10 +58,10 @@ describe('abi/decoder', () => {
             },
           ],
         },
-        visibility: 'private',
+        visibility: 'private' as ABIParameterVisibility,
       },
     ],
-  } as unknown as Pick<FunctionAbi, 'name' | 'parameters'>;
+  } as Pick<FunctionAbi, 'name' | 'parameters'>;
 
   it('decodes function signature', () => {
     expect(decodeFunctionSignature(abi.name, abi.parameters)).toMatchInlineSnapshot(

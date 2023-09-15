@@ -93,6 +93,10 @@ export interface StructType extends BasicType<'struct'> {
    * The fields of the struct.
    */
   fields: ABIVariable[];
+  /**
+   * Fully qualified name of the struct.
+   */
+  path: string;
 }
 
 /**

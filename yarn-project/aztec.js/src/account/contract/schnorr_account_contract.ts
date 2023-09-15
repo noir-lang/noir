@@ -13,7 +13,7 @@ import { BaseAccountContract } from './base_account_contract.js';
  */
 export class SchnorrAccountContract extends BaseAccountContract {
   constructor(private signingPrivateKey: GrumpkinPrivateKey) {
-    super(SchnorrAccountContractAbi as unknown as ContractAbi);
+    super(SchnorrAccountContractAbi as ContractAbi);
   }
 
   async getDeploymentArgs() {

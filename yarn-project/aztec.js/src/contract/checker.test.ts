@@ -156,6 +156,7 @@ describe('abiChecker', () => {
             {
               type: {
                 kind: 'struct',
+                path: 'mystruct',
                 fields: [
                   {
                     name: 'name',

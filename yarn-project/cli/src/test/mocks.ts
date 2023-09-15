@@ -48,6 +48,7 @@ export const mockContractAbi: ContractAbi = {
           name: 'structParam',
           type: {
             kind: 'struct',
+            path: 'mystruct',
             fields: [
               { name: 'subField1', type: { kind: 'field' } },
               { name: 'subField2', type: { kind: 'boolean' } },

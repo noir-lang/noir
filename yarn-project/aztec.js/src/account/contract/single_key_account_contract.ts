@@ -14,7 +14,7 @@ import { BaseAccountContract } from './base_account_contract.js';
  */
 export class SingleKeyAccountContract extends BaseAccountContract {
   constructor(private encryptionPrivateKey: GrumpkinPrivateKey) {
-    super(SchnorrSingleKeyAccountContractAbi as unknown as ContractAbi);
+    super(SchnorrSingleKeyAccountContractAbi as ContractAbi);
   }
 
   getDeploymentArgs(): Promise<any[]> {

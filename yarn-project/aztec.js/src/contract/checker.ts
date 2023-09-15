@@ -66,7 +66,7 @@ function abiParameterTypeChecker(type: ABIType): boolean {
     case 'array':
       return checkAttributes(type, { length: 'number', type: 'object' }) && abiParameterTypeChecker(type.type);
     case 'struct':
-      return checkAttributes(type, { fields: 'object' }) && checkStruct(type);
+      return checkAttributes(type, { fields: 'object', path: 'string' }) && checkStruct(type);
     default:
       throw new Error('ABI function parameter has an unrecognised type');
   }

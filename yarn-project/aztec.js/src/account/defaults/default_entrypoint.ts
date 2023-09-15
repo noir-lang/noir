@@ -90,6 +90,6 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
         },
       ],
       returnTypes: [],
-    } as unknown as FunctionAbiHeader;
+    } as FunctionAbiHeader;
   }
 }

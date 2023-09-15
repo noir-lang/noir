@@ -17,7 +17,7 @@ import { AztecRPC, PublicKey } from '@aztec/types';
 
 import PrivateTokenContractAbiJson from './private_token_contract.json' assert { type: 'json' };
 
-export const PrivateTokenContractAbi = PrivateTokenContractAbiJson as unknown as ContractAbi;
+export const PrivateTokenContractAbi = PrivateTokenContractAbiJson as ContractAbi;
 
 /**
  * Type-safe interface for contract PrivateToken;
