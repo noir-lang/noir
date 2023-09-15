@@ -49,6 +49,7 @@ fn wrapping_add<T>(x : T, y: T) -> T {
 
 
 fn wrapping_sub<T>(x : T, y: T) -> T {
+    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
     crate::from_field(crate::as_field(x) + 340282366920938463463374607431768211456 - crate::as_field(y))
 }
 
