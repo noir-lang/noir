@@ -86,7 +86,7 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let ast = parse_file(&context.file_manager, root_file_id, errors);
 
         #[cfg(feature = "aztec")]
         let ast = aztec_library::transform(ast, &crate_id, context, errors);
@@ -160,15 +160,15 @@ impl CrateDefMap {
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let function_ids: Vec<FuncId> =
-                        module.value_definitions().filter_map(|id| id.as_function()).collect();
-
-                    let functions = function_ids
-                        .into_iter()
-                        .map(|id| {
-                            let is_entry_point =
-                                !interner.function_attributes(&id).has_contract_library_method();
-                            ContractFunctionMeta { function_id: id, is_entry_point }
+                    let functions = module
+                        .value_definitions()
+                        .filter_map(|id| {
+                            id.as_function().map(|function_id| {
+                                let is_entry_point = !interner
+                                    .function_attributes(&function_id)
+                                    .has_contract_library_method();
+                                ContractFunctionMeta { function_id, is_entry_point }
+                            })
                         })
                         .collect();
 
@@ -237,7 +237,7 @@ pub struct Contract {
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(
-    fm: &mut FileManager,
+    fm: &FileManager,
     file_id: FileId,
     all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {

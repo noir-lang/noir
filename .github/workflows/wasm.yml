@@ -132,16 +132,20 @@ jobs:
           chmod +x $nargo_binary
           $nargo_binary compile
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
       - name: Install dependencies
         run: |
-          npx playwright install
-          npx playwright install-deps
           cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
           cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
-          yarn install --immutable
-          yarn workspace @noir-lang/noir-source-resolver build
+          yarn workspace @noir-lang/source-resolver build
           
-      - name: Run tests
-        run: |
-          yarn workspace @noir-lang/noir_wasm test:browser
-          yarn workspace @noir-lang/noir_wasm test:node
+      - name: Run node tests
+        run: yarn workspace @noir-lang/noir_wasm test:node
+
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/noir_wasm test:browser

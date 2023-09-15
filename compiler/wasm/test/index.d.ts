@@ -1,1 +1,1 @@
-declare module '@noir-lang/noir-source-resolver';
+declare module '@noir-lang/source-resolver';
