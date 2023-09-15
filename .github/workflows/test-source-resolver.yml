@@ -20,7 +20,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Build noir-source-resolver
-        run: yarn workspace @noir-lang/noir-source-resolver build
+        run: yarn workspace @noir-lang/source-resolver build
 
       - name: Run tests
-        run: yarn workspace @noir-lang/noir-source-resolver test
+        run: yarn workspace @noir-lang/source-resolver test

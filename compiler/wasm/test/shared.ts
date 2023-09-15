@@ -1,4 +1,4 @@
-import { initialiseResolver } from "@noir-lang/noir-source-resolver";
+import { initialiseResolver } from "@noir-lang/source-resolver";
 import { compile } from "@noir-lang/noir_wasm";
 
 export const noirSourcePath = "../../noir-script/src/main.nr";

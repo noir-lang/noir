@@ -30,7 +30,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Build noir-source-resolver
-        run: yarn workspace @noir-lang/noir-source-resolver build
+        run: yarn workspace @noir-lang/source-resolver build
 
       - name: Publish to NPM
         working-directory: ./compiler/source-resolver

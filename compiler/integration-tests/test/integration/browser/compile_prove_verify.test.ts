@@ -1,5 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import { initialiseResolver } from "@noir-lang/noir-source-resolver";
+import { initialiseResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
     compile,
     init_log_level as compilerLogLevel
