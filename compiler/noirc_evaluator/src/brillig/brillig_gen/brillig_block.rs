@@ -30,9 +30,9 @@ pub(crate) struct BrilligBlock<'block> {
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext,
-
+    /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
-
+    /// For each instruction, the set of values that are not used anymore after it.
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 

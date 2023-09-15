@@ -365,6 +365,22 @@ mod test {
         assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v3, v0].into_iter()));
         assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v3, v1].into_iter()));
         assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
+
+        let block_1 = &func.dfg[b1];
+        let block_2 = &func.dfg[b2];
+        let block_3 = &func.dfg[b3];
+        assert_eq!(
+            liveness.get_last_uses(&b1).get(&block_1.instructions()[0]),
+            Some(&FxHashSet::from_iter([v1].into_iter()))
+        );
+        assert_eq!(
+            liveness.get_last_uses(&b2).get(&block_2.instructions()[0]),
+            Some(&FxHashSet::from_iter([v0].into_iter()))
+        );
+        assert_eq!(
+            liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
+            Some(&FxHashSet::from_iter([v3].into_iter()))
+        );
     }
 
     #[test]
@@ -509,6 +525,12 @@ mod test {
         assert_eq!(
             liveness.get_live_in(&b8),
             &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
+        );
+
+        let block_3 = &func.dfg[b3];
+        assert_eq!(
+            liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
+            Some(&FxHashSet::from_iter([v3].into_iter()))
         );
     }
 }
