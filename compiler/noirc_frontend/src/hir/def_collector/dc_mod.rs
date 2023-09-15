@@ -470,7 +470,7 @@ impl<'a> ModCollector<'a> {
             };
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&mut context.file_manager, child_file_id, errors).into_legacy();
+        let ast = parse_file(&context.file_manager, child_file_id, errors).into_legacy();
 
         // Add module into def collector and get a ModuleId
         if let Some(child_mod_id) =

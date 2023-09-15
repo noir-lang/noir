@@ -237,7 +237,7 @@ pub struct Contract {
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(
-    fm: &mut FileManager,
+    fm: &FileManager,
     file_id: FileId,
     all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {

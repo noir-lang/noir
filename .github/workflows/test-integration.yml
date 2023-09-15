@@ -77,9 +77,13 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
-      - name: Run `integration-tests`
+      - name: Setup `integration-tests`
         run: |
           yarn install --immutable
+          yarn workspace @noir-lang/noir-source-resolver build
+
+      - name: Run `integration-tests`
+        run: |
           yarn test:integration
           
       - name: Alert on nightly test failure  
