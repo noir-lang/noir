@@ -5,9 +5,9 @@ use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
-    parser::SubModule,
+    parser::{LegacyParsedModule, SubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
+    TraitImpl, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -33,7 +33,7 @@ struct ModCollector<'a> {
 /// This performs the entirety of the definition collection phase of the name resolution pass.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
-    ast: ParsedModule,
+    ast: LegacyParsedModule,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
@@ -437,7 +437,7 @@ impl<'a> ModCollector<'a> {
             ) {
                 collect_defs(
                     self.def_collector,
-                    submodule.contents,
+                    submodule.contents.into_legacy(),
                     file_id,
                     child,
                     crate_id,
@@ -470,7 +470,7 @@ impl<'a> ModCollector<'a> {
             };
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&mut context.file_manager, child_file_id, errors);
+        let ast = parse_file(&mut context.file_manager, child_file_id, errors).into_legacy();
 
         // Add module into def collector and get a ModuleId
         if let Some(child_mod_id) =

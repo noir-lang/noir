@@ -1,6 +1,6 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
-    parser::{ItemKind, ParsedModuleFmt},
+    parser::{ItemKind, ParsedModule},
     BlockExpression, Expression, ExpressionKind, NoirFunction, Statement,
 };
 
@@ -50,7 +50,7 @@ impl<'a> FmtVisitor<'a> {
         self.push_str(&s);
     }
 
-    pub fn visit_module(&mut self, module: ParsedModuleFmt) {
+    pub fn visit_module(&mut self, module: ParsedModule) {
         for item in module.items {
             match item.kind {
                 ItemKind::Function(func) => {
@@ -62,6 +62,9 @@ impl<'a> FmtVisitor<'a> {
                     self.push_str(" ");
 
                     self.visit_block(func.def.body, func.def.span, false);
+                }
+                _ => {
+                    self.format_missing_indent(item.span.end(), false);
                 }
             }
         }

@@ -12,10 +12,11 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::parser::LegacyParsedModule;
 use crate::{
     ExpressionKind, FunctionReturnType, Generics, Ident, LetStatement, Literal, NoirFunction,
-    NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem,
-    TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
+    NoirStruct, NoirTrait, NoirTypeAlias, Shared, StructType, TraitItem, TraitItemType, Type,
+    TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -120,7 +121,7 @@ impl DefCollector {
     pub fn collect(
         mut def_map: CrateDefMap,
         context: &mut Context,
-        ast: ParsedModule,
+        ast: LegacyParsedModule,
         root_file_id: FileId,
         errors: &mut Vec<FileDiagnostic>,
     ) {

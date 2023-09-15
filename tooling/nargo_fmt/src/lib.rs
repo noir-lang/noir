@@ -3,11 +3,10 @@
 mod config;
 mod visitor;
 
-use noirc_frontend::parser::Fmt;
 use visitor::FmtVisitor;
 
 pub fn format(source: &str) -> String {
-    let (module, errors) = noirc_frontend::parse_program::<Fmt>(source);
+    let (module, errors) = noirc_frontend::parse_program(source);
 
     // TODO: error handling
     if !errors.is_empty() {
@@ -67,6 +66,7 @@ mod tests {
                 Err(err) => unreachable!("{err}"),
             };
 
+            // TODO: better diff
             assert_eq!(fmt_text, target);
         }
     }

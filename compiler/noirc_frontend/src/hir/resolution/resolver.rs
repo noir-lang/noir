@@ -1598,7 +1598,7 @@ mod test {
         }
 
         let mut errors = Vec::new();
-        for func in program.functions {
+        for func in program.into_legacy().functions {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
 
@@ -1615,7 +1615,7 @@ mod test {
             init_src_code_resolution(src);
 
         let mut all_captures: Vec<Vec<String>> = Vec::new();
-        for func in program.functions {
+        for func in program.into_legacy().functions {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
             path_resolver.insert_func(func.name().to_owned(), id);

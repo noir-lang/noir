@@ -86,7 +86,7 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let ast = parse_file(&mut context.file_manager, root_file_id, errors).into_legacy();
 
         #[cfg(feature = "aztec")]
         let ast = aztec_library::transform(ast, &crate_id, context, errors);

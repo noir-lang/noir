@@ -35,7 +35,7 @@ pub use parser::parse_program;
 static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
-pub(crate) enum TopLevelStatement<M: Mode> {
+pub(crate) enum TopLevelStatement {
     Function(NoirFunction),
     Module(Ident),
     Import(UseTree),
@@ -44,7 +44,7 @@ pub(crate) enum TopLevelStatement<M: Mode> {
     TraitImpl(TraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    SubModule(SubModule<M>),
+    SubModule(SubModule),
     Global(LetStatement),
     Error,
 }
@@ -205,7 +205,7 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
 }
 
-fn top_level_statement_recovery<M: Mode>() -> impl NoirParser<TopLevelStatement<M>> {
+fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
     none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
         .repeated()
         .ignore_then(one_of([Token::Semicolon]))
@@ -217,88 +217,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
-pub trait Mode: std::fmt::Debug + Clone + Copy + 'static {
-    type ParsedModule: std::fmt::Debug + Default + Clone + ParsedModuleBuilder<Self>;
-}
-
-pub trait ParsedModuleBuilder<M: Mode> {
-    fn push_function(&mut self, func: NoirFunction, span: Span);
-    fn push_type(&mut self, typ: NoirStruct, span: Span);
-    fn push_trait(&mut self, noir_trait: NoirTrait, span: Span);
-    fn push_trait_impl(&mut self, trait_impl: TraitImpl, span: Span);
-    fn push_impl(&mut self, r#impl: TypeImpl, span: Span);
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, span: Span);
-    fn push_import(&mut self, import_stmt: UseTree, span: Span);
-    fn push_module_decl(&mut self, mod_name: Ident, span: Span);
-    fn push_submodule(&mut self, submodule: SubModule<M>, span: Span);
-    fn push_global(&mut self, global: LetStatement, span: Span);
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Compiler;
-
-impl Mode for Compiler {
-    type ParsedModule = ParsedModule;
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Fmt;
-
-impl Mode for Fmt {
-    type ParsedModule = ParsedModuleFmt;
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct ParsedModuleFmt {
-    pub items: Vec<Item>,
-}
-
-#[allow(unused_variables)]
-impl<M: Mode> ParsedModuleBuilder<M> for ParsedModuleFmt {
-    fn push_function(&mut self, func: NoirFunction, span: Span) {
-        self.items.push(Item { kind: ItemKind::Function(func), span });
-    }
-
-    fn push_type(&mut self, typ: NoirStruct, span: Span) {
-        todo!()
-    }
-
-    fn push_trait(&mut self, noir_trait: NoirTrait, span: Span) {
-        todo!()
-    }
-
-    fn push_trait_impl(&mut self, trait_impl: TraitImpl, span: Span) {
-        todo!()
-    }
-
-    fn push_impl(&mut self, r#impl: TypeImpl, span: Span) {
-        todo!()
-    }
-
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, span: Span) {
-        todo!()
-    }
-
-    fn push_import(&mut self, import_stmt: UseTree, span: Span) {
-        todo!()
-    }
-
-    fn push_module_decl(&mut self, mod_name: Ident, span: Span) {
-        todo!()
-    }
-
-    fn push_submodule(&mut self, submodule: SubModule<M>, span: Span) {
-        todo!()
-    }
-
-    fn push_global(&mut self, global: LetStatement, span: Span) {
-        todo!()
-    }
-}
-
-/// A ParsedModule contains an entire Ast for one file.
-#[derive(Clone, Debug, Default)]
-pub struct ParsedModule {
+pub struct LegacyParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
@@ -312,12 +231,19 @@ pub struct ParsedModule {
     pub module_decls: Vec<Ident>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
-    pub submodules: Vec<SubModule<Compiler>>,
+    pub submodules: Vec<SubModule>,
 }
 
-#[derive(Clone, Debug)]
-pub enum ItemKind {
-    Function(NoirFunction),
+/// A ParsedModule contains an entire Ast for one file.
+#[derive(Clone, Debug, Default)]
+pub struct ParsedModule {
+    pub items: Vec<Item>,
+}
+
+impl ParsedModule {
+    pub fn into_legacy(self) -> LegacyParsedModule {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -326,54 +252,73 @@ pub struct Item {
     pub span: Span,
 }
 
+#[derive(Clone, Debug)]
+pub enum ItemKind {
+    Import(ImportStatement),
+    Function(NoirFunction),
+    Struct(NoirStruct),
+    Trait(NoirTrait),
+    TraitImpl(TraitImpl),
+    Impl(TypeImpl),
+    TypeAlias(NoirTypeAlias),
+    Global(LetStatement),
+    ModuleDecl(Ident),
+    Submodules(SubModule),
+}
+
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
-pub struct SubModule<M: Mode> {
+pub struct SubModule {
     pub name: Ident,
-    pub contents: M::ParsedModule,
+    pub contents: ParsedModule,
     pub is_contract: bool,
 }
 
-impl ParsedModuleBuilder<Compiler> for ParsedModule {
-    fn push_function(&mut self, func: NoirFunction, _span: Span) {
-        self.functions.push(func);
+impl ParsedModule {
+    fn push_function(&mut self, func: NoirFunction, span: Span) {
+        self.items.push(Item { kind: ItemKind::Function(func), span });
     }
 
-    fn push_type(&mut self, typ: NoirStruct, _span: Span) {
-        self.types.push(typ);
+    fn push_type(&mut self, typ: NoirStruct, span: Span) {
+        self.items.push(Item { kind: ItemKind::Struct(typ), span });
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait, _span: Span) {
-        self.traits.push(noir_trait);
+    fn push_trait(&mut self, noir_trait: NoirTrait, span: Span) {
+        self.items.push(Item { kind: ItemKind::Trait(noir_trait), span });
     }
 
-    fn push_trait_impl(&mut self, trait_impl: TraitImpl, _span: Span) {
-        self.trait_impls.push(trait_impl);
+    fn push_trait_impl(&mut self, trait_impl: TraitImpl, span: Span) {
+        self.items.push(Item { kind: ItemKind::TraitImpl(trait_impl), span });
     }
 
-    fn push_impl(&mut self, r#impl: TypeImpl, _span: Span) {
-        self.impls.push(r#impl);
+    fn push_impl(&mut self, r#impl: TypeImpl, span: Span) {
+        self.items.push(Item { kind: ItemKind::Impl(r#impl), span });
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, _span: Span) {
-        self.type_aliases.push(type_alias);
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, span: Span) {
+        self.items.push(Item { kind: ItemKind::TypeAlias(type_alias), span });
     }
 
-    fn push_import(&mut self, import_stmt: UseTree, _span: Span) {
-        self.imports.extend(import_stmt.desugar(None));
+    fn push_import(&mut self, import_stmt: UseTree, span: Span) {
+        self.items.extend(
+            import_stmt
+                .desugar(None)
+                .into_iter()
+                .map(|kind| Item { kind: ItemKind::Import(kind), span }),
+        );
     }
 
-    fn push_module_decl(&mut self, mod_name: Ident, _span: Span) {
-        self.module_decls.push(mod_name);
+    fn push_module_decl(&mut self, mod_name: Ident, span: Span) {
+        self.items.push(Item { kind: ItemKind::ModuleDecl(mod_name), span });
     }
 
-    fn push_submodule(&mut self, submodule: SubModule<Compiler>, _span: Span) {
-        self.submodules.push(submodule);
+    fn push_submodule(&mut self, submodule: SubModule, span: Span) {
+        self.items.push(Item { kind: ItemKind::Submodules(submodule), span });
     }
 
-    fn push_global(&mut self, global: LetStatement, _span: Span) {
-        self.globals.push(global);
+    fn push_global(&mut self, global: LetStatement, span: Span) {
+        self.items.push(Item { kind: ItemKind::Global(global), span });
     }
 }
 
@@ -549,7 +494,7 @@ impl ForRange {
     }
 }
 
-impl std::fmt::Display for TopLevelStatement<Compiler> {
+impl std::fmt::Display for TopLevelStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
@@ -569,35 +514,37 @@ impl std::fmt::Display for TopLevelStatement<Compiler> {
 
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for decl in &self.module_decls {
+        let legacy = self.clone().into_legacy();
+
+        for decl in &legacy.module_decls {
             writeln!(f, "mod {decl};")?;
         }
 
-        for import in &self.imports {
+        for import in &legacy.imports {
             write!(f, "{import}")?;
         }
 
-        for global_const in &self.globals {
+        for global_const in &legacy.globals {
             write!(f, "{global_const}")?;
         }
 
-        for type_ in &self.types {
+        for type_ in &legacy.types {
             write!(f, "{type_}")?;
         }
 
-        for function in &self.functions {
+        for function in &legacy.functions {
             write!(f, "{function}")?;
         }
 
-        for impl_ in &self.impls {
+        for impl_ in &legacy.impls {
             write!(f, "{impl_}")?;
         }
 
-        for type_alias in &self.type_aliases {
+        for type_alias in &legacy.type_aliases {
             write!(f, "{type_alias}")?;
         }
 
-        for submodule in &self.submodules {
+        for submodule in &legacy.submodules {
             write!(f, "{submodule}")?;
         }
 
@@ -605,7 +552,7 @@ impl std::fmt::Display for ParsedModule {
     }
 }
 
-impl std::fmt::Display for SubModule<Compiler> {
+impl std::fmt::Display for SubModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mod {} {{", self.name)?;
 
