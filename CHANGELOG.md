@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.7.2...aztec-packages-v0.7.3) (2023-09-15)
+
+
+### Features
+
+* Constraining note owner ([#1896](https://github.com/AztecProtocol/aztec-packages/issues/1896)) ([cb25bc9](https://github.com/AztecProtocol/aztec-packages/commit/cb25bc9b679e7d559357a7ed9be5c8cf4ebc69d3)), closes [#1817](https://github.com/AztecProtocol/aztec-packages/issues/1817)
+
+
+### Bug Fixes
+
+* **build:** Navigate to correct directory for publishing ([#2318](https://github.com/AztecProtocol/aztec-packages/issues/2318)) ([f555356](https://github.com/AztecProtocol/aztec-packages/commit/f555356a78c68660b0a324c45a6dce29fb8df518))
+* Use bool for set_minter ([#2313](https://github.com/AztecProtocol/aztec-packages/issues/2313)) ([5b18f9e](https://github.com/AztecProtocol/aztec-packages/commit/5b18f9e697404a5ad7d2dbe4f8f3875edcf8c58c))
+
 ## [0.7.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.7.1...aztec-packages-v0.7.2) (2023-09-14)
 
 
