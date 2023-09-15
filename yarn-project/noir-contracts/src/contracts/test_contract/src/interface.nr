@@ -67,6 +67,18 @@ impl TestPrivateContextInterface {
   }
   
 
+  fn emit_unencrypted(
+    self,
+    context: &mut PrivateContext,
+    value: Field
+  ) {
+    let mut serialised_args = [0; 1];
+    serialised_args[0] = value;
+
+    context.call_public_function(self.address, 0x817a64cb, serialised_args)
+  }
+  
+
   fn getPortalContractAddress(
     self,
     context: &mut PrivateContext,
@@ -197,6 +209,18 @@ impl TestPublicContextInterface {
     serialised_args[1] = secretHash;
 
     context.call_public_function(self.address, 0x42040a24, serialised_args)
+  }
+  
+
+  fn emit_unencrypted(
+    self,
+    context: PublicContext,
+    value: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialised_args = [0; 1];
+    serialised_args[0] = value;
+
+    context.call_public_function(self.address, 0x817a64cb, serialised_args)
   }
   
 

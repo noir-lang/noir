@@ -90,7 +90,6 @@ EscrowContractAbi
 ImportTestContractAbi
 LendingContractAbi
 MultiTransferContractAbi
-NativeTokenContractAbi
 NonNativeTokenContractAbi
 ParentContractAbi
 PendingCommitmentsContractAbi

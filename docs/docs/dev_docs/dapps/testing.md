@@ -97,7 +97,7 @@ We can have private transactions that work fine locally, but are dropped by the 
 
 #### A public call fails locally
 
-Public function calls can be caught failing locally similar to how we catch private function calls. For this example, we use a [`NativeTokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/native_token_contract/src/main.nr) instead of a private one.
+Public function calls can be caught failing locally similar to how we catch private function calls. For this example, we use a [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) instead of a private one.
 
 :::info
 Keep in mind that public function calls behave as in EVM blockchains, in that they are executed by the sequencer and not locally. Local simulation helps alert the user of a potential failure, but the actual execution path of a public function call will depend on when it gets mined.
@@ -141,7 +141,7 @@ We can query the RPC server for all notes encrypted for a given user in a contra
 
 #### Querying public state
 
-[Public state](../../concepts/foundation/state_model.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`NativeTokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/native_token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 4.
+[Public state](../../concepts/foundation/state_model.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
 
 #include_code public-storage /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 

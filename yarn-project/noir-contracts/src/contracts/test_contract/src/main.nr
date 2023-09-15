@@ -8,6 +8,7 @@ contract Test {
             get_public_key::get_public_key,
             context::get_portal_address,
             rand::rand,
+            logs::emit_unencrypted_log
         },
         types::vec::BoundedVec,
     };
@@ -113,6 +114,16 @@ contract Test {
         time
     }
     // docs:end:is-time-equal
+
+    // docs:start:emit_unencrypted_log
+    #[aztec(public)]
+    fn emit_unencrypted(
+        value: Field
+    ) -> Field {
+        let _hash = emit_unencrypted_log(value);
+        _hash[0]
+    }
+    // docs:end:emit_unencrypted_log
 
     // Purely exists for testing
     unconstrained fn getRandom(

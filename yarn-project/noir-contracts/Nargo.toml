@@ -9,7 +9,6 @@ members = [
     "src/contracts/import_test_contract",
     "src/contracts/lending_contract",
     "src/contracts/multi_transfer_contract",
-    "src/contracts/native_token_contract",
     "src/contracts/non_native_token_contract",
     "src/contracts/parent_contract",
     "src/contracts/pending_commitments_contract",
