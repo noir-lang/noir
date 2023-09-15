@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.7.3...barretenberg-v0.7.4) (2023-09-15)
+
+
+### Features
+
+* Elliptic Curve Virtual Machine Circuit ([#1268](https://github.com/AztecProtocol/aztec-packages/issues/1268)) ([f85ecd9](https://github.com/AztecProtocol/aztec-packages/commit/f85ecd921271ec94b551992bcfe16c2b56f72d2e))
+
 ## [0.7.3](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.7.2...barretenberg-v0.7.3) (2023-09-15)
 
 
