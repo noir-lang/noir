@@ -9,5 +9,17 @@
   "dependencies": {
     "@noir-lang/acvm_js": "0.26.1",
     "@noir-lang/noirc_abi": "workspace:*"
+  },
+  "files": [
+    "lib",
+    "package.json"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
   }
 }
