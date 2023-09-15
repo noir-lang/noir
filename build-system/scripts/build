@@ -57,7 +57,16 @@ function try_fetch_image() {
   return 0
 }
 
-echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin
+function docker_login() {
+  # Retries up to 3 times with 10 second intervals
+  for i in $(seq 1 3); do
+    echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin && return || sleep 10
+  done
+  echo "$@ failed docker_login after 3 attempts"
+  exit 1
+}
+
+docker_login
 
 # Ensure ECR repository exists.
 retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle

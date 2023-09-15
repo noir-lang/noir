@@ -49,8 +49,17 @@ IMAGE_TAG=$COMMIT_TAG_VERSION
 MANIFEST_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
 MANIFEST_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
 
+function docker_login() {
+  # Retries up to 3 times with 10 second intervals
+  for i in $(seq 1 3); do
+    echo "$DOCKERHUB_PASSWORD" | docker login -u $USERNAME --password-stdin && return || sleep 10
+  done
+  echo "$@ failed docker_login after 3 attempts"
+  exit 1
+}
+
 # Login to dockerhub.
-echo "$DOCKERHUB_PASSWORD" | docker login -u $USERNAME --password-stdin
+docker_login
 
 export DOCKER_CLI_EXPERIMENTAL=enabled
 

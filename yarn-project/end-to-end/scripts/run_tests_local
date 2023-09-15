@@ -6,7 +6,19 @@ set -exu
 export TEST=$1
 export COMPOSE_FILE=${2:-./scripts/docker-compose.yml}
 
-aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com
+function docker_login() {
+  # Retries up to 3 times with 10 second intervals
+  for i in $(seq 1 3); do
+    aws ecr get-login-password --region us-east-2 \
+      | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com \
+      && return || sleep 10
+  done
+  echo "$@ failed docker_login after 3 attempts"
+  exit 1
+}
+
+# Login to dockerhub.
+docker_login
 
 export PATH="$PATH:$(git rev-parse --show-toplevel)/build-system/scripts"
 
