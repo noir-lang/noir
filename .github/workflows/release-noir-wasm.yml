@@ -1,4 +1,4 @@
-name: Update & Publish
+name: Release Noir Wasm
 
 on:
   workflow_dispatch:
