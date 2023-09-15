@@ -14,7 +14,6 @@
     "package.json"
   ],
   "sideEffects": false,
-  "packageManager": "yarn@3.5.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/noir-lang/noir.git"
