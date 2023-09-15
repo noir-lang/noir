@@ -6,7 +6,7 @@ runs:
   steps:
     - name: Query playwright version
       shell: bash
-      run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+      run: echo "PLAYWRIGHT_VERSION=$(yarn workspace @noir-lang/noirc_abi info @web/test-runner-playwright --json | jq .children.Version | tr -d '"')" >> $GITHUB_ENV
 
     - name: Cache playwright binaries
       uses: actions/cache@v3
