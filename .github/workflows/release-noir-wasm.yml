@@ -27,7 +27,7 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix build -L github:noir-lang/noir/master#wasm
+          nix build -L .#wasm
 
       - name: Copy output
         run: |
