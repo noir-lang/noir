@@ -89,9 +89,6 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: poke Yarn
-        run: yarn install --immutable
-
       - name: Run node tests
         run: yarn workspace @noir-lang/noirc_abi test
 
