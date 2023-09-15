@@ -441,7 +441,7 @@ Gets information of an Aztec node at the specified URL.
 
 Syntax:
 
-```shel
+```shell
 aztec-cli get-node-info
 ```
 

@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./cli": "./dest/cli/index.js"
+    "./cli": "./dest/cli/index.js",
+    "./noir-version": "./dest/noir-version.js"
   },
   "typedocOptions": {
     "entryPoints": [

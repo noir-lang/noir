@@ -28,7 +28,13 @@ describe('Contract Class', () => {
   const mockTxHash = { type: 'TxHash' } as any as TxHash;
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
   const mockViewResultValue = 1;
-  const mockNodeInfo: NodeInfo = { version: 1, chainId: 2, rollupAddress: EthAddress.random(), client: '' };
+  const mockNodeInfo: NodeInfo = {
+    version: 1,
+    chainId: 2,
+    rollupAddress: EthAddress.random(),
+    client: '',
+    nargoVersion: 'sdlhahf823',
+  };
 
   const defaultAbi: ContractAbi = {
     name: 'FooContract',

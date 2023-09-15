@@ -41,12 +41,6 @@
     },
     {
       "path": "../../foundation"
-    },
-    {
-      "path": "../../noir-compiler"
-    },
-    {
-      "path": "../../types"
     }
   ]
 }

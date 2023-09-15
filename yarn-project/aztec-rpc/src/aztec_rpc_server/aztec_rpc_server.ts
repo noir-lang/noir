@@ -20,6 +20,7 @@ import { encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import NoirVersion from '@aztec/noir-compiler/noir-version';
 import {
   AuthWitness,
   AztecNode,
@@ -306,6 +307,7 @@ export class AztecRPCServer implements AztecRPC {
       chainId,
       rollupAddress,
       client: this.clientInfo,
+      nargoVersion: NoirVersion.commit,
     };
   }
 

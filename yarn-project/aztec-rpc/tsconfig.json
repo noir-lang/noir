@@ -19,6 +19,9 @@
       "path": "../key-store"
     },
     {
+      "path": "../noir-compiler"
+    },
+    {
       "path": "../types"
     }
   ],

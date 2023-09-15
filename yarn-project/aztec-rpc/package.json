@@ -35,6 +35,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/key-store": "workspace:^",
+    "@aztec/noir-compiler": "workspace:^",
     "@aztec/types": "workspace:^",
     "lodash.omit": "^4.5.0",
     "lodash.partition": "^4.6.0",
