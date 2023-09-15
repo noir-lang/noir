@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.12.0](https://github.com/noir-lang/noir/compare/v0.11.1...v0.12.0) (2023-09-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* Change `noir-lang/noir-source-resolver` to `noir-lang/source-resolver` ([#2718](https://github.com/noir-lang/noir/issues/2718))
+* use american spelling of "serialize" in stdlib ([#2675](https://github.com/noir-lang/noir/issues/2675))
+* Restrict packages to contain at most a single contract ([#2668](https://github.com/noir-lang/noir/issues/2668))
+* use two limbs for scalar mul ([#2602](https://github.com/noir-lang/noir/issues/2602))
+
+### Features
+
+* Add initial version of noir.js ([#2681](https://github.com/noir-lang/noir/issues/2681)) ([e1687c9](https://github.com/noir-lang/noir/commit/e1687c9443aaa58030c38942b6aa22001e6c3e57))
+* Allow methods defined in a contract to be non-entry points ([#2687](https://github.com/noir-lang/noir/issues/2687)) ([2103b2f](https://github.com/noir-lang/noir/commit/2103b2ffb640fe457b24be09b6d63fe6ee1c6ac1))
+* Compile circuits and query circuit sizes in parallel for `nargo info` ([#2665](https://github.com/noir-lang/noir/issues/2665)) ([f173c05](https://github.com/noir-lang/noir/commit/f173c05cbff96dfc48a22cc2f1f76396b968d5a0))
+* Compile workspace packages in parallel ([#2612](https://github.com/noir-lang/noir/issues/2612)) ([16e5e4d](https://github.com/noir-lang/noir/commit/16e5e4ddb33209a84e29dc4bea5813baba8bd5f3))
+* Handle `should_fail_with` case ([#2541](https://github.com/noir-lang/noir/issues/2541)) ([291d002](https://github.com/noir-lang/noir/commit/291d0025b7d7db0a1b11fb05b72d45e8f36405da))
+* **lsp:** Add nargo capabilities for test metadata ([#2532](https://github.com/noir-lang/noir/issues/2532)) ([b4ee23e](https://github.com/noir-lang/noir/commit/b4ee23e763a65323879eeda51be3a0c302b3ede6))
+* **nargo:** Allow installing custom backends from the CLI ([#2632](https://github.com/noir-lang/noir/issues/2632)) ([c0c462c](https://github.com/noir-lang/noir/commit/c0c462c4b1e686816e300c504c4dee163af10805))
+* **parser:** Allow multiple attributes ([#2537](https://github.com/noir-lang/noir/issues/2537)) ([7cdff2e](https://github.com/noir-lang/noir/commit/7cdff2ecbdb42c5f8ef33da6efde325ac971bbdb))
+* **traits:** Add default and override of methods ([#2585](https://github.com/noir-lang/noir/issues/2585)) ([98c3ba9](https://github.com/noir-lang/noir/commit/98c3ba90907f55533f895760621f3334e75be8ff))
+
+
+### Bug Fixes
+
+* Avoid overflows in integer division ([#2180](https://github.com/noir-lang/noir/issues/2180)) ([6665210](https://github.com/noir-lang/noir/commit/66652102adee3f3318ab7a538c6f9684420f00eb))
+* **aztec_noir:** Support bools as input types ([#2674](https://github.com/noir-lang/noir/issues/2674)) ([9e7a0f0](https://github.com/noir-lang/noir/commit/9e7a0f08795a4c86ab4b50f88898eabcb5462d7e))
+* Failing js tests ([#2722](https://github.com/noir-lang/noir/issues/2722)) ([398b6d7](https://github.com/noir-lang/noir/commit/398b6d73a16424a1467b0d48756b4eeb8f84e408))
+* Fix `update_acir` deleting all debug information ([#2643](https://github.com/noir-lang/noir/issues/2643)) ([a8a5395](https://github.com/noir-lang/noir/commit/a8a5395f357ef26890af526f417418c49b032d17))
+* Fix compilation using `aztec` feature flag ([#2663](https://github.com/noir-lang/noir/issues/2663)) ([7f6fe46](https://github.com/noir-lang/noir/commit/7f6fe46f8bc00f24ff8d14b3a517e27b50db4ee5))
+* Implement auto-dereferencing when calling methods ([#2581](https://github.com/noir-lang/noir/issues/2581)) ([3c731b1](https://github.com/noir-lang/noir/commit/3c731b11b31b8556eeebc4fe59b68609aa96c463))
+* Initialise arrays returned by brillig ([#2048](https://github.com/noir-lang/noir/issues/2048)) ([788dfb4](https://github.com/noir-lang/noir/commit/788dfb45e025786b13035d4c3d6ccf1e1614ef2f))
+* Remove duplicate file extension in stack trace ([#2655](https://github.com/noir-lang/noir/issues/2655)) ([1114871](https://github.com/noir-lang/noir/commit/1114871d538767c053d71c67577890dd29f0b490))
+* **ssa:** Slice mergers with multiple ifs ([#2597](https://github.com/noir-lang/noir/issues/2597)) ([6110638](https://github.com/noir-lang/noir/commit/6110638ec743616b9a3f38650838dda631a25efd))
+* Support for conditional stores ([#2553](https://github.com/noir-lang/noir/issues/2553)) ([6e6d952](https://github.com/noir-lang/noir/commit/6e6d952c052a893e897eaa42b36d3a15426a4f78))
+* Use high limb in scalar multiplication ([#2619](https://github.com/noir-lang/noir/issues/2619)) ([9014b8a](https://github.com/noir-lang/noir/commit/9014b8a7cd43112e2129b6a7c5e76708e5ad37b0))
+* Use two limbs for scalar mul ([#2602](https://github.com/noir-lang/noir/issues/2602)) ([d0884ca](https://github.com/noir-lang/noir/commit/d0884cae61926c2f76e27b87212b8c4bd239cbb0))
+* **wasm:** Apply transformation map to circuit debug information in `noir_wasm` ([#2635](https://github.com/noir-lang/noir/issues/2635)) ([9da822f](https://github.com/noir-lang/noir/commit/9da822f59923a9953894c43afd1ddbeffa871dbf))
+* **wasm:** Avoid requesting stdlib paths from the source-resolver ([#2650](https://github.com/noir-lang/noir/issues/2650)) ([aebab34](https://github.com/noir-lang/noir/commit/aebab34520b31502bb8bf0c028aa2ea8bb33142b))
+* **wasm:** Remove stacker from dependencies ([#2637](https://github.com/noir-lang/noir/issues/2637)) ([36691ab](https://github.com/noir-lang/noir/commit/36691aba1be6c26216b9da518543e4a1665da56f))
+
+
+### Miscellaneous Chores
+
+* Change `noir-lang/noir-source-resolver` to `noir-lang/source-resolver` ([#2718](https://github.com/noir-lang/noir/issues/2718)) ([31e489e](https://github.com/noir-lang/noir/commit/31e489e85582de702d5798c633de9b7c4008169c))
+* Restrict packages to contain at most a single contract ([#2668](https://github.com/noir-lang/noir/issues/2668)) ([dc3358b](https://github.com/noir-lang/noir/commit/dc3358b7e12ba25bedf3aa47a82b2e994a41e8c0))
+* Use american spelling of "serialize" in stdlib ([#2675](https://github.com/noir-lang/noir/issues/2675)) ([56c96d0](https://github.com/noir-lang/noir/commit/56c96d06b6c18cbb59320d1d0745536ddcf2d4dd))
+
 ## [0.11.1](https://github.com/noir-lang/noir/compare/v0.11.0...v0.11.1) (2023-09-07)
 
 
