@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use acvm::brillig_vm::brillig::RegisterOrMemory;
 use iter_extended::vecmap;
 
@@ -16,14 +14,14 @@ use crate::{
         value::ValueId,
     },
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::{brillig_block_variables::allocate_value, variable_liveness::VariableLiveness};
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
-    /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on definition.
-    pub(crate) ssa_variable_to_register_or_memory: HashMap<ValueId, RegisterOrMemory>,
+    /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
+    pub(crate) ssa_value_allocations: HashMap<ValueId, RegisterOrMemory>,
     /// Block parameters are pre allocated at the function level.
     pub(crate) block_parameters: HashMap<BasicBlockId, Vec<ValueId>>,
     /// The block ids of the function in reverse post order.
@@ -33,6 +31,7 @@ pub(crate) struct FunctionContext {
 }
 
 impl FunctionContext {
+    /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
     pub(crate) fn new(function: &Function, brillig_context: &mut BrilligContext) -> Self {
         let id = function.id();
 
@@ -55,7 +54,7 @@ impl FunctionContext {
 
         Self {
             function_id: id,
-            ssa_variable_to_register_or_memory,
+            ssa_value_allocations: ssa_variable_to_register_or_memory,
             block_parameters,
             blocks: reverse_post_order,
             liveness: VariableLiveness::from_function(function),

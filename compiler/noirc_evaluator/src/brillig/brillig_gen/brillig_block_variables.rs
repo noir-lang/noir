@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet};
-
 use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::brillig_ir::{extract_register, BrilligContext},
@@ -21,6 +20,7 @@ pub(crate) struct BlockVariables {
 }
 
 impl BlockVariables {
+    /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
         BlockVariables {
             available_variables: live_in
@@ -31,6 +31,7 @@ impl BlockVariables {
         }
     }
 
+    /// Returns all non-constant variables that have not been removed at this point.
     pub(crate) fn get_available_variables(
         &self,
         function_context: &mut FunctionContext,
@@ -39,7 +40,7 @@ impl BlockVariables {
             .iter()
             .map(|value_id| {
                 function_context
-                    .ssa_variable_to_register_or_memory
+                    .ssa_value_allocations
                     .get(value_id)
                     .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
             })
@@ -47,9 +48,8 @@ impl BlockVariables {
             .collect()
     }
 
-    /// For a given SSA non constant value id, create and cache the a corresponding variable.
-    /// This will allocate the needed registers for the variable.
-    pub(crate) fn create_variable(
+    /// For a given SSA non constant value id, define the variable and return the corresponding cached allocation.
+    pub(crate) fn define_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext,
@@ -59,14 +59,7 @@ impl BlockVariables {
         let value_id = dfg.resolve(value_id);
         let variable = allocate_value(value_id, brillig_context, dfg);
 
-        // Cache the `ValueId` so that if we call get_variable, it will
-        // return the registers that have just been created.
-        //
-        // WARNING: This assumes that a registers won't be reused for a different value.
-        // If you overwrite the registers, then the cache will be invalid.
-
-        if function_context.ssa_variable_to_register_or_memory.insert(value_id, variable).is_some()
-        {
+        if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
         }
 
@@ -75,12 +68,13 @@ impl BlockVariables {
         variable
     }
 
+    /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable(&mut self, value_id: &ValueId) {
         self.available_variables.remove(value_id);
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
-    pub(crate) fn get_value(
+    pub(crate) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
         value_id: ValueId,
@@ -97,7 +91,7 @@ impl BlockVariables {
             );
 
             *function_context
-                .ssa_variable_to_register_or_memory
+                .ssa_value_allocations
                 .get(&value_id)
                 .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
         }
@@ -115,14 +109,15 @@ impl BlockVariables {
         self.available_constants.get(&value_id).cloned()
     }
 
+    /// Removes the allocations of all constants. Constants will need to be reallocated and reinitialized after this.
     pub(crate) fn dump_constants(&mut self) {
         self.available_constants.clear();
     }
 
     /// Gets or creates a constant.
     /// Constants are a special case in SSA, since they are defined and consumed every time they are used.
-    /// We keep constants block-local
-    pub(crate) fn create_constant(
+    /// We keep constants block-local.
+    pub(crate) fn allocate_constant(
         &mut self,
         brillig_context: &mut BrilligContext,
         value_id: ValueId,
@@ -152,10 +147,7 @@ impl BlockVariables {
             "Value is not a block parameter"
         );
 
-        *function_context
-            .ssa_variable_to_register_or_memory
-            .get(&value_id)
-            .expect("Block param not found")
+        *function_context.ssa_value_allocations.get(&value_id).expect("Block param not found")
     }
 
     /// Creates a variable that fits in a single register and returns the register.
@@ -166,7 +158,7 @@ impl BlockVariables {
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> RegisterIndex {
-        let variable = self.create_variable(function_context, brillig_context, value, dfg);
+        let variable = self.define_variable(function_context, brillig_context, value, dfg);
         extract_register(variable)
     }
 }
@@ -176,6 +168,7 @@ pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) 
     item_typ.len() * elem_count
 }
 
+/// For a given value_id, allocates the necessary registers to hold it.
 pub(crate) fn allocate_value(
     value_id: ValueId,
     brillig_context: &mut BrilligContext,

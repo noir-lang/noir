@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
-
+//! This module analyzes the liveness of variables (non-constant values) throughout a function.
+//! It uses the approach detailed in the section 4.2 of this paper https://inria.hal.science/inria-00558509v2/document
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     cfg::ControlFlowGraph,
@@ -11,6 +11,9 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
+/// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct BackEdge {
     header: BasicBlockId,
@@ -23,7 +26,7 @@ fn find_back_edges(
     post_order: &PostOrder,
 ) -> HashSet<BackEdge> {
     let mut tree = DominatorTree::with_cfg_and_post_order(cfg, post_order);
-    let mut back_edges = HashSet::new();
+    let mut back_edges = HashSet::default();
 
     for block_id in func.reachable_blocks() {
         let block = &func.dfg[block_id];
@@ -39,7 +42,7 @@ fn find_back_edges(
 }
 
 fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
-    let mut defined_vars = HashSet::new();
+    let mut defined_vars = HashSet::default();
 
     for parameter in block.parameters() {
         defined_vars.insert(dfg.resolve(*parameter));
@@ -55,7 +58,8 @@ fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet
     defined_vars
 }
 
-fn collect_variables(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
+/// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
+fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
     let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
@@ -67,47 +71,53 @@ fn collect_variables(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
             let mut value_ids = Vec::new();
 
             array.iter().for_each(|item_id| {
-                let underlying_ids = collect_variables(*item_id, dfg);
+                let underlying_ids = collect_variables_of_value(*item_id, dfg);
                 value_ids.extend(underlying_ids);
             });
 
             value_ids
         }
-        _ => {
+        Value::ForeignFunction(_)
+        | Value::Function(_)
+        | Value::Intrinsic(..)
+        | Value::NumericConstant { .. } => {
+            // Not variables
             vec![]
         }
     }
 }
 
-fn variables_used(instruction: &Instruction, dfg: &DataFlowGraph) -> Vec<ValueId> {
+fn variables_used_in_instruction(instruction: &Instruction, dfg: &DataFlowGraph) -> Vec<ValueId> {
     let mut used = Vec::new();
 
     instruction.for_each_value(|value_id| {
-        let underlying_ids = collect_variables(value_id, dfg);
+        let underlying_ids = collect_variables_of_value(value_id, dfg);
         used.extend(underlying_ids);
     });
 
     used
 }
 
-fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
-    let mut used = HashSet::new();
-
-    for instruction_id in block.instructions() {
-        let instruction = &dfg[*instruction_id];
-        used.extend(variables_used(instruction, dfg));
-    }
+fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<ValueId> {
+    let mut used: Vec<ValueId> = block
+        .instructions()
+        .iter()
+        .flat_map(|instruction_id| {
+            let instruction = &dfg[*instruction_id];
+            variables_used_in_instruction(instruction, dfg)
+        })
+        .collect();
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
-            used.extend(collect_variables(value_id, dfg));
+            used.extend(collect_variables_of_value(value_id, dfg));
         });
     }
 
     used
 }
 
-fn compute_before_def(
+fn compute_used_before_def(
     block: &BasicBlock,
     dfg: &DataFlowGraph,
     defined_in_block: &HashSet<ValueId>,
@@ -118,6 +128,7 @@ fn compute_before_def(
         .collect()
 }
 
+/// A struct representing the liveness of variables throughout a function.
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
@@ -126,12 +137,13 @@ pub(crate) struct VariableLiveness {
 }
 
 impl VariableLiveness {
+    /// Computes the liveness of variables throughout a function.
     pub(crate) fn from_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
 
         let mut instance =
-            Self { cfg, post_order, live_in: HashMap::new(), last_uses: HashMap::new() };
+            Self { cfg, post_order, live_in: HashMap::default(), last_uses: HashMap::default() };
 
         instance.compute_live_in_of_blocks(func);
 
@@ -140,14 +152,14 @@ impl VariableLiveness {
         instance
     }
 
-    /// The set of values that are live before the block starts executing
+    /// The set of values that are alive before the block starts executing
     pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &HashSet<ValueId> {
         self.live_in.get(block_id).expect("Live ins should have been calculated")
     }
 
-    /// The set of values that are live after the block has finished executed
+    /// The set of values that are alive after the block has finished executed
     pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> HashSet<ValueId> {
-        let mut live_out = HashSet::new();
+        let mut live_out = HashSet::default();
         for successor_id in self.cfg.successors(*block_id) {
             live_out.extend(self.get_live_in(&successor_id));
         }
@@ -162,6 +174,18 @@ impl VariableLiveness {
         self.last_uses.get(block_id).expect("Last uses should have been calculated")
     }
 
+    fn compute_live_in_of_blocks(&mut self, func: &Function) {
+        let back_edges = find_back_edges(func, &self.cfg, &self.post_order);
+
+        // First pass, propagate up the live_ins skipping back edges
+        self.compute_live_in_recursive(func, func.entry_block(), &back_edges);
+
+        // Second pass, propagate header live_ins to the loop bodies
+        for back_edge in back_edges {
+            self.update_live_ins_within_loop(back_edge);
+        }
+    }
+
     fn compute_live_in_recursive(
         &mut self,
         func: &Function,
@@ -171,9 +195,9 @@ impl VariableLiveness {
         let block = &func.dfg[block_id];
 
         let defined = compute_defined_variables(block, &func.dfg);
-        let before_def = compute_before_def(block, &func.dfg, &defined);
+        let used_before_def = compute_used_before_def(block, &func.dfg, &defined);
 
-        let mut live_out = HashSet::new();
+        let mut live_out = HashSet::default();
 
         for successor_id in block.successors() {
             if !back_edges.contains(&BackEdge { start: block_id, header: successor_id }) {
@@ -189,12 +213,28 @@ impl VariableLiveness {
         }
 
         // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-        let difference = live_out.difference(&defined).cloned().collect();
-        self.live_in.insert(block_id, before_def.union(&difference).cloned().collect());
+        let passthrough_vars = live_out.difference(&defined).cloned().collect();
+        self.live_in.insert(block_id, used_before_def.union(&passthrough_vars).cloned().collect());
+    }
+
+    fn update_live_ins_within_loop(&mut self, back_edge: BackEdge) {
+        let header_live_ins = self
+            .live_in
+            .get(&back_edge.header)
+            .expect("Live ins should have been calculated")
+            .clone();
+
+        let body = self.compute_loop_body(back_edge);
+        for body_block_id in body {
+            self.live_in
+                .get_mut(&body_block_id)
+                .expect("Live ins should have been calculated")
+                .extend(&header_live_ins);
+        }
     }
 
     fn compute_loop_body(&self, edge: BackEdge) -> HashSet<BasicBlockId> {
-        let mut loop_blocks = HashSet::new();
+        let mut loop_blocks = HashSet::default();
         loop_blocks.insert(edge.header);
         loop_blocks.insert(edge.start);
 
@@ -212,52 +252,26 @@ impl VariableLiveness {
         loop_blocks
     }
 
-    fn update_live_ins_within_loop(&mut self, back_edge: BackEdge) {
-        let header_live_ins = self
-            .live_in
-            .get(&back_edge.header)
-            .expect("Live ins should have been calculated")
-            .clone();
-        let body = self.compute_loop_body(back_edge);
-        for body_block_id in body {
-            self.live_in
-                .get_mut(&body_block_id)
-                .expect("Live ins should have been calculated")
-                .extend(&header_live_ins);
-        }
-    }
-
-    fn compute_live_in_of_blocks(&mut self, func: &Function) {
-        let back_edges = find_back_edges(func, &self.cfg, &self.post_order);
-
-        // First pass, propagate up the live_ins skipping back edges
-        self.compute_live_in_recursive(func, func.entry_block(), &back_edges);
-
-        // Second pass, propagate header live_ins to the loop bodies
-        for back_edge in back_edges {
-            self.update_live_ins_within_loop(back_edge);
-        }
-    }
-
     fn compute_last_uses(&mut self, func: &Function) {
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
             let live_out = self.get_live_out(&block_id);
 
-            let mut used_after: HashSet<ValueId> = HashSet::new();
-            let mut block_last_uses: HashMap<InstructionId, HashSet<ValueId>> = HashMap::new();
+            let mut used_after: HashSet<ValueId> = HashSet::default();
+            let mut block_last_uses: HashMap<InstructionId, HashSet<ValueId>> = HashMap::default();
 
             // First, handle the terminator
             if let Some(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    let underlying_vars = collect_variables(value_id, &func.dfg);
+                    let underlying_vars = collect_variables_of_value(value_id, &func.dfg);
                     used_after.extend(underlying_vars);
                 });
             }
 
+            // Then, handle the instructions in reverse order to find the last use
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
-                let instruction_last_uses = variables_used(instruction, &func.dfg)
+                let instruction_last_uses = variables_used_in_instruction(instruction, &func.dfg)
                     .into_iter()
                     .filter(|id| !used_after.contains(id) && !live_out.contains(id))
                     .collect();
@@ -273,7 +287,7 @@ impl VariableLiveness {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashSet;
+    use fxhash::FxHashSet;
 
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::function_builder::FunctionBuilder;
@@ -348,9 +362,9 @@ mod test {
         let liveness = VariableLiveness::from_function(func);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(liveness.get_live_in(&b2), &HashSet::from([v3, v0]));
-        assert_eq!(liveness.get_live_in(&b1), &HashSet::from([v3, v1]));
-        assert_eq!(liveness.get_live_in(&b3), &HashSet::from([v3]));
+        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v3, v0].into_iter()));
+        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v3, v1].into_iter()));
+        assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
     }
 
     #[test]
@@ -476,13 +490,25 @@ mod test {
         let liveness = VariableLiveness::from_function(func);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(liveness.get_live_in(&b1), &HashSet::from([v0, v1, v3]));
-        assert_eq!(liveness.get_live_in(&b3), &HashSet::from([v3]));
-        assert_eq!(liveness.get_live_in(&b2), &HashSet::from([v0, v1, v3, v4]));
-        assert_eq!(liveness.get_live_in(&b4), &HashSet::from([v0, v1, v3, v4, v6]));
-        assert_eq!(liveness.get_live_in(&b6), &HashSet::from([v0, v1, v3, v4]));
-        assert_eq!(liveness.get_live_in(&b5), &HashSet::from([v0, v1, v3, v4, v6, v7]));
-        assert_eq!(liveness.get_live_in(&b7), &HashSet::from([v0, v1, v3, v4, v6, v7]));
-        assert_eq!(liveness.get_live_in(&b8), &HashSet::from([v0, v1, v3, v4, v6, v7]));
+        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v0, v1, v3].into_iter()));
+        assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
+        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
+        assert_eq!(
+            liveness.get_live_in(&b4),
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6].into_iter())
+        );
+        assert_eq!(liveness.get_live_in(&b6), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
+        assert_eq!(
+            liveness.get_live_in(&b5),
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
+        );
+        assert_eq!(
+            liveness.get_live_in(&b7),
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
+        );
+        assert_eq!(
+            liveness.get_live_in(&b8),
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
+        );
     }
 }

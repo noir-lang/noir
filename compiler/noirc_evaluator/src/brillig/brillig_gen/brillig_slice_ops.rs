@@ -311,7 +311,6 @@ impl<'block> BrilligBlock<'block> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use std::vec;
 
     use acvm::acir::brillig::{HeapVector, Value};
@@ -332,8 +331,9 @@ mod tests {
         let builder =
             FunctionBuilder::new("main".to_string(), Id::test_new(0), RuntimeType::Brillig);
         let ssa = builder.finish();
-        let function_context = FunctionContext::new(ssa.main());
-        let brillig_context = create_context();
+        let mut brillig_context = create_context();
+
+        let function_context = FunctionContext::new(ssa.main(), &mut brillig_context);
         (ssa, function_context, brillig_context)
     }
 
@@ -341,8 +341,14 @@ mod tests {
         function_context: &'a mut FunctionContext,
         brillig_context: &'a mut BrilligContext,
     ) -> BrilligBlock<'a> {
-        let variables = BlockVariables::new(&HashSet::new(), &[]);
-        BrilligBlock { function_context, block_id: Id::test_new(0), brillig_context, variables }
+        let variables = BlockVariables::default();
+        BrilligBlock {
+            function_context,
+            block_id: Id::test_new(0),
+            brillig_context,
+            variables,
+            last_uses: Default::default(),
+        }
     }
 
     #[test]

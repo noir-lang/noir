@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::brillig::brillig_ir::{
     extract_heap_array, extract_register, extract_registers, BrilligBinaryOp, BrilligContext,
     BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
@@ -18,6 +16,7 @@ use crate::ssa::ir::{
 use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory};
 use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 
 use super::brillig_black_box::convert_black_box_call;
@@ -216,7 +215,7 @@ impl<'block> BrilligBlock<'block> {
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference => {
                     // This parameter variable might have already been created by another block that jumps to this one.
-                    self.variables.get_value(self.function_context, *param_id, dfg);
+                    self.variables.get_allocation(self.function_context, *param_id, dfg);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -269,7 +268,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.store_variable_instruction(address_register, source_variable);
             }
             Instruction::Load { address } => {
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
@@ -412,7 +411,7 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.variables.create_variable(
+                    let target_len_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         results[0],
@@ -420,7 +419,7 @@ impl<'block> BrilligBlock<'block> {
                     );
                     let target_len = extract_register(target_len_variable);
 
-                    let target_slice = self.variables.create_variable(
+                    let target_slice = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         results[1],
@@ -446,7 +445,7 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.variables.create_variable(
+                    let target_len_variable = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         results[0],
@@ -454,7 +453,7 @@ impl<'block> BrilligBlock<'block> {
                     );
                     let target_len = extract_register(target_len_variable);
 
-                    let target_slice = self.variables.create_variable(
+                    let target_slice = self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         results[1],
@@ -510,7 +509,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_variable = self.variables.create_variable(
+                let destination_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     result_ids[0],
@@ -537,7 +536,7 @@ impl<'block> BrilligBlock<'block> {
                 let value_variable = self.convert_ssa_value(*value, dfg);
 
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_variable = self.variables.create_variable(
+                let destination_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     result_ids[0],
@@ -592,6 +591,7 @@ impl<'block> BrilligBlock<'block> {
             .brillig_context
             .pre_call_save_registers_prep_args(&argument_registers, &variables_to_save);
 
+        // We don't save and restore constants, so we dump them before a external call since the callee might use the registers where they are allocated.
         self.variables.dump_constants();
 
         // Call instruction, which will interpret above registers 0..num args
@@ -602,7 +602,7 @@ impl<'block> BrilligBlock<'block> {
 
         // Allocate the registers for the variables where we are assigning the returns
         let variables_assigned_to = vecmap(result_ids, |result_id| {
-            self.variables.create_variable(
+            self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
                 *result_id,
@@ -740,7 +740,7 @@ impl<'block> BrilligBlock<'block> {
         let results = dfg.instruction_results(instruction_id);
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
-                let target_len = match self.variables.create_variable(
+                let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[0],
@@ -750,7 +750,7 @@ impl<'block> BrilligBlock<'block> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[1],
@@ -767,7 +767,7 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_push_back_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
-                let target_len = match self.variables.create_variable(
+                let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[0],
@@ -777,7 +777,7 @@ impl<'block> BrilligBlock<'block> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[1],
@@ -793,7 +793,7 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_push_front_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
-                let target_len = match self.variables.create_variable(
+                let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[0],
@@ -803,7 +803,7 @@ impl<'block> BrilligBlock<'block> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[1],
@@ -813,7 +813,7 @@ impl<'block> BrilligBlock<'block> {
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 let pop_variables = vecmap(&results[2..element_size + 2], |result| {
-                    self.variables.create_variable(
+                    self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         *result,
@@ -826,7 +826,7 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
-                let target_len = match self.variables.create_variable(
+                let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[element_size],
@@ -837,7 +837,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let pop_variables = vecmap(&results[0..element_size], |result| {
-                    self.variables.create_variable(
+                    self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         *result,
@@ -845,7 +845,7 @@ impl<'block> BrilligBlock<'block> {
                     )
                 });
 
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[element_size + 1],
@@ -858,7 +858,7 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
-                let target_len = match self.variables.create_variable(
+                let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[0],
@@ -869,7 +869,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let target_id = results[1];
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     target_id,
@@ -901,7 +901,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_register(converted_index);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
-                let target_len = match self.variables.create_variable(
+                let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     results[0],
@@ -913,7 +913,7 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_id = results[1];
 
-                let target_variable = self.variables.create_variable(
+                let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     target_id,
@@ -934,7 +934,7 @@ impl<'block> BrilligBlock<'block> {
                 );
 
                 let removed_items = vecmap(&results[2..element_size + 2], |result| {
-                    self.variables.create_variable(
+                    self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
                         *result,
@@ -1065,7 +1065,7 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.variables.get_value(self.function_context, value_id, dfg)
+                self.variables.get_allocation(self.function_context, value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
@@ -1074,7 +1074,7 @@ impl<'block> BrilligBlock<'block> {
                     variable
                 } else {
                     let new_variable =
-                        self.variables.create_constant(self.brillig_context, value_id, dfg);
+                        self.variables.allocate_constant(self.brillig_context, value_id, dfg);
                     let register_index = extract_register(new_variable);
 
                     self.brillig_context.const_instruction(register_index, (*constant).into());
@@ -1086,7 +1086,7 @@ impl<'block> BrilligBlock<'block> {
                     variable
                 } else {
                     let new_variable =
-                        self.variables.create_constant(self.brillig_context, value_id, dfg);
+                        self.variables.allocate_constant(self.brillig_context, value_id, dfg);
 
                     // Initialize the variable
                     let pointer = match new_variable {
@@ -1154,7 +1154,7 @@ impl<'block> BrilligBlock<'block> {
     ) -> RegisterOrMemory {
         let typ = dfg[result].get_type();
         match typ {
-            Type::Numeric(_) => self.variables.create_variable(
+            Type::Numeric(_) => self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
                 result,
@@ -1162,7 +1162,7 @@ impl<'block> BrilligBlock<'block> {
             ),
 
             Type::Array(..) => {
-                let variable = self.variables.create_variable(
+                let variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     result,
@@ -1173,7 +1173,7 @@ impl<'block> BrilligBlock<'block> {
                 variable
             }
             Type::Slice(_) => {
-                let variable = self.variables.create_variable(
+                let variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     result,
