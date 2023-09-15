@@ -8,8 +8,6 @@ use super::ReservedRegisters;
 /// Each has a stack base pointer from which all stack allocations can be offset.
 pub(crate) struct BrilligRegistersContext {
     /// A free-list of registers that have been deallocated and can be used again.
-    /// TODO(AD): currently, register deallocation is only done with immediate values.
-    /// TODO(AD): See https://github.com/noir-lang/noir/issues/1720
     deallocated_registers: Vec<RegisterIndex>,
     /// A usize indicating the next un-used register.
     next_free_register_index: usize,
@@ -24,6 +22,7 @@ impl BrilligRegistersContext {
         }
     }
 
+    /// Creates a new register context from a set of registers allocated previously.
     pub(crate) fn from_preallocated_registers(preallocated_registers: Vec<RegisterIndex>) -> Self {
         let next_free_register_index = preallocated_registers.iter().fold(
             ReservedRegisters::len(),
