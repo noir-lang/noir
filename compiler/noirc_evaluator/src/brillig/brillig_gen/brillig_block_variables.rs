@@ -68,6 +68,18 @@ impl BlockVariables {
         variable
     }
 
+    /// Defines a variable that fits in a single register and returns the allocated register.
+    pub(crate) fn define_register_variable(
+        &mut self,
+        function_context: &mut FunctionContext,
+        brillig_context: &mut BrilligContext,
+        value: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterIndex {
+        let variable = self.define_variable(function_context, brillig_context, value, dfg);
+        extract_register(variable)
+    }
+
     /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable(&mut self, value_id: &ValueId) {
         self.available_variables.remove(value_id);
@@ -148,18 +160,6 @@ impl BlockVariables {
         );
 
         *function_context.ssa_value_allocations.get(&value_id).expect("Block param not found")
-    }
-
-    /// Creates a variable that fits in a single register and returns the register.
-    pub(crate) fn create_register_variable(
-        &mut self,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
-        value: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> RegisterIndex {
-        let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        extract_register(variable)
     }
 }
 

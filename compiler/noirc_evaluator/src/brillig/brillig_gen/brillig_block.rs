@@ -214,8 +214,12 @@ impl<'block> BrilligBlock<'block> {
                 // Be a valid pointer to the array.
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference => {
-                    // This parameter variable might have already been created by another block that jumps to this one.
-                    self.variables.get_allocation(self.function_context, *param_id, dfg);
+                    self.variables.get_block_param(
+                        self.function_context,
+                        self.block_id,
+                        *param_id,
+                        dfg,
+                    );
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -231,7 +235,7 @@ impl<'block> BrilligBlock<'block> {
 
         match instruction {
             Instruction::Binary(binary) => {
-                let result_register = self.variables.create_register_variable(
+                let result_register = self.variables.define_register_variable(
                     self.function_context,
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
@@ -253,7 +257,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
-                let address_register = self.variables.create_register_variable(
+                let address_register = self.variables.define_register_variable(
                     self.function_context,
                     self.brillig_context,
                     result_value,
@@ -281,7 +285,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Not(value) => {
                 let condition_register = self.convert_ssa_register_value(*value, dfg);
-                let result_register = self.variables.create_register_variable(
+                let result_register = self.variables.define_register_variable(
                     self.function_context,
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
@@ -371,7 +375,7 @@ impl<'block> BrilligBlock<'block> {
                     );
                 }
                 Value::Intrinsic(Intrinsic::ArrayLen) => {
-                    let result_register = self.variables.create_register_variable(
+                    let result_register = self.variables.define_register_variable(
                         self.function_context,
                         self.brillig_context,
                         dfg.instruction_results(instruction_id)[0],
@@ -482,7 +486,7 @@ impl<'block> BrilligBlock<'block> {
             },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_register = self.variables.create_register_variable(
+                let destination_register = self.variables.define_register_variable(
                     self.function_context,
                     self.brillig_context,
                     result_ids[0],
@@ -493,7 +497,7 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Cast(value, target_type) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_register = self.variables.create_register_variable(
+                let destination_register = self.variables.define_register_variable(
                     self.function_context,
                     self.brillig_context,
                     result_ids[0],
