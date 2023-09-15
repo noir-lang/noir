@@ -27,6 +27,11 @@
           "type": "json",
           "path": "tooling/noir_js/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "compiler/source-resolver/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }
