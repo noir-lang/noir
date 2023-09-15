@@ -49,8 +49,8 @@ mod tests {
             let target_path: PathBuf = source_path
                 .components()
                 .map(|component| {
-                    if component.as_os_str() == "source" {
-                        OsStr::new("target")
+                    if component.as_os_str() == "input" {
+                        OsStr::new("expected")
                     } else {
                         component.as_os_str()
                     }
