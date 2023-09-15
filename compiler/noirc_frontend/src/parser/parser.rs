@@ -31,7 +31,7 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
-    Expression, ExpressionKind, LetStatement, Statement, UnresolvedType, UnresolvedTypeData,
+    Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
@@ -40,7 +40,7 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
     NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
-    TraitBound, TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    Statement, TraitBound, TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
@@ -621,6 +621,7 @@ where
     statement(expr_parser)
         .recover_via(statement_recovery())
         .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
+        .map_with_span(|(kind, rest), span| (Statement { kind, span }, rest))
         .repeated()
         .validate(check_statements_require_semicolon)
         .delimited_by(just(LeftBrace), just(RightBrace))
@@ -628,7 +629,7 @@ where
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-            |_| vec![Statement::Error],
+            |span| vec![Statement { kind: StatementKind::Error, span }],
         ))
         .map(BlockExpression)
 }
@@ -729,7 +730,7 @@ fn ident() -> impl NoirParser<Ident> {
     token_kind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
-fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn statement<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -740,11 +741,11 @@ where
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         return_statement(expr_parser.clone()),
-        expr_parser.map(Statement::Expression),
+        expr_parser.map(StatementKind::Expression),
     ))
 }
 
-fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -752,14 +753,14 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| Statement::Constrain(ConstrainStatement(expr, None)))
+    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
     })
 }
 
-fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -780,11 +781,11 @@ where
                 }
             }
 
-            Statement::Constrain(ConstrainStatement(condition, message_str))
+            StatementKind::Constrain(ConstrainStatement(condition, message_str))
         })
 }
 
-fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -811,11 +812,11 @@ where
                     emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
                 }
             }
-            Statement::Constrain(ConstrainStatement(predicate, message_str))
+            StatementKind::Constrain(ConstrainStatement(predicate, message_str))
         })
 }
 
-fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -824,7 +825,7 @@ where
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
-    p.map(Statement::new_let)
+    p.map(StatementKind::new_let)
 }
 
 fn pattern() -> impl NoirParser<Pattern> {
@@ -866,7 +867,7 @@ fn pattern() -> impl NoirParser<Pattern> {
     .labelled(ParsingRuleLabel::Pattern)
 }
 
-fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -875,7 +876,7 @@ where
 
     then_commit(fallible, expr_parser).map_with_span(
         |((identifier, operator), expression), span| {
-            Statement::assign(identifier, operator, expression, span)
+            StatementKind::assign(identifier, operator, expression, span)
         },
     )
 }
@@ -1143,14 +1144,14 @@ fn expression_no_constructors() -> impl ExprParser {
     .labelled(ParsingRuleLabel::Expression)
 }
 
-fn return_statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn return_statement<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
     ignore_then_commit(keyword(Keyword::Return), expr_parser.or_not())
         .validate(|_, span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::EarlyReturn, span));
-            Statement::Error
+            StatementKind::Error
         })
         .labelled(ParsingRuleLabel::Statement)
 }
@@ -1333,7 +1334,10 @@ where
                 // Wrap the inner `if` expression in a block expression.
                 // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
                 let if_expression = Expression::new(kind, span);
-                let desugared_else = BlockExpression(vec![Statement::Expression(if_expression)]);
+                let desugared_else = BlockExpression(vec![Statement {
+                    kind: StatementKind::Expression(if_expression),
+                    span,
+                }]);
                 Expression::new(ExpressionKind::Block(desugared_else), span)
             }));
 
@@ -1787,13 +1791,13 @@ mod test {
 
         // Regression for #1310: this should be parsed as a block and not a function call
         let res = parse_with(block(expression()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(res.0.last().unwrap()) {
+        match unwrap_expr(&res.0.last().unwrap().kind) {
             // The `if` followed by a tuple is currently creates a block around both in case
             // there was none to start with, so there is an extra block here.
             ExpressionKind::Block(block) => {
                 assert_eq!(block.0.len(), 2);
-                assert!(matches!(unwrap_expr(&block.0[0]), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.0[1]), ExpressionKind::Tuple(_)));
+                assert!(matches!(unwrap_expr(&block.0[0].kind), ExpressionKind::If(_)));
+                assert!(matches!(unwrap_expr(&block.0[1].kind), ExpressionKind::Tuple(_)));
             }
             _ => unreachable!(),
         }
@@ -1812,9 +1816,9 @@ mod test {
     }
 
     /// Extract an Statement::Expression from a statement or panic
-    fn unwrap_expr(stmt: &Statement) -> &ExpressionKind {
+    fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
         match stmt {
-            Statement::Expression(expr) => &expr.kind,
+            StatementKind::Expression(expr) => &expr.kind,
             _ => unreachable!(),
         }
     }
@@ -1912,7 +1916,7 @@ mod test {
 
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
-            Statement::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),
@@ -1936,7 +1940,7 @@ mod test {
         match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
             .unwrap()
         {
-            Statement::Constrain(ConstrainStatement(_, message)) => {
+            StatementKind::Constrain(ConstrainStatement(_, message)) => {
                 assert_eq!(message, Some("assertion message".to_owned()));
             }
             _ => unreachable!(),

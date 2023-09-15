@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind, TraitConstraint,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -170,8 +170,14 @@ impl Expression {
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
         let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
             ExpressionKind::Block(BlockExpression(vec![
-                Statement::Expression(lhs),
-                Statement::Expression(Expression::new(ExpressionKind::Tuple(arguments), span)),
+                Statement { kind: StatementKind::Expression(lhs), span },
+                Statement {
+                    kind: StatementKind::Expression(Expression::new(
+                        ExpressionKind::Tuple(arguments),
+                        span,
+                    )),
+                    span,
+                },
             ]))
         } else {
             ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
@@ -434,8 +440,8 @@ pub struct IndexExpression {
 pub struct BlockExpression(pub Vec<Statement>);
 
 impl BlockExpression {
-    pub fn pop(&mut self) -> Option<Statement> {
-        self.0.pop()
+    pub fn pop(&mut self) -> Option<StatementKind> {
+        self.0.pop().map(|stmt| stmt.kind)
     }
 
     pub fn len(&self) -> usize {
@@ -503,7 +509,7 @@ impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{{")?;
         for statement in &self.0 {
-            let statement = statement.to_string();
+            let statement = statement.kind.to_string();
             for line in statement.lines() {
                 writeln!(f, "    {line}")?;
             }

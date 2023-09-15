@@ -18,7 +18,7 @@ use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
     MethodCallExpression, NoirFunction, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern,
-    Recoverable, Statement, TraitImpl, TypeImpl, UnresolvedType, UseTree,
+    Recoverable, Statement, StatementKind, TraitImpl, TypeImpl, UnresolvedType, UseTree,
 };
 
 use acvm::FieldElement;
@@ -190,7 +190,7 @@ where
 
 /// Recovery strategy for statements: If a statement fails to parse skip until the next ';' or fail
 /// if we find a '}' first.
-fn statement_recovery() -> impl NoirParser<Statement> {
+fn statement_recovery() -> impl NoirParser<StatementKind> {
     use Token::*;
     try_skip_until([Semicolon, RightBrace], RightBrace)
 }
@@ -449,11 +449,14 @@ impl ForRange {
                 let array_ident = Ident::new(array_name, array_span);
 
                 // let fresh1 = array;
-                let let_array = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(array_ident.clone()),
-                    r#type: UnresolvedType::unspecified(),
-                    expression: array,
-                });
+                let let_array = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(array_ident.clone()),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: array,
+                    }),
+                    span: array_span,
+                };
 
                 // array.len()
                 let segments = vec![array_ident];
@@ -482,14 +485,19 @@ impl ForRange {
                 }));
 
                 // let elem = array[i];
-                let let_elem = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(identifier),
-                    r#type: UnresolvedType::unspecified(),
-                    expression: Expression::new(loop_element, array_span),
-                });
+                let let_elem = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(identifier),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: Expression::new(loop_element, array_span),
+                    }),
+                    span: array_span,
+                };
+
+                let block = Statement { kind: StatementKind::Expression(block), span: array_span };
 
                 let block_span = block.span;
-                let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
+                let new_block = BlockExpression(vec![let_elem]);
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
                 let for_loop = ExpressionKind::For(Box::new(ForExpression {
                     identifier: fresh_identifier,
@@ -500,7 +508,10 @@ impl ForRange {
 
                 ExpressionKind::Block(BlockExpression(vec![
                     let_array,
-                    Statement::Expression(Expression::new(for_loop, for_loop_span)),
+                    Statement {
+                        kind: StatementKind::Expression(Expression::new(for_loop, for_loop_span)),
+                        span: for_loop_span,
+                    },
                 ]))
             }
         }

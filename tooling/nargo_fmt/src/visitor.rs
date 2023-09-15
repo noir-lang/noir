@@ -1,7 +1,7 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{ItemKind, ParsedModule},
-    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, Visibility,
+    BlockExpression, Expression, ExpressionKind, NoirFunction, StatementKind, Visibility,
 };
 
 use crate::config::Config;
@@ -93,20 +93,20 @@ impl<'a> FmtVisitor<'a> {
         self.block_indent.block_indent(&self.config);
         self.push_str("{");
 
-        // TODO: Implement setting the last position for statements.
         for stmt in block.0 {
-            match stmt {
-                Statement::Let(_) => todo!(),
-                Statement::Constrain(_) => todo!(),
-                Statement::Expression(expr) => self.visit_expr(expr),
-                Statement::Assign(_) => todo!(),
-                Statement::Semi(expr) => {
+            match stmt.kind {
+                StatementKind::Expression(expr) => self.visit_expr(expr),
+                StatementKind::Semi(expr) => {
                     self.visit_expr(expr);
                     self.push_str(";");
-                    self.last_position += 1; // `;`
                 }
-                Statement::Error => unreachable!(),
+                StatementKind::Error => unreachable!(),
+                _ => {
+                    self.format_missing_indent(stmt.span.end(), false);
+                }
             }
+
+            self.last_position = stmt.span.end();
         }
 
         self.last_position = block_span.end();
