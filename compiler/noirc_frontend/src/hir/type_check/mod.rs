@@ -90,10 +90,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors
 }
 
-fn function_info(
-    interner: &mut NodeInterner,
-    function_body_id: &ExprId,
-) -> (noirc_errors::Span, bool) {
+fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_errors::Span, bool) {
     let (expr_span, empty_function) =
         if let HirExpression::Block(block) = interner.expression(function_body_id) {
             let last_stmt = block.statements().last();

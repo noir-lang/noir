@@ -385,22 +385,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/acvm_js@npm:0.26.1, @noir-lang/acvm_js@npm:^0.26.0":
+"@noir-lang/acvm_js@npm:0.26.1":
   version: 0.26.1
   resolution: "@noir-lang/acvm_js@npm:0.26.1"
   checksum: ae8cb6e31610cd8aa392855342d0c953a1bc4cd9e07236340341afa5815696a69a6635c38241f1d6a5dd30c5a8ae49234f2ba8b71d46c5d1a46756ff6f4dde3a
   languageName: node
   linkType: hard
 
-"@noir-lang/noir-source-resolver@workspace:*, @noir-lang/noir-source-resolver@workspace:compiler/source-resolver":
-  version: 0.0.0-use.local
-  resolution: "@noir-lang/noir-source-resolver@workspace:compiler/source-resolver"
-  dependencies:
-    "@types/node": ^20.5.7
-    ava: ^5.2.0
-    typescript: 4.9.4
-  languageName: unknown
-  linkType: soft
+"@noir-lang/acvm_js@npm:^0.26.0":
+  version: 0.26.0
+  resolution: "@noir-lang/acvm_js@npm:0.26.0"
+  checksum: 3325b611fec4531363cb67682d50ea40cbeaf8da7672c8373cb11bc7786308a14c61804950b4805e071edc9298005039847621a8d79fae185eda2cf981c64b39
+  languageName: node
+  linkType: hard
 
 "@noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
@@ -422,7 +419,7 @@ __metadata:
     "@web/test-runner-webdriver": ^0.7.0
     mocha: ^10.2.0
   peerDependencies:
-    "@noir-lang/noir-source-resolver": ^1.1.3
+    "@noir-lang/source-resolver": "workspace:*"
   languageName: unknown
   linkType: soft
 
@@ -455,6 +452,16 @@ __metadata:
     smol-toml: ^1.1.2
     ts-node: ^10.9.1
     typescript: ^5.0.4
+  languageName: unknown
+  linkType: soft
+
+"@noir-lang/source-resolver@workspace:*, @noir-lang/source-resolver@workspace:compiler/source-resolver":
+  version: 0.0.0-use.local
+  resolution: "@noir-lang/source-resolver@workspace:compiler/source-resolver"
+  dependencies:
+    "@types/node": ^20.5.7
+    ava: ^5.2.0
+    typescript: 4.9.4
   languageName: unknown
   linkType: soft
 
@@ -4284,9 +4291,9 @@ __metadata:
   dependencies:
     "@aztec/bb.js": ^0.5.1
     "@noir-lang/acvm_js": ^0.26.0
-    "@noir-lang/noir-source-resolver": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
+    "@noir-lang/source-resolver": "workspace:*"
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
