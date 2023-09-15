@@ -9,15 +9,15 @@ export let read_file = function (source_id: any): string {
         if (typeof result === "string") {
             return result;
         } else {
-            throw new Error("Noir source resolver funtion MUST return String synchronously. Are you trying to return anything else, eg. `Promise`?");
+            throw new Error("Noir source resolver function MUST return String synchronously. Are you trying to return anything else, eg. `Promise`?");
         }
     } else {
-        throw new Error('Not yet initialised. Use initialiseResolver(() => string)');
+        throw new Error('Not yet initialized. Use initializeResolver(() => string)');
     }
 
 };
 
-function initialise(noir_resolver: (source_id: String) => string): (source_id: String) => string {
+function initialize(noir_resolver: (source_id: String) => string): (source_id: String) => string {
 
     if (typeof noir_resolver === "function") {
         return noir_resolver;
@@ -26,6 +26,6 @@ function initialise(noir_resolver: (source_id: String) => string): (source_id: S
     }
 }
 
-export function initialiseResolver(resolver: (source_id: String) => string): void {
-    resolveFunction = initialise(resolver);
+export function initializeResolver(resolver: (source_id: String) => string): void {
+    resolveFunction = initialize(resolver);
 }
