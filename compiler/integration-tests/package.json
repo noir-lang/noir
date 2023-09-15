@@ -11,7 +11,7 @@
     "test:integration:browser:watch": "web-test-runner test/integration/browser/**/*.test.ts --watch"
   },
   "dependencies": {
-    "@aztec/bb.js": "^0.5.1",
+    "@aztec/bb.js": "^0.7.3",
     "@noir-lang/acvm_js": "^0.26.0",
     "@noir-lang/noir_wasm": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
