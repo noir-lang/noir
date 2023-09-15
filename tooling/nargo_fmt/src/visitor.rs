@@ -1,7 +1,7 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{ItemKind, ParsedModule},
-    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement,
+    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, Visibility,
 };
 
 use crate::config::Config;
@@ -77,7 +77,7 @@ impl<'a> FmtVisitor<'a> {
             let slice = slice!(self, block_span.start(), block_span.end());
             let comment_str = slice[1..slice.len() - 1].trim();
 
-            let comment_str = if comment_str.is_empty() {
+            let block_str = if comment_str.is_empty() {
                 "{}".to_string()
             } else {
                 let indent = self.block_indent.to_string();
@@ -85,7 +85,7 @@ impl<'a> FmtVisitor<'a> {
             };
 
             self.last_position = block_span.end();
-            self.push_str(&comment_str);
+            self.push_str(&block_str);
             return;
         }
 
@@ -226,7 +226,21 @@ impl<'a> FmtVisitor<'a> {
         if func.parameters().is_empty() {
             // TODO: Inside the parameters, there can be a comment, for example `fn hello(/**/) {}`.
         } else {
-            todo!("emit parameters")
+            let parameters = func.parameters();
+
+            for (index, (pattern, ty, vis)) in parameters.iter().enumerate() {
+                result.push_str(&pattern.to_string());
+                result.push_str(": ");
+                if let Visibility::Public = vis {
+                    result.push_str("pub ");
+                }
+                let ty_span = ty.span.unwrap();
+                result.push_str(slice!(self, ty_span.start(), ty_span.end()));
+
+                if index < parameters.len() - 1 {
+                    result.push_str(", ");
+                }
+            }
         }
 
         result.push(')');

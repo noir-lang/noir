@@ -20,7 +20,14 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
         let source =
             std::fs::read_to_string(&file).map_err(|error| CliError::Generic(error.to_string()))?;
 
-        let source = nargo_fmt::format(&source);
+        let source = match nargo_fmt::format(&source) {
+            Ok(t) => t,
+            Err(errors) => {
+                println!("{errors:?}");
+                continue;
+            }
+        };
+
         std::fs::write(file, source).map_err(|error| CliError::Generic(error.to_string()))?;
     }
 

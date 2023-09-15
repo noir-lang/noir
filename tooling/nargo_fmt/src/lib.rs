@@ -5,36 +5,22 @@ mod visitor;
 
 use visitor::FmtVisitor;
 
-pub fn format(source: &str) -> String {
+pub fn format(source: &str) -> Result<String, Vec<noirc_errors::CustomDiagnostic>> {
     let (module, errors) = noirc_frontend::parse_program(source);
 
-    // TODO: error handling
     if !errors.is_empty() {
-        panic!("{errors:?}");
+        return Err(errors);
     }
 
     let mut fmt = FmtVisitor::new(source);
     fmt.visit_module(module);
-    fmt.finish()
+
+    Ok(fmt.finish())
 }
 
 #[cfg(test)]
 mod tests {
     use std::{ffi::OsStr, path::PathBuf};
-
-    #[test]
-    fn it_works() {
-        println!(
-            "{}",
-            super::format(
-                "fn main() {
-            {
-                // hello
-            }
-        }"
-            )
-        );
-    }
 
     #[test]
     fn test() {
@@ -44,7 +30,7 @@ mod tests {
 
             let source_path = file.path();
             let source = std::fs::read_to_string(&source_path).unwrap();
-            let fmt_text = crate::format(&source);
+            let fmt_text = crate::format(&source).unwrap();
 
             let target_path: PathBuf = source_path
                 .components()
