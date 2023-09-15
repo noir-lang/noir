@@ -160,7 +160,7 @@ impl CrateDefMap {
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let functions: Vec<ContractFunctionMeta> = module
+                    let functions = module
                         .value_definitions()
                         .filter_map(|id| {
                             id.as_function().map(|function_id| {
