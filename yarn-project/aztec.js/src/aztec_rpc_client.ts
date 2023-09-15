@@ -1,5 +1,5 @@
 import { AztecAddress, CompleteAddress, EthAddress, Fr, GrumpkinScalar, Point } from '@aztec/circuits.js';
-import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/client';
+import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 import {
   AuthWitness,
   AztecRPC,
@@ -15,7 +15,7 @@ import {
 
 export { makeFetch } from '@aztec/foundation/json-rpc/client';
 
-export const createAztecRpcClient = (url: string, fetch = defaultFetch): AztecRPC =>
+export const createAztecRpcClient = (url: string, fetch = makeFetch([1, 2, 3], true)): AztecRPC =>
   createJsonRpcClient<AztecRPC>(
     url,
     {

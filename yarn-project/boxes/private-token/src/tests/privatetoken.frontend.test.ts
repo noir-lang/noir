@@ -7,7 +7,6 @@ import {
   Fr,
   Wallet,
   createAztecRpcClient,
-  makeFetch,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
@@ -27,7 +26,7 @@ const MINT_AMOUNT = 11n;
 // as well as anvil.  anvil can be started with yarn test:integration
 const setupSandbox = async () => {
   const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
-  const aztecRpc = createAztecRpcClient(SANDBOX_URL, makeFetch([1, 2, 3], true));
+  const aztecRpc = createAztecRpcClient(SANDBOX_URL);
   await waitForSandbox(aztecRpc);
   return aztecRpc;
 };

@@ -1,5 +1,4 @@
 import { AztecRPC, createAztecRpcClient } from '@aztec/aztec.js';
-import { makeFetch } from '@aztec/foundation/json-rpc/client';
 import { DebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 
@@ -7,16 +6,13 @@ import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { gtr, ltr, satisfies, valid } from 'semver';
 
-const retries = [1, 1, 2];
-
 /**
  * Creates an Aztec RPC client with a given set of retries on non-server errors.
  * @param rpcUrl - URL of the RPC server.
  * @returns An RPC client.
  */
 export function createClient(rpcUrl: string) {
-  const fetch = makeFetch(retries, true);
-  return createAztecRpcClient(rpcUrl, fetch);
+  return createAztecRpcClient(rpcUrl);
 }
 
 /**

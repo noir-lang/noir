@@ -11,7 +11,6 @@ import {
   createAztecRpcClient as createJsonRpcClient,
   getL1ContractAddresses,
   getSandboxAccountsWallets,
-  makeFetch,
 } from '@aztec/aztec.js';
 import { CompleteAddress } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
@@ -73,7 +72,7 @@ const createRpcServer = async (
 ): Promise<AztecRPC> => {
   if (SANDBOX_URL) {
     logger(`Creating JSON RPC client to remote host ${SANDBOX_URL}`);
-    const jsonClient = createJsonRpcClient(SANDBOX_URL, makeFetch([1, 2, 3], true));
+    const jsonClient = createJsonRpcClient(SANDBOX_URL);
     await waitForRPCServer(jsonClient, logger);
     logger('JSON RPC client connected to RPC Server');
     return jsonClient;

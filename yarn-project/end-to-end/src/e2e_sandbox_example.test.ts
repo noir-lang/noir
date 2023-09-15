@@ -2,29 +2,21 @@
 
 /* eslint-disable import/no-duplicates */
 // docs:start:imports
-import {
-  AztecRPC,
-  createAztecRpcClient,
-  createDebugLogger,
-  getSchnorrAccount,
-  makeFetch,
-  waitForSandbox,
-} from '@aztec/aztec.js';
+import { AztecRPC, createAztecRpcClient, createDebugLogger, getSchnorrAccount, waitForSandbox } from '@aztec/aztec.js';
 // docs:end:imports
 
 /* eslint-enable @typescript-eslint/no-unused-vars */
 // Note: this is a hack to make the docs use http://localhost:8080 and CI to use the SANDBOX_URL
 import { createAztecRpcClient as createAztecRpcClient2 } from '@aztec/aztec.js';
 import { GrumpkinScalar } from '@aztec/circuits.js';
-import { defaultFetch } from '@aztec/foundation/json-rpc/client';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 
 const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 
 describe('e2e_sandbox_example', () => {
   // Note: this is a hack to make the docs use http://localhost:8080 and CI to use the SANDBOX_URL
-  const createAztecRpcClient = (url: string, fetch = defaultFetch) => {
-    return createAztecRpcClient2(SANDBOX_URL!, fetch);
+  const createAztecRpcClient = (_url: string) => {
+    return createAztecRpcClient2(SANDBOX_URL!);
   };
 
   it('sandbox example works', async () => {
@@ -33,9 +25,8 @@ describe('e2e_sandbox_example', () => {
     const logger = createDebugLogger('private-token');
     const sandboxUrl = 'http://localhost:8080';
 
-    // We create AztecRPC client connected to the sandbox URL and we use fetch with
-    // 3 automatic retries and a 1s, 2s and 3s intervals between failures.
-    const aztecRpc = createAztecRpcClient(sandboxUrl, makeFetch([1, 2, 3], false));
+    // We create AztecRPC client connected to the sandbox URL
+    const aztecRpc = createAztecRpcClient(sandboxUrl);
     // Wait for sandbox to be ready
     await waitForSandbox(aztecRpc);
 
