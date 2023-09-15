@@ -1,4 +1,4 @@
-import { ABIType, FunctionAbi } from '@aztec/foundation/abi';
+import { ABIType, FunctionAbiHeader } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -8,7 +8,7 @@ import { Fr } from '@aztec/foundation/fields';
 class ArgumentEncoder {
   private flattened: Fr[] = [];
 
-  constructor(private abi: FunctionAbi, private args: any[]) {}
+  constructor(private abi: FunctionAbiHeader, private args: any[]) {}
 
   /**
    * Encodes a single argument from the given type to field.
@@ -26,6 +26,8 @@ class ArgumentEncoder {
           this.flattened.push(new Fr(BigInt(arg)));
         } else if (typeof arg === 'bigint') {
           this.flattened.push(new Fr(arg));
+        } else if (typeof arg === 'boolean') {
+          this.flattened.push(new Fr(arg ? 1 : 0));
         } else if (typeof arg === 'object') {
           if (Buffer.isBuffer(arg)) {
             this.flattened.push(Fr.fromBuffer(arg));
@@ -80,6 +82,6 @@ class ArgumentEncoder {
  * @param args - The arguments to encode.
  * @returns The encoded arguments.
  */
-export function encodeArguments(abi: FunctionAbi, args: any[]) {
+export function encodeArguments(abi: FunctionAbiHeader, args: any[]) {
   return new ArgumentEncoder(abi, args).encode();
 }

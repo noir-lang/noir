@@ -1,6 +1,7 @@
 import { AztecAddress, FieldsOf, Fr, FunctionData, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 
+import { AuthWitness } from './auth_witness.js';
 import { PackedArguments } from './packed_arguments.js';
 
 /**
@@ -30,6 +31,11 @@ export class TxExecutionRequest {
      * as relayed function calls, and one for the entrypoint.
      */
     public packedArguments: PackedArguments[],
+    /**
+     * Transient authorization witnesses for authorizing the execution of one or more actions during this tx.
+     * These witnesses are not expected to be stored in the local witnesses database of the RPC server.
+     */
+    public authWitnesses: AuthWitness[],
   ) {}
 
   toTxRequest(): TxRequest {
@@ -37,7 +43,14 @@ export class TxExecutionRequest {
   }
 
   static getFields(fields: FieldsOf<TxExecutionRequest>) {
-    return [fields.origin, fields.functionData, fields.argsHash, fields.txContext, fields.packedArguments] as const;
+    return [
+      fields.origin,
+      fields.functionData,
+      fields.argsHash,
+      fields.txContext,
+      fields.packedArguments,
+      fields.authWitnesses,
+    ] as const;
   }
 
   static from(fields: FieldsOf<TxExecutionRequest>): TxExecutionRequest {
@@ -55,6 +68,7 @@ export class TxExecutionRequest {
       this.argsHash,
       this.txContext,
       new Vector(this.packedArguments),
+      new Vector(this.authWitnesses),
     );
   }
 
@@ -79,6 +93,7 @@ export class TxExecutionRequest {
       reader.readFr(),
       reader.readObject(TxContext),
       reader.readVector(PackedArguments),
+      reader.readVector(AuthWitness),
     );
   }
 

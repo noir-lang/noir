@@ -2,8 +2,8 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { PublicKey } from '@aztec/types';
 
-import { Wallet } from '../aztec_rpc_client/wallet.js';
 import { DeployMethod, Point } from '../index.js';
+import { Wallet } from '../wallet/index.js';
 import { ContractBase } from './contract_base.js';
 
 /**

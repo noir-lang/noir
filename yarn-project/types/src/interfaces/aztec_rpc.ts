@@ -1,6 +1,7 @@
 import { AztecAddress, EthAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import {
+  AuthWitness,
   CompleteAddress,
   ContractData,
   ExtendedContractData,
@@ -71,10 +72,9 @@ export type SyncStatus = {
 export interface AztecRPC {
   /**
    * Insert a witness for a given message hash.
-   * @param messageHash - The message hash to insert witness at
-   * @param witness - The witness to insert
+   * @param authWitness - The auth witness to insert.
    */
-  addAuthWitness(messageHash: Fr, witness: Fr[]): Promise<void>;
+  addAuthWitness(authWitness: AuthWitness): Promise<void>;
 
   /**
    * Registers an account in the Aztec RPC server.

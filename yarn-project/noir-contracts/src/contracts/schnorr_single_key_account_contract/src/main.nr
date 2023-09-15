@@ -1,60 +1,53 @@
-// Account contract that uses Schnorr signatures for authentication. The signing key is the same as the
-// encryption key, and as such is not stored in the contract but part of the address preimage, so it can
-// be verified by passing in the partial address.
+mod util;
+mod auth_oracle;
+
 contract SchnorrSingleKeyAccount {
-    use dep::std;
-    use dep::aztec::entrypoint;
-    use dep::aztec::entrypoint::EntrypointPayload;
-    use dep::aztec::abi::CallContext;
-    use dep::aztec::private_call_stack_item::PrivateCallStackItem;
-    use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::types::vec::BoundedVec;
-    use dep::aztec::types::point::Point;
-    use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
-    use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
+    use dep::std::{
+        hash::pedersen_with_separator,
+        option::Option,
+    };
 
-    #[aztec(private)]
-    fn entrypoint(
-        payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
-        owner: pub [u8;64], // pubkey x and y coordinates concatenated
-        signature: pub [u8;64], // schnorr signature of the payload hash
-        partial_address: pub Field,
-    ) {
-        // Verify payload signature
-        let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
-        let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];
-        // TODO workaround for https://github.com/noir-lang/noir/issues/2421
-        let message_bytes_slice = message_field.to_be_bytes(32);
-        let mut message_bytes: [u8; 32] = [0; 32];
-        for i in 0..32 {
-          message_bytes[i] = message_bytes_slice[i];
-        }
+    use dep::aztec::{
+        entrypoint::EntrypointPayload,
+        account::AccountActions,
+        context::{ PrivateContext, PublicContext, Context },
+    };
 
-        // Convert owner pubkey into fields
-        let mut x: Field = 0;
-        let mut y: Field = 0;
-        let mut mul: Field = 1;
-        for i in 0..32 {
-          let bytex: Field = owner[31 - i] as Field;
-          x = x + (bytex * mul);
-          let bytey: Field = owner[63 - i] as Field;
-          y = y + (bytey * mul);
-          mul *= 256;
-        }
-        
-        // Verify signature of the payload hash
-        let verification = std::schnorr::verify_signature(x, y, signature, message_bytes);
-        assert(verification == true);
+    use crate::{ util::recover_address, auth_oracle::get_auth_witness };
 
-        // Verify public key against address
-        let reproduced_address = dep::std::hash::pedersen_with_separator([x, y, partial_address], GENERATOR_INDEX__CONTRACT_ADDRESS)[0];
-        assert(reproduced_address == context.this_address());
+    global ACCOUNT_ACTIONS_STORAGE_SLOT = 1;
 
-        // Execute calls
-        payload.execute_calls(&mut context);
-    }
-
-    // Constructs the contract
     #[aztec(private)]
     fn constructor() {}
+
+    #[aztec(private)]
+    fn entrypoint(payload: pub EntrypointPayload) {
+        let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+        actions.entrypoint(payload);
+    }
+
+    #[aztec(private)]
+    fn is_valid(message_hash: Field) -> Field {
+        let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+        actions.is_valid(message_hash)
+    }
+
+    #[aztec(public)]
+    fn is_valid_public(message_hash: Field) -> Field {
+        let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+        actions.is_valid_public(message_hash)
+    }
+
+    #[aztec(public)]
+    internal fn set_is_valid_storage(message_hash: Field, value: bool) {
+        let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+        actions.internal_set_is_valid_storage(message_hash, value)
+    }
+
+    #[contract_library_method]
+    fn is_valid_impl(context: &mut PrivateContext, message_hash: Field) -> pub bool {
+        let witness = get_auth_witness(message_hash);
+        assert(recover_address(message_hash, witness) == context.this_address());
+        true
+    }
 }

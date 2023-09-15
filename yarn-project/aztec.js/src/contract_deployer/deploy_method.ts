@@ -89,6 +89,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       argsHash: packedArguments.hash,
       txContext,
       packedArguments: [packedArguments],
+      authWitnesses: [],
     });
 
     this.txRequest = txRequest;

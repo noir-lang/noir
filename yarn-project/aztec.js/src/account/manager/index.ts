@@ -1,15 +1,16 @@
 import { Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { AztecRPC, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
-import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../index.js';
+import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../../index.js';
+import { AccountContract, Salt } from '../index.js';
+import { AccountInterface } from '../interface.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
-import { AccountContract, Entrypoint, Salt } from './index.js';
 
 /**
  * Manages a user account. Provides methods for calculating the account's address, deploying the account contract,
  * and creating and registering the user wallet in the RPC server.
  */
-export class Account {
+export class AccountManager {
   /** Deployment salt for the account contract. */
   public readonly salt?: Fr;
 
@@ -41,10 +42,10 @@ export class Account {
    * Returns the entrypoint for this account as defined by its account contract.
    * @returns An entrypoint.
    */
-  public async getEntrypoint(): Promise<Entrypoint> {
+  public async getAccount(): Promise<AccountInterface> {
     const nodeInfo = await this.rpc.getNodeInfo();
     const completeAddress = await this.getCompleteAddress();
-    return this.accountContract.getEntrypoint(completeAddress, nodeInfo);
+    return this.accountContract.getInterface(completeAddress, nodeInfo);
   }
 
   /**
@@ -72,8 +73,8 @@ export class Account {
    * @returns A Wallet instance.
    */
   public async getWallet(): Promise<AccountWallet> {
-    const entrypoint = await this.getEntrypoint();
-    return new AccountWallet(this.rpc, entrypoint, await this.getCompleteAddress());
+    const entrypoint = await this.getAccount();
+    return new AccountWallet(this.rpc, entrypoint);
   }
 
   /**

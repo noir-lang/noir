@@ -14,7 +14,7 @@ import {
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
-import { Wallet } from '../aztec_rpc_client/wallet.js';
+import { Wallet } from '../wallet/index.js';
 import { Contract } from './contract.js';
 
 describe('Contract Class', () => {

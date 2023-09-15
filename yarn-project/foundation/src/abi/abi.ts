@@ -105,9 +105,9 @@ export enum FunctionType {
 }
 
 /**
- * The ABI entry of a function.
+ * The ABI entry of a function without including bytecode and verification key.
  */
-export interface FunctionAbi {
+export interface FunctionAbiHeader {
   /**
    * The name of the function.
    */
@@ -128,6 +128,12 @@ export interface FunctionAbi {
    * The types of the return values.
    */
   returnTypes: ABIType[];
+}
+
+/**
+ * The ABI entry of a function.
+ */
+export interface FunctionAbi extends FunctionAbiHeader {
   /**
    * The ACIR bytecode of the function.
    */

@@ -1,8 +1,8 @@
 import { CompleteAddress, GrumpkinScalar } from '@aztec/circuits.js';
 import { AztecRPC } from '@aztec/types';
 
-import { AccountWallet } from '../aztec_rpc_client/wallet.js';
 import { getSchnorrAccount } from '../index.js';
+import { AccountWallet } from '../wallet/account_wallet.js';
 
 /**
  * Deploys and registers a new account using random private keys and returns the associated wallet. Useful for testing.

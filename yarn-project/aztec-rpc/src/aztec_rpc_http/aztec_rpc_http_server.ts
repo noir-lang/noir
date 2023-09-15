@@ -2,6 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 import {
+  AuthWitness,
   AztecRPC,
   CompleteAddress,
   ContractData,
@@ -39,6 +40,7 @@ export function getHttpRpcServer(aztecRpcServer: AztecRPC): JsonRpcServer {
       Fr,
       GrumpkinScalar,
       NotePreimage,
+      AuthWitness,
     },
     { Tx, TxReceipt, L2BlockL2Logs },
     false,

@@ -1,6 +1,7 @@
 import { AztecAddress, CompleteAddress, EthAddress, Fr, GrumpkinScalar, Point } from '@aztec/circuits.js';
 import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/client';
 import {
+  AuthWitness,
   AztecRPC,
   ContractData,
   ExtendedContractData,
@@ -29,6 +30,7 @@ export const createAztecRpcClient = (url: string, fetch = defaultFetch): AztecRP
       Fr,
       GrumpkinScalar,
       NotePreimage,
+      AuthWitness,
     },
     { Tx, TxReceipt, L2BlockL2Logs },
     false,

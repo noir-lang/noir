@@ -134,7 +134,7 @@ This pattern is likely to develop in Aztec as well, except there's a problem: pr
 
 ### No private data authentication
 
-Private data should not be returned to an app, unless the user authorises such access to the app. An authorisation layer is not-yet in place.
+Private data should not be returned to an app, unless the user authorizes such access to the app. An authorization layer is not-yet in place.
 
 #### What are the consequences?
 

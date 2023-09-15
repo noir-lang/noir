@@ -1,4 +1,4 @@
-import { FunctionAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { FunctionAbiHeader, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { ContractFunctionDao } from '../index.js';
@@ -28,7 +28,7 @@ export class FunctionData {
     public isConstructor: boolean,
   ) {}
 
-  static fromAbi(abi: FunctionAbi | ContractFunctionDao): FunctionData {
+  static fromAbi(abi: FunctionAbiHeader | ContractFunctionDao): FunctionData {
     return new FunctionData(
       FunctionSelector.fromNameAndParameters(abi.name, abi.parameters),
       abi.isInternal,

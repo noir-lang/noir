@@ -3,6 +3,9 @@ use crate::types::vec::BoundedVec;
 use crate::context::PrivateContext;
 use crate::private_call_stack_item::PrivateCallStackItem;
 use crate::public_call_stack_item::PublicCallStackItem;    
+use crate::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
+
+use dep::std::hash;
 
 global ACCOUNT_MAX_PRIVATE_CALLS: Field = 2;
 global ACCOUNT_MAX_PUBLIC_CALLS: Field = 2;
@@ -36,9 +39,11 @@ struct EntrypointPayload {
 // docs:end:entrypoint-struct
 
 impl EntrypointPayload {
-  // TODO(#1207) Do we need a generator index?
   fn hash(self) -> Field {
-    dep::std::hash::pedersen(self.serialize())[0]
+    hash::pedersen_with_separator(
+      self.serialize(), 
+      GENERATOR_INDEX__SIGNATURE_PAYLOAD
+    )[0]
   }
 
   // Serializes the entrypoint struct

@@ -99,13 +99,14 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
     it('throws when simulating a tx targeting public entrypoint', async () => {
       const functionData = FunctionData.empty();
       functionData.isPrivate = false;
-      const txExecutionRequest = new TxExecutionRequest(
-        AztecAddress.random(),
+      const txExecutionRequest = TxExecutionRequest.from({
+        origin: AztecAddress.random(),
+        argsHash: new Fr(0),
         functionData,
-        new Fr(0),
-        TxContext.empty(),
-        [],
-      );
+        txContext: TxContext.empty(),
+        packedArguments: [],
+        authWitnesses: [],
+      });
 
       await expect(async () => await rpc.simulateTx(txExecutionRequest, false)).rejects.toThrow(
         'Public entrypoints are not allowed',

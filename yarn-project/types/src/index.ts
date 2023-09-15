@@ -21,4 +21,5 @@ export * from './tx_execution_request.js';
 export * from './packed_arguments.js';
 export * from './interfaces/index.js';
 export * from './sibling_path.js';
+export * from './auth_witness.js';
 export * from '@aztec/circuits.js/types';

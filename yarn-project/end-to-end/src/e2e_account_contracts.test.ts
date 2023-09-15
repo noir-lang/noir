@@ -1,10 +1,7 @@
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import {
-  Account,
   AccountContract,
-  AuthWitnessAccountContract,
-  AuthWitnessAccountEntrypoint,
-  AuthWitnessEntrypointWallet,
+  AccountManager,
   AztecRPC,
   EcdsaAccountContract,
   Fr,
@@ -27,12 +24,12 @@ function itShouldBehaveLikeAnAccountContract(
     encryptionPrivateKey: GrumpkinPrivateKey,
     accountContract: AccountContract,
     address?: CompleteAddress,
-  ) => Promise<{ account: Account; wallet: Wallet }>,
+  ) => Promise<{ account: AccountManager; wallet: Wallet }>,
 ) {
   describe(`behaves like an account contract`, () => {
     let context: Awaited<ReturnType<typeof setup>>;
     let child: ChildContract;
-    let account: Account;
+    let account: AccountManager;
     let wallet: Wallet;
     let encryptionPrivateKey: GrumpkinPrivateKey;
 
@@ -58,15 +55,13 @@ function itShouldBehaveLikeAnAccountContract(
     it('calls a private function', async () => {
       const { logger } = context;
       logger('Calling private function...');
-      const tx = child.methods.value(42).send();
-      expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
+      await child.methods.value(42).send().wait({ interval: 0.1 });
     }, 60_000);
 
     it('calls a public function', async () => {
       const { logger, aztecRpcServer } = context;
       logger('Calling public function...');
-      const tx = child.methods.pubIncValue(42).send();
-      expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
+      await child.methods.pubIncValue(42).send().wait({ interval: 0.1 });
       expect(toBigInt((await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)))!)).toEqual(42n);
     }, 60_000);
 
@@ -93,7 +88,7 @@ describe('e2e_account_contracts', () => {
     accountContract: AccountContract,
     address?: CompleteAddress,
   ) => {
-    const account = new Account(rpc, encryptionPrivateKey, accountContract, address);
+    const account = new AccountManager(rpc, encryptionPrivateKey, accountContract, address);
     const wallet = !address ? await account.deploy().then(tx => tx.getWallet()) : await account.getWallet();
     return { account, wallet };
   };
@@ -111,26 +106,5 @@ describe('e2e_account_contracts', () => {
 
   describe('ecdsa stored-key account', () => {
     itShouldBehaveLikeAnAccountContract(() => new EcdsaAccountContract(randomBytes(32)), base);
-  });
-
-  describe('eip single-key account', () => {
-    itShouldBehaveLikeAnAccountContract(
-      (encryptionKey: GrumpkinPrivateKey) => new AuthWitnessAccountContract(encryptionKey),
-      async (
-        rpc: AztecRPC,
-        encryptionPrivateKey: GrumpkinPrivateKey,
-        accountContract: AccountContract,
-        address?: CompleteAddress,
-      ) => {
-        const account = new Account(rpc, encryptionPrivateKey, accountContract, address);
-        if (!address) {
-          const tx = await account.deploy();
-          await tx.wait();
-        }
-        const entryPoint = (await account.getEntrypoint()) as unknown as AuthWitnessAccountEntrypoint;
-        const wallet = new AuthWitnessEntrypointWallet(rpc, entryPoint, await account.getCompleteAddress());
-        return { account, wallet };
-      },
-    );
   });
 });

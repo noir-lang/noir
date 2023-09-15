@@ -1,7 +1,5 @@
 use dep::aztec::types::point::Point;
-
-#[oracle(getAuthWitness)]
-fn get_auth_witness_oracle(_message_hash: Field) -> [Field; 67] {}
+use dep::aztec::oracle::auth_witness;
 
 struct AuthWitness {
     owner: Point,
@@ -24,5 +22,6 @@ impl AuthWitness {
 }
 
 unconstrained fn get_auth_witness(message_hash: Field) -> AuthWitness {
-    AuthWitness::deserialize(get_auth_witness_oracle(message_hash))
+    let witness: [Field; 67] = auth_witness::get_auth_witness(message_hash);
+    AuthWitness::deserialize(witness)
 }

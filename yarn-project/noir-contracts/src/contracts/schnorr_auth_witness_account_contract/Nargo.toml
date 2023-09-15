@@ -1,8 +1,0 @@
-[package]
-name = "schnorr_auth_witness_account_contract"
-authors = [""]
-compiler_version = "0.1"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../../aztec-nr/aztec" }

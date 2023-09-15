@@ -1,19 +1,9 @@
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import {
-  Account,
-  AccountContract,
-  CompleteAddress,
-  Entrypoint,
-  FunctionCall,
-  NodeInfo,
-  buildPayload,
-  buildTxExecutionRequest,
-  hashPayload,
-} from '@aztec/aztec.js';
+import { AccountManager, AuthWitnessProvider, BaseAccountContract, CompleteAddress, Fr } from '@aztec/aztec.js';
 import { GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { ContractAbi } from '@aztec/foundation/abi';
 import { PrivateTokenContract, SchnorrHardcodedAccountContractAbi } from '@aztec/noir-contracts/types';
+import { AuthWitness } from '@aztec/types';
 
 import { setup } from '../fixtures/utils.js';
 
@@ -21,12 +11,9 @@ import { setup } from '../fixtures/utils.js';
 const PRIVATE_KEY = GrumpkinScalar.fromString('0xd35d743ac0dfe3d6dbe6be8c877cb524a00ab1e3d52d7bada095dfc8894ccfa');
 
 /** Account contract implementation that authenticates txs using Schnorr signatures. */
-class SchnorrHardcodedKeyAccountContract implements AccountContract {
-  constructor(private privateKey: GrumpkinPrivateKey = PRIVATE_KEY) {}
-
-  getContractAbi(): ContractAbi {
-    // Return the ABI of the SchnorrHardcodedAccount contract.
-    return SchnorrHardcodedAccountContractAbi;
+class SchnorrHardcodedKeyAccountContract extends BaseAccountContract {
+  constructor(private privateKey: GrumpkinPrivateKey = PRIVATE_KEY) {
+    super(SchnorrHardcodedAccountContractAbi);
   }
 
   getDeploymentArgs(): Promise<any[]> {
@@ -34,32 +21,15 @@ class SchnorrHardcodedKeyAccountContract implements AccountContract {
     return Promise.resolve([]);
   }
 
-  getEntrypoint(completeAddress: CompleteAddress, nodeInfo: NodeInfo): Promise<Entrypoint> {
+  getAuthWitnessProvider(_address: CompleteAddress): AuthWitnessProvider {
     const privateKey = this.privateKey;
-    const address = completeAddress.address;
-
-    // Create a new Entrypoint object, whose responsibility is to turn function calls from the user
-    // into a tx execution request ready to be simulated and sent.
-    return Promise.resolve({
-      async createTxExecutionRequest(calls: FunctionCall[]) {
-        // Assemble the EntrypointPayload out of the requested calls
-        const { payload, packedArguments: callsPackedArguments } = await buildPayload(calls);
-
-        // Hash the request payload and sign it using Schnorr
-        const message = await hashPayload(payload);
+    return {
+      async createAuthWitness(message: Fr): Promise<AuthWitness> {
         const signer = await Schnorr.new();
-        const signature = signer.constructSignature(message, privateKey).toBuffer();
-
-        // Collect the payload and its signature as arguments to the entrypoint
-        const args = [payload, signature];
-
-        // Capture the entrypoint function
-        const entrypointMethod = SchnorrHardcodedAccountContractAbi.functions.find(f => f.name === 'entrypoint')!;
-
-        // Assemble and return the tx execution request
-        return buildTxExecutionRequest(address, entrypointMethod, args, callsPackedArguments, nodeInfo);
+        const signature = signer.constructSignature(message.toBuffer(), privateKey);
+        return new AuthWitness(message, [...signature.toBuffer()]);
       },
-    });
+    };
   }
 }
 // docs:end:account-contract
@@ -82,7 +52,7 @@ describe('guides/writing_an_account_contract', () => {
     const { aztecRpcServer: rpc, logger } = context;
     // docs:start:account-contract-deploy
     const encryptionPrivateKey = GrumpkinScalar.random();
-    const account = new Account(rpc, encryptionPrivateKey, new SchnorrHardcodedKeyAccountContract());
+    const account = new AccountManager(rpc, encryptionPrivateKey, new SchnorrHardcodedKeyAccountContract());
     const wallet = await account.waitDeploy();
     const address = wallet.getCompleteAddress().address;
     // docs:end:account-contract-deploy
@@ -99,11 +69,12 @@ describe('guides/writing_an_account_contract', () => {
     expect(balance).toEqual(150n);
 
     // docs:start:account-contract-fails
+    const walletAddress = wallet.getCompleteAddress();
     const wrongKey = GrumpkinScalar.random();
     const wrongAccountContract = new SchnorrHardcodedKeyAccountContract(wrongKey);
-    const wrongAccount = new Account(rpc, encryptionPrivateKey, wrongAccountContract, wallet.getCompleteAddress());
+    const wrongAccount = new AccountManager(rpc, encryptionPrivateKey, wrongAccountContract, walletAddress);
     const wrongWallet = await wrongAccount.getWallet();
-    const tokenWithWrongWallet = await PrivateTokenContract.at(token.address, wrongWallet);
+    const tokenWithWrongWallet = token.withWallet(wrongWallet);
 
     try {
       await tokenWithWrongWallet.methods.mint(200, address).simulate();

@@ -68,10 +68,10 @@ export interface DBOracle extends CommitmentsDB {
 
   /**
    * Retrieve the auth witness for a given message hash.
-   * @param message_hash - The message hash.
+   * @param messageHash - The message hash.
    * @returns A Promise that resolves to an array of field elements representing the auth witness.
    */
-  getAuthWitness(message_hash: Fr): Promise<Fr[]>;
+  getAuthWitness(messageHash: Fr): Promise<Fr[]>;
 
   /**
    * Retrieve the secret key associated with a specific public key.

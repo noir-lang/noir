@@ -1,24 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import {
-  Account,
-  AuthWitnessAccountContract,
-  AuthWitnessEntrypointWallet,
-  CheatCodes,
-  Fr,
-  IAuthWitnessAccountEntrypoint,
-  SentTx,
-  computeMessageSecretHash,
-} from '@aztec/aztec.js';
-import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex, GrumpkinScalar } from '@aztec/circuits.js';
+import { AccountWallet, CheatCodes, Fr, SentTx, computeMessageSecretHash } from '@aztec/aztec.js';
+import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
-import {
-  LendingContract,
-  PriceFeedContract,
-  SchnorrAuthWitnessAccountContract,
-  TokenContract,
-} from '@aztec/noir-contracts/types';
+import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
@@ -30,7 +16,7 @@ describe('e2e_lending_contract', () => {
   jest.setTimeout(100_000);
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
-  let wallet: AuthWitnessEntrypointWallet;
+  let wallet: AccountWallet;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
 
@@ -95,20 +81,9 @@ describe('e2e_lending_contract', () => {
   };
 
   beforeAll(async () => {
-    ({ aztecNode, aztecRpcServer, logger, cheatCodes: cc } = await setup(0));
-
-    const privateKey = GrumpkinScalar.random();
-    const account = new Account(aztecRpcServer, privateKey, new AuthWitnessAccountContract(privateKey));
-    const deployTx = await account.deploy();
-    await deployTx.wait({ interval: 0.1 });
-    wallet = new AuthWitnessEntrypointWallet(
-      aztecRpcServer,
-      (await account.getEntrypoint()) as unknown as IAuthWitnessAccountEntrypoint,
-      await account.getCompleteAddress(),
-    );
-    accounts = await wallet.getAccounts();
-
+    ({ aztecNode, aztecRpcServer, logger, cheatCodes: cc, wallet, accounts } = await setup(1));
     ({ lendingContract, priceFeedContract, collateralAsset, stableCoin } = await deployContracts());
+
     lendingAccount = new LendingAccount(accounts[0].address, new Fr(42));
 
     // Also specified in `noir-contracts/src/contracts/lending_contract/src/main.nr`
@@ -192,7 +167,7 @@ describe('e2e_lending_contract', () => {
         new Fr(depositAmount),
         nonce,
       ]);
-      await wallet.signAndAddAuthWitness(messageHash);
+      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.depositPrivate(lendingAccount.address, await lendingAccount.key(), depositAmount);
 
@@ -228,7 +203,7 @@ describe('e2e_lending_contract', () => {
         new Fr(depositAmount),
         nonce,
       ]);
-      await wallet.signAndAddAuthWitness(messageHash);
+      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.depositPrivate(lendingAccount.address, lendingAccount.address.toField(), depositAmount);
@@ -267,8 +242,7 @@ describe('e2e_lending_contract', () => {
       ]);
 
       // Add it to the wallet as approved
-      const me = await SchnorrAuthWitnessAccountContract.at(accounts[0].address, wallet);
-      await waitForSuccess(me.methods.set_is_valid_storage(messageHash, 1).send());
+      await wallet.setPublicAuth(messageHash, true).send().wait();
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.depositPublic(lendingAccount.address, lendingAccount.address.toField(), depositAmount);
@@ -346,7 +320,7 @@ describe('e2e_lending_contract', () => {
         new Fr(repayAmount),
         nonce,
       ]);
-      await wallet.signAndAddAuthWitness(messageHash);
+      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.repayPrivate(lendingAccount.address, await lendingAccount.key(), repayAmount);
@@ -376,7 +350,7 @@ describe('e2e_lending_contract', () => {
         new Fr(repayAmount),
         nonce,
       ]);
-      await wallet.signAndAddAuthWitness(messageHash);
+      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.repayPrivate(lendingAccount.address, lendingAccount.address.toField(), repayAmount);
@@ -409,8 +383,7 @@ describe('e2e_lending_contract', () => {
       ]);
 
       // Add it to the wallet as approved
-      const me = await SchnorrAuthWitnessAccountContract.at(accounts[0].address, wallet);
-      await waitForSuccess(me.methods.set_is_valid_storage(messageHash, 1).send());
+      await wallet.setPublicAuth(messageHash, true).send().wait();
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.repayPublic(lendingAccount.address, lendingAccount.address.toField(), repayAmount);

@@ -73,7 +73,9 @@ export class PrivateFunctionExecution {
         return toACVMField(await this.context.packedArgsCache.pack(args.map(fromACVMField)));
       },
       getAuthWitness: async ([messageHash]) => {
-        return (await this.context.db.getAuthWitness(fromACVMField(messageHash))).map(toACVMField);
+        const witness = await this.context.getAuthWitness(fromACVMField(messageHash));
+        if (!witness) throw new Error(`Authorization not found for message hash ${fromACVMField(messageHash)}`);
+        return witness.map(toACVMField);
       },
       getSecretKey: ([ownerX], [ownerY]) => this.context.getSecretKey(this.contractAddress, ownerX, ownerY),
       getPublicKey: async ([acvmAddress]) => {

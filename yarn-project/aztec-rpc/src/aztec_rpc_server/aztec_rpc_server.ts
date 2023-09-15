@@ -21,6 +21,7 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
+  AuthWitness,
   AztecNode,
   AztecRPC,
   ContractDao,
@@ -76,11 +77,6 @@ export class AztecRPCServer implements AztecRPC {
     this.clientInfo = `${name.split('/')[name.split('/').length - 1]}@${version}`;
   }
 
-  public async addAuthWitness(messageHash: Fr, witness: Fr[]) {
-    await this.db.addAuthWitness(messageHash, witness);
-    return Promise.resolve();
-  }
-
   /**
    * Starts the Aztec RPC server by beginning the synchronisation process between the Aztec node and the database.
    *
@@ -102,6 +98,10 @@ export class AztecRPCServer implements AztecRPC {
   public async stop() {
     await this.synchroniser.stop();
     this.log.info('Stopped');
+  }
+
+  public addAuthWitness(witness: AuthWitness) {
+    return this.db.addAuthWitness(witness.requestHash, witness.witness);
   }
 
   public async registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress) {

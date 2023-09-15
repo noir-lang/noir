@@ -1,0 +1,103 @@
+import { AztecAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import {
+  AuthWitness,
+  AztecRPC,
+  ContractData,
+  DeployedContract,
+  ExtendedContractData,
+  FunctionCall,
+  L2BlockL2Logs,
+  NodeInfo,
+  NotePreimage,
+  SyncStatus,
+  Tx,
+  TxExecutionRequest,
+  TxHash,
+  TxReceipt,
+} from '@aztec/types';
+
+import { CompleteAddress } from '../index.js';
+import { Wallet } from './index.js';
+
+/**
+ * A base class for Wallet implementations
+ */
+export abstract class BaseWallet implements Wallet {
+  constructor(protected readonly rpc: AztecRPC) {}
+
+  abstract getCompleteAddress(): CompleteAddress;
+
+  abstract createTxExecutionRequest(execs: FunctionCall[]): Promise<TxExecutionRequest>;
+
+  abstract createAuthWitness(message: Fr): Promise<AuthWitness>;
+
+  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void> {
+    return this.rpc.registerAccount(privKey, partialAddress);
+  }
+  registerRecipient(account: CompleteAddress): Promise<void> {
+    return this.rpc.registerRecipient(account);
+  }
+  getAccounts(): Promise<CompleteAddress[]> {
+    return this.rpc.getAccounts();
+  }
+  getAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    return this.rpc.getAccount(address);
+  }
+  getRecipients(): Promise<CompleteAddress[]> {
+    return this.rpc.getRecipients();
+  }
+  getRecipient(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    return this.rpc.getRecipient(address);
+  }
+  addContracts(contracts: DeployedContract[]): Promise<void> {
+    return this.rpc.addContracts(contracts);
+  }
+  getContracts(): Promise<AztecAddress[]> {
+    return this.rpc.getContracts();
+  }
+  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx> {
+    return this.rpc.simulateTx(txRequest, simulatePublic);
+  }
+  sendTx(tx: Tx): Promise<TxHash> {
+    return this.rpc.sendTx(tx);
+  }
+  getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
+    return this.rpc.getTxReceipt(txHash);
+  }
+  getPrivateStorageAt(owner: AztecAddress, contract: AztecAddress, storageSlot: Fr): Promise<NotePreimage[]> {
+    return this.rpc.getPrivateStorageAt(owner, contract, storageSlot);
+  }
+  getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any> {
+    return this.rpc.getPublicStorageAt(contract, storageSlot);
+  }
+  viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress | undefined): Promise<any> {
+    return this.rpc.viewTx(functionName, args, to, from);
+  }
+  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
+    return this.rpc.getExtendedContractData(contractAddress);
+  }
+  getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    return this.rpc.getContractData(contractAddress);
+  }
+  getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]> {
+    return this.rpc.getUnencryptedLogs(from, limit);
+  }
+  getBlockNumber(): Promise<number> {
+    return this.rpc.getBlockNumber();
+  }
+  getNodeInfo(): Promise<NodeInfo> {
+    return this.rpc.getNodeInfo();
+  }
+  isGlobalStateSynchronised() {
+    return this.rpc.isGlobalStateSynchronised();
+  }
+  isAccountStateSynchronised(account: AztecAddress) {
+    return this.rpc.isAccountStateSynchronised(account);
+  }
+  getSyncStatus(): Promise<SyncStatus> {
+    return this.rpc.getSyncStatus();
+  }
+  addAuthWitness(authWitness: AuthWitness) {
+    return this.rpc.addAuthWitness(authWitness);
+  }
+}

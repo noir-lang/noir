@@ -2,7 +2,7 @@
 
 This tutorial will take you through the process of writing your own account contract in Noir, along with the Typescript glue code required for using it within a [wallet](./main.md).
 
-Writing your own account contract allows you to define the rules by which user transactions are authorised and paid for, as well as how user keys are managed (including key rotation and recovery). In other words, writing an account contract lets you make the most out of [account abstraction](../../concepts/foundation/accounts/main.md#what-is-account-abstraction) in the Aztec network.
+Writing your own account contract allows you to define the rules by which user transactions are authorized and paid for, as well as how user keys are managed (including key rotation and recovery). In other words, writing an account contract lets you make the most out of [account abstraction](../../concepts/foundation/accounts/main.md#what-is-account-abstraction) in the Aztec network.
 
 It is highly recommended that you understand how an [account](../../concepts/foundation/accounts/main.md) is defined in Aztec, as well as the differences between privacy and authentication [keys](../../concepts/foundation/accounts/keys.md). You will also need to know how to write a [contract in Noir](../contracts/main.md), as well as some basic [Typescript](https://www.typescriptlang.org/).
 
@@ -30,58 +30,48 @@ Public Key:  0x0ede151adaef1cfcc1b3e152ea39f00c5cda3f3857cef00decb049d283672dc71
 ```
 :::
 
-The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: 1) authenticating the transaction and 2) executing calls. It receives a `payload` with the list of function calls to execute, as well as a signature over that payload.
+The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which uses the `EntrypointPayload` struct:
+
+#include_code entrypoint yarn-project/aztec-nr/aztec/src/account.nr rust
 
 #include_code entrypoint-struct yarn-project/aztec-nr/aztec/src/entrypoint.nr rust
 
 :::info
-Using the `EntrypointPayload` struct is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, the entrypoint payload already provides a set of helper functions, both in Noir and Typescript, that can save you a lot of time when writing a new account contract.
+Using the `AccountActions` module and the `EntrypointPayload` struct is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, using these modules can save you a lot of time when writing a new account contract, both in Noir and in Typescript.
 :::
 
-Let's go step by step into what the `entrypoint` function is doing:
+The `AccountActions` module provides default implementations for most of the account contract methods needed, but it requires a function for validating an auth witness. In this function you will customise how your account validates an action: whether it is using a specific signature scheme, a multi-party approval, a password, etc.
 
-#include_code entrypoint-auth yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
+#include_code is-valid yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
-We authenticate the transaction. To do this, we serialise and Pedersen-hash the payload, which contains the instructions to be carried out along with a nonce. We then assert that the signature verifies against the resulting hash and the contract public key. This makes a transaction with an invalid signature unprovable.
-
-#include_code entrypoint-auth yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
-
-Last, we execute the calls in the payload struct. The `execute_calls` helper function runs through the private and public calls included in the entrypoint payload and executes them:
-
-#include_code entrypoint-execute-calls yarn-project/aztec-nr/aztec/src/entrypoint.nr rust
-
-Note the usage of the `_with_packed_args` variant of [`call_public_function` and `call_private_function`](../contracts/functions.md#calling-functions). Due to Noir limitations, we cannot include more than a small number of arguments in a function call. However, we can bypass this restriction by using a hash of the arguments in a function call, which gets automatically expanded to the full set of arguments when the nested call is executed. We call this _argument packing_.
-
+For our account contract, we will take the hash of the action to authorize, request the corresponding auth witness from the oracle, and validate it against our hardcoded public key. If the signature is correct, we authorize the action.
 ## The typescript side of things
 
-Now that we have a valid Aztec.nr account contract, we need to write the typescript glue code that will take care of formatting and authenticating transactions so they can be processed by our contract, as well as deploying the contract during account setup. This takes the form of implementing the `AccountContract` interface:
+Now that we have a valid account contract, we need to write the typescript glue code that will take care of formatting and authenticating transactions so they can be processed by our contract, as well as deploying the contract during account setup. This takes the form of implementing the `AccountContract` interface:
 
 #include_code account-contract-interface yarn-project/aztec.js/src/account/contract/index.ts typescript
 
-The most interesting bit here is creating an `Entrypoint`, which is the piece of code that converts from a list of function calls requested by the user into a transaction execution request that can be simulated and proven:
-
-#include_code entrypoint-interface yarn-project/aztec.js/src/account/entrypoint/index.ts typescript
-
-For our account contract, we need to assemble the function calls into a payload, sign it using Schnorr, and encode these arguments for our `entrypoint` function. Let's see how it would look like:
+However, if you are using the default `AccountActions` module, then you can leverage the `BaseAccountContract` class and just implement the logic for generating an auth witness that matches the one you wrote in Noir:
 
 #include_code account-contract yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
-Note that we are using the `buildPayload` and `hashPayload` helpers for assembling and Pedersen-hashing the `EntrypointPayload` struct for our `entrypoint` function. As mentioned, this is not required, and you can define your own structure for instructing your account contract what functions to run.
+As you can see in the snippet above, to fill in this base class, we need to define three things:
+- The build artifact for the corresponding account contract.
+- The deployment arguments.
+- How to create an auth witness.
 
-Then, we are using the `Schnorr` signer from the `@aztec/circuits.js` package to sign over the payload hash. This signer maps to exactly the same signing scheme that Noir's standard library expects in `schnorr::verify_signature`. 
+In our case, the auth witness will be generated by Schnorr-signing over the message identifier using the hardcoded key. To do this, we are using the `Schnorr` signer from the `@aztec/circuits.js` package to sign over the payload hash. This signer maps to exactly the same signing scheme that Noir's standard library expects in `schnorr::verify_signature`. 
 
 :::info
 More signing schemes are available in case you want to experiment with other types of keys. Check out Noir's [documentation on cryptographic primitives](https://noir-lang.org/standard_library/cryptographic_primitives).
 :::
-
-Last, we use the `buildTxExecutionRequest` helper function to assemble the transaction execution request from the arguments and entrypoint. Note that we are also including the set of packed arguments that map to each of the nested calls: these are required for unpacking the arguments in functions calls executed via `_with_packed_args`.
 
 ## Trying it out
 
 Let's try creating a new account backed by our account contract, and interact with a simple token contract to test it works.
 
 <!-- TODO: Link to docs showing how to get an instance of Aztec RPC server  -->
-To create and deploy the account, we will use the `Account` class, which takes an instance of an Aztec RPC server, a [privacy private key](../../concepts/foundation/accounts/keys.md#privacy-keys), and an instance of our `AccountContract` class:
+To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Aztec RPC server, a [privacy private key](../../concepts/foundation/accounts/keys.md#privacy-keys), and an instance of our `AccountContract` class:
 
 #include_code account-contract-deploy yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 

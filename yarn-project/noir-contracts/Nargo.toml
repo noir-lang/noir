@@ -18,7 +18,6 @@ members = [
     "src/contracts/private_token_contract",
     "src/contracts/public_token_contract",
     "src/contracts/schnorr_account_contract",
-    "src/contracts/schnorr_auth_witness_account_contract",
     "src/contracts/schnorr_hardcoded_account_contract",
     "src/contracts/schnorr_single_key_account_contract",
     "src/contracts/test_contract",

@@ -3,6 +3,7 @@ import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { AuthWitness } from '@aztec/types';
 
 import {
   ACVMField,
@@ -54,6 +55,8 @@ export class ClientTxExecutionContext {
     /** The cache of packed arguments */
     public packedArgsCache: PackedArgsCache,
     private noteCache: ExecutionNoteCache,
+    /** List of transient auth witnesses to be used during this simulation */
+    private authWitnesses: AuthWitness[],
     private log = createDebugLogger('aztec:simulator:client_execution_context'),
   ) {}
 
@@ -68,6 +71,19 @@ export class ClientTxExecutionContext {
       this.historicBlockData,
       this.packedArgsCache,
       this.noteCache,
+      this.authWitnesses,
+    );
+  }
+
+  /**
+   * Returns an auth witness for the given message hash. Checks on the list of transient witnesses
+   * for this transaction first, and falls back to the local database if not found.
+   * @param messageHash - Hash of the message to authenticate.
+   * @returns Authentication witness for the requested message hash.
+   */
+  public getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined> {
+    return Promise.resolve(
+      this.authWitnesses.find(w => w.requestHash.equals(messageHash))?.witness ?? this.db.getAuthWitness(messageHash),
     );
   }
 

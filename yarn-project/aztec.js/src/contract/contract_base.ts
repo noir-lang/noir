@@ -2,7 +2,7 @@ import { ContractAbi, FunctionAbi, FunctionSelector } from '@aztec/foundation/ab
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { CompleteAddress, DeployedContract } from '@aztec/types';
 
-import { Wallet } from '../aztec_rpc_client/wallet.js';
+import { Wallet } from '../wallet/index.js';
 import { ContractFunctionInteraction } from './contract_function_interaction.js';
 
 /**

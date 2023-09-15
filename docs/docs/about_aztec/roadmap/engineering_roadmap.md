@@ -213,7 +213,7 @@ Also, we do a lot of sha256-compressing in our kernel and rollup circuits for da
 ### Ultra -> Standard Squisher Circuit
 
 ## Authentication: access to private data
-- Private data must not be returned to an app, unless the user authorises it.
+- Private data must not be returned to an app, unless the user authorizes it.
 
 ## Validation: preventing execution of malicious bytecode
 - A node should check that the bytecode provided by an application for a given app matches the leaf in the contract tree to ensure that user doesn't execute unplanned code which might access their notes.
