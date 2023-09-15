@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Build noir-source-resolver
+      - name: Build @noir-lang/source-resolver
         run: yarn workspace @noir-lang/source-resolver build
 
       - name: Run tests
