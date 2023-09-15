@@ -12,7 +12,7 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::{BinaryOp, Endian, Intrinsic};
+use crate::ssa::ir::instruction::{BinaryOp, Endian, Instruction, Intrinsic};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -311,21 +311,35 @@ impl<'a> FunctionContext<'a> {
             }
         };
 
-        if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
+        // Check for integer overflow
+        if matches!(
             operator,
-            lhs,
-            rhs,
-            &self.builder.current_function.dfg,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::ShiftLeft
         ) {
             let result_type = self.builder.current_function.dfg.type_of_value(result);
-            let bit_size = match result_type {
+            match result_type {
                 Type::Numeric(NumericType::Signed { bit_size })
-                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                _ => {
-                    unreachable!("ICE: Truncation attempted on non-integer");
+                | Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                    let op_name = match operator {
+                        BinaryOpKind::Add => "add",
+                        BinaryOpKind::Subtract => "subtract",
+                        BinaryOpKind::Multiply => "multiply",
+                        BinaryOpKind::ShiftLeft => "left shift",
+                        _ => unreachable!("operator {} should not overflow", operator),
+                    };
+                    let message = format!("attempt to {} with overflow", op_name);
+                    let range_constraint = Instruction::RangeCheck {
+                        value: result,
+                        max_bit_size: bit_size,
+                        assert_message: Some(message),
+                    };
+                    self.builder.set_location(location).insert_instruction(range_constraint, None);
                 }
-            };
-            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+                _ => (),
+            }
         }
 
         if operator_requires_not(operator) {

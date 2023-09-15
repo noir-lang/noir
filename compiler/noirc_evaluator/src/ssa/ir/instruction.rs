@@ -142,6 +142,9 @@ pub(crate) enum Instruction {
     /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId, Option<String>),
 
+    /// Range constrain `value` to `max_bit_size`
+    RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
+
     /// Performs a function call with a list of its arguments.
     Call { func: ValueId, arguments: Vec<ValueId> },
 
@@ -193,7 +196,8 @@ impl Instruction {
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
-            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            | Instruction::EnableSideEffects { .. }
+            | Instruction::RangeCheck { .. } => InstructionResultType::None,
             Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
                 InstructionResultType::Unknown
             }
@@ -220,9 +224,12 @@ impl Instruction {
             Truncate { .. } => false,
 
             // These either have side-effects or interact with memory
-            Constrain(..) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
-                false
-            }
+            Constrain(..)
+            | EnableSideEffects { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
@@ -244,7 +251,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(..) | Store { .. } | EnableSideEffects { .. } | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -304,6 +311,13 @@ impl Instruction {
                 value: f(*value),
                 length: length.map(f),
             },
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                Instruction::RangeCheck {
+                    value: f(*value),
+                    max_bit_size: *max_bit_size,
+                    assert_message: assert_message.clone(),
+                }
+            }
         }
     }
 
@@ -348,6 +362,9 @@ impl Instruction {
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
+            }
+            Instruction::RangeCheck { value, .. } => {
+                f(*value);
             }
         }
     }
@@ -439,6 +456,7 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::RangeCheck { .. } => None,
         }
     }
 }

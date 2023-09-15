@@ -508,6 +508,29 @@ impl<'block> BrilligBlock<'block> {
                     value_variable,
                 );
             }
+            Instruction::RangeCheck { value, max_bit_size, .. } => {
+                let register_index = self.brillig_context.allocate_register();
+                self.brillig_context.const_instruction(
+                    register_index,
+                    FieldElement::from(*max_bit_size as i128).into(),
+                );
+                let function_arguments = &vec![
+                    self.convert_ssa_value(*value, dfg),
+                    RegisterOrMemory::RegisterIndex(register_index),
+                ];
+                let function_results = dfg.instruction_results(instruction_id);
+                let function_results = vecmap(function_results, |result| {
+                    self.allocate_external_call_result(*result, dfg)
+                });
+                let bb_func = acvm::acir::BlackBoxFunc::RANGE;
+                convert_black_box_call(
+                    self.brillig_context,
+                    &bb_func,
+                    function_arguments,
+                    &function_results,
+                );
+                self.brillig_context.deallocate_register(register_index);
+            }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
 

@@ -309,7 +309,7 @@ impl Context {
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
         if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
-            self.acir_context.range_constrain_var(acir_var, numeric_type)?;
+            self.acir_context.range_constrain_var(acir_var, numeric_type, None)?;
         }
         Ok(acir_var)
     }
@@ -487,6 +487,14 @@ impl Context {
             }
             Instruction::Load { .. } => {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                let acir_var = self.convert_numeric_value(*value, dfg)?;
+                self.acir_context.range_constrain_var(
+                    acir_var,
+                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    assert_message.clone(),
+                )?;
             }
         }
         self.acir_context.set_call_stack(CallStack::new());

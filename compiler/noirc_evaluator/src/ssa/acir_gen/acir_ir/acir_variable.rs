@@ -672,11 +672,17 @@ impl AcirContext {
         &mut self,
         variable: AcirVar,
         numeric_type: &NumericType,
+        message: Option<String>,
     ) -> Result<AcirVar, RuntimeError> {
         match numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let witness = self.var_to_witness(variable)?;
                 self.acir_ir.range_constraint(witness, *bit_size)?;
+                if let Some(message) = message {
+                    self.acir_ir
+                        .assert_messages
+                        .insert(self.acir_ir.last_acir_opcode_location(), message);
+                }
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
