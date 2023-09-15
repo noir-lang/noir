@@ -83,7 +83,7 @@ jobs:
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
-          name: noir_wasm
+          name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
   
       - name: Install workspace dependencies
