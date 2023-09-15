@@ -22,7 +22,6 @@ compiler/source-resolver/lib-node
 # Noir.js
 tooling/noir_js/lib
 
-
 # Nix stuff
 **/outputs
 result
