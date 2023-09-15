@@ -61,6 +61,11 @@ impl AcirType {
         AcirType::NumericType(NumericType::NativeField)
     }
 
+    /// Returns an unsigned type of the specified bit size 
+    pub(crate) fn unsigned(bit_size: u32) -> Self {
+        AcirType::NumericType(NumericType::Unsigned { bit_size })
+    }
+
     /// Returns a boolean type
     fn boolean() -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
@@ -73,6 +78,16 @@ impl AcirType {
             AcirType::Array(_, _) => return false,
         };
         matches!(numeric_type, NumericType::Signed { .. })
+    }
+
+    pub(crate) fn from_slice(value: &SsaType, size: usize) -> Self {
+        match value {
+            SsaType::Slice(elements) => {
+                let elements = elements.iter().map(|e| e.into()).collect();
+                AcirType::Array(elements, size)
+            }
+            _ => unreachable!("Attempted to use {value} where a slice was expected"),
+        }
     }
 }
 
@@ -90,7 +105,7 @@ impl<'a> From<&'a SsaType> for AcirType {
                 let elements = elements.iter().map(|e| e.into()).collect();
                 AcirType::Array(elements, *size)
             }
-            _ => unreachable!("The type {value}  cannot be represented in ACIR"),
+            _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
     }
 }
@@ -1220,6 +1235,8 @@ impl AcirContext {
                     if let Ok(some_value) = value.clone().into_var() {
                         values.push(self.var_to_witness(some_value)?);
                     } else {
+                        dbg!(optional_values.clone());
+                        dbg!("got here");
                         nested = true;
                         break;
                     }
@@ -1228,10 +1245,74 @@ impl AcirContext {
             }
         };
         // we do not initialize nested arrays. This means that non-const indexes are not supported for nested arrays
-        if !nested {
-            self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
-        }
+        // if !nested {
+            // self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+        // }
+        dbg!(nested);
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
 
+
+        Ok(())
+    }
+
+    pub(crate) fn initialize_array_new(
+        &mut self,
+        block_id: BlockId,
+        len: usize,
+        optional_value: Option<AcirValue>,
+    ) -> Result<(), InternalError> {
+        let initialized_values = match optional_value {
+            None => {
+                let zero = self.add_constant(FieldElement::zero());
+                let zero_witness = self.var_to_witness(zero)?;
+                vec![zero_witness; len]
+            }
+            Some(optional_value) => {
+                let mut values = Vec::new();
+                self.initialize_array_inner(&mut values, optional_value)?;
+                values
+            }
+        };
+
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+
+        Ok(())
+    }
+
+    fn initialize_array_inner(
+        &mut self,
+        witnesses: &mut Vec<Witness>,
+        input: AcirValue,
+    ) -> Result<(), InternalError> {
+        match input {
+            AcirValue::Var(var, _) => {
+                witnesses.push(self.var_to_witness(var)?);
+            }
+            AcirValue::Array(values) => {
+                for value in values {
+                    self.initialize_array_inner(witnesses, value)?;
+                }
+            }
+            // AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+            AcirValue::DynamicArray(_) => {
+                panic!("dyn array should already be initialized");
+            }
+            // AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+                // for i in 0..len {
+                //     // We generate witnesses corresponding to the array values
+                //     let index = AcirValue::Var(
+                //         self.add_constant(FieldElement::from(i as u128)),
+                //         AcirType::NumericType(NumericType::NativeField),
+                //     );
+                    
+                //     let index_var = index.into_var()?;
+                //     let value_read_var =
+                //         self.read_from_memory(block_id, &index_var)?;
+
+                //     witnesses.push(self.var_to_witness(value_read_var)?);
+                // }
+            // }
+        }
         Ok(())
     }
 }
