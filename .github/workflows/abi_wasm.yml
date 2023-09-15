@@ -94,6 +94,10 @@ jobs:
         run: |
           yarn workspace @noir-lang/noirc_abi test
 
+      - name: Query playwright version
+        working-directory: ./tooling/noirc_abi_wasm
+        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
+
       - name: Cache playwright binaries
         uses: actions/cache@v3
         id: playwright-cache
@@ -101,10 +105,6 @@ jobs:
           path: |
             ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
-
-      - name: Query playwright version
-        working-directory: ./tooling/noirc_abi_wasm
-        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
 
       - name: Install playwright deps
         if: steps.playwright-cache.outputs.cache-hit != 'true'
