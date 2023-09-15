@@ -95,7 +95,7 @@ jobs:
           yarn workspace @noir-lang/noirc_abi test
 
       - name: Query playwright version
-        run: echo "PLAYWRIGHT_VERSION=$(yarn workspace noir-lang/noirc_abi_wasm info @web/test-runner-playwright --json | jq .children.Version) | trim -d '"'" >> $GITHUB_ENV
+        run: echo "PLAYWRIGHT_VERSION=$(yarn workspace @noir-lang/noirc_abi info @web/test-runner-playwright --json | jq .children.Version | tr -d '"')" >> $GITHUB_ENV
 
       - name: Cache playwright binaries
         uses: actions/cache@v3
