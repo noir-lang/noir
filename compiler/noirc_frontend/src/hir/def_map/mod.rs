@@ -160,15 +160,15 @@ impl CrateDefMap {
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let function_ids: Vec<FuncId> =
-                        module.value_definitions().filter_map(|id| id.as_function()).collect();
-
-                    let functions = function_ids
-                        .into_iter()
-                        .map(|id| {
-                            let is_entry_point =
-                                !interner.function_attributes(&id).has_contract_library_method();
-                            ContractFunctionMeta { function_id: id, is_entry_point }
+                    let functions = module
+                        .value_definitions()
+                        .filter_map(|id| {
+                            id.as_function().map(|function_id| {
+                                let is_entry_point = !interner
+                                    .function_attributes(&function_id)
+                                    .has_contract_library_method();
+                                ContractFunctionMeta { function_id, is_entry_point }
+                            })
                         })
                         .collect();
 
