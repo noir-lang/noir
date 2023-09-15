@@ -33,7 +33,7 @@ describe('Contract Class', () => {
     chainId: 2,
     rollupAddress: EthAddress.random(),
     client: '',
-    nargoVersion: 'sdlhahf823',
+    compatibleNargoVersion: 'vx.x.x-aztec.x',
   };
 
   const defaultAbi: ContractAbi = {

@@ -55,7 +55,7 @@ export type NodeInfo = {
   /**
    * The nargo version compatible with this node.
    */
-  nargoVersion: string;
+  compatibleNargoVersion: string;
 };
 
 /** Provides up to which block has been synced by different components. */
