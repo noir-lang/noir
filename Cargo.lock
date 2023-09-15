@@ -2201,6 +2201,7 @@ dependencies = [
  "iai",
  "iter-extended",
  "nargo",
+ "nargo_fmt",
  "nargo_toml",
  "noir_lsp",
  "noirc_abi",

@@ -14,6 +14,7 @@ mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
 mod execute_cmd;
+mod fmt_cmd;
 mod info_cmd;
 mod init_cmd;
 mod lsp_cmd;
@@ -52,6 +53,7 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Backend(backend_cmd::BackendCommand),
     Check(check_cmd::CheckCommand),
+    Fmt(fmt_cmd::FormatCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
@@ -100,6 +102,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Backend(args) => backend_cmd::run(args),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
+        NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 
     Ok(())
