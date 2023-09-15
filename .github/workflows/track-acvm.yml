@@ -1,7 +1,7 @@
 name: Track ACVM for Integration Tests
 
 on:
-  push:
+  pull_request:
     paths:
       - 'Cargo.lock'
       - 'yarn.lock'
