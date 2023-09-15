@@ -111,7 +111,7 @@ export class ClientTxExecutionContext {
       contractAddress,
       new Point(fromACVMField(ownerX), fromACVMField(ownerY)),
     );
-    return [toACVMField(secretKey.high), toACVMField(secretKey.low)];
+    return [toACVMField(secretKey.low), toACVMField(secretKey.high)];
   }
 
   /**

@@ -1,17 +1,25 @@
-use crate::types::{
-    point::Point,
-    grumpkin_scalar::{
-        GRUMPKIN_SCALAR_SERIALISED_LEN,
-        GrumpkinScalar,
-        deserialise_grumpkin_scalar,
-    },
-};
 use crate::oracle::get_public_key::get_public_key;
+use crate::types::point::Point;
 
 #[oracle(getSecretKey)]
-fn get_secret_key_oracle(_owner: Point) -> [Field; GRUMPKIN_SCALAR_SERIALISED_LEN] {}
+fn get_secret_key_oracle(
+    _owner: Point,
+) -> [Field; dep::std::grumpkin_scalar::GRUMPKIN_SCALAR_SERIALIZED_LEN] {
+}
 
-unconstrained fn get_secret_key(owner: Field) -> GrumpkinScalar {
-    let owner_nullifying_public_key = get_public_key(owner);
-    deserialise_grumpkin_scalar(get_secret_key_oracle(owner_nullifying_public_key))
+unconstrained fn get_secret_key_internal(owner_public_key: Point) -> dep::std::grumpkin_scalar::GrumpkinScalar {
+    dep::std::grumpkin_scalar::deserialize_grumpkin_scalar(get_secret_key_oracle(owner_public_key))
+}
+
+fn get_secret_key(owner: Field) -> dep::std::grumpkin_scalar::GrumpkinScalar {
+    let owner_public_key = get_public_key(owner);
+    let secret = get_secret_key_internal(owner_public_key);
+
+    // Constrain the owner - Nullifier secret key is currently just the encryption private key so we can constrain
+    // the owner by deriving the public key from the secret key and checking the result.
+    let computed_public_key = dep::std::grumpkin_scalar_mul::grumpkin_fixed_base(secret);
+    assert(owner_public_key.x == computed_public_key[0]);
+    assert(owner_public_key.y == computed_public_key[1]);
+
+    secret
 }

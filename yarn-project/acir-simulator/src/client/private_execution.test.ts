@@ -10,6 +10,7 @@ import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   PRIVATE_DATA_TREE_HEIGHT,
   PublicCallRequest,
+  PublicKey,
   TxContext,
 } from '@aztec/circuits.js';
 import {
@@ -66,6 +67,11 @@ describe('Private Execution test suite', () => {
 
   const defaultContractAddress = AztecAddress.random();
   const ownerPk = GrumpkinScalar.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
+  const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
+  let owner: AztecAddress;
+  let recipient: AztecAddress;
+  let ownerCompleteAddress: CompleteAddress;
+  let recipientCompleteAddress: CompleteAddress;
 
   const treeHeights: { [name: string]: number } = {
     privateData: PRIVATE_DATA_TREE_HEIGHT,
@@ -142,11 +148,21 @@ describe('Private Execution test suite', () => {
   beforeAll(async () => {
     circuitsWasm = await CircuitsWasm.get();
     logger = createDebugLogger('aztec:test:private_execution');
+
+    ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
+    recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
+
+    owner = ownerCompleteAddress.address;
+    recipient = recipientCompleteAddress.address;
   });
 
   beforeEach(() => {
     oracle = mock<DBOracle>();
-    oracle.getSecretKey.mockResolvedValue(ownerPk);
+    oracle.getSecretKey.mockImplementation((contractAddress: AztecAddress, pubKey: PublicKey) => {
+      if (pubKey.equals(ownerCompleteAddress.publicKey)) return Promise.resolve(ownerPk);
+      if (pubKey.equals(recipientCompleteAddress.publicKey)) return Promise.resolve(recipientPk);
+      throw new Error(`Unknown address ${pubKey}`);
+    });
     oracle.getHistoricBlockData.mockResolvedValue(blockData);
 
     acirSimulator = new AcirSimulator(oracle);
@@ -167,10 +183,7 @@ describe('Private Execution test suite', () => {
 
   describe('private token airdrop contract', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
     const mockFirstNullifier = new Fr(1111);
-    let owner: AztecAddress;
-    let recipient: AztecAddress;
     let currentNoteIndex = 0n;
 
     const buildNote = (amount: bigint, owner: AztecAddress, storageSlot = Fr.random()) => {
@@ -197,13 +210,7 @@ describe('Private Execution test suite', () => {
       };
     };
 
-    beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
-      const recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
-
-      owner = ownerCompleteAddress.address;
-      recipient = recipientCompleteAddress.address;
-
+    beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
         if (address.equals(owner)) return Promise.resolve(ownerCompleteAddress);
         if (address.equals(recipient)) return Promise.resolve(recipientCompleteAddress);
@@ -236,8 +243,8 @@ describe('Private Execution test suite', () => {
       const innerNullifier = Fr.fromBuffer(
         pedersenPlookupCommitInputs(circuitsWasm, [
           uniqueSiloedNoteHash.toBuffer(),
-          ownerPk.high.toBuffer(),
           ownerPk.low.toBuffer(),
+          ownerPk.high.toBuffer(),
         ]),
       );
 
@@ -395,10 +402,7 @@ describe('Private Execution test suite', () => {
 
   describe('private token contract', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
     const mockFirstNullifier = new Fr(1111);
-    let owner: AztecAddress;
-    let recipient: AztecAddress;
     let currentNoteIndex = 0n;
 
     const buildNote = (amount: bigint, owner: AztecAddress, storageSlot = Fr.random()) => {
@@ -425,13 +429,7 @@ describe('Private Execution test suite', () => {
       };
     };
 
-    beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
-      const recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
-
-      owner = ownerCompleteAddress.address;
-      recipient = recipientCompleteAddress.address;
-
+    beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
         if (address.equals(owner)) return Promise.resolve(ownerCompleteAddress);
         if (address.equals(recipient)) return Promise.resolve(recipientCompleteAddress);
@@ -464,8 +462,8 @@ describe('Private Execution test suite', () => {
       const innerNullifier = Fr.fromBuffer(
         pedersenPlookupCommitInputs(circuitsWasm, [
           uniqueSiloedNoteHash.toBuffer(),
-          ownerPk.high.toBuffer(),
           ownerPk.low.toBuffer(),
+          ownerPk.high.toBuffer(),
         ]),
       );
 
@@ -681,13 +679,8 @@ describe('Private Execution test suite', () => {
 
   describe('consuming messages', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = GrumpkinScalar.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
 
-    let recipient: AztecAddress;
-
-    beforeEach(async () => {
-      const recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
-      recipient = recipientCompleteAddress.address;
+    beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
         if (address.equals(recipient)) return Promise.resolve(recipientCompleteAddress);
         throw new Error(`Unknown address ${address}`);
@@ -809,13 +802,7 @@ describe('Private Execution test suite', () => {
   });
 
   describe('pending commitments contract', () => {
-    let owner: AztecAddress;
-
-    beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
-
-      owner = ownerCompleteAddress.address;
-
+    beforeEach(() => {
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
         if (address.equals(owner)) return Promise.resolve(ownerCompleteAddress);
         throw new Error(`Unknown address ${address}`);
