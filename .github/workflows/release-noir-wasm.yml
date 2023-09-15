@@ -2,10 +2,6 @@ name: Update & Publish
 
 on:
   workflow_dispatch:
-    inputs:
-      noir-ref:
-        description: The noir reference to checkout
-        required: false
 
 jobs:
   publish-noir-wasm:
@@ -41,7 +37,6 @@ jobs:
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish to npm
-        if: ${{ inputs.noir-ref }}
         run: |
           npm publish --access public
         env:
