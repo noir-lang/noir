@@ -232,16 +232,28 @@ fn compile_contract_inner(
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
-    for function_id in &contract.functions {
-        let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+    for contract_function in &contract.functions {
+        let function_id = contract_function.function_id;
+        let is_entry_point = contract_function.is_entry_point;
+
+        let name = context.function_name(&function_id).to_owned();
+
+        // We assume that functions have already been type checked.
+        // This is the exact same assumption that compile_no_check makes.
+        // If it is not an entry-point point, we can then just skip the
+        // compilation step. It will also not be added to the ABI.
+        if !is_entry_point {
+            continue;
+        }
+
+        let function = match compile_no_check(context, options, function_id) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error);
                 continue;
             }
         };
-        let func_meta = context.def_interner.function_meta(function_id);
+        let func_meta = context.def_interner.function_meta(&function_id);
         let func_type = func_meta
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");

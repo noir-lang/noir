@@ -1,5 +1,5 @@
 {
-  "name": "@noir-lang/noir-source-resolver",
+  "name": "@noir-lang/source-resolver",
   "version": "1.1.4",
   "license": "MIT",
   "main": "./lib-node/index_node.js",
@@ -12,12 +12,16 @@
       "import": "./lib/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noir-lang/noir.git"
+  },
   "scripts": {
     "clean-modules": "rm -rf lib",
     "build:node": "tsc -p tsconfig.cjs.json",
     "build:web": "tsc -p tsconfig.esm.json",
     "build": "npm run clean-modules && npm run build:node && npm run build:web && npm run generate-types",
-    "test": "node_modules/.bin/ava",
+    "test": "ava",
     "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types"
   },
   "devDependencies": {

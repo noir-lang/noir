@@ -9,13 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
-// This dependency is not used. We import it
-// to bypass the `unused_crate_dependencies` lint.
-//
-// It is being imported as we get errors regarding the
-// js feature not being enabled.
-use getrandom as _;
-
 mod circuit;
 mod compile;
 

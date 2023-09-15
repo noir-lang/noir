@@ -117,7 +117,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/result
+          path: ./compiler/wasm/downloaded
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -132,23 +132,16 @@ jobs:
           chmod +x $nargo_binary
           $nargo_binary compile
 
-      - name: Set up test environment
-        uses: ./.github/actions/setup
-        with:
-          working-directory: ./compiler/wasm
-
       - name: Install dependencies
-        working-directory: ./compiler/wasm
-        run: yarn install
-
-      - name: Install playwright deps
-        working-directory: ./compiler/wasm
         run: |
           npx playwright install
           npx playwright install-deps
-
+          cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
+          cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
+          yarn install --immutable
+          yarn workspace @noir-lang/source-resolver build
+          
       - name: Run tests
-        working-directory: ./compiler/wasm
         run: |
-          yarn test:browser
-          yarn test:node
+          yarn workspace @noir-lang/noir_wasm test:browser
+          yarn workspace @noir-lang/noir_wasm test:node

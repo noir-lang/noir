@@ -139,9 +139,10 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
-                    match interner.function_meta(&func_id).attributes.primary {
+                    let func_meta = interner.function_meta(&func_id);
+                    match func_meta.attributes.primary {
                         Some(PrimaryAttribute::Test(scope)) => {
-                            Some(TestFunction::new(func_id, scope))
+                            Some(TestFunction::new(func_id, scope, func_meta.name.location))
                         }
                         _ => None,
                     }
@@ -154,13 +155,23 @@ impl CrateDefMap {
 
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
     /// and collect them all into a Vec.
-    pub fn get_all_contracts(&self) -> Vec<Contract> {
+    pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {
         self.modules
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let functions =
+                    let function_ids: Vec<FuncId> =
                         module.value_definitions().filter_map(|id| id.as_function()).collect();
+
+                    let functions = function_ids
+                        .into_iter()
+                        .map(|id| {
+                            let is_entry_point =
+                                !interner.function_attributes(&id).has_contract_library_method();
+                            ContractFunctionMeta { function_id: id, is_entry_point }
+                        })
+                        .collect();
+
                     let name = self.get_module_path(id, module.parent);
                     Some(Contract { name, location: module.location, functions })
                 } else {
@@ -203,13 +214,25 @@ impl CrateDefMap {
     }
 }
 
+/// Specifies a contract function and extra metadata that
+/// one can use when processing a contract function.
+///
+/// One of these is whether the contract function is an entry point.
+/// The caller should only type-check these functions and not attempt
+/// to create a circuit for them.
+pub struct ContractFunctionMeta {
+    pub function_id: FuncId,
+    /// Indicates whether the function is an entry point
+    pub is_entry_point: bool,
+}
+
 /// A 'contract' in Noir source code with the given name and functions.
 /// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
     pub location: Location,
-    pub functions: Vec<FuncId>,
+    pub functions: Vec<ContractFunctionMeta>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
@@ -239,16 +262,21 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 pub struct TestFunction {
     id: FuncId,
     scope: TestScope,
+    location: Location,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope) -> Self {
-        TestFunction { id, scope }
+    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
+        TestFunction { id, scope, location }
     }
 
     /// Returns the function id of the test function
     pub fn get_id(&self) -> FuncId {
         self.id
+    }
+
+    pub fn file_id(&self) -> FileId {
+        self.location.file
     }
 
     /// Returns true if the test function has been specified to fail

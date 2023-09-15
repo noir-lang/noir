@@ -4,6 +4,7 @@ description = "Noir's package manager"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -55,7 +56,7 @@ acvm-backend-barretenberg = { path = "../acvm_backend_barretenberg" }
 tokio-util = { version = "0.7.8", features = ["compat"] }
 
 [dev-dependencies]
-tempdir = "0.3.7"
+tempfile = "3.6.0"
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
