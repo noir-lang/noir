@@ -4,13 +4,14 @@ description: Installs the workspace's yarn dependencies and caches them
 runs:
   using: composite
   steps:
-    - name: Cache
-      uses: actions/cache@v3
-      id: cache
+    - uses: actions/setup-node@v3
+      id: node
       with:
-        path: "**/node_modules"
-        key: yarn-v1-${{ hashFiles('**/yarn.lock') }}
+        node-version: 18.17.1
+        cache: 'yarn'
+        cache-dependency-path: 'yarn.lock'
+    
     - name: Install
       run: yarn --immutable
       shell: bash
-      if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.node.outputs.cache-hit != 'true'
