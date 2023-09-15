@@ -42,6 +42,9 @@ jobs:
       - name: Build noir_js
         run: yarn workspace @noir-lang/noir_js build
 
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Publish to NPM
         working-directory: ./tooling/noir_js
         run: npm publish --access public
