@@ -592,6 +592,8 @@ impl<'block> BrilligBlock<'block> {
             .brillig_context
             .pre_call_save_registers_prep_args(&argument_registers, &variables_to_save);
 
+        self.variables.dump_constants();
+
         // Call instruction, which will interpret above registers 0..num args
         self.brillig_context.add_external_call_instruction(label_of_function_to_call);
 
@@ -971,8 +973,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         binary_op: BinaryIntOp,
     ) {
-        let source_len_variable =
-            self.variables.get_value(self.function_context, source_value, dfg);
+        let source_len_variable = self.convert_ssa_value(source_value, dfg);
         let source_len = extract_register(source_len_variable);
 
         self.brillig_context.usize_op(source_len, target_len, binary_op, 1);
@@ -1069,54 +1070,66 @@ impl<'block> BrilligBlock<'block> {
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
-                let new_variable =
-                    self.variables.get_or_create_constant(self.brillig_context, value_id, dfg);
-                let register_index = extract_register(new_variable);
+                if let Some(variable) = self.variables.get_constant(value_id, dfg) {
+                    variable
+                } else {
+                    let new_variable =
+                        self.variables.create_constant(self.brillig_context, value_id, dfg);
+                    let register_index = extract_register(new_variable);
 
-                self.brillig_context.const_instruction(register_index, (*constant).into());
-                new_variable
+                    self.brillig_context.const_instruction(register_index, (*constant).into());
+                    new_variable
+                }
             }
             Value::Array { array, .. } => {
-                let new_variable =
-                    self.variables.get_or_create_constant(self.brillig_context, value_id, dfg);
+                if let Some(variable) = self.variables.get_constant(value_id, dfg) {
+                    variable
+                } else {
+                    let new_variable =
+                        self.variables.create_constant(self.brillig_context, value_id, dfg);
 
-                // Initialize the variable
-                let pointer = match new_variable {
-                    RegisterOrMemory::HeapArray(heap_array) => {
-                        self.brillig_context
-                            .allocate_fixed_length_array(heap_array.pointer, array.len());
+                    // Initialize the variable
+                    let pointer = match new_variable {
+                        RegisterOrMemory::HeapArray(heap_array) => {
+                            self.brillig_context
+                                .allocate_fixed_length_array(heap_array.pointer, array.len());
 
-                        heap_array.pointer
+                            heap_array.pointer
+                        }
+                        RegisterOrMemory::HeapVector(heap_vector) => {
+                            self.brillig_context
+                                .const_instruction(heap_vector.size, array.len().into());
+                            self.brillig_context
+                                .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
+
+                            heap_vector.pointer
+                        }
+                        _ => unreachable!(
+                            "ICE: Cannot initialize array value created as {new_variable:?}"
+                        ),
+                    };
+
+                    // Write the items
+
+                    // Allocate a register for the iterator
+                    let iterator_register = self.brillig_context.make_constant(0_usize.into());
+
+                    for element_id in array.iter() {
+                        let element_variable = self.convert_ssa_value(*element_id, dfg);
+                        // Store the item in memory
+                        self.store_variable_in_array(pointer, iterator_register, element_variable);
+                        // Increment the iterator
+                        self.brillig_context.usize_op_in_place(
+                            iterator_register,
+                            BinaryIntOp::Add,
+                            1,
+                        );
                     }
-                    RegisterOrMemory::HeapVector(heap_vector) => {
-                        self.brillig_context
-                            .const_instruction(heap_vector.size, array.len().into());
-                        self.brillig_context
-                            .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
 
-                        heap_vector.pointer
-                    }
-                    _ => unreachable!(
-                        "ICE: Cannot initialize array value created as {new_variable:?}"
-                    ),
-                };
+                    self.brillig_context.deallocate_register(iterator_register);
 
-                // Write the items
-
-                // Allocate a register for the iterator
-                let iterator_register = self.brillig_context.make_constant(0_usize.into());
-
-                for element_id in array.iter() {
-                    let element_variable = self.convert_ssa_value(*element_id, dfg);
-                    // Store the item in memory
-                    self.store_variable_in_array(pointer, iterator_register, element_variable);
-                    // Increment the iterator
-                    self.brillig_context.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
+                    new_variable
                 }
-
-                self.brillig_context.deallocate_register(iterator_register);
-
-                new_variable
             }
             _ => {
                 todo!("ICE: Cannot convert value {value:?}")

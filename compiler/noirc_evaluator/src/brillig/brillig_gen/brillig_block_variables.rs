@@ -106,16 +106,29 @@ impl BlockVariables {
     /// Gets or creates a constant.
     /// Constants are a special case in SSA, since they are defined and consumed every time they are used.
     /// We keep constants block-local
-    pub(crate) fn get_or_create_constant(
+    pub(crate) fn get_constant(
+        &mut self,
+        value_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Option<RegisterOrMemory> {
+        let value_id = dfg.resolve(value_id);
+        self.available_constants.get(&value_id).cloned()
+    }
+
+    pub(crate) fn dump_constants(&mut self) {
+        self.available_constants.clear();
+    }
+
+    /// Gets or creates a constant.
+    /// Constants are a special case in SSA, since they are defined and consumed every time they are used.
+    /// We keep constants block-local
+    pub(crate) fn create_constant(
         &mut self,
         brillig_context: &mut BrilligContext,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> RegisterOrMemory {
         let value_id = dfg.resolve(value_id);
-        if let Some(constant) = self.available_constants.get(&value_id) {
-            return *constant;
-        }
         let constant = allocate_value(value_id, brillig_context, dfg);
         self.available_constants.insert(value_id, constant);
         constant
