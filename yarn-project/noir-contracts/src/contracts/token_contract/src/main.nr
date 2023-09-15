@@ -113,9 +113,8 @@ contract Token {
     #[aztec(public)]
     fn set_minter(
         minter: AztecAddress,
-        approve: Field,
+        approve: bool,
     ) {
-        assert((approve == 1) | (approve == 0), "not providing boolean");
         let storage = Storage::init(Context::public(&mut context));
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
         storage.minters.at(minter.address).write(approve as Field);

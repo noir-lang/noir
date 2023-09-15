@@ -87,9 +87,9 @@ describe('e2e_lending_contract', () => {
     }
 
     await waitForSuccess(collateralAsset.methods._initialize(accounts[0]).send());
-    await waitForSuccess(collateralAsset.methods.set_minter({ address: lendingContract.address }, 1).send());
+    await waitForSuccess(collateralAsset.methods.set_minter({ address: lendingContract.address }, true).send());
     await waitForSuccess(stableCoin.methods._initialize(accounts[0]).send());
-    await waitForSuccess(stableCoin.methods.set_minter({ address: lendingContract.address }, 1).send());
+    await waitForSuccess(stableCoin.methods.set_minter({ address: lendingContract.address }, true).send());
 
     return { priceFeedContract, lendingContract, collateralAsset, stableCoin };
   };

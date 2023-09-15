@@ -127,14 +127,14 @@ describe('e2e_token_contract', () => {
     });
 
     it('Add minter as admin', async () => {
-      const tx = asset.withWallet(wallets[1]).methods.set_minter({ address: accounts[1].address }, 1).send();
+      const tx = asset.withWallet(wallets[1]).methods.set_minter({ address: accounts[1].address }, true).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       expect(await asset.methods.is_minter({ address: accounts[1].address }).view()).toBe(true);
     });
 
     it('Revoke minter as admin', async () => {
-      const tx = asset.withWallet(wallets[1]).methods.set_minter({ address: accounts[1].address }, 0).send();
+      const tx = asset.withWallet(wallets[1]).methods.set_minter({ address: accounts[1].address }, false).send();
       const receipt = await tx.wait();
       expect(receipt.status).toBe(TxStatus.MINED);
       expect(await asset.methods.is_minter({ address: accounts[1].address }).view()).toBe(false);
@@ -147,7 +147,7 @@ describe('e2e_token_contract', () => {
         );
       });
       it('Revoke minter not as admin', async () => {
-        await expect(asset.methods.set_minter({ address: accounts[0].address }, 0).simulate()).rejects.toThrowError(
+        await expect(asset.methods.set_minter({ address: accounts[0].address }, false).simulate()).rejects.toThrowError(
           'Assertion failed: caller is not admin',
         );
       });
