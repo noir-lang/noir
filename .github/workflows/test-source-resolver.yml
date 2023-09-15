@@ -17,13 +17,10 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install dependencies
-        working-directory: ./compiler/source-resolver
-        run: npm install
+        run: yarn install --immutable
 
       - name: Build noir-source-resolver
-        working-directory: ./compiler/source-resolver
-        run: npm run build
+        run: yarn workspace @noir-lang/noir-source-resolver build
 
       - name: Run tests
-        working-directory: ./compiler/source-resolver
-        run: npm run test
+        run: yarn workspace @noir-lang/noir-source-resolver test

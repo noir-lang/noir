@@ -27,18 +27,16 @@ jobs:
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
-        working-directory: ./compiler/source-resolver
-        run: npm install
+        run: yarn install --immutable
 
       - name: Build noir-source-resolver
-        working-directory: ./compiler/source-resolver
-        run: npm run build
+        run: yarn workspace @noir-lang/noir-source-resolver build
 
       - name: Publish to NPM
         working-directory: ./compiler/source-resolver
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Configure git
         run: |
@@ -47,7 +45,7 @@ jobs:
 
       - name: Commit updates
         run: |
-          git add compiler/source-resolver/package-lock.json
+          git add yarn.lock
           git add compiler/source-resolver/package.json
           git commit -m "chore: Update source-resolver to ${{ env.NEW_VERSION }}"
           git push
