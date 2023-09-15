@@ -397,8 +397,9 @@ mod test {
     }
 
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        type_check_src_code_errors_expected(src, 0, func_namespace)
+        type_check_src_code_errors_expected(src, 0, func_namespace);
     }
+
     // This function assumes that there is only one function and this is the
     // func id that is returned
     fn type_check_src_code_errors_expected(

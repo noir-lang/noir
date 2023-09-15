@@ -2,6 +2,9 @@ name: test-integration
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ./compiler/integration-tests
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
@@ -77,9 +80,11 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
       - name: Setup `integration-tests`
         run: |
-          yarn install --immutable
           yarn workspace @noir-lang/noir-source-resolver build
 
       - name: Run `integration-tests`

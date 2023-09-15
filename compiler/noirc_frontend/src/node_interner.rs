@@ -549,7 +549,7 @@ impl NodeInterner {
     }
 
     pub fn function_attributes(&self, func_id: &FuncId) -> Attributes {
-        self.function_meta(func_id).attributes.clone()
+        self.function_meta(func_id).attributes
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
