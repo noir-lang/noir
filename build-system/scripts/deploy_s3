@@ -12,7 +12,7 @@ echo "deploy_s3: Project Dir: $PROJECT_DIR"
 echo "deploy_s3: Working directory: $PWD"
 echo "deploy_s3: Extract dir: $EXTRACT_DIR"
 
-extract_repo $REPOSITORY /usr/src/$(query_manifest projectDir $REPOSITORY)/dest $EXTRACT_DIR
+extract_repo $REPOSITORY /usr/src/$(query_manifest relativeProjectDir $REPOSITORY)/dest $EXTRACT_DIR
 
 # So a front-end app can discover it's deploy tag at runtime, we include a file called DEPLOY_TAG in the root.
 echo $DEPLOY_TAG > $EXTRACT_DIR/dest/DEPLOY_TAG
