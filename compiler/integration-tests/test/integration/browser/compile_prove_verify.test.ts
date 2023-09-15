@@ -1,5 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import { initialiseResolver } from "@noir-lang/source-resolver";
+import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
     compile,
     init_log_level as compilerLogLevel
@@ -66,7 +66,7 @@ test_cases.forEach((testInfo) => {
 
         expect(noir_source).to.be.a.string;
 
-        initialiseResolver((id: String) => {
+        initializeResolver((id: String) => {
             console.log("Resolving:", id);
             return noir_source;
         });
