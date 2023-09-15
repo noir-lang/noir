@@ -2,9 +2,19 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "relation_parameters.hpp"
 
+namespace barretenberg {
+template <typename FF> class Polynomial;
+}
 namespace proof_system {
-template <typename T>
-concept HasSubrelationLinearlyIndependentMember = requires(T) { T::Relation::SUBRELATION_LINEARLY_INDEPENDENT; };
+
+// forward-declare Polynomial so we can use in a concept
+
+template <typename T, size_t subrelation_idx>
+concept HasSubrelationLinearlyIndependentMember = requires(T) {
+                                                      {
+                                                          std::get<subrelation_idx>(T::SUBRELATION_LINEARLY_INDEPENDENT)
+                                                          } -> std::convertible_to<bool>;
+                                                  };
 /**
  * @brief The templates defined herein facilitate sharing the relation arithmetic between the prover and the verifier.
  *
@@ -37,13 +47,31 @@ inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorView
 }
 
 /**
- * @brief Getter method that will return `input[index]` iff `input` is not a std::span container
+ * @brief Getter method that will return `input[index]` iff `input` is a Polynomial container
+ *
+ * @tparam FF
+ * @tparam TypeMuncher
+ * @tparam T
+ * @param input
+ * @param index
+ * @return requires
+ */
+template <typename FF, typename AccumulatorTypes, typename T>
+    requires std::is_same<barretenberg::Polynomial<FF>, T>::value
+inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type get_view(const T& input,
+                                                                                                  const size_t index)
+{
+    return input[index];
+}
+
+/**
+ * @brief Getter method that will return `input[index]` iff `input` is not a std::span or a Polynomial container
  *
  * @return requires
  */
 template <typename FF, typename AccumulatorTypes, typename T>
-inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type get_view(const T& input,
-                                                                                                  const size_t)
+inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type get_view(
+    const T& input, const size_t /*unused*/)
 {
     return typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type(input);
 }
@@ -97,16 +125,14 @@ template <typename RelationImpl> class Relation : public RelationImpl {
         Relation::template accumulate<ValueAccumulatorsAndViews>(
             accumulator, input, relation_parameters, scaling_factor);
     }
-
     /**
      * @brief Check is subrelation is linearly independent
-     * Method always returns true if relation has no SUBRELATION_LINEARLY_INDEPENDENT std::array
-     * (i.e. default is to make linearly independent)
+     * Method is active if relation has SUBRELATION_LINEARLY_INDEPENDENT array defined
      * @tparam size_t
      */
-    template <size_t>
+    template <size_t subrelation_index>
     static constexpr bool is_subrelation_linearly_independent()
-        requires(!HasSubrelationLinearlyIndependentMember<Relation>)
+        requires(!HasSubrelationLinearlyIndependentMember<Relation, subrelation_index>)
     {
         return true;
     }
@@ -118,7 +144,7 @@ template <typename RelationImpl> class Relation : public RelationImpl {
      */
     template <size_t subrelation_index>
     static constexpr bool is_subrelation_linearly_independent()
-        requires(HasSubrelationLinearlyIndependentMember<Relation>)
+        requires(HasSubrelationLinearlyIndependentMember<Relation, subrelation_index>)
     {
         return std::get<subrelation_index>(Relation::SUBRELATION_LINEARLY_INDEPENDENT);
     }

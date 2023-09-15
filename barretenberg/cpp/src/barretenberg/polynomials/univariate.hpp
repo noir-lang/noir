@@ -114,6 +114,15 @@ template <class Fr, size_t _length> class Univariate {
         res -= other;
         return res;
     }
+    Univariate operator-() const
+    {
+        Univariate res(*this);
+        for (auto& eval : res.evaluations) {
+            eval = -eval;
+        }
+        return res;
+    }
+
     Univariate operator*(const Univariate& other) const
     {
         Univariate res(*this);
@@ -264,6 +273,15 @@ template <class Fr, size_t view_length> class UnivariateView {
     {
         Univariate<Fr, view_length> res(*this);
         res -= other;
+        return res;
+    }
+
+    Univariate<Fr, view_length> operator-() const
+    {
+        Univariate res(*this);
+        for (auto& eval : res.evaluations) {
+            eval = -eval;
+        }
         return res;
     }
 
