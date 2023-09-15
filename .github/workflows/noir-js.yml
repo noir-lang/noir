@@ -44,6 +44,6 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./tooling/noir_js
-        run: npm publish
+        run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
