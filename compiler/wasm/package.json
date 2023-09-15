@@ -14,7 +14,6 @@
     "package.json"
   ],
   "sideEffects": false,
-  "packageManager": "yarn@3.5.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/noir-lang/noir.git"
@@ -29,6 +28,7 @@
     "@noir-lang/source-resolver": "workspace:*"
   },
   "devDependencies": {
+    "@esm-bundle/chai": "^4.3.4-fix.0",
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",

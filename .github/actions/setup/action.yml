@@ -1,17 +1,9 @@
-name: Setup
-
-inputs:
-  working-directory:
-    default: ./
-    required: false
+name: Install Yarn dependencies
+description: Installs the workspace's yarn dependencies and caches them
 
 runs:
   using: composite
   steps:
-    - name: Install node
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18.17.1
     - name: Cache
       uses: actions/cache@v3
       id: cache
@@ -19,8 +11,6 @@ runs:
         path: "**/node_modules"
         key: yarn-v1-${{ hashFiles('**/yarn.lock') }}
     - name: Install
-      run: |
-        cd ${{ inputs.working-directory }}
-        yarn --immutable
+      run: yarn --immutable
       shell: bash
       if: steps.cache.outputs.cache-hit != 'true'
