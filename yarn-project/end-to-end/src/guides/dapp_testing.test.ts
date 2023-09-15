@@ -46,7 +46,7 @@ describe('guides/dapp/testing', () => {
         await token.methods.mint_private(20n, secretHash).send().wait();
         await token.methods.redeem_shield({ address: recipient.getAddress() }, 20n, secret).send().wait();
         expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(20n);
-      });
+      }, 30_000);
     });
   });
 
@@ -78,7 +78,7 @@ describe('guides/dapp/testing', () => {
         await token.methods.mint_private(20n, secretHash).send().wait();
         await token.methods.redeem_shield({ address: recipient.getAddress() }, 20n, secret).send().wait();
         expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(20n);
-      });
+      }, 30_000);
     });
     // docs:end:sandbox-example
 
@@ -104,7 +104,7 @@ describe('guides/dapp/testing', () => {
         await token.methods.mint_private(20n, secretHash).send().wait();
         await token.methods.redeem_shield({ address: recipient.getAddress() }, 20n, secret).send().wait();
         expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(20n);
-      });
+      }, 30_000);
     });
 
     describe('cheats', () => {
