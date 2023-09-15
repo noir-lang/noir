@@ -20,12 +20,12 @@ const NOIR_CONTRACTS_PATH = 'yarn-project/noir-contracts/src/contracts';
 const BOXES_PATH = 'yarn-project/boxes';
 
 /**
- * Converts a contract name in "upper camel case" to a folder name in snake case.
+ * Converts a contract name in "upper camel case" to a folder name in snake case or kebab case.
  * @param contractName - The contract name.
  * @returns The folder name.
  * */
-function contractNameToFolder(contractName: string): string {
-  return contractName.replace(/[\w]([A-Z])/g, m => m[0] + '_' + m[1]).toLowerCase();
+function contractNameToFolder(contractName: string, separator = '-'): string {
+  return contractName.replace(/[\w]([A-Z])/g, m => `${m[0]}${separator}${m[1]}`).toLowerCase();
 }
 
 /**
@@ -33,8 +33,13 @@ function contractNameToFolder(contractName: string): string {
  * Otherwise, we download the contract source code from the `noir-contracts` and `noir-libs` subpackages.
  */
 async function isDirectoryNonEmpty(directoryPath: string): Promise<boolean> {
-  const files = await fs.readdir(directoryPath);
-  return files.length > 0;
+  try {
+    const files = await fs.readdir(directoryPath);
+    return files.length > 0;
+  } catch (e) {
+    // Directory does not exist.
+    return false;
+  }
 }
 
 /**
@@ -44,7 +49,7 @@ async function isDirectoryNonEmpty(directoryPath: string): Promise<boolean> {
  * @param localOutputPath - local path to copy to
  */
 async function copyFolderFromGithub(data: JSZip, repositoryFolderPath: string, localOutputPath: string, log: LogFn) {
-  log('downloading from github:', repositoryFolderPath);
+  log(`Downloading from github: ${repositoryFolderPath}`);
   const repositoryDirectories = Object.values(data.files).filter(file => {
     return file.dir && file.name.startsWith(repositoryFolderPath);
   });
@@ -83,13 +88,14 @@ async function downloadContractAndBoxFromGithub(
   outputPath: string,
   log: LogFn,
 ): Promise<void> {
+  const tagName = `aztec-packages-v${tagVersion}`;
   // small string conversion, in the ABI the contract name looks like PrivateToken
   // but in the repostory it looks like private_token
-  const snakeCaseContractName = contractNameToFolder(contractName);
 
-  log(`Downloaded '@aztex/boxes/${snakeCaseContractName}' to ${outputPath}`);
+  const kebabCaseContractName = contractNameToFolder(contractName, '-');
+  log(`Downloading @aztex/boxes/${kebabCaseContractName} to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
-  const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/aztec-packages-v${tagVersion}.zip`;
+  const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tagName}.zip`;
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
 
@@ -98,39 +104,39 @@ async function downloadContractAndBoxFromGithub(
 
   // Step 2: copy the '@aztec/boxes/{contract-name}' subpackage to the output directory
   // this is currently only implemented for PrivateToken under 'boxes/private-token/'
-  const repoDirectoryPrefix = `${GITHUB_REPO}-v${tagVersion}/`;
+  const repoDirectoryPrefix = `${GITHUB_REPO}-${tagName}`;
 
-  const boxPath = `${repoDirectoryPrefix}${BOXES_PATH}/${snakeCaseContractName}`;
+  const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${kebabCaseContractName}`;
   await copyFolderFromGithub(data, boxPath, outputPath, log);
 
-  const boxContainsNoirSource = await isDirectoryNonEmpty(`${outputPath}/src/contracts`);
+  const contractTargetDirectory = path.join(outputPath, 'src', 'contracts');
+  const boxContainsNoirSource = await isDirectoryNonEmpty(contractTargetDirectory);
   if (boxContainsNoirSource) {
     return;
   }
+
   // this remaining logic only kicks in if the box doesn't already have a src/contracts folder
   // in which case we optimistically grab the noir source files from the
   // noir-contracts and noir-libs subpackages and pray that the versions are compatible
+  log('Copying noir contracts...');
 
   // source noir files for the contract are in this folder
-  const contractFolder = `${NOIR_CONTRACTS_PATH}/${snakeCaseContractName}_contract`;
+  const snakeCaseContractName = contractNameToFolder(contractName, '_');
+  const contractDirectoryPath = `${repoDirectoryPrefix}/${NOIR_CONTRACTS_PATH}/${snakeCaseContractName}_contract`;
   // copy the noir contracts to the output directory under subdir /src/contracts/
-  const contractDirectoryPath = `${repoDirectoryPrefix}${contractFolder}/`;
-
   const contractFiles = Object.values(data.files).filter(file => {
     return !file.dir && file.name.startsWith(contractDirectoryPath);
   });
 
-  const contractTargetDirectory = path.join(outputPath, 'src', 'contracts');
-  await fs.mkdir(contractTargetDirectory, { recursive: true });
   // Nargo.toml file needs to be in the root of the contracts directory,
   // and noir files in the src/ subdirectory
   await fs.mkdir(path.join(contractTargetDirectory, 'src'), { recursive: true });
   for (const file of contractFiles) {
-    const targetPath = path.join(contractTargetDirectory, file.name.replace(contractDirectoryPath, ''));
-    log(`Copying ${file.name} to ${targetPath}`);
+    const filename = file.name.replace(`${contractDirectoryPath}/`, '');
+    const targetPath = path.join(contractTargetDirectory, filename);
     const content = await file.async('nodebuffer');
     await fs.writeFile(targetPath, content);
-    log(`Copied ${file.name} to ${targetPath}`);
+    log(` ✓ ${filename}`);
   }
 }
 /**
@@ -143,7 +149,8 @@ async function downloadContractAndBoxFromGithub(
  */
 async function updatePackagingConfigurations(packageVersion: string, outputPath: string, log: LogFn): Promise<void> {
   await updatePackageJsonVersions(packageVersion, outputPath, log);
-  await updateTsConfig(outputPath, log);
+  await updateTsConfig('tsconfig.json', outputPath, log);
+  await updateTsConfig('tsconfig.dest.json', outputPath, log);
   await updateNargoToml(packageVersion, outputPath, log);
 }
 
@@ -160,7 +167,7 @@ async function updateNargoToml(packageVersion: string, outputPath: string, log: 
   const updatedLines = lines.map(line => line.replace(/tag="master"/g, `tag="v${packageVersion}"`));
   const updatedContent = updatedLines.join('\n');
   await fs.writeFile(nargoTomlPath, updatedContent);
-  log(`Updated Nargo.toml to point to local copy of noir-libs`);
+  log(`Updated Nargo.toml to point to local copy of noir-libs.`);
 }
 
 /**
@@ -169,9 +176,9 @@ async function updateNargoToml(packageVersion: string, outputPath: string, log: 
  * so we remove the entries to install the the workspace packages from npm.
  * @param outputPath - directory we are unboxing to
  */
-async function updateTsConfig(outputPath: string, log: LogFn) {
+async function updateTsConfig(filename: string, outputPath: string, log: LogFn) {
   try {
-    const tsconfigJsonPath = path.join(outputPath, 'tsconfig.json');
+    const tsconfigJsonPath = path.join(outputPath, filename);
     const data = await fs.readFile(tsconfigJsonPath, 'utf8');
     const config = JSON.parse(data);
 
@@ -180,9 +187,9 @@ async function updateTsConfig(outputPath: string, log: LogFn) {
     const updatedData = JSON.stringify(config, null, 2);
     await fs.writeFile(tsconfigJsonPath, updatedData, 'utf8');
 
-    log('tsconfig.json has been updated');
+    log(`Updated ${filename}.`);
   } catch (error) {
-    log('Error updating tsconfig.json:', error);
+    log(`Error updating ${filename}.`);
     throw error;
   }
 }
@@ -234,7 +241,7 @@ async function updatePackageJsonVersions(packageVersion: string, outputPath: str
   const updatedContent = JSON.stringify(packageData, null, 2);
   await fs.writeFile(packageJsonPath, updatedContent);
 
-  log(`Updated package.json versions to ${packageVersion}`);
+  log(`Updated package.json versions to: ${packageVersion}`);
 }
 
 /**

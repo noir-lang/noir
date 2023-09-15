@@ -1,5 +1,6 @@
 import { CompleteAddress } from '@aztec/aztec.js';
 import { useState } from 'react';
+import { SANDBOX_URL } from '../config.js';
 import { Banner, Spinner } from './components/index.js';
 import { WalletDropdown } from './components/wallet_dropdown.js';
 import { Contract } from './contract.js';
@@ -48,13 +49,21 @@ export function Home() {
               <Spinner />
             </div>
           )}
-          {!isLoadingWallet && !!selectedWallet && (
+          {!isLoadingWallet && (
             <div className="py-8">
-              {!!selectWalletError && `Failed to load accounts: ${selectWalletError}`}
-              {!selectWalletError && <Contract wallet={selectedWallet} onDeploy={() => setIsContractDeployed(true)}/>}
+              {!!selectWalletError && (
+                <>
+                  {`Failed to load accounts. Error: ${selectWalletError}`}
+                  <br />
+                  {`Make sure the Aztec Sandbox is running at: ${SANDBOX_URL}`}
+                </>
+              )}
+              {!selectWalletError && !selectedWallet && `No accounts.`}
+              {!selectWalletError && !!selectedWallet && (
+                <Contract wallet={selectedWallet} onDeploy={() => setIsContractDeployed(true)} />
+              )}
             </div>
           )}
-          {!isLoadingWallet && !selectedWallet && `${selectWalletError} ${selectedWallet}`}
         </div>
       </div>
 
