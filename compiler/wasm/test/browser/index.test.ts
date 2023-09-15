@@ -1,6 +1,10 @@
 import { expect } from "@esm-bundle/chai";
 import initNoirWasm from "@noir-lang/noir_wasm";
-import { compileNoirSource, nargoArtifactPath, noirSourcePath } from "../shared";
+import {
+  compileNoirSource,
+  nargoArtifactPath,
+  noirSourcePath,
+} from "../shared";
 
 beforeEach(async () => {
   await initNoirWasm();
@@ -13,7 +17,7 @@ async function getFileContent(path: string): Promise<string> {
 }
 
 async function getSource(): Promise<string> {
-  return getFileContent(noirSourcePath)
+  return getFileContent(noirSourcePath);
 }
 
 async function getPrecompiledSource(): Promise<string> {
@@ -28,7 +32,6 @@ describe("noir wasm compilation", () => {
     const wasmCircuitBase64 = await compileNoirSource(source);
 
     const cliCircuitBase64 = await getPrecompiledSource();
-
 
     expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
   }).timeout(20e3); // 20 seconds
