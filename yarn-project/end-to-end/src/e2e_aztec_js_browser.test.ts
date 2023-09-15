@@ -123,7 +123,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       SANDBOX_URL,
       privKey.toString(),
     );
-    const accounts = await testClient.getAccounts();
+    const accounts = await testClient.getRegisteredAccounts();
     const stringAccounts = accounts.map(acc => acc.address.toString());
     expect(stringAccounts.includes(result)).toBeTruthy();
   }, 15_000);
@@ -137,7 +137,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       async (rpcUrl, contractAddress, PrivateTokenContractAbi) => {
         const { Contract, AztecAddress, createAztecRpcClient, makeFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
-        const owner = (await client.getAccounts())[0].address;
+        const owner = (await client.getRegisteredAccounts())[0].address;
         const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
         const balance = await contract.methods.getBalance(owner).view({ from: owner });
@@ -157,7 +157,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         console.log(`Starting transfer tx`);
         const { AztecAddress, Contract, createAztecRpcClient, makeFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
-        const accounts = await client.getAccounts();
+        const accounts = await client.getRegisteredAccounts();
         const receiver = accounts[1].address;
         const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
@@ -179,12 +179,12 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const { GrumpkinScalar, DeployMethod, createAztecRpcClient, makeFetch, getUnsafeSchnorrAccount } =
           window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
-        let accounts = await client.getAccounts();
+        let accounts = await client.getRegisteredAccounts();
         if (accounts.length === 0) {
           // This test needs an account for deployment. We create one in case there is none available in the RPC server.
           const privateKey = GrumpkinScalar.fromString(privateKeyString);
           await getUnsafeSchnorrAccount(client, privateKey).waitDeploy();
-          accounts = await client.getAccounts();
+          accounts = await client.getRegisteredAccounts();
         }
         const owner = accounts[0];
         const tx = new DeployMethod(owner.publicKey, client, PrivateTokenContractAbi, [

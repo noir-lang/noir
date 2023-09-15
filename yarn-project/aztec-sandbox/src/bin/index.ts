@@ -44,7 +44,7 @@ async function main() {
   logger.info(`Debug logs will be written to ${logPath}`);
   const accountStrings = [`Initial Accounts:\n\n`];
 
-  const registeredAccounts = await rpcServer.getAccounts();
+  const registeredAccounts = await rpcServer.getRegisteredAccounts();
   for (const account of accounts) {
     const completeAddress = await account.account.getCompleteAddress();
     if (registeredAccounts.find(a => a.equals(completeAddress))) {

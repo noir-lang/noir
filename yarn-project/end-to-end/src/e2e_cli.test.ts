@@ -100,14 +100,14 @@ describe('CLI e2e test', () => {
   };
 
   it('creates & retrieves an account', async () => {
-    existingAccounts = await aztecRpcClient.getAccounts();
+    existingAccounts = await aztecRpcClient.getRegisteredAccounts();
     debug('Create an account');
     await run(`create-account`);
     const foundAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
     expect(foundAddress).toBeDefined();
     const newAddress = AztecAddress.fromString(foundAddress!);
 
-    const accountsAfter = await aztecRpcClient.getAccounts();
+    const accountsAfter = await aztecRpcClient.getRegisteredAccounts();
     const expectedAccounts = [...existingAccounts.map(a => a.address), newAddress];
     expect(accountsAfter.map(a => a.address)).toEqual(expectedAccounts);
     const newCompleteAddress = accountsAfter[accountsAfter.length - 1];
@@ -166,7 +166,7 @@ describe('CLI e2e test', () => {
     expect(balance!).toEqual(`${BigInt(INITIAL_BALANCE).toString()}n`);
 
     debug('Transfer some tokens');
-    const existingAccounts = await aztecRpcClient.getAccounts();
+    const existingAccounts = await aztecRpcClient.getRegisteredAccounts();
     // ensure we pick a different acc
     const receiver = existingAccounts.find(acc => acc.address.toString() !== ownerAddress.toString());
 

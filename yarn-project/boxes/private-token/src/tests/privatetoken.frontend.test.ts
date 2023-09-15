@@ -109,7 +109,7 @@ describe('ZK Contract Tests', () => {
 
   beforeAll(async () => {
     rpcClient = await setupSandbox();
-    const accounts = await rpcClient.getAccounts();
+    const accounts = await rpcClient.getRegisteredAccounts();
     [owner, account2, _account3] = accounts;
 
     wallet = await getWallet(owner, rpcClient);

@@ -292,7 +292,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (options: any) => {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const accounts = await client.getAccounts();
+      const accounts = await client.getRegisteredAccounts();
       if (!accounts.length) {
         log('No accounts found.');
       } else {
@@ -311,7 +311,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .action(async (_address, options) => {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const address = AztecAddress.fromString(_address);
-      const account = await client.getAccount(address);
+      const account = await client.getRegisteredAccount(address);
 
       if (!account) {
         log(`Unknown account ${_address}`);

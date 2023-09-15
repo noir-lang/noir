@@ -117,7 +117,7 @@ export class AztecRPCServer implements AztecRPC {
     }
   }
 
-  public async getAccounts(): Promise<CompleteAddress[]> {
+  public async getRegisteredAccounts(): Promise<CompleteAddress[]> {
     // Get complete addresses of both the recipients and the accounts
     const addresses = await this.db.getCompleteAddresses();
     // Filter out the addresses not corresponding to accounts
@@ -126,8 +126,8 @@ export class AztecRPCServer implements AztecRPC {
     return accounts;
   }
 
-  public async getAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
-    const result = await this.getAccounts();
+  public async getRegisteredAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    const result = await this.getRegisteredAccounts();
     const account = result.find(r => r.address.equals(address));
     return Promise.resolve(account);
   }

@@ -104,7 +104,7 @@ export async function getTxSender(client: AztecRPC, _from?: string) {
       throw new Error(`Invalid option 'from' passed: ${_from}`);
     }
   } else {
-    const accounts = await client.getAccounts();
+    const accounts = await client.getRegisteredAccounts();
     if (!accounts.length) {
       throw new Error('No accounts found in Aztec RPC instance.');
     }

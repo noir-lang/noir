@@ -103,14 +103,14 @@ export interface AztecRPC {
    *
    * @returns A promise that resolves to an array of the accounts registered on this RPC server.
    */
-  getAccounts(): Promise<CompleteAddress[]>;
+  getRegisteredAccounts(): Promise<CompleteAddress[]>;
 
   /**
    * Retrieves the complete address of the account corresponding to the provided aztec address.
    * @param address - The aztec address of the account contract.
    * @returns A promise that resolves to the complete address of the requested account.
    */
-  getAccount(address: AztecAddress): Promise<CompleteAddress | undefined>;
+  getRegisteredAccount(address: AztecAddress): Promise<CompleteAddress | undefined>;
 
   /**
    * Retrieves the list of recipients added to this rpc server.

@@ -92,7 +92,7 @@ export async function getWallet(
   address: AztecAddress,
   accountContract: AccountContract,
 ): Promise<AccountWallet> {
-  const completeAddress = await rpc.getAccount(address);
+  const completeAddress = await rpc.getRegisteredAccount(address);
   if (!completeAddress) {
     throw new Error(`Account ${address} not found`);
   }

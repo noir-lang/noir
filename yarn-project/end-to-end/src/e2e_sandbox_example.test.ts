@@ -79,7 +79,7 @@ describe('e2e_sandbox_example', () => {
     const [alice, bob] = (await Promise.all(accounts.map(x => x.getCompleteAddress()))).map(x => x.address);
 
     // Verify that the accounts were deployed
-    const registeredAccounts = (await aztecRpc.getAccounts()).map(x => x.address);
+    const registeredAccounts = (await aztecRpc.getRegisteredAccounts()).map(x => x.address);
     for (const [account, name] of [
       [alice, 'Alice'],
       [bob, 'Bob'],

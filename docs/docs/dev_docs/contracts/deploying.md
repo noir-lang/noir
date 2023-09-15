@@ -116,7 +116,7 @@ await aztecRpc.registerRecipient(completeAddress);
 </TabItem>
 </Tabs>
 
-When you create a new account, it gets automatically registered. It can be verified by calling `aztec-cli get-accounts` OR in aztec.js by using `await aztecRpc.getAccounts()`
+When you create a new account, it gets automatically registered. It can be verified by calling `aztec-cli get-accounts` OR in aztec.js by using `await aztecRpc.getRegisteredAccounts()`
 
 > **NOTE 1**: If we didn't register owner as a recipient we could not encrypt a note for the owner and the contract deployment would fail because constructor execution would fail (we need owner's public key to encrypt a note).
 

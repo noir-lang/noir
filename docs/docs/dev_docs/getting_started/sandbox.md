@@ -218,7 +218,7 @@ That might seem like a lot to digest but it can be broken down into the followin
 2. We wait for the deployment of the 2 account contracts to complete.
 3. We retrieve the expected account addresses from the `Account` objects and ensure that they are present in the set of account addresses registered on the Sandbox.
 
-Note, we use the `getAccounts` api to verify that the addresses computed as part of the
+Note, we use the `getRegisteredAccounts` api to verify that the addresses computed as part of the
 account contract deployment have been successfully added to the Sandbox.
 
 If you were looking at your terminal that is running the Sandbox you should hopefully have seen a lot of activity. This is because the Sandbox will have simulated the deployment of both contracts, executed the private kernel circuit for each before submitted 2 transactions to the pool. The sequencer will have picked them up and inserted them into a rollup and executed the recursive rollup circuits before publishing the rollup to Anvil. Once this has completed, the rollup is retrieved and pulled down to the internal RPC Server so that any new account state can be decrypted.

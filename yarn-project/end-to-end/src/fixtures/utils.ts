@@ -160,7 +160,7 @@ export async function setupAztecRPCServer(
 
   return {
     aztecRpcServer: rpc!,
-    accounts: await rpc!.getAccounts(),
+    accounts: await rpc!.getRegisteredAccounts(),
     wallets,
     logger,
   };

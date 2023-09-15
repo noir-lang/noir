@@ -38,7 +38,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     // Verify that all accounts use the same encryption key
     const encryptionPublicKey = await generatePublicKey(encryptionPrivateKey);
-    for (const account of await aztecRpcServer.getAccounts()) {
+    for (const account of await aztecRpcServer.getRegisteredAccounts()) {
       expect(account.publicKey).toEqual(encryptionPublicKey);
     }
 

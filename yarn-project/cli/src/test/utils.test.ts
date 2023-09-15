@@ -28,14 +28,14 @@ describe('CLI Utils', () => {
     // returns a parsed Aztec Address
     const aztecAddress = AztecAddress.random();
     const result = await getTxSender(client, aztecAddress.toString());
-    expect(client.getAccounts).toHaveBeenCalledTimes(0);
+    expect(client.getRegisteredAccounts).toHaveBeenCalledTimes(0);
     expect(result).toEqual(aztecAddress);
 
     // returns an address found in the aztec client
     const completeAddress = await CompleteAddress.random();
-    client.getAccounts.mockResolvedValueOnce([completeAddress]);
+    client.getRegisteredAccounts.mockResolvedValueOnce([completeAddress]);
     const resultWithoutString = await getTxSender(client);
-    expect(client.getAccounts).toHaveBeenCalled();
+    expect(client.getRegisteredAccounts).toHaveBeenCalled();
     expect(resultWithoutString).toEqual(completeAddress.address);
 
     // throws when invalid parameter passed
@@ -47,7 +47,7 @@ describe('CLI Utils', () => {
     ).rejects.toThrow(`Invalid option 'from' passed: ${errorAddr}`);
 
     // Throws error when no string is passed & no accounts found in RPC
-    client.getAccounts.mockResolvedValueOnce([]);
+    client.getRegisteredAccounts.mockResolvedValueOnce([]);
     await expect(
       (async () => {
         await getTxSender(client);

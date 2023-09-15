@@ -7,14 +7,14 @@ const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 
 async function showAccounts(client) {
   // docs:start:showAccounts
-  const accounts = await client.getAccounts();
+  const accounts = await client.getRegisteredAccounts();
   console.log(`User accounts:\n${accounts.map(a => a.address).join('\n')}`);
   // docs:end:showAccounts
 }
 
 async function showPrivateBalances(client) {
   // docs:start:showPrivateBalances
-  const accounts = await client.getAccounts();
+  const accounts = await client.getRegisteredAccounts();
   const privateToken = await getPrivateToken(client);
 
   for (const account of accounts) {
@@ -43,7 +43,7 @@ async function transferPrivateFunds(client) {
 
 async function showPublicBalances(client) {
   // docs:start:showPublicBalances
-  const accounts = await client.getAccounts();
+  const accounts = await client.getRegisteredAccounts();
   const publicToken = await getPublicToken(client);
 
   for (const account of accounts) {

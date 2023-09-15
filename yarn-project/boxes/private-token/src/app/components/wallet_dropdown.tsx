@@ -16,7 +16,7 @@ export function WalletDropdown({ selected, onSelectChange, onError }: Props) {
       return;
     }
     const loadOptions = async () => {
-      const fetchedOptions = await rpcClient.getAccounts();
+      const fetchedOptions = await rpcClient.getRegisteredAccounts();
       setOptions(fetchedOptions);
       onSelectChange(fetchedOptions[0]);
     };

@@ -12,7 +12,7 @@ const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 
 async function main() {
   const client = createAztecRpcClient(SANDBOX_URL);
-  const [owner] = await client.getAccounts();
+  const [owner] = await client.getRegisteredAccounts();
 
   const privateTokenDeployer = new ContractDeployer(PrivateTokenArtifact, client);
   const { contractAddress: privateTokenAddress } = await privateTokenDeployer.deploy(100n, owner.address).send().wait();

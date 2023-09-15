@@ -185,7 +185,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     logger('Running L1/L2 messaging test on HTTP interface.');
 
     [wallet] = await getSandboxAccountsWallets(aztecRpcClient);
-    const accounts = await wallet.getAccounts();
+    const accounts = await wallet.getRegisteredAccounts();
     const owner = accounts[0].address;
     const receiver = accounts[1].address;
 

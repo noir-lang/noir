@@ -27,13 +27,13 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
       await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
 
       // Check that the account is correctly registered using the getAccounts and getRecipients methods
-      const accounts = await rpc.getAccounts();
+      const accounts = await rpc.getRegisteredAccounts();
       const recipients = await rpc.getRecipients();
       expect(accounts).toContainEqual(completeAddress);
       expect(recipients).not.toContainEqual(completeAddress);
 
       // Check that the account is correctly registered using the getAccount and getRecipient methods
-      const account = await rpc.getAccount(completeAddress.address);
+      const account = await rpc.getRegisteredAccount(completeAddress.address);
       const recipient = await rpc.getRecipient(completeAddress.address);
       expect(account).toEqual(completeAddress);
       expect(recipient).toBeUndefined();
@@ -45,13 +45,13 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
       await rpc.registerRecipient(completeAddress);
 
       // Check that the recipient is correctly registered using the getAccounts and getRecipients methods
-      const accounts = await rpc.getAccounts();
+      const accounts = await rpc.getRegisteredAccounts();
       const recipients = await rpc.getRecipients();
       expect(accounts).not.toContainEqual(completeAddress);
       expect(recipients).toContainEqual(completeAddress);
 
       // Check that the recipient is correctly registered using the getAccount and getRecipient methods
-      const account = await rpc.getAccount(completeAddress.address);
+      const account = await rpc.getRegisteredAccount(completeAddress.address);
       const recipient = await rpc.getRecipient(completeAddress.address);
       expect(account).toBeUndefined();
       expect(recipient).toEqual(completeAddress);

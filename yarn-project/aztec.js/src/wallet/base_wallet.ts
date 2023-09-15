@@ -37,11 +37,11 @@ export abstract class BaseWallet implements Wallet {
   registerRecipient(account: CompleteAddress): Promise<void> {
     return this.rpc.registerRecipient(account);
   }
-  getAccounts(): Promise<CompleteAddress[]> {
-    return this.rpc.getAccounts();
+  getRegisteredAccounts(): Promise<CompleteAddress[]> {
+    return this.rpc.getRegisteredAccounts();
   }
-  getAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
-    return this.rpc.getAccount(address);
+  getRegisteredAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    return this.rpc.getRegisteredAccount(address);
   }
   getRecipients(): Promise<CompleteAddress[]> {
     return this.rpc.getRecipients();

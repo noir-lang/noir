@@ -102,7 +102,7 @@ describe('Contract Class', () => {
     wallet.getTxReceipt.mockResolvedValue(mockTxReceipt);
     wallet.getNodeInfo.mockResolvedValue(mockNodeInfo);
     wallet.simulateTx.mockResolvedValue(mockTx);
-    wallet.getAccounts.mockResolvedValue([account]);
+    wallet.getRegisteredAccounts.mockResolvedValue([account]);
   });
 
   it('should create and send a contract method tx', async () => {
