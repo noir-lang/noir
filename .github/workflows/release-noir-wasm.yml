@@ -8,24 +8,12 @@ on:
         required: false
 
 jobs:
-  update-and-publish:
+  publish-noir-wasm:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - uses: actions/checkout@v3
-        with:
-          repository: "noir-lang/noir"
-          ref: ${{ inputs.noir-ref || 'master' }}
-          path: ".cache/noir"
-
-      - name: Collect Revision
-        id: collect-rev
-        working-directory: ".cache/noir"
-        run: |
-          echo "NOIR_REV_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
         with:
@@ -45,37 +33,16 @@ jobs:
         run: |
           nix build -L github:noir-lang/noir/master#wasm
 
-      - name: Configure git
-        run: |
-          git config user.name kobyhallx
-          git config user.email koby@aztecprotocol.com
-
       - name: Copy output
         run: |
           cp -r $(readlink result)/* .
+    
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
-      - name: Update version with git hash
-        if: ${{ !inputs.noir-ref }}
-        # This will generate the prerelease with something like `.0` but that is okay because it is proper SemVer
-        run: |
-          npm version --no-git-tag-version --preid ${{ steps.collect-rev.outputs.NOIR_REV_SHORT }} prerelease
-
-      - name: Commit updates
-        run: |
-          git add .
-          git commit -m "tracking noir@${{ steps.collect-rev.outputs.NOIR_REV_SHORT }}"
-          git push --force
-
-      - name: Publish to npm (nightly tag)
-        if: ${{ !inputs.noir-ref }}
-        run: |
-          npm publish --tag nightly
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm (latest tag)
+      - name: Publish to npm
         if: ${{ inputs.noir-ref }}
         run: |
-          npm publish --tag latest
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
