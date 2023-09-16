@@ -8,7 +8,8 @@
     "test": "yarn test:browser",
     "test:browser": "web-test-runner",
     "test:integration:browser": "web-test-runner test//integration/browser/**/*.test.ts",
-    "test:integration:browser:watch": "web-test-runner test/integration/browser/**/*.test.ts --watch"
+    "test:integration:browser:watch": "web-test-runner test/integration/browser/**/*.test.ts --watch",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {
     "@aztec/bb.js": "^0.5.1",
