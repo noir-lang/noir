@@ -130,3 +130,27 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
     expect(knownError.message).to.contain('null function or function signature mismatch');
   }
 });
+
+// This is being added to further document the above test marked as bugs.
+it.only('create and verify proof inner and outer proof with two different backends ', async () => {
+
+  // Noir.Js part
+  const inputs = {
+    x: '2',
+    y: '3',
+  };
+  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+
+  let backend = new Backend(assert_lt_json.bytecode);
+  await backend.init();
+  const serializedWitness = witnessMapToUint8Array(solvedWitness);
+  const proofInner = await backend.generateInnerProof(serializedWitness);
+  const isValidInner = await backend.verifyInnerProof(proofInner);
+  expect(isValidInner).to.be.true;
+  
+  backend = new Backend(assert_lt_json.bytecode);
+  await backend.init();
+  const proofOuter = await backend.generateOuterProof(serializedWitness);
+  const isValidOuter = await backend.verifyOuterProof(proofOuter);
+  expect(isValidOuter).to.be.true;
+});
