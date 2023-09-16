@@ -26,52 +26,72 @@
   },
   "bb.js": {
     "buildDir": "barretenberg/ts",
-    "dependencies": ["barretenberg-wasm-linux-clang"]
+    "dependencies": [
+      "barretenberg-wasm-linux-clang"
+    ]
   },
   "barretenberg-acir-tests-bb": {
     "buildDir": "barretenberg/acir_tests",
     "dockerfile": "Dockerfile.bb",
-    "dependencies": ["barretenberg-x86_64-linux-clang-assert"]
+    "dependencies": [
+      "barretenberg-x86_64-linux-clang-assert"
+    ]
   },
   "barretenberg-acir-tests-bb.js": {
     "buildDir": "barretenberg/acir_tests",
     "dockerfile": "Dockerfile.bb.js",
-    "dependencies": ["bb.js"]
+    "dependencies": [
+      "bb.js"
+    ]
   },
   "circuits-wasm-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
     "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": ["barretenberg-wasm-linux-clang"]
+    "dependencies": [
+      "barretenberg-wasm-linux-clang"
+    ]
   },
   "circuits-wasm-linux-clang-assert": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang-assert",
     "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": ["barretenberg-wasm-linux-clang"]
+    "dependencies": [
+      "barretenberg-wasm-linux-clang"
+    ]
   },
   "circuits-x86_64-linux-clang-tidy": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-tidy",
     "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": ["barretenberg-x86_64-linux-clang"]
+    "dependencies": [
+      "barretenberg-x86_64-linux-clang"
+    ]
   },
   "circuits-x86_64-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
     "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": ["barretenberg-x86_64-linux-clang"]
+    "dependencies": [
+      "barretenberg-x86_64-linux-clang"
+    ]
   },
   "circuits-x86_64-linux-clang-assert": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
     "rebuildPatterns": ".rebuild_patterns",
-    "dependencies": ["barretenberg-x86_64-linux-clang"]
+    "dependencies": [
+      "barretenberg-x86_64-linux-clang"
+    ]
   },
   "docs": {
     "buildDir": ".",
     "dockerfile": "docs/Dockerfile",
-    "rebuildPatterns": ["^docs/", "^.*.cpp$", "^.*.ts$"]
+    "rebuildPatterns": [
+      "^docs/",
+      "^.*.cpp$",
+      "^.*.ts$"
+    ]
   },
   "l1-contracts": {
     "buildDir": "l1-contracts"
@@ -79,7 +99,10 @@
   "l1-artifacts": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/l1-artifacts",
-    "rebuildPatterns": ["^l1-contracts/", "^yarn-project/l1-artifacts/"],
+    "rebuildPatterns": [
+      "^l1-contracts/",
+      "^yarn-project/l1-artifacts/"
+    ],
     "dependencies": []
   },
   "yarn-project-base": {
@@ -94,7 +117,10 @@
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
-    "dependencies": ["circuits-wasm-linux-clang", "l1-contracts"]
+    "dependencies": [
+      "circuits-wasm-linux-clang",
+      "l1-contracts"
+    ]
   },
   "acir-simulator": {
     "buildDir": "yarn-project",

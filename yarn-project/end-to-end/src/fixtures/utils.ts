@@ -4,6 +4,7 @@ import {
   AccountWallet,
   AztecAddress,
   CheatCodes,
+  CompleteAddress,
   EthAddress,
   EthCheatCodes,
   Wallet,
@@ -12,7 +13,6 @@ import {
   getL1ContractAddresses,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
-import { CompleteAddress } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
