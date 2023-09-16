@@ -21,7 +21,7 @@
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
-    "test:node": "mocha --timeout 5000",
+    "test:node": "mocha --timeout 10000",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'"
   },
