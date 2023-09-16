@@ -1,0 +1,26 @@
+{
+  "name": "integration-tests",
+  "version": "1.0.0",
+  "license": "(MIT OR Apache-2.0)",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo Integration Test build step",
+    "test": "yarn test:browser",
+    "test:browser": "web-test-runner",
+    "test:integration:browser": "web-test-runner test//integration/browser/**/*.test.ts",
+    "test:integration:browser:watch": "web-test-runner test/integration/browser/**/*.test.ts --watch",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "^0.5.1",
+    "@noir-lang/acvm_js": "^0.26.0",
+    "@noir-lang/noir_wasm": "workspace:*",
+    "@noir-lang/noirc_abi": "workspace:*",
+    "@noir-lang/source-resolver": "workspace:*",
+    "@web/dev-server-esbuild": "^0.3.6",
+    "@web/test-runner": "^0.15.3",
+    "@web/test-runner-webdriver": "^0.7.0",
+    "fflate": "^0.8.0",
+    "smol-toml": "^1.1.2"
+  }
+}

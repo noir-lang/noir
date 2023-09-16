@@ -1,0 +1,29 @@
+[package]
+name = "noir_lsp"
+description = "Language server for Noir"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acvm.workspace = true
+codespan-lsp.workspace = true
+codespan-reporting.workspace = true
+fm.workspace = true
+lsp-types.workspace = true
+nargo.workspace = true
+nargo_toml.workspace = true
+noirc_driver.workspace = true
+noirc_errors.workspace = true
+noirc_frontend.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+tower.workspace = true
+async-lsp = { version = "0.0.5", default-features = false, features = ["omni-trait"] }
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["macros"] }

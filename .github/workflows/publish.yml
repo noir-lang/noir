@@ -7,6 +7,9 @@ on:
       tag:
         description: The tag to build Nargo from (leave empty to build a nightly release from master)
         required: false
+      features:
+        description: Extra feature flags to release with
+        required: false
       publish:
         description: Whether to publish the build artifacts
         type: boolean
@@ -22,59 +25,17 @@ permissions:
   contents: write
 
 jobs:
-  build-barretenberg:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
-
-      - name: Collect locked barretenberg rev
-        run: |
-          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
-
-      - uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: cachix/cachix-action@v12
-        with:
-          name: barretenberg
-
-      # Upload does not work with symlinks, using this workaround:
-      # https://github.com/actions/upload-artifact/issues/92#issuecomment-1080347032
-      - name: Build barretenberg as libbarretenberg-wasm32
-        run: |
-          nix build "github:AztecProtocol/barretenberg/${{ env.BB_REV }}#wasm32"
-          echo "ARTIFACT_UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: libbarretenberg-wasm32
-          path: ${{ env.ARTIFACT_UPLOAD_PATH }}
-          retention-days: 3
-
   build-apple-darwin:
-    needs: [build-barretenberg]
     runs-on: macos-latest
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
     strategy:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
@@ -85,36 +46,21 @@ jobs:
           echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build environment and Compile
-        env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
-        run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
-      
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build environment and Compile
+        run: |
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+
       - name: Package artifacts
         run: |
           mkdir dist
@@ -128,14 +74,15 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        if: matrix.target == 'x86_64-apple-darwin'
+        uses: ./.github/actions/setup
+
       - name: Test built artifact
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
-          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-
-          cd release-tests
-          yarn install
-          yarn test
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/          
+          yarn workspace release-tests test
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
@@ -149,63 +96,38 @@ jobs:
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
   build-linux:
-    needs: [build-barretenberg]
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
     strategy:
       fail-fast: false
       matrix:
-        target:
-          [
-            x86_64-unknown-linux-gnu,
-            x86_64-unknown-linux-musl,
-            aarch64-unknown-linux-gnu,
-            aarch64-unknown-linux-musl,
-          ]
+        target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
-
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build Nargo
-        env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
-        run: |
-          cargo install cross --version 0.2.5 --force 
-          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Install Cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
+
+      - name: Build Nargo
+        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - name: Package artifacts
         run: |
@@ -220,14 +142,15 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        uses: ./.github/actions/setup
+
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-
-          cd release-tests
-          yarn install
-          yarn test
+          yarn workspace release-tests test
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
@@ -237,89 +160,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
-          overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
-
-  build-windows:
-    needs: [build-barretenberg]
-    runs-on: windows-2022
-    env:
-      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
-    strategy:
-      matrix:
-        target: [x86_64-pc-windows-msvc]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
-
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.66.0
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Build environment and Compile
-        env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
-        run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
-
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/${{ matrix.target }}/release/nargo.exe ./dist/nargo.exe
-          7z a -tzip nargo-${{ matrix.target }}.zip ./dist/*
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: nargo-${{ matrix.target }}
-          path: ./dist/*
-          retention-days: 3
-
-      - name: Test built artifact
-        shell: powershell
-        run: |
-          cp ./target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
-
-          cd release-tests
-          yarn install
-          yarn test
-
-      - name: Upload binaries to release tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.zip
-          asset_name: nargo-${{ matrix.target }}.zip
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)

@@ -1,0 +1,7 @@
+[package]
+name = "multiple_primary_attributes_fail"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]
