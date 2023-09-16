@@ -1,0 +1,52 @@
+name: Release and Publish Noir Js
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-noir-js:
+    name: Release and Publish Noir Js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Install cargo and wasm-bindgen
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          cargo install -f wasm-bindgen-cli --version 0.2.86
+
+      - name: Install toml2json
+        run: |
+          source $HOME/.cargo/env
+          cargo install toml2json
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
+      - name: Install wasm32-unknown-unknwown target
+        run: |
+          rustup target add wasm32-unknown-unknown
+
+      - name: Build noirc_abi
+        run: yarn workspace @noir-lang/noirc_abi build
+
+      - name: Build noir_js
+        run: yarn workspace @noir-lang/noir_js build
+
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish to NPM
+        working-directory: ./tooling/noir_js
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

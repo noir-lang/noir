@@ -1,0 +1,16 @@
+name: Install Yarn dependencies
+description: Installs the workspace's yarn dependencies and caches them
+
+runs:
+  using: composite
+  steps:
+    - name: Cache
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: "**/node_modules"
+        key: yarn-v1-${{ hashFiles('**/yarn.lock') }}
+    - name: Install
+      run: yarn --immutable
+      shell: bash
+      if: steps.cache.outputs.cache-hit != 'true'

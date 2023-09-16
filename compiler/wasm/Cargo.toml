@@ -1,0 +1,30 @@
+[package]
+name = "noir_wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+acvm.workspace = true
+fm.workspace = true
+nargo.workspace = true
+noirc_driver.workspace = true
+noirc_frontend.workspace = true
+wasm-bindgen.workspace = true
+serde.workspace = true
+
+console_error_panic_hook = "0.1.7"
+gloo-utils = { version = "0.1", features = ["serde"] }
+
+log = "0.4.17"
+wasm-logger = "0.2.0"
+
+[build-dependencies]
+build-data = "0.1.3"

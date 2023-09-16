@@ -15,13 +15,26 @@
         "flake.nix",
         {
           "type": "json",
-          "path": "crates/wasm/package.json",
+          "path": "compiler/wasm/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noirc_abi_wasm/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noir_js/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "compiler/source-resolver/package.json",
           "jsonpath": "$.version"
         }
       ]
     }
   },
-  "plugins": [
-    "sentence-case"
-  ]
+  "plugins": ["sentence-case"]
 }

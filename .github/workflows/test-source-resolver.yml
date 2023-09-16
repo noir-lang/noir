@@ -1,0 +1,26 @@
+name: Test Source Resolver
+
+on:
+  push:
+    paths:
+      - "compiler/source-resolver/**"
+  pull_request:
+    paths:
+      - "compiler/source-resolver/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build @noir-lang/source-resolver
+        run: yarn workspace @noir-lang/source-resolver build
+
+      - name: Run tests
+        run: yarn workspace @noir-lang/source-resolver test

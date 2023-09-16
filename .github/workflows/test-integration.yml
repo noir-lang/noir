@@ -1,0 +1,103 @@
+name: test-integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ./compiler/integration-tests
+  schedule:
+    - cron: "0 2 * * *" # Run nightly at 2 AM UTC
+
+jobs:
+  wasm-packages-build-test:
+    runs-on: ubuntu-latest
+    env:
+      CACHED_PATH: /tmp/nix-cache
+
+    steps:
+      - name: Checkout noir sources
+        uses: actions/checkout@v4
+
+      - name: Checkout acvm sources
+        uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
+        with:
+          repository: noir-lang/acvm
+          path: acvm
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-23.05
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - name: Restore nix store cache
+        uses: actions/cache/restore@v3
+        id: cache
+        with:
+          path: ${{ env.CACHED_PATH }}
+          key: ${{ runner.os }}-flake-wasm-${{ hashFiles('*.lock') }}
+
+      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
+      - name: Copy cache into nix store
+        if: steps.cache.outputs.cache-hit == 'true'
+        # We don't check the signature because we're the one that created the cache
+        run: |
+          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
+            path=$(head -n 1 "$narinfo" | awk '{print $2}')
+            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
+          done
+
+      - name: Build noir_wasm package
+        run: |
+          nix build -L .#wasm
+          echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+          cp -r ./result/nodejs ./compiler/wasm
+          cp -r ./result/web ./compiler/wasm
+
+      - name: Upload `noir_wasm` artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+      - name: Build noirc_abi_wasm package
+        run: |
+          nix build -L .#noirc_abi_wasm
+          echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/web ./tooling/noirc_abi_wasm
+
+      - name: Upload `noirc_abi_wasm` artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Setup `integration-tests`
+        run: |
+          yarn workspace @noir-lang/noir-source-resolver build
+
+      - name: Run `integration-tests`
+        run: |
+          yarn test:integration
+          
+      - name: Alert on nightly test failure  
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/NIGHTLY_TEST_FAILURE.md

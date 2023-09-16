@@ -3,91 +3,36 @@ name: Wasm
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  # TODO: Replace this step with downloading a wasm binary from a set release of Barretenberg
-  build-barretenberg:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Noir repo
-        uses: actions/checkout@v3
-
-      - name: Collect locked barretenberg rev
-        run: |
-          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
-          echo "BB_REV is ${{ env.BB_REV }}"
-
-      - uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: cachix/cachix-action@v12
-        with:
-          name: barretenberg
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-
-      # Upload does not work with symlinks, using this workaround:
-      # https://github.com/actions/upload-artifact/issues/92#issuecomment-1080347032
-      - name: Build barretenberg as libbarretenberg-wasm32
-        run: |
-          echo "BB_REV is ${{ env.BB_REV }}"
-          nix build "github:AztecProtocol/barretenberg/${{ env.BB_REV }}#wasm32"
-          echo "ARTIFACT_UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: libbarretenberg-wasm32
-          path: ${{ env.ARTIFACT_UPLOAD_PATH }}
-          retention-days: 3
-
   build-nargo:
-    needs: [build-barretenberg]
     runs-on: ubuntu-22.04
-    env:
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
-
+    strategy:
+      matrix:
+        target: [x86_64-unknown-linux-gnu]
+        
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v3
-
-      - uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
+        uses: actions/checkout@v4
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
 
-      - name: Build Nargo
-        env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
-        run: |
-          cargo build --package nargo_cli --release --no-default-features --features plonk_bn254_wasm
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }} 
+      - uses: Swatinem/rust-cache@v2
         with:
-          path:  ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
 
       - name: Package artifacts
         run: |
@@ -109,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
@@ -166,13 +111,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout noir-lang/noir
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./crates/wasm/result
+          path: ./compiler/wasm/downloaded
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -181,22 +126,26 @@ jobs:
           path: ./nargo
 
       - name: Compile test program with Nargo CLI
-        working-directory: ./crates/wasm/noir-script
+        working-directory: ./compiler/wasm/noir-script
         run: |
           nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
           $nargo_binary compile
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
       - name: Install dependencies
-        working-directory: ./crates/wasm
-        run: yarn install
-
-      - name: Install playwright deps
-        working-directory: ./crates/wasm
         run: |
-          npx playwright install
-          npx playwright install-deps
+          cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
+          cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
+          yarn workspace @noir-lang/source-resolver build
+          
+      - name: Run node tests
+        run: yarn workspace @noir-lang/noir_wasm test:node
 
-      - name: Run tests
-        working-directory: ./crates/wasm
-        run: yarn test:browser
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/noir_wasm test:browser
