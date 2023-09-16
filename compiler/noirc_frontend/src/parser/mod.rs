@@ -494,10 +494,11 @@ impl ForRange {
                     span: array_span,
                 };
 
-                let block = Statement { kind: StatementKind::Expression(block), span: array_span };
-
                 let block_span = block.span;
-                let new_block = BlockExpression(vec![let_elem]);
+                let new_block = BlockExpression(vec![
+                    let_elem,
+                    Statement { kind: StatementKind::Expression(block), span: block_span },
+                ]);
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
                 let for_loop = ExpressionKind::For(Box::new(ForExpression {
                     identifier: fresh_identifier,
