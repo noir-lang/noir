@@ -35,7 +35,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
+use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
@@ -237,11 +237,16 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ),
     );
 
-    keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
-        |((name, generics), fields), span| {
-            TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
-        },
-    )
+    attributes()
+        .or_not()
+        .then_ignore(keyword(Struct))
+        .then(ident())
+        .then(generics())
+        .then(fields)
+        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
+            let attributes = validate_struct_attributes(raw_attributes, span, emit);
+            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
+        })
 }
 
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
@@ -455,6 +460,29 @@ fn validate_attributes(
     }
 
     Attributes { primary, secondary }
+}
+
+fn validate_struct_attributes(
+    attributes: Option<Vec<Attribute>>,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> Vec<SecondaryAttribute> {
+    let attrs = attributes.unwrap_or(vec![]);
+    let mut struct_attributes = vec![];
+
+    for attribute in attrs {
+        match attribute {
+            Attribute::Primary(..) => {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::NoPrimaryAttributesAllowedOnStruct,
+                    span,
+                ));
+            }
+            Attribute::Secondary(attr) => struct_attributes.push(attr),
+        }
+    }
+
+    struct_attributes
 }
 
 fn validate_where_clause(
