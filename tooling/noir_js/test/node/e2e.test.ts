@@ -71,7 +71,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
 // If we only create one type of proof, then this works as expected.
 //
 // If we do not create an inner proof, then this will work as expected.
-it.only('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ', async () => {
+it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ', async () => {
 
   // Noir.Js part
   const inputs = {
