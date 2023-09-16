@@ -5,6 +5,10 @@ import { Ptr } from '@aztec/bb.js/dest/browser/types';
 import { acirToUint8Array } from '../../src/index.js';
 
 export class Backend {
+    // These type assertions are used so that we don't
+  // have to initialize `api` and `acirComposer` in the constructor.
+  // These are initialized asynchronously in the `init` function,
+  // constructors cannot be asynchronous which is why we do this.
   api = {} as Barretenberg;
   acirComposer = {} as Ptr;
   acirUncompressedBytecode: Uint8Array;
