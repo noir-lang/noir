@@ -3,7 +3,7 @@ import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt
 import { generateWitness, witnessMapToUint8Array } from '../../src/index.js';
 import { Backend } from '../backend/barretenberg.js';
 
-it('end-to-end proof creation and verification', async () => {
+it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -21,6 +21,27 @@ it('end-to-end proof creation and verification', async () => {
 
   // Proof verification
   const isValid = await prover.verifyOuterProof(proof);
+  expect(isValid).to.be.true;
+});
+
+it('end-to-end proof creation and verification (inner)', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '2',
+    y: '3',
+  };
+  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+
+  // bb.js part
+  //
+  // Proof creation
+  const prover = new Backend(assert_lt_json.bytecode);
+  await prover.init();
+  const serializedWitness = witnessMapToUint8Array(solvedWitness);
+  const proof = await prover.generateInnerProof(serializedWitness);
+
+  // Proof verification
+  const isValid = await prover.verifyInnerProof(proof);
   expect(isValid).to.be.true;
 });
 
