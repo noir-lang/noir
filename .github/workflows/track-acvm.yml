@@ -1,0 +1,29 @@
+name: Track ACVM for Integration Tests
+
+on:
+  pull_request:
+    paths:
+      - 'Cargo.lock'
+      - 'yarn.lock'
+
+jobs:
+  check_matching_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check acvm version change
+        run: |
+          # Extract acvm version from the current Cargo.lock
+          CURRENT_VERSION=$(awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
+          INTEGRATION_TEST_VERSION=$(yarn workspace integration-tests info @noir-lang/acvm_js --json | jq .children.Version | tr -d '"')
+
+          echo "Current ACVM Version: $CURRENT_VERSION"
+          echo "Integration Test ACVM Version: $INTEGRATION_TEST_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$INTEGRATION_TEST_VERSION" ]; then
+            exit 1
+          else
+            echo "ACVM version is a match."
+          fi
