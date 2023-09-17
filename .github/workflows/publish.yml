@@ -108,6 +108,8 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
           overwrite: true
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
 
@@ -192,5 +194,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
           overwrite: true
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
