@@ -12,7 +12,7 @@ The sandbox is preloaded with two [accounts](../concepts/foundation/accounts/mai
 
 #include_code declare-accounts yarn-project/end-to-end/src/guides/up_quick_start.sh bash noTitle,noLineNumbers,noSourceLink
 
-Start by deploying a private token [contract](../concepts/foundation/contracts.md), minting an initial supply of private tokens to Alice:
+Start by deploying a token [contract](../concepts/foundation/contracts.md), initializing it and minting tokens to Alice:
 
 #include_code deploy yarn-project/end-to-end/src/guides/up_quick_start.sh bash noTitle,noLineNumbers,noSourceLink
 

@@ -1,8 +1,15 @@
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AccountManager, AuthWitnessProvider, BaseAccountContract, CompleteAddress, Fr } from '@aztec/aztec.js';
+import {
+  AccountManager,
+  AuthWitnessProvider,
+  BaseAccountContract,
+  CompleteAddress,
+  Fr,
+  computeMessageSecretHash,
+} from '@aztec/aztec.js';
 import { GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { PrivateTokenContract, SchnorrHardcodedAccountContractAbi } from '@aztec/noir-contracts/types';
+import { SchnorrHardcodedAccountContractAbi, TokenContract } from '@aztec/noir-contracts/types';
 import { AuthWitness } from '@aztec/types';
 
 import { setup } from '../fixtures/utils.js';
@@ -59,14 +66,20 @@ describe('guides/writing_an_account_contract', () => {
     logger(`Deployed account contract at ${address}`);
 
     // docs:start:account-contract-works
-    const token = await PrivateTokenContract.deploy(wallet, 100, address).send().deployed();
+    const token = await TokenContract.deploy(wallet).send().deployed();
     logger(`Deployed token contract at ${token.address}`);
+    await token.methods._initialize({ address }).send().wait();
 
-    await token.methods.mint(50, address).send().wait();
-    const balance = await token.methods.getBalance(address).view();
+    const secret = Fr.random();
+    const secretHash = await computeMessageSecretHash(secret);
+
+    await token.methods.mint_private(50, secretHash).send().wait();
+    await token.methods.redeem_shield({ address }, 50, secret).send().wait();
+
+    const balance = await token.methods.balance_of_private({ address }).view();
     logger(`Balance of wallet is now ${balance}`);
     // docs:end:account-contract-works
-    expect(balance).toEqual(150n);
+    expect(balance).toEqual(50n);
 
     // docs:start:account-contract-fails
     const walletAddress = wallet.getCompleteAddress();
@@ -77,7 +90,7 @@ describe('guides/writing_an_account_contract', () => {
     const tokenWithWrongWallet = token.withWallet(wrongWallet);
 
     try {
-      await tokenWithWrongWallet.methods.mint(200, address).simulate();
+      await tokenWithWrongWallet.methods.mint_private(200, secretHash).simulate();
     } catch (err) {
       logger(`Failed to send tx: ${err}`);
     }

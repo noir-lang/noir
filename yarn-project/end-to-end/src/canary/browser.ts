@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import * as AztecJs from '@aztec/aztec.js';
-import { PrivateTokenContractAbi } from '@aztec/noir-contracts/artifacts';
+import { TokenContractAbi } from '@aztec/noir-contracts/artifacts';
 
 import { Server } from 'http';
 import Koa from 'koa';
@@ -111,60 +111,66 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
       expect(stringAccounts.includes(result)).toBeTruthy();
     }, 15_000);
 
-    it('Deploys Private Token contract', async () => {
-      await deployPrivateTokenContract();
-    }, 30_000);
+    it('Deploys Token contract', async () => {
+      await deployTokenContract();
+    }, 60_000);
 
     it("Gets the owner's balance", async () => {
       const result = await page.evaluate(
-        async (rpcUrl, contractAddress, PrivateTokenContractAbi) => {
+        async (rpcUrl, contractAddress, TokenContractAbi) => {
           const { Contract, AztecAddress, createAztecRpcClient } = window.AztecJs;
           const client = createAztecRpcClient(rpcUrl!);
           const owner = (await client.getRegisteredAccounts())[0].address;
           const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
-          const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
-          const balance = await contract.methods.getBalance(owner).view({ from: owner });
-          console.log(`Owner's balance: ${balance}`);
+          const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractAbi, wallet);
+          const balance = await contract.methods.balance_of_private({ address: owner }).view({ from: owner });
           return balance;
         },
         SANDBOX_URL,
-        (await getPrivateTokenAddress()).toString(),
-        PrivateTokenContractAbi,
+        (await getTokenAddress()).toString(),
+        TokenContractAbi,
       );
       expect(result).toEqual(initialBalance);
     });
 
     it('Sends a transfer TX', async () => {
       const result = await page.evaluate(
-        async (rpcUrl, contractAddress, transferAmount, PrivateTokenContractAbi) => {
+        async (rpcUrl, contractAddress, transferAmount, TokenContractAbi) => {
           console.log(`Starting transfer tx`);
           const { AztecAddress, Contract, createAztecRpcClient } = window.AztecJs;
           const client = createAztecRpcClient(rpcUrl!);
           const accounts = await client.getRegisteredAccounts();
-          const owner = accounts[0].address;
           const receiver = accounts[1].address;
           const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
-          const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
-          await contract.methods.transfer(transferAmount, receiver).send().wait();
+          const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractAbi, wallet);
+          await contract.methods
+            .transfer({ address: accounts[0].address }, { address: receiver }, transferAmount, 0)
+            .send()
+            .wait();
           console.log(`Transferred ${transferAmount} tokens to new Account`);
-          const receiverBalance = await contract.methods.getBalance(receiver).view({ from: receiver });
-          console.log(`Receiver's balance is now: ${receiverBalance}`);
-          const senderBalance = await contract.methods.getBalance(owner).view({ from: owner });
-          console.log(`Updated sender balance: ${senderBalance}`);
-          return receiverBalance;
+          return await contract.methods.balance_of_private({ address: receiver }).view({ from: receiver });
         },
         SANDBOX_URL,
-        (await getPrivateTokenAddress()).toString(),
+        (await getTokenAddress()).toString(),
         transferAmount,
-        PrivateTokenContractAbi,
+        TokenContractAbi,
       );
       expect(result).toEqual(transferAmount);
     }, 60_000);
 
-    const deployPrivateTokenContract = async () => {
+    const deployTokenContract = async () => {
       const txHash = await page.evaluate(
-        async (rpcUrl, privateKeyString, initialBalance, PrivateTokenContractAbi) => {
-          const { GrumpkinScalar, DeployMethod, createAztecRpcClient, getUnsafeSchnorrAccount } = window.AztecJs;
+        async (rpcUrl, privateKeyString, initialBalance, TokenContractAbi) => {
+          const {
+            GrumpkinScalar,
+            DeployMethod,
+            createAztecRpcClient,
+            getUnsafeSchnorrAccount,
+            Contract,
+            Fr,
+            computeMessageSecretHash,
+            getSandboxAccountsWallets,
+          } = window.AztecJs;
           const client = createAztecRpcClient(rpcUrl!);
           let accounts = await client.getRegisteredAccounts();
           if (accounts.length === 0) {
@@ -173,20 +179,25 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
             await getUnsafeSchnorrAccount(client, privateKey).waitDeploy();
             accounts = await client.getRegisteredAccounts();
           }
-          const owner = accounts[0];
-          const tx = new DeployMethod(owner.publicKey, client, PrivateTokenContractAbi, [
-            initialBalance,
-            owner.address,
-          ]).send();
+          const [owner] = await getSandboxAccountsWallets(client);
+          const tx = new DeployMethod(accounts[0].publicKey, client, TokenContractAbi).send();
           await tx.wait();
           const receipt = await tx.getReceipt();
           console.log(`Contract Deployed: ${receipt.contractAddress}`);
+
+          const token = await Contract.at(receipt.contractAddress!, TokenContractAbi, owner);
+          await token.methods._initialize({ address: owner.getAddress() }).send().wait();
+          const secret = Fr.random();
+          const secretHash = await computeMessageSecretHash(secret);
+          await token.methods.mint_private(initialBalance, secretHash).send().wait();
+          await token.methods.redeem_shield({ address: owner.getAddress() }, initialBalance, secret).send().wait();
+
           return receipt.txHash.toString();
         },
         SANDBOX_URL,
         privKey.toString(),
         initialBalance,
-        PrivateTokenContractAbi,
+        TokenContractAbi,
       );
 
       const txResult = await testClient.getTxReceipt(AztecJs.TxHash.fromString(txHash));
@@ -194,9 +205,9 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
       contractAddress = txResult.contractAddress!;
     };
 
-    const getPrivateTokenAddress = async () => {
+    const getTokenAddress = async () => {
       if (!contractAddress) {
-        await deployPrivateTokenContract();
+        await deployTokenContract();
       }
       return contractAddress;
     };

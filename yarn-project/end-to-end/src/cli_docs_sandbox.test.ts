@@ -101,6 +101,7 @@ PublicTokenContractAbi
 SchnorrAccountContractAbi
 SchnorrHardcodedAccountContractAbi
 SchnorrSingleKeyAccountContractAbi
+StatefulTestContractAbi
 TestContractAbi
 TokenContractAbi
 UniswapContractAbi

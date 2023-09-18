@@ -2,14 +2,21 @@
 
 /* eslint-disable import/no-duplicates */
 // docs:start:imports
-import { AztecRPC, createAztecRpcClient, createDebugLogger, getSchnorrAccount, waitForSandbox } from '@aztec/aztec.js';
+import {
+  AztecRPC,
+  Fr,
+  computeMessageSecretHash,
+  createDebugLogger,
+  getSchnorrAccount,
+  waitForSandbox,
+} from '@aztec/aztec.js';
 // docs:end:imports
 
 /* eslint-enable @typescript-eslint/no-unused-vars */
 // Note: this is a hack to make the docs use http://localhost:8080 and CI to use the SANDBOX_URL
 import { createAztecRpcClient as createAztecRpcClient2 } from '@aztec/aztec.js';
 import { GrumpkinScalar } from '@aztec/circuits.js';
-import { PrivateTokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/types';
 
 const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 
@@ -22,7 +29,7 @@ describe('e2e_sandbox_example', () => {
   it('sandbox example works', async () => {
     // docs:start:setup
     ////////////// CREATE THE CLIENT INTERFACE AND CONTACT THE SANDBOX //////////////
-    const logger = createDebugLogger('private-token');
+    const logger = createDebugLogger('token');
     const sandboxUrl = 'http://localhost:8080';
 
     // We create AztecRPC client connected to the sandbox URL
@@ -88,41 +95,44 @@ describe('e2e_sandbox_example', () => {
     expect(registeredAccounts.find(acc => acc.equals(bob))).toBeTruthy();
 
     // docs:start:Deployment
-    ////////////// DEPLOY OUR PRIVATE TOKEN CONTRACT //////////////
+    ////////////// DEPLOY OUR TOKEN CONTRACT //////////////
 
-    // Deploy a private token contract, create a contract abstraction object and link it to the owner's wallet
+    // Deploy a token contract, create a contract abstraction object and link it to the owner's wallet
     // The contract's constructor takes 2 arguments, the initial supply and the owner of that initial supply
     const initialSupply = 1_000_000n;
 
-    logger(`Deploying private token contract minting an initial ${initialSupply} tokens to Alice...`);
-    const contract = await PrivateTokenContract.deploy(
-      aztecRpc,
-      initialSupply, // the initial supply
-      alice, // the owner of the initial supply
-    )
-      .send()
-      .deployed();
+    logger(`Deploying token contract minting an initial ${initialSupply} tokens to Alice...`);
+    const contract = await TokenContract.deploy(aztecRpc).send().deployed();
+
+    // Create the contract abstraction and link to Alice's wallet for future signing
+    const tokenContractAlice = await TokenContract.at(contract.address, await accounts[0].getWallet());
+
+    await tokenContractAlice.methods._initialize({ address: alice }).send().wait();
+    await tokenContractAlice.methods.set_minter({ address: bob }, true).send().wait();
 
     logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);
+
+    const secret = Fr.random();
+    const secretHash = await computeMessageSecretHash(secret);
+
+    await tokenContractAlice.methods.mint_private(initialSupply, secretHash).send().wait();
+    await tokenContractAlice.methods.redeem_shield({ address: alice }, initialSupply, secret).send().wait();
     // docs:end:Deployment
 
-    // ensure that private token contract is registered in the rpc
+    // ensure that token contract is registered in the rpc
     expect(await aztecRpc.getContracts()).toEqual(expect.arrayContaining([contract.address]));
 
     // docs:start:Balance
 
     ////////////// QUERYING THE TOKEN BALANCE FOR EACH ACCOUNT //////////////
 
-    // Create the contract abstraction and link to Alice's wallet for future signing
-    const tokenContractAlice = await PrivateTokenContract.at(contract.address, await accounts[0].getWallet());
-
     // Bob wants to mint some funds, the contract is already deployed, create an abstraction and link it his wallet
-    const tokenContractBob = await PrivateTokenContract.at(contract.address, await accounts[1].getWallet());
+    const tokenContractBob = await TokenContract.at(contract.address, await accounts[1].getWallet());
 
-    let aliceBalance = await tokenContractAlice.methods.getBalance(alice).view();
+    let aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
     logger(`Alice's balance ${aliceBalance}`);
 
-    let bobBalance = await tokenContractBob.methods.getBalance(bob).view();
+    let bobBalance = await tokenContractBob.methods.balance_of_private({ address: bob }).view();
     logger(`Bob's balance ${bobBalance}`);
 
     // docs:end:Balance
@@ -136,13 +146,13 @@ describe('e2e_sandbox_example', () => {
     // We will now transfer tokens from ALice to Bob
     const transferQuantity = 543n;
     logger(`Transferring ${transferQuantity} tokens from Alice to Bob...`);
-    await tokenContractAlice.methods.transfer(transferQuantity, bob).send().wait();
+    await tokenContractAlice.methods.transfer({ address: alice }, { address: bob }, transferQuantity, 0).send().wait();
 
     // Check the new balances
-    aliceBalance = await tokenContractAlice.methods.getBalance(alice).view();
+    aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
     logger(`Alice's balance ${aliceBalance}`);
 
-    bobBalance = await tokenContractBob.methods.getBalance(bob).view();
+    bobBalance = await tokenContractBob.methods.balance_of_private({ address: bob }).view();
     logger(`Bob's balance ${bobBalance}`);
     // docs:end:Transfer
 
@@ -155,13 +165,14 @@ describe('e2e_sandbox_example', () => {
     // Now mint some further funds for Bob
     const mintQuantity = 10_000n;
     logger(`Minting ${mintQuantity} tokens to Bob...`);
-    await tokenContractBob.methods.mint(mintQuantity, bob).send().wait();
+    await tokenContractBob.methods.mint_private(mintQuantity, secretHash).send().wait();
+    await tokenContractBob.methods.redeem_shield({ address: bob }, mintQuantity, secret).send().wait();
 
     // Check the new balances
-    aliceBalance = await tokenContractAlice.methods.getBalance(alice).view();
+    aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
     logger(`Alice's balance ${aliceBalance}`);
 
-    bobBalance = await tokenContractBob.methods.getBalance(bob).view();
+    bobBalance = await tokenContractBob.methods.balance_of_private({ address: bob }).view();
     logger(`Bob's balance ${bobBalance}`);
     // docs:end:Mint
 

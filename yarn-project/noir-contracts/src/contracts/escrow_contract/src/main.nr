@@ -1,5 +1,4 @@
 mod address_note;
-mod private_token_contract_interface;
 
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
@@ -14,6 +13,7 @@ contract Escrow {
             utils as note_utils,
         },
         oracle::get_public_key::get_public_key,
+        oracle::compute_selector::compute_selector,
         state_vars::set::Set,
     };
 
@@ -22,8 +22,6 @@ contract Escrow {
         AddressNoteMethods,
         ADDRESS_NOTE_LEN,
     };
-
-    use crate::private_token_contract_interface::PrivateTokenPrivateContextInterface;
 
     struct Storage {
         owners: Set<AddressNote, ADDRESS_NOTE_LEN>,
@@ -59,9 +57,9 @@ contract Escrow {
     // Withdraws balance. Requires that msg.sender is registered as an owner.
     #[aztec(private)]
     fn withdraw(
-        token: pub Field,
-        amount: pub Field,
-        recipient: pub Field,
+        token: Field,
+        amount: Field,
+        recipient: Field,
     ) {
         let this = context.this_address();
         let sender = context.msg_sender();
@@ -75,7 +73,12 @@ contract Escrow {
         assert(note.address == sender);
         assert(note.owner == this);
 
-        let _callStackItem = PrivateTokenPrivateContextInterface::at(token).transfer(&mut context, amount, recipient);
+        let selector = compute_selector("transfer((Field),(Field),Field,Field)");
+        let _callStackItem = context.call_private_function(
+            token,
+            selector,
+            [this, recipient, amount, 0]
+        );
     }
 
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; ADDRESS_NOTE_LEN]) -> [Field; 4] {

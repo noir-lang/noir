@@ -38,7 +38,7 @@ import {
   ParentContractAbi,
   PendingCommitmentsContractAbi,
   PrivateTokenAirdropContractAbi,
-  PrivateTokenContractAbi,
+  StatefulTestContractAbi,
   TestContractAbi,
 } from '@aztec/noir-contracts/artifacts';
 import { PackedArguments, TxExecutionRequest } from '@aztec/types';
@@ -401,7 +401,7 @@ describe('Private Execution test suite', () => {
     });
   });
 
-  describe('private token contract', () => {
+  describe('stateful test contract contract', () => {
     const contractAddress = defaultContractAddress;
     const mockFirstNullifier = new Fr(1111);
     let currentNoteIndex = 0n;
@@ -439,7 +439,7 @@ describe('Private Execution test suite', () => {
 
       oracle.getFunctionABI.mockImplementation((_, selector) =>
         Promise.resolve(
-          PrivateTokenContractAbi.functions.find(f =>
+          StatefulTestContractAbi.functions.find(f =>
             selector.equals(FunctionSelector.fromNameAndParameters(f.name, f.parameters)),
           )!,
         ),
@@ -484,27 +484,9 @@ describe('Private Execution test suite', () => {
     });
 
     it('should a constructor with arguments that inserts notes', async () => {
-      const abi = getFunctionAbi(PrivateTokenContractAbi, 'constructor');
+      const abi = getFunctionAbi(StatefulTestContractAbi, 'constructor');
 
-      const result = await runSimulator({ args: [140, owner], abi });
-
-      expect(result.newNotes).toHaveLength(1);
-      const newNote = result.newNotes[0];
-      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
-
-      const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
-      expect(newCommitments).toHaveLength(1);
-
-      const [commitment] = newCommitments;
-      expect(commitment).toEqual(
-        await acirSimulator.computeInnerNoteHash(contractAddress, newNote.storageSlot, newNote.preimage),
-      );
-    });
-
-    it('should run the mint function', async () => {
-      const abi = getFunctionAbi(PrivateTokenContractAbi, 'mint');
-
-      const result = await runSimulator({ args: [140, owner], abi });
+      const result = await runSimulator({ args: [owner, 140], abi });
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
@@ -519,9 +501,27 @@ describe('Private Execution test suite', () => {
       );
     });
 
-    it('should run the transfer function', async () => {
+    it('should run the create_note function', async () => {
+      const abi = getFunctionAbi(StatefulTestContractAbi, 'create_note');
+
+      const result = await runSimulator({ args: [owner, 140], abi });
+
+      expect(result.newNotes).toHaveLength(1);
+      const newNote = result.newNotes[0];
+      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
+
+      const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
+      expect(newCommitments).toHaveLength(1);
+
+      const [commitment] = newCommitments;
+      expect(commitment).toEqual(
+        await acirSimulator.computeInnerNoteHash(contractAddress, newNote.storageSlot, newNote.preimage),
+      );
+    });
+
+    it('should run the destroy_and_create function', async () => {
       const amountToTransfer = 100n;
-      const abi = getFunctionAbi(PrivateTokenContractAbi, 'transfer');
+      const abi = getFunctionAbi(StatefulTestContractAbi, 'destroy_and_create');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
       const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
@@ -534,7 +534,7 @@ describe('Private Execution test suite', () => {
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
-      const args = [amountToTransfer, recipient];
+      const args = [recipient, amountToTransfer];
       const result = await runSimulator({ args, abi, msgSender: owner });
 
       // The two notes were nullified
@@ -565,10 +565,10 @@ describe('Private Execution test suite', () => {
       expect(readRequests).toEqual(expect.arrayContaining(consumedNotes.map(n => n.uniqueSiloedNoteHash)));
     });
 
-    it('should be able to transfer with dummy notes', async () => {
+    it('should be able to destroy_and_create with dummy notes', async () => {
       const amountToTransfer = 100n;
       const balance = 160n;
-      const abi = getFunctionAbi(PrivateTokenContractAbi, 'transfer');
+      const abi = getFunctionAbi(StatefulTestContractAbi, 'destroy_and_create');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
 
@@ -580,7 +580,7 @@ describe('Private Execution test suite', () => {
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
-      const args = [amountToTransfer, recipient];
+      const args = [recipient, amountToTransfer];
       const result = await runSimulator({ args, abi, msgSender: owner });
 
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));

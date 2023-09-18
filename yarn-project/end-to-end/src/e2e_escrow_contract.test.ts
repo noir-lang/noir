@@ -1,11 +1,11 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AccountWallet, AztecAddress, BatchCall, generatePublicKey } from '@aztec/aztec.js';
+import { AccountWallet, AztecAddress, BatchCall, computeMessageSecretHash, generatePublicKey } from '@aztec/aztec.js';
 import { CompleteAddress, Fr, GrumpkinPrivateKey, GrumpkinScalar, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { EscrowContractAbi } from '@aztec/noir-contracts/artifacts';
-import { EscrowContract, PrivateTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, PublicKey } from '@aztec/types';
+import { EscrowContract, TokenContract } from '@aztec/noir-contracts/types';
+import { AztecRPC, PublicKey, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -17,7 +17,7 @@ describe('e2e_escrow_contract', () => {
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
 
-  let privateTokenContract: PrivateTokenContract;
+  let token: TokenContract;
   let escrowContract: EscrowContract;
   let owner: AztecAddress;
   let recipient: AztecAddress;
@@ -51,8 +51,19 @@ describe('e2e_escrow_contract', () => {
     logger(`Escrow contract deployed at ${escrowContract.address}`);
 
     // Deploy Private Token contract and mint funds for the escrow contract
-    privateTokenContract = await PrivateTokenContract.deploy(wallet, 100n, escrowContract.address).send().deployed();
-    logger(`Token contract deployed at ${privateTokenContract.address}`);
+    token = await TokenContract.deploy(wallet).send().deployed();
+
+    expect((await token.methods._initialize({ address: owner }).send().wait()).status).toBe(TxStatus.MINED);
+
+    const secret = Fr.random();
+    const secretHash = await computeMessageSecretHash(secret);
+
+    expect((await token.methods.mint_private(100n, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
+    expect(
+      (await token.methods.redeem_shield({ address: escrowContract.address }, 100n, secret).send().wait()).status,
+    ).toEqual(TxStatus.MINED);
+
+    logger(`Token contract deployed at ${token.address}`);
   }, 100_000);
 
   afterEach(async () => {
@@ -61,7 +72,7 @@ describe('e2e_escrow_contract', () => {
   }, 30_000);
 
   const expectBalance = async (who: AztecAddress, expectedBalance: bigint) => {
-    const balance = await privateTokenContract.methods.getBalance(who).view({ from: who });
+    const balance = await token.methods.balance_of_private({ address: who }).view({ from: who });
     logger(`Account ${who} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
@@ -72,7 +83,7 @@ describe('e2e_escrow_contract', () => {
     await expectBalance(escrowContract.address, 100n);
 
     logger(`Withdrawing funds from token contract to ${recipient}`);
-    await escrowContract.methods.withdraw(privateTokenContract.address, 30, recipient).send().wait();
+    await escrowContract.methods.withdraw(token.address, 30, recipient).send().wait();
 
     await expectBalance(owner, 0n);
     await expectBalance(recipient, 30n);
@@ -81,21 +92,25 @@ describe('e2e_escrow_contract', () => {
 
   it('refuses to withdraw funds as a non-owner', async () => {
     await expect(
-      escrowContract
-        .withWallet(recipientWallet)
-        .methods.withdraw(privateTokenContract.address, 30, recipient)
-        .simulate(),
+      escrowContract.withWallet(recipientWallet).methods.withdraw(token.address, 30, recipient).simulate(),
     ).rejects.toThrowError();
   }, 60_000);
 
   it('moves funds using multiple keys on the same tx (#1010)', async () => {
     logger(`Minting funds in token contract to ${owner}`);
-    await privateTokenContract.methods.mint(50, owner).send().wait();
+    const secret = Fr.random();
+    const secretHash = await computeMessageSecretHash(secret);
+
+    expect((await token.methods.mint_private(50n, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
+    expect((await token.methods.redeem_shield({ address: owner }, 50n, secret).send().wait()).status).toEqual(
+      TxStatus.MINED,
+    );
+
     await expectBalance(owner, 50n);
 
     const actions = [
-      privateTokenContract.methods.transfer(10, recipient).request(),
-      escrowContract.methods.withdraw(privateTokenContract.address, 20, recipient).request(),
+      token.methods.transfer({ address: owner }, { address: recipient }, 10, 0).request(),
+      escrowContract.methods.withdraw(token.address, 20, recipient).request(),
     ];
 
     await new BatchCall(wallet, actions).send().wait();

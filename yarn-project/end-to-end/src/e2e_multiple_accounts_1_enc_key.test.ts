@@ -1,9 +1,9 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Wallet, generatePublicKey, getSchnorrAccount } from '@aztec/aztec.js';
-import { GrumpkinScalar } from '@aztec/circuits.js';
+import { AztecAddress, Wallet, computeMessageSecretHash, generatePublicKey, getSchnorrAccount } from '@aztec/aztec.js';
+import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { PrivateTokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
@@ -15,7 +15,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   const accounts: AztecAddress[] = [];
   let logger: DebugLogger;
 
-  let privateTokenAddress: AztecAddress;
+  let tokenAddress: AztecAddress;
 
   const initialBalance = 987n;
   const numAccounts = 3;
@@ -42,12 +42,20 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       expect(account.publicKey).toEqual(encryptionPublicKey);
     }
 
-    logger(`Deploying Private Token...`);
-    privateTokenAddress = await PrivateTokenContract.deploy(wallets[0], initialBalance, accounts[0])
-      .send()
-      .deployed()
-      .then(c => c.address);
-    logger(`Private Token deployed at ${privateTokenAddress}`);
+    logger(`Deploying Token...`);
+    const token = await TokenContract.deploy(wallets[0]).send().deployed();
+    tokenAddress = token.address;
+    logger(`Token deployed at ${tokenAddress}`);
+
+    expect((await token.methods._initialize({ address: accounts[0] }).send().wait()).status).toBe(TxStatus.MINED);
+
+    const secret = Fr.random();
+    const secretHash = await computeMessageSecretHash(secret);
+
+    expect((await token.methods.mint_private(initialBalance, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
+    expect(
+      (await token.methods.redeem_shield({ address: accounts[0] }, initialBalance, secret).send().wait()).status,
+    ).toEqual(TxStatus.MINED);
   }, 100_000);
 
   afterEach(async () => {
@@ -62,8 +70,8 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const owner = accounts[userIndex];
 
     // Then check the balance
-    const contractWithWallet = await PrivateTokenContract.at(privateTokenAddress, wallet);
-    const balance = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
+    const contractWithWallet = await TokenContract.at(tokenAddress, wallet);
+    const balance = await contractWithWallet.methods.balance_of_private({ address: owner }).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
@@ -79,12 +87,12 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const sender = accounts[senderIndex];
     const receiver = accounts[receiverIndex];
 
-    const contractWithWallet = await PrivateTokenContract.at(privateTokenAddress, wallets[senderIndex]);
+    const contractWithWallet = await TokenContract.at(tokenAddress, wallets[senderIndex]);
 
-    const tx = contractWithWallet.methods.transfer(transferAmount, receiver).send();
-    await tx.isMined({ interval: 0.1 });
-    const receipt = await tx.getReceipt();
-
+    const receipt = await contractWithWallet.methods
+      .transfer({ address: sender }, { address: receiver }, transferAmount, 0)
+      .send()
+      .wait();
     expect(receipt.status).toBe(TxStatus.MINED);
 
     for (let i = 0; i < expectedBalances.length; i++) {
