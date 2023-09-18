@@ -33,15 +33,17 @@ function checkType(value: any, type: any) {
   return false;
 }
 
-function type_to_string(type: any) {
+function type_to_string(type: any):string {
   switch (type.kind) {
     case 'integer':
       if (type.sign === 'unsigned') {
         return `uint${type.width}`;
       }
       break;
+    case 'array':
+      return `${type_to_string(type.element)}[${type.length}]`;
   }
-  return false;
+  return "unknown type";
 }
 
 // Returns true if `value` is an unsigned integer that is less than 2^{width}
