@@ -1,23 +1,18 @@
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_bin_package,
-    fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file},
+    fs::{inputs::read_inputs_from_file, load_hex_data},
 };
 use crate::{backends::Backend, errors::CliError};
 
-use acvm::acir::circuit::Opcode;
-use acvm::Language;
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
-use nargo::{artifacts::program::PreprocessedProgram, package::Package};
+use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_frontend::graph::CrateName;
-use std::path::{Path, PathBuf};
-
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
@@ -48,64 +43,43 @@ pub(crate) fn run(
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
-    let proofs_dir = workspace.proofs_directory_path();
 
     let (np_language, is_opcode_supported) = backend.get_backend_info()?;
     for package in &workspace {
-        let circuit_build_path = workspace.package_build_path(package);
-
-        let proof_path = proofs_dir.join(String::from(&package.name)).with_extension(PROOF_EXT);
-
-        verify_package(
-            backend,
+        let program = compile_bin_package(
+            &workspace,
             package,
-            &proof_path,
-            circuit_build_path,
-            &args.verifier_name,
             &args.compile_options,
             np_language,
             &is_opcode_supported,
         )?;
+
+        verify_package(backend, &workspace, package, program, &args.verifier_name)?;
     }
 
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn verify_package(
     backend: &Backend,
+    workspace: &Workspace,
     package: &Package,
-    proof_path: &Path,
-    circuit_build_path: PathBuf,
+    compiled_program: CompiledProgram,
     verifier_name: &str,
-    compile_options: &CompileOptions,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(), CliError> {
-    let preprocessed_program = if circuit_build_path.exists() {
-        read_program_from_file(circuit_build_path)?
-    } else {
-        let program =
-            compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
-
-        PreprocessedProgram {
-            backend: String::from(BACKEND_IDENTIFIER),
-            abi: program.abi,
-            bytecode: program.circuit,
-        }
-    };
-
-    let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
-
     // Load public inputs (if any) from `verifier_name`.
-    let public_abi = abi.public_abi();
+    let public_abi = compiled_program.abi.public_abi();
     let (public_inputs_map, return_value) =
         read_inputs_from_file(&package.root_dir, verifier_name, Format::Toml, &public_abi)?;
 
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
-    let proof = load_hex_data(proof_path)?;
 
-    let valid_proof = backend.verify(&proof, public_inputs, &bytecode, false)?;
+    let proof_path =
+        workspace.proofs_directory_path().join(package.name.to_string()).with_extension(PROOF_EXT);
+
+    let proof = load_hex_data(&proof_path)?;
+
+    let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.circuit, false)?;
 
     if valid_proof {
         Ok(())

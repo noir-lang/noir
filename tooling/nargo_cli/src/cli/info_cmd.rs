@@ -55,8 +55,13 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (compiled_programs, compiled_contracts) =
-        compile_workspace(backend, &binary_packages, &contract_packages, &args.compile_options)?;
+    let (compiled_programs, compiled_contracts) = compile_workspace(
+        backend,
+        &workspace,
+        &binary_packages,
+        &contract_packages,
+        &args.compile_options,
+    )?;
 
     let (np_language, _) = backend.get_backend_info()?;
     let program_info = binary_packages
