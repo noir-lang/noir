@@ -1,0 +1,53 @@
+#!/bin/bash
+# This script takes a repository name as variable,
+# then checks if the commit tag variable (if any)
+# is a valid semver & echoes that valid semver.
+
+set -eu
+
+REPOSITORY="$1"
+ERROR_ON_FAIL="${2:-"false"}"
+
+# Check if there is a commit tag
+if [[ -z "$COMMIT_TAG" ]]; then
+  if [[ "$ERROR_ON_FAIL" == "true" ]]; then
+    echo "No commit tag found. Exiting" >&2
+    exit 1
+  else
+    echo ""
+    exit 0
+  fi
+fi
+
+COMMIT_TAG_VERSION="$COMMIT_TAG" # default unless repo-specific
+
+# Check if it's a repo-specific tag
+if [[ "$COMMIT_TAG" == *"/"* ]]; then
+  REPO_NAME="${COMMIT_TAG%%/*}"
+  COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
+  echo "Tag was made for: $REPO_NAME" >&2
+  echo "Version: $COMMIT_TAG_VERSION" >&2
+  
+  # Check if REPO_NAME is equal to REPOSITORY
+  if [[ "$REPO_NAME" != "$REPOSITORY" ]]; then
+    echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Exiting..." >&2
+    if [[ "$ERROR_ON_FAIL" == "true" ]]; then
+      exit 1
+    else
+      exit 0
+    fi
+  fi
+fi
+
+# Check it's a valid semver.
+VERSION=$(npx semver "$COMMIT_TAG_VERSION")
+if [[ -z "$VERSION" ]]; then
+  echo "$COMMIT_TAG_VERSION is not a semantic version." >&2
+  if [[ "$ERROR_ON_FAIL" == "true" ]]; then
+    exit 1
+  else
+    VERSION=""
+  fi
+fi
+
+echo "$VERSION"

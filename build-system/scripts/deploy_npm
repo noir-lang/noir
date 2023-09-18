@@ -13,28 +13,7 @@ cd project/src/$(query_manifest relativeProjectDir $REPOSITORY)
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
 
-# Check if it's a repo-specific tag
-if [[ "$COMMIT_TAG" == *"/"* ]]; then
-  REPO_NAME="${COMMIT_TAG%%/*}"
-  COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
-  echo "Tag was made for: $REPO_NAME"
-  echo "Version: $COMMIT_TAG_VERSION"
-
-    # Check if REPO_NAME is equal to REPOSITORY
-  if [ "$REPO_NAME" != "$REPOSITORY" ]; then
-    echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Exiting..."
-    exit 1
-  fi
-else
-  COMMIT_TAG_VERSION=$COMMIT_TAG
-fi
-
-# We are publishing a tagged commit. Check it's a valid semver.
-VERSION=$(npx semver $COMMIT_TAG_VERSION)
-if [ -z "$VERSION" ]; then
-  echo "$COMMIT_TAG_VERSION is not a semantic version."
-  exit 1
-fi
+COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "true")
 
 # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
 TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
@@ -71,7 +50,7 @@ fi
 
 # Filter on whitelist of properties.
 jq '{name, version, exports, main, homepage, author, type, license, dependencies, description, bin} | with_entries( select( .value != null ) )' \
-  package.json > $TMP && mv $TMP package.json
+package.json > $TMP && mv $TMP package.json
 
 # Publish
 npm publish $TAG_ARG --access public

@@ -17,34 +17,12 @@ if [[ $FORCE_BUILD == 'true' ]]; then
   exit 0
 fi
 
-# Check if there's a commit TAG
-if [[ -n "${COMMIT_TAG:-}" ]]; then
-  # Check if it's a repo-specific tag
-  if [[ "$COMMIT_TAG" == *"/"* ]]; then
-    REPO_NAME="${COMMIT_TAG%%/*}"
-    COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
-    echo "Tag was made for: $REPO_NAME"
-    echo "Version: $COMMIT_TAG_VERSION"
-    
-    # Check if REPO_NAME is equal to REPOSITORY
-    if [ "$REPO_NAME" != "$REPOSITORY" ]; then
-      echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Ignoring..."
-      COMMIT_TAG_VERSION=""
-    fi
-  else
-    COMMIT_TAG_VERSION=$COMMIT_TAG
-  fi
-  
-  # We are building a tagged commit. Check it's a valid semver.
-  VERSION=$(npx semver $COMMIT_TAG_VERSION)
-  if [ -z "$VERSION" ]; then
-    # Not a version tag, build normally
-    build $REPOSITORY false $@
-  else
-    # Force build
-    build $REPOSITORY true $@
-  fi
-else
-  # Not a tagged commit, build normally
+COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "false")
+
+if [ -z "$VERSION" ]; then
+  # Not a version tag, build normally
   build $REPOSITORY false $@
+else
+  # Force build
+  build $REPOSITORY true $@
 fi

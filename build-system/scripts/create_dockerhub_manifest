@@ -21,30 +21,8 @@ echo "Arch list: $ARCH_LIST"
 ACCOUNT="aztecprotocol"
 USERNAME="aztecprotocolci"
 
-COMMIT_TAG_VERSION=$COMMIT_TAG # default unless repo-specific
-# Check if it's a repo-specific tag
-if [[ "$COMMIT_TAG" == *"/"* ]]; then
-  REPO_NAME="${COMMIT_TAG%%/*}"
-  COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
-  echo "Tag was made for: $REPO_NAME"
-  echo "Version: $COMMIT_TAG_VERSION"
-
-    # Check if REPO_NAME is equal to REPOSITORY
-  if [ "$REPO_NAME" != "$REPOSITORY" ]; then
-    echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Exiting..."
-    exit 1
-  fi
-fi
-
-# Check it's a valid semver.
-VERSION=$(npx semver $COMMIT_TAG_VERSION)
-if [ -z "$VERSION" ]; then
-  echo "$COMMIT_TAG_VERSION is not a semantic version."
-  exit 1
-fi
-
-# We now have the tage for each image
-IMAGE_TAG=$COMMIT_TAG_VERSION
+# Extract the version, if valid; exit otherwise.
+IMAGE_TAG=$(extract_tag_version $REPOSITORY "true")
 
 MANIFEST_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
 MANIFEST_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
@@ -73,7 +51,7 @@ do
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI"
   docker manifest create $MANIFEST_DEPLOY_URI \
   --amend $IMAGE_DEPLOY_URI
-
+  
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_LATEST_URI"
   docker manifest create $MANIFEST_LATEST_URI \
   --amend $IMAGE_DEPLOY_URI
