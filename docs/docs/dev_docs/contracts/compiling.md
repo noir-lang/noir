@@ -31,7 +31,7 @@ Then run the `compile` command with the path to your [contract project folder](.
 aztec-cli compile ./path/to/my_aztec_contract_project
 ```
 
-This will output a JSON artifact for each contract in the project to a `target` folder containing their [ABI](./abi.md), which you can use for deploying or interacting with your contracts.
+This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing their [ABI](./abi.md), which you can use for deploying or interacting with your contracts.
 
 ### Typescript Interfaces
 

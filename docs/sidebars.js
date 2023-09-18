@@ -104,6 +104,7 @@ const sidebars = {
         "dev_docs/contracts/constrain",
         "dev_docs/contracts/compiling",
         "dev_docs/contracts/deploying",
+        "dev_docs/contracts/artifacts",
         "dev_docs/contracts/abi",
         {
           label: "Portals",
