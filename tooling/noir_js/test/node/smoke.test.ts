@@ -7,7 +7,7 @@ it('generates witnesses successfully', async () => {
     x: '2',
     y: '3',
   };
-  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+  const _solvedWitness = await generateWitness(assert_lt_json, inputs);
 });
 
 it('string input and number input are the same', async () => {

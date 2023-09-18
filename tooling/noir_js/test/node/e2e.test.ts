@@ -110,7 +110,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
   const proofOuter = await prover.generateOuterProof(serializedWitness);
-  const proofInner = await prover.generateInnerProof(serializedWitness);
+  const _proofInner = await prover.generateInnerProof(serializedWitness);
 
   // Proof verification
   //
@@ -118,7 +118,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
     const isValidOuter = await prover.verifyOuterProof(proofOuter);
     expect(isValidOuter).to.be.true;
     // We can also try verifying an inner proof and it will fail.
-    // const isValidInner = await prover.verifyInnerProof(proofInner);
+    // const isValidInner = await prover.verifyInnerProof(_proofInner);
     // expect(isValidInner).to.be.true;
     expect.fail('bb.js currently returns a bug when we try to verify an inner and outer proof with the same backend');
   } catch (error) {

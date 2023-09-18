@@ -28,7 +28,7 @@ export class Backend {
   async initBarretenberg(numThreads: number, acirUncompressedBytecode: Uint8Array) {
     const api = await Barretenberg.new(numThreads);
 
-    const [exact, total, subgroupSize] = await api.acirGetCircuitSizes(acirUncompressedBytecode);
+    const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(acirUncompressedBytecode);
     const crs = await Crs.new(subgroupSize + 1);
     await api.commonInitSlabAllocator(subgroupSize);
     await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));

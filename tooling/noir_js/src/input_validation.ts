@@ -9,9 +9,7 @@ export function validateInputs(inputs: any, abi: any) {
     if (!checkType(inputValue, param.type)) {
       return {
         isValid: false,
-        error: `Input for ${param.name} is the wrong type, expected ${type_to_string(
-          param.type,
-        )}, got \"${inputValue}\"`,
+        error: `Input for ${param.name} is the wrong type, expected ${type_to_string(param.type)}, got "${inputValue}"`,
       };
     }
   }
@@ -33,7 +31,7 @@ function checkType(value: any, type: any) {
   return false;
 }
 
-function type_to_string(type: any):string {
+function type_to_string(type: any): string {
   switch (type.kind) {
     case 'integer':
       if (type.sign === 'unsigned') {
@@ -43,7 +41,7 @@ function type_to_string(type: any):string {
     case 'array':
       return `${type_to_string(type.element)}[${type.length}]`;
   }
-  return "unknown type";
+  return 'unknown type';
 }
 
 // Returns true if `value` is an unsigned integer that is less than 2^{width}
