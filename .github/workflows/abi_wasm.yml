@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  noirc-abi-wasm-build:
+  build:
     runs-on: ubuntu-latest
     env:
       CACHED_PATH: /tmp/nix-cache
@@ -47,6 +47,8 @@ jobs:
       - name: Build noirc_abi_wasm
         run: |
           nix build -L .#noirc_abi_wasm
+          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/web ./tooling/noirc_abi_wasm
 
       - name: Export cache from nix store
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
@@ -70,69 +72,29 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 10
 
-  noirc-abi-wasm-test-node:
-    needs: [noirc-abi-wasm-build]
-    name: Node.js Tests
+  test:
     runs-on: ubuntu-latest
-
+    needs: [build]
+  
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Download artifact
+      - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
           name: noirc_abi_wasm
-          path: ./result
-
-      - name: Set up test environment
+          path: ./tooling/noirc_abi_wasm
+    
+      - name: Install Yarn dependencies
         uses: ./.github/actions/setup
-        with:
-          working-directory: ./tooling/noirc_abi_wasm
 
       - name: Run node tests
-        working-directory: ./tooling/noirc_abi_wasm
-        run: yarn install && yarn test
+        run: yarn workspace @noir-lang/noirc_abi test
 
-  noirc-abi-wasm-test-browser:
-    needs: [noirc-abi-wasm-build]
-    name: Browser Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: noirc_abi_wasm
-          path: ./result
-
-      - name: Query playwright version
-        working-directory: ./tooling/noirc_abi_wasm
-        run: echo "PLAYWRIGHT_VERSION=$(yarn info @web/test-runner-playwright --json | jq .children.Version)" >> $GITHUB_ENV
-
-      - name: Cache playwright binaries
-        uses: actions/cache@v3
-        id: playwright-cache
-        with:
-          path: |
-            ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
-
-      - name: Set up test environment
-        uses: ./.github/actions/setup
-        with:
-          working-directory: ./tooling/noirc_abi_wasm
-
-      - name: Install playwright deps
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: ./tooling/noirc_abi_wasm
-        run: |
-          npx playwright install
-          npx playwright install-deps
-
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+          
       - name: Run browser tests
-        working-directory: ./tooling/noirc_abi_wasm
-        run: yarn install && yarn test:browser
+        run: yarn workspace @noir-lang/noirc_abi test:browser
+

@@ -2,6 +2,9 @@ name: test-integration
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ./compiler/integration-tests
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
@@ -52,9 +55,9 @@ jobs:
       - name: Build noir_wasm package
         run: |
           nix build -L .#wasm
-          mkdir -p ./.packages/noir_wasm
-          cp -r ./result/* ./.packages/noir_wasm/
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+          cp -r ./result/nodejs ./compiler/wasm
+          cp -r ./result/web ./compiler/wasm
 
       - name: Upload `noir_wasm` artifact
         uses: actions/upload-artifact@v3
@@ -66,9 +69,9 @@ jobs:
       - name: Build noirc_abi_wasm package
         run: |
           nix build -L .#noirc_abi_wasm
-          mkdir -p ./.packages/noirc_abi_wasm
-          cp -r ./result/* ./.packages/noirc_abi_wasm/
           echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/web ./tooling/noirc_abi_wasm
 
       - name: Upload `noirc_abi_wasm` artifact
         uses: actions/upload-artifact@v3
@@ -77,31 +80,18 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 3
 
-      - name: Build `acvm_js` package
-        working-directory: ./acvm
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Setup `integration-tests`
         run: |
-          nix build -L .#
-          mkdir -p ../.packages/acvm_js
-          cp -r ./result/* ../.packages/acvm_js/
-          echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
-
-      - name: Upload `acvm_js` artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: acvm_js
-          path: ${{ env.UPLOAD_PATH }}
-          retention-days: 3
-
-      - name: Install `integration-tests` dependencies
-        working-directory: ./compiler/integration-tests
-        run: yarn install
+          yarn workspace @noir-lang/source-resolver build
 
       - name: Run `integration-tests`
-        working-directory: ./compiler/integration-tests
         run: |
-          yarn test:browser
-
-      - name: Alert on nightly test failure
+          yarn test:integration
+          
+      - name: Alert on nightly test failure  
         uses: JasonEtco/create-an-issue@v2
         if: ${{ failure() && github.event_name == 'schedule' }}
         env:

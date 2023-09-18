@@ -244,6 +244,8 @@ impl<'a> FunctionContext<'a> {
     fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
+        let typ = self.builder.current_function.dfg.type_of_value(lhs);
+        let pow = self.builder.insert_cast(pow, typ);
         self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
     }
 

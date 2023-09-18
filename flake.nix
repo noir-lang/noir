@@ -134,7 +134,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.11.1";
+        version = "0.12.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -340,7 +340,8 @@
           jq
           binaryen
           yarn
-          rust-bin.stable."1.66.1".default
+          # rust-bin.stable."1.66.1".default
+          rustToolchain
           rust-analyzer
           rustup
           nodejs-18_x 

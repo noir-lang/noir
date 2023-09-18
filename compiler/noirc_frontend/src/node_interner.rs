@@ -19,6 +19,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::token::Attributes;
 use crate::{
     Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
     TypeVariableKind,
@@ -545,6 +546,10 @@ impl NodeInterner {
     pub fn function_name(&self, func_id: &FuncId) -> &str {
         let name_id = self.function_meta(func_id).name.id;
         self.definition_name(name_id)
+    }
+
+    pub fn function_attributes(&self, func_id: &FuncId) -> Attributes {
+        self.function_meta(func_id).attributes
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
