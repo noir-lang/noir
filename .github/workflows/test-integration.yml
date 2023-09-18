@@ -85,7 +85,7 @@ jobs:
 
       - name: Setup `integration-tests`
         run: |
-          yarn workspace @noir-lang/noir-source-resolver build
+          yarn workspace @noir-lang/source-resolver build
 
       - name: Run `integration-tests`
         run: |
