@@ -5,6 +5,8 @@ const lightCodeTheme = require("prism-react-renderer/themes/github");
 const darkCodeTheme = require("prism-react-renderer/themes/dracula");
 const math = require("remark-math");
 const katex = require("rehype-katex");
+const path = require("path");
+const fs = require("fs");
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -73,6 +75,33 @@ const config = {
     },
   ],
   plugins: [
+    async function loadVersions(context, options) {
+      // ...
+      return {
+        name: "load-versions",
+        async loadContent() {
+          try {
+            const noirVersionPath = path.resolve(
+              __dirname,
+              "../yarn-project/noir-compiler/src/noir-version.json"
+            );
+            const noirVersion = JSON.parse(
+              fs.readFileSync(noirVersionPath).toString()
+            ).tag;
+            return { noir: noirVersion };
+          } catch (err) {
+            throw new Error(
+              `Error loading Noir version from noir-compiler in docusaurus build. Check load-versions in docusaurus.config.js.\n${err}`
+            );
+          }
+        },
+        async contentLoaded({ content, actions }) {
+          // await actions.createData("versions.json", JSON.stringify(content));
+          actions.setGlobalData({ versions: content });
+        },
+        /* other lifecycle API */
+      };
+    },
     [
       "@docusaurus/plugin-ideal-image",
       {

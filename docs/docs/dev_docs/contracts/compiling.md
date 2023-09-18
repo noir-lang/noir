@@ -8,15 +8,12 @@ We'll also cover how to generate a helper [TypeScript interface](#typescript-int
 
 ## Prerequisites
 
-You will need the Noir build tool `nargo`, which you can install via [`noirup`](https://github.com/noir-lang/noirup). Make sure you install the `aztec` version of nargo:
+You will need the Noir build tool `nargo`, which you can install via [`noirup`](https://github.com/noir-lang/noirup). Make sure you install the correct version of nargo:
 
-```bash
-curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-noirup -v aztec
-```
+<InstallNargoInstructions />
 
 :::info
-You can re-run `noirup -v aztec` whenever you want to update to the latest version of Noir supported by the Aztec Network.
+You can run `aztec-cli get-node-info` to query the version of nargo that corresponds to your current installation.
 :::
 
 ## Compile using the CLI
