@@ -65,7 +65,6 @@ contract PrivateToken {
     }
     // docs:end:mint
 
-    // docs:start:transfer
     // Transfers `amount` of tokens from msg_sender to a `recipient`.
     #[aztec(private)]
     fn transfer(
@@ -83,9 +82,7 @@ contract PrivateToken {
         let recipient_balance = storage.balances.at(recipient);
         increment(recipient_balance, amount, recipient);
     }
-    // docs:end:transfer
 
-    // docs:start:getBalance
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     unconstrained fn getBalance(
         owner: Field,
@@ -98,7 +95,6 @@ contract PrivateToken {
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance)
     }
-    // docs:end:getBalance
 
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.

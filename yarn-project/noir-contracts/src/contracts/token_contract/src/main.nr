@@ -180,6 +180,7 @@ contract Token {
         1
     }
 
+    
     #[aztec(public)]
     fn transfer_public(
         from: AztecAddress,
@@ -276,6 +277,7 @@ contract Token {
         1
     }
 
+    // docs:start:transfer
     #[aztec(private)]
     fn transfer(
         from: AztecAddress,
@@ -301,6 +303,7 @@ contract Token {
 
         1
     }
+    // docs:end:transfer
 
     #[aztec(private)]
     fn burn(
@@ -383,6 +386,7 @@ contract Token {
         storage.total_supply.read()
     }
 
+    // docs:start:balance_of_private
     unconstrained fn balance_of_private(
         owner: AztecAddress,
     ) -> Field {
@@ -391,6 +395,7 @@ contract Token {
 
         balance_utils::get_balance(owner_balance)
     }
+    // docs:end:balance_of_private
 
     unconstrained fn balance_of_public(
         owner: AztecAddress,

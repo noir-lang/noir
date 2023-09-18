@@ -1,39 +1,27 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-/* eslint-disable import/no-duplicates */
 // docs:start:imports
 import {
   AztecRPC,
   Fr,
   computeMessageSecretHash,
+  createAztecRpcClient,
   createDebugLogger,
   getSchnorrAccount,
   waitForSandbox,
 } from '@aztec/aztec.js';
-// docs:end:imports
-
-/* eslint-enable @typescript-eslint/no-unused-vars */
-// Note: this is a hack to make the docs use http://localhost:8080 and CI to use the SANDBOX_URL
-import { createAztecRpcClient as createAztecRpcClient2 } from '@aztec/aztec.js';
 import { GrumpkinScalar } from '@aztec/circuits.js';
 import { TokenContract } from '@aztec/noir-contracts/types';
 
 const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
+// docs:end:imports
 
 describe('e2e_sandbox_example', () => {
-  // Note: this is a hack to make the docs use http://localhost:8080 and CI to use the SANDBOX_URL
-  const createAztecRpcClient = (_url: string) => {
-    return createAztecRpcClient2(SANDBOX_URL!);
-  };
-
   it('sandbox example works', async () => {
     // docs:start:setup
     ////////////// CREATE THE CLIENT INTERFACE AND CONTACT THE SANDBOX //////////////
     const logger = createDebugLogger('token');
-    const sandboxUrl = 'http://localhost:8080';
 
     // We create AztecRPC client connected to the sandbox URL
-    const aztecRpc = createAztecRpcClient(sandboxUrl);
+    const aztecRpc = createAztecRpcClient(SANDBOX_URL);
     // Wait for sandbox to be ready
     await waitForSandbox(aztecRpc);
 
@@ -98,7 +86,6 @@ describe('e2e_sandbox_example', () => {
     ////////////// DEPLOY OUR TOKEN CONTRACT //////////////
 
     // Deploy a token contract, create a contract abstraction object and link it to the owner's wallet
-    // The contract's constructor takes 2 arguments, the initial supply and the owner of that initial supply
     const initialSupply = 1_000_000n;
 
     logger(`Deploying token contract minting an initial ${initialSupply} tokens to Alice...`);
@@ -107,6 +94,7 @@ describe('e2e_sandbox_example', () => {
     // Create the contract abstraction and link to Alice's wallet for future signing
     const tokenContractAlice = await TokenContract.at(contract.address, await accounts[0].getWallet());
 
+    // Initialize the contract and add Bob as a minter
     await tokenContractAlice.methods._initialize({ address: alice }).send().wait();
     await tokenContractAlice.methods.set_minter({ address: bob }, true).send().wait();
 
@@ -127,7 +115,8 @@ describe('e2e_sandbox_example', () => {
     ////////////// QUERYING THE TOKEN BALANCE FOR EACH ACCOUNT //////////////
 
     // Bob wants to mint some funds, the contract is already deployed, create an abstraction and link it his wallet
-    const tokenContractBob = await TokenContract.at(contract.address, await accounts[1].getWallet());
+    // Since we already have a token link, we can simply create a new instance of the contract linked to Bob's wallet
+    const tokenContractBob = tokenContractAlice.withWallet(await accounts[1].getWallet());
 
     let aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
     logger(`Alice's balance ${aliceBalance}`);
