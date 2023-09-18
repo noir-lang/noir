@@ -1,10 +1,9 @@
-use acvm::acir::circuit::opcodes::Opcode;
 use acvm::Language;
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use crate::BackendError;
+use crate::{BackendError, BackendOpcodeSupport};
 
 pub(crate) struct InfoCommand {
     pub(crate) crs_path: PathBuf,
@@ -23,11 +22,20 @@ struct LanguageResponse {
     width: Option<usize>,
 }
 
+impl BackendOpcodeSupport {
+    fn new(info: InfoResponse) -> Self {
+        let opcodes: HashSet<String> = info.opcodes_supported.into_iter().collect();
+        let black_box_functions: HashSet<String> =
+            info.black_box_functions_supported.into_iter().collect();
+        Self { opcodes, black_box_functions }
+    }
+}
+
 impl InfoCommand {
     pub(crate) fn run(
         self,
         binary_path: &Path,
-    ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
+    ) -> Result<(Language, BackendOpcodeSupport), BackendError> {
         let mut command = std::process::Command::new(binary_path);
 
         command.arg("info").arg("-c").arg(self.crs_path).arg("-o").arg("-");
@@ -49,24 +57,7 @@ impl InfoCommand {
             _ => panic!("Unknown langauge"),
         };
 
-        let opcodes_set: HashSet<String> = backend_info.opcodes_supported.into_iter().collect();
-        let black_box_functions_set: HashSet<String> =
-            backend_info.black_box_functions_supported.into_iter().collect();
-
-        let is_opcode_supported = move |opcode: &Opcode| -> bool {
-            match opcode {
-                Opcode::Arithmetic(_) => opcodes_set.contains("arithmetic"),
-                Opcode::Directive(_) => opcodes_set.contains("directive"),
-                Opcode::Brillig(_) => opcodes_set.contains("brillig"),
-                Opcode::MemoryInit { .. } => opcodes_set.contains("memory_init"),
-                Opcode::MemoryOp { .. } => opcodes_set.contains("memory_op"),
-                Opcode::BlackBoxFuncCall(func) => {
-                    black_box_functions_set.contains(func.get_black_box_func().name())
-                }
-            }
-        };
-
-        Ok((language, Box::new(is_opcode_supported)))
+        Ok((language, BackendOpcodeSupport::new(backend_info)))
     }
 }
 
@@ -79,10 +70,10 @@ fn info_command() -> Result<(), BackendError> {
     let backend = crate::get_mock_backend()?;
     let crs_path = backend.backend_directory();
 
-    let (language, is_opcode_supported) = InfoCommand { crs_path }.run(backend.binary_path())?;
+    let (language, opcode_support) = InfoCommand { crs_path }.run(backend.binary_path())?;
 
     assert!(matches!(language, Language::PLONKCSat { width: 3 }));
-    assert!(is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
+    assert!(opcode_support.is_opcode_supported(&Opcode::Arithmetic(Expression::default())));
 
     Ok(())
 }

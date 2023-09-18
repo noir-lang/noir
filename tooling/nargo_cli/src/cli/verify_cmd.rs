@@ -50,7 +50,7 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let proofs_dir = workspace.proofs_directory_path();
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
 
@@ -64,7 +64,7 @@ pub(crate) fn run(
             &args.verifier_name,
             &args.compile_options,
             np_language,
-            &is_opcode_supported,
+            &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
     }
 

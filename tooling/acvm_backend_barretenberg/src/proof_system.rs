@@ -2,14 +2,13 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use acvm::acir::circuit::Opcode;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
 use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
-use crate::{Backend, BackendError};
+use crate::{Backend, BackendError, BackendOpcodeSupport};
 
 impl Backend {
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
@@ -27,9 +26,7 @@ impl Backend {
             .run(binary_path)
     }
 
-    pub fn get_backend_info(
-        &self,
-    ) -> Result<(Language, Box<impl Fn(&Opcode) -> bool>), BackendError> {
+    pub fn get_backend_info(&self) -> Result<(Language, BackendOpcodeSupport), BackendError> {
         let binary_path = self.assert_binary_exists()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
