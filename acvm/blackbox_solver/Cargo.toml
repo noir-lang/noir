@@ -1,0 +1,69 @@
+[package]
+name = "acvm_blackbox_solver"
+description = "A solver for the blackbox functions found in ACIR and Brillig"
+version = "0.26.1"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acir.workspace = true
+thiserror.workspace = true
+
+blake2 = "0.10.6"
+sha2 = "0.10.6"
+sha3 = "0.10.6"
+k256 = { version = "0.11.0", features = [
+    "ecdsa",
+    "ecdsa-core",
+    "sha256",
+    "digest",
+    "arithmetic",
+] }
+p256 = { version = "0.11.0", features = [
+    "ecdsa",
+    "ecdsa-core",
+    "sha256",
+    "digest",
+    "arithmetic",
+] }
+hex = "0.4.2"
+num-bigint.workspace = true
+
+# Barretenberg WASM dependencies
+rust-embed = { version = "6.6.0", features = [
+    "debug-embed",
+    "interpolate-folder-path",
+    "include-exclude",
+] }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasmer = { version = "3.3", default-features = false, features = [
+    "js-default",
+] }
+getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen-futures = "0.4.36"
+js-sys = "0.3.62"
+
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = "0.2"
+wasmer = "3.3"
+
+
+[build-dependencies]
+pkg-config = "0.3"
+tar = "~0.4.15"
+flate2 = "~1.0.1"
+reqwest = { version = "0.11.16", default-features = false, features = [
+    "rustls-tls",
+    "blocking",
+] }
+
+[features]
+default = ["bn254"]
+bn254 = ["acir/bn254"]
+bls12_381 = ["acir/bls12_381"]

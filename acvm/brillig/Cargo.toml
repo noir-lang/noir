@@ -1,0 +1,20 @@
+[package]
+name = "brillig"
+description = "Brillig is the bytecode ACIR uses for non-determinism."
+version = "0.26.1"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acir_field.workspace = true
+serde.workspace = true
+
+[features]
+default = ["bn254"]
+bn254 = ["acir_field/bn254"]
+bls12_381 = ["acir_field/bls12_381"]

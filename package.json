@@ -8,6 +8,7 @@
         "tooling/noirc_abi_wasm",
         "compiler/integration-tests",
         "tooling/noir_js",
+        "acvm/acvm_js",
         "release-tests"
     ],
     "scripts": {

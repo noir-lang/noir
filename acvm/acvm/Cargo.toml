@@ -1,0 +1,45 @@
+[package]
+name = "acvm"
+description = "The virtual machine that processes ACIR given a backend/proof system."
+version = "0.26.1"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+num-bigint.workspace = true
+num-traits.workspace = true
+thiserror.workspace = true
+
+acir.workspace = true
+stdlib.workspace = true
+brillig_vm = { version = "0.26.1", path = "../brillig_vm", default-features = false }
+blackbox_solver.workspace = true
+
+indexmap = "1.7.0"
+
+[features]
+default = ["bn254", "testing"]
+bn254 = [
+    "acir/bn254",
+    "stdlib/bn254",
+    "brillig_vm/bn254",
+    "blackbox_solver/bn254",
+]
+bls12_381 = [
+    "acir/bls12_381",
+    "stdlib/bls12_381",
+    "brillig_vm/bls12_381",
+    "blackbox_solver/bls12_381",
+]
+testing = ["stdlib/testing", "unstable-fallbacks"]
+unstable-fallbacks = []
+
+[dev-dependencies]
+rand = "0.8.5"
+proptest = "1.2.0"
+paste = "1.0.14"
