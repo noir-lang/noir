@@ -10,14 +10,14 @@ import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
+const { default: initACVM, executeCircuit, compressWitness } = acvm;
+const { default: newABICoder, abiEncode } = noirc;
 
-const { executeCircuit, compressWitness } = acvm;
 type WitnessMap = acvm.WitnessMap;
-const { abiEncode } = noirc;
 
 await newCompiler();
-await noirc.newABICoder();
-await acvm.initACVM();
+await newABICoder();
+await initACVM();
 
 compilerLogLevel("DEBUG");
 
