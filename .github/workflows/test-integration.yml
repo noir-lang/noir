@@ -2,6 +2,9 @@ name: test-integration
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ./compiler/integration-tests
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
@@ -82,7 +85,7 @@ jobs:
 
       - name: Setup `integration-tests`
         run: |
-          yarn workspace @noir-lang/noir-source-resolver build
+          yarn workspace @noir-lang/source-resolver build
 
       - name: Run `integration-tests`
         run: |
