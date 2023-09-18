@@ -30,8 +30,8 @@ if [[ "$COMMIT_TAG" == *"/"* ]]; then
   COMMIT_TAG_VERSION="${COMMIT_TAG#*/}"
   echo "Tag was made for: $REPO_NAME"
   echo "Version: $COMMIT_TAG_VERSION"
-
-    # Check if REPO_NAME is equal to REPOSITORY
+  
+  # Check if REPO_NAME is equal to REPOSITORY
   if [ "$REPO_NAME" != "$REPOSITORY" ]; then
     echo "REPO_NAME ($REPO_NAME) does not match REPOSITORY ($REPOSITORY). Exiting..."
     exit 1
@@ -48,6 +48,8 @@ VERSION=$(npx semver $COMMIT_TAG_VERSION)
 if [ -z "$VERSION" ]; then
   echo "$COMMIT_TAG_VERSION is not a semantic version."
   exit 1
+else
+  COMMIT_TAG_VERSION=$VERSION
 fi
 
 echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
