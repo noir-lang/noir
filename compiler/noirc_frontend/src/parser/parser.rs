@@ -2246,10 +2246,16 @@ mod test {
             "struct Foo { }",
             "struct Bar { ident: Field, }",
             "struct Baz { ident: Field, other: Field }",
+            "#[attribute] struct Baz { ident: Field, other: Field }",
         ];
         parse_all(struct_definition(), cases);
 
-        let failing = vec!["struct {  }", "struct Foo { bar: pub Field }"];
+        let failing = vec![
+            "struct {  }",
+            "struct Foo { bar: pub Field }",
+            "struct Foo { bar: pub Field }",
+            "#[oracle(some)] struct Foo { bar: Field }",
+        ];
         parse_all_failing(struct_definition(), failing);
     }
 
