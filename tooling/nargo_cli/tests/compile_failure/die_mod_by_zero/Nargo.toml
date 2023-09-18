@@ -1,0 +1,7 @@
+[package]
+name = "die_mod_by_zero"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.3"
+
+[dependencies]
