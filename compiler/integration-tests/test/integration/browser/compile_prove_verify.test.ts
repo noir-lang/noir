@@ -15,7 +15,6 @@ const { executeCircuit, compressWitness } = acvm;
 type WitnessMap = acvm.WitnessMap;
 const { abiEncode } = noirc;
 
-
 await newCompiler();
 await noirc.newABICoder();
 await acvm.initACVM();
