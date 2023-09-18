@@ -1,20 +1,17 @@
 /// <reference types="node" />
 
-import { initialiseResolver, read_file } from './index.js';
+import { initializeResolver, read_file } from "./index.js";
 
-initialiseResolver((source_id: String) => {
-    let fileContent = "";
-    try {
-        const fs = require("fs");
-        fileContent =
-            fs.readFileSync(source_id, { encoding: "utf8" }) as string
-            ;
-    } catch (e) {
-        console.log(e);
-    }
-    return fileContent;
+initializeResolver((source_id: string) => {
+  let fileContent = "";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs");
+    fileContent = fs.readFileSync(source_id, { encoding: "utf8" }) as string;
+  } catch (e) {
+    console.log(e);
+  }
+  return fileContent;
 });
 
-export { initialiseResolver, read_file };
-
-
+export { initializeResolver, read_file };
