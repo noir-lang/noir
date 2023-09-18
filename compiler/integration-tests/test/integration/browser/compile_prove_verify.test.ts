@@ -5,11 +5,11 @@ import newCompiler, {
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
+import { acvm, noirc } from "@noir-lang/noir_js";
 import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
-import { acvm, noirc } from "@noir-lang/noir_js";
 
 const { executeCircuit, compressWitness } = acvm;
 type WitnessMap = acvm.WitnessMap;
