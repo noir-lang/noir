@@ -9,4 +9,4 @@ nargo_check
 # Runs the compile scripts for all contracts.
 echo "Compiling all contracts"
 
-nargo compile --workspace
+nargo compile --workspace --output-debug
