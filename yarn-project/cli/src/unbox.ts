@@ -16,6 +16,7 @@ import * as path from 'path';
 
 const GITHUB_OWNER = 'AztecProtocol';
 const GITHUB_REPO = 'aztec-packages';
+const GITHUB_TAG_PREFIX = 'aztec-packages';
 const NOIR_CONTRACTS_PATH = 'yarn-project/noir-contracts/src/contracts';
 const BOXES_PATH = 'yarn-project/boxes';
 
@@ -77,25 +78,24 @@ async function copyFolderFromGithub(data: JSZip, repositoryFolderPath: string, l
  * monorepo on github.  this will copy over the `yarn-projects/boxes/{contract_name}` folder
  * as well as the specified `directoryPath` if the box doesn't include source code
  * `directoryPath` should point to a single noir contract in `yarn-projects/noir-contracts/src/contracts/...`
- * @param tagVersion - the version of the CLI that is running.  we pull from the corresponding tag in the monorepo
+ * @param tag - The git tag to pull.
  * @param directoryPath - path to a noir contract's source code (folder) in the github repo
  * @param outputPath - local path that we will copy the noir contracts and web3 starter kit to
  * @returns
  */
 async function downloadContractAndBoxFromGithub(
-  tagVersion: string,
+  tag: string,
   contractName: string,
   outputPath: string,
   log: LogFn,
 ): Promise<void> {
-  const tagName = `aztec-packages-v${tagVersion}`;
   // small string conversion, in the ABI the contract name looks like PrivateToken
   // but in the repostory it looks like private_token
 
   const kebabCaseContractName = contractNameToFolder(contractName, '-');
   log(`Downloading @aztex/boxes/${kebabCaseContractName} to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
-  const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tagName}.zip`;
+  const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tag}.zip`;
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
 
@@ -104,7 +104,7 @@ async function downloadContractAndBoxFromGithub(
 
   // Step 2: copy the '@aztec/boxes/{contract-name}' subpackage to the output directory
   // this is currently only implemented for PrivateToken under 'boxes/private-token/'
-  const repoDirectoryPrefix = `${GITHUB_REPO}-${tagName}`;
+  const repoDirectoryPrefix = `${GITHUB_REPO}-${tag}`;
 
   const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${kebabCaseContractName}`;
   await copyFolderFromGithub(data, boxPath, outputPath, log);
@@ -144,14 +144,20 @@ async function downloadContractAndBoxFromGithub(
  * something usable by the copied standalone unboxed folder.  Adjusts relative paths
  * and package versions.
  * @param packageVersion - CLI npm version, which determines what npm version to grab
+ * @param tag - The git tag.
  * @param outputPath - relative path where we are copying everything
  * @param log - logger
  */
-async function updatePackagingConfigurations(packageVersion: string, outputPath: string, log: LogFn): Promise<void> {
+async function updatePackagingConfigurations(
+  packageVersion: string,
+  tag: string,
+  outputPath: string,
+  log: LogFn,
+): Promise<void> {
   await updatePackageJsonVersions(packageVersion, outputPath, log);
   await updateTsConfig('tsconfig.json', outputPath, log);
   await updateTsConfig('tsconfig.dest.json', outputPath, log);
-  await updateNargoToml(packageVersion, outputPath, log);
+  await updateNargoToml(tag, outputPath, log);
 }
 
 /**
@@ -160,14 +166,14 @@ async function updatePackagingConfigurations(packageVersion: string, outputPath:
  * @param outputPath - relative path where we are copying everything
  * @param log - logger
  */
-async function updateNargoToml(packageVersion: string, outputPath: string, log: LogFn): Promise<void> {
+async function updateNargoToml(tag: string, outputPath: string, log: LogFn): Promise<void> {
   const nargoTomlPath = path.join(outputPath, 'src', 'contracts', 'Nargo.toml');
   const fileContent = await fs.readFile(nargoTomlPath, 'utf-8');
   const lines = fileContent.split('\n');
-  const updatedLines = lines.map(line => line.replace(/tag="master"/g, `tag="v${packageVersion}"`));
+  const updatedLines = lines.map(line => line.replace(/tag="master"/g, `tag="${tag}"`));
   const updatedContent = updatedLines.join('\n');
   await fs.writeFile(nargoTomlPath, updatedContent);
-  log(`Updated Nargo.toml to point to local copy of noir-libs.`);
+  log(`Updated Nargo.toml to point to the compatible version of aztec noir libs.`);
 }
 
 /**
@@ -300,11 +306,19 @@ export async function unboxContract(
   }
   const outputPath = await createDirectory(outputDirectoryName, log);
 
+  const tag = `${GITHUB_TAG_PREFIX}-v${packageVersion}`;
   // downloads the selected contract's relevant folder in @aztec/boxes/{contract_name}
   // and the noir source code from `noir-contracts` into `${outputDirectoryName}/src/contracts`
   // if not present in the box
-  await downloadContractAndBoxFromGithub(packageVersion, contractName, outputPath, log);
+  await downloadContractAndBoxFromGithub(tag, contractName, outputPath, log);
   // make adjustments for packaging to work as a standalone, as opposed to part of yarn workspace
   // as in the monorepo source files
-  await updatePackagingConfigurations(packageVersion, outputPath, log);
+  await updatePackagingConfigurations(packageVersion, tag, outputPath, log);
+
+  log('');
+  log(`${contractName} has been successfully initialised!`);
+  log('To get started, simply run the following commands:');
+  log(`    cd ${outputDirectoryName}`);
+  log('    yarn');
+  log('    yarn start:dev');
 }
