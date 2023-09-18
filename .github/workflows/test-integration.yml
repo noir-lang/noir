@@ -2,6 +2,9 @@ name: test-integration
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - jb-noir-js-testing
   pull_request:
     paths:
       - ./compiler/integration-tests
@@ -90,8 +93,8 @@ jobs:
       - name: Run `integration-tests`
         run: |
           yarn test:integration
-          
-      - name: Alert on nightly test failure  
+
+      - name: Alert on nightly test failure
         uses: JasonEtco/create-an-issue@v2
         if: ${{ failure() && github.event_name == 'schedule' }}
         env:
