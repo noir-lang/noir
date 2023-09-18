@@ -32,6 +32,11 @@
           "type": "json",
           "path": "compiler/source-resolver/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "acvm/acvm_js/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }
