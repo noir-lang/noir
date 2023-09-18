@@ -3,8 +3,8 @@ name: Track ACVM for Integration Tests
 on:
   pull_request:
     paths:
-      - 'Cargo.lock'
-      - 'yarn.lock'
+      - "Cargo.lock"
+      - "yarn.lock"
 
 jobs:
   check_matching_version:
@@ -17,7 +17,7 @@ jobs:
         run: |
           # Extract acvm version from the current Cargo.lock
           CURRENT_VERSION=$(awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
-          INTEGRATION_TEST_VERSION=$(yarn workspace integration-tests info @noir-lang/acvm_js --json | jq .children.Version | tr -d '"')
+          INTEGRATION_TEST_VERSION=$(awk -F: '/"@noir-lang\/noir_js@workspace:/,/@noir-lang\/noirc_abi/" { if(/"@noir-lang\/acvm_js"/) {getline; print $2} }' yarn.lock | tr -d ' "')
 
           echo "Current ACVM Version: $CURRENT_VERSION"
           echo "Integration Test ACVM Version: $INTEGRATION_TEST_VERSION"
