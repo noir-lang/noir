@@ -308,12 +308,12 @@ aztec-cli get-account 0x123456789abcdef123456789abcdef12345678
 
 ### send
 
-Calls a function on an Aztec contract.
+Sends a transaction invoking a function on an Aztec contract.
 
 Syntax:
 
 ```shell
-aztec-cli call-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
+aztec-cli send <functionName> --args [functionArgs...] --contract-abi <contractAbi> --contract-address <contractAddress> --private-key <senderPrivateKey>
 ```
 
 - `functionName`: Name of the function to call.
@@ -334,14 +334,15 @@ Example usage:
 aztec-cli send transfer -ca 0x123456789abcdef123456789abcdef12345678 -a 100 -c path/to/abi.json
 ```
 
-### view-fn
+### call
 
-Simulates the execution of a view (read-only) function on a deployed contract, without modifying state.
+Calls a view (read-only) function on a deployed contract.
+Unlike transactions, view calls do not modify the state of the contract.
 
 Syntax:
 
 ```shell
-aztec-cli call <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
+aztec-cli call <functionName> -a [functionArgs...] -c <contractAbi> -ca <contractAddress> -f <fromAddress>
 ```
 
 - `functionName`: Name of the function to view.
@@ -351,7 +352,7 @@ Options:
 - `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
 - `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
 - `-ca, --contract-address <address>`: Address of the contract.
-- `-f, --from <string>`: Public key of the transaction viewer. If empty, it will try to find an account in the RPC.
+- `-f, --from <string>`: Address of the caller. If empty, first account in the Aztec RPC Server will be used.
 - `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 
 This command simulates the execution of a view function on a deployed contract without modifying the state. It requires the contract's ABI, address, function name, and optionally, function arguments. The command displays the result of the view function.
