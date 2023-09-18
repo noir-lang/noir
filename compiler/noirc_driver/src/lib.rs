@@ -111,7 +111,7 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
 ) -> CompilationResult<()> {
-    let mut errors: Vec<FileDiagnostic> = vec![];
+    let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
     if has_errors(&errors, deny_warnings) {
