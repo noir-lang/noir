@@ -17,7 +17,7 @@ jobs:
         run: |
           # Extract acvm version from the current Cargo.lock
           CURRENT_VERSION=$(awk '/name = "acvm"/ {getline; print $3}' Cargo.lock | tr -d '"')
-          INTEGRATION_TEST_VERSION=$(awk -F: '/"@noir-lang\/noir_js@workspace:/,/@noir-lang\/noirc_abi/" { if(/"@noir-lang\/acvm_js"/) {getline; print $2} }' yarn.lock | tr -d ' "')
+          INTEGRATION_TEST_VERSION=$(awk -F: '/@noir-lang\/noir_js@workspace:/,/noirc_abi: "workspace:/" { if(/"@noir-lang\/acvm_js"/) {getline; print $2} }' yarn.lock | tr -d ' "')
 
           echo "Current ACVM Version: $CURRENT_VERSION"
           echo "Integration Test ACVM Version: $INTEGRATION_TEST_VERSION"
