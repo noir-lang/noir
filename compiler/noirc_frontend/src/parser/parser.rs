@@ -467,7 +467,7 @@ fn validate_struct_attributes(
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Vec<SecondaryAttribute> {
-    let attrs = attributes.unwrap_or(vec![]);
+    let attrs = attributes.unwrap_or_default(vec![]);
     let mut struct_attributes = vec![];
 
     for attribute in attrs {
