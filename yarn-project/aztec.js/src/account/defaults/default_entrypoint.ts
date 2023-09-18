@@ -49,32 +49,39 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
             path: 'aztec::entrypoint::EntrypointPayload',
             fields: [
               {
-                name: 'flattened_args_hashes',
+                name: 'function_calls',
                 type: {
                   kind: 'array',
                   length: 4,
                   type: {
-                    kind: 'field',
-                  },
-                },
-              },
-              {
-                name: 'flattened_selectors',
-                type: {
-                  kind: 'array',
-                  length: 4,
-                  type: {
-                    kind: 'field',
-                  },
-                },
-              },
-              {
-                name: 'flattened_targets',
-                type: {
-                  kind: 'array',
-                  length: 4,
-                  type: {
-                    kind: 'field',
+                    kind: 'struct',
+                    path: 'aztec::entrypoint::FunctionCall',
+                    fields: [
+                      {
+                        name: 'args_hash',
+                        type: {
+                          kind: 'field',
+                        },
+                      },
+                      {
+                        name: 'function_selector',
+                        type: {
+                          kind: 'field',
+                        },
+                      },
+                      {
+                        name: 'target_address',
+                        type: {
+                          kind: 'field',
+                        },
+                      },
+                      {
+                        name: 'is_public',
+                        type: {
+                          kind: 'boolean',
+                        },
+                      },
+                    ],
                   },
                 },
               },

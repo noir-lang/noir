@@ -7,33 +7,45 @@ use crate::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
 use dep::std::hash;
 
-global ACCOUNT_MAX_PRIVATE_CALLS: Field = 2;
-global ACCOUNT_MAX_PUBLIC_CALLS: Field = 2;
 global ACCOUNT_MAX_CALLS: Field = 4;
-// 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS)
-global FUNCTION_CALL_SIZE: Field = 3;
+// 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS) + 1 (IS_PUBLIC)
+global FUNCTION_CALL_SIZE: Field = 4;
+// 3 * 32 + 1
+global FUNCTION_CALL_SIZE_IN_BYTES: Field = 97;
 
 struct FunctionCall {
   args_hash: Field,
   function_selector: Field,
   target_address: Field,
+  is_public: bool,
 }
 
 impl FunctionCall {
   fn serialize(self) -> [Field; FUNCTION_CALL_SIZE] {
-    [self.args_hash, self.function_selector, self.target_address]
+    [self.args_hash, self.function_selector, self.target_address, self.is_public as Field]
+  }
+
+  fn to_be_bytes(self) -> [u8; FUNCTION_CALL_SIZE_IN_BYTES] {
+    let mut bytes: [u8; FUNCTION_CALL_SIZE_IN_BYTES] = [0; FUNCTION_CALL_SIZE_IN_BYTES];
+    let args_hash_bytes = self.args_hash.to_be_bytes(32);
+    for i in 0..32 { bytes[i] = args_hash_bytes[i]; }
+    let function_selector_bytes = self.function_selector.to_be_bytes(32);
+    for i in 0..32 { bytes[i + 32] = function_selector_bytes[i]; }
+    let target_address_bytes = self.target_address.to_be_bytes(32);
+    for i in 0..32 { bytes[i + 64] = target_address_bytes[i]; }
+    bytes[96] = self.is_public as u8;
+    bytes
   }
 }
 
-// FUNCTION_CALL_SIZE * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS) + 1
-global ENTRYPOINT_PAYLOAD_SIZE: Field = 13;
-global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: Field = 416;
+// FUNCTION_CALL_SIZE * ACCOUNT_MAX_CALLS + 1
+global ENTRYPOINT_PAYLOAD_SIZE: Field = 17;
+// FUNCTION_CALL_SIZE_IN_BYTES * ACCOUNT_MAX_CALLS + 32
+global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: Field = 420;
 
 // docs:start:entrypoint-struct
 struct EntrypointPayload {
-  flattened_args_hashes: [Field; ACCOUNT_MAX_CALLS],
-  flattened_selectors: [Field; ACCOUNT_MAX_CALLS],
-  flattened_targets: [Field; ACCOUNT_MAX_CALLS],
+  function_calls: [FunctionCall; ACCOUNT_MAX_CALLS],
   nonce: Field,
 }
 // docs:end:entrypoint-struct
@@ -49,9 +61,9 @@ impl EntrypointPayload {
   // Serializes the entrypoint struct
   fn serialize(self) -> [Field; ENTRYPOINT_PAYLOAD_SIZE] {
     let mut fields: BoundedVec<Field, ENTRYPOINT_PAYLOAD_SIZE> = BoundedVec::new(0); 
-    fields.push_array(self.flattened_args_hashes);
-    fields.push_array(self.flattened_selectors);
-    fields.push_array(self.flattened_targets);
+    for call in self.function_calls {
+      fields.push_array(call.serialize());
+    }
     fields.push(self.nonce);
     fields.storage
   }
@@ -60,57 +72,37 @@ impl EntrypointPayload {
   fn to_be_bytes(self) -> [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] {
     let mut bytes: [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = [0; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES];
 
-    let args_len = self.flattened_args_hashes.len();
-    let selectors_len = self.flattened_selectors.len();
-    let targets_len = self.flattened_targets.len();
-
-    for i in 0..args_len {
-      let item_bytes = self.flattened_args_hashes[i].to_be_bytes(32);
-      for j in 0..32 { 
-        bytes[i * 32 + j] = item_bytes[j];
+    for i in 0..ACCOUNT_MAX_CALLS {
+      let item_bytes = self.function_calls[i].to_be_bytes();
+      for j in 0..FUNCTION_CALL_SIZE_IN_BYTES { 
+        bytes[i * FUNCTION_CALL_SIZE_IN_BYTES + j] = item_bytes[j];
       }
     }
 
-    for i in 0..selectors_len {
-      let item_bytes = self.flattened_selectors[i].to_be_bytes(32);
-      for j in 0..32 { 
-        bytes[args_len * 32 + i * 32 + j] = item_bytes[j];
-      }
-    }
-
-    for i in 0..targets_len {
-      let item_bytes = self.flattened_targets[i].to_be_bytes(32);
-      for j in 0..32 { 
-        bytes[(args_len + selectors_len) * 32 + i * 32 + j] = item_bytes[j];
-      }
+    let nonce_bytes = self.nonce.to_be_bytes(32);
+    let nonce_offset = FUNCTION_CALL_SIZE_IN_BYTES * ACCOUNT_MAX_CALLS;
+    for j in 0..32 {
+      bytes[nonce_offset + j] = nonce_bytes[j];
     }
     
-    let item_bytes = self.nonce.to_be_bytes(32);
-    for j in 0..32 { 
-      bytes[(args_len + selectors_len + targets_len) * 32 + j] = item_bytes[j];
-    }
-
     bytes
   }
 
   // Executes all private and public calls 
   // docs:start:entrypoint-execute-calls
   fn execute_calls(self, context: &mut PrivateContext) {
-    for i in 0..ACCOUNT_MAX_PRIVATE_CALLS {
-        let target_address = self.flattened_targets[i];
-        if target_address != 0 {
-            let function_selector = self.flattened_selectors[i];
-            let args_hash = self.flattened_args_hashes[i];
-            let _callStackItem = context.call_private_function_with_packed_args(target_address, function_selector, args_hash);
+    for call in self.function_calls {
+      if call.target_address != 0 {
+        if call.is_public {
+          context.call_public_function_with_packed_args(
+            call.target_address, call.function_selector, call.args_hash
+          );
+        } else {
+          let _result = context.call_private_function_with_packed_args(
+            call.target_address, call.function_selector, call.args_hash
+          );
         }
-    }
-    for i in ACCOUNT_MAX_PRIVATE_CALLS..ACCOUNT_MAX_CALLS {
-        let target_address = self.flattened_targets[i];
-        if target_address != 0 {
-            let function_selector = self.flattened_selectors[i];
-            let args_hash = self.flattened_args_hashes[i];
-            let _callStackItem = context.call_public_function_with_packed_args(target_address, function_selector, args_hash);
-        }
+      }
     }
   }
   // docs:end:entrypoint-execute-calls

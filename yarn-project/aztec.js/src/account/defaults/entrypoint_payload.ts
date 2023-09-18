@@ -3,23 +3,30 @@ import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barrete
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
-import partition from 'lodash.partition';
-
 // These must match the values defined in yarn-project/aztec-nr/aztec/src/entrypoint.nr
-export const ACCOUNT_MAX_PRIVATE_CALLS = 2;
-export const ACCOUNT_MAX_PUBLIC_CALLS = 2;
+export const ACCOUNT_MAX_CALLS = 4;
+
+/** Encoded function call for account contract entrypoint */
+export type EntrypointFunctionCall = {
+  // eslint-disable-next-line camelcase
+  /** Arguments hash for the call */
+  args_hash: Fr;
+  // eslint-disable-next-line camelcase
+  /** Selector of the function to call */
+  function_selector: Fr;
+  // eslint-disable-next-line camelcase
+  /** Address of the contract to call */
+  target_address: Fr;
+  // eslint-disable-next-line camelcase
+  /** Whether the function is public or private */
+  is_public: boolean;
+};
 
 /** Encoded payload for the account contract entrypoint */
 export type EntrypointPayload = {
   // eslint-disable-next-line camelcase
-  /** Concatenated arguments for every call */
-  flattened_args_hashes: Fr[];
-  // eslint-disable-next-line camelcase
-  /** Concatenated selectors for every call */
-  flattened_selectors: Fr[];
-  // eslint-disable-next-line camelcase
-  /** Concatenated target addresses for every call */
-  flattened_targets: Fr[];
+  /** Encoded function calls to execute */
+  function_calls: EntrypointFunctionCall[];
   /** A nonce for replay protection */
   nonce: Fr;
 };
@@ -33,28 +40,27 @@ export async function buildPayload(calls: FunctionCall[]): Promise<{
 }> {
   const nonce = Fr.random();
 
-  const [privateCalls, publicCalls] = partition(calls, call => call.functionData.isPrivate);
-
-  const paddedCalls = [
-    ...padArrayEnd(privateCalls, emptyFunctionCall(), ACCOUNT_MAX_PRIVATE_CALLS),
-    ...padArrayEnd(publicCalls, emptyFunctionCall(), ACCOUNT_MAX_PUBLIC_CALLS),
-  ];
-
-  const packedArguments = [];
-  const wasm = await CircuitsWasm.get();
-
+  const paddedCalls = padArrayEnd(calls, emptyFunctionCall(), ACCOUNT_MAX_CALLS);
+  const packedArguments: PackedArguments[] = [];
   for (const call of paddedCalls) {
-    packedArguments.push(await PackedArguments.fromArgs(call.args, wasm));
+    packedArguments.push(await PackedArguments.fromArgs(call.args));
   }
+
+  const formattedCalls: EntrypointFunctionCall[] = paddedCalls.map((call, index) => ({
+    // eslint-disable-next-line camelcase
+    args_hash: packedArguments[index].hash,
+    // eslint-disable-next-line camelcase
+    function_selector: call.functionData.selector.toField(),
+    // eslint-disable-next-line camelcase
+    target_address: call.to.toField(),
+    // eslint-disable-next-line camelcase
+    is_public: !call.functionData.isPrivate,
+  }));
 
   return {
     payload: {
       // eslint-disable-next-line camelcase
-      flattened_args_hashes: packedArguments.map(args => args.hash),
-      // eslint-disable-next-line camelcase
-      flattened_selectors: paddedCalls.map(call => call.functionData.selector.toField()),
-      // eslint-disable-next-line camelcase
-      flattened_targets: paddedCalls.map(call => call.to.toField()),
+      function_calls: formattedCalls,
       nonce,
     },
     packedArguments,
@@ -73,9 +79,12 @@ export async function hashPayload(payload: EntrypointPayload) {
 /** Flattens an entrypoint payload */
 export function flattenPayload(payload: EntrypointPayload) {
   return [
-    ...payload.flattened_args_hashes,
-    ...payload.flattened_selectors,
-    ...payload.flattened_targets,
+    ...payload.function_calls.flatMap(call => [
+      call.args_hash,
+      call.function_selector,
+      call.target_address,
+      new Fr(call.is_public),
+    ]),
     payload.nonce,
   ];
 }
