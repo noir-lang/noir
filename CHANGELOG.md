@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.7.6...aztec-packages-v0.7.7) (2023-09-18)
+
+
+### Bug Fixes
+
+* Deploy_npm script variable ([#2372](https://github.com/AztecProtocol/aztec-packages/issues/2372)) ([b46e06d](https://github.com/AztecProtocol/aztec-packages/commit/b46e06d4e3caedb0584b1e7e28ac035ed264f682))
+
 ## [0.7.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.7.5...aztec-packages-v0.7.6) (2023-09-18)
 
 
