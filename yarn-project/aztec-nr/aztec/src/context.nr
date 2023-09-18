@@ -174,14 +174,13 @@ impl PrivateContext {
     // docs:start:context_consume_l1_to_l2_message
     fn consume_l1_to_l2_message(
         &mut self,
-        inputs: abi::PrivateContextInputs,
         msg_key: Field,
         content: Field,
         secret: Field
     ) 
     // docs:end:context_consume_l1_to_l2_message
     {
-        let nullifier = process_l1_to_l2_message(inputs.block_data.l1_to_l2_messages_tree_root, inputs.call_context.storage_contract_address, msg_key, content, secret);
+        let nullifier = process_l1_to_l2_message(self.block_data.l1_to_l2_messages_tree_root, self.this_address(), msg_key, content, secret);
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT)

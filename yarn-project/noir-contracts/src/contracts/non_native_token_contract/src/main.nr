@@ -96,7 +96,6 @@ contract NonNativeToken {
     fn mint(
         amount: Field,
         owner: Field,
-        // This field should be hidden
         msg_key: Field,
         secret: Field,
         canceller: Field,
@@ -106,7 +105,7 @@ contract NonNativeToken {
         let content_hash = get_mint_content_hash(amount, owner, canceller);
 
         // Get the l1 message from an oracle call
-        context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
+        context.consume_l1_to_l2_message(msg_key, content_hash, secret);
 
         let balance = storage.balances.at(owner);
         increment(balance, amount, owner);
@@ -141,7 +140,6 @@ contract NonNativeToken {
     fn mintPublic(
         amount: Field,
         owner_address: Field,
-        // This field should be hidden
         msg_key: Field,
         secret: Field,
         canceller: Field,
