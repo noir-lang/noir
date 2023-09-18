@@ -385,14 +385,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/acvm_js@npm:0.26.1, @noir-lang/acvm_js@npm:^0.26.1":
+"@noir-lang/acvm_js@npm:0.26.1":
   version: 0.26.1
   resolution: "@noir-lang/acvm_js@npm:0.26.1"
   checksum: ae8cb6e31610cd8aa392855342d0c953a1bc4cd9e07236340341afa5815696a69a6635c38241f1d6a5dd30c5a8ae49234f2ba8b71d46c5d1a46756ff6f4dde3a
   languageName: node
   linkType: hard
 
-"@noir-lang/noir_js@workspace:tooling/noir_js":
+"@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
   dependencies:
@@ -4282,9 +4282,8 @@ __metadata:
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
     "@aztec/bb.js": ^0.6.7
-    "@noir-lang/acvm_js": ^0.26.1
+    "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
-    "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/source-resolver": "workspace:*"
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
