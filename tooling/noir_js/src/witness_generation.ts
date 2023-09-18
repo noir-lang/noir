@@ -4,7 +4,7 @@ import { base64Decode } from './base64_decode.js';
 import { WitnessMap, executeCircuit } from '@noir-lang/acvm_js';
 
 // Generates the witnesses needed to feed into the chosen proving system
-export async function generateWitness(compiledProgram: any, inputs: any): Promise<WitnessMap> {
+export async function generateWitness(compiledProgram, inputs): Promise<WitnessMap> {
   // Validate inputs
   const { isValid, error } = validateInputs(inputs, compiledProgram.abi);
   if (!isValid) {

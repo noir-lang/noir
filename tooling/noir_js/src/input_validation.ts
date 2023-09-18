@@ -1,5 +1,5 @@
 // Check if all of the input values are correct according to the ABI
-export function validateInputs(inputs: any, abi: any) {
+export function validateInputs(inputs, abi) {
   for (const param of abi.parameters) {
     const inputValue = inputs[param.name];
     if (inputValue === undefined) {
@@ -18,7 +18,7 @@ export function validateInputs(inputs: any, abi: any) {
 
 // Checks that value is of type "type"
 // Where type is taken from the abi
-function checkType(value: any, type: any) {
+function checkType(value, type) {
   switch (type.kind) {
     case 'integer':
       if (type.sign === 'unsigned') {
@@ -31,7 +31,7 @@ function checkType(value: any, type: any) {
   return false;
 }
 
-function type_to_string(type: any): string {
+function type_to_string(type): string {
   switch (type.kind) {
     case 'integer':
       if (type.sign === 'unsigned') {
@@ -45,7 +45,7 @@ function type_to_string(type: any): string {
 }
 
 // Returns true if `value` is an unsigned integer that is less than 2^{width}
-function isUnsignedInteger(value: any, width: any) {
+function isUnsignedInteger(value: bigint, width: bigint) {
   try {
     const bigIntValue = BigInt(value);
     return bigIntValue >= 0 && bigIntValue <= BigInt(2) ** BigInt(width) - 1n;

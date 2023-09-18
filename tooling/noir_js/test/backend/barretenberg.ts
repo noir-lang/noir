@@ -94,8 +94,8 @@ export class Backend {
     const vk = await this.api.acirSerializeVerificationKeyIntoFields(this.acirComposer);
 
     return {
-      proofAsFields: proofAsFields.map((p: any) => p.toString()),
-      vkAsFields: vk[0].map((vk: any) => vk.toString()),
+      proofAsFields: proofAsFields.map((p) => p.toString()),
+      vkAsFields: vk[0].map((vk) => vk.toString()),
       vkHash: vk[1].toString(),
     };
   }
