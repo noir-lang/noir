@@ -2,10 +2,7 @@
 import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
 // TODO: This should be re-exported from @aztec/bb-js
 import { Ptr } from '@aztec/bb.js/dest/browser/types';
-import { acirToUint8Array, acvm, generateWitness, witnessMapToUint8Array } from '../../src/index.js';
-import { WitnessMap, getPublicParametersWitness } from '@noir-lang/acvm_js';
-import { base64Decode } from '../../src/base64_decode.js';
-import double_verify_json from '../noir_compiled_examples/double_verify_proof/target/double_verify_proof.json' assert { type: 'json' };
+import { acirToUint8Array } from '../../src/index.js';
 
 export class Backend {
   // These type assertions are used so that we don't
@@ -121,103 +118,5 @@ export class Backend {
 
   async destroy() {
     await this.api.destroy();
-  }
-}
-
-// This uses a 2 to 1 recursive backend.
-// We assume all the circuits on the base layer are homogenous
-// for simplicity, but we can change it, it will just require a lot more
-// memory.
-// TODO: Note that this API is vastly different from the one in the backend
-// TODO my only concern is the usage of compiledProgram and bytecode not being consistent
-//
-// TODO: This API will change depending on whether we can aggregate different
-// TODO circuits. If not, then API is fine. If so, then we cannot just save the proof
-// TODO because each proof could be associated with a different circuit.
-export class RecursiveBackend {
-  backend: Backend;
-  innerProofs: any[] = [];
-  acirCompressedBytecode: Uint8Array;
-  //
-  compiledProgram: any;
-
-  constructor(compiledProgram: any) {
-    const acirBytecodeBase64 = compiledProgram.bytecode as string;
-    this.backend = new Backend(acirBytecodeBase64);
-    this.compiledProgram = compiledProgram;
-
-    // TODO: This is needed because acvm reads in compressed bytecode
-    // TODO: while backends read in uncompressed bytecode.
-    // TODO: We should fix up the API to get rid of this discrepancy.
-    //
-    // Its only the raw barretenberg API that requires the uncompressed bytecode
-    // The acir tests for example use the compressed bytecode.
-    // We could:
-    // - change the barretenberg raw API to use compressed bytecode
-    // - make acvm take in uncompressed bytecode
-    // - create an API over the raw barretenberg API that takes in compressed bytecode
-    // I'm leaning towards modifying the acvm api to use uncompressed bytecode
-    this.acirCompressedBytecode = base64Decode(acirBytecodeBase64);
-  }
-
-  async init() {
-    await this.backend.init();
-  }
-
-  // Creates a new inner proof, given just the inputs
-  //
-  // This is a nice APi, though it requires the abi being known
-  // by this class. This is the reason that the constructor takes in
-  // a compiledProgram.
-  async newInnerProof(inputs: any) {
-    const solvedWitness = await generateWitness(this.compiledProgram, inputs);
-    await this.newInnerProofFromSolvedWitness(solvedWitness);
-  }
-
-  private async newInnerProofFromSolvedWitness(solvedWitness: WitnessMap) {
-    const serializedWitness = witnessMapToUint8Array(solvedWitness);
-    const proof = await this.backend.generateInnerProof(serializedWitness);
-    const numPublicParameters = getPublicParametersWitness(this.acirCompressedBytecode, solvedWitness).size;
-    const innerProofArtifacts = await this.backend.generateInnerProofArtifacts(proof, numPublicParameters);
-    this.innerProofs.push({ proofArtifacts: innerProofArtifacts, numPublicParameters: numPublicParameters });
-  }
-
-  // Recursively verifies a list of inner proofs.
-  //
-  //
-  async finalize(): Promise<Uint8Array> {
-    if (this.innerProofs.length == 0) {
-      throw new Error('No inner proofs have been created');
-    }
-    if (this.innerProofs.length == 1) {
-      throw new Error('Currently we do not support the edge case of 1 proof being created. Fix would be to pad.');
-    }
-
-    // TODO(Maxim): I this should be fixed in ACVM and barretenberg.
-    if (this.innerProofs.length > 2) {
-      throw new Error(
-        'Currently we only support recursively verifying 2 proofs, where each proof must not contain a recursive verification opcode. Barretenberg API does not support this.',
-      );
-    }
-
-    // Assuming we have the same circuit.
-    const proofA = this.innerProofs[0];
-    const proofB = this.innerProofs[1];
-
-    this.backend = new Backend(double_verify_json.bytecode);
-    await this.backend.init();
-    await generateWitness(double_verify_json, { verification_key: proofA.proofArtifacts.vkAsFields, y: '3' });
-
-    return new Uint8Array();
-
-    // This is sort of broken at the moment because barretenberg does not accept proofs
-    // which themselves have aggregation objects. So we can only have a tree which has two leaves.
-    // So doing a tree style recursive aggregation does not really work.
-    //
-    // Need to discuss further what the API should look like.
-    //
-    // If it was not broken, one use-case is we would push all proofs into a queue and verify
-    // each pair of proofs using an inner double-verify proof, until we get to the last layer.
-    throw new Error('Its not clear if we should do a tree based recursion algorithm or something closer to IVF');
   }
 }
