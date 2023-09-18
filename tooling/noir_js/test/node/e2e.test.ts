@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { generateWitness, witnessMapToUint8Array } from '../../src/index.js';
-import { Backend } from '../backend/barretenberg.js';
+import { Backend, RecursiveBackend } from '../backend/barretenberg.js';
 
 it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
@@ -93,7 +93,6 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
 //
 // If we do not create an inner proof, then this will work as expected.
 it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ', async () => {
-
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -108,23 +107,20 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   const prover = new Backend(assert_lt_json.bytecode);
   await prover.init();
   const serializedWitness = witnessMapToUint8Array(solvedWitness);
-  // Create a proof using both proving systems, the majority of the time 
+  // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
   const proofOuter = await prover.generateOuterProof(serializedWitness);
   const proofInner = await prover.generateInnerProof(serializedWitness);
-  
+
   // Proof verification
   //
   try {
-    
     const isValidOuter = await prover.verifyOuterProof(proofOuter);
     expect(isValidOuter).to.be.true;
     // We can also try verifying an inner proof and it will fail.
     // const isValidInner = await prover.verifyInnerProof(proofInner);
     // expect(isValidInner).to.be.true;
-    expect.fail(
-      'bb.js currently returns a bug when we try to verify an inner and outer proof with the same backend',
-    );
+    expect.fail('bb.js currently returns a bug when we try to verify an inner and outer proof with the same backend');
   } catch (error) {
     const knownError = error as Error;
     expect(knownError.message).to.contain('null function or function signature mismatch');
@@ -132,8 +128,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
 });
 
 // This is being added to further document the above test marked as bugs.
-it.only('create and verify proof inner and outer proof with two different backends ', async () => {
-
+it('create and verify proof inner and outer proof with two different backends ', async () => {
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -147,10 +142,26 @@ it.only('create and verify proof inner and outer proof with two different backen
   const proofInner = await backend.generateInnerProof(serializedWitness);
   const isValidInner = await backend.verifyInnerProof(proofInner);
   expect(isValidInner).to.be.true;
-  
+
   backend = new Backend(assert_lt_json.bytecode);
   await backend.init();
   const proofOuter = await backend.generateOuterProof(serializedWitness);
   const isValidOuter = await backend.verifyOuterProof(proofOuter);
   expect(isValidOuter).to.be.true;
+});
+
+it.only('end-to-end proof recursive proof creation and verification', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '2',
+    y: '3',
+  };
+
+  const recursiveBackend = new RecursiveBackend(assert_lt_json);
+  await recursiveBackend.init();
+  await recursiveBackend.newInnerProof({ x: '2', y: '3' });
+  await recursiveBackend.newInnerProof({ x: '1', y: '3' });
+  await recursiveBackend.newInnerProof({ x: '5', y: '6' });
+
+  const outerProof = await recursiveBackend.finalize();
 });
