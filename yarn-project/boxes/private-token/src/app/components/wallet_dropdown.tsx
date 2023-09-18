@@ -1,6 +1,10 @@
+import { Loader } from '@aztec/aztec-ui';
 import { CompleteAddress } from '@aztec/aztec.js';
 import { useEffect, useState } from 'react';
 import { rpcClient } from '../../config.js';
+import { Select } from './select.js';
+import styles from './wallet_dropdown.module.scss';
+import { Copy } from './copy.js';
 
 interface Props {
   selected: CompleteAddress | undefined;
@@ -26,33 +30,31 @@ export function WalletDropdown({ selected, onSelectChange, onError }: Props) {
     });
   });
 
+  const addresses = wallets
+    ? wallets.map(({ address }: CompleteAddress) => {
+        return { label: address.toShortString(), value: address.toString() };
+      })
+    : null;
+
   return (
-    <div className="">
-      <div className="flex justify-end">
-        <div className="p-2">
-          {'Active Wallet: '}
-          {!wallets && 'loading...'}
-        </div>
-        {!!wallets && (
-          <select
-            className="min-w-64 border rounded px-3 py-2"
-            onChange={e => {
-              const selectedWallet = wallets.find(wallet => wallet.address.toString() === e.target.value);
+    <div className={styles.walletSelector}>
+      {addresses ? (
+        <>
+          <Select
+            onChange={value => {
+              if (!wallets) return;
+              const selectedWallet = wallets.find(wallet => wallet.address.toString() === value);
               onSelectChange(selectedWallet!);
             }}
             value={selected?.address.toString()}
-          >
-            {wallets.map(({ address }: CompleteAddress) => {
-              return (
-                <option key={address.toShortString()} value={address.toString()}>
-                  {address.toShortString()}
-                </option>
-              );
-            })}
-          </select>
-        )}
-      </div>
-      {!!selected && <div className="p-1">{selected.address.toString()}</div>}
+            options={addresses}
+            allowEmptyValue={false}
+          />
+          {selected ? <Copy value={selected?.address.toString()} /> : null}
+        </>
+      ) : (
+        <Loader />
+      )}
     </div>
   );
 }

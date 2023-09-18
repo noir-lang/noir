@@ -1,9 +1,47 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@font-face {
+  font-family: Sohne;
+  font-style: normal;
+  font-weight: 400;
+  src: url(../assets/soehne-web-leicht.woff2);
+}
+
+@font-face {
+  font-family: Sohne;
+  font-style: normal;
+  font-weight: 450;
+  src: url(../assets/soehne-web-buch.woff2);
+}
+
+@font-face {
+  font-family: Sohne;
+  font-style: normal;
+  font-weight: 500;
+  src: url(../assets/soehne-web-kraftig.woff2);
+}
+
+@font-face {
+  font-family: Sohne;
+  font-style: normal;
+  font-weight: 600;
+  src: url(../assets/soehne-web-halbfett.woff2);
+}
+
+@font-face {
+  font-family: Sohne;
+  font-style: italic;
+  font-weight: 400;
+  src: url(../assets/soehne-leicht-kursiv.ttf);
+}
+
+@font-face {
+  font-family: Sohne;
+  font-style: italic;
+  font-weight: 500;
+  src: url(../assets/soehne-web-halbfett-kursiv.woff2);
+}
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Sohne, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -16,16 +54,19 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
+  overflow: hidden;
 
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+
+  color: #213547;
+  background-color: #ffffff;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  background: linear-gradient(#f6fbfc, #d8d4e7);
 }
 
 #root {
@@ -42,19 +83,4 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
 }
