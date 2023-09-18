@@ -13,7 +13,7 @@ cd project/src/$(query_manifest relativeProjectDir $REPOSITORY)
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
 
-COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "true")
+VERSION=$(extract_tag_version $REPOSITORY "true")
 
 # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
 TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
