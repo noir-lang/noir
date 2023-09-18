@@ -19,7 +19,7 @@ fi
 
 COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "false")
 
-if [ -z "$VERSION" ]; then
+if [ -z "$COMMIT_TAG_VERSION" ]; then
   # Not a version tag, build normally
   build $REPOSITORY false $@
 else
