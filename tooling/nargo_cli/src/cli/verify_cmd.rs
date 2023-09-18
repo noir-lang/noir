@@ -84,6 +84,6 @@ fn verify_package(
     if valid_proof {
         Ok(())
     } else {
-        Err(CliError::InvalidProof(proof_path.to_path_buf()))
+        Err(CliError::InvalidProof(proof_path))
     }
 }
