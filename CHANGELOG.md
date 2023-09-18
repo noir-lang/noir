@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.7.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.7.5...aztec-packages-v0.7.6) (2023-09-18)
+
+
+### Features
+
+* New api to get note nonces ([#2327](https://github.com/AztecProtocol/aztec-packages/issues/2327)) ([8f5eb28](https://github.com/AztecProtocol/aztec-packages/commit/8f5eb28fae2cdcd549241a85b8b2343c7b661aac))
+* Replace private token in testing ([#2304](https://github.com/AztecProtocol/aztec-packages/issues/2304)) ([934ba96](https://github.com/AztecProtocol/aztec-packages/commit/934ba96ad6a6843edfed81aef179d826ce6c4cea))
+
+
+### Bug Fixes
+
+* Exit with error log when COMMIT_TAG is not set properly on canary ([#2371](https://github.com/AztecProtocol/aztec-packages/issues/2371)) ([68fe053](https://github.com/AztecProtocol/aztec-packages/commit/68fe053f8bf7830659a98a9aae8a7c3fbdfe664c))
+* Preserve public function call ordering in account entrypoint ([#2348](https://github.com/AztecProtocol/aztec-packages/issues/2348)) ([5b2cf75](https://github.com/AztecProtocol/aztec-packages/commit/5b2cf758b54a810693cb296bb5a2985c5d882dee))
+* Return output-debug flag ([#2364](https://github.com/AztecProtocol/aztec-packages/issues/2364)) ([af86580](https://github.com/AztecProtocol/aztec-packages/commit/af86580814d6f63f15a9ae2476f91c58c835bf82))
+* Revert "fix: strip leading 'v' from dockerhub tags" ([#2367](https://github.com/AztecProtocol/aztec-packages/issues/2367)) ([53bc041](https://github.com/AztecProtocol/aztec-packages/commit/53bc041af5d7f7ad66baf5076130cf627f8f65d5))
+* Stale CLI docs ([#2336](https://github.com/AztecProtocol/aztec-packages/issues/2336)) ([f38873b](https://github.com/AztecProtocol/aztec-packages/commit/f38873b1751a7604cba3aed888323c7cd106b689))
+* Strip leading 'v' from dockerhub tags ([#2360](https://github.com/AztecProtocol/aztec-packages/issues/2360)) ([a4bb05c](https://github.com/AztecProtocol/aztec-packages/commit/a4bb05ca2bda0f4e5ccd15c01bf1faadaa664354))
+
+
+### Miscellaneous
+
+* Added docs for artifact files ([#2362](https://github.com/AztecProtocol/aztec-packages/issues/2362)) ([6d3ba3f](https://github.com/AztecProtocol/aztec-packages/commit/6d3ba3fc833aa4f103c6b84065bb2dd0bea0f6b4)), closes [#2190](https://github.com/AztecProtocol/aztec-packages/issues/2190)
+* **aztec_noir:** Remove inputs from consume l1 to l2 message  ([#2354](https://github.com/AztecProtocol/aztec-packages/issues/2354)) ([2235f7c](https://github.com/AztecProtocol/aztec-packages/commit/2235f7cd0cdf5dfdd3188d3f606673e94e25c47d))
+* Remove "as unknown" casts for ABIs where possible ([#2331](https://github.com/AztecProtocol/aztec-packages/issues/2331)) ([bf2651e](https://github.com/AztecProtocol/aztec-packages/commit/bf2651e714e148cdd0a625a435fe1ee64d762ffb))
+* Script to extract tag version ([#2368](https://github.com/AztecProtocol/aztec-packages/issues/2368)) ([4b686b0](https://github.com/AztecProtocol/aztec-packages/commit/4b686b0d17f5a0811bfeef6bbe50d29b44cd7753))
+* Share e2e code with canary ([#2299](https://github.com/AztecProtocol/aztec-packages/issues/2299)) ([21224de](https://github.com/AztecProtocol/aztec-packages/commit/21224dea64318a5956a705d0b413dd0e7bcf795c))
+
 ## [0.7.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.7.4...aztec-packages-v0.7.5) (2023-09-15)
 
 
