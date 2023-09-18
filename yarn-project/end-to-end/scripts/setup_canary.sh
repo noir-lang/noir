@@ -7,7 +7,7 @@ TARGET_PKGS_FILE=$2
 # Check if file exists and read it into an array
 if [ -f "$TARGET_PKGS_FILE" ]; then
   mapfile -t TARGET_PKGS < <(cat "$TARGET_PKGS_FILE")
-  echo "Loaded array:"
+  echo "Loaded package array:"
   for i in "${TARGET_PKGS[@]}"; do
     echo "$i"
   done
@@ -20,7 +20,16 @@ if [ -z "$COMMIT_TAG" ]; then
   exit 0
 fi
 
+set +e  # Temporarily disable exit on error
 VERSION=$(npx semver $COMMIT_TAG)
+RESULT=$?  # Capture the exit status of the last command
+set -e  # Re-enable exit on error
+
+if [ $RESULT -ne 0 ]; then
+  echo "Error when running 'npx semver' with commit tag: $COMMIT_TAG"
+  exit 1
+fi
+
 if [ -z "$VERSION" ]; then
   echo "$COMMIT_TAG is not a semantic version."
   exit 1
