@@ -181,7 +181,7 @@ export class AcirSimulator {
     let abi: FunctionAbiWithDebugMetadata | undefined = undefined;
 
     // Brute force
-    for (let i = 0; i < MAX_NOTE_FIELDS_LENGTH; i++) {
+    for (let i = notePreimage.length; i < MAX_NOTE_FIELDS_LENGTH; i++) {
       const signature = `compute_note_hash_and_nullifier(Field,Field,Field,[Field;${i}])`;
       const selector = FunctionSelector.fromSignature(signature);
       try {

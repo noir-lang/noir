@@ -18,7 +18,7 @@ import {
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 
-import { Database, MemoryDB } from '../database/index.js';
+import { Database, MemoryDB, NoteSpendingInfoDao } from '../database/index.js';
 import { NoteProcessor } from './note_processor.js';
 
 const TXS_PER_BLOCK = 4;
@@ -46,9 +46,11 @@ describe('Note Processor', () => {
     );
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
-  const createEncryptedLogsAndOwnedNoteSpendingInfo = (newNotes: NoteSpendingInfo[], ownedData: number[][]) => {
-    const txLogs: TxL2Logs[] = [];
+  const createEncryptedLogsAndOwnedNoteSpendingInfo = (ownedData: number[][], ownedNotes: NoteSpendingInfo[]) => {
+    const newNotes: NoteSpendingInfo[] = [];
     const ownedNoteSpendingInfo: NoteSpendingInfo[] = [];
+    const txLogs: TxL2Logs[] = [];
+    let usedOwnedNote = 0;
     for (let i = 0; i < TXS_PER_BLOCK; ++i) {
       const ownedDataIndices = ownedData[i] || [];
       if (ownedDataIndices.some(index => index >= MAX_NEW_COMMITMENTS_PER_TX)) {
@@ -56,25 +58,32 @@ describe('Note Processor', () => {
       }
 
       const logs: FunctionL2Logs[] = [];
-      const notesForTx = newNotes.slice(i * MAX_NEW_COMMITMENTS_PER_TX, (i + 1) * MAX_NEW_COMMITMENTS_PER_TX);
-      notesForTx.forEach((note, noteIndex) => {
+      for (let noteIndex = 0; noteIndex < MAX_NEW_COMMITMENTS_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
         const publicKey = isOwner ? owner.getPublicKey() : Point.random();
-        const log = note.toEncryptedBuffer(publicKey, grumpkin);
-        // 1 tx containing 1 function invocation containing 1 log
-        logs.push(new FunctionL2Logs([log]));
+        const note = (isOwner && ownedNotes[usedOwnedNote]) || NoteSpendingInfo.random();
+        usedOwnedNote += note === ownedNotes[usedOwnedNote] ? 1 : 0;
+        newNotes.push(note);
         if (isOwner) {
           ownedNoteSpendingInfo.push(note);
         }
-      });
+        const log = note.toEncryptedBuffer(publicKey, grumpkin);
+        // 1 tx containing 1 function invocation containing 1 log
+        logs.push(new FunctionL2Logs([log]));
+      }
       txLogs.push(new TxL2Logs(logs));
     }
 
     const encryptedLogs = new L2BlockL2Logs(txLogs);
-    return { encryptedLogs, ownedNoteSpendingInfo };
+    return { newNotes, ownedNoteSpendingInfo, encryptedLogs };
   };
 
-  const mockData = (ownedData: number[][], prependedBlocks = 0, appendedBlocks = 0) => {
+  const mockData = (
+    ownedData: number[][],
+    prependedBlocks = 0,
+    appendedBlocks = 0,
+    ownedNotes: NoteSpendingInfo[] = [],
+  ) => {
     if (ownedData.length > TXS_PER_BLOCK) {
       throw new Error(`Tx size should be less than ${TXS_PER_BLOCK}.`);
     }
@@ -87,17 +96,14 @@ describe('Note Processor', () => {
       const block = L2Block.random(firstBlockNum + i, TXS_PER_BLOCK);
       block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex = firstBlockDataStartIndex + i * numCommitmentsPerBlock;
 
-      const newNotes = Array(numCommitmentsPerBlock).fill(0).map(NoteSpendingInfo.random);
-
-      block.newCommitments = newNotes.map(n => computeMockNoteHash(n.notePreimage.items));
-
       const isTargetBlock = i === prependedBlocks;
-      const { encryptedLogs, ownedNoteSpendingInfo } = createEncryptedLogsAndOwnedNoteSpendingInfo(
-        newNotes,
+      const { newNotes, encryptedLogs, ownedNoteSpendingInfo } = createEncryptedLogsAndOwnedNoteSpendingInfo(
         isTargetBlock ? ownedData : [],
+        isTargetBlock ? ownedNotes : [],
       );
       encryptedLogsArr.push(encryptedLogs);
       ownedNoteSpendingInfos.push(...ownedNoteSpendingInfo);
+      block.newCommitments = newNotes.map(n => computeMockNoteHash(n.notePreimage.items));
 
       const randomBlockContext = new L2BlockContext(block);
       blockContexts.push(randomBlockContext);
@@ -149,12 +155,14 @@ describe('Note Processor', () => {
   });
 
   it('should store multiple notes that belong to us', async () => {
-    const prependedBlocks = 3;
+    const prependedBlocks = 2;
+    const appendedBlocks = 1;
     const thisBlockDataStartIndex = firstBlockDataStartIndex + prependedBlocks * numCommitmentsPerBlock;
 
     const { blockContexts, encryptedLogsArr, ownedNoteSpendingInfos } = mockData(
       [[], [1], [], [0, 2]],
       prependedBlocks,
+      appendedBlocks,
     );
     await noteProcessor.process(blockContexts, encryptedLogsArr);
 
@@ -181,5 +189,32 @@ describe('Note Processor', () => {
   it('should not store notes that do not belong to us', async () => {
     const { blockContexts, encryptedLogsArr } = mockData([]);
     await noteProcessor.process(blockContexts, encryptedLogsArr);
+  });
+
+  it('should be able to recover two notes with the same preimage', async () => {
+    const note = NoteSpendingInfo.random();
+    const note2 = NoteSpendingInfo.random();
+    // All notes expect one have the same contract address, storage slot, and preimage.
+    const notes = [note, note, note, note2, note];
+    const { blockContexts, encryptedLogsArr, ownedNoteSpendingInfos } = mockData([[0, 2], [], [0, 1, 3]], 0, 0, notes);
+    await noteProcessor.process(blockContexts, encryptedLogsArr);
+
+    const addedInfos: NoteSpendingInfoDao[] = addNoteSpendingInfoBatchSpy.mock.calls[0][0];
+    expect(addedInfos).toEqual([
+      expect.objectContaining({ ...ownedNoteSpendingInfos[0] }),
+      expect.objectContaining({ ...ownedNoteSpendingInfos[1] }),
+      expect.objectContaining({ ...ownedNoteSpendingInfos[2] }),
+      expect.objectContaining({ ...ownedNoteSpendingInfos[3] }),
+      expect.objectContaining({ ...ownedNoteSpendingInfos[4] }),
+    ]);
+    expect(ownedNoteSpendingInfos[0]).toEqual(ownedNoteSpendingInfos[1]);
+    expect(ownedNoteSpendingInfos[1]).toEqual(ownedNoteSpendingInfos[2]);
+    expect(ownedNoteSpendingInfos[2]).toEqual(ownedNoteSpendingInfos[4]);
+    expect(ownedNoteSpendingInfos[3]).not.toEqual(ownedNoteSpendingInfos[4]);
+
+    // Check that every note has a different nonce.
+    const nonceSet = new Set<bigint>();
+    addedInfos.forEach(info => nonceSet.add(info.nonce.value));
+    expect(nonceSet.size).toBe(notes.length);
   });
 });

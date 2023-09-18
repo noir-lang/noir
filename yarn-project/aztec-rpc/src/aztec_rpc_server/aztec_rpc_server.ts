@@ -1,4 +1,5 @@
 import {
+  AcirSimulator,
   ExecutionResult,
   collectEncryptedLogs,
   collectEnqueuedPublicFunctionCalls,
@@ -7,6 +8,7 @@ import {
 } from '@aztec/acir-simulator';
 import {
   AztecAddress,
+  CircuitsWasm,
   CompleteAddress,
   EthAddress,
   FunctionData,
@@ -16,6 +18,7 @@ import {
   PartialAddress,
   PublicCallRequest,
 } from '@aztec/circuits.js';
+import { computeCommitmentNonce } from '@aztec/circuits.js/abis';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -36,6 +39,7 @@ import {
   L2BlockL2Logs,
   LogType,
   NodeInfo,
+  NotePreimage,
   SimulationError,
   Tx,
   TxExecutionRequest,
@@ -61,6 +65,8 @@ import { Synchroniser } from '../synchroniser/index.js';
  */
 export class AztecRPCServer implements AztecRPC {
   private synchroniser: Synchroniser;
+  private contractDataOracle: ContractDataOracle;
+  private simulator: AcirSimulator;
   private log: DebugLogger;
   private clientInfo: string;
 
@@ -73,6 +79,8 @@ export class AztecRPCServer implements AztecRPC {
   ) {
     this.log = createDebugLogger(logSuffix ? `aztec:rpc_server_${logSuffix}` : `aztec:rpc_server`);
     this.synchroniser = new Synchroniser(node, db, logSuffix);
+    this.contractDataOracle = new ContractDataOracle(db, node);
+    this.simulator = getAcirSimulator(db, node, node, node, keyStore, this.contractDataOracle);
 
     const { version, name } = getPackageInfo();
     this.clientInfo = `${name.split('/')[name.split('/').length - 1]}@${version}`;
@@ -188,6 +196,40 @@ export class AztecRPCServer implements AztecRPC {
     const { publicKey: ownerPublicKey } = ownerCompleteAddress;
     const ownerNotes = notes.filter(n => n.publicKey.equals(ownerPublicKey));
     return ownerNotes.map(n => n.notePreimage);
+  }
+
+  public async getNoteNonces(
+    contractAddress: AztecAddress,
+    storageSlot: Fr,
+    preimage: NotePreimage,
+    txHash: TxHash,
+  ): Promise<Fr[]> {
+    const tx = await this.node.getTx(txHash);
+    if (!tx) {
+      throw new Error(`Unknown tx: ${txHash}`);
+    }
+
+    const wasm = await CircuitsWasm.get();
+
+    const nonces: Fr[] = [];
+    const firstNullifier = tx.newNullifiers[0];
+    const commitments = tx.newCommitments;
+    for (let i = 0; i < commitments.length; ++i) {
+      const commitment = commitments[i];
+      if (commitment.equals(Fr.ZERO)) break;
+
+      const nonce = computeCommitmentNonce(wasm, firstNullifier, i);
+      const { uniqueSiloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
+        contractAddress,
+        nonce,
+        storageSlot,
+        preimage.items,
+      );
+      if (commitment.equals(uniqueSiloedNoteHash)) {
+        nonces.push(nonce);
+      }
+    }
+    return nonces;
   }
 
   public async getBlock(blockNumber: number): Promise<L2Block | undefined> {
@@ -314,20 +356,21 @@ export class AztecRPCServer implements AztecRPC {
   /**
    * Retrieves the simulation parameters required to run an ACIR simulation.
    * This includes the contract address, function ABI, portal contract address, and historic tree roots.
-   * The function uses the given 'contractDataOracle' to fetch the necessary data from the node and user's database.
    *
    * @param execRequest - The transaction request object containing details of the contract call.
-   * @param contractDataOracle - An instance of ContractDataOracle used to fetch the necessary data.
    * @returns An object containing the contract address, function ABI, portal contract address, and historic tree roots.
    */
-  async #getSimulationParameters(
-    execRequest: FunctionCall | TxExecutionRequest,
-    contractDataOracle: ContractDataOracle,
-  ) {
+  async #getSimulationParameters(execRequest: FunctionCall | TxExecutionRequest) {
     const contractAddress = (execRequest as FunctionCall).to ?? (execRequest as TxExecutionRequest).origin;
-    const functionAbi = await contractDataOracle.getFunctionAbi(contractAddress, execRequest.functionData.selector);
-    const debug = await contractDataOracle.getFunctionDebugMetadata(contractAddress, execRequest.functionData.selector);
-    const portalContract = await contractDataOracle.getPortalContractAddress(contractAddress);
+    const functionAbi = await this.contractDataOracle.getFunctionAbi(
+      contractAddress,
+      execRequest.functionData.selector,
+    );
+    const debug = await this.contractDataOracle.getFunctionDebugMetadata(
+      contractAddress,
+      execRequest.functionData.selector,
+    );
+    const portalContract = await this.contractDataOracle.getPortalContractAddress(contractAddress);
 
     return {
       contractAddress,
@@ -339,22 +382,14 @@ export class AztecRPCServer implements AztecRPC {
     };
   }
 
-  async #simulate(txRequest: TxExecutionRequest, contractDataOracle?: ContractDataOracle): Promise<ExecutionResult> {
+  async #simulate(txRequest: TxExecutionRequest): Promise<ExecutionResult> {
     // TODO - Pause syncing while simulating.
-    if (!contractDataOracle) {
-      contractDataOracle = new ContractDataOracle(this.db, this.node);
-    }
 
-    const { contractAddress, functionAbi, portalContract } = await this.#getSimulationParameters(
-      txRequest,
-      contractDataOracle,
-    );
-
-    const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore, contractDataOracle);
+    const { contractAddress, functionAbi, portalContract } = await this.#getSimulationParameters(txRequest);
 
     this.log('Executing simulator...');
     try {
-      const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract);
+      const result = await this.simulator.run(txRequest, functionAbi, contractAddress, portalContract);
       this.log('Simulation completed!');
       return result;
     } catch (err) {
@@ -375,18 +410,11 @@ export class AztecRPCServer implements AztecRPC {
    * @returns The simulation result containing the outputs of the unconstrained function.
    */
   async #simulateUnconstrained(execRequest: FunctionCall, from?: AztecAddress) {
-    const contractDataOracle = new ContractDataOracle(this.db, this.node);
-
-    const { contractAddress, functionAbi, portalContract } = await this.#getSimulationParameters(
-      execRequest,
-      contractDataOracle,
-    );
-
-    const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore, contractDataOracle);
+    const { contractAddress, functionAbi, portalContract } = await this.#getSimulationParameters(execRequest);
 
     this.log('Executing unconstrained simulator...');
     try {
-      const result = await simulator.runUnconstrained(
+      const result = await this.simulator.runUnconstrained(
         execRequest,
         from ?? AztecAddress.ZERO,
         functionAbi,
@@ -419,8 +447,7 @@ export class AztecRPCServer implements AztecRPC {
       if (err instanceof SimulationError) {
         const callStack = err.getCallStack();
         const originalFailingFunction = callStack[callStack.length - 1];
-        const contractDataOracle = new ContractDataOracle(this.db, this.node);
-        const debugInfo = await contractDataOracle.getFunctionDebugMetadata(
+        const debugInfo = await this.contractDataOracle.getFunctionDebugMetadata(
           originalFailingFunction.contractAddress,
           originalFailingFunction.functionSelector,
         );
@@ -451,12 +478,10 @@ export class AztecRPCServer implements AztecRPC {
   async #simulateAndProve(txExecutionRequest: TxExecutionRequest, newContract: ContractDao | undefined) {
     // TODO - Pause syncing while simulating.
 
-    const contractDataOracle = new ContractDataOracle(this.db, this.node);
-    const kernelOracle = new KernelOracle(contractDataOracle, this.node);
-
     // Get values that allow us to reconstruct the block hash
-    const executionResult = await this.#simulate(txExecutionRequest, contractDataOracle);
+    const executionResult = await this.#simulate(txExecutionRequest);
 
+    const kernelOracle = new KernelOracle(this.contractDataOracle, this.node);
     const kernelProver = new KernelProver(kernelOracle);
     this.log(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);

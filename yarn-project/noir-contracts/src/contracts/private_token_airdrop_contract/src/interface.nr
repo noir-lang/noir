@@ -75,16 +75,44 @@ impl PrivateTokenAirdropPrivateContextInterface {
   fn createClaims(
     self,
     context: &mut PrivateContext,
-    amounts: [Field;2],
-    secrets: [Field;2]
+    amounts: [Field;16],
+    secrets: [Field;16]
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 4];
+    let mut serialised_args = [0; 32];
     serialised_args[0] = amounts[0];
     serialised_args[1] = amounts[1];
-    serialised_args[2] = secrets[0];
-    serialised_args[3] = secrets[1];
+    serialised_args[2] = amounts[2];
+    serialised_args[3] = amounts[3];
+    serialised_args[4] = amounts[4];
+    serialised_args[5] = amounts[5];
+    serialised_args[6] = amounts[6];
+    serialised_args[7] = amounts[7];
+    serialised_args[8] = amounts[8];
+    serialised_args[9] = amounts[9];
+    serialised_args[10] = amounts[10];
+    serialised_args[11] = amounts[11];
+    serialised_args[12] = amounts[12];
+    serialised_args[13] = amounts[13];
+    serialised_args[14] = amounts[14];
+    serialised_args[15] = amounts[15];
+    serialised_args[16] = secrets[0];
+    serialised_args[17] = secrets[1];
+    serialised_args[18] = secrets[2];
+    serialised_args[19] = secrets[3];
+    serialised_args[20] = secrets[4];
+    serialised_args[21] = secrets[5];
+    serialised_args[22] = secrets[6];
+    serialised_args[23] = secrets[7];
+    serialised_args[24] = secrets[8];
+    serialised_args[25] = secrets[9];
+    serialised_args[26] = secrets[10];
+    serialised_args[27] = secrets[11];
+    serialised_args[28] = secrets[12];
+    serialised_args[29] = secrets[13];
+    serialised_args[30] = secrets[14];
+    serialised_args[31] = secrets[15];
 
-    context.call_private_function(self.address, 0x720f5cc9, serialised_args)
+    context.call_private_function(self.address, 0x2eebe7ab, serialised_args)
   }
   
 

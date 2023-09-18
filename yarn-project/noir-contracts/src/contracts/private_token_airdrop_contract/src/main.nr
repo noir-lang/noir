@@ -10,6 +10,7 @@ contract PrivateTokenAirdrop {
         value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
     };
     use dep::aztec::{
+        constants_gen::MAX_NEW_COMMITMENTS_PER_CALL,
         context::{PrivateContext, PublicContext, Context},
         state_vars::{map::Map, set::Set},
         note::{
@@ -135,25 +136,26 @@ contract PrivateTokenAirdrop {
 
     #[aztec(private)]
     fn createClaims(
-        amounts: [Field; 2],
-        secrets: [Field; 2],
+        amounts: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
+        secrets: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
     ) {
         let storage = Storage::init(Context::private(&mut context));
         let sender = context.msg_sender();
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);
-        let total = amounts[0] + amounts[1];
+        let total = amounts.fold(0, |sum, a| sum + a);
         decrement(sender_balance, total, sender);
 
         // Create claim notes.
         let claims = storage.claims;
-        let mut note0 = ClaimNote::new(amounts[0], secrets[0]);
-        let mut note1 = ClaimNote::new(amounts[1], secrets[1]);
-
-        // Insert the new claim notes to the set.
-        claims.insert(&mut note0);
-        claims.insert(&mut note1);
+        for i in 0..amounts.len() {
+            let amount = amounts[i];
+            if amount != 0 {
+                let mut note = ClaimNote::new(amount, secrets[i]);
+                claims.insert(&mut note);
+            }
+        }
     }
 
     #[aztec(private)]
