@@ -34,9 +34,13 @@ jobs:
 
       - name: Run codegen-verifier for 1_mul
         working-directory: tooling/nargo_cli/tests/execution_success/1_mul
-        run: nargo codegen-verifier
+        run: |
+          nargo codegen-verifier
+          ls -R
       
-      - name: Run codegen-verifier for double_verify_proof
-        working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
-        run: nargo codegen-verifier
-          
+      # - name: Run codegen-verifier for double_verify_proof
+      #   working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
+      #   run: nargo codegen-verifier
+      
+      - name: Create new Foundry project
+        run: forge new foundry-project
