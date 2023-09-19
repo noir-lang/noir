@@ -10,7 +10,7 @@ The cryptography team is currently working on [Barretenberg here](https://github
 
 ## Honk
 
-- Honk is a sumcheck-based zk-SNARK protocol with blazing-fast zk proof construction. We need to Honk allow users to prove correct execution of complicated, multi-step computations using recursion in a resource constraint environment like a cell phone. This is necessary for our mission, because we need to make sure our users' sensitive information never leaves their devices!
+- Honk is a sumcheck-based zk-SNARK protocol with blazing-fast zk proof construction. We need Honk to allow users to prove correct execution of complicated, multi-step computations using recursion in a resource constraint environment like a cell phone. This is necessary for our mission, because we need to make sure our users' sensitive information never leaves their devices!
 - List of Honk projects
   - Completed: basic Honk prover and verifier with respectable construction and verification speeds, but no optimization.
   - Upcoming:

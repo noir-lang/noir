@@ -34,7 +34,6 @@ contract PrivateToken {
         }
     }
 
-    // docs:start:constructor
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
     #[aztec(private)]
     fn constructor(
@@ -48,7 +47,6 @@ contract PrivateToken {
             increment(owner_balance, initial_supply, owner);
         }
     }
-    // docs:end:constructor
 
     // docs:start:mint
     // Mints `amount` of tokens to `owner`.

@@ -237,4 +237,79 @@ contract DocsExample {
         actions::get_total_points(storage.cards, account, 0)
     }
     // docs:end:functions-UncontrainedFunction
+
+
+    /// Macro equivalence section
+    use dep::aztec::abi;
+    use dep::aztec::abi::Hasher;
+    use dep::aztec::abi::PrivateContextInputs;
+    use dep::aztec::abi::PrivateCircuitPublicInputs;
+
+    // docs:start:simple_macro_example
+    #[aztec(private)]
+    fn simple_macro_example(a: Field, b: Field) -> Field {
+        a + b
+    }
+    // docs:end:simple_macro_example
+
+
+    // docs:start:simple_macro_example_expanded
+    fn simple_macro_example_expanded(
+        // ************************************************************
+        // The private context inputs are made available to the circuit by the kernel
+        // docs:start:context-example-inputs
+        inputs: PrivateContextInputs,
+        // docs:end:context-example-inputs
+        // ************************************************************
+
+        // Our original inputs!
+        a: Field,
+        b: Field
+        
+        // The actual return type of our circuit is the PrivateCircuitPublicInputs struct, this will be the 
+        // input to our kernel! 
+        // docs:start:context-example-return
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        // docs:end:context-example-return
+        // ************************************************************
+        // The hasher is a structure used to generate a hash of the circuits inputs. 
+        // docs:start:context-example-hasher
+        let mut hasher = Hasher::new();
+        hasher.add(a);
+        hasher.add(b);
+        // docs:end:context-example-hasher
+
+        // The context object is created with the inputs and the hash of the inputs
+        // docs:start:context-example-context
+        let mut context = PrivateContext::new(inputs, hasher.hash());
+        // docs:end:context-example-context
+        // ************************************************************
+
+        // Our actual program
+        let result = a + b;
+
+        // ************************************************************
+        // Return values are pushed into the context
+        // docs:start:context-example-context-return
+        context.return_values.push(result);
+        // docs:end:context-example-context-return
+
+        // The context is returned to be consumed by the kernel circuit!
+        // docs:start:context-example-finish
+        context.finish()
+        // docs:end:context-example-finish
+        // ************************************************************
+    }
+    // docs:end:simple_macro_example_expanded
+
+
+    // Cross chain messaging section
+    // Demonstrates a cross chain message 
+    // docs:start:l1_to_l2_cross_chain_message 
+    #[aztec(private)]
+    fn send_to_l1() {
+
+
+    }
+    // docs:end:l1_to_l2_cross_chain_message  
 }

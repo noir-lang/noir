@@ -51,6 +51,7 @@ use dep::std::option::Option;
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateContext {
+    // docs:start:private-context
     inputs: abi::PrivateContextInputs,
 
     args_hash : Field,
@@ -65,6 +66,7 @@ struct PrivateContext {
     private_call_stack : BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack : BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     new_l2_to_l1_msgs : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+    // docs:end:private-context
 
     block_data: HistoricBlockData,
 
@@ -172,6 +174,7 @@ impl PrivateContext {
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     // docs:start:context_consume_l1_to_l2_message
+    // docs:start:consume_l1_to_l2_message
     fn consume_l1_to_l2_message(
         &mut self,
         msg_key: Field,
@@ -185,6 +188,7 @@ impl PrivateContext {
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT)
     }
+    // docs:end:consume_l1_to_l2_message
 
     fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
         let _void1 = self.inputs;

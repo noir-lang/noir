@@ -73,6 +73,7 @@ Access control on the L1 portal contract is essential to prevent consumption of 
 
 As earlier, we can use a token bridge as an example. In this case, we are burning tokens on L2 and sending a message to the portal to free them on L1.
 
+<!-- TODO: update token standard  https://github.com/AztecProtocol/aztec-packages/issues/2177 -->
 #include_code non_native_token_withdraw yarn-project/noir-contracts/src/contracts/non_native_token_contract/src/main.nr rust
 
 When the transaction is included in a rollup block the message will be inserted into the `Outbox`, where the recipient portal can consume it from. When consuming, the `msg.sender` must match the `recipient` meaning that only portal can actually consume the message.

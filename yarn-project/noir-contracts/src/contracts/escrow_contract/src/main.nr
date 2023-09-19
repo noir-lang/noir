@@ -36,14 +36,19 @@ contract Escrow {
     }
 
     // Creates a new instance
+    // docs:start:constructor
     #[aztec(private)]
     fn constructor(
         owner: pub Field
     ) {
-        let this = context.this_address();
-        
         let storage = Storage::init(Context::private(&mut context));
+
+        let this = context.this_address();
+
+        // Create a new note and add it to the owners set.
         let mut note = AddressNote::new(owner, this);
+
+        // Insert the owner into storage
         storage.owners.insert(&mut note);
         emit_encrypted_log(
             &mut context,
@@ -53,6 +58,7 @@ contract Escrow {
             note.serialise(),
         );
     }
+    // docs:end:constructor
 
     // Withdraws balance. Requires that msg.sender is registered as an owner.
     #[aztec(private)]

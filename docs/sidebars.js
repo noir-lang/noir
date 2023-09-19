@@ -109,6 +109,7 @@ const sidebars = {
             "dev_docs/contracts/syntax/storage",
             "dev_docs/contracts/syntax/state_variables",
             "dev_docs/contracts/syntax/globals",
+            "dev_docs/contracts/syntax/messaging",
           ],
         },
         {
@@ -123,8 +124,8 @@ const sidebars = {
             "dev_docs/contracts/portals/registry",
             "dev_docs/contracts/portals/inbox",
             "dev_docs/contracts/portals/outbox",
-          ],
-        },
+          ]
+        }
         // {
         //   label: "Resources",
         //   type: "category",

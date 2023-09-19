@@ -82,8 +82,10 @@ impl L1ToL2Message {
     }
 
     // The nullifier of a l1 to l2 message is the hash of the message salted with the secret and tree index
+    // docs:start:l1_to_l2_message_compute_nullifier
     fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.message_hash();
         dep::std::hash::pedersen_with_separator([message_hash, self.secret, self.tree_index], GENERATOR_INDEX__NULLIFIER)[0]
     }
+    // docs:end:l1_to_l2_message_compute_nullifier
 }
