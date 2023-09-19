@@ -18,10 +18,8 @@ fn main(mut x : [Foo; 4], y : pub Field) {
     assert(x[y].a == 10);
     assert(x[y].b == [11, 12, 23]);
     assert(x[y].bar.inner == [109, 110, 111]);
-    dep::std::println("show list");
-    for i in 0..4 {
-        dep::std::println(x[i]);
-    }
+
+    // Check dynamic array set 
     if y != 2 {
         x[y].a = 50;
     } else {
@@ -35,5 +33,10 @@ fn main(mut x : [Foo; 4], y : pub Field) {
         x[y - 1].b = [100, 101, 102];
     }
     assert(x[2].b == [100, 101, 102]);
+    
+    assert(x[y - 3].bar.inner == [100, 101, 102]);
+    assert(x[y - 2].bar.inner == [103, 104, 105]);
+    assert(x[y - 1].bar.inner == [106, 107, 108]);
+    assert(x[y].bar.inner == [109, 110, 111]);
 }
 

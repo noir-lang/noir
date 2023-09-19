@@ -61,7 +61,7 @@ impl AcirType {
         AcirType::NumericType(NumericType::NativeField)
     }
 
-    /// Returns an unsigned type of the specified bit size 
+    /// Returns an unsigned type of the specified bit size
     pub(crate) fn unsigned(bit_size: u32) -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
@@ -78,16 +78,6 @@ impl AcirType {
             AcirType::Array(_, _) => return false,
         };
         matches!(numeric_type, NumericType::Signed { .. })
-    }
-
-    pub(crate) fn from_slice(value: &SsaType, size: usize) -> Self {
-        match value {
-            SsaType::Slice(elements) => {
-                let elements = elements.iter().map(|e| e.into()).collect();
-                AcirType::Array(elements, size)
-            }
-            _ => unreachable!("Attempted to use {value} where a slice was expected"),
-        }
     }
 }
 
@@ -270,13 +260,6 @@ impl AcirContext {
         match self.vars[var] {
             AcirVarData::Const(field) => field.is_one(),
             _ => false,
-        }
-    }
-
-    pub(crate) fn get_constant(&self, var: &AcirVar) -> Option<FieldElement> {
-        match self.vars[var] {
-            AcirVarData::Const(field) => Some(field),
-            _ => None,
         }
     }
 
@@ -1225,47 +1208,6 @@ impl AcirContext {
         &mut self,
         block_id: BlockId,
         len: usize,
-        optional_values: Option<&[AcirValue]>,
-    ) -> Result<(), InternalError> {
-        // If the optional values are supplied, then we fill the initialized
-        // array with those values. If not, then we fill it with zeros.
-        let mut nested = false;
-        let initialized_values = match optional_values {
-            None => {
-                let zero = self.add_constant(FieldElement::zero());
-                let zero_witness = self.var_to_witness(zero)?;
-                vec![zero_witness; len]
-            }
-            Some(optional_values) => {
-                let mut values = Vec::new();
-                for value in optional_values {
-                    if let Ok(some_value) = value.clone().into_var() {
-                        values.push(self.var_to_witness(some_value)?);
-                    } else {
-                        dbg!(optional_values.clone());
-                        dbg!("got here");
-                        nested = true;
-                        break;
-                    }
-                }
-                values
-            }
-        };
-        // we do not initialize nested arrays. This means that non-const indexes are not supported for nested arrays
-        // if !nested {
-            // self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
-        // }
-        dbg!(nested);
-        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
-
-
-        Ok(())
-    }
-
-    pub(crate) fn initialize_array_new(
-        &mut self,
-        block_id: BlockId,
-        len: usize,
         optional_value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
         let initialized_values = match optional_value {
@@ -1280,7 +1222,7 @@ impl AcirContext {
                 values
             }
         };
-        // dbg!(initialized_values.len());
+
         self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
 
         Ok(())
@@ -1301,10 +1243,8 @@ impl AcirContext {
                 }
             }
             AcirValue::DynamicArray(_) => {
-                panic!("dyn array should already be initialized");
+                unreachable!("Dynamic array should already be initialized");
             }
-            // TODO: I think it is correct that we should panic on dyn array
-            // but need to test and verify
         }
         Ok(())
     }

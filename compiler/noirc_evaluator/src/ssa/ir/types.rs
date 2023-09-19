@@ -78,21 +78,17 @@ impl Type {
         }
     }
 
-    pub(crate) fn flattened_element_size(&self) -> usize {
+    /// Returns the flattened size of a Type
+    pub(crate) fn flattened_size(&self) -> usize {
         let mut size = 0;
         match self {
             Type::Array(elements, len) => {
-                // array.into_iter().flat_map(AcirValue::flatten).collect(),
-                // dbg!(elements.clone());
-                for elem in elements.as_ref() {
-                    size += elem.flattened_element_size() * len;
-                }
-                // let element_size = elements.len();
-                // let x = elements.into_iter().flat_map(|elem| elem.flattened_element_size()).collect();
+                size = elements.iter().fold(size, |sum, elem| sum + (elem.flattened_size() * len));
             }
-            _ => {
-                size += 1
+            Type::Slice(_) => {
+                unimplemented!("ICE: cannot fetch flattened slice size");
             }
+            _ => size += 1,
         }
         size
     }

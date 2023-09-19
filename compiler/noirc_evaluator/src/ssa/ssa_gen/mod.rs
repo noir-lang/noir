@@ -298,7 +298,6 @@ impl<'a> FunctionContext<'a> {
     ) -> Values {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
-        dbg!(type_size);
         let type_size = self.builder.field_constant(type_size as u128);
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
