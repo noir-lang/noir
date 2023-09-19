@@ -13,12 +13,14 @@ use crate::hir::def_collector::dc_crate::{
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::types::{StructType, Trait, Type};
+use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
+    traits::Trait,
 };
+use crate::token::Attributes;
 use crate::{
     Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
     TypeVariableKind, Visibility,
@@ -357,13 +359,15 @@ impl NodeInterner {
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        let self_type_typevar_id = self.next_type_variable_id();
+        let self_type_typevar = Shared::new(TypeBinding::Unbound(self_type_typevar_id));
+
         self.traits.insert(
             type_id,
             Shared::new(Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.trait_def.span,
-                Vec::new(),
                 vecmap(&typ.trait_def.generics, |_| {
                     // Temporary type variable ids before the trait is resolved to its actual ids.
                     // This lets us record how many arguments the type expects so that other types
@@ -372,6 +376,8 @@ impl NodeInterner {
                     let id = TypeVariableId(0);
                     (id, Shared::new(TypeBinding::Unbound(id)))
                 }),
+                self_type_typevar_id,
+                self_type_typevar,
             )),
         );
     }
@@ -576,6 +582,10 @@ impl NodeInterner {
     pub fn function_name(&self, func_id: &FuncId) -> &str {
         let name_id = self.function_meta(func_id).name.id;
         self.definition_name(name_id)
+    }
+
+    pub fn function_attributes(&self, func_id: &FuncId) -> Attributes {
+        self.function_meta(func_id).attributes
     }
 
     /// Returns the interned statement corresponding to `stmt_id`

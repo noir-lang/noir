@@ -18,4 +18,5 @@
 pub mod expr;
 pub mod function;
 pub mod stmt;
+pub mod traits;
 pub mod types;

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use fm::FileId;
 use noirc_errors::{FileDiagnostic, Location};
 
@@ -235,6 +237,9 @@ impl<'a> ModCollector<'a> {
             }
         }
 
+        // set of function ids that have a corresponding method in the trait
+        let mut func_ids_in_trait = HashSet::new();
+
         for item in &trait_def.items {
             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
             if let TraitItem::Function {
@@ -246,14 +251,19 @@ impl<'a> ModCollector<'a> {
                 body,
             } = item
             {
-                let is_implemented = unresolved_functions
+                // List of functions in the impl block with the same name as the method
+                //  `matching_fns.len() == 0`  => missing method impl
+                //  `matching_fns.len() > 1`   => duplicate definition (collect_functions will throw a Duplicate error)
+                let matching_fns: Vec<_> = unresolved_functions
                     .functions
                     .iter()
-                    .any(|(_, _, func_impl)| func_impl.name() == name.0.contents);
+                    .filter(|(_, _, func_impl)| func_impl.name() == name.0.contents)
+                    .collect();
 
-                if !is_implemented {
+                if matching_fns.is_empty() {
                     match body {
                         Some(body) => {
+                            // if there's a default implementation for the method, use it
                             let method_name = name.0.contents.clone();
                             let func_id = context.def_interner.push_empty_fn();
                             let is_public = false; // trait functions are always public
@@ -271,10 +281,11 @@ impl<'a> ModCollector<'a> {
                                 where_clause,
                                 return_type,
                             ));
+                            func_ids_in_trait.insert(func_id);
                             unresolved_functions.push_fn(self.module_id, func_id, impl_method);
                         }
                         None => {
-                            let error = DefCollectorErrorKind::TraitMissedMethodImplementation {
+                            let error = DefCollectorErrorKind::TraitMissingMethod {
                                 trait_name: trait_def.name.clone(),
                                 method_name: name.clone(),
                                 trait_impl_span: trait_impl.object_type_span,
@@ -282,9 +293,26 @@ impl<'a> ModCollector<'a> {
                             errors.push(error.into_file_diagnostic(self.file_id));
                         }
                     }
+                } else {
+                    for (_, func_id, _) in &matching_fns {
+                        func_ids_in_trait.insert(*func_id);
+                    }
                 }
             }
         }
+
+        // Emit MethodNotInTrait error for methods in the impl block that
+        // don't have a corresponding method signature defined in the trait
+        for (_, func_id, func) in &unresolved_functions.functions {
+            if !func_ids_in_trait.contains(func_id) {
+                let error = DefCollectorErrorKind::MethodNotInTrait {
+                    trait_name: trait_def.name.clone(),
+                    impl_method: func.name_ident().clone(),
+                };
+                errors.push(error.into_file_diagnostic(self.file_id));
+            }
+        }
+
         unresolved_functions
     }
 
@@ -505,7 +533,7 @@ impl<'a> ModCollector<'a> {
             };
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&mut context.file_manager, child_file_id, errors);
+        let ast = parse_file(&context.file_manager, child_file_id, errors);
 
         // Add module into def collector and get a ModuleId
         if let Some(child_mod_id) =

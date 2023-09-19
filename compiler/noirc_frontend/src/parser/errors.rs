@@ -27,6 +27,8 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
+    #[error("the default type of a for-loop range will be changing from a Field to a u64")]
+    ForLoopDefaultTypeChanging,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
     #[error("Where clauses are allowed only on functions with generic parameters")]
@@ -130,6 +132,11 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::ForLoopDefaultTypeChanging => Diagnostic::simple_warning(
+                        "The default type for the incrementor in a for-loop will be changed.".into(),
+                        "The default type in a for-loop will be changing from Field to u64".into(),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

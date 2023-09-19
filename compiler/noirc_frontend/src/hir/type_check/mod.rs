@@ -90,10 +90,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors
 }
 
-fn function_info(
-    interner: &mut NodeInterner,
-    function_body_id: &ExprId,
-) -> (noirc_errors::Span, bool) {
+fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_errors::Span, bool) {
     let (expr_span, empty_function) =
         if let HirExpression::Block(block) = interner.expression(function_body_id) {
             let last_stmt = block.statements().last();
@@ -334,7 +331,14 @@ mod test {
 
         "#;
 
-        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+        // expect a deprecation warning since we are changing for-loop default type.
+        // There is a deprecation warning per for-loop.
+        let expected_num_errors = 2;
+        type_check_src_code_errors_expected(
+            src,
+            expected_num_errors,
+            vec![String::from("main"), String::from("foo")],
+        );
     }
     #[test]
     fn basic_closure() {
@@ -391,15 +395,28 @@ mod test {
         }
     }
 
+    fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
+        type_check_src_code_errors_expected(src, 0, func_namespace);
+    }
+
     // This function assumes that there is only one function and this is the
     // func id that is returned
-    fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
+    fn type_check_src_code_errors_expected(
+        src: &str,
+        expected_number_errors: usize,
+        func_namespace: Vec<String>,
+    ) {
         let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
 
-        // Using assert_eq here instead of assert(errors.is_empty()) displays
-        // the whole vec if the assert fails rather than just two booleans
-        assert_eq!(errors, vec![]);
+        assert_eq!(
+            errors.len(),
+            expected_number_errors,
+            "expected {} errors, but got {}, errors: {:?}",
+            expected_number_errors,
+            errors.len(),
+            errors
+        );
 
         let main_id = interner.push_fn(HirFunction::empty());
         interner.push_function_definition("main".into(), main_id, true, ModuleId::dummy_id());

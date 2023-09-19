@@ -5,10 +5,22 @@ examples/9
 node_modules
 pkg/
 
+# Yarn
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
 # Source resolver
 compiler/source-resolver/node_modules
 compiler/source-resolver/lib
 compiler/source-resolver/lib-node
+
+# Noir.js
+tooling/noir_js/lib
 
 # Nix stuff
 **/outputs
@@ -27,7 +39,13 @@ result
 **/target
 !tooling/nargo_cli/tests/acir_artifacts/*/target
 !tooling/nargo_cli/tests/acir_artifacts/*/target/witness.gz
-
+!compiler/wasm/noir-script/target
 # Github Actions scratch space
 # This gives a location to download artifacts into the repository in CI without making git dirty.
 libbarretenberg-wasm32
+
+# Wasm build atifacts
+compiler/wasm/nodejs
+compiler/wasm/web
+tooling/noirc_abi_wasm/nodejs
+tooling/noirc_abi_wasm/web

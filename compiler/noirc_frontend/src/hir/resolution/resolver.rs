@@ -17,6 +17,7 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
+use crate::hir_def::traits::Trait;
 use crate::token::PrimaryAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -35,9 +36,9 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, Pattern, Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-    Visibility, ERROR_IDENT,
+    Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility,
+    ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -76,7 +77,7 @@ pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
-    interner: &'a mut NodeInterner,
+    pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
     file: FileId,
 
@@ -125,6 +126,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_self_type(&mut self, self_type: Option<Type>) {
         self.self_type = self_type;
+    }
+
+    pub fn get_self_type(&mut self) -> Option<&Type> {
+        self.self_type.as_ref()
     }
 
     fn push_err(&mut self, err: ResolverError) {

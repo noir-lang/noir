@@ -25,7 +25,7 @@ cfg_if::cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         use wasm_bindgen::{prelude::*, JsValue};
 
-        #[wasm_bindgen(module = "@noir-lang/noir-source-resolver")]
+        #[wasm_bindgen(module = "@noir-lang/source-resolver")]
         extern "C" {
 
             #[wasm_bindgen(catch)]

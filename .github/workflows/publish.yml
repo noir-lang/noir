@@ -74,14 +74,15 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        if: matrix.target == 'x86_64-apple-darwin'
+        uses: ./.github/actions/setup
+
       - name: Test built artifact
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
-          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-
-          cd release-tests
-          yarn install
-          yarn test
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/          
+          yarn workspace release-tests test
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
@@ -93,6 +94,24 @@ jobs:
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -141,14 +160,15 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+      - name: Install Yarn dependencies
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        uses: ./.github/actions/setup
+
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-
-          cd release-tests
-          yarn install
-          yarn test
+          yarn workspace release-tests test
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
@@ -160,3 +180,21 @@ jobs:
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
