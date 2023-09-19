@@ -6,8 +6,8 @@ on:
       - jb-test-solidity-verifier
 
 jobs:
-  build-apple-darwin:
-    runs-on: macos-latest
+  test-solidity-verifier:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
