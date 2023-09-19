@@ -748,7 +748,7 @@ impl Context {
         array: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, RuntimeError> {
+    ) -> Result<(), RuntimeError> {
         let array_id = dfg.resolve(array);
 
         let array_typ = dfg.type_of_value(array_id);
@@ -783,96 +783,21 @@ impl Context {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
 
-        let mut is_first_elem = true;
-        let mut values = Vector::new();
-        self.array_get_type(&res_typ, &mut var_index, &mut values, block_id, &mut is_first_elem)?;
-        assert_eq!(values.len(), 1);
+        let mut first_elem = true;
+        let value = self.array_get_value(&res_typ, block_id, &mut var_index, &mut first_elem)?;
 
-        self.define_result(dfg, instruction, values[0].clone());
+        self.define_result(dfg, instruction, value);
 
-        // TODO: update array_get to return an AcirValue
-        // or remove that array_get returns anything
-        let read = self.acir_context.read_from_memory(block_id, &var_index)?;
-        Ok(read)
+        Ok(())
     }
 
-    fn get_flattened_index(
-        &mut self,
-        array_typ: &Type,
-        array_len: usize,
-        var_index: AcirVar,
-    ) -> Result<AcirVar, RuntimeError> {
-        let element_type_sizes = self.init_element_types_size_array(array_typ)?;
-
-        let element_size = array_typ.element_size();
-        let flat_array_size = array_typ.flattened_size();
-        let flat_elem_size = flat_array_size / array_len;
-        let flat_element_size_var =
-            self.acir_context.add_constant(FieldElement::from(flat_elem_size as u128));
-
-        let element_size_var =
-            self.acir_context.add_constant(FieldElement::from(element_size as u128));
-        let outer_offset = self.acir_context.div_var(
-            var_index,
-            element_size_var,
-            AcirType::unsigned(32),
-            self.current_side_effects_enabled_var,
-        )?;
-        let inner_offset_index = self.acir_context.modulo_var(
-            var_index,
-            element_size_var,
-            32,
-            self.current_side_effects_enabled_var,
-        )?;
-        let inner_offset =
-            self.acir_context.read_from_memory(element_type_sizes, &inner_offset_index)?;
-
-        let var_index = self.acir_context.mul_var(outer_offset, flat_element_size_var)?;
-        self.acir_context.add_var(var_index, inner_offset)
-    }
-
-    fn init_element_types_size_array(&mut self, array_typ: &Type) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.internal_block_id();
-        let mut flat_elem_type_sizes = Vec::new();
-        flat_elem_type_sizes.push(0);
-        match array_typ {
-            Type::Array(element_types, _) => {
-                for (i, typ) in element_types.as_ref().iter().enumerate() {
-                    flat_elem_type_sizes.push(typ.flattened_size() + flat_elem_type_sizes[i]);
-                }
-            }
-            _ => {
-                return Err(InternalError::UnExpected {
-                    expected: "array".to_owned(),
-                    found: array_typ.to_string(),
-                    call_stack: self.acir_context.get_call_stack(),
-                }
-                .into())
-            }
-        }
-        // We do not have to initialize the last elem size value as that is the maximum array size
-        flat_elem_type_sizes.pop();
-        let init_values = vecmap(flat_elem_type_sizes, |type_size| {
-            let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
-            AcirValue::Var(var, AcirType::field())
-        });
-        self.initialize_array(
-            element_type_sizes,
-            init_values.len(),
-            Some(AcirValue::Array(init_values.into())),
-        )?;
-
-        Ok(element_type_sizes)
-    }
-
-    fn array_get_type(
+    fn array_get_value(
         &mut self,
         ssa_type: &Type,
-        var_index: &mut AcirVar,
-        values: &mut Vector<AcirValue>,
         block_id: BlockId,
+        var_index: &mut AcirVar,
         first_elem: &mut bool,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
@@ -883,31 +808,29 @@ impl Context {
 
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
                 let typ = AcirType::NumericType(numeric_type);
-                let value = AcirValue::Var(read, typ);
-                values.push_back(value);
+                Ok(AcirValue::Var(read, typ))
             }
             Type::Array(element_types, len) => {
-                let mut inner_vec = Vector::new();
+                let mut values = Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
-                        self.array_get_type(typ, var_index, &mut inner_vec, block_id, first_elem)?;
+                        values
+                            .push_back(self.array_get_value(typ, block_id, var_index, first_elem)?);
                     }
                 }
-                let array_value = AcirValue::Array(inner_vec);
-                values.push_back(array_value);
+                Ok(AcirValue::Array(values))
             }
             Type::Slice(_) => {
-                // TODO: need SSA values here to fetch the len like for a Type::Array, not obvious how to incorporate it yet
-                return Err(InternalError::UnExpected {
+                // TODO: need SSA values here to fetch the len like we do for a Type::Array
+                Err(InternalError::UnExpected {
                     expected: "array".to_owned(),
                     found: ssa_type.to_string(),
                     call_stack: self.acir_context.get_call_stack(),
                 }
-                .into());
+                .into())
             }
             _ => unreachable!("ICE - expected an array or slice"),
-        };
-        Ok(())
+        }
     }
 
     /// Copy the array and generates a write opcode on the new array
@@ -1070,6 +993,75 @@ impl Context {
             }
         }
         Ok(())
+    }
+
+    fn init_element_types_size_array(&mut self, array_typ: &Type) -> Result<BlockId, RuntimeError> {
+        let element_type_sizes = self.internal_block_id();
+        let mut flat_elem_type_sizes = Vec::new();
+        flat_elem_type_sizes.push(0);
+        match array_typ {
+            Type::Array(element_types, _) => {
+                for (i, typ) in element_types.as_ref().iter().enumerate() {
+                    flat_elem_type_sizes.push(typ.flattened_size() + flat_elem_type_sizes[i]);
+                }
+            }
+            _ => {
+                return Err(InternalError::UnExpected {
+                    expected: "array".to_owned(),
+                    found: array_typ.to_string(),
+                    call_stack: self.acir_context.get_call_stack(),
+                }
+                .into())
+            }
+        }
+        // We do not have to initialize the last elem size value as that is the maximum array size
+        flat_elem_type_sizes.pop();
+        let init_values = vecmap(flat_elem_type_sizes, |type_size| {
+            let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
+            AcirValue::Var(var, AcirType::field())
+        });
+        self.initialize_array(
+            element_type_sizes,
+            init_values.len(),
+            Some(AcirValue::Array(init_values.into())),
+        )?;
+
+        Ok(element_type_sizes)
+    }
+
+    fn get_flattened_index(
+        &mut self,
+        array_typ: &Type,
+        array_len: usize,
+        var_index: AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        let element_type_sizes = self.init_element_types_size_array(array_typ)?;
+
+        let element_size = array_typ.element_size();
+        let flat_array_size = array_typ.flattened_size();
+        let flat_elem_size = flat_array_size / array_len;
+        let flat_element_size_var =
+            self.acir_context.add_constant(FieldElement::from(flat_elem_size as u128));
+
+        let element_size_var =
+            self.acir_context.add_constant(FieldElement::from(element_size as u128));
+        let outer_offset = self.acir_context.div_var(
+            var_index,
+            element_size_var,
+            AcirType::unsigned(32),
+            self.current_side_effects_enabled_var,
+        )?;
+        let inner_offset_index = self.acir_context.modulo_var(
+            var_index,
+            element_size_var,
+            32,
+            self.current_side_effects_enabled_var,
+        )?;
+        let inner_offset =
+            self.acir_context.read_from_memory(element_type_sizes, &inner_offset_index)?;
+
+        let var_index = self.acir_context.mul_var(outer_offset, flat_element_size_var)?;
+        self.acir_context.add_var(var_index, inner_offset)
     }
 
     /// Initializes an array with the given values and caches the fact that we
