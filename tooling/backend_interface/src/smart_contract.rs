@@ -60,9 +60,7 @@ mod tests {
 
         let contract = get_mock_backend()?.eth_contract(&circuit)?;
 
-        assert!(contract.contains("contract BaseUltraVerifier"));
-        assert!(contract.contains("contract UltraVerifier"));
-        assert!(contract.contains("library UltraVerificationKey"));
+        assert!(contract.contains("contract VerifierContract"));
 
         Ok(())
     }
