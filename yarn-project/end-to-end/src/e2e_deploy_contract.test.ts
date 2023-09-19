@@ -1,6 +1,6 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, ContractDeployer, Fr, isContractDeployed } from '@aztec/aztec.js';
+import { AztecAddress, Contract, ContractDeployer, Fr, Wallet, isContractDeployed } from '@aztec/aztec.js';
 import { CompleteAddress, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -13,9 +13,10 @@ describe('e2e_deploy_contract', () => {
   let aztecRpcServer: AztecRPC;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
+  let wallet: Wallet;
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, accounts, logger } = await setup());
+    ({ aztecNode, aztecRpcServer, accounts, logger, wallet } = await setup());
   }, 100_000);
 
   afterEach(async () => {
@@ -73,6 +74,22 @@ describe('e2e_deploy_contract', () => {
       expect(isMined).toBe(true);
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
+    }
+  }, 30_000);
+
+  /**
+   * Verify that we can deploy multiple contracts and interact with all of them.
+   */
+  it('should deploy multiple contracts and interact with them', async () => {
+    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
+
+    for (let index = 0; index < 2; index++) {
+      logger(`Deploying contract ${index + 1}...`);
+      const receipt = await deployer.deploy().send({ contractAddressSalt: Fr.random() }).wait({ wallet });
+
+      const contract = await Contract.at(receipt.contractAddress!, TestContractAbi, wallet);
+      logger(`Sending TX to contract ${index + 1}...`);
+      await contract.methods.getPublicKey(accounts[0].address).send().wait();
     }
   }, 30_000);
 

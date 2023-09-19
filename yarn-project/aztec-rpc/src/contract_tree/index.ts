@@ -38,7 +38,7 @@ export class ContractTree {
   private functionLeaves?: Fr[];
   private functionTree?: Fr[];
   private functionTreeRoot?: Fr;
-  private contractMembershipWitness?: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>;
+  private contractIndex?: bigint;
 
   constructor(
     /**
@@ -157,26 +157,14 @@ export class ContractTree {
    * @returns A Promise that resolves to the MembershipWitness object for the given contract tree.
    */
   public async getContractMembershipWitness() {
-    if (!this.contractMembershipWitness) {
-      const { completeAddress, portalContract } = this.contract;
-      const root = await this.getFunctionTreeRoot();
-      const newContractData = new NewContractData(completeAddress.address, portalContract, root);
-      const commitment = computeContractLeaf(this.wasm, newContractData);
-      const index = await this.contractCommitmentProvider.findContractIndex(commitment.toBuffer());
-      if (index === undefined) {
-        throw new Error(
-          `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,
-        );
-      }
+    const index = await this.getContractIndex();
 
-      const siblingPath = await this.contractCommitmentProvider.getContractPath(index);
-      this.contractMembershipWitness = new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
-        CONTRACT_TREE_HEIGHT,
-        index,
-        assertLength(siblingPath.toFieldArray(), CONTRACT_TREE_HEIGHT),
-      );
-    }
-    return this.contractMembershipWitness;
+    const siblingPath = await this.contractCommitmentProvider.getContractPath(index);
+    return new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
+      CONTRACT_TREE_HEIGHT,
+      index,
+      assertLength(siblingPath.toFieldArray(), CONTRACT_TREE_HEIGHT),
+    );
   }
 
   /**
@@ -238,5 +226,22 @@ export class ContractTree {
       this.functionLeaves = generateFunctionLeaves(this.contract.functions, this.wasm);
     }
     return this.functionLeaves;
+  }
+
+  private async getContractIndex() {
+    if (this.contractIndex === undefined) {
+      const { completeAddress, portalContract } = this.contract;
+      const root = await this.getFunctionTreeRoot();
+      const newContractData = new NewContractData(completeAddress.address, portalContract, root);
+      const commitment = computeContractLeaf(this.wasm, newContractData);
+      this.contractIndex = await this.contractCommitmentProvider.findContractIndex(commitment.toBuffer());
+      if (this.contractIndex === undefined) {
+        throw new Error(
+          `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,
+        );
+      }
+      return this.contractIndex;
+    }
+    return this.contractIndex;
   }
 }
