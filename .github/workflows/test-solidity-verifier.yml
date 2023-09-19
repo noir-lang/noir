@@ -25,8 +25,11 @@ jobs:
           source /Users/runner/.bashrc
           noirup
 
-      - name: Test nargo version
-        run: nargo -V
+      - name: Test nargo
+        run: |
+          nargo_binary="/Users/runner/.nargo/bin/nargo"
+          chmod +x $nargo_binary
+          $nargo_binary -V
 
       - name: Run Anvil
         run: |
