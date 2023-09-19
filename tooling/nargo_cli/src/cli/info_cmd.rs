@@ -1,5 +1,5 @@
 use acvm::Language;
-use acvm_backend_barretenberg::BackendError;
+use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::package::Package;

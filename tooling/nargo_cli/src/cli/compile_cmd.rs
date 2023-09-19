@@ -3,7 +3,7 @@ use std::path::Path;
 
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
-use acvm_backend_barretenberg::BackendOpcodeSupport;
+use backend_interface::BackendOpcodeSupport;
 use fm::FileManager;
 use iter_extended::vecmap;
 use nargo::artifacts::contract::PreprocessedContract;

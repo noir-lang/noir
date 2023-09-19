@@ -63,15 +63,10 @@ impl Backend {
         }
         .run(binary_path)?;
 
-        // Barretenberg return the proof prepended with the public inputs.
-        //
-        // This is not how the API expects the proof to be formatted,
-        // so we remove the public inputs from the proof.
-        //
-        // TODO: As noted in the verification procedure, this is an abstraction leak
-        // TODO: and will need modifications to barretenberg
-        let proof =
-            remove_public_inputs(circuit.public_inputs().0.len(), &proof_with_public_inputs);
+        let proof = bb_abstraction_leaks::remove_public_inputs(
+            circuit.public_inputs().0.len(),
+            &proof_with_public_inputs,
+        );
         Ok(proof)
     }
 
@@ -92,12 +87,10 @@ impl Backend {
         let flattened_public_inputs: Vec<FieldElement> =
             public_inputs.into_iter().map(|(_, el)| el).collect();
 
-        // Barretenberg expects the proof to be prepended with the public inputs.
-        //
-        // TODO: This is an abstraction leak and barretenberg's API should accept the public inputs
-        // TODO: separately and then prepend them internally
-        let proof_with_public_inputs =
-            prepend_public_inputs(proof.to_vec(), flattened_public_inputs.to_vec());
+        let proof_with_public_inputs = bb_abstraction_leaks::prepend_public_inputs(
+            proof.to_vec(),
+            flattened_public_inputs.to_vec(),
+        );
 
         // Create a temporary file for the proof
         let proof_path = temp_directory.join("proof").with_extension("proof");
@@ -137,26 +130,6 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
-}
-
-/// Removes the public inputs which are prepended to a proof by Barretenberg.
-fn remove_public_inputs(num_pub_inputs: usize, proof: &[u8]) -> Vec<u8> {
-    // Barretenberg prepends the public inputs onto the proof so we need to remove
-    // the first `num_pub_inputs` field elements.
-    let num_bytes_to_remove = num_pub_inputs * (FieldElement::max_num_bytes() as usize);
-    proof[num_bytes_to_remove..].to_vec()
-}
-
-/// Prepends a set of public inputs to a proof.
-fn prepend_public_inputs(proof: Vec<u8>, public_inputs: Vec<FieldElement>) -> Vec<u8> {
-    if public_inputs.is_empty() {
-        return proof;
-    }
-
-    let public_inputs_bytes =
-        public_inputs.into_iter().flat_map(|assignment| assignment.to_be_bytes());
-
-    public_inputs_bytes.chain(proof).collect()
 }
 
 // TODO: See nargo/src/artifacts/mod.rs
