@@ -24,17 +24,16 @@ jobs:
           anvil > /dev/null 2>&1 &
           sleep 10
 
+
+      - name: Configure git
+        run: |
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
+
       - name: Install nargo
         run: |
           curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-          
           export PATH="/home/runner/.nargo/bin:$PATH"
-
-          echo $PATH
-
-          ls -la /home/runner/.nargo/bin
-
-          /home/runner/.nargo/bin/noirup
 
           noirup
           echo "/Users/runner/.nargo/bin" >> $GITHUB_PATH
