@@ -72,12 +72,12 @@ function encodeArg(arg: string, abiType: ABIType, name: string): any {
       throw new Error(`Unable to parse arg ${arg} as struct`);
     }
     if (Array.isArray(obj)) throw Error(`Array passed for arg ${name}. Expected a struct.`);
-    const res = [];
+    const res: any = {};
     for (const field of abiType.fields) {
       // Remove field name from list as it's present
       const arg = obj[field.name];
       if (!arg) throw Error(`Expected field ${field.name} not found in struct ${name}.`);
-      res.push(encodeArg(obj[field.name], field.type, field.name));
+      res[field.name] = encodeArg(obj[field.name], field.type, field.name);
     }
     return res;
   }
@@ -94,10 +94,8 @@ export function encodeArgs(args: any[], params: ABIParameter[]) {
       `Invalid number of args provided. Expected: ${params.length}, received: ${args.length}\nReceived args: ${args}`,
     );
   }
-  return args
-    .map((arg: any, index) => {
-      const { type, name } = params[index];
-      return encodeArg(arg, type, name);
-    })
-    .flat();
+  return args.map((arg: any, index) => {
+    const { type, name } = params[index];
+    return encodeArg(arg, type, name);
+  });
 }
