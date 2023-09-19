@@ -6,9 +6,6 @@ use crate::{
 use acvm::acir::circuit::Circuit;
 use tempfile::tempdir;
 
-/// Embed the Solidity verifier file
-const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
-
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
         let binary_path = self.assert_binary_exists()?;
@@ -32,11 +29,7 @@ impl Backend {
         }
         .run(binary_path)?;
 
-        let verification_key_library =
-            ContractCommand { crs_path: self.crs_directory(), vk_path }.run(binary_path)?;
-
-        drop(temp_directory);
-        Ok(format!("{verification_key_library}{ULTRA_VERIFIER_CONTRACT}"))
+        ContractCommand { crs_path: self.crs_directory(), vk_path }.run(binary_path)
     }
 }
 
@@ -67,9 +60,7 @@ mod tests {
 
         let contract = get_mock_backend()?.eth_contract(&circuit)?;
 
-        assert!(contract.contains("contract BaseUltraVerifier"));
-        assert!(contract.contains("contract UltraVerifier"));
-        assert!(contract.contains("library UltraVerificationKey"));
+        assert!(contract.contains("contract VerifierContract"));
 
         Ok(())
     }
