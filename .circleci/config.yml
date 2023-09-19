@@ -1305,8 +1305,6 @@ workflows:
     when:
       equal: [system, << pipeline.parameters.workflow >>]
     jobs:
-      - build-docs: *defaults
-
       # Barretenberg
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
@@ -1399,7 +1397,8 @@ workflows:
             - l1-contracts
             - noir-contracts-build
           <<: *defaults
-
+      
+      - build-docs: *yarn_project
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
       - ethereum: *yarn_project

@@ -112,6 +112,18 @@ const config = {
         disableInDev: false,
       },
     ],
+    [
+      "@spalladino/docusaurus-plugin-typedoc",
+      {
+        id: "apis/aztec-rpc",
+        entryPoints: ["../yarn-project/types/src/interfaces/aztec_rpc.ts"],
+        tsconfig: "../yarn-project/types/tsconfig.json",
+        entryPointStrategy: "expand",
+        out: "apis/aztec-rpc",
+        disableSources: true,
+        frontmatter: { sidebar_label: "Aztec RPC Server" },
+      },
+    ],
     // ["./src/plugins/plugin-embed-code", {}],
   ],
   themeConfig:
