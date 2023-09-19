@@ -304,6 +304,19 @@ impl Context {
         block_id
     }
 
+    /// Get the next BlockId for internal memory 
+    /// used during ACIR generation. 
+    /// This is useful for referencing information that can
+    /// only be computed dynamically, such as the type structure
+    /// of non-homogenous arrays.
+    fn internal_block_id(&mut self) -> BlockId {
+        let block_id = BlockId(self.max_block_id);
+        self.max_block_id += 1;
+        // We do not insert into `self.memory_blocks` here as this BlockId
+        // does not have a corresponding ValueId
+        block_id
+    }
+
     /// Creates an `AcirVar` corresponding to a parameter witness to appears in the abi. A range
     /// constraint is added if the numeric type requires it.
     ///
@@ -547,7 +560,7 @@ impl Context {
         let (array, index, store_value) = match dfg[instruction] {
             Instruction::ArrayGet { array, index } => (array, index, None),
             Instruction::ArraySet { array, index, value, .. } => {
-                dbg!(&dfg[value]);
+                // dbg!(&dfg[value]);
                 (array, index, Some(value))
             }
             _ => {
@@ -632,6 +645,8 @@ impl Context {
         }
 
         // let (new_index, new_value) = self.convert_array_operation_inputs(instruction, dfg, array, index, store_value)?;
+        // let new_value = new_value.map(|var| AcirValue::Var(var, AcirType::field()));
+
         let (new_index, new_value) = self.convert_array_operation_inputs_new(instruction, dfg, array, index, store_value)?;
 
         let resolved_array = dfg.resolve(array);
@@ -716,20 +731,22 @@ impl Context {
         // dbg!("about to convert_value: ");
         // dbg!(store_value.clone());
         let new_value = if let Some(store) = store_value {
-            dbg!(&dfg[store]);
+            // dbg!(&dfg[store]);
             let store_value = self.convert_value(store, dfg);
-            dbg!(store_value.clone());
+            // dbg!(store_value.clone());
             // let store_value = self.convert_array_set_store_value(&store_value, dummy)?;
             if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-                dbg!("got here");
+                // dbg!("got here");
                 Some(store_value)
             } else {
-                dbg!("using dummy");
-                let dummy = self.array_get(instruction, array, predicate_index, dfg)?;
+                // dbg!("using dummy");
+                // TODO: accurately setup the dummy value
+                let one = self.acir_context.add_constant(FieldElement::one());
+                // let dummy = self.array_get(instruction, array, predicate_index, dfg)?;
 
                 // TODO: fix this it is a placeholder and wrong!!!
                 // Some(self.convert_value(store, dfg))
-                Some(self.convert_array_set_store_value(&store_value, dummy)?)
+                Some(self.convert_array_set_store_value(&store_value, one)?)
                 // Some(store_value)
             }
         } else {
@@ -796,13 +813,14 @@ impl Context {
         // dbg!(results);
         // dbg!(dfg.resolve(results[0]));
         let res_typ = dfg.type_of_value(results[0]);
-        dbg!(res_typ.clone());
-        dbg!(block_id.0);
+        // dbg!(res_typ.clone());
+        // dbg!(block_id.0);
         if !self.initialized_arrays.contains(&block_id) {
             match &dfg[array] {
                 Value::Array { array, .. } => {
                     let values: Vector<AcirValue> =
                         array.iter().map(|i| self.convert_value(*i, dfg)).collect();
+                    // TODO: this is not the correct len
                     self.initialize_array_new(block_id, values.len(), Some(AcirValue::Array(values)))?;
                     // self.initialize_array(block_id, array.len(), Some(&values))?;
                 }
@@ -815,40 +833,78 @@ impl Context {
                 }
             }
         }
+        // let x = 
 
+        let element_type_sizes = self.internal_block_id();
+        // dbg!(element_type_sizes.0);
+        // TODO: doing this here but perhaps it should be done on array initialization automatically
+        match &dfg[array] {
+            Value::Array { typ, .. } | Value::Param { typ, .. }
+            | Value::Instruction { typ, .. } => {
+                let mut flat_elem_type_sizes = Vec::new();
+                flat_elem_type_sizes.push(0);
+                match typ {
+                    Type::Array(element_types, _) => {
+                        for (i, typ) in element_types.as_ref().iter().enumerate() {
+                            let mut flat_value_size = typ.flattened_element_size();
+                            flat_value_size += flat_elem_type_sizes[i];
+                            flat_elem_type_sizes.push(flat_value_size);
+                        }
+                    }
+                    _ => panic!("ahhhh should only have an array"),
+                }
+                flat_elem_type_sizes.pop();
+                // flat_elem_type_sizes
+                // dbg!(flat_elem_type_sizes.clone());
+                let init_values = vecmap(flat_elem_type_sizes, |type_size| {
+                    let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
+                    AcirValue::Var(var, AcirType::field())
+                });
+                self.initialize_array_new(element_type_sizes, init_values.len(), Some(AcirValue::Array(init_values.into())))?;
+            }
+            _ => {
+                dbg!(&dfg[array]);
+                return Err(RuntimeError::UnInitialized {
+                    name: "array".to_string(),
+                    call_stack: self.acir_context.get_call_stack(),
+                });
+            }
+        }
+        
         // let res_type_size = res_typ.element_size();
         // dbg!(res_type_size);
         let res_type_flat_size = res_typ.flattened_element_size();
-        dbg!(res_type_flat_size);
+        // dbg!(res_type_flat_size);
 
         let array_typ = dfg.type_of_value(array);
         // dbg!(array_typ.clone());
         let element_size = array_typ.element_size();
-        dbg!(element_size);            
+        // dbg!(element_size);            
         let flat_array_size = array_typ.flattened_element_size();
-        dbg!(flat_array_size);
+        // dbg!(flat_array_size);
         let array_len = dfg.try_get_array_length(array).expect("ICE: need to have an array, slices not implemented");
         let flat_elem_size = flat_array_size / array_len;
         let flat_element_size_var = self.acir_context.add_constant(FieldElement::from(flat_elem_size as u128));
         
         let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
-        // TODO: switch to use euclidean_division_var
         let outer_offset = self.acir_context.div_var(var_index, element_size_var, AcirType::unsigned(32), self.current_side_effects_enabled_var)?;
-        let inner_offset = self.acir_context.modulo_var(var_index, element_size_var, 32, self.current_side_effects_enabled_var)?;
+        let inner_offset_index = self.acir_context.modulo_var(var_index, element_size_var, 32, self.current_side_effects_enabled_var)?;
+        let inner_offset = self.acir_context.read_from_memory(element_type_sizes, &inner_offset_index)?;
+
         let var_index = self.acir_context.mul_var(outer_offset, flat_element_size_var)?;
-        let var_index = self.acir_context.add_var(var_index, inner_offset)?;
+        let mut var_index = self.acir_context.add_var(var_index, inner_offset)?;
 
         // Work with index
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let pred = self.acir_context.less_than_var(one, inner_offset, 32, self.current_side_effects_enabled_var)?;
-        let not_pred = self.acir_context.sub_var(one, pred)?;
-        let var_index_plus_one = self.acir_context.add_var(var_index, one)?;
-        let true_pred = self.acir_context.mul_var(pred, var_index_plus_one)?;
-        let false_pred = self.acir_context.mul_var(not_pred, var_index)?;
-        let var_index = self.acir_context.add_var(true_pred, false_pred)?;
-        // Had to add one here once we added a value to preceding element type in program
-        // TODO: make this general as this was simply for testing
-        let mut var_index = self.acir_context.add_var(var_index, one)?;
+        // let one = self.acir_context.add_constant(FieldElement::one());
+        // let pred = self.acir_context.less_than_var(one, inner_offset, 32, self.current_side_effects_enabled_var)?;
+        // let not_pred = self.acir_context.sub_var(one, pred)?;
+        // let var_index_plus_one = self.acir_context.add_var(var_index, one)?;
+        // let true_pred = self.acir_context.mul_var(pred, var_index_plus_one)?;
+        // let false_pred = self.acir_context.mul_var(not_pred, var_index)?;
+        // let var_index = self.acir_context.add_var(true_pred, false_pred)?;
+        // // Had to add one here once we added a value to preceding element type in program
+        // // TODO: make this general as this was simply for testing
+        // let mut var_index = self.acir_context.add_var(var_index, one)?;
 
         let mut is_first_elem = true;
         let mut values = Vector::new();
@@ -878,7 +934,7 @@ impl Context {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
-                dbg!(*first_elem);
+                // dbg!(*first_elem);
                 if !*first_elem {
                     *var_index = self.acir_context.add_var(*var_index, one)?;
                 }
@@ -891,9 +947,9 @@ impl Context {
             }
             Type::Array(element_types, len) => {
                 let mut inner_vec = Vector::new();
-                dbg!(len);
+                // dbg!(len);
                 for i in 0..len {
-                    dbg!(i);
+                    // dbg!(i);
                     for typ in element_types.as_ref() {
                         self.array_get_type(dfg, typ, var_index, &mut inner_vec, block_id, first_elem)?;
                     }
@@ -932,7 +988,6 @@ impl Context {
         map_array: bool,
     ) -> Result<(), RuntimeError> {
         dbg!("INSIDE ARRAY_SET");
-        // let x = self.acir_context.
         // Pass the instruction between array methods rather than the internal fields themselves
         let (array, length) = match dfg[instruction] {
             Instruction::ArraySet { array, length, .. } => (array, length),
@@ -947,7 +1002,7 @@ impl Context {
 
         // Fetch the internal SSA ID for the array
         let array_id = dfg.resolve(array);
-        dbg!(array_id);
+        // dbg!(array_id);
 
         // Use the SSA ID to get or create its block ID
         let block_id = self.block_id(&array_id);
@@ -1001,6 +1056,39 @@ impl Context {
             }
         }
 
+        let element_type_sizes = self.internal_block_id();
+        match &dfg[array_id] {
+            Value::Array { typ, .. } | Value::Param { typ, .. } 
+            | Value::Instruction { typ, .. } => {
+                // dbg!(typ.clone());
+                let mut flat_elem_type_sizes = Vec::new();
+                flat_elem_type_sizes.push(0);
+                match typ {
+                    Type::Array(element_types, _) => {
+                        for (i, typ) in element_types.as_ref().iter().enumerate() {
+                            let mut flat_value_size = typ.flattened_element_size();
+                            flat_value_size += flat_elem_type_sizes[i];
+                            flat_elem_type_sizes.push(flat_value_size);
+                        }
+                    }
+                    _ => panic!("ahhhh should only have an array"),
+                }
+                flat_elem_type_sizes.pop();
+                let init_values = vecmap(flat_elem_type_sizes, |type_size| {
+                    let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
+                    AcirValue::Var(var, AcirType::field())
+                });
+                self.initialize_array_new(element_type_sizes, init_values.len(), Some(AcirValue::Array(init_values.into())))?;
+            }
+            _ => {
+                dbg!(&dfg[array]);
+                return Err(RuntimeError::UnInitialized {
+                    name: "array".to_string(),
+                    call_stack: self.acir_context.get_call_stack(),
+                });
+            }
+        }
+
         // Since array_set creates a new array, we create a new block ID for this
         // array, unless map_array is true. In that case, we operate directly on block_id
         // and we do not create a new block ID.
@@ -1034,40 +1122,28 @@ impl Context {
                 let read = self.acir_context.read_from_memory(block_id, &var)?;
                 Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
             })?;
-            dbg!(len);
             self.initialize_array_new(result_block_id, flat_elem_size, Some(AcirValue::Array(init_values.into())))?;
-            // self.initialize_array(result_block_id, len, Some(&init_values))?;
         }
-
-        // let index_const = self.acir_context.get_constant(&var_index);
-        // dbg!(index_const);
 
         let element_size = array_typ.element_size();
         // dbg!(element_size);            
         let flat_array_size = array_typ.flattened_element_size();
         // dbg!(flat_array_size);
         let array_len = dfg.try_get_array_length(array).expect("ICE: need to have an array, slices not implemented");
-        // dbg!(array_len);
         let flat_elem_size = flat_array_size / array_len;
         let flat_element_size_var = self.acir_context.add_constant(FieldElement::from(flat_elem_size as u128));
         
         let element_size_var = self.acir_context.add_constant(FieldElement::from(element_size as u128));
-        // TODO: switch to use euclidean_division-var
         let outer_offset = self.acir_context.div_var(var_index, element_size_var, AcirType::unsigned(32), self.current_side_effects_enabled_var)?;
-        let inner_offset = self.acir_context.modulo_var(var_index, element_size_var, 32, self.current_side_effects_enabled_var)?;
+        let inner_offset_index = self.acir_context.modulo_var(var_index, element_size_var, 32, self.current_side_effects_enabled_var)?;
+        let inner_offset = self.acir_context.read_from_memory(element_type_sizes, &inner_offset_index)?;
+
         let var_index = self.acir_context.mul_var(outer_offset, flat_element_size_var)?;
-        // let one = self.acir_context.add_constant(FieldElement::one());
-        // let var_index = self.acir_context.add_var(var_index, one)?;
         let mut var_index = self.acir_context.add_var(var_index, inner_offset)?;
 
-        let index_const = self.acir_context.get_constant(&var_index);
-        dbg!(index_const);
         let mut is_first_elem = true;
-        dbg!(result_block_id.0);
-        dbg!(store_value.clone());
         self.array_set_value(store_value, result_block_id, &mut var_index, &mut is_first_elem)?;
-        dbg!(len);
-        dbg!(result_block_id.0);
+
         let result_value =
             AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len: flat_array_size });
         self.define_result(dfg, instruction, result_value);
