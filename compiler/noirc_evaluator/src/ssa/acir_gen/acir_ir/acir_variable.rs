@@ -273,6 +273,13 @@ impl AcirContext {
         }
     }
 
+    pub(crate) fn get_constant(&self, var: &AcirVar) -> Option<FieldElement> {
+        match self.vars[var] {
+            AcirVarData::Const(field) => Some(field),
+            _ => None,
+        }
+    }
+
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///
@@ -1273,7 +1280,7 @@ impl AcirContext {
                 values
             }
         };
-
+        // dbg!(initialized_values.len());
         self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
 
         Ok(())
@@ -1293,25 +1300,11 @@ impl AcirContext {
                     self.initialize_array_inner(witnesses, value)?;
                 }
             }
-            // AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
             AcirValue::DynamicArray(_) => {
                 panic!("dyn array should already be initialized");
             }
-            // AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
-                // for i in 0..len {
-                //     // We generate witnesses corresponding to the array values
-                //     let index = AcirValue::Var(
-                //         self.add_constant(FieldElement::from(i as u128)),
-                //         AcirType::NumericType(NumericType::NativeField),
-                //     );
-                    
-                //     let index_var = index.into_var()?;
-                //     let value_read_var =
-                //         self.read_from_memory(block_id, &index_var)?;
-
-                //     witnesses.push(self.var_to_witness(value_read_var)?);
-                // }
-            // }
+            // TODO: I think it is correct that we should panic on dyn array
+            // but need to test and verify
         }
         Ok(())
     }

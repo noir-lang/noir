@@ -77,6 +77,25 @@ impl Type {
             other => panic!("element_size: Expected array or slice, found {other}"),
         }
     }
+
+    pub(crate) fn flattened_element_size(&self) -> usize {
+        let mut size = 0;
+        match self {
+            Type::Array(elements, len) => {
+                // array.into_iter().flat_map(AcirValue::flatten).collect(),
+                // dbg!(elements.clone());
+                for elem in elements.as_ref() {
+                    size += elem.flattened_element_size() * len;
+                }
+                // let element_size = elements.len();
+                // let x = elements.into_iter().flat_map(|elem| elem.flattened_element_size()).collect();
+            }
+            _ => {
+                size += 1
+            }
+        }
+        size
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.

@@ -397,7 +397,7 @@ impl Instruction {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
                     dbg!(array.len());
-                    dbg!(array.clone());
+                    // dbg!(array.clone());
                     dbg!(index);
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
