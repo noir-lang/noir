@@ -29,23 +29,14 @@ jobs:
           curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
           source /Users/runner/.bashrc
           noirup
-
-      - name: Test nargo
-        run: |
-          nargo_binary="/Users/runner/.nargo/bin/nargo"
-          chmod +x $nargo_binary
-          $nargo_binary -V
-          cd ./tooling/nargo_cli/tests/execution_success/1_mul
-          $nargo_binary codegen-verifier
-
-      - name: Dirs
-        run: ls -R
+          echo "/Users/runner/.nargo/bin" >> $GITHUB_PATH
+          nargo -V
 
       - name: Run codegen-verifier for 1_mul
         working-directory: tooling/nargo_cli/tests/execution_success/1_mul
-        run: $nargo_binary codegen-verifier
+        run: nargo codegen-verifier
       
       - name: Run codegen-verifier for double_verify_proof
         working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
-        run: $nargo_binary codegen-verifier
+        run: nargo codegen-verifier
           
