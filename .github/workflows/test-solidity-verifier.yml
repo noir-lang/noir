@@ -1,0 +1,37 @@
+name: Test Solidity Verifier
+
+on:
+  push:
+    branches:
+      - jb-test-solidity-verifier
+
+jobs:
+  build-apple-darwin:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Test nargo
+        run: |
+          nargo_binary=${{ github.workspace }}/nargo/nargo
+          chmod +x $nargo_binary
+          $nargo_binary -V
+
+      - name: Run Anvil
+        run: |
+          anvil > /dev/null 2>&1 &
+          sleep 10
