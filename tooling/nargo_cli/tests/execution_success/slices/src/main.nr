@@ -46,7 +46,6 @@ fn main(x : Field, y : pub Field) {
     assert(append[0] == 1);
     assert(append[4] == 5);
 
-    // TODO: need to implement dynamic arrays for 
     regression_2083();
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
@@ -88,7 +87,7 @@ fn regression_2083() {
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
-    // merge_slices_else(x);
+    merge_slices_else(x);
 }
 
 fn merge_slices_if(x: Field, y: Field) {

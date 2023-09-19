@@ -188,15 +188,11 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        dbg!(then_value_id);
         let then_len = self.get_slice_length(then_value_id);
-        dbg!(then_len);
-        dbg!(self.slice_sizes.insert(then_value_id, then_len));
+        self.slice_sizes.insert(then_value_id, then_len);
 
-        dbg!(else_value_id);
         let else_len = self.get_slice_length(else_value_id);
-        dbg!(else_len);
-        dbg!(self.slice_sizes.insert(else_value_id, else_len));
+        self.slice_sizes.insert(else_value_id, else_len);
 
         let len = then_len.max(else_len);
 
@@ -237,10 +233,8 @@ impl<'a> ValueMerger<'a> {
                 ));
             }
         }
-        dbg!(merged.len());
-        let merged = self.dfg.make_array(merged, typ);
-        dbg!(merged);
-        merged
+
+        self.dfg.make_array(merged, typ)
     }
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
@@ -281,14 +275,14 @@ impl<'a> ValueMerger<'a> {
                         self.get_slice_length(store_value)
                     }
                     Instruction::Call { func, arguments } => {
-                        let func = &self.dfg[*func];
                         let slice_contents = arguments[1];
+                        let func = &self.dfg[*func];
                         match func {
                             Value::Intrinsic(intrinsic) => match intrinsic {
                                 Intrinsic::SlicePushBack
                                 | Intrinsic::SlicePushFront
                                 | Intrinsic::SliceInsert => {
-                                    dbg!("about to call get_slice_length");
+                                    // `get_slice_length` needs to be called here as it is borrows self as mutable
                                     let initial_len = self.get_slice_length(slice_contents);
                                     dbg!(self.slice_sizes.insert(slice_contents, initial_len));
                                     initial_len + 1
@@ -296,11 +290,10 @@ impl<'a> ValueMerger<'a> {
                                 Intrinsic::SlicePopBack
                                 | Intrinsic::SlicePopFront
                                 | Intrinsic::SliceRemove => {
-                                    // TODO: for some reason this breaks lol
-                                    // let initial_len = self.get_slice_length(slice_contents);
-                                    // self.slice_sizes.insert(slice_contents, initial_len);
-                                    // initial_len + 1
-                                    self.get_slice_length(slice_contents) - 1
+                                    // `get_slice_length` needs to be called here as it is borrows self as mutable
+                                    let initial_len = self.get_slice_length(slice_contents);
+                                    self.slice_sizes.insert(slice_contents, initial_len);
+                                    initial_len - 1
                                 }
                                 _ => {
                                     unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")

@@ -210,7 +210,6 @@ struct Context<'f> {
     conditions: Vec<(BasicBlockId, ValueId)>,
 }
 
-#[derive(Debug, Clone)]
 pub(crate) struct Store {
     old_value: ValueId,
     new_value: ValueId,
@@ -619,11 +618,10 @@ impl<'f> Context<'f> {
     fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
-        let is_allocate = matches!(instruction.clone(), Instruction::Allocate);
+        let is_allocate = matches!(instruction, Instruction::Allocate);
 
         let entry = self.inserter.function.entry_block();
-        let results =
-            self.inserter.push_instruction_value(instruction.clone(), id, entry, call_stack);
+        let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
