@@ -1,0 +1,7 @@
+[package]
+name = "impl_trait_for_non_type"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]

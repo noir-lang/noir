@@ -545,8 +545,36 @@ impl Context {
             }
         };
 
+        // We compute some AcirVars:
+        // - index_var is the index of the array
+        // - predicate_index is 0, or the index if the predicate is true
+        // - new_value is the optional value when the operation is an array_set
+        //      When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+        //      It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
         let index_const = dfg.get_numeric_constant(index);
+        let index_var = self.convert_numeric_value(index, dfg)?;
+        let predicate_index =
+            self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
+        let new_value = if let Some(store) = store_value {
+            let store_var = self.convert_value(store, dfg).into_var()?;
+            if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+                Some(store_var)
+            } else {
+                let dummy = self.array_get(instruction, array, predicate_index, dfg)?;
+                let true_pred =
+                    self.acir_context.mul_var(store_var, self.current_side_effects_enabled_var)?;
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let not_pred =
+                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let false_pred = self.acir_context.mul_var(not_pred, dummy)?;
+                // predicate*value + (1-predicate)*dummy
+                Some(self.acir_context.add_var(true_pred, false_pred)?)
+            }
+        } else {
+            None
+        };
 
+        // Handle constant index: if there is no predicate and we have the array values, we can perform the operation directly on the array
         match dfg.type_of_value(array) {
             Type::Array(_, _) => {
                 match self.convert_value(array, dfg) {
@@ -571,36 +599,36 @@ impl Context {
                                     });
                                 }
                             };
-                            if index >= array_size {
-                                // Ignore the error if side effects are disabled.
-                                if self
-                                    .acir_context
-                                    .is_constant_one(&self.current_side_effects_enabled_var)
-                                {
+                            if self
+                                .acir_context
+                                .is_constant_one(&self.current_side_effects_enabled_var)
+                            {
+                                // Report the error if side effects are enabled.
+                                if index >= array_size {
                                     let call_stack = self.acir_context.get_call_stack();
                                     return Err(RuntimeError::IndexOutOfBounds {
                                         index,
                                         array_size,
                                         call_stack,
                                     });
+                                } else {
+                                    let value = match store_value {
+                                        Some(store_value) => {
+                                            let store_value = self.convert_value(store_value, dfg);
+                                            AcirValue::Array(array.update(index, store_value))
+                                        }
+                                        None => array[index].clone(),
+                                    };
+
+                                    self.define_result(dfg, instruction, value);
+                                    return Ok(());
                                 }
-                                let result_type =
-                                    dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-                                let value = self.create_default_value(&result_type)?;
-                                self.define_result(dfg, instruction, value);
+                            }
+                            // If there is a predicate and the index is not out of range, we can directly perform the read
+                            else if index < array_size && store_value.is_none() {
+                                self.define_result(dfg, instruction, array[index].clone());
                                 return Ok(());
                             }
-
-                            let value = match store_value {
-                                Some(store_value) => {
-                                    let store_value = self.convert_value(store_value, dfg);
-                                    AcirValue::Array(array.update(index, store_value))
-                                }
-                                None => array[index].clone(),
-                            };
-
-                            self.define_result(dfg, instruction, value);
-                            return Ok(());
                         }
                     }
                     AcirValue::DynamicArray(_) => (),
@@ -612,12 +640,20 @@ impl Context {
             _ => unreachable!("ICE: expected array or slice type"),
         }
 
+        let new_index = if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
+        {
+            index_var
+        } else {
+            predicate_index
+        };
+
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
-        if store_value.is_some() {
-            self.array_set(instruction, dfg, map_array)?;
+
+        if let Some(new_value) = new_value {
+            self.array_set(instruction, new_index, new_value, dfg, map_array)?;
         } else {
-            self.array_get(instruction, array, index, dfg)?;
+            self.array_get(instruction, array, new_index, dfg)?;
         }
 
         Ok(())
@@ -628,9 +664,9 @@ impl Context {
         &mut self,
         instruction: InstructionId,
         array: ValueId,
-        index: ValueId,
+        var_index: AcirVar,
         dfg: &DataFlowGraph,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError> {
         let array = dfg.resolve(array);
         let block_id = self.block_id(&array);
         if !self.initialized_arrays.contains(&block_id) {
@@ -649,8 +685,7 @@ impl Context {
             }
         }
 
-        let index_var = self.convert_value(index, dfg).into_var()?;
-        let read = self.acir_context.read_from_memory(block_id, &index_var)?;
+        let read = self.acir_context.read_from_memory(block_id, &var_index)?;
         let typ = match dfg.type_of_value(array) {
             Type::Array(typ, _) => {
                 if typ.len() != 1 {
@@ -675,7 +710,7 @@ impl Context {
         };
         let typ = AcirType::from(typ);
         self.define_result(dfg, instruction, AcirValue::Var(read, typ));
-        Ok(())
+        Ok(read)
     }
 
     /// Copy the array and generates a write opcode on the new array
@@ -684,12 +719,14 @@ impl Context {
     fn array_set(
         &mut self,
         instruction: InstructionId,
+        var_index: AcirVar,
+        store_value: AcirVar,
         dfg: &DataFlowGraph,
         map_array: bool,
     ) -> Result<(), InternalError> {
         // Pass the instruction between array methods rather than the internal fields themselves
-        let (array, index, store_value, length) = match dfg[instruction] {
-            Instruction::ArraySet { array, index, value, length } => (array, index, value, length),
+        let (array, length) = match dfg[instruction] {
+            Instruction::ArraySet { array, length, .. } => (array, length),
             _ => {
                 return Err(InternalError::UnExpected {
                     expected: "Instruction should be an ArraySet".to_owned(),
@@ -779,9 +816,7 @@ impl Context {
         }
 
         // Write the new value into the new array at the specified index
-        let index_var = self.convert_value(index, dfg).into_var()?;
-        let value_var = self.convert_value(store_value, dfg).into_var()?;
-        self.acir_context.write_to_memory(result_block_id, &index_var, &value_var)?;
+        self.acir_context.write_to_memory(result_block_id, &var_index, &store_value)?;
 
         let result_value =
             AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len });
@@ -1037,10 +1072,7 @@ impl Context {
                 // Casting into a Field as a no-op
                 Ok(variable)
             }
-            NumericType::Unsigned { bit_size } => {
-                if incoming_type.is_signed() {
-                    todo!("Cast from unsigned to signed")
-                }
+            NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
                 let max_bit_size = incoming_type.bit_size();
                 if max_bit_size <= *bit_size {
                     // Incoming variable already fits into target bit size -  this is a no-op
@@ -1048,7 +1080,6 @@ impl Context {
                 }
                 self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
             }
-            NumericType::Signed { .. } => todo!("Cast into signed"),
         }
     }
 

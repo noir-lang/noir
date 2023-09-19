@@ -1,10 +1,11 @@
 name: Publish ABI Wasm
 
 on:
-  push:
-    tags:
-      - "*"
   workflow_dispatch:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: true
 
 jobs:
   noirc-abi-wasm-build:
@@ -15,6 +16,9 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+        with:
+          repository: "noir-lang/noir"
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -32,15 +36,16 @@ jobs:
           nix build -L .#noirc_abi_wasm
 
       - name: Discover Build Output Path
-        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result)" >> $GITHUB_ENV
+        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
 
       - name: Copy Build Output to Temporary Directory
         run: |
           mkdir temp_publish_dir
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
 
-      - name: Publish to NPM
+      - name: Publish to npm
         working-directory: ./temp_publish_dir
-        run: npm publish
+        run: |
+          npm publish --tag latest
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
