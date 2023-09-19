@@ -8,11 +8,11 @@ b = ["2", "3", "20"]
 inner = ["100", "101", "102"]
 
 [[x]]
-a = "4" # idx = 3, true start idx = 7
-b = ["5", "6", "21"] # idx = 4, start idx = 8
+a = "4" # idx = 3, flattened start idx = 7
+b = ["5", "6", "21"] # idx = 4, flattened start idx = 8
 
 [x.bar]
-inner = ["103", "104", "105"] # idx = 5, idx = 11
+inner = ["103", "104", "105"] # idx = 5, flattened start idx = 11
 
 [[x]]
 a = "7"
@@ -22,8 +22,8 @@ b = ["8", "9", "22"]
 inner = ["106", "107", "108"]
 
 [[x]]
-a = "10"
-b = ["11", "12", "23"]
+a = "10"  # idx = 9, flattened start idx = 21
+b = ["11", "12", "23"] # idx = 10, flattened start idx = 22
 
 [x.bar]
-inner = ["109", "110", "111"]
+inner = ["109", "110", "111"] # idx = 11, flattened start idx = 25
