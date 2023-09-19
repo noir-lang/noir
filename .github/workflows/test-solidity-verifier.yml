@@ -19,6 +19,11 @@ jobs:
         with:
           version: nightly
 
+      - name: Run Anvil
+        run: |
+          anvil > /dev/null 2>&1 &
+          sleep 10
+
       - name: Install nargo
         run: |
           curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
@@ -31,7 +36,11 @@ jobs:
           chmod +x $nargo_binary
           $nargo_binary -V
 
-      - name: Run Anvil
-        run: |
-          anvil > /dev/null 2>&1 &
-          sleep 10
+      - name: Run codegen-verifier for 1_mul
+        working-directory: ./tooling/nargo_cli/tests/execution_success/1_mul/contract/1_mul
+        run: $nargo_binary codegen-verifier
+      
+      - name: Run codegen-verifier for double_verify_proof
+        working-directory: ./tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof
+        run: $nargo_binary codegen-verifier
+          
