@@ -80,7 +80,7 @@ fn smart_contract_for_package(
         &is_opcode_supported,
     )?;
 
-    let mut smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
+    let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
 
     if backend.name() == ACVM_BACKEND_BARRETENBERG {
         smart_contract_string =
