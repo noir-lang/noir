@@ -1059,10 +1059,7 @@ impl Context {
                 // Casting into a Field as a no-op
                 Ok(variable)
             }
-            NumericType::Unsigned { bit_size } => {
-                if incoming_type.is_signed() {
-                    todo!("Cast from unsigned to signed")
-                }
+            NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
                 let max_bit_size = incoming_type.bit_size();
                 if max_bit_size <= *bit_size {
                     // Incoming variable already fits into target bit size -  this is a no-op
@@ -1070,7 +1067,6 @@ impl Context {
                 }
                 self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
             }
-            NumericType::Signed { .. } => todo!("Cast into signed"),
         }
     }
 
