@@ -722,6 +722,7 @@ fn resolve_trait_impls(
     methods
 }
 
+// TODO(vitkov): Move this out of here and into type_check
 fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
