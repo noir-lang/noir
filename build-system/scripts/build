@@ -84,8 +84,10 @@ if [[ $FORCE_BUILD == 'false' ]] && check_rebuild cache-"$CONTENT_HASH" $REPOSIT
   exit 0
 fi
 
+echo "Initializing submodules..."
 init_submodules $REPOSITORY
 
+echo "Checking for terraform..."
 # Validate any terraform if it exists.
 if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
   ensure_terraform
@@ -103,7 +105,7 @@ if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
 fi
 
 # Pull latest parents that are not ours. We also do not want to pull images suffixed by _, this is how we scope intermediate build images.
-PARENTS=$(cat $DOCKERFILE | sed -n -e 's/^FROM \([^[:space:]]\+\).*/\1/p' | sed '/_$/d' | grep -v $ECR_DEPLOY_URL  | sort | uniq)
+PARENTS=$(cat $DOCKERFILE | sed -n -e 's/^FROM \([^[:space:]]\+\).*/\1/p' | sed '/_$/d' | { grep -v $ECR_DEPLOY_URL || true; } | sort | uniq)
 for PARENT in $PARENTS; do
   [ "$PARENT" == "scratch" ] && continue
   fetch_image $PARENT
@@ -128,7 +130,8 @@ for PARENT in $PARENTS; do
   retry docker tag $PARENT_IMAGE_URI $TAG
 done
 
-COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY false)
+echo "Extracting commit tag version..."
+COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "false")
 
 # Pull, build and push each named stage to cache.
 STAGE_CACHE_FROM=""

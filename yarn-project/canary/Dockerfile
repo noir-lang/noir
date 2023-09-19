@@ -22,6 +22,10 @@ WORKDIR /usr/src/yarn-project/canary
 RUN ./scripts/update_packages.sh $COMMIT_TAG
 RUN yarn && yarn build
 
+FROM node:18-alpine
+COPY --from=builder /usr/src/ /usr/src/
+WORKDIR /usr/src/yarn-project/canary
+
 # Copy web artifacts for browser test
 RUN cp ./node_modules/@aztec/aztec.js/dest/main.js src/web/
 RUN cp ./node_modules/@aztec/circuits.js/resources/aztec3-circuits.wasm src/web/
