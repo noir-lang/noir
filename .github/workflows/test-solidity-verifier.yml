@@ -25,11 +25,8 @@ jobs:
           source /Users/runner/.bashrc
           noirup
 
-      - name: Test nargo
-        run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
-          chmod +x $nargo_binary
-          $nargo_binary -V
+      - name: Test nargo version
+        run: nargo -V
 
       - name: Run Anvil
         run: |
