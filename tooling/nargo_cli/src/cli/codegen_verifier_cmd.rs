@@ -10,6 +10,7 @@ use crate::errors::CliError;
 
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
@@ -46,7 +47,7 @@ pub(crate) fn run(
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
 
@@ -56,7 +57,7 @@ pub(crate) fn run(
             circuit_build_path,
             &args.compile_options,
             np_language,
-            &is_opcode_supported,
+            &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);
@@ -81,7 +82,7 @@ fn smart_contract_for_package(
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
-        let (program, _) =
+        let program =
             compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
 
         PreprocessedProgram {
@@ -91,7 +92,12 @@ fn smart_contract_for_package(
         }
     };
 
-    let smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
+    let mut smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
+
+    if backend.name() == ACVM_BACKEND_BARRETENBERG {
+        smart_contract_string =
+            bb_abstraction_leaks::complete_barretenberg_verifier_contract(smart_contract_string);
+    }
 
     Ok(smart_contract_string)
 }

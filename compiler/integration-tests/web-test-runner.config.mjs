@@ -1,20 +1,24 @@
-import { fileURLToPath } from 'url';
+import { defaultReporter } from "@web/test-runner";
+import { summaryReporter } from "@web/test-runner";
+import { fileURLToPath } from "url";
 import { esbuildPlugin } from "@web/dev-server-esbuild";
-import { webdriverLauncher } from '@web/test-runner-webdriver';
+import { webdriverLauncher } from "@web/test-runner-webdriver";
+
+// eslint-disable-next-line no-undef
+const reporter = process.env.CI ? summaryReporter() : defaultReporter();
 
 export default {
   browsers: [
     webdriverLauncher({
-      automationProtocol: 'webdriver',
+      automationProtocol: "webdriver",
       capabilities: {
-        browserName: 'firefox',
-        'moz:firefoxOptions': {
-          args: ['-headless'],
+        browserName: "firefox",
+        "moz:firefoxOptions": {
+          args: ["-headless"],
         },
       },
     }),
-  
-],
+  ],
   plugins: [
     esbuildPlugin({
       ts: true,
@@ -27,6 +31,8 @@ export default {
       ui: "bdd",
     },
   },
-  rootDir:  fileURLToPath(new URL('./../..', import.meta.url)),
-
+  // eslint-disable-next-line no-undef
+  rootDir: fileURLToPath(new URL("./../..", import.meta.url)),
+  testsFinishTimeout: 60 * 20e3, // 20 minutes
+  reporters: [reporter],
 };

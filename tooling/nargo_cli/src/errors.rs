@@ -70,7 +70,7 @@ pub(crate) enum CliError {
 
     /// Error related to communication with backend.
     #[error(transparent)]
-    BackendCommunicationError(#[from] acvm_backend_barretenberg::BackendError),
+    BackendCommunicationError(#[from] backend_interface::BackendError),
 }
 
 #[derive(Debug, thiserror::Error)]

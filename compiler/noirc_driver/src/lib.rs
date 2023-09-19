@@ -4,6 +4,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use clap::Args;
+use debug::filter_relevant_files;
 use fm::FileId;
 use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
@@ -17,9 +18,11 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 mod contract;
+mod debug;
 mod program;
 
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
+pub use debug::DebugFile;
 pub use program::CompiledProgram;
 
 const STD_CRATE_NAME: &str = "std";
@@ -166,20 +169,27 @@ pub fn compile_main(
 }
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
-pub fn compile_contracts(
+pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> CompilationResult<Vec<CompiledContract>> {
+) -> CompilationResult<CompiledContract> {
     let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
+
     let mut compiled_contracts = vec![];
     let mut errors = warnings;
 
+    if contracts.len() > 1 {
+        let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
+            .in_file(FileId::default());
+        return Err(vec![err]);
+    };
+
     for contract in contracts {
-        match compile_contract(context, contract, options) {
+        match compile_contract_inner(context, contract, options) {
             Ok(contract) => compiled_contracts.push(contract),
             Err(mut more_errors) => errors.append(&mut more_errors),
         }
@@ -188,19 +198,20 @@ pub fn compile_contracts(
     if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
+        assert_eq!(compiled_contracts.len(), 1);
+        let compiled_contract = compiled_contracts.remove(0);
+
         if options.print_acir {
-            for compiled_contract in &compiled_contracts {
-                for contract_function in &compiled_contract.functions {
-                    println!(
-                        "Compiled ACIR for {}::{} (unoptimized):",
-                        compiled_contract.name, contract_function.name
-                    );
-                    println!("{}", contract_function.bytecode);
-                }
+            for contract_function in &compiled_contract.functions {
+                println!(
+                    "Compiled ACIR for {}::{} (unoptimized):",
+                    compiled_contract.name, contract_function.name
+                );
+                println!("{}", contract_function.bytecode);
             }
         }
         // errors here is either empty or contains only warnings
-        Ok((compiled_contracts, errors))
+        Ok((compiled_contract, errors))
     }
 }
 
@@ -214,23 +225,35 @@ fn has_errors(errors: &[FileDiagnostic], deny_warnings: bool) -> bool {
 }
 
 /// Compile all of the functions associated with a Noir contract.
-fn compile_contract(
+fn compile_contract_inner(
     context: &Context,
     contract: Contract,
     options: &CompileOptions,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
-    for function_id in &contract.functions {
-        let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+    for contract_function in &contract.functions {
+        let function_id = contract_function.function_id;
+        let is_entry_point = contract_function.is_entry_point;
+
+        let name = context.function_name(&function_id).to_owned();
+
+        // We assume that functions have already been type checked.
+        // This is the exact same assumption that compile_no_check makes.
+        // If it is not an entry-point point, we can then just skip the
+        // compilation step. It will also not be added to the ABI.
+        if !is_entry_point {
+            continue;
+        }
+
+        let function = match compile_no_check(context, options, function_id) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error);
                 continue;
             }
         };
-        let func_meta = context.def_interner.function_meta(function_id);
+        let func_meta = context.def_interner.function_meta(&function_id);
         let func_type = func_meta
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");
@@ -248,7 +271,10 @@ fn compile_contract(
     }
 
     if errors.is_empty() {
-        Ok(CompiledContract { name: contract.name, functions })
+        let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
+        let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
+
+        Ok(CompiledContract { name: contract.name, functions, file_map })
     } else {
         Err(errors)
     }
@@ -269,5 +295,7 @@ pub fn compile_no_check(
     let (circuit, debug, abi) =
         create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
-    Ok(CompiledProgram { circuit, debug, abi })
+    let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
+
+    Ok(CompiledProgram { circuit, debug, abi, file_map })
 }

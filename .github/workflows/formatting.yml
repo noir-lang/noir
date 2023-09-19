@@ -1,4 +1,4 @@
-name: Clippy
+name: Formatting
 
 on:
   pull_request:
@@ -18,13 +18,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     env:
-      CACHED_PATHS: |
-        ~/.cargo/bin/
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        ~/.cargo/git/db/
-        target/
-
+      RUSTFLAGS: -Dwarnings
+    
     strategy:
       fail-fast: false
       matrix:
@@ -36,19 +31,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore cargo cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ matrix.target }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@1.66.0
         with:
-          toolchain: stable # We do not use MSRV so we can benefit from newer lints
           targets: ${{ matrix.target }}
           components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run `cargo clippy`
         run: cargo clippy --workspace --locked --release
@@ -56,9 +49,17 @@ jobs:
       - name: Run `cargo fmt`
         run: cargo fmt --all --check
 
-      - uses: actions/cache/save@v3
-        # Write a cache entry even if the tests fail but don't create any for the merge queue.
-        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
+  eslint:
+    name: eslint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Run `yarn lint`
+        run: yarn lint

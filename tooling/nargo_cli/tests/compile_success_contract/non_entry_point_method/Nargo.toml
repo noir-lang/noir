@@ -1,0 +1,7 @@
+[package]
+name = "no_entry_points"
+type = "contract"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

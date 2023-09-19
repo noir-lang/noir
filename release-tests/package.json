@@ -1,12 +1,12 @@
 {
-  "name": "@noir-lang/release-tests",
+  "name": "release-tests",
   "version": "0.0.0",
   "main": "index.js",
   "license": "(MIT OR Apache-2.0)",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node ./node_modules/uvu/bin.js test"
+    "test": "uvu test"
   },
   "devDependencies": {
     "uvu": "0.5.6",

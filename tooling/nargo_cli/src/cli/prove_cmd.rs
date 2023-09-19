@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use clap::Args;
+use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::package::Package;
@@ -62,7 +63,7 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let proof_dir = workspace.proofs_directory_path();
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
 
@@ -76,7 +77,7 @@ pub(crate) fn run(
             args.verify,
             &args.compile_options,
             np_language,
-            &is_opcode_supported,
+            &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
     }
 
@@ -101,13 +102,16 @@ pub(crate) fn prove_package(
 
         (program, None)
     } else {
-        let (program, debug_artifact) =
+        let program =
             compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
         let preprocessed_program = PreprocessedProgram {
             backend: String::from(BACKEND_IDENTIFIER),
             abi: program.abi,
             bytecode: program.circuit,
         };
+        let debug_artifact =
+            DebugArtifact { debug_symbols: vec![program.debug], file_map: program.file_map };
+
         (preprocessed_program, Some(debug_artifact))
     };
 

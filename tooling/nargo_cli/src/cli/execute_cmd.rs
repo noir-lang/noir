@@ -54,17 +54,15 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let target_dir = &workspace.target_directory_path();
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
-        let (compiled_program, debug_artifact) =
-            compile_bin_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
+        let compiled_program =
+            compile_bin_package(package, &args.compile_options, np_language, &|opcode| {
+                opcode_support.is_opcode_supported(opcode)
+            })?;
 
-        let (return_value, solved_witness) = execute_program_and_decode(
-            compiled_program,
-            debug_artifact,
-            package,
-            &args.prover_name,
-        )?;
+        let (return_value, solved_witness) =
+            execute_program_and_decode(compiled_program, package, &args.prover_name)?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {
@@ -81,11 +79,11 @@ pub(crate) fn run(
 
 fn execute_program_and_decode(
     program: CompiledProgram,
-    debug_artifact: DebugArtifact,
     package: &Package,
     prover_name: &str,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let CompiledProgram { abi, circuit, .. } = program;
+    let CompiledProgram { abi, circuit, debug, file_map } = program;
+    let debug_artifact = DebugArtifact { debug_symbols: vec![debug], file_map };
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =

@@ -168,7 +168,7 @@ impl Context {
     pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
         self.def_map(crate_id)
             .expect("The local crate should be analyzed already")
-            .get_all_contracts()
+            .get_all_contracts(&self.def_interner)
     }
 
     fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {

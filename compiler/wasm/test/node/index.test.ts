@@ -34,7 +34,7 @@ describe("noir wasm compilation", () => {
 
     console.log(
       "Compilation is a match? ",
-      wasmCircuitBase64 === cliCircuitBase64,
+      wasmCircuitBase64 === cliCircuitBase64
     );
 
     expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
