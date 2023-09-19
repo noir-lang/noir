@@ -528,9 +528,7 @@ impl<'a> FunctionContext<'a> {
     ) -> Values {
         match expr {
             // If we're constraining an equality to be true then constrain the two sides directly.
-            Expression::Binary(Binary { lhs, operator, rhs, .. })
-                if operator == &BinaryOpKind::Equal =>
-            {
+            Expression::Binary(Binary { lhs, operator: BinaryOpKind::Equal, rhs, .. }) => {
                 let lhs = self.codegen_non_tuple_expression(lhs);
                 let rhs = self.codegen_non_tuple_expression(rhs);
                 self.builder.set_location(location).insert_constrain(lhs, rhs, assert_message);

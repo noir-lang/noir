@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         target: [x86_64-unknown-linux-gnu]
-        
+
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build wasm package
         run: |
-          nix build -L .#wasm
+          nix build -L .#noir_wasm
 
       - name: Export cache from nix store
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
@@ -96,7 +96,7 @@ jobs:
           key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+        run: echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -132,16 +132,20 @@ jobs:
           chmod +x $nargo_binary
           $nargo_binary compile
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
       - name: Install dependencies
         run: |
-          npx playwright install
-          npx playwright install-deps
           cp -r ./compiler/wasm/downloaded/nodejs ./compiler/wasm
           cp -r ./compiler/wasm/downloaded/web ./compiler/wasm
-          yarn install --immutable
-          yarn workspace @noir-lang/noir-source-resolver build
+          yarn workspace @noir-lang/source-resolver build
           
-      - name: Run tests
-        run: |
-          yarn workspace @noir-lang/noir_wasm test:browser
-          yarn workspace @noir-lang/noir_wasm test:node
+      - name: Run node tests
+        run: yarn workspace @noir-lang/noir_wasm test:node
+
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/noir_wasm test:browser

@@ -9,11 +9,11 @@ The package also handles dependency management like how Nargo (Noir's CLI tool) 
 Outside of the [noir repo](https://github.com/noir-lang/noir), this package can be built using the command below:
 
 ```bash
-nix build -L github:noir-lang/noir/master#wasm
+nix build -L github:noir-lang/noir/master#noir_wasm
 ```
 
 If you are within the noir repo and would like to build local changes, you can use:
 
 ```bash
-nix build -L #wasm
+nix build -L #noir_wasm
 ```

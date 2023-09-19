@@ -530,13 +530,13 @@ fn take_errors_filter_self_not_resolved(resolver: Resolver<'_>) -> Vec<ResolverE
     resolver
         .take_errors()
         .iter()
-        .cloned()
         .filter(|resolution_error| match resolution_error {
             ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
                 &ident.0.contents != "Self"
             }
             _ => true,
         })
+        .cloned()
         .collect()
 }
 

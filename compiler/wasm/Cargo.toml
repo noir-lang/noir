@@ -26,9 +26,5 @@ gloo-utils = { version = "0.1", features = ["serde"] }
 log = "0.4.17"
 wasm-logger = "0.2.0"
 
-# This is an unused dependency, we are adding it
-# so that we can enable the js feature in getrandom.
-getrandom = { version = "*", features = ["js"] }
-
 [build-dependencies]
 build-data = "0.1.3"
