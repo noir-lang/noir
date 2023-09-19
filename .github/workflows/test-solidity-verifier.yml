@@ -40,10 +40,10 @@ jobs:
         run: ls -R
 
       - name: Run codegen-verifier for 1_mul
-        working-directory: tooling/nargo_cli/tests/execution_success/1_mul/contract/1_mul
+        working-directory: tooling/nargo_cli/tests/execution_success/1_mul
         run: $nargo_binary codegen-verifier
       
       - name: Run codegen-verifier for double_verify_proof
-        working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof
+        working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
         run: $nargo_binary codegen-verifier
           
