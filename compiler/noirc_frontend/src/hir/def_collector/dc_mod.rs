@@ -230,7 +230,7 @@ impl<'a> ModCollector<'a> {
             {
                 // List of functinons in the impl block with the same name as the method
                 //  `matching_fns.len() == 0`  => missing method impl
-                //  `matching_fns.len() > 1`   => duplicate definition
+                //  `matching_fns.len() > 1`   => duplicate definition (collect_functions will throw a Duplicate error)
                 let matching_fns: Vec<_> = unresolved_functions
                     .functions
                     .iter()
