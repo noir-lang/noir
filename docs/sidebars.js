@@ -371,26 +371,6 @@ const sidebars = {
       value: '<span class="sidebar-divider" />',
     },
 
-    // API
-
-    {
-      type: "html",
-      className: "sidebar-title",
-      value: "API Reference",
-      defaultStyle: true,
-    },
-
-    {
-      label: "Aztec RPC Server",
-      type: "doc",
-      id: "apis/aztec-rpc/interfaces/AztecRPC",
-    },
-
-    {
-      type: "html",
-      value: '<span class="sidebar-divider" />',
-    },
-
     // MISCELLANEOUS
 
     {

@@ -1,4 +1,5 @@
-import { AztecAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import { ContractAbi } from '@aztec/foundation/abi';
 import {
   AuthWitness,
   CompleteAddress,
@@ -12,9 +13,58 @@ import {
   TxReceipt,
 } from '@aztec/types';
 
-import { DeployedContract } from './deployed-contract.js';
-import { NodeInfo } from './node-info.js';
-import { SyncStatus } from './sync-status.js';
+/**
+ * Represents a deployed contract on the Aztec network.
+ * Contains the contract ABI, address, and associated portal contract address.
+ */
+export interface DeployedContract {
+  /**
+   * The Application Binary Interface of the deployed contract.
+   */
+  abi: ContractAbi;
+  /**
+   * The complete address representing the contract on L2.
+   */
+  completeAddress: CompleteAddress;
+  /**
+   * The Ethereum address of the L1 portal contract.
+   */
+  portalContract: EthAddress;
+}
+
+/**
+ * Provides basic information about the running node.
+ */
+export type NodeInfo = {
+  /**
+   * Version as tracked in the aztec-packages repository.
+   */
+  sandboxVersion: string;
+  /**
+   * The nargo version compatible with this sandbox version
+   */
+  compatibleNargoVersion: string;
+  /**
+   * L1 chain id.
+   */
+  chainId: number;
+  /**
+   * Protocol version.
+   */
+  protocolVersion: number;
+  /**
+   * The rollup contract address
+   */
+  rollupAddress: EthAddress;
+};
+
+/** Provides up to which block has been synced by different components. */
+export type SyncStatus = {
+  /** Up to which block has been synched for blocks and txs. */
+  blocks: number;
+  /** Up to which block has been synched for notes, indexed by each public key being monitored. */
+  notes: Record<string, number>;
+};
 
 // docs:start:rpc-interface
 /**
@@ -203,7 +253,8 @@ export interface AztecRPC {
   /**
    * Checks whether all the blocks were processed (tree roots updated, txs updated with block info, etc.).
    * @returns True if there are no outstanding blocks to be synched.
-   * @remarks This indicates that blocks and transactions are synched even if notes are not. Compares local block number with the block number from aztec node.
+   * @remarks This indicates that blocks and transactions are synched even if notes are not.
+   * @remarks Compares local block number with the block number from aztec node.
    */
   isGlobalStateSynchronised(): Promise<boolean>;
 
