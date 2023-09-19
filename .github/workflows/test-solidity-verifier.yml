@@ -34,9 +34,8 @@ jobs:
         run: |
           curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
           export PATH="/home/runner/.nargo/bin:$PATH"
-
           noirup
-          echo "/Users/runner/.nargo/bin" >> $GITHUB_PATH
+          echo "/home/runner/.nargo/bin" >> $GITHUB_PATH
           nargo -V
       
       - name: Create new Foundry project
