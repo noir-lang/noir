@@ -55,10 +55,6 @@ jobs:
       #   working-directory: foundry-project
       # run: cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol src/double_verify_proof.sol
 
-      - name: Output foundry-project/src
-        working-directory: foundry-project/src
-        run: ls -R 
-
       - name: Forge build
         working-directory: foundry-project
         run: forge build
