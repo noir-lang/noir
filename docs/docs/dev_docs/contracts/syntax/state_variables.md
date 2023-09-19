@@ -10,9 +10,7 @@ Public state is persistent state that is _publicly visible_ to anyone in the wor
 
 For developers coming from other blockchain ecosystems (such as Ethereum), this will be a familiar concept, because there, _all_ state is _publicly visible_.
 
-Aztec public state follows an account-based model. That is, each state occupies a leaf in an account-based merkle tree: the _public state tree_ (INSERT LINK HERE). See _here_ (INSERT LINK HERE) for more of the technical details.
-
-<!-- TODO: Insert links in the italics above -->
+Aztec public state follows an account-based model. That is, each state occupies a leaf in an account-based merkle tree: the public state tree. See [here](/concepts/advanced/data_structures/trees#public-state-tree) for more of the technical details.
 
 The `PublicState<T, T_SERIALISED_LEN>` struct serves as a wrapper around conventional Noir types `T`, allowing these types to be written to and read from the public state tree.
 
@@ -94,13 +92,9 @@ For example, the following function calls the account contract before it updates
 
 In contrast to public state, private state is persistent state that is _not_ visible to the whole world. Depending on the logic of the smart contract, a _private_ state variable's current value will only be known to one entity, or a closed group of entities.
 
-The value of a private state variable can either be shared via an _encrypted log_ (INSERT_LINK_HERE), or offchain via web2, or completely offline: it's up to the app developer.
+The value of a private state variable can either be shared via [events](../events), or offchain via web2, or completely offline: it's up to the app developer.
 
-<!-- TODO: insert link in italics above -->
-
-Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the _private state tree_ (INSERT_LINK_HERE).
-
-<!-- TODO: insert link in italics above -->
+Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the [private state tree](/concepts/advanced/data_structures/trees#private-state-tree).
 
 To greatly simplify the experience of writing private state, Aztec.nr provides three different types of private state variable:
 
@@ -235,21 +229,71 @@ This function returns the notes the account has access to:
 
 #include_code state_vars-SetGet /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
-There's a limit on the maxinum number of notes this function can return at a time. Check _here_ (INSERT_LINK_HERE) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
-
-<!-- TODO: insert link in italics above -->
+There's a limit on the maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/constants_gen.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
 
 Because of this limit, we should always consider using the second argument `NoteGetterOptions` to target the notes we need, and to reduce the time required to recursively call this function.
 
 ### NoteGetterOptions
 
-`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a database:
+`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a data oracle. Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
 
 #include_code NoteGetterOptions /yarn-project/aztec-nr/aztec/src/note/note_getter_options.nr rust
 
-Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
+#### `selects: BoundedVec<Option<Select>, N>`
 
-For example, the following function outputs an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
+`selects` is a collection of filtering criteria, specified by `Select { field_index: u8, value: Field }` structs. It instructs the data oracle to find notes whose (`field_index`)th field matches the provided `value`.
+
+#### `sorts: BoundedVec<Option<Sort>, N>`
+
+`sorts` is a set of sorting instructions defined by `Sort { field_index: u8, order: u2 }` structs. This directs the data oracle to sort the matching notes based on the value of the specified field index and in the indicated order. The value of order is **1** for _DESCENDING_ and **2** for _ASCENDING_.
+
+#### `limit: u32`
+
+When the `limit` is set to a non-zero value, the data oracle will return a maximum of `limit` notes.
+
+#### `offset: u32`
+
+This setting enables us to skip the first `offset` notes. It's particularly useful for pagination.
+
+#### `filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL]`
+
+Developers have the option to provide a custom filter. This allows specific logic to be applied to notes that meet the criteria outlined above. The filter takes the notes returned from the oracle and `filter_args` as its parameters.
+
+#### `filter_args: FILTER_ARGS`
+
+`filter_args` provides a means to furnish additional data or context to the custom filter.
+
+#### Methods
+
+Several methods are available on `NoteGetterOptions` to construct the options in a more readable manner:
+
+#### `fn new() -> NoteGetterOptions<Note, N, Field>`
+
+This function initialises a `NoteGetterOptions` that simply returns the maximum number of notes allowed in a call.
+
+#### `fn with_filter(filter, filter_args) -> NoteGetterOptions<Note, N, FILTER_ARGS>`
+
+This function initialises a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_read_requests_per_call-filter_args---optionnote-max_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
+
+#### `.select`
+
+This method adds a [`Select`](#selects-boundedvecoptionselect-n) criterion to the options.
+
+#### `.sort`
+
+This method adds a [`Sort`](#sorts-boundedvecoptionsort-n) criterion to the options.
+
+#### `.set_limit`
+
+This method lets you set a limit for the maximum number of notes to be retrieved.
+
+#### `.set_offset`
+
+This method sets the offset value, which determines where to start retrieving notes.
+
+#### Examples
+
+The following code snippet creates an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
 
 #include_code state_vars-NoteGetterOptionsSelectSortOffset /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
 
@@ -259,9 +303,7 @@ The first value of `.select` and `.sort` is the index of a field in a note type.
 
 The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
 
-In the previous example,
-
-`.select(2, account_address)` matches the 2nd field of `CardNote`, which is `owner`, and returns the cards whose `owner` field equals `account_address`.
+In the example, `.select(2, account_address)` matches the 2nd field of `CardNote`, which is `owner`, and returns the cards whose `owner` field equals `account_address`.
 
 `.sort(0, SortOrder.DESC)` sorts the 0th field of `CardNote`, which is `points`, in descending order.
 
@@ -286,6 +328,22 @@ The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any v
 The process of applying the options to get the final notes is not constrained. It's necessary to always check the returned notes even when some conditions have been specified in the options.
 
 #include_code state_vars-check_return_notes /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+
+### `.view_notes` (unconstrained)
+
+Similar to [`.get_notes`](#get_notes), this method returns the notes accessible to the account:
+
+#include_code state_vars-SetView /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
+
+There's also a limit on the maximum number of notes that can be returned in one go. To find the current limit, refer to [this file](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/constants_gen.nr) and look for `MAX_NOTES_PER_PAGE`.
+
+The key distinction is that this method is unconstrained. It does not perform a check to verify if the notes actually exist, which is something the [`.get_notes`](#get_notes) method does under the hood. Therefore, it should only be used in an unconstrained contract function.
+
+This function requires a `NoteViewerOptions`:
+
+#include_code NoteViewerOptions /yarn-project/aztec-nr/aztec/src/note/note_viewer_options.nr rust
+
+The `NoteViewerOptions` is essentially similar to the [`NoteGetterOptions`](#notegetteroptions), except that it doesn't take a custom filter.
 
 ## `Map<T>`
 
