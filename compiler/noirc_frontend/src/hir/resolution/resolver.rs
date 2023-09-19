@@ -128,8 +128,8 @@ impl<'a> Resolver<'a> {
         self.self_type = self_type;
     }
 
-    pub fn get_self_type(&mut self) -> Option<Type> {
-        self.self_type.clone()
+    pub fn get_self_type(&mut self) -> Option<&Type> {
+        self.self_type.as_ref()
     }
 
     fn push_err(&mut self, err: ResolverError) {
