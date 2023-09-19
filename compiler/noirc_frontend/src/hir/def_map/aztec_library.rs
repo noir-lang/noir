@@ -207,7 +207,6 @@ fn check_for_aztec_dependency(
 
 // Check to see if the user has defined a storage struct
 fn check_for_storage_definition(module: &ParsedModule) -> bool {
-    // TODO: cleanup
     module.types.iter().any(|function| function.name.0.contents == "Storage")
 }
 
