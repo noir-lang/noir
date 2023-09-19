@@ -17,17 +17,7 @@ import * as path from 'path';
 const GITHUB_OWNER = 'AztecProtocol';
 const GITHUB_REPO = 'aztec-packages';
 const GITHUB_TAG_PREFIX = 'aztec-packages';
-const NOIR_CONTRACTS_PATH = 'yarn-project/noir-contracts/src/contracts';
 const BOXES_PATH = 'yarn-project/boxes';
-
-/**
- * Converts a contract name in "upper camel case" to a folder name in snake case or kebab case.
- * @param contractName - The contract name.
- * @returns The folder name.
- * */
-function contractNameToFolder(contractName: string, separator = '-'): string {
-  return contractName.replace(/[\w]([A-Z])/g, m => `${m[0]}${separator}${m[1]}`).toLowerCase();
-}
 
 /**
  * If the box contains the noir contract source code, we don't need to download it from github.
@@ -92,8 +82,7 @@ async function downloadContractAndBoxFromGithub(
   // small string conversion, in the ABI the contract name looks like PrivateToken
   // but in the repostory it looks like private_token
 
-  const kebabCaseContractName = contractNameToFolder(contractName, '-');
-  log(`Downloading @aztex/boxes/${kebabCaseContractName} to ${outputPath}...`);
+  log(`Downloading @aztex/boxes/${contractName} to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
   const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tag}.zip`;
   const response = await fetch(url);
@@ -103,40 +92,19 @@ async function downloadContractAndBoxFromGithub(
   const data = await zip.loadAsync(buffer);
 
   // Step 2: copy the '@aztec/boxes/{contract-name}' subpackage to the output directory
-  // this is currently only implemented for PrivateToken under 'boxes/private-token/'
+  // this is currently only implemented for `blank` and `private-token` under 'boxes/{box-name}/'
   const repoDirectoryPrefix = `${GITHUB_REPO}-${tag}`;
 
-  const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${kebabCaseContractName}`;
+  const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${contractName}`;
   await copyFolderFromGithub(data, boxPath, outputPath, log);
 
   const contractTargetDirectory = path.join(outputPath, 'src', 'contracts');
   const boxContainsNoirSource = await isDirectoryNonEmpty(contractTargetDirectory);
   if (boxContainsNoirSource) {
     return;
-  }
-
-  // this remaining logic only kicks in if the box doesn't already have a src/contracts folder
-  // in which case we optimistically grab the noir source files from the
-  // noir-contracts and noir-libs subpackages and pray that the versions are compatible
-  log('Copying noir contracts...');
-
-  // source noir files for the contract are in this folder
-  const snakeCaseContractName = contractNameToFolder(contractName, '_');
-  const contractDirectoryPath = `${repoDirectoryPrefix}/${NOIR_CONTRACTS_PATH}/${snakeCaseContractName}_contract`;
-  // copy the noir contracts to the output directory under subdir /src/contracts/
-  const contractFiles = Object.values(data.files).filter(file => {
-    return !file.dir && file.name.startsWith(contractDirectoryPath);
-  });
-
-  // Nargo.toml file needs to be in the root of the contracts directory,
-  // and noir files in the src/ subdirectory
-  await fs.mkdir(path.join(contractTargetDirectory, 'src'), { recursive: true });
-  for (const file of contractFiles) {
-    const filename = file.name.replace(`${contractDirectoryPath}/`, '');
-    const targetPath = path.join(contractTargetDirectory, filename);
-    const content = await file.async('nodebuffer');
-    await fs.writeFile(targetPath, content);
-    log(` ✓ ${filename}`);
+  } else {
+    // we used to support downloading from the noir contracts monorepo but now force box to contain source code
+    throw Error(`Box ${contractName} does not contain noir source code.`);
   }
 }
 /**
@@ -294,13 +262,13 @@ export async function unboxContract(
   packageVersion: string,
   log: LogFn,
 ) {
-  const contractNames = ['PrivateToken'];
+  const contractNames = ['private-token', 'blank'];
 
   if (!contractNames.includes(contractName)) {
     log(
       `The noir contract named "${contractName}" was not found in "@aztec/boxes" package.  Valid options are: 
         ${contractNames.join('\n\t')}
-      We recommend "PrivateToken" as a default.`,
+      We recommend "private-token" as a default.`,
     );
     return;
   }
