@@ -257,13 +257,11 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
-            module_id: ModuleId::dummy_id(),
             attributes: Attributes::empty(),
             location,
             contract_function_type: None,
             is_internal: None,
             is_unconstrained: false,
-            is_public: false,
             typ: Type::Function(
                 vec![Type::FieldElement, Type::FieldElement],
                 Box::new(Type::Unit),
@@ -404,11 +402,11 @@ mod test {
         assert_eq!(errors, vec![]);
 
         let main_id = interner.push_fn(HirFunction::empty());
-        interner.push_function_definition("main".into(), main_id);
+        interner.push_function_definition("main".into(), main_id, true, ModuleId::dummy_id());
 
         let func_ids = vecmap(&func_namespace, |name| {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.into(), id);
+            interner.push_function_definition(name.into(), id, true, ModuleId::dummy_id());
             id
         });
 
@@ -436,8 +434,7 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) =
-                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

@@ -66,11 +66,11 @@ pub fn collect_defs(
 
     collector.collect_type_aliases(context, ast.type_aliases, errors);
 
-    collector.collect_functions(context, ast.functions, errors);
+    collector.collect_functions(context, ast.functions, crate_id, errors);
 
-    collector.collect_trait_impls(context, ast.trait_impls, errors);
+    collector.collect_trait_impls(context, ast.trait_impls, crate_id, errors);
 
-    collector.collect_impls(context, ast.impls);
+    collector.collect_impls(context, ast.impls, crate_id);
 }
 
 impl<'a> ModCollector<'a> {
@@ -109,14 +109,23 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>) {
+    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: CrateId) {
+        let module_id = ModuleId { krate, local_id: self.module_id };
+
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
             for method in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
-                context.def_interner.push_function_definition(method.name().to_owned(), func_id);
+                let is_public = method.def.is_public;
+
+                context.def_interner.push_function_definition(
+                    method.name().to_owned(),
+                    func_id,
+                    is_public,
+                    module_id,
+                );
                 unresolved_functions.push_fn(self.module_id, func_id, method);
             }
 
@@ -130,11 +139,15 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         impls: Vec<TraitImpl>,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
+        let module_id = ModuleId { krate, local_id: self.module_id };
+
         for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
             let module = &self.def_collector.def_map.modules[self.module_id.0];
+
             match module.find_name(&trait_name).types {
                 Some((module_def_id, _visibility)) => {
                     if let Some(collected_trait) = self.get_unresolved_trait(module_def_id) {
@@ -142,13 +155,17 @@ impl<'a> ModCollector<'a> {
                             context,
                             &trait_impl,
                             &collected_trait.trait_def,
+                            krate,
                             errors,
                         );
 
                         for (_, func_id, noir_function) in &unresolved_functions.functions {
                             let name = noir_function.name().to_owned();
+                            let is_public = noir_function.def.is_public;
 
-                            context.def_interner.push_function_definition(name, *func_id);
+                            context
+                                .def_interner
+                                .push_function_definition(name, *func_id, is_public, module_id);
                         }
 
                         let unresolved_trait_impl = UnresolvedTraitImpl {
@@ -197,17 +214,23 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         trait_impl: &TraitImpl,
         trait_def: &NoirTrait,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) -> UnresolvedFunctions {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
+        let module = ModuleId { krate, local_id: self.module_id };
+
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                context
-                    .def_interner
-                    .push_function_definition(impl_method.name().to_owned(), func_id);
+                context.def_interner.push_function_definition(
+                    impl_method.name().to_owned(),
+                    func_id,
+                    impl_method.def.is_public,
+                    module,
+                );
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
         }
@@ -227,12 +250,19 @@ impl<'a> ModCollector<'a> {
                     .functions
                     .iter()
                     .any(|(_, _, func_impl)| func_impl.name() == name.0.contents);
+
                 if !is_implemented {
                     match body {
                         Some(body) => {
                             let method_name = name.0.contents.clone();
                             let func_id = context.def_interner.push_empty_fn();
-                            context.def_interner.push_function_definition(method_name, func_id);
+                            let is_public = false; // trait functions are always public
+                            context.def_interner.push_function_definition(
+                                method_name,
+                                func_id,
+                                is_public,
+                                module,
+                            );
                             let impl_method = NoirFunction::normal(FunctionDefinition::normal(
                                 name,
                                 generics,
@@ -262,18 +292,23 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         functions: Vec<NoirFunction>,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
+        let module = ModuleId { krate, local_id: self.module_id };
+
         for function in functions {
             let name = function.name_ident().clone();
+            let func_id = context.def_interner.push_empty_fn();
+            let is_public = function.def.is_public;
+            let name_string = name.0.contents.clone();
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            let func_id = context.def_interner.push_empty_fn();
-            context.def_interner.push_function_definition(name.0.contents.clone(), func_id);
+            context.def_interner.push_function_definition(name_string, func_id, is_public, module);
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace

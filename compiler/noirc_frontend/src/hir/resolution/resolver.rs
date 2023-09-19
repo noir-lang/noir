@@ -23,7 +23,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
@@ -140,7 +140,6 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
         func_id: FuncId,
-        module_id: ModuleId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
 
@@ -149,7 +148,7 @@ impl<'a> Resolver<'a> {
 
         self.add_generics(&func.def.generics);
 
-        let (hir_func, func_meta) = self.intern_function(func, func_id, module_id);
+        let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
@@ -308,13 +307,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn intern_function(
-        &mut self,
-        func: NoirFunction,
-        id: FuncId,
-        module_id: ModuleId,
-    ) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func, id, module_id);
+    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
+        let func_meta = self.extract_meta(&func, id);
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -668,12 +662,7 @@ impl<'a> Resolver<'a> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
-    fn extract_meta(
-        &mut self,
-        func: &NoirFunction,
-        func_id: FuncId,
-        module_id: ModuleId,
-    ) -> FuncMeta {
+    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
@@ -751,11 +740,9 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
-            module_id,
             contract_function_type: self.handle_function_type(func),
             is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
-            is_public: func.def.is_public,
             location,
             typ,
             parameters: parameters.into(),
@@ -978,6 +965,40 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    // Returns true if module_id is a descendant of module
+    fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
+        let function_module = self.interner.function_module(func);
+        let current_module = self.path_resolver.module_id();
+
+        let same_crate = function_module.krate == current_module.krate;
+        let krate = function_module.krate;
+        let current_module = current_module.local_id;
+
+        if !same_crate
+            || !self.module_descendent_of_target(krate, function_module.local_id, current_module)
+        {
+            let name = self.interner.function_name(&func).to_string();
+            self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+        }
+    }
+
+    // Returns true if `current` is a (potentially nested) child module of `target`.
+    // This is also true if `current == target`.
+    fn module_descendent_of_target(
+        &self,
+        krate: CrateId,
+        target: LocalModuleId,
+        current: LocalModuleId,
+    ) -> bool {
+        if current == target {
+            return true;
+        }
+
+        self.def_maps[&krate].modules[current.0]
+            .parent
+            .map_or(false, |parent| self.module_descendent_of_target(krate, target, parent))
+    }
+
     fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
         let mut transitive_capture_index: Option<usize> = None;
 
@@ -1047,7 +1068,12 @@ impl<'a> Resolver<'a> {
 
                 if hir_ident.id != DefinitionId::dummy_id() {
                     match self.interner.definition(hir_ident.id).kind {
-                        DefinitionKind::Function(_) => {}
+                        DefinitionKind::Function(id) => {
+                            if self.interner.function_visibility(id) == Visibility::Private {
+                                let span = hir_ident.location.span;
+                                self.check_can_reference_private_function(id, span);
+                            }
+                        }
                         DefinitionKind::Global(_) => {}
                         DefinitionKind::GenericType(_) => {
                             // Initialize numeric generics to a polymorphic integer type in case
@@ -1590,7 +1616,7 @@ mod test {
 
         let func_ids = vecmap(&func_namespace, |name| {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.to_string(), id);
+            interner.push_function_definition(name.to_string(), id, true, ModuleId::dummy_id());
             id
         });
 
@@ -1601,10 +1627,11 @@ mod test {
         let mut errors = Vec::new();
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(func.name().to_string(), id);
+            let name = func.name().to_string();
+            interner.push_function_definition(name, id, true, ModuleId::dummy_id());
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
+            let (_, _, err) = resolver.resolve_function(func, id);
             errors.extend(err);
         }
 
@@ -1618,11 +1645,12 @@ mod test {
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(func.name().to_string(), id);
+            let name = func.name().to_string();
+            interner.push_function_definition(name, id, true, ModuleId::dummy_id());
             path_resolver.insert_func(func.name().to_owned(), id);
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, _, _) = resolver.resolve_function(func, id, ModuleId::dummy_id());
+            let (hir_func, _, _) = resolver.resolve_function(func, id);
 
             // Iterate over function statements and apply filtering function
             parse_statement_blocks(

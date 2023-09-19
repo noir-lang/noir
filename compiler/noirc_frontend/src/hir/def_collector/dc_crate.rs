@@ -10,7 +10,6 @@ use crate::hir::resolution::{
     path_resolver::StandardPathResolver,
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
-use crate::hir::visibility::FunctionVisibility;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
@@ -240,19 +239,6 @@ impl DefCollector {
 
         let file_trait_impls_ids =
             resolve_trait_impls(context, def_collector.collected_traits_impls, crate_id, errors);
-
-        // check that a function is calling a pub function if from another module.
-        let mut visibility = FunctionVisibility::default();
-        for (_, func_id) in &file_func_ids {
-            visibility.check_visibility(context, func_id);
-        }
-        for (_, func_id) in &file_method_ids {
-            visibility.check_visibility(context, func_id);
-        }
-        for (_, func_id) in &file_trait_impls_ids {
-            visibility.check_visibility(context, func_id);
-        }
-        errors.extend(visibility.errors);
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
 
@@ -761,8 +747,7 @@ fn resolve_function_set(
 
     vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
         let module_id = ModuleId { krate: crate_id, local_id: mod_id };
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
         // Must use set_generics here to ensure we re-use the same generics from when
@@ -771,7 +756,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 
-        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id, module_id);
+        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
         extend_errors(errors, file_id, errs);

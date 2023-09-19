@@ -21,7 +21,7 @@ use crate::hir_def::{
 };
 use crate::{
     Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
-    TypeVariableKind,
+    TypeVariableKind, Visibility,
 };
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
@@ -34,6 +34,13 @@ pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
     function_definition_ids: HashMap<FuncId, DefinitionId>,
+
+    // For a given function ID, give whether it is publically visible or not.
+    // Unlike func_meta, this map is filled out during definition collection rather than name resolution.
+    function_visibilities: HashMap<FuncId, Visibility>,
+
+    // Contains the source module each function was defined in
+    function_modules: HashMap<FuncId, ModuleId>,
 
     // Map each `Index` to it's own location
     id_to_location: HashMap<Index, Location>,
@@ -298,6 +305,8 @@ impl Default for NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
             function_definition_ids: HashMap::new(),
+            function_visibilities: HashMap::new(),
+            function_modules: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
@@ -511,8 +520,30 @@ impl NodeInterner {
         id
     }
 
-    pub fn push_function_definition(&mut self, name: String, func: FuncId) -> DefinitionId {
+    pub fn push_function_definition(
+        &mut self,
+        name: String,
+        func: FuncId,
+        is_public: bool,
+        module: ModuleId,
+    ) -> DefinitionId {
+        let visibility = if is_public { Visibility::Public } else { Visibility::Private };
+        self.function_visibilities.insert(func, visibility);
+        self.function_modules.insert(func, module);
         self.push_definition(name, false, DefinitionKind::Function(func))
+    }
+
+    /// Returns the visibility of the given function.
+    ///
+    /// The underlying function_visibilities map is populated during def collection,
+    /// so this function can be called anytime afterward.
+    pub fn function_visibility(&self, func: FuncId) -> Visibility {
+        self.function_visibilities[&func]
+    }
+
+    /// Returns the module this function was defined within
+    pub fn function_module(&self, func: FuncId) -> ModuleId {
+        self.function_modules[&func]
     }
 
     /// Returns the interned HIR function corresponding to `func_id`

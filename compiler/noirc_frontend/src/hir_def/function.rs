@@ -3,7 +3,6 @@ use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
-use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attributes, FunctionKind};
 use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
@@ -96,8 +95,6 @@ pub struct FuncMeta {
 
     pub kind: FunctionKind,
 
-    pub module_id: ModuleId,
-
     /// A function's attributes are the `#[...]` items above the function
     /// definition.
     /// Primary Attributes will alter the function kind, secondary attributes do not
@@ -111,10 +108,6 @@ pub struct FuncMeta {
     /// If this function is internal can only be called by itself.
     /// Will be None if not in contract.
     pub is_internal: Option<bool>,
-
-    /// Function accessibility
-    /// A non public function cannot be called from outside a library
-    pub is_public: bool,
 
     pub is_unconstrained: bool,
 

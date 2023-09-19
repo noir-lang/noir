@@ -1362,11 +1362,11 @@ mod tests {
         assert_eq!(errors, vec![]);
 
         let main_id = interner.push_fn(HirFunction::empty());
-        interner.push_function_definition("main".into(), main_id);
+        interner.push_function_definition("main".into(), main_id, true, ModuleId::dummy_id());
 
         let func_ids = vecmap(&func_namespace, |name| {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.into(), id);
+            interner.push_function_definition(name.into(), id, true, ModuleId::dummy_id());
             id
         });
 
@@ -1394,8 +1394,7 @@ mod tests {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, _resolver_errors) =
-                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
+            let (hir_func, func_meta, _resolver_errors) = resolver.resolve_function(nf, main_id);
             // TODO: not sure why, we do get an error here,
             // but otherwise seem to get an ok monomorphization result
             // assert_eq!(resolver_errors, vec![]);
