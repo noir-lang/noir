@@ -970,7 +970,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    // Returns true if module_id is a descendant of module
+    // Issue an error if the given private function is being called from a non-child module
     fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
