@@ -511,7 +511,7 @@ fn resolve_trait_methods(
             resolver.set_self_type(Some(self_type));
 
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
-            let resolved_return_type = resolver.resolve_type(return_type.get_type());
+            let resolved_return_type = resolver.resolve_type(return_type.get_type().into_owned());
 
             let name = name.clone();
             // TODO
@@ -781,7 +781,8 @@ fn check_methods_signatures(
             }
 
             // Check that impl method return type matches trait return type:
-            let resolved_return_type = resolver.resolve_type(meta.return_type.get_type());
+            let resolved_return_type =
+                resolver.resolve_type(meta.return_type.get_type().into_owned());
 
             method.return_type.unify(&resolved_return_type, &mut typecheck_errors, || {
                 let ret_type_span =

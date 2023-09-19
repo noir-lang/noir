@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
@@ -688,12 +689,12 @@ impl Display for FunctionDefinition {
 }
 
 impl FunctionReturnType {
-    pub fn get_type(&self) -> UnresolvedType {
+    pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
             FunctionReturnType::Default(span) => {
-                UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) }
+                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
             }
-            FunctionReturnType::Ty(typ) => typ.clone(),
+            FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }
     }
 }
