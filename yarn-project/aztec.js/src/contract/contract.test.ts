@@ -29,11 +29,11 @@ describe('Contract Class', () => {
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
   const mockViewResultValue = 1;
   const mockNodeInfo: NodeInfo = {
-    version: 1,
+    sandboxVersion: 'vx.x.x',
+    compatibleNargoVersion: 'vx.x.x-aztec.x',
+    protocolVersion: 1,
     chainId: 2,
     rollupAddress: EthAddress.random(),
-    client: '',
-    compatibleNargoVersion: 'vx.x.x-aztec.x',
   };
 
   const defaultAbi: ContractAbi = {

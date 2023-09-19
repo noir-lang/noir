@@ -14,13 +14,13 @@ export class DefaultAccountInterface implements AccountInterface {
   constructor(
     private authWitnessProvider: AuthWitnessProvider,
     private address: CompleteAddress,
-    nodeInfo: Pick<NodeInfo, 'chainId' | 'version'>,
+    nodeInfo: Pick<NodeInfo, 'chainId' | 'protocolVersion'>,
   ) {
     this.entrypoint = new DefaultAccountEntrypoint(
       address.address,
       authWitnessProvider,
       nodeInfo.chainId,
-      nodeInfo.version,
+      nodeInfo.protocolVersion,
     );
   }
 

@@ -60,7 +60,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     const portalContract = options.portalContract ?? EthAddress.ZERO;
     const contractAddressSalt = options.contractAddressSalt ?? Fr.random();
 
-    const { chainId, version } = await this.rpc.getNodeInfo();
+    const { chainId, protocolVersion } = await this.rpc.getNodeInfo();
 
     const { completeAddress, constructorHash, functionTreeRoot } = await getContractDeploymentInfo(
       this.abi,
@@ -77,7 +77,14 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       portalContract,
     );
 
-    const txContext = new TxContext(false, false, true, contractDeploymentData, new Fr(chainId), new Fr(version));
+    const txContext = new TxContext(
+      false,
+      false,
+      true,
+      contractDeploymentData,
+      new Fr(chainId),
+      new Fr(protocolVersion),
+    );
     const args = encodeArguments(this.constructorAbi, this.args);
     const functionData = FunctionData.fromAbi(this.constructorAbi);
     const execution = { args, functionData, to: completeAddress.address };

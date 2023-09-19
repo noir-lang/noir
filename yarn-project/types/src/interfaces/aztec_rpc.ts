@@ -37,25 +37,25 @@ export interface DeployedContract {
  */
 export type NodeInfo = {
   /**
-   * The version number of the node.
+   * Version as tracked in the aztec-packages repository.
    */
-  version: number;
+  sandboxVersion: string;
   /**
-   * The network's chain id.
+   * The nargo version compatible with this sandbox version
+   */
+  compatibleNargoVersion: string;
+  /**
+   * L1 chain id.
    */
   chainId: number;
+  /**
+   * Protocol version.
+   */
+  protocolVersion: number;
   /**
    * The rollup contract address
    */
   rollupAddress: EthAddress;
-  /**
-   * Identifier of the client software.
-   */
-  client: string;
-  /**
-   * The nargo version compatible with this node.
-   */
-  compatibleNargoVersion: string;
 };
 
 /** Provides up to which block has been synced by different components. */

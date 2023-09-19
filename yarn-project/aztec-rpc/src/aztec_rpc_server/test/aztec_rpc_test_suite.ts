@@ -133,7 +133,7 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
 
     it('successfully gets node info', async () => {
       const nodeInfo = await rpc.getNodeInfo();
-      expect(typeof nodeInfo.version).toEqual('number');
+      expect(typeof nodeInfo.protocolVersion).toEqual('number');
       expect(typeof nodeInfo.chainId).toEqual('number');
       expect(nodeInfo.rollupAddress.toString()).toMatch(/0x[a-fA-F0-9]+/);
     });
