@@ -10,54 +10,6 @@ use dep::aztec::constants_gen::GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET;
 global TRANSPARENT_NOTE_LEN: Field = 2;
 
 
-
-struct AztecAddress {
-  address: Field
-}
-
-impl AztecAddress {
-  fn new(address: Field) -> Self {
-    Self {
-      address
-    }
-  }
-
-  fn serialize(self: Self) -> [Field; 1] {
-    [self.address]
-  }
-
-  fn deserialize(fields: [Field; 1]) -> Self {
-    Self {
-      address: fields[0]
-    }
-  }
-}
-
-struct EthereumAddress {
-  address: Field
-}
-
-impl EthereumAddress {
-  fn new(address: Field) -> Self {
-    Self {
-      address
-    }
-  }
-
-
-  fn serialize(self: Self) -> [Field; 1] {
-    [self.address]
-  }
-
-  fn deserialize(fields: [Field; 1]) -> Self {
-    Self {
-      address: fields[0]
-    }
-  }
-}
-
-
-
 // Transparent note represents a note that is created in the clear (public execution),
 // but can only be spent by those that know the preimage of the "secret_hash"
 struct TransparentNote {

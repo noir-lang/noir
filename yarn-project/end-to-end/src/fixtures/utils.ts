@@ -13,12 +13,14 @@ import {
   getL1ContractAddresses,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
+import { CircuitsWasm, GeneratorIndex } from '@aztec/circuits.js';
+import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
-import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
+import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
 
 import {
@@ -272,6 +274,119 @@ export function getLogger() {
 }
 
 /**
+ * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract, its L2 bridge contract and attach is to the portal.
+ * @param wallet - the wallet instance
+ * @param walletClient - A viem WalletClient.
+ * @param publicClient - A viem PublicClient.
+ * @param rollupRegistryAddress - address of rollup registry to pass to initialize the token portal
+ * @param owner - owner of the L2 contract
+ * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if none supplied, it deploys one)
+ * @returns l2 contract instance, bridge contract instance, token portal instance, token portal address and the underlying ERC20 instance
+ */
+export async function deployAndInitializeStandardizedTokenAndBridgeContracts(
+  wallet: Wallet,
+  walletClient: WalletClient<HttpTransport, Chain, Account>,
+  publicClient: PublicClient<HttpTransport, Chain>,
+  rollupRegistryAddress: EthAddress,
+  owner: AztecAddress,
+  underlyingERC20Address?: EthAddress,
+): Promise<{
+  /**
+   * The L2 token contract instance.
+   */
+  token: TokenContract;
+  /**
+   * The L2 bridge contract instance.
+   */
+  bridge: TokenBridgeContract;
+  /**
+   * The token portal contract address.
+   */
+  tokenPortalAddress: EthAddress;
+  /**
+   * The token portal contract instance
+   */
+  tokenPortal: any;
+  /**
+   * The underlying ERC20 contract instance.
+   */
+  underlyingERC20: any;
+}> {
+  if (!underlyingERC20Address) {
+    underlyingERC20Address = await deployL1Contract(walletClient, publicClient, PortalERC20Abi, PortalERC20Bytecode);
+  }
+  const underlyingERC20 = getContract({
+    address: underlyingERC20Address.toString(),
+    abi: PortalERC20Abi,
+    walletClient,
+    publicClient,
+  });
+
+  // deploy the token portal
+  const tokenPortalAddress = await deployL1Contract(walletClient, publicClient, TokenPortalAbi, TokenPortalBytecode);
+  const tokenPortal = getContract({
+    address: tokenPortalAddress.toString(),
+    abi: TokenPortalAbi,
+    walletClient,
+    publicClient,
+  });
+
+  // deploy l2 token
+  const deployTx = TokenContract.deploy(wallet).send();
+
+  // deploy l2 token bridge and attach to the portal
+  const bridgeTx = TokenBridgeContract.deploy(wallet).send({
+    portalContract: tokenPortalAddress,
+    contractAddressSalt: Fr.random(),
+  });
+
+  // now wait for the deploy txs to be mined. This way we send all tx in the same rollup.
+  const deployReceipt = await deployTx.wait();
+  if (deployReceipt.status !== TxStatus.MINED) throw new Error(`Deploy token tx status is ${deployReceipt.status}`);
+  const token = await TokenContract.at(deployReceipt.contractAddress!, wallet);
+
+  const bridgeReceipt = await bridgeTx.wait();
+  if (bridgeReceipt.status !== TxStatus.MINED) throw new Error(`Deploy bridge tx status is ${bridgeReceipt.status}`);
+  const bridge = await TokenBridgeContract.at(bridgeReceipt.contractAddress!, wallet);
+  await bridge.attach(tokenPortalAddress);
+  const bridgeAddress = bridge.address.toString() as `0x${string}`;
+
+  // initialize l2 token
+  const initializeTx = token.methods._initialize({ address: owner }).send();
+
+  // initialize bridge
+  const initializeBridgeTx = bridge.methods._initialize({ address: token.address }).send();
+
+  // now we wait for the txs to be mined. This way we send all tx in the same rollup.
+  const initializeReceipt = await initializeTx.wait();
+  if (initializeReceipt.status !== TxStatus.MINED)
+    throw new Error(`Initialize token tx status is ${initializeReceipt.status}`);
+  if ((await token.methods.admin().view()) !== owner.toBigInt()) throw new Error(`Token admin is not ${owner}`);
+
+  const initializeBridgeReceipt = await initializeBridgeTx.wait();
+  if (initializeBridgeReceipt.status !== TxStatus.MINED)
+    throw new Error(`Initialize token bridge tx status is ${initializeBridgeReceipt.status}`);
+  if ((await bridge.methods.token().view()) !== token.address.toBigInt())
+    throw new Error(`Bridge token is not ${token.address}`);
+
+  // make the bridge a minter on the token:
+  const makeMinterTx = token.methods.set_minter({ address: bridge.address }, true).send();
+  const makeMinterReceipt = await makeMinterTx.wait();
+  if (makeMinterReceipt.status !== TxStatus.MINED)
+    throw new Error(`Make bridge a minter tx status is ${makeMinterReceipt.status}`);
+  if ((await token.methods.is_minter({ address: bridge.address }).view()) === 1n)
+    throw new Error(`Bridge is not a minter`);
+
+  // initialize portal
+  await tokenPortal.write.initialize(
+    [rollupRegistryAddress.toString(), underlyingERC20Address.toString(), bridgeAddress],
+    {} as any,
+  );
+
+  return { token, bridge, tokenPortalAddress, tokenPortal, underlyingERC20 };
+}
+
+/**
  * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract and attach is to the portal.
  * @param aztecRpcServer - the aztec rpc server instance
  * @param walletClient - A viem WalletClient.
@@ -282,6 +397,7 @@ export function getLogger() {
  * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if none supplied, it deploys one)
  * @returns l2 contract instance, token portal instance, token portal address and the underlying ERC20 instance
  */
+// TODO (#2291) DELETE!!!
 export async function deployAndInitializeNonNativeL2TokenContracts(
   wallet: Wallet,
   walletClient: WalletClient<HttpTransport, Chain, Account>,
@@ -375,4 +491,17 @@ export const expectUnencryptedLogsFromLastBlockToBe = async (rpc: AztecRPC, logM
   const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));
 
   expect(asciiLogs).toStrictEqual(logMessages);
+};
+
+/**
+ * Hash a payload to generate a signature on an account contract
+ * @param payload - payload to hash
+ * @returns the hashed message
+ */
+export const hashPayload = async (payload: Fr[]) => {
+  return pedersenPlookupCompressWithHashIndex(
+    await CircuitsWasm.get(),
+    payload.map(fr => fr.toBuffer()),
+    GeneratorIndex.SIGNATURE_PAYLOAD,
+  );
 };

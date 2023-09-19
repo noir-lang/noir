@@ -121,8 +121,9 @@ contract UniswapPortal {
     // Note, safeApprove was deprecated from Oz
     vars.outputAsset.approve(address(_outputTokenPortal), amountOut);
 
-    // Deposit the output asset to the L2 via its portal
-    return TokenPortal(_outputTokenPortal).depositToAztec{value: msg.value}(
+    // Deposit the output asset to the L2 via its portal]
+    // TODO(2167) - Update UniswapPortal properly with new portal standard.
+    return TokenPortal(_outputTokenPortal).depositToAztecPublic{value: msg.value}(
       _aztecRecipient, amountOut, _deadlineForL1ToL2Message, _secretHash, _canceller
     );
   }

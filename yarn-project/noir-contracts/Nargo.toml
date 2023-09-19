@@ -23,5 +23,6 @@ members = [
     "src/contracts/stateful_test_contract",
     "src/contracts/test_contract",
     "src/contracts/token_contract",
+    "src/contracts/token_bridge_contract",
     "src/contracts/uniswap_contract",
 ]

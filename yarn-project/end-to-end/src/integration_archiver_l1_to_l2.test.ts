@@ -12,6 +12,7 @@ import { Chain, HttpTransport, PublicClient } from 'viem';
 
 import { delay, deployAndInitializeNonNativeL2TokenContracts, setNextBlockTimestamp, setup } from './fixtures/utils.js';
 
+// TODO (#2291) - Replace with token bridge standard
 describe('archiver integration with l1 to l2 messages', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
@@ -99,7 +100,7 @@ describe('archiver integration with l1 to l2 messages', () => {
 
     logger('Sending messages to L1 portal');
     const args = [owner.toString(), mintAmount, deadline, secretString, ethAccount.toString()] as const;
-    await tokenPortal.write.depositToAztec(args, {} as any);
+    await tokenPortal.write.depositToAztecPublic(args, {} as any);
     expect(await underlyingERC20.read.balanceOf([ethAccount.toString()])).toBe(1000000n - mintAmount);
 
     // Wait for the archiver to process the message
@@ -111,7 +112,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     // cancel the message
     logger('cancelling the l1 to l2 message');
     const argsCancel = [owner.toString(), 100n, deadline, secretString, 0n] as const;
-    await tokenPortal.write.cancelL1ToAztecMessage(argsCancel, { gas: 1_000_000n } as any);
+    await tokenPortal.write.cancelL1ToAztecMessagePublic(argsCancel, { gas: 1_000_000n } as any);
     expect(await underlyingERC20.read.balanceOf([ethAccount.toString()])).toBe(1000000n);
     // let archiver sync up
     await delay(5000);

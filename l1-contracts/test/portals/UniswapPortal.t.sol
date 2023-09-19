@@ -344,7 +344,8 @@ contract UniswapPortalTest is Test {
     // expected event:
     emit L1ToL2MessageCancelled(l1ToL2MessageKey);
     // perform op
-    bytes32 entryKey = wethTokenPortal.cancelL1ToAztecMessage(
+    // TODO(2167) - Update UniswapPortal properly with new portal standard.
+    bytes32 entryKey = wethTokenPortal.cancelL1ToAztecMessagePublic(
       aztecRecipient, wethAmountOut, deadlineForL1ToL2Message, secretHash, 1 ether
     );
     assertEq(entryKey, l1ToL2MessageKey, "returned entry key and calculated entryKey should match");
