@@ -75,14 +75,15 @@ const sidebars = {
         id: "dev_docs/getting_started/main",
       },
       items: [
+        "dev_docs/getting_started/quickstart",
         "dev_docs/getting_started/sandbox",
         "dev_docs/getting_started/noir_contracts",
-        "dev_docs/getting_started/cli",
+        "dev_docs/getting_started/token_contract_tutorial",
       ],
     },
 
     {
-      label: "Contracts",
+      label: "Aztec.nr Contracts",
       type: "category",
       link: {
         type: "doc",
@@ -90,22 +91,26 @@ const sidebars = {
       },
       items: [
         "dev_docs/contracts/workflow",
-        "dev_docs/contracts/syntax",
-        "dev_docs/contracts/contract",
         "dev_docs/contracts/layout",
-        "dev_docs/contracts/types",
-        "dev_docs/contracts/storage",
-        "dev_docs/contracts/state_variables",
-        "dev_docs/contracts/functions",
-        "dev_docs/contracts/control_structure",
-        "dev_docs/contracts/visibility",
-        "dev_docs/contracts/globals",
         "dev_docs/contracts/events",
-        "dev_docs/contracts/constrain",
         "dev_docs/contracts/compiling",
         "dev_docs/contracts/deploying",
         "dev_docs/contracts/artifacts",
-        "dev_docs/contracts/abi",
+        {
+          label: "Syntax",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "dev_docs/contracts/syntax/main",
+          },
+          items: [
+            "dev_docs/contracts/syntax/contract",
+            "dev_docs/contracts/syntax/functions",
+            "dev_docs/contracts/syntax/storage",
+            "dev_docs/contracts/syntax/state_variables",
+            "dev_docs/contracts/syntax/globals",
+          ],
+        },
         {
           label: "Portals",
           type: "category",
@@ -120,64 +125,80 @@ const sidebars = {
             "dev_docs/contracts/portals/outbox",
           ],
         },
-        {
-          label: "Resources",
-          type: "category",
-          items: [
-            "dev_docs/contracts/resources/style_guide",
-            {
-              label: "Common Patterns",
-              type: "category",
-              link: {
-                type: "doc",
-                id: "dev_docs/contracts/resources/common_patterns/main",
-              },
-              items: [
-                "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
-                "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
-                "dev_docs/contracts/resources/common_patterns/access_control",
-                "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
-              ],
-            },
-          ],
-        },
-        {
-          label: "Security Considerations",
-          type: "category",
-          items: [
-            {
-              label: "Breaking changes",
-              type: "category",
-              link: {
-                type: "doc",
-                id: "dev_docs/contracts/security/breaking_changes/main",
-              },
-              items: ["dev_docs/contracts/security/breaking_changes/v0"],
-            },
-          ],
-        },
+        // {
+        //   label: "Resources",
+        //   type: "category",
+        //   items: [
+        //     "dev_docs/contracts/resources/style_guide",
+        //     {
+        //       label: "Common Patterns",
+        //       type: "category",
+        //       link: {
+        //         type: "doc",
+        //         id: "dev_docs/contracts/resources/common_patterns/main",
+        //       },
+        //       items: [
+        //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
+        //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
+        //         "dev_docs/contracts/resources/common_patterns/access_control",
+        //         "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
+        //       ],
+        //     },
+        //   ],
+        // },
+        // {
+        //   label: "Security Considerations",
+        //   type: "category",
+        //   items: [
+        //     {
+        //       label: "Breaking changes",
+        //       type: "category",
+        //       link: {
+        //         type: "doc",
+        //         id: "dev_docs/contracts/security/breaking_changes/main",
+        //       },
+        //       items: ["dev_docs/contracts/security/breaking_changes/v0"],
+        //     },
+        //   ],
+        // },
       ],
+    },
+
+    {
+      label: "Sandbox",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/sandbox/main",
+      },
+      items: ["dev_docs/sandbox/common_errors"],
+    },
+
+    {
+      label: "CLI",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/cli/main",
+      },
+      items: ["dev_docs/cli/cli"],
     },
     {
       label: "DApp Development",
       type: "category",
-      link: {
-        type: "doc",
-        id: "dev_docs/dapps/main",
-      },
       items: [
-        {
-          label: "API",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "dev_docs/dapps/api/main",
-          },
-          items: [
-            "dev_docs/dapps/api/aztec_rpc",
-            "dev_docs/dapps/api/contract_interaction",
-          ],
-        },
+        // {
+        //   label: "API",
+        //   type: "category",
+        //   link: {
+        //     type: "doc",
+        //     id: "dev_docs/dapps/api/main",
+        //   },
+        //   items: [
+        //     "dev_docs/dapps/api/aztec_rpc",
+        //     "dev_docs/dapps/api/contract_interaction",
+        //   ],
+        // },
         {
           label: "Tutorials",
           type: "category",
@@ -197,36 +218,13 @@ const sidebars = {
     },
 
     {
-      label: "Sandbox",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "dev_docs/sandbox/main",
-      },
-      items: ["dev_docs/sandbox/components", "dev_docs/sandbox/common_errors"],
-    },
-
-    {
-      label: "CLI",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "dev_docs/cli/main",
-      },
-      items: [],
-    },
-
-    {
       label: "Testing",
       type: "category",
       link: {
         type: "doc",
         id: "dev_docs/testing/main",
       },
-      items: [
-        "dev_docs/testing/writing_a_test",
-        "dev_docs/testing/cheat_codes",
-      ],
+      items: ["dev_docs/testing/testing", "dev_docs/testing/cheat_codes"],
     },
 
     {
@@ -242,8 +240,11 @@ const sidebars = {
       ],
     },
 
-    "dev_docs/limitations/main",
-    "dev_docs/privacy/main",
+    {
+      label: "Security Considerations",
+      type: "category",
+      items: ["dev_docs/limitations/main", "dev_docs/privacy/main"],
+    },
 
     {
       type: "html",
@@ -276,8 +277,8 @@ const sidebars = {
         },
         "concepts/foundation/contracts",
         "concepts/foundation/transactions",
-        "concepts/foundation/blocks",
-        "concepts/foundation/globals",
+        // "concepts/foundation/blocks",
+        // "concepts/foundation/globals",
         {
           label: "Communication",
           type: "category",
@@ -290,21 +291,21 @@ const sidebars = {
             "concepts/foundation/communication/cross_chain_calls",
           ],
         },
-        {
-          label: "Nodes and Clients",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/foundation/nodes_clients/main",
-          },
-          items: [
-            "concepts/foundation/nodes_clients/execution_client",
-            "concepts/foundation/nodes_clients/prover_client",
-            "concepts/foundation/nodes_clients/sequencer_client",
-          ],
-        },
-        "concepts/foundation/block_production",
-        "concepts/foundation/upgrade_mechanism",
+        // {
+        //   label: "Nodes and Clients",
+        //   type: "category",
+        //   link: {
+        //     type: "doc",
+        //     id: "concepts/foundation/nodes_clients/main",
+        //   },
+        //   items: [
+        //     "concepts/foundation/nodes_clients/execution_client",
+        //     "concepts/foundation/nodes_clients/prover_client",
+        //     "concepts/foundation/nodes_clients/sequencer_client",
+        //   ],
+        // },
+        // "concepts/foundation/block_production",
+        // "concepts/foundation/upgrade_mechanism",
       ],
     },
 
@@ -355,19 +356,12 @@ const sidebars = {
                 type: "doc",
                 id: "concepts/advanced/circuits/rollup_circuits/main",
               },
-              items: [
-                "concepts/advanced/circuits/rollup_circuits/base_rollup",
-                "concepts/advanced/circuits/rollup_circuits/merge_rollup",
-                "concepts/advanced/circuits/rollup_circuits/root_rollup",
-              ],
+              items: [],
             },
           ],
         },
-
         "concepts/advanced/public_vm",
-
         "concepts/advanced/contract_creation",
-        "concepts/advanced/rollup_contract",
       ],
     },
 

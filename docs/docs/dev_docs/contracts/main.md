@@ -1,3 +1,5 @@
+import DocCardList from '@theme/DocCardList';
+
 # Aztec.nr
 
 ## What is Aztec.nr?
@@ -24,19 +26,6 @@ To write an Aztec.nr contract, you need to write Noir, and to write Noir, you ne
 
 There are a number of tools to make writing Aztec.nr contracts more pleasant. See [here](https://github.com/noir-lang/awesome-noir#get-coding).
 
-## Quick start
+## Learn more
 
-:::danger TODO
-Starter kit
-:::
-
-
-## Example Aztec.nr Contract
-
-In keeping with the origins of blockchain, here's an example of a simple private token contract. Everyone's balances are private.
-
-#include_code easy_private_token_contract /yarn-project/noir-contracts/src/contracts/easy_private_token_contract/src/main.nr rust
-
-:::info Disclaimer
-Please note that any example contract set out herein is provided solely for informational purposes only and does not constitute any inducement to use or deploy. Any implementation of any such contract with an interface or any other infrastructure should be used in accordance with applicable laws and regulations.
-:::
+<DocCardList />

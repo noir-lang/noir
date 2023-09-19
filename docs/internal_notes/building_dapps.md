@@ -1,6 +1,6 @@
 # Building dapps
 
-Please use the [TUTORIAL-TEMPLATE](../../TUTORIAL_TEMPLATE.md) for standalone guides / tutorials.
+Please use the [TUTORIAL-TEMPLATE](./TUTORIAL_TEMPLATE.md) for standalone guides / tutorials.
 
 Explain how to write a dapp using [`aztec.js`](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec.js). Maybe that readme is enough?
 
@@ -36,7 +36,7 @@ FOR INSTRUCTIONS FOR BUILDING A WALLET, WE SHOULD WRITE DOCS HERE
 
 ERRORS:
 
-- Add any error explanations to [errors.md](../contracts/common_errors.md) (and break that file into multiple files if it's too unwieldy).
+- Add any error explanations to [errors.md](../docs/dev_docs/contracts/common_errors.md) (and break that file into multiple files if it's too unwieldy).
 
 ## Testing a dapp
 

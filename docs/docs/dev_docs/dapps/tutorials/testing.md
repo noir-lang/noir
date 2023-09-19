@@ -1,8 +1,10 @@
-# Testing
+---
+title: Testing
+---
 
-To wrap up this tutorial, we'll set up a simple automated test for our dapp contracts. We will be using [jest](https://jestjs.io/), but any nodejs test runner works fine. 
+To wrap up this tutorial, we'll set up a simple automated test for our dapp contracts. We will be using [jest](https://jestjs.io/), but any nodejs test runner works fine.
 
-Here we'll only test the happy path for a `transfer` on our private token contract, but in a real application you should be testing both happy and unhappy paths, as well as both your contracts and application logic. Refer to the full [testing guide](../testing.md) for more info on testing and assertions.
+Here we'll only test the happy path for a `transfer` on our private token contract, but in a real application you should be testing both happy and unhappy paths, as well as both your contracts and application logic. Refer to the full [testing guide](../../testing/testing.md) for more info on testing and assertions.
 
 ## Dependencies
 
@@ -23,16 +25,14 @@ yarn add -D @aztec/aztec-sandbox
 Create a new file `src/index.test.mjs` with the imports we'll be using and an empty test suite to begin with:
 
 ```js
-import { createSandbox } from '@aztec/aztec-sandbox';
-import { Contract, createAccount } from '@aztec/aztec.js';
-import PrivateTokenArtifact from '../contracts/private_token/target/PrivateToken.json' assert { type: 'json' };
+import { createSandbox } from "@aztec/aztec-sandbox";
+import { Contract, createAccount } from "@aztec/aztec.js";
+import PrivateTokenArtifact from "../contracts/private_token/target/PrivateToken.json" assert { type: "json" };
 
-describe('private token', () => {
-
-});
+describe("private token", () => {});
 ```
 
-Let's set up our test suite. We'll start [a new Sandbox instance within the test](../testing.md#running-sandbox-in-the-nodejs-process), create two fresh accounts to test with, and deploy an instance of our contract. The `aztec-sandbox` and `aztec.js` provide the helper functions we need to do this:
+Let's set up our test suite. We'll start [a new Sandbox instance within the test](../../testing/testing.md#running-sandbox-in-the-nodejs-process), create two fresh accounts to test with, and deploy an instance of our contract. The `aztec-sandbox` and `aztec.js` provide the helper functions we need to do this:
 
 #include_code setup yarn-project/end-to-end/src/sample-dapp/index.test.mjs javascript
 
@@ -44,7 +44,7 @@ Now that we have a working test environment, we can write our first test for exe
 
 #include_code test yarn-project/end-to-end/src/sample-dapp/index.test.mjs javascript
 
-In this example, we assert that the `recipient`'s balance is increased by the amount transferred. We could also test that the `owner`'s funds are decremented by the same amount, or that a transaction that attempts to send more funds than those available would fail. Check out the [testing guide](../testing.md) for more ideas.
+In this example, we assert that the `recipient`'s balance is increased by the amount transferred. We could also test that the `owner`'s funds are decremented by the same amount, or that a transaction that attempts to send more funds than those available would fail. Check out the [testing guide](../../testing/testing.md) for more ideas.
 
 ## Running our tests
 
@@ -56,4 +56,4 @@ yarn node --experimental-vm-modules $(yarn bin jest) --testRegex '.*\.test\.mjs$
 
 ## Next steps
 
-Now that you have finished the tutorial, you can dig deeper on the [APIs for dapp development](../api/main.md), learn more about [writing contracts with Noir](../../contracts/main.md), check out the [Sandbox's architecture](../../sandbox/main.md), or read about the [fundamental concepts behind Aztec Network](../../../concepts/foundation/main.md).
+Now that you have finished the tutorial, you can learn more about [writing contracts with Noir](../../contracts/main.md), check out the [Sandbox's architecture](../../sandbox/main.md), or read about the [fundamental concepts behind Aztec Network](../../../concepts/foundation/main.md).

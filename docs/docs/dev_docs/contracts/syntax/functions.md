@@ -1,4 +1,6 @@
-# Functions
+---
+title: Functions
+---
 
 ## `constructor`
 
@@ -23,36 +25,16 @@
 
 #include_code functions-UncontrainedFunction /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-# Calling functions
+## Visibility
 
-## Inlining
+### `internal`
 
-## Importing Contracts
+Similar to Solidity, internal functions and vars can be accessed within the contract itself. While technically callable from other contracts, there is a dynamic check that validates the caller to ensure it's the same contract.
 
-### Contract Interface
+### `external`
 
-## Constrained --> Unconstrained
+External is not used explicitly as it is in Solidity, but things not marked as `internal` will be external.
 
-E.g. `get()`
+### `#[aztec(public)]` and `#[aztec(private)]`
 
-## Oracle calls
-
-## Private --> Private
-
-## Public --> Public
-
-## Private --> Public
-
-## `internal` keyword
-
-## Public --> Private
-
-## Recursive function calls
-
-## L1 --> L2
-
-## L2 --> L1
-
-## Delegatecall
-
-Talk a about the dangers of delegatecall too!
+These are used to annotate functions so that they are compliant with Aztec ABIs. They inject `PublicContext` and `PrivateContext` for use in contracts.

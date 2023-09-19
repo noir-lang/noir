@@ -8,7 +8,7 @@ import Image from "@theme/IdealImage";
 
 The Aztec Sandbox aims to provide a local development system against which you can build and test Aztec.nr contracts in a fast, safe, and free environment.
 
-Here we will walkthrough the process of retrieving the Sandbox, installing the client libraries and using it to deploy and use a fully private token contract on the Aztec network.
+Here we will walkthrough the process of retrieving the Sandbox, installing the client libraries and using it to deploy and use a fully private token contract on the Aztec network using Aztec.js.
 
 ## What do you need?
 
@@ -58,9 +58,9 @@ With the help of Aztec.js you will be able to:
 - Be notified when transactions settle
 - Query chain state such as chain id, block number etc.
 
-## I have the Sandbox running, show me how to use it!
+## I have the Sandbox running, show me how to use it
 
-We will deploy a token contract, and send tokens privately, using the Sandbox.
+We will deploy a token contract, and send tokens privately, using the Sandbox. You can see the final result of the [tutorial code here](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/sandbox-tutorial/token), if you don't want to follow along, copy and pasting the example code.
 
 Writing the contract itself is out of scope for this tutorial, so we will use a Token Contract which has been pre-supplied as an example. See [here](../contracts/main.md) for more information on how to write contracts for Aztec.
 
@@ -84,23 +84,7 @@ cd token
 yarn init
 ```
 
-This should ask a series of questions that you can fill like so:
-
-```
-yarn init v1.22.19
-question name (token):
-question version (1.0.0):
-question description: My first token contract
-question entry point (index.js):
-question repository url:
-question author: Phil
-question license (MIT):
-question private:
-success Saved package.json
-Done in 23.60s.
-```
-
-3. Create a `src` folder inside your new `token` directory:
+1. Create a `src` folder inside your new `token` directory:
 
 ```sh
 mkdir src
@@ -174,7 +158,15 @@ yarn add @aztec/aztec.js @aztec/noir-contracts
 
 #include_code imports /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
-and the following setup code:
+Below the imports, set up a function in which we'll add the logic to interact with the Sandbox.
+
+```ts
+async function main() {}
+
+main();
+```
+
+and the following setup code goes in the `main` function:
 
 #include_code setup /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
@@ -198,7 +190,7 @@ A successful run should show:
   }
 ```
 
-Great!. The Sandbox is running and we are able to interact with it.
+Great! The Sandbox is running and we are able to interact with it.
 
 ## Account Creation/Deployment
 
@@ -234,14 +226,14 @@ That might seem like a lot to digest but it can be broken down into the followin
 2. We wait for the deployment of the 2 account contracts to complete.
 3. We retrieve the expected account addresses from the `Account` objects and ensure that they are present in the set of account addresses registered on the Sandbox.
 
-Note, we use the `getRegisteredAccounts` api to verify that the addresses computed as part of the
+Note, we use the `getRegisteredAccounts` API to verify that the addresses computed as part of the
 account contract deployment have been successfully added to the Sandbox.
 
-If you were looking at your terminal that is running the Sandbox you should hopefully have seen a lot of activity. This is because the Sandbox will have simulated the deployment of both contracts, executed the private kernel circuit for each before submitted 2 transactions to the pool. The sequencer will have picked them up and inserted them into a rollup and executed the recursive rollup circuits before publishing the rollup to Anvil. Once this has completed, the rollup is retrieved and pulled down to the internal RPC Server so that any new account state can be decrypted.
+If you were looking at your terminal that is running the Sandbox you should have seen a lot of activity. This is because the Sandbox will have simulated the deployment of both contracts, executed the private kernel circuit for each before submitted 2 transactions to the pool. The sequencer will have picked them up and inserted them into a rollup and executed the recursive rollup circuits before publishing the rollup to Anvil. Once this has completed, the rollup is retrieved and pulled down to the internal RPC Server so that any new account state can be decrypted.
 
 ## Token Contract Deployment
 
-Now that we have our accounts setup, let's move on to deploy our private token contract. Add this to `index.ts`:
+Now that we have our accounts setup, let's move on to deploy our private token contract. Add this to `index.ts` below the code you added earlier:
 
 #include_code Deployment /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
@@ -272,7 +264,7 @@ We can break this down as follows:
 4. We connect to the contract with Alice
 5. Alice initialize the contract with herself as the admin and a minter.
 6. Alice adds Bob as minter.
-7. Alice mints 1000000 tokens to be claimed by herself in private.
+7. Alice mints 1,000,000 tokens to be claimed by herself in private.
 8. Alice claims the tokens privately.
 
 ## Viewing the balance of an account
@@ -281,7 +273,7 @@ A token contract wouldn't be very useful if you aren't able to query the balance
 
 #include_code balance_of_private /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-Call this function using the following code:
+Call the `balance_of_private` function using the following code:
 
 #include_code Balance /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
@@ -306,7 +298,7 @@ Running now should yield output:
   token Bob's balance 0 +33ms
 ```
 
-In this section, we first created 2 instances of the `PrivateTokenContract` contract abstraction. One for each of our deployed accounts. This contract abstraction offers a Typescript interface reflecting the abi of the contract. We then call `getBalance()` as a `view` method. View methods can be thought as read-only. No transaction is submitted as a result but a user's state can be queried.
+In this section, we created 2 instances of the `TokenContract` contract abstraction, one for each of our deployed accounts. This contract abstraction offers a Typescript interface reflecting the abi of the contract. We then call `getBalance()` as a `view` method. View methods can be thought as read-only. No transaction is submitted as a result but a user's state can be queried.
 
 We can see that each account has the expected balance of tokens.
 
@@ -319,7 +311,11 @@ Now lets transfer some funds from Alice to Bob by calling the `transfer` functio
 3. The quantity of tokens to be transferred.
 4. The nonce for the [authentication witness](../../concepts//foundation/accounts/main.md#authorizing-actions), or 0 if msg.sender equal sender.
 
+Here is the Noir code for the `transfer` function:
+
 #include_code transfer /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+Here is the Typescript code to call the `transfer` function, add this to your `index.ts` at the bottom of the `main` function:
 
 #include_code Transfer /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
@@ -354,9 +350,11 @@ Finally, the contract has a `mint` function that can be used to generate new tok
 1. The quantity of tokens to be minted.
 2. The recipient of the new tokens.
 
+Here is the Noir code:
+
 #include_code mint /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
 
-Let's mint some tokens to Bob's account:
+Let's mint some tokens to Bob's account using Typescript, add this to `index.ts`:
 
 #include_code Mint /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
@@ -389,7 +387,10 @@ Our complete output should now be:
 
 That's it! We have successfully deployed a private token contract to an instance of the Aztec network and mined private state-transitioning transactions. We have also queried the resulting state all via the interfaces provided by the contract.
 
-## Next Steps
-Here we showed how to interact with the sandbox, but didn't go into details on how to write your own contract or any relevant setup needed for it. 
+You can find the [complete tutorial code here](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/sandbox-tutorial/token).
 
-You can find details on setting up [here](./noir_contracts.md) and refer to the [Contracts section](../contracts/main.md) on syntax, compiling, deploying and interacting with how to start writing contracts.
+## Next Steps
+
+Here we showed how to interact with the sandbox, but didn't go into details on how to write your own contract or any relevant setup needed for it.
+
+You can find more information about writing Aztec contracts [here](./noir_contracts.md) and refer to the [Contracts section](../contracts/main.md) on syntax, compiling, deploying and interacting with how to start writing contracts.

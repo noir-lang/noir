@@ -2,9 +2,13 @@
 title: Initial Sandbox Features
 ---
 
+import Disclaimer from "../../misc/common/\_disclaimer.mdx";
+
+<Disclaimer/>
+
 The Aztec Sandbox is intended to provide developers with a lightweight & fast node, with features similar to Ethereum's Ganache or Anvil 'local node' packages.
 
-Devs should be able to quickly spin up local, emulated instances of an Ethereum blockchain and an Aztec encrypted rollup, and start deploying private contracts and submitting private txs.
+Developers should be able to quickly spin up local, emulated instances of an Ethereum blockchain and an Aztec encrypted rollup, and start deploying private contracts and submitting private txs.
 
 Here's a summary of the features we intend to support with the first release of the Aztec Sandbox.
 
@@ -42,7 +46,7 @@ Here's a summary of the features we intend to support with the first release of 
 
 ## `aztec.js`
 
-A typescript wrapper for making RPC calls to an Aztec LDT node.
+A typescript wrapper for making RPC calls to an Aztec Sandbox node.
 
 - Similar in purpose to `web3.js`/`ethers.js`/`viem`, but for interacting with Aztec Network nodes. The RPC interface for an Aztec node is necessarily different from that of an Ethereum node, because it deals with encrypted transactions and state variables.
 - A library for public/private key management.
@@ -54,7 +58,7 @@ A typescript wrapper for making RPC calls to an Aztec LDT node.
 - Send txs to the LDT node, to be sent to the LDT network.
 - Call `unconstrained` functions of a Aztec.nr contract, to perform `pure` calculations or retrieve state.
 
-## Aztec Local Developer Testnet Node
+## Aztec Sandbox Node
 
 A bundle of packages which emulate the actions of all eventual Aztec network participants. The goal is for developer experience to be akin to Ganache / Anvil.
 
@@ -83,7 +87,3 @@ A bundle of packages which emulate the actions of all eventual Aztec network par
 ## Participate
 
 Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
-
-
-import Disclaimer from "../../misc/common/\_disclaimer.mdx";
-<Disclaimer/>

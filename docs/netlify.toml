@@ -19,5 +19,43 @@
     to = "/"
 
 [[redirects]]
-    from = "/aztec3/*"
-    to = "/aztec/overview"
+    from = "/dev_docs/aztec3/*"
+    to = "/dev_docs/aztec/overview"
+
+[[redirects]]
+    from = "/dev_docs/contracts/types"
+    to = "/dev_docs/contracts/syntax/types"
+
+[[redirects]]
+    from = "/dev_docs/contracts/storage"
+    to = "/dev_docs/contracts/syntax/storage"
+
+[[redirects]]
+    from = "/dev_docs/contracts/state_variables"
+    to = "/dev_docs/contracts/syntax/state_variables"
+
+[[redirects]]
+    from = "/dev_docs/contracts/functions"
+    to = "/dev_docs/contracts/syntax/functions"
+
+[[redirects]]
+    from = "/dev_docs/contracts/visibility"
+    to = "/dev_docs/contracts/syntax/visibility"
+
+[[redirects]]
+    from = "/dev_docs/contracts/globals"
+    to = "/dev_docs/contracts/syntax/globals"
+
+[[redirects]]
+    from = "/dev_docs/contracts/syntax"
+    to = "/dev_docs/contracts/syntax/main"
+
+[[redirects]]
+    from = "/dev_docs/contracts/contract"
+    to = "/dev_docs/contracts/syntax/contract"
+
+[[redirects]]
+    from = "/dev_docs/getting_started/cli"
+    to = "/dev_docs/cli"
+
+    

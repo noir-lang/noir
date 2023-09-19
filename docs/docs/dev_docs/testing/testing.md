@@ -1,6 +1,8 @@
-# Testing
+---
+title: Testing with Typescript
+---
 
-Testing is an integral part of any piece of software, and especially important for any blockchain application. In this page we will cover how to interact with your Noir contracts in a testing environment to write automated tests for your apps. 
+Testing is an integral part of any piece of software, and especially important for any blockchain application. In this page we will cover how to interact with your Noir contracts in a testing environment to write automated tests for your apps.
 
 We will be using typescript to write our tests, and rely on the [`aztec.js`](https://www.npmjs.com/package/@aztec/aztec.js) client library to interact with a local Aztec network. We will use [`jest`](https://jestjs.io/) as a testing library, though feel free to use whatever you work with. Configuring the nodejs testing framework is out of scope for this guide.
 
@@ -125,7 +127,7 @@ In the near future, transactions where a public function call fails will get min
 
 We can check private or public state directly rather than going through view-only methods, as we did in the initial example by calling `token.methods.balance().view()`. Bear in mind that directly accessing contract storage will break any kind of encapsulation.
 
-To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/storage.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the `CheatCodes` utility class:
+To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/syntax/storage.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the `CheatCodes` utility class:
 
 #include_code calc-slot /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 

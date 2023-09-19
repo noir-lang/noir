@@ -1,6 +1,6 @@
 # Storage
 
-State variables must be declared inside a struct. (This enables us to declare types composed of nested generics in Noir - see [types](./types.md)).
+State variables must be declared inside a struct. (This enables us to declare types composed of nested generics in Noir).
 
 We could define any kinds of state variables in the Storage struct:
 

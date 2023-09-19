@@ -1,3 +1,0 @@
----
-title: Wallets and AztecRPC
----

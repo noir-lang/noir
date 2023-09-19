@@ -1,21 +1,23 @@
-# Aztec.nr smart contract workflow
+---
+title: Contract Workflow
+---
 
- ## Write
+## Write
 
- [Write a contract](./syntax.md)
+[Write a contract](./syntax/main.md).
 
- ## Compile
+## Compile
 
- [Compile a contract](./compiling.md).
+[Compile a contract](./compiling.md).
 
- ## Test
+## Unit Tests
 
- [Test individual noir functions](https://noir-lang.org/nargo/testing).
+[Test individual noir functions](https://noir-lang.org/nargo/testing).
 
- ## Deploy
+## Deploy
 
- [Deploy a contract](./deploying.md).
+[Deploy a contract](./deploying.md).
 
- ## Test
+## Integration Tests
 
- [Test a deployed contract](../testing/main.md)
+[Test a deployed contract](../testing/main.md)

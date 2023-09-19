@@ -1,7 +1,8 @@
-# Limitations
+---
+title: Limitations
+---
 
 The Aztec Sandbox and the Aztec Smart Contract Library are **prototypes**, and should be treated as such. They've been released early, to gather feedback on the capabilities of the protocol and user experiences.
-
 
 ## What to expect?
 
@@ -11,17 +12,16 @@ The Aztec Sandbox and the Aztec Smart Contract Library are **prototypes**, and s
 - An 'unpolished' UX;
 - Missing information.
 
-
 ## Why isn't it working perfectly yet?
 
 These things take time :)
-
 
 ## Why participate?
 
 Front-run the future!
 
 Help shape and define:
+
 - Previously-impossible smart contracts and applications
 - Network tooling;
 - Network standards;
@@ -29,19 +29,15 @@ Help shape and define:
 - Educational content;
 - Core protocol improvements;
 
-
-
 ## Limitations
 
 There are plans to resolve all of the below. See also the [engineering roadmap](../../about_aztec/roadmap/engineering_roadmap.md).
 
-
-### It is not audited.
+### It is not audited
 
 None of the Sandbox code is audited. It's being iterated-on every day. It will not be audited for quite some time.
 
-
-### No Proofs!
+### No Proofs
 
 That's right, the Sandbox doesn't actually generate or verify any zk-SNARKs yet!
 
@@ -55,7 +51,6 @@ By the time mainnet comes around, zk-SNARKs will be needed in order to validate 
 
 But proofs are really only needed as a protection against malicious behaviour. The Sandbox is an emulated ecosystem; entirely contained within your laptop, and it follows the network's rules out of the box. So as long as its inner workings aren't tampered-with, it will act 'honestly'. Since you'll be the only person interacting with the Sandbox on your own laptop, and with a healthy assumption that you should be honest with yourself, you won't need proofs when testing.
 
-
 ### No Circuits!
 
 This is kind-of a repetition of ['No Proofs!'](#no-proofs) above, but for the sake of clarity, there aren't yet any arithmetic circuits in the Sandbox. We might refer to certain components of the core protocol as being 'circuits', and we might refer to user-defined smart contract functions as being compiled to 'circuits', but the Sandbox doesn't actually contain any circuits yet. Instead, there is code which emulates the logic of a circuit. This is intentional, to make execution of the Sandbox as fast as possible.
@@ -64,10 +59,9 @@ Obviously, as development continues, the so-called 'circuits' will actually beco
 
 #### What are the consequences?
 
-The Sandbox will execute more quickly. The logic of all 'circuits' is still in place*. Smart contract logic will be executed, and core protocol logic will be executed*. So invalid transactions will be caught* and rejected.
+The Sandbox will execute more quickly. The logic of all 'circuits' is still in place*. Smart contract logic will be executed, and core protocol logic will be executed*. So invalid transactions will be caught\* and rejected.
 
-*Note: some core protocol circuit assertions and constraints still need to be written (see [GitHub](https://github.com/AztecProtocol/aztec-packages/issues)). This would be bad in an adversarial environment, but the Sandbox is not that. Naturally, proper circuits will need to be written - see the [engineering roadmap](../../about_aztec/roadmap/engineering_roadmap.md).
-
+\*Note: some core protocol circuit assertions and constraints still need to be written (see [GitHub](https://github.com/AztecProtocol/aztec-packages/issues)). This would be bad in an adversarial environment, but the Sandbox is not that. Naturally, proper circuits will need to be written - see the [engineering roadmap](../../about_aztec/roadmap/engineering_roadmap.md).
 
 ### No Fees!
 
@@ -80,7 +74,6 @@ The Sandbox can currently be thought of as a bare-minimum execution layer. We'll
 #### What are the consequences?
 
 Apps won't yet be able to allow for any L2 fee logic. Once fees are introduced, this will cause breaking changes to in-progress apps, which will need to be updated to accommodate the notion of paying network fees for transactions. Clear documentation will be provided.
-
 
 ### Basic Keys and Addresses!
 
@@ -105,12 +98,10 @@ This will impact the kinds of apps that you can build with the Sandbox, as it is
 
 Please open new discussions on [discourse](http://discourse.aztec.network) or open issues on [github](http://github.com/AztecProtocol/aztec-packages), if you have requirements that aren't-yet being met by the Sandbox's current key derivation scheme.
 
-
 ### It's not-yet decentralised
 
 It's an emulated blockchain entirely contained within your own laptop! It's centralised by design!
 As for deploying this all to mainnet, a decentralised sequencer selection and prover selection protocols are still [being discussed](https://discourse.aztec.network/t/request-for-proposals-decentralized-sequencer-selection/350). There are plans for decentralised testnets in 2024.
-
 
 ### You can't read mutable public state from a private function
 
@@ -119,7 +110,6 @@ Private smart contract functions won't be able to read mutable public state yet.
 #### What are the consequences?
 
 Reading public state from a private contract will be a common pattern. For example, it's needed if you want to maintain a public whitelist/blacklist, but prove you are/aren't on that blacklist privately. This will be a high priority, coming soon.
-
 
 ### No delegatecalls
 
@@ -131,7 +121,6 @@ Ethereum has a notion of a 'full node' which keeps-up with the blockchain and st
 
 This pattern is likely to develop in Aztec as well, except there's a problem: privacy. If a privacy-seeking user makes a query to a 3rd-party 'full node', that user might leak data about who they are, or about their historic network activity, or about their future intentions. One solution to this problem is "always run a full node", but pragmatically, not everyone will. To protect less-advanced users' privacy, [research is underway](../../about_aztec/roadmap/engineering_roadmap.md) to explore how a privacy-seeking user may request and receive data from a 3rd-party node without revealing what that data is, nor who is making the request.
 
-
 ### No private data authentication
 
 Private data should not be returned to an app, unless the user authorizes such access to the app. An authorization layer is not-yet in place.
@@ -141,7 +130,6 @@ Private data should not be returned to an app, unless the user authorizes such a
 Any app can request and receive any private user data relating to any other private app. Obviously this sounds bad. But the Sandbox is a sandbox, and no meaningful value or credentials should be stored there; only test values and test credentials.
 
 An auth layer will be added in due course.
-
 
 ### No bytecode validation
 
@@ -153,7 +141,6 @@ Without such 'bytecode validation', if the incorrect bytecode is executed, and t
 
 There are plans to add bytecode validation soon.
 
-
 ### Insecure hashes
 
 Currently, Pedersen hashes are being used pretty-much everywhere. To any cryptographers reading this, don't panic. A thorough review of which hashes to use in which part of the protocol will be conducted soon.
@@ -162,8 +149,7 @@ Additionally, domain separation of hashes needs some review.
 
 #### What are the consequences?
 
-Collisions and other hash-related attacks might be possible in the Sandbox. Obviously that would be bad in production. But it's unlikely to cause problems at this early stage of testing. 
-
+Collisions and other hash-related attacks might be possible in the Sandbox. Obviously that would be bad in production. But it's unlikely to cause problems at this early stage of testing.
 
 ### `msg_sender` is leaked when making a private -> public call
 
@@ -174,7 +160,6 @@ There are [ongoing discussions](https://discourse.aztec.network/t/who-is-msg-sen
 When a private function makes a call to a public function, the `msg_sender` of the calling function will be given to the public world. Most critically, this includes if the `msg_sender` is an account contract.
 This will be patched in the near future, but unfortunately, app developers might need to 'overlook' this privacy leakage until then, with the assumption that it will be fixed. But note, one possible 'patch' might be to set `msg_sender` to `0` for all private -> public calls. This might cause breaking changes to your public functions, if they rely on reading `msg_sender`. There are patterns to work around this, but they wouldn't be pretty, and we won't go into details until a solution is chosen. Sorry about this, and thanks for your patience whilst we work this out :)
 
-
 ### New Privacy Standards are required
 
 There are many [patterns](../privacy/main.md) which can leak privacy, even on Aztec. Standards haven't been developed yet, to encourage best practices when designing private smart contracts.
@@ -183,12 +168,11 @@ There are many [patterns](../privacy/main.md) which can leak privacy, even on Az
 
 For example, until community standards are developed to reduce the uniqueness of ['Tx Fingerprints'](../privacy/main.md#function-fingerprints-and-tx-fingerprints) app developers might accidentally forfeit some function privacy.
 
-
 ## Circuit limitations
 
 ### Upper limits on function outputs and tx outputs
 
-Due to the rigidity of zk-SNARK circuits, there are upper bounds on the amount of computation a circuit can perform, and on the amount of data that can be passed into and out of a function. See [Aztec function ABIs](../contracts/abi.md) for more information.
+Due to the rigidity of zk-SNARK circuits, there are upper bounds on the amount of computation a circuit can perform, and on the amount of data that can be passed into and out of a function.
 
 > Blockchain developers are no stranger to restrictive computational environments. Ethereum has gas limits, local variable stack limits, call stack limits, contract deployment size limits, log size limits, etc.
 
@@ -198,7 +182,8 @@ Here are the current constants:
 
 #### What are the consequences?
 
-When you write an [Aztec.nr](../contracts/main.md) [function](../contracts/functions.md), there will be upper bounds on the following:
+When you write an [Aztec.nr](../contracts/main.md) [function](../contracts/syntax/functions.md), there will be upper bounds on the following:
+
 - The number of public state reads and writes;
 - The number of note reads and nullifications;
 - The number of new notes that may be created;
@@ -224,24 +209,29 @@ Each function call is represented by a circuit with a dedicated zero-knowledge p
 Note that there is no plan to change this in the future.
 
 ### Example
+
 Let us assume that the main function named $f_1$ is calling in order $f_2$, $f_3$ (which calls $f_5$ folllowed by $f_6$), and $f_4$.
 
 Call Dependency:
+
 > $f_1 \longrightarrow f_2$, $f_3$, $f_4$
 
 > $f_3 \longrightarrow f_5$, $f_6$
 
 Execution Order:
+
 > $f_1$, $f_2$, $f_3$, $f_5$, $f_6$, $f_4$
 
-
 Private Kernel Processing Order:
+
 > $f_1$, $f_4$, $f_3$, $f_6$, $f_5$, $f_2$
 
 #### What are the consequences?
+
 Transaction output elements such as notes in encrypted logs, note hashes (commitments), nullifiers might be ordered differently than the one exepected by the execution.
 
 ### Chopped Transient Notes are still Emitted in Logs
+
 A note which is created and nullified during the very same transaction is called transient. Such a note is chopped by the [private kernel circuit](../../concepts/advanced/circuits/kernels/private_kernel.md) and is never stored in any persistent data tree.
 
 For the time being, such chopped notes are still emitted through encrypted logs (which is the communication channel to transmit notes). When a log containing a chopped note is processed, a warning will be logged about a decrypted note which does not exist in data tree. We [improved](https://github.com/AztecProtocol/aztec-packages/issues/1603) error logging to help identify such an occurence. However, this might be a source of confusion.
@@ -249,7 +239,7 @@ This issue is tracked in ticket [#1641](https://github.com/AztecProtocol/aztec-p
 
 ### Note Terminology: Note Commitments and Note Hashes
 
-The notes or UTXOs in Aztec need to be compressed before they are added to the trees. To do so, we need to hash all the data inside a note using a collision-resistant hash function. Currently, we use Pedersen hash (using lookup tables) to compress note data. The compressed note data is referred to as "note commitments" in our architecture. However, note commitments are referred to as "note hashes" in aztec-noir code. Be mindful of that fact that note commitments and note hashes mean the same thing. Note that we only mean to talk about terminology here and in no way one should infer security/cryptographic properties (e.g., hiding, binding) based on the name. Namely, notes come with different flavours of security properties depending on the use case.   
+The notes or UTXOs in Aztec need to be compressed before they are added to the trees. To do so, we need to hash all the data inside a note using a collision-resistant hash function. Currently, we use Pedersen hash (using lookup tables) to compress note data. The compressed note data is referred to as "note commitments" in our architecture. However, note commitments are referred to as "note hashes" in aztec-noir code. Be mindful of that fact that note commitments and note hashes mean the same thing. Note that we only mean to talk about terminology here and in no way one should infer security/cryptographic properties (e.g., hiding, binding) based on the name. Namely, notes come with different flavours of security properties depending on the use case.
 
 ## There's more
 

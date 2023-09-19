@@ -4,7 +4,7 @@ In this section, we'll write the logic in our app that will interact with the co
 
 ## Showing user balance
 
-Let's start by showing our user balance for the private token across their accounts. To do this, we can leverage the `balance_of_private` [unconstrained](../../contracts/functions.md#unconstrained-functions) view function of the private token contract:
+Let's start by showing our user balance for the private token across their accounts. To do this, we can leverage the `balance_of_private` unconstrained view function of the private token contract:
 
 #include_code balance_of_private yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
@@ -16,10 +16,10 @@ To do this, let's first initialise a new `Contract` instance using `aztec.js` th
 
 ```js
 // src/contracts.mjs
-import { Contract } from '@aztec/aztec.js';
-import { readFileSync } from 'fs';
-import PrivateTokenArtifact from '../contracts/private_token/target/PrivateToken.json' assert { type: 'json' };
-import PublicTokenArtifact from '../contracts/public_token/target/PublicToken.json' assert { type: 'json' };
+import { Contract } from "@aztec/aztec.js";
+import { readFileSync } from "fs";
+import PrivateTokenArtifact from "../contracts/private_token/target/PrivateToken.json" assert { type: "json" };
+import PublicTokenArtifact from "../contracts/public_token/target/PublicToken.json" assert { type: "json" };
 ```
 
 And then add the following code for initialising the `Contract` instances:
@@ -49,8 +49,12 @@ Now that we can see the balance for each user, let's transfer tokens from one ac
 We can initialise a wallet using one of the `getAccount` methods from `aztec.js``, along with the corresponding signing and encryption keys:
 
 ```js
-import { getSchnorrAccount } from '@aztec/aztec.js';
-const wallet = await getSchnorrAccount(client, ENCRYPTION_PRIVATE_KEY, SIGNING_PRIVATE_KEY).getWallet();
+import { getSchnorrAccount } from "@aztec/aztec.js";
+const wallet = await getSchnorrAccount(
+  client,
+  ENCRYPTION_PRIVATE_KEY,
+  SIGNING_PRIVATE_KEY
+).getWallet();
 ```
 
 For ease of use, `aztec.js` also ships with a helper `getSandboxAccountsWallets` method that returns a wallet for each of the pre-initialised accounts in the Sandbox, so you can send transactions as any of them. We'll use one of these wallets to initialise the `Contract` instance that represents our private token contract, so every transaction sent through it will be sent through that wallet.

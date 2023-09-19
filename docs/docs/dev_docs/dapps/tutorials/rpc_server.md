@@ -1,6 +1,6 @@
 # Connecting to the RPC Server
 
-As an app developer, the [Aztec RPC Server interface](../api/aztec_rpc.md) provides you with access to the user's accounts and their private state, as well as a connection to the network for accessing public global state.
+As an app developer, the [Aztec RPC Server](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-rpc) interface provides you with access to the user's accounts and their private state, as well as a connection to the network for accessing public global state.
 
 During the Sandbox phase, this role is fulfilled by the [Aztec Sandbox](../../sandbox/main.md), which runs a local RPC Server and an Aztec Node, both connected to a local Ethereum development node like Anvil. The Sandbox also includes a set of pre-initialised accounts that you can use from your app.
 
@@ -8,13 +8,14 @@ In this section, we'll connect to the Sandbox from our project.
 
 ## Create RPC client
 
-We'll use the `createAztecRpcClient` function from `aztec.js` to connect to the Sandbox, which by default runs on `localhost:8080`. To test the connection works, we'll request and print the node's chain id. 
+We'll use the `createAztecRpcClient` function from `aztec.js` to connect to the Sandbox, which by default runs on `localhost:8080`. To test the connection works, we'll request and print the node's chain id.
 
 Let's create our first file `src/index.mjs` with the following contents:
 
 #include_code all yarn-project/end-to-end/src/sample-dapp/connect.mjs javascript
 
 Run this example as `node src/index.mjs` and you should see the following output:
+
 ```
 Connected to chain 31337
 ```

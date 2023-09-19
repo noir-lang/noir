@@ -164,6 +164,10 @@ const config = {
                 label: "Introduction",
                 to: "/",
               },
+              {
+                label: "Developer Quickstart",
+                to: "/dev_docs/getting_started/quickstart",
+              },
             ],
           },
           {
@@ -172,6 +176,10 @@ const config = {
               {
                 label: "Discourse",
                 href: "https://discourse.aztec.network",
+              },
+              {
+                label: "Discord",
+                href: "https://discord.gg/DgWG2DBMyB",
               },
               {
                 label: "Twitter",

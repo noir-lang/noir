@@ -2,7 +2,7 @@
 title: Cryptography Roadmap
 ---
 
-[Barretenberg](https://github.com/AztecProtocol/barretenberg/)
+The cryptography team is currently working on [Barretenberg here](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg)
 
 ## R&D projects
 

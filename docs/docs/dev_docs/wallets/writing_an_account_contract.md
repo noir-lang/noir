@@ -20,6 +20,7 @@ Let's start with the account contract itself in Aztec.nr. Create [a new Aztec.nr
 
 :::info
 You can use [the Aztec CLI](../cli/main.md) to generate a new keypair if you want to use a different one:
+
 ```bash
 $ aztec-cli generate-private-key
 ```
@@ -28,6 +29,7 @@ $ aztec-cli generate-private-key
 Private Key: 0xc06461a031058f116f087bc0161b11c039648eb47e03bad3eab089709bf9b8ae
 Public Key:  0x0ede151adaef1cfcc1b3e152ea39f00c5cda3f3857cef00decb049d283672dc713c0e184340407e796411f74b7383252f1406272b58fccad6fee203f8a6db474
 ```
+
 :::
 
 The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which uses the `EntrypointPayload` struct:
@@ -44,6 +46,7 @@ The `AccountActions` module provides default implementations for most of the acc
 
 #include_code is-valid yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
+
 For our account contract, we will take the hash of the action to authorize, request the corresponding auth witness from the oracle, and validate it against our hardcoded public key. If the signature is correct, we authorize the action.
 ## The typescript side of things
 
@@ -56,6 +59,7 @@ However, if you are using the default `AccountActions` module, then you can leve
 #include_code account-contract yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
 As you can see in the snippet above, to fill in this base class, we need to define three things:
+
 - The build artifact for the corresponding account contract.
 - The deployment arguments.
 - How to create an auth witness.
@@ -70,7 +74,6 @@ More signing schemes are available in case you want to experiment with other typ
 
 Let's try creating a new account backed by our account contract, and interact with a simple token contract to test it works.
 
-<!-- TODO: Link to docs showing how to get an instance of Aztec RPC server  -->
 To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Aztec RPC server, a [privacy private key](../../concepts/foundation/accounts/keys.md#privacy-keys), and an instance of our `AccountContract` class:
 
 #include_code account-contract-deploy yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript

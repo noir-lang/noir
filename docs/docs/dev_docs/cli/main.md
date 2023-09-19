@@ -20,4 +20,4 @@ Once installed it is invoked via:
 
 ## Getting Started
 
-To get up and running with the Aztec CLI head over to the [getting start page](../getting_started/cli.md).
+To get up and running with the Aztec CLI head over to the [getting start page](./cli.md).
