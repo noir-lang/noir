@@ -41,7 +41,7 @@ pub(crate) fn run(
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
         let smart_contract_string = smart_contract_for_package(
             &workspace,
@@ -49,7 +49,7 @@ pub(crate) fn run(
             package,
             &args.compile_options,
             np_language,
-            &is_opcode_supported,
+            &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);

@@ -44,14 +44,14 @@ pub(crate) fn run(
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
         let program = compile_bin_package(
             &workspace,
             package,
             &args.compile_options,
             np_language,
-            &is_opcode_supported,
+            &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
 
         verify_package(backend, &workspace, package, program, &args.verifier_name)?;

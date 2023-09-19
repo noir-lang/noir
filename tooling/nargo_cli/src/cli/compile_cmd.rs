@@ -3,6 +3,7 @@ use std::path::Path;
 
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use acvm_backend_barretenberg::BackendOpcodeSupport;
 use fm::FileManager;
 use iter_extended::vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
@@ -73,11 +74,13 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     let (_, compiled_contracts) = compile_workspace(
-        backend,
         &workspace,
         &binary_packages,
         &contract_packages,
+        np_language,
+        &opcode_support,
         &args.compile_options,
     )?;
 
@@ -90,13 +93,14 @@ pub(crate) fn run(
 }
 
 pub(super) fn compile_workspace(
-    backend: &Backend,
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
+    np_language: Language,
+    opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
 
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
