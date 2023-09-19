@@ -1,4 +1,5 @@
 #!/bin/bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -euo pipefail
 
 REPOSITORY=$1
@@ -12,4 +13,5 @@ SCRIPT=$(query_manifest relativeProjectDir $REPOSITORY)/$SCRIPT
 
 # Specify a TAG_POSTFIX as the JOB_NAME
 mkdir -p /tmp/test-logs
-TAG_POSTFIX=$JOB_NAME cond_spot_run_script $REPOSITORY $CPUS $SCRIPT $@ | tee "/tmp/test-logs/$JOB_NAME.log"
+export TAG_POSTFIX=$JOB_NAME 
+cond_spot_run_script $REPOSITORY $CPUS $SCRIPT $@ | tee "/tmp/test-logs/$JOB_NAME.log"

@@ -5,6 +5,7 @@
 # 3. Adds the arch specific tagged image to each list
 # 4. Pushes the 2 lists
 
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 if [ -z "$COMMIT_TAG" ]; then

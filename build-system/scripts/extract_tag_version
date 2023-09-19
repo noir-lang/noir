@@ -3,6 +3,7 @@
 # then checks if the commit tag variable (if any)
 # is a valid semver & echoes that valid semver.
 
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 REPOSITORY="$1"

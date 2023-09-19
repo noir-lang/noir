@@ -1,4 +1,5 @@
 #!/bin/bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 CMD=$1
 REPO=$2

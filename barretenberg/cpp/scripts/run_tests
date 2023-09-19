@@ -3,7 +3,8 @@
 # 1. The number of ignition transcripts to download.
 # 2. The set of gtest binary names to run.
 # 3-n. The arguments to pass to the gtest binaries.
-set -exu
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
 
 NUM_TRANSCRIPTS=$1
 TESTS=$2

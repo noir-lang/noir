@@ -4,6 +4,7 @@
 # Arguments are:
 # 1. REPOSITORY: The project repository name in ECR. Used to determine if there are changes since last success.
 # 2... ARGS: Script and arguments to run.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 REPOSITORY=$1

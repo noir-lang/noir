@@ -9,6 +9,7 @@ cd $(query_manifest projectDir $REPOSITORY)
 
 mkdir -p /tmp/test-logs
 
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -o pipefail
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)

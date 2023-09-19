@@ -1,5 +1,6 @@
 #!/bin/bash
 # Deployment script for global service (e.g. company website and metrics).
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 REPOSITORY=$1

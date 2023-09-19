@@ -4,6 +4,7 @@
 #
 # usage: ./deploy_force_build <repository> <force-build>
 # example: ./deploy_force_build aztec-sandbox true
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -e
 
 REPOSITORY=$1

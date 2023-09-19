@@ -13,6 +13,7 @@ COMMIT_TAG=${2##*aztec-packages-}
 JOB_NAME=$3
 GIT_REPOSITORY_URL=${4:-}
 BRANCH=${5:-}
+COMMIT_MESSAGE=${6:-}
 
 BASH_ENV=${BASH_ENV:-}
 BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -99,6 +100,12 @@ if [ -n "$COMMIT_HASH" ]; then
   mkdir -p ~/.ssh
   echo ${BUILD_INSTANCE_KEY:-} | base64 -d > ~/.ssh/build_instance_key
   chmod 600 ~/.ssh/build_instance_key
+  COMMIT_MESSAGE=`git log -n 1 --pretty=format:"%s" HEAD`
+  # if our commit messages has [debug ci] anywhere in it, we set -x in all build system BASH files
+  # this can also be used for other verbose logging
+  if [[ "$COMMIT_MESSAGE" == *"[debug ci]"* ]]; then
+    echo export BUILD_SYSTEM_DEBUG=1 >> $BASH_ENV
+  fi
 fi
 
 set +e

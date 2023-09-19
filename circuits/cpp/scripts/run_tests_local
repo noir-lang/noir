@@ -1,5 +1,6 @@
 #!/bin/bash
-set -exu
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
 
 DIR="$(dirname "$0")"
 

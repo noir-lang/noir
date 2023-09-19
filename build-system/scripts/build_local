@@ -6,6 +6,7 @@
 # If DOCKERFILE is excluded it tries to default to ./Dockerfile then ./<PROJECT_DIR_NAME>/Dockerfile
 # If REPO is excluded it defaults to PROJECT_DIR_NAME.
 
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 TARGET_PROJECT=${1:-}

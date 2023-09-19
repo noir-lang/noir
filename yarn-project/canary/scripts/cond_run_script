@@ -14,8 +14,8 @@
 # 2. SUCCESS_TAG: To track if this job needs to be run, the repository image is tagged with a success tag after a
 #    successful run. The script will only run if there were relevant code changes since the last successful commit.
 # 3... ARGS: Script to run and args.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
-set -x
 
 REPOSITORY=$1
 shift

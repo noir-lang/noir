@@ -1,4 +1,5 @@
 #!bin/bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 # To be called LOCALLY for testing WITHOUT docker.

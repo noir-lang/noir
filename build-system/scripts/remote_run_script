@@ -6,6 +6,7 @@
 # 2... ARGS: Script and arguments to run.
 #
 # e.g. remote_run_script 1.2.3.4 build my_repo
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 IP=$1

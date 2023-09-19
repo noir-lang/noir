@@ -6,6 +6,7 @@
 #
 # Env vars:
 # JOB_NAME: Set within setup-env. The job name as per CI.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 CONTENT_HASH=$1
 CPUS=$2

@@ -22,6 +22,7 @@
 # - Perform the build of the image itself. With the cache primed we should only have to rebuild the necessary layers.
 # - Push the image tagged with the commit hash to the cache.
 
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -euo pipefail
 
 REPOSITORY=$1

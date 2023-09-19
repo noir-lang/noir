@@ -11,6 +11,7 @@
 #
 # Env vars are:
 # TAG_POSTFIX: Optional. If provided we check for the image tag with this postfix to determine if re-run is required.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 REPOSITORY=$1

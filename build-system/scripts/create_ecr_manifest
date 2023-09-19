@@ -5,6 +5,7 @@
 # 3. Creates a manifest list using a platform agnositc image uri, adds each image to it
 # 4. Pushes the manifest list 
 
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -e
 
 REPOSITORY=$1
