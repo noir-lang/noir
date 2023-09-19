@@ -35,6 +35,8 @@ jobs:
           nargo_binary="/Users/runner/.nargo/bin/nargo"
           chmod +x $nargo_binary
           $nargo_binary -V
+          cd ./tooling/nargo_cli/tests/execution_success/1_mul
+          $nargo_binary codegen-verifier
 
       - name: Dirs
         run: ls -R
