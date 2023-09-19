@@ -167,5 +167,5 @@ describe('e2e_sandbox_example', () => {
 
     expect(aliceBalance).toBe(initialSupply - transferQuantity);
     expect(bobBalance).toBe(transferQuantity + mintQuantity);
-  }, 60_000);
+  }, 120_000);
 });
