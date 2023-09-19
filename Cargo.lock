@@ -440,6 +440,7 @@ checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 name = "bb_abstraction_leaks"
 version = "0.11.0"
 dependencies = [
+ "acvm",
  "build-target",
  "const_format",
 ]
