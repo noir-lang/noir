@@ -32,11 +32,11 @@ pub enum ParserErrorReason {
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
     #[error(
-        "Multiple primary attributes found. Only one primary attribute is allowed per function"
+        "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
-    MultiplePrimaryAttributesFound,
-    #[error("A primary attribute cannot be placed on a struct")]
-    NoPrimaryAttributesAllowedOnStruct,
+    MultipleFunctionAttributesFound,
+    #[error("A function attribute cannot be placed on a struct")]
+    NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
 }

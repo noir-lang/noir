@@ -174,7 +174,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
-            // Validate collected attributes, filtering them into primary and secondary variants
+            // Validate collected attributes, filtering them into function and secondary variants
             let attrs = validate_attributes(attributes, span, emit);
             validate_where_clause(&generics, &where_clause, span, emit);
             FunctionDefinition {
@@ -446,10 +446,10 @@ fn validate_attributes(
 
     for attribute in attrs {
         match attribute {
-            Attribute::Primary(attr) => {
+            Attribute::Function(attr) => {
                 if primary.is_some() {
                     emit(ParserError::with_reason(
-                        ParserErrorReason::MultiplePrimaryAttributesFound,
+                        ParserErrorReason::MultipleFunctionAttributesFound,
                         span,
                     ));
                 }
@@ -459,7 +459,7 @@ fn validate_attributes(
         }
     }
 
-    Attributes { primary, secondary }
+    Attributes { function_attribute: primary, secondary_attributes: secondary }
 }
 
 fn validate_struct_attributes(
@@ -472,9 +472,9 @@ fn validate_struct_attributes(
 
     for attribute in attrs {
         match attribute {
-            Attribute::Primary(..) => {
+            Attribute::Function(..) => {
                 emit(ParserError::with_reason(
-                    ParserErrorReason::NoPrimaryAttributesAllowedOnStruct,
+                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
                     span,
                 ));
             }
