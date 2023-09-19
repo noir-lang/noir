@@ -117,6 +117,14 @@ export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
  * @returns The encoded object.
  */
 export function convertToJsonObj(cc: ClassConverter, obj: any): any {
+  // Bigint is a primitive type that needs special handling since it's not serialisable
+  if (typeof obj === 'bigint') {
+    return {
+      type: 'bigint',
+      data: obj.toString(),
+    };
+  }
+
   if (!obj) {
     return obj; // Primitive type
   }
@@ -124,13 +132,6 @@ export function convertToJsonObj(cc: ClassConverter, obj: any): any {
   // Is this a Node buffer?
   if (obj instanceof Buffer) {
     return { type: 'Buffer', data: obj.toString('base64') };
-  }
-
-  if (typeof obj === 'bigint') {
-    return {
-      type: 'bigint',
-      data: obj.toString(),
-    };
   }
 
   // Is this a convertible type?
