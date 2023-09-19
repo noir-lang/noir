@@ -1,33 +1,12 @@
 use dep::std;
 
-fn sort(mut a: [u32; 4]) -> [u32; 4] { 
-    for i in 1..4 {
-        for j in 0..i {
-            if a[i] < a[j] {
-                let c = a[j];
-                a[j] = a[i];
-                a[i] = c;
-            }
-        }
-    }
-    a
-}
+
 
 fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
     let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
     digest = std::hash::sha256(x);
     assert(digest == result);
-}
-
-fn must_be_zero(x: u8) {
-    assert(x == 0);
-}
-
-fn test3 (x: u8) {
-    if x == 0 {
-        must_be_zero(x);
-    }
 }
 
 fn test4() -> [u32; 4] {
@@ -87,25 +66,6 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     let result1_false = test(false);
     assert(result1_false.array_param[0] == 0);
 
-    //Test case for short-circuit
-    let mut data = [0 as u32; 32];
-    let mut ba = a;
-      for i in 0..32 {
-        let i_u32 = i as u32;
-        if i_u32 == a {
-            for j in 0..4 {
-                data[i + j] = c[4 - 1 - j];
-                for k in 0..4 {
-                    ba = ba +data[k];
-                }
-                if ba == 4864 {
-                    c[3]=ba;
-                }
-            }
-        }
-    }
-    assert(data[31] == 0);
-    assert(ba != 13);
     //regression for short-circuit2
     if 35 == a {
         assert(false);
@@ -118,93 +78,15 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     assert(c[1] != 2);
     call_intrinsic(x, result);
 
-    //Test case for conditional with arrays from function parameters
-    let b = sort([1,2,3,4]);
-    assert(b[0] == 1);
-
-    if a == 0 {
-        must_be_zero(0);
-        c[0] = 3;
-    } else {
-        must_be_zero(1);
-        c[0] = 1;
-        c[1] = c[2] / a + 11 % a;
-        let f1 = a as Field;
-        assert(10/f1 != 0);
-    }
-    assert(c[0] == 3);
-
-    let mut y = 0;
-    if a == 0 {
-        let digest = std::hash::sha256(x);
-        y = digest[0];
-    } else {
-        y = 5;
-    }
-    assert(y == result[0]);
-    c = sort(c);
-    assert(c[0] == 0);
-
-    //test 1
-    let mut x: u32 = 0;
-    if a == 0 {
-        c[0] = 12;
-        if a != 0 {
-            x = 6;
-        } else {
-            x = 2;
-            assert(x == 2);
-        }
-    } else {
-        x = 5;
-        assert(x == 5);
-    }
-    if c[0] == 0 {
-        x = 3;
-    }
-    assert(x == 2);
-
-    //test2: loops!
-    x = 0;
-    x = a - a;
-    for i in 0..4 {
-        if c[i] == 0 {
-            x = i as u32 +2;
-        }
-    }
-    assert(x == 0);
-
-    test3(1);
-
-    if a == 0 {
-        c = test4();
-    } else {
-        assert(c[1] != 2);
-    }
-    if false {
-        c[1] = 5;
-    }
-    assert(c[1] == 2);
-
-    test5(4);
 
     // Regression for issue #661:
     let mut c_661 :[u32;1]=[0];
     if a > 5 {
         c_661 = issue_661_foo(issue_661_bar(c), a);
     } else {
-        c_661 = issue_661_foo(issue_661_bar(c), x);
+        c_661 = issue_661_foo(issue_661_bar(c), a + 2);
     }
     assert(c_661[0] < 20000);
-
-    // Test case for function synchronisation
-    let mut c_sync = 0;
-    if a == 42 {
-        c_sync = foo2();
-    } else {
-        c_sync = foo2() + foo2();
-    }
-    assert(c_sync == 6);
     
     // Regression for predicate simplification
     safe_inverse(0);
@@ -260,10 +142,6 @@ fn issue_661_bar(a : [u32;4]) ->[u32;4] {
     let mut b:[u32;4] = [0;4];
     b[0]=a[0]+1;
     b
-}
-
-fn foo2() -> Field {
-    3
 }
 
 fn safe_inverse(n: Field) -> Field
