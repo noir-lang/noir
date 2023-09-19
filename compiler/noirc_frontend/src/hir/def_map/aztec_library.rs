@@ -10,6 +10,7 @@ use crate::{
     ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData,
     Visibility,
 };
+use crate::{PrefixExpression, UnaryOp};
 use noirc_errors::FileDiagnostic;
 
 //
@@ -55,13 +56,32 @@ fn call(func: Expression, arguments: Vec<Expression>) -> Expression {
     expression(ExpressionKind::Call(Box::new(CallExpression { func: Box::new(func), arguments })))
 }
 
-fn mutable(pattern: &str) -> Pattern {
-    Pattern::Mutable(Box::new(Pattern::Identifier(ident(pattern))), Span::default())
+fn pattern(name: &str) -> Pattern {
+    Pattern::Identifier(ident(name))
+}
+
+fn mutable(name: &str) -> Pattern {
+    Pattern::Mutable(Box::new(pattern(name)), Span::default())
 }
 
 fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
     Statement::Let(LetStatement {
         pattern: mutable(name),
+        r#type: make_type(UnresolvedTypeData::Unspecified),
+        expression: assigned_to,
+    })
+}
+
+fn mutable_reference(variable_name: &str) -> Expression {
+    expression(ExpressionKind::Prefix(Box::new(PrefixExpression {
+        operator: UnaryOp::MutableReference,
+        rhs: variable(variable_name),
+    })))
+}
+
+fn assignment(name: &str, assigned_to: Expression) -> Statement {
+    Statement::Let(LetStatement {
+        pattern: pattern(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
     })
@@ -141,7 +161,9 @@ pub(crate) fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(&mut submodule.contents.functions) {
+        let storage_defined = check_for_storage_definition(&submodule.contents);
+
+        if transform_module(&mut submodule.contents.functions, storage_defined) {
             check_for_aztec_dependency(crate_id, context, errors);
             include_relevant_imports(&mut submodule.contents);
         }
@@ -183,26 +205,37 @@ fn check_for_aztec_dependency(
     }
 }
 
+// Check to see if the user has defined a storage struct
+fn check_for_storage_definition(module: &ParsedModule) -> bool {
+    // TODO: cleanup
+    module.types.iter().any(|function| function.name.0.contents == "Storage")
+}
+
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated function is found, false otherwise
-fn transform_module(functions: &mut [NoirFunction]) -> bool {
+fn transform_module(functions: &mut [NoirFunction], storage_defined: bool) -> bool {
     let mut has_annotated_functions = false;
     for func in functions.iter_mut() {
         for secondary_attribute in func.def.attributes.secondary.clone() {
             if let SecondaryAttribute::Custom(custom_attribute) = secondary_attribute {
                 match custom_attribute.as_str() {
                     "aztec(private)" => {
-                        transform_function("Private", func);
+                        transform_function("Private", func, storage_defined);
                         has_annotated_functions = true;
                     }
                     "aztec(public)" => {
-                        transform_function("Public", func);
+                        transform_function("Public", func, storage_defined);
                         has_annotated_functions = true;
                     }
                     _ => continue,
                 }
             }
+        }
+        // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
+        if storage_defined && func.def.is_unconstrained {
+            transform_unconstrained(func);
+            has_annotated_functions = true;
         }
     }
     has_annotated_functions
@@ -212,10 +245,16 @@ fn transform_module(functions: &mut [NoirFunction]) -> bool {
 /// - A new Input that is provided for a kernel app circuit, named: {Public/Private}ContextInputs
 /// - Hashes all of the function input variables
 ///     - This instantiates a helper function  
-fn transform_function(ty: &str, func: &mut NoirFunction) {
+fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
+
+    // Add access to the storage struct
+    if storage_defined {
+        let storage_def = abstract_storage(&ty.to_lowercase(), false);
+        func.def.body.0.insert(0, storage_def);
+    }
 
     // Insert the context creation as the first action
     let create_context = create_context(&context_name, &func.def.parameters);
@@ -245,6 +284,18 @@ fn transform_function(ty: &str, func: &mut NoirFunction) {
         "Public" => func.def.is_open = true,
         _ => (),
     }
+}
+
+/// Transform Unconstrained
+///
+/// Inserts the following code at the beginning of an unconstrained function
+/// ```noir
+/// let storage = Storage::init(Context::none());
+/// ```
+///
+/// This will allow developers to access their contract' storage struct in unconstrained functions
+fn transform_unconstrained(func: &mut NoirFunction) {
+    func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -411,6 +462,51 @@ fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
         },
         _ => None,
     }
+}
+
+/// Abstract storage
+///
+/// For private functions:
+/// ```noir
+/// #[aztec(private)]
+/// fn lol() {
+///     let storage = Storage::init(Context::private(context));
+/// }
+/// ```
+///
+/// For public functions:
+/// ```noir
+/// #[aztec(public)]
+/// fn lol() {
+///    let storage = Storage::init(Context::public(context));
+/// }
+/// ```
+///
+/// For unconstrained functions:
+/// ```noir
+/// unconstrained fn lol() {
+///   let storage = Storage::init(Context::none());
+/// }
+fn abstract_storage(typ: &str, unconstrained: bool) -> Statement {
+    let init_context_call = if unconstrained {
+        call(
+            variable_path(chained_path!("aztec", "context", "Context", "none")), // Path
+            vec![],                                                              // args
+        )
+    } else {
+        call(
+            variable_path(chained_path!("aztec", "context", "Context", typ)), // Path
+            vec![mutable_reference("context")],                               // args
+        )
+    };
+
+    assignment(
+        "storage", // Assigned to
+        call(
+            variable_path(chained_path!("Storage", "init")), // Path
+            vec![init_context_call],                         // args
+        ),
+    )
 }
 
 /// Context Return Values
