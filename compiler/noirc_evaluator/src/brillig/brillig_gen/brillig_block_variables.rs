@@ -25,7 +25,7 @@ impl BlockVariables {
         BlockVariables {
             available_variables: live_in
                 .into_iter()
-                .chain(all_block_parameters.into_iter())
+                .chain(all_block_parameters)
                 .collect(),
             ..Default::default()
         }
