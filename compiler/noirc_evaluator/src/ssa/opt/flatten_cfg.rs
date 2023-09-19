@@ -144,9 +144,9 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };

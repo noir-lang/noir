@@ -752,14 +752,10 @@ impl Context {
                 let len = self.acir_context.var_to_expression(length_acir_var)?.to_const();
                 if let Some(len) = len {
                     len.to_u128() as usize
+                } else if let Some((array, _)) = dfg.get_array_constant(array) {
+                    array.len()
                 } else {
-                    if let Some((array, _)) = dfg.get_array_constant(array) {
-                        array.len()
-                    } else {
-                        panic!(
-                            "ICE: slice length should be fully tracked and constant by ACIR gen"
-                        );
-                    }
+                    panic!("ICE: slice length should be fully tracked and constant by ACIR gen");
                 }
             }
             _ => unreachable!("ICE - expected an array"),

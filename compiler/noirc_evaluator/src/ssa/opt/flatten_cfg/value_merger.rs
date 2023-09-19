@@ -84,11 +84,7 @@ impl<'a> ValueMerger<'a> {
         let then_call_stack = self.dfg.get_value_call_stack(then_value);
         let else_call_stack = self.dfg.get_value_call_stack(else_value);
 
-        let call_stack = if then_call_stack.is_empty() {
-            else_call_stack.clone()
-        } else {
-            then_call_stack.clone()
-        };
+        let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition = self
@@ -166,7 +162,7 @@ impl<'a> ValueMerger<'a> {
                     else_condition,
                     then_element,
                     else_element,
-                ))
+                ));
             }
         }
 
@@ -284,7 +280,7 @@ impl<'a> ValueMerger<'a> {
                                 | Intrinsic::SliceInsert => {
                                     // `get_slice_length` needs to be called here as it is borrows self as mutable
                                     let initial_len = self.get_slice_length(slice_contents);
-                                    dbg!(self.slice_sizes.insert(slice_contents, initial_len));
+                                    self.slice_sizes.insert(slice_contents, initial_len);
                                     initial_len + 1
                                 }
                                 Intrinsic::SlicePopBack
