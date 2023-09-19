@@ -49,13 +49,24 @@ done
 cd ..
 
 echo "Updating external Aztec dependencies to version $VERSION"
-
-# Packages that are publically available in npm
-# TARGET_PKGS=("@aztec/aztec.js" "@aztec/cli" "@aztec/l1-artifacts" "@aztec/noir-contracts")
+JSON_TARGET_PKGS=$(printf '%s\n' "${TARGET_PKGS[@]}" | jq -R -s -c 'split("\n") | map(select(. != ""))')
 
 TMP=$(mktemp)
-for PKG in "${TARGET_PKGS[@]}"; do
-  jq --arg v $VERSION ".dependencies[\"$PKG\"] = \$v" package.json > $TMP && mv $TMP package.json
-done
+jq --arg v $VERSION --argjson target_pkgs "$JSON_TARGET_PKGS" '
+.dependencies |= with_entries(
+  select(
+    (.key | startswith("@aztec")) as $isAztec |
+    if $isAztec then
+      .key as $k | any($target_pkgs[]; . == $k)
+    else
+      true
+    end
+  ) |
+  if .key as $k | any($target_pkgs[]; . == $k) then
+    .value = $v
+  else
+    .
+  end
+)' package.json > $TMP && mv $TMP package.json
 
 jq ".references = []" tsconfig.json > $TMP && mv $TMP tsconfig.json
