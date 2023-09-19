@@ -1,6 +1,6 @@
 [package]
-name = "acvm-backend-barretenberg"
-description = "An ACVM backend which allows proving/verifying ACIR circuits against Aztec Lab's Barretenberg library."
+name = "backend-interface"
+description = "The definition of the backend CLI interface which Nargo uses for proving/verifying ACIR circuits."
 version = "0.11.0"
 authors.workspace = true
 edition.workspace = true
@@ -15,7 +15,7 @@ dirs.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-bb_abstraction_leaks = { path = "../bb_abstraction_leaks" }
+bb_abstraction_leaks.workspace = true
 
 tempfile = "3.6.0"
 

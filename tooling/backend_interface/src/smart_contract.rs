@@ -29,11 +29,7 @@ impl Backend {
         }
         .run(binary_path)?;
 
-        let verification_key_library =
-            ContractCommand { crs_path: self.crs_directory(), vk_path }.run(binary_path)?;
-
-        drop(temp_directory);
-        Ok(bb_abstraction_leaks::complete_barretenberg_verifier_contract(verification_key_library))
+        ContractCommand { crs_path: self.crs_directory(), vk_path }.run(binary_path)
     }
 }
 

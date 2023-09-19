@@ -64,6 +64,10 @@ impl Backend {
         Backend { name, binary_path }
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     fn binary_path(&self) -> &PathBuf {
         &self.binary_path
     }

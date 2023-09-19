@@ -47,25 +47,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "acvm-backend-barretenberg"
-version = "0.11.0"
-dependencies = [
- "acvm",
- "bb_abstraction_leaks",
- "build-target",
- "const_format",
- "dirs",
- "flate2",
- "reqwest",
- "serde",
- "serde_json",
- "tar",
- "tempfile",
- "test-binary",
- "thiserror",
-]
-
-[[package]]
 name = "acvm_blackbox_solver"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,6 +383,25 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "backend-interface"
+version = "0.11.0"
+dependencies = [
+ "acvm",
+ "bb_abstraction_leaks",
+ "build-target",
+ "const_format",
+ "dirs",
+ "flate2",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "test-binary",
+ "thiserror",
+]
 
 [[package]]
 name = "backtrace"
@@ -2195,10 +2195,11 @@ name = "nargo_cli"
 version = "0.11.1"
 dependencies = [
  "acvm",
- "acvm-backend-barretenberg",
  "assert_cmd",
  "assert_fs",
  "async-lsp",
+ "backend-interface",
+ "bb_abstraction_leaks",
  "build-data",
  "clap",
  "color-eyre",
