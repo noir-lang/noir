@@ -1,5 +1,7 @@
 //! This module analyzes the liveness of variables (non-constant values) throughout a function.
 //! It uses the approach detailed in the section 4.2 of this paper https://inria.hal.science/inria-00558509v2/document
+use std::hash::Hash;
+
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     cfg::ControlFlowGraph,
@@ -41,23 +43,6 @@ fn find_back_edges(
     back_edges
 }
 
-fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> HashSet<ValueId> {
-    let mut defined_vars = HashSet::default();
-
-    for parameter in block.parameters() {
-        defined_vars.insert(dfg.resolve(*parameter));
-    }
-
-    for instruction_id in block.instructions() {
-        let result_values = dfg.instruction_results(*instruction_id);
-        for result_value in result_values {
-            defined_vars.insert(dfg.resolve(*result_value));
-        }
-    }
-
-    defined_vars
-}
-
 /// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
 fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<ValueId> {
     let value_id = dfg.resolve(value_id);
@@ -67,6 +52,7 @@ fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<Val
         Value::Instruction { .. } | Value::Param { .. } => {
             vec![value_id]
         }
+        // Literal arrays are constants, but might use variable values to initialise.
         Value::Array { array, .. } => {
             let mut value_ids = Vec::new();
 
@@ -77,11 +63,12 @@ fn collect_variables_of_value(value_id: ValueId, dfg: &DataFlowGraph) -> Vec<Val
 
             value_ids
         }
+        // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
         Value::ForeignFunction(_)
         | Value::Function(_)
         | Value::Intrinsic(..)
+        // Constants are not treated as variables for the variable liveness analysis, since they are defined every time they are used.
         | Value::NumericConstant { .. } => {
-            // Not variables
             vec![]
         }
     }
@@ -117,23 +104,46 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<Value
     used
 }
 
+type Variables = HashSet<ValueId>;
+
+fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
+    let mut defined_vars = HashSet::default();
+
+    for parameter in block.parameters() {
+        defined_vars.insert(dfg.resolve(*parameter));
+    }
+
+    for instruction_id in block.instructions() {
+        let result_values = dfg.instruction_results(*instruction_id);
+        for result_value in result_values {
+            defined_vars.insert(dfg.resolve(*result_value));
+        }
+    }
+
+    defined_vars
+}
+
 fn compute_used_before_def(
     block: &BasicBlock,
     dfg: &DataFlowGraph,
-    defined_in_block: &HashSet<ValueId>,
-) -> HashSet<ValueId> {
+    defined_in_block: &Variables,
+) -> Variables {
     variables_used_in_block(block, dfg)
         .into_iter()
         .filter(|id| !defined_in_block.contains(id))
         .collect()
 }
 
+type LastUses = HashMap<InstructionId, Variables>;
+
 /// A struct representing the liveness of variables throughout a function.
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
-    live_in: HashMap<BasicBlockId, HashSet<ValueId>>,
-    last_uses: HashMap<BasicBlockId, HashMap<InstructionId, HashSet<ValueId>>>,
+    /// The variables that are alive before the block starts executing
+    live_in: HashMap<BasicBlockId, Variables>,
+    /// The variables that stop being alive after each specific instruction
+    last_uses: HashMap<BasicBlockId, LastUses>,
 }
 
 impl VariableLiveness {
@@ -153,12 +163,12 @@ impl VariableLiveness {
     }
 
     /// The set of values that are alive before the block starts executing
-    pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &HashSet<ValueId> {
+    pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &Variables {
         self.live_in.get(block_id).expect("Live ins should have been calculated")
     }
 
     /// The set of values that are alive after the block has finished executed
-    pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> HashSet<ValueId> {
+    pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> Variables {
         let mut live_out = HashSet::default();
         for successor_id in self.cfg.successors(*block_id) {
             live_out.extend(self.get_live_in(&successor_id));
@@ -167,10 +177,7 @@ impl VariableLiveness {
     }
 
     /// A map of instruction id to the set of values that die after the instruction has executed
-    pub(crate) fn get_last_uses(
-        &self,
-        block_id: &BasicBlockId,
-    ) -> &HashMap<InstructionId, HashSet<ValueId>> {
+    pub(crate) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
         self.last_uses.get(block_id).expect("Last uses should have been calculated")
     }
 
@@ -257,8 +264,8 @@ impl VariableLiveness {
             let block = &func.dfg[block_id];
             let live_out = self.get_live_out(&block_id);
 
-            let mut used_after: HashSet<ValueId> = HashSet::default();
-            let mut block_last_uses: HashMap<InstructionId, HashSet<ValueId>> = HashMap::default();
+            let mut used_after: Variables = Default::default();
+            let mut block_last_uses: LastUses = Default::default();
 
             // First, handle the terminator
             if let Some(terminator_instruction) = block.terminator() {
