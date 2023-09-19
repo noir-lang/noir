@@ -43,4 +43,4 @@ jobs:
       #   run: nargo codegen-verifier
       
       - name: Create new Foundry project
-        run: forge new foundry-project
+        run: forge init foundry-project
