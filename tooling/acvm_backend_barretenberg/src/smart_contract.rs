@@ -6,9 +6,6 @@ use crate::{
 use acvm::acir::circuit::Circuit;
 use tempfile::tempdir;
 
-/// Embed the Solidity verifier file
-const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
-
 impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
         let binary_path = self.assert_binary_exists()?;
@@ -36,7 +33,7 @@ impl Backend {
             ContractCommand { crs_path: self.crs_directory(), vk_path }.run(binary_path)?;
 
         drop(temp_directory);
-        Ok(format!("{verification_key_library}{ULTRA_VERIFIER_CONTRACT}"))
+        Ok(bb_abstraction_leaks::complete_barretenberg_verifier_contract(verification_key_library))
     }
 }
 

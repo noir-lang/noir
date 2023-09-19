@@ -51,6 +51,7 @@ name = "acvm-backend-barretenberg"
 version = "0.11.0"
 dependencies = [
  "acvm",
+ "bb_abstraction_leaks",
  "build-target",
  "const_format",
  "dirs",
@@ -434,6 +435,14 @@ name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+
+[[package]]
+name = "bb_abstraction_leaks"
+version = "0.11.0"
+dependencies = [
+ "build-target",
+ "const_format",
+]
 
 [[package]]
 name = "bincode"

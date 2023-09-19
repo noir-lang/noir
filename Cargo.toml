@@ -13,6 +13,7 @@ members = [
     "compiler/utils/iter-extended",
     # Crates related to tooling built ontop of the Noir compiler
     "tooling/acvm_backend_barretenberg",
+    "tooling/bb_abstraction_leaks",
     "tooling/nargo",
     "tooling/nargo_cli",
     "tooling/nargo_toml",

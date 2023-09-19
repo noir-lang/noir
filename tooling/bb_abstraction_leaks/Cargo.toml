@@ -1,0 +1,16 @@
+[package]
+name = "bb_abstraction_leaks"
+description = "A crate which encapsulates knowledge about Barretenberg which is currently leaking into Nargo"
+version = "0.11.0"
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[build-dependencies]
+build-target = "0.4.0"
+const_format = "0.2.30"
