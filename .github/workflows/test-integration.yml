@@ -54,10 +54,10 @@ jobs:
 
       - name: Build noir_wasm package
         run: |
-          nix build -L .#wasm
-          echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
-          cp -r ./result/nodejs ./compiler/wasm
-          cp -r ./result/web ./compiler/wasm
+          nix build -L .#noir_wasm
+          echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
+          cp -r ./result/noir_wasm/nodejs ./compiler/wasm
+          cp -r ./result/noir_wasm/web ./compiler/wasm
 
       - name: Upload `noir_wasm` artifact
         uses: actions/upload-artifact@v3
@@ -69,9 +69,9 @@ jobs:
       - name: Build noirc_abi_wasm package
         run: |
           nix build -L .#noirc_abi_wasm
-          echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
-          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
-          cp -r ./result/web ./tooling/noirc_abi_wasm
+          echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
 
       - name: Upload `noirc_abi_wasm` artifact
         uses: actions/upload-artifact@v3
@@ -85,13 +85,14 @@ jobs:
 
       - name: Setup `integration-tests`
         run: |
-          yarn workspace @noir-lang/noir-source-resolver build
+          yarn workspace @noir-lang/source-resolver build
+          yarn workspace @noir-lang/noir_js build
 
       - name: Run `integration-tests`
         run: |
           yarn test:integration
-          
-      - name: Alert on nightly test failure  
+
+      - name: Alert on nightly test failure
         uses: JasonEtco/create-an-issue@v2
         if: ${{ failure() && github.event_name == 'schedule' }}
         env:
