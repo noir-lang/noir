@@ -27,8 +27,16 @@ jobs:
       - name: Install nargo
         run: |
           curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
+          
+          export PATH="/home/runner/.nargo/bin:$PATH"
+
+          echo $PATH
+
+          ls -la /home/runner/.nargo/bin
+
+          /home/runner/.nargo/bin/noirup
+
           noirup
-          source /home/runner/.bashrc
           echo "/Users/runner/.nargo/bin" >> $GITHUB_PATH
           nargo -V
       
