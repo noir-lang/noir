@@ -12,7 +12,8 @@ members = [
     "compiler/utils/arena",
     "compiler/utils/iter-extended",
     # Crates related to tooling built ontop of the Noir compiler
-    "tooling/acvm_backend_barretenberg",
+    "tooling/backend_interface",
+    "tooling/bb_abstraction_leaks",
     "tooling/nargo",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -41,6 +42,7 @@ nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noirc_abi = { path = "tooling/noirc_abi" }
+bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 noirc_driver = { path = "compiler/noirc_driver" }
 noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }

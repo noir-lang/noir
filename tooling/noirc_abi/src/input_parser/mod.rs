@@ -1,5 +1,5 @@
-use num_bigint::BigUint;
-use num_traits::Num;
+use num_bigint::{BigInt, BigUint};
+use num_traits::{Num, Zero};
 use std::collections::BTreeMap;
 
 use acvm::FieldElement;
@@ -201,8 +201,46 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
     }
 }
 
+fn parse_str_to_signed(value: &str, witdh: u32) -> Result<FieldElement, InputParserError> {
+    if value.starts_with("0x") {
+        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
+    } else {
+        BigInt::from_str_radix(value, 10)
+            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
+            .and_then(|bigint| {
+                let modulus: BigInt = FieldElement::modulus().into();
+                let bigint = if bigint.sign() == num_bigint::Sign::Minus {
+                    BigInt::from(2).pow(witdh) + bigint
+                } else {
+                    bigint
+                };
+                if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus)
+                {
+                    Ok(field_from_big_int(bigint))
+                } else {
+                    Err(InputParserError::ParseStr(format!(
+                        "Input exceeds field modulus. Values must fall within [0, {})",
+                        FieldElement::modulus(),
+                    )))
+                }
+            })
+    }
+}
+
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be())
+}
+
+fn field_from_big_int(bigint: BigInt) -> FieldElement {
+    match bigint.sign() {
+        num_bigint::Sign::Minus => {
+            unreachable!(
+                "Unsupported negative value; it should only be called with a positive value"
+            )
+        }
+        num_bigint::Sign::NoSign => FieldElement::zero(),
+        num_bigint::Sign::Plus => FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be().1),
+    }
 }
 
 #[cfg(test)]

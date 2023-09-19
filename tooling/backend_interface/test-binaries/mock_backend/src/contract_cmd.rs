@@ -17,9 +17,5 @@ pub(crate) struct ContractCommand {
 pub(crate) fn run(args: ContractCommand) {
     assert!(args.vk_path.is_file(), "Could not find vk file at provided path");
 
-    std::io::stdout()
-        .write_all(
-            b"contract BaseUltraVerifier contract UltraVerifier library UltraVerificationKey",
-        )
-        .unwrap();
+    std::io::stdout().write_all(b"contract VerifierContract {}").unwrap();
 }
