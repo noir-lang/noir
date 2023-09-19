@@ -1,7 +1,5 @@
 //! This module analyzes the liveness of variables (non-constant values) throughout a function.
 //! It uses the approach detailed in the section 4.2 of this paper https://inria.hal.science/inria-00558509v2/document
-use std::hash::Hash;
-
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     cfg::ControlFlowGraph,
