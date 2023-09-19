@@ -49,10 +49,6 @@ jobs:
       #   working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
       #   run: nargo codegen-verifier
 
-      - name: Output foundry-project
-        working-directory: foundry-project
-        run: ls -R 
-
       - name: Copy compiled 1_mul
         run: cp tooling/nargo_cli/tests/execution_success/1_mul/contract/1_mul/plonk_vk.sol foundry-project/src/1_mul.sol
 
@@ -60,6 +56,14 @@ jobs:
       #   working-directory: foundry-project
       #   run: cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol src/double_verify_proof.sol
 
+      - name: Output foundry-project/src
+        working-directory: foundry-project/src
+        run: ls -R 
+
       - name: Forge build
         working-directory: foundry-project
         run: forge build
+
+      - name: Forge deploy
+        working-directory: foundry-project
+        run: forge create --rpc-url http://127.0.0.1:8545 src/1_mul.sol:UltraVerifier
