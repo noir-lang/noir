@@ -1,13 +1,14 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
 mod cli;
 mod download;
 mod proof_system;
 mod smart_contract;
 
+use acvm::acir::circuit::Opcode;
 pub use download::download_backend;
 
 const BACKENDS_DIR: &str = ".nargo/backends";
@@ -97,6 +98,26 @@ impl Backend {
 
     fn crs_directory(&self) -> PathBuf {
         self.backend_directory().join("crs")
+    }
+}
+
+pub struct BackendOpcodeSupport {
+    opcodes: HashSet<String>,
+    black_box_functions: HashSet<String>,
+}
+
+impl BackendOpcodeSupport {
+    pub fn is_opcode_supported(&self, opcode: &Opcode) -> bool {
+        match opcode {
+            Opcode::Arithmetic(_) => self.opcodes.contains("arithmetic"),
+            Opcode::Directive(_) => self.opcodes.contains("directive"),
+            Opcode::Brillig(_) => self.opcodes.contains("brillig"),
+            Opcode::MemoryInit { .. } => self.opcodes.contains("memory_init"),
+            Opcode::MemoryOp { .. } => self.opcodes.contains("memory_op"),
+            Opcode::BlackBoxFuncCall(func) => {
+                self.black_box_functions.contains(func.get_black_box_func().name())
+            }
+        }
     }
 }
 

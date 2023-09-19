@@ -74,8 +74,46 @@ jobs:
       - name: Dispatch to noir_wasm
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: update.yml
-          repo: noir-lang/noir_wasm
+          workflow: release-noir-wasm.yml
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+  publish-noir-js:
+    name: Publish noir_js package
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to noir_wasm
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: noir-js.yml
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+  publish-source-resolver:
+    name: Publish source resolver package
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to source resolver
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: release-source-resolver.yml
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+  dispatch-publish-abi-wasm:
+    name: Dispatch to publish-abi_wasm workflow
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish-abi_wasm.yml workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-abi_wasm.yml
+          repo: ${{ github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'

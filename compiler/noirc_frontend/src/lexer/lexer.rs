@@ -536,6 +536,19 @@ mod tests {
             &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(TestScope::None)))
         );
     }
+
+    #[test]
+    fn contract_library_method_attribute() {
+        let input = r#"#[contract_library_method]"#;
+        let mut lexer = Lexer::new(input);
+
+        let token = lexer.next().unwrap().unwrap();
+        assert_eq!(
+            token.token(),
+            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod))
+        );
+    }
+
     #[test]
     fn test_attribute_with_valid_scope() {
         let input = r#"#[test(should_fail)]"#;
