@@ -19,7 +19,7 @@ Then, open the `contracts/private_token/Nargo.toml` configuration file, and add 
 
 ```toml
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/aztec-nr/noir-aztec" }
+aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/aztec-nr/aztec" }
 value_note = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/aztec-nr/value-note" }
 ```
 
@@ -69,20 +69,20 @@ Create a new file `src/deploy.mjs`, importing the contract artifacts we have gen
 
 ```js
 // src/deploy.mjs
-import { writeFileSync } from 'fs';
-import { createAztecRpcClient, ContractDeployer } from '@aztec/aztec.js';
-import PrivateTokenArtifact from '../contracts/private_token/target/PrivateToken.json' assert { type: 'json' };
-import PublicTokenArtifact from '../contracts/public_token/target/PublicToken.json' assert { type: 'json' };
+import { writeFileSync } from "fs";
+import { createAztecRpcClient, ContractDeployer } from "@aztec/aztec.js";
+import PrivateTokenArtifact from "../contracts/private_token/target/PrivateToken.json" assert { type: "json" };
+import PublicTokenArtifact from "../contracts/public_token/target/PublicToken.json" assert { type: "json" };
 
-async function main() { }
+async function main() {}
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`Error in deployment script: ${err}`);
   process.exit(1);
 });
 ```
 
-Now we can deploy the contracts by adding the following code to the `src/deploy.mjs` file. Here, we are using the `ContractDeployer` class with the compiled artifact to send a new deployment transaction. The `wait` method will block execution until the transaction is successfully mined, and return a receipt with the deployed contract address. 
+Now we can deploy the contracts by adding the following code to the `src/deploy.mjs` file. Here, we are using the `ContractDeployer` class with the compiled artifact to send a new deployment transaction. The `wait` method will block execution until the transaction is successfully mined, and return a receipt with the deployed contract address.
 
 #include_code dapp-deploy yarn-project/end-to-end/src/sample-dapp/deploy.mjs javascript
 
@@ -94,6 +94,7 @@ If you are using the generated typescript classes, you can drop the generic `Con
 ```typescript
 await PrivateToken.deploy(client, 100n, owner.address).send().wait();
 ```
+
 :::
 
 Run the snippet above as `node src/deploy.mjs`, and you should see the following output, along with a new `addresses.json` file in your project root:
@@ -102,6 +103,7 @@ Run the snippet above as `node src/deploy.mjs`, and you should see the following
 Private token deployed to 0x2950b0f290422ff86b8ee8b91af4417e1464ddfd9dda26de8af52dac9ea4f869
 Public token deployed to 0x2b54f68fd1e18f7dcfa71e3be3c91bb06ecbe727a28d609e964c225a4b5549c8
 ```
+
 ## Next steps
 
 Now that we have our contracts set up, it's time to actually [start writing our application that will be interacting with them](./contract_interaction.md).
