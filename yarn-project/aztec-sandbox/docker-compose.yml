@@ -4,12 +4,12 @@ services:
     image: ghcr.io/foundry-rs/foundry:v1.0.0
     command: '"anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337"'
     ports:
-      - '8545:8545'
+      - '${SANDBOX_ANVIL_PORT:-8545}:8545'
 
   aztec:
     image: 'aztecprotocol/aztec-sandbox:${SANDBOX_VERSION:-latest}'
     ports:
-      - '8080:8080'
+      - '${SANDBOX_RPC_PORT:-8080}:8080'
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
       HOST_WORKDIR: '${PWD}' # Loaded from the user shell to show log files absolute path in host

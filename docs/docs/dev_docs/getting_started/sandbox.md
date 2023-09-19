@@ -32,7 +32,7 @@ It will download and execute a script invoking docker compose with 2 containers:
 - Anvil
 - Aztec Sandbox
 
-It will need to create servers on localhost ports 8545 (Anvil) and 8080 (Sandbox) so you will need to ensure nothing conflicts with this.
+2 ports will need to be opened on your system in order for you to interact with the sandbox. The first port is for Anvil, it defaults to 8545 and can be overridden by specifying a value in the environment variable `SANDBOX_ANVIL_PORT`. The second is the sandbox RPC host port. It defaults to value 8080 but can be overridden with environment variable `SANDBOX_RPC_PORT`.
 
 Within a few seconds the Sandbox should be up and running!
 
