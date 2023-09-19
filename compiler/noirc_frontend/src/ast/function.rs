@@ -66,10 +66,10 @@ impl NoirFunction {
         &self.def.attributes
     }
     pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
-        self.def.attributes.function_attribute.as_ref()
+        self.def.attributes.function.as_ref()
     }
-    pub fn other_attributes(&self) -> &Vec<SecondaryAttribute> {
-        self.def.attributes.secondary_attributes.as_ref()
+    pub fn secondary_attributes(&self) -> &Vec<SecondaryAttribute> {
+        self.def.attributes.secondary.as_ref()
     }
     pub fn def(&self) -> &FunctionDefinition {
         &self.def
@@ -97,7 +97,7 @@ impl NoirFunction {
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
         // The function type is determined by the existence of a function attribute
-        let kind = match fd.attributes.function_attribute {
+        let kind = match fd.attributes.function {
             Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
             Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,

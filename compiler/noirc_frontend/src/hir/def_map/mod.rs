@@ -140,7 +140,7 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let func_meta = interner.function_meta(&func_id);
-                    match func_meta.attributes.function_attribute {
+                    match func_meta.attributes.function {
                         Some(FunctionAttribute::Test(scope)) => {
                             Some(TestFunction::new(func_id, scope, func_meta.name.location))
                         }

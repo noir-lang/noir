@@ -731,7 +731,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if matches!(attributes.function_attribute, Some(FunctionAttribute::Test { .. }))
+        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
             && !parameters.is_empty()
         {
             self.push_err(ResolverError::TestFunctionHasParameters {

@@ -145,14 +145,14 @@ impl<'interner> Monomorphizer<'interner> {
                 let meta = self.interner.function_meta(&id);
                 match meta.kind {
                     FunctionKind::LowLevel => {
-                        let attribute = meta.attributes.function_attribute.expect("all low level functions must contain a function attribute which contains the opcode which it links to");
+                        let attribute = meta.attributes.function.expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.foreign().expect(
                             "ice: function marked as foreign, but attribute kind does not match this",
                         );
                         Definition::LowLevel(opcode)
                     }
                     FunctionKind::Builtin => {
-                        let attribute = meta.attributes.function_attribute.expect("all low level functions must contain a primary  attribute which contains the opcode which it links to");
+                        let attribute = meta.attributes.function.expect("all low level functions must contain a primary  attribute which contains the opcode which it links to");
                         let opcode = attribute.builtin().expect(
                             "ice: function marked as builtin, but attribute kind does not match this",
                         );
@@ -165,7 +165,7 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::Oracle => {
                         let attr = meta
                             .attributes
-                            .function_attribute
+                            .function
                             .expect("Oracle function must have an oracle attribute");
 
                         match attr {

@@ -364,14 +364,14 @@ impl fmt::Display for TestScope {
 // Calls to functions which have the foreign attribute are executed in the host language
 pub struct Attributes {
     // Each function can have a single Primary Attribute
-    pub function_attribute: Option<FunctionAttribute>,
+    pub function: Option<FunctionAttribute>,
     // Each function can have many Secondary Attributes
-    pub secondary_attributes: Vec<SecondaryAttribute>,
+    pub secondary: Vec<SecondaryAttribute>,
 }
 
 impl Attributes {
     pub fn empty() -> Self {
-        Self { function_attribute: None, secondary_attributes: Vec::new() }
+        Self { function: None, secondary: Vec::new() }
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`
@@ -379,14 +379,14 @@ impl Attributes {
     /// This is useful for finding out if we should compile a contract method
     /// as an entry point or not.
     pub fn has_contract_library_method(&self) -> bool {
-        self.secondary_attributes
+        self.secondary
             .iter()
             .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
     }
 
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
-        self.secondary_attributes.iter().find_map(|attr| match attr {
+        self.secondary.iter().find_map(|attr| match attr {
             SecondaryAttribute::Deprecated(note) => Some(note.clone()),
             _ => None,
         })

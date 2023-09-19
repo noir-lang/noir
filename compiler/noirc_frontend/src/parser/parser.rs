@@ -459,7 +459,7 @@ fn validate_attributes(
         }
     }
 
-    Attributes { function_attribute: primary, secondary_attributes: secondary }
+    Attributes { function: primary, secondary }
 }
 
 fn validate_struct_attributes(
