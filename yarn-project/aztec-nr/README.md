@@ -59,7 +59,12 @@ To use `Aztec-nr` the `aztec` version of `Noir` is required (Note; this version 
 
 Once noirup is installed, you can run the following:
 ```bash
-noirup -v aztec
+noirup -v NARGO_VERSION_COMPATIBLE_WITH_YOUR_SANDBOX
+```
+
+Replace `NARGO_VERSION_COMPATIBLE_WITH_YOUR_SANDBOX` with the version from the output of `aztec-cli get-node-info`:
+```bash
+aztec-cli get-node-info
 ```
 
 For more installation options, please view [Noir's getting started.](https://noir-lang.org/getting_started/nargo_installation)
