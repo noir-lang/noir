@@ -65,6 +65,12 @@ struct Context {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
+    /// Maps SSA values to a BlockId used internally
+    /// A BlockId is an ACIR structure which identifies a memory block
+    /// Each memory blocks corresponds to a different SSA value
+    /// which utilizes this internal memory for ACIR generation.
+    internal_memory_blocks: HashMap<Id<Value>, BlockId>,
+
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
     max_block_id: u32,
@@ -154,6 +160,7 @@ impl Context {
             acir_context,
             initialized_arrays: HashSet::new(),
             memory_blocks: HashMap::default(),
+            internal_memory_blocks: HashMap::default(),
             max_block_id: 0,
         }
     }
@@ -307,11 +314,13 @@ impl Context {
     /// This is useful for referencing information that can
     /// only be computed dynamically, such as the type structure
     /// of non-homogenous arrays.
-    fn internal_block_id(&mut self) -> BlockId {
+    fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
+        if let Some(block_id) = self.internal_memory_blocks.get(value) {
+            return *block_id;
+        }
         let block_id = BlockId(self.max_block_id);
         self.max_block_id += 1;
-        // We do not insert into `self.memory_blocks` here as this BlockId
-        // does not have a corresponding ValueId
+        self.internal_memory_blocks.insert(*value, block_id);
         block_id
     }
 
@@ -775,7 +784,7 @@ impl Context {
 
         let mut var_index = if matches!(array_typ, Type::Array(_, _)) {
             let array_len = dfg.try_get_array_length(array_id).expect("ICE: expected an array");
-            self.get_flattened_index(&array_typ, array_len, var_index)?
+            self.get_flattened_index(&array_typ, array_id, array_len, var_index)?
         } else {
             var_index
         };
@@ -952,7 +961,7 @@ impl Context {
             // This is the user facing array len without the element types flattened
             let true_array_len =
                 dfg.try_get_array_length(array_id).expect("ICE: expected an array");
-            self.get_flattened_index(&array_typ, true_array_len, var_index)?
+            self.get_flattened_index(&array_typ, array_id, true_array_len, var_index)?
         } else {
             var_index
         };
@@ -995,8 +1004,16 @@ impl Context {
         Ok(())
     }
 
-    fn init_element_types_size_array(&mut self, array_typ: &Type) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.internal_block_id();
+    fn init_element_types_size_array(
+        &mut self,
+        array_typ: &Type,
+        array_id: ValueId,
+    ) -> Result<BlockId, RuntimeError> {
+        let element_type_sizes = self.internal_block_id(&array_id);
+        // Check whether an internal type sizes array has already been initialized
+        if self.initialized_arrays.contains(&element_type_sizes) {
+            return Ok(element_type_sizes);
+        }
         let mut flat_elem_type_sizes = Vec::new();
         flat_elem_type_sizes.push(0);
         match array_typ {
@@ -1032,10 +1049,11 @@ impl Context {
     fn get_flattened_index(
         &mut self,
         array_typ: &Type,
+        array_id: ValueId,
         array_len: usize,
         var_index: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let element_type_sizes = self.init_element_types_size_array(array_typ)?;
+        let element_type_sizes = self.init_element_types_size_array(array_typ, array_id)?;
 
         let element_size = array_typ.element_size();
         let flat_array_size = array_typ.flattened_size();
