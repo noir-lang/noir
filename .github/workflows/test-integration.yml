@@ -147,10 +147,6 @@ jobs:
         run: |
           sed -i 's|address: "MUL_CONTRACT_ADDRESS"|address: "'"$MUL_CONTRACT_ADDRESS"'"|g' compile_prove_verify.test.ts
 
-      - name: Check injection
-        working-directory: compiler/integration-tests/test/integration/browser
-        run: cat compile_prove_verify.test.ts
-
       - name: Setup `integration-tests`
         run: |
           yarn workspace @noir-lang/source-resolver build

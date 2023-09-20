@@ -82,9 +82,11 @@ test_cases.forEach((testInfo) => {
       const prover_toml = await getFile(prover_toml_url);
       const compiled_contract = await getFile(compiled_contract_url);
 
-      console.log({ compiled_contract })
 
       const { abi } = JSON.parse(compiled_contract);
+
+      console.log({ abi })
+
       const contract = new ethers.Contract(testInfo.address, abi, wallet);
 
       const callable_functions = abi.filter(item => item.type === 'function' && item.stateMutability !== 'view' && item.stateMutability !== 'pure');
