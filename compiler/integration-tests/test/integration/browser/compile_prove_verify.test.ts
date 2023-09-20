@@ -15,9 +15,6 @@ const provider = new ethers.JsonRpcProvider("http://localhost:8545");
 const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic);
 const wallet = walletMnemonic.connect(provider);
 
-// Assuming your contract ABI is named `contractAbi`
-
-// Create a contract instance
 
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
 const { default: newABICoder, abiEncode } = noirc;
@@ -85,7 +82,14 @@ test_cases.forEach((testInfo) => {
       const prover_toml = await getFile(prover_toml_url);
       const compiled_contract = await getFile(compiled_contract_url);
 
-      const contract = new ethers.Contract(testInfo.address, JSON.parse(compiled_contract).abi, wallet);
+      console.log({ compiled_contract })
+
+      const { abi } = JSON.parse(compiled_contract);
+      const contract = new ethers.Contract(testInfo.address, abi, wallet);
+
+      const callable_functions = abi.filter(item => item.type === 'function' && item.stateMutability !== 'view' && item.stateMutability !== 'pure');
+
+      console.log({ callable_functions })
 
       expect(noir_source).to.be.a.string;
 
