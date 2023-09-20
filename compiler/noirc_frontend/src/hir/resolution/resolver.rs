@@ -670,7 +670,7 @@ impl<'a> Resolver<'a> {
     }
 
     /// TODO: This is currently only respected for generic free functions
-    /// there's a bunch of other places where this guy can pop up
+    /// there's a bunch of other places where trait constraints can pop up
     fn resolve_trait_constraints(
         &mut self,
         where_clause: &Vec<UnresolvedTraitConstraint>,
