@@ -1229,37 +1229,37 @@ jobs:
           command: build canary true
 
   run-deployment-canary-uniswap:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary uniswap_trade_on_l1_from_l2.test.ts canary docker-compose.yml
+          command: run_script canary ./scripts/run_tests ./src/uniswap_trade_on_l1_from_l2.test.ts canary ./scripts/docker-compose.yml
 
   run-deployment-canary-browser:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary aztec_js_browser.test.ts canary docker-compose.yml
+          command: run_script canary ./scripts/run_tests ./src/aztec_js_browser.test.ts canary ./scripts/docker-compose.yml
 
   run-deployment-canary-cli:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_test_script ./scripts/run_tests canary cli.test.ts canary docker-compose.yml
+          command: run_script canary ./scripts/run_tests ./src/cli.test.ts canary ./scripts/docker-compose.yml
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /^aztec-packages-v.*/

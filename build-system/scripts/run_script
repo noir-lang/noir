@@ -1,0 +1,13 @@
+#!/bin/bash
+# Runs a script from within the provided repository project directory
+#
+# Arguments are:
+# 1. REPOSITORY: The project repository name in ECR.
+# 2... ARGS: Script and arguments to run.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+REPOSITORY=$1
+shift
+cd $(query_manifest projectDir $REPOSITORY)
+$@
