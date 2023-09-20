@@ -5,7 +5,7 @@ use noirc_errors::Span;
 
 use crate::{
     node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction,
-    UnresolvedGenerics, UnresolvedType,
+    Path, UnresolvedGenerics, UnresolvedType,
 };
 
 /// AST node for trait definitions:
@@ -57,7 +57,7 @@ pub struct TypeImpl {
 pub struct NoirTraitImpl {
     pub impl_generics: UnresolvedGenerics,
 
-    pub trait_name: Ident,
+    pub trait_name: Path,
     pub trait_generics: Vec<UnresolvedType>,
 
     pub object_type: UnresolvedType,
@@ -83,7 +83,7 @@ pub struct UnresolvedTraitConstraint {
 /// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitBound {
-    pub trait_name: Ident,
+    pub trait_path: Path,
     pub trait_id: Option<TraitId>, // initially None, gets assigned during DC
     pub trait_generics: Vec<UnresolvedType>,
 }
@@ -178,9 +178,9 @@ impl Display for TraitBound {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
         if !generics.is_empty() {
-            write!(f, "{}<{}>", self.trait_name, generics.join(", "))
+            write!(f, "{}<{}>", self.trait_path, generics.join(", "))
         } else {
-            write!(f, "{}", self.trait_name)
+            write!(f, "{}", self.trait_path)
         }
     }
 }

@@ -1,14 +1,9 @@
-use std::collections::HashSet;
-
 use fm::FileId;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
 use crate::{
     graph::CrateId,
-    hir::{
-        def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-        def_map::ScopeResolveError,
-    },
+    hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{FunctionModifiers, TraitId},
     parser::SubModule,
     token::Attributes,
@@ -66,7 +61,7 @@ pub fn collect_defs(
 
     collector.collect_globals(context, ast.globals, errors);
 
-    collector.collect_traits(ast.traits, crate_id, errors);
+    collector.collect_traits(context, ast.traits, crate_id, errors);
 
     collector.collect_structs(context, ast.types, crate_id, errors);
 
@@ -74,7 +69,7 @@ pub fn collect_defs(
 
     collector.collect_functions(context, ast.functions, crate_id, errors);
 
-    collector.collect_trait_impls(context, ast.trait_impls, crate_id, errors);
+    collector.collect_trait_impls(context, ast.trait_impls, crate_id);
 
     collector.collect_impls(context, ast.impls, crate_id);
 }
@@ -139,75 +134,52 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
-        errors: &mut Vec<FileDiagnostic>,
     ) {
-        let module_id = ModuleId { krate, local_id: self.module_id };
-
         for trait_impl in impls {
-            let trait_name = &trait_impl.trait_name;
-            let module = &self.def_collector.def_map.modules[self.module_id.0];
+            let trait_name = trait_impl.trait_name.clone();
 
-            if let Some(trait_id) = self.find_trait_or_emit_error(module, trait_name, errors) {
-                let collected_trait =
-                    self.def_collector.collected_traits.get(&trait_id).cloned().unwrap();
+            let unresolved_functions =
+                self.collect_trait_impl_function_overrides(context, &trait_impl, krate);
 
-                let unresolved_functions = self.collect_trait_implementations(
-                    context,
-                    &trait_impl,
-                    &collected_trait.trait_def,
-                    krate,
-                    errors,
-                );
+            for (_, func_id, noir_function) in &unresolved_functions.functions {
+                let name = noir_function.name().to_owned();
 
-                for (_, func_id, noir_function) in &unresolved_functions.functions {
-                    let function = &noir_function.def;
-                    context.def_interner.push_function(*func_id, function, module_id);
-                }
-
-                let unresolved_trait_impl = UnresolvedTraitImpl {
-                    file_id: self.file_id,
-                    module_id: self.module_id,
-                    the_trait: collected_trait,
-                    methods: unresolved_functions,
-                    trait_impl_ident: trait_impl.trait_name.clone(),
+                let modifiers = FunctionModifiers {
+                    name: name.clone(),
+                    visibility: crate::Visibility::Public,
+                    attributes: Attributes::empty(),
+                    is_unconstrained: false,
+                    contract_function_type: None,
+                    is_internal: None,
                 };
-
-                let key = (trait_impl.object_type, self.module_id, trait_id);
-                self.def_collector.collected_traits_impls.insert(key, unresolved_trait_impl);
+                context.def_interner.push_function_definition(
+                    name,
+                    *func_id,
+                    modifiers,
+                    ModuleId::dummy_id(),
+                );
             }
+
+            let unresolved_trait_impl = UnresolvedTraitImpl {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                trait_path: trait_name,
+                methods: unresolved_functions,
+                object_type: trait_impl.object_type,
+                object_type_span: trait_impl.object_type_span,
+                the_trait: None,                           // will be filled later
+                methods_using_default_impl_in_trait: None, // will be filled later
+            };
+
+            self.def_collector.collected_traits_impls.push(unresolved_trait_impl);
         }
     }
 
-    fn find_trait_or_emit_error(
-        &self,
-        module: &ModuleData,
-        trait_name: &Ident,
-        errors: &mut Vec<FileDiagnostic>,
-    ) -> Option<TraitId> {
-        match module.find_trait_with_name(trait_name) {
-            Ok(trait_id) => Some(trait_id),
-            Err(ScopeResolveError::WrongKind) => {
-                let error =
-                    DefCollectorErrorKind::NotATrait { not_a_trait_name: trait_name.clone() };
-                errors.push(error.into_file_diagnostic(self.file_id));
-                None
-            }
-            Err(ScopeResolveError::NotFound) => {
-                let error =
-                    DefCollectorErrorKind::TraitNotFound { trait_ident: trait_name.clone() };
-                errors.push(error.into_file_diagnostic(self.file_id));
-                None
-            }
-        }
-    }
-
-    fn collect_trait_implementations(
+    fn collect_trait_impl_function_overrides(
         &mut self,
         context: &mut Context,
         trait_impl: &NoirTraitImpl,
-        trait_def: &NoirTrait,
         krate: CrateId,
-        errors: &mut Vec<FileDiagnostic>,
     ) -> UnresolvedFunctions {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
@@ -219,91 +191,6 @@ impl<'a> ModCollector<'a> {
                 let func_id = context.def_interner.push_empty_fn();
                 context.def_interner.push_function(func_id, &impl_method.def, module);
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
-            }
-        }
-
-        // set of function ids that have a corresponding method in the trait
-        let mut func_ids_in_trait = HashSet::new();
-
-        for item in &trait_def.items {
-            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-            if let TraitItem::Function {
-                name,
-                generics,
-                parameters,
-                return_type,
-                where_clause,
-                body,
-            } = item
-            {
-                // List of functions in the impl block with the same name as the method
-                //  `matching_fns.len() == 0`  => missing method impl
-                //  `matching_fns.len() > 1`   => duplicate definition (collect_functions will throw a Duplicate error)
-                let matching_fns: Vec<_> = unresolved_functions
-                    .functions
-                    .iter()
-                    .filter(|(_, _, func_impl)| func_impl.name() == name.0.contents)
-                    .collect();
-
-                if matching_fns.is_empty() {
-                    match body {
-                        Some(body) => {
-                            // if there's a default implementation for the method, use it
-                            let method_name = name.0.contents.clone();
-                            let func_id = context.def_interner.push_empty_fn();
-                            let modifiers = FunctionModifiers {
-                                name: name.0.contents.clone(),
-                                // trait functions are always public
-                                visibility: crate::Visibility::Public,
-                                attributes: Attributes::empty(),
-                                is_unconstrained: false,
-                                contract_function_type: None,
-                                is_internal: None,
-                            };
-
-                            context.def_interner.push_function_definition(
-                                method_name,
-                                func_id,
-                                modifiers,
-                                module,
-                            );
-                            let impl_method = NoirFunction::normal(FunctionDefinition::normal(
-                                name,
-                                generics,
-                                parameters,
-                                body,
-                                where_clause,
-                                return_type,
-                            ));
-                            func_ids_in_trait.insert(func_id);
-                            unresolved_functions.push_fn(self.module_id, func_id, impl_method);
-                        }
-                        None => {
-                            let error = DefCollectorErrorKind::TraitMissingMethod {
-                                trait_name: trait_def.name.clone(),
-                                method_name: name.clone(),
-                                trait_impl_span: trait_impl.object_type_span,
-                            };
-                            errors.push(error.into_file_diagnostic(self.file_id));
-                        }
-                    }
-                } else {
-                    for (_, func_id, _) in &matching_fns {
-                        func_ids_in_trait.insert(*func_id);
-                    }
-                }
-            }
-        }
-
-        // Emit MethodNotInTrait error for methods in the impl block that
-        // don't have a corresponding method signature defined in the trait
-        for (_, func_id, func) in &unresolved_functions.functions {
-            if !func_ids_in_trait.contains(func_id) {
-                let error = DefCollectorErrorKind::MethodNotInTrait {
-                    trait_name: trait_def.name.clone(),
-                    impl_method: func.name_ident().clone(),
-                };
-                errors.push(error.into_file_diagnostic(self.file_id));
             }
         }
 
@@ -322,26 +209,13 @@ impl<'a> ModCollector<'a> {
 
         let module = ModuleId { krate, local_id: self.module_id };
 
-        for mut function in functions {
+        for function in functions {
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
             context.def_interner.push_function(func_id, &function.def, module);
-
-            // Then go over the where clause and assign trait_ids to the constraints
-            for constraint in &mut function.def.where_clause {
-                let module = &self.def_collector.def_map.modules[self.module_id.0];
-
-                if let Some(trait_id) = self.find_trait_or_emit_error(
-                    module,
-                    &constraint.trait_bound.trait_name,
-                    errors,
-                ) {
-                    constraint.trait_bound.trait_id = Some(trait_id);
-                }
-            }
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -451,6 +325,7 @@ impl<'a> ModCollector<'a> {
     /// Returns a vector of errors if any traits were already defined.
     fn collect_traits(
         &mut self,
+        context: &mut Context,
         traits: Vec<NoirTrait>,
         krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
@@ -477,11 +352,41 @@ impl<'a> ModCollector<'a> {
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
+            // Add all functions that have a default implementation in the trait
+            let mut unresolved_functions =
+                UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+            for trait_item in &trait_definition.items {
+                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
+                if let TraitItem::Function {
+                    name,
+                    generics,
+                    parameters,
+                    return_type,
+                    where_clause,
+                    body: Some(body),
+                } = trait_item
+                {
+                    let func_id = context.def_interner.push_empty_fn();
+
+                    let impl_method = NoirFunction::normal(FunctionDefinition::normal(
+                        name,
+                        generics,
+                        parameters,
+                        body,
+                        where_clause,
+                        return_type,
+                    ));
+                    unresolved_functions.push_fn(self.module_id, func_id, impl_method);
+                }
+            }
+
             // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
                 module_id: self.module_id,
+                crate_id: krate,
                 trait_def: trait_definition,
+                fns_with_default_impl: unresolved_functions,
             };
             self.def_collector.collected_traits.insert(id, unresolved);
         }

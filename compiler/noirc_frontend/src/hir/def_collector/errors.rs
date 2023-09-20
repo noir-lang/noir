@@ -1,5 +1,6 @@
 use crate::hir::resolution::import::PathResolutionError;
 use crate::Ident;
+use crate::Path;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
@@ -30,7 +31,7 @@ pub enum DefCollectorErrorKind {
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
     #[error("Non-struct type used in trait impl")]
-    NonStructTraitImpl { trait_ident: Ident, span: Span },
+    NonStructTraitImpl { trait_path: Path, span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
     #[error("Mismatch number of parameters in of trait implementation")]
@@ -44,11 +45,15 @@ pub enum DefCollectorErrorKind {
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Ident },
+    NotATrait { not_a_trait_name: Path },
     #[error("Trait not found")]
-    TraitNotFound { trait_ident: Ident },
+    TraitNotFound { trait_path: Path },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    #[error(
+        "Either the type or the trait must be from the same crate as the trait implementation"
+    )]
+    TraitImplOrphaned { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -107,9 +112,9 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => {
+            DefCollectorErrorKind::NonStructTraitImpl { trait_path, span } => {
                 Diagnostic::simple_error(
-                    format!("Only struct types may implement trait `{trait_ident}`"),
+                    format!("Only struct types may implement trait `{trait_path}`"),
                     "Only struct types may implement traits".into(),
                     span,
                 )
@@ -119,10 +124,10 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 format!("{type_name} was defined outside the current crate"),
                 span,
             ),
-            DefCollectorErrorKind::TraitNotFound { trait_ident } => Diagnostic::simple_error(
-                format!("Trait {trait_ident} not found"),
+            DefCollectorErrorKind::TraitNotFound { trait_path } => Diagnostic::simple_error(
+                format!("Trait {trait_path} not found"),
                 "".to_string(),
-                trait_ident.span(),
+                trait_path.span(),
             ),
             DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                 expected_num_parameters,
@@ -159,14 +164,18 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::NotATrait { not_a_trait_name } => {
-                let span = not_a_trait_name.0.span();
-                let name = &not_a_trait_name.0.contents;
+                let span = not_a_trait_name.span();
                 Diagnostic::simple_error(
-                    format!("{name} is not a trait, therefore it can't be implemented"),
+                    format!("{not_a_trait_name} is not a trait, therefore it can't be implemented"),
                     String::new(),
                     span,
                 )
             }
+            DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
+                "Orphaned trait implementation".into(),
+                "Either the type or the trait must be from the same crate as the trait implementation".into(),
+                span,
+            ),
         }
     }
 }

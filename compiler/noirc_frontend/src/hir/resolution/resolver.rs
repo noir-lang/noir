@@ -105,6 +105,11 @@ struct ResolverMeta {
     warn_if_unused: bool,
 }
 
+pub enum ResolvePathError {
+    WrongKind,
+    NotFound,
+}
+
 impl<'a> Resolver<'a> {
     pub fn new(
         interner: &'a mut NodeInterner,

@@ -1,6 +1,7 @@
 use crate::{
+    graph::CrateId,
     node_interner::{FuncId, TraitId},
-    Generics, Ident, Type, TypeVariable, TypeVariableId,
+    Generics, Ident, NoirFunction, Type, TypeVariable, TypeVariableId,
 };
 use noirc_errors::Span;
 
@@ -11,6 +12,9 @@ pub struct TraitFunction {
     pub arguments: Vec<Type>,
     pub return_type: Type,
     pub span: Span,
+    pub default_impl: Option<Box<NoirFunction>>,
+    pub default_impl_file_id: fm::FileId,
+    pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -35,6 +39,8 @@ pub struct Trait {
     /// A unique id representing this trait type. Used to check if two
     /// struct traits are equal.
     pub id: TraitId,
+
+    pub crate_id: CrateId,
 
     pub methods: Vec<TraitFunction>,
     pub constants: Vec<TraitConstant>,
@@ -82,6 +88,7 @@ impl Trait {
     pub fn new(
         id: TraitId,
         name: Ident,
+        crate_id: CrateId,
         span: Span,
         generics: Generics,
         self_type_typevar_id: TypeVariableId,
@@ -90,6 +97,7 @@ impl Trait {
         Trait {
             id,
             name,
+            crate_id,
             span,
             methods: Vec::new(),
             constants: Vec::new(),

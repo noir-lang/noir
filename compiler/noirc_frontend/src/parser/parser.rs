@@ -556,7 +556,7 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(generics())
-        .then(ident())
+        .then(path())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
@@ -631,8 +631,8 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
 }
 
 fn trait_bound() -> impl NoirParser<TraitBound> {
-    ident().then(generic_type_args(parse_type())).map(|(trait_name, trait_generics)| TraitBound {
-        trait_name,
+    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
+        trait_path,
         trait_generics,
         trait_id: None,
     })

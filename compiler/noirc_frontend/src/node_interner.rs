@@ -419,6 +419,7 @@ impl NodeInterner {
             Shared::new(Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
+                typ.crate_id,
                 typ.trait_def.span,
                 vecmap(&typ.trait_def.generics, |_| {
                     // Temporary type variable ids before the trait is resolved to its actual ids.
