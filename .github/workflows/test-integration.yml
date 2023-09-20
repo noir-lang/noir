@@ -139,13 +139,13 @@ jobs:
           result=$(forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/1_mul.sol:UltraVerifier)
           echo "$result"
           address=$(echo "$result" | grep "Deployed to:" | awk '{print $3}')
-          echo "1_MUL_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
+          echo "MUL_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
           # forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/double_verify_proof.sol:UltraVerifier
 
-      - name: Replace 1_MUL_CONTRACT_ADDRESS in the file
+      - name: Replace MUL_CONTRACT_ADDRESS in the file
         working-directory: compiler/integration-tests/test/integration/browser
         run: |
-          sed -i 's|address: "1_MUL_CONTRACT_ADDRESS"|address: "'"${1_MUL_CONTRACT_ADDRESS}"'"|g' compile_prove_verify.test.ts
+          sed -i 's|address: "MUL_CONTRACT_ADDRESS"|address: "'"$MUL_CONTRACT_ADDRESS"'"|g' compile_prove_verify.test.ts
 
       - name: Check injection
         working-directory: compiler/integration-tests/test/integration/browser
