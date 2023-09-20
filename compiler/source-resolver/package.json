@@ -22,7 +22,8 @@
     "build:web": "tsc -p tsconfig.esm.json",
     "build": "npm run clean-modules && npm run build:node && npm run build:web && npm run generate-types",
     "test": "ava",
-    "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types"
+    "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "devDependencies": {
     "@types/node": "^20.5.7",

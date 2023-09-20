@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use acvm_backend_barretenberg::backends_directory;
-pub(crate) use acvm_backend_barretenberg::Backend;
+use backend_interface::backends_directory;
+pub(crate) use backend_interface::Backend;
 
 fn active_backend_file_path() -> PathBuf {
     backends_directory().join(".selected_backend")

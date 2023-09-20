@@ -50,7 +50,8 @@ color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
 
 # Backends
-acvm-backend-barretenberg = { path = "../acvm_backend_barretenberg" }
+backend-interface = { path = "../backend_interface" }
+bb_abstraction_leaks.workspace = true
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
