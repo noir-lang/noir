@@ -14,9 +14,6 @@ import { decompressSync as gunzip } from "fflate";
 import * as TOML from "smol-toml";
 
 const mnemonic = "test test test test test test test test test test test junk";
-const contractAddress = process.env.CONTRACT_ADDRESS || "";
-
-console.log({ contractAddress });
 
 const provider = new ethers.JsonRpcProvider("http://localhost:8545");
 const walletPath = ethers.utils.defaultPath;
@@ -52,10 +49,12 @@ const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
+    address: "1_MUL_CONTRACT_ADDRESS"
   },
   {
     case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
     compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
+    address: "DOUBLE_VERIFY_CONTRACT_ADDRESS"
   },
 ];
 

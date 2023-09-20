@@ -25,67 +25,67 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - name: Checkout acvm sources
-        uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
-        with:
-          repository: noir-lang/acvm
-          path: acvm
+      # - name: Checkout acvm sources
+      #   uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
+      #   with:
+      #     repository: noir-lang/acvm
+      #     path: acvm
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-        with:
-          nix_path: nixpkgs=channel:nixos-23.05
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Setup Nix
+      #   uses: cachix/install-nix-action@v22
+      #   with:
+      #     nix_path: nixpkgs=channel:nixos-23.05
+      #     github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: cachix/cachix-action@v12
-        with:
-          name: barretenberg
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      # - uses: cachix/cachix-action@v12
+      #   with:
+      #     name: barretenberg
+      #     authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
-      - name: Restore nix store cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ runner.os }}-flake-wasm-${{ hashFiles('*.lock') }}
+      # - name: Restore nix store cache
+      #   uses: actions/cache/restore@v3
+      #   id: cache
+      #   with:
+      #     path: ${{ env.CACHED_PATH }}
+      #     key: ${{ runner.os }}-flake-wasm-${{ hashFiles('*.lock') }}
 
-      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
-      - name: Copy cache into nix store
-        if: steps.cache.outputs.cache-hit == 'true'
-        # We don't check the signature because we're the one that created the cache
-        run: |
-          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
-            path=$(head -n 1 "$narinfo" | awk '{print $2}')
-            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
-          done
+      # # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
+      # - name: Copy cache into nix store
+      #   if: steps.cache.outputs.cache-hit == 'true'
+      #   # We don't check the signature because we're the one that created the cache
+      #   run: |
+      #     for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
+      #       path=$(head -n 1 "$narinfo" | awk '{print $2}')
+      #       nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
+      #     done
 
-      - name: Build noir_wasm package
-        run: |
-          nix build -L .#noir_wasm
-          echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
-          cp -r ./result/noir_wasm/nodejs ./compiler/wasm
-          cp -r ./result/noir_wasm/web ./compiler/wasm
+      # - name: Build noir_wasm package
+      #   run: |
+      #     nix build -L .#noir_wasm
+      #     echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
+      #     cp -r ./result/noir_wasm/nodejs ./compiler/wasm
+      #     cp -r ./result/noir_wasm/web ./compiler/wasm
 
-      - name: Upload `noir_wasm` artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: noir_wasm
-          path: ${{ env.UPLOAD_PATH }}
-          retention-days: 3
+      # - name: Upload `noir_wasm` artifact
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: noir_wasm
+      #     path: ${{ env.UPLOAD_PATH }}
+      #     retention-days: 3
 
-      - name: Build noirc_abi_wasm package
-        run: |
-          nix build -L .#noirc_abi_wasm
-          echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
-          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
-          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
+      # - name: Build noirc_abi_wasm package
+      #   run: |
+      #     nix build -L .#noirc_abi_wasm
+      #     echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+      #     cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
+      #     cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
 
-      - name: Upload `noirc_abi_wasm` artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: noirc_abi_wasm
-          path: ${{ env.UPLOAD_PATH }}
-          retention-days: 3
+      # - name: Upload `noirc_abi_wasm` artifact
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: noirc_abi_wasm
+      #     path: ${{ env.UPLOAD_PATH }}
+      #     retention-days: 3
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -139,12 +139,17 @@ jobs:
           result=$(forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/1_mul.sol:UltraVerifier)
           echo "$result"
           address=$(echo "$result" | grep "Deployed to:" | awk '{print $3}')
-          echo "CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
+          echo "1_MUL_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
           # forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/double_verify_proof.sol:UltraVerifier
 
-      - name: Log Address
+      - name: Replace 1_MUL_CONTRACT_ADDRESS in the file
+        working-directory: compiler/integration-tests/test/integration/browser
         run: |
-          echo "Deployed contract address is $CONTRACT_ADDRESS"
+          sed -i 's|address: "1_MUL_CONTRACT_ADDRESS"|address: "'"$1_MUL_CONTRACT_ADDRESS"'"|g' compile_prove_verify.test.ts
+
+      - name: Check injection
+        working-directory: compiler/integration-tests/test/integration/browser
+        run: cat compile_prove_verify.test.ts
 
       - name: Setup `integration-tests`
         run: |
@@ -153,8 +158,6 @@ jobs:
 
       - name: Run `integration-tests`
         run: yarn test:integration
-        env:
-          CONTRACT_ADDRESS: ${{ env.CONTRACT_ADDRESS }}
 
       # - name: Alert on nightly test failure
       #   uses: JasonEtco/create-an-issue@v2
