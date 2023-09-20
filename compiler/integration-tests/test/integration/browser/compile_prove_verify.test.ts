@@ -5,6 +5,7 @@ import newCompiler, {
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
 import { decompressSync as gunzip } from "fflate";
+import { ethers } from "ethers";
 import newABICoder, { abiEncode } from "@noir-lang/noirc_abi";
 import initACVM, {
   executeCircuit,
@@ -16,9 +17,27 @@ import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 
 import * as TOML from "smol-toml";
 
+import compiled1Mul from "../../../../../foundry-project/out/1_mul.sol/UltraVerifier.json"
+
+const mnemonic = "test test test test test test test test test test test junk";
+const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+
+const provider = new ethers.JsonRpcProvider('http://localhost:8545');
+const walletPath = ethers.utils.defaultPath;
+const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic, walletPath);
+const wallet = walletMnemonic.connect(provider);
+
+// Assuming your contract ABI is named `contractAbi`
+const contractAbi = compiled1Mul.abi;
+
+// Create a contract instance
+const contract = new ethers.Contract(contractAddress, contractAbi, wallet);
+
+
 await newCompiler();
 await newABICoder();
 await initACVM();
+
 
 compilerLogLevel("DEBUG");
 
@@ -152,6 +171,32 @@ test_cases.forEach((testInfo) => {
         );
 
         expect(verified).to.be.true;
+
+        try {
+          const tx = await contract.verifyProof(proof); // replace `verifyProof` with the correct method name if it's different
+          console.log("Transaction hash:", tx.hash);
+
+          await tx.wait();
+
+          // Retrieve the result from the contract event/logs or however you're setup to get the verification result
+          // You might want to listen for a specific event emitted by your contract upon verification
+
+          const logs = await provider.getLogs({
+            fromBlock: tx.blockNumber,
+            toBlock: tx.blockNumber,
+            address: contractAddress
+          });
+
+          // Decode the logs using your contract's interface to get the verification result
+          const parsedLogs = logs.map(log => contract.interface.parseLog(log));
+          console.log(parsedLogs);
+
+          // Now you can extract data from parsedLogs or perform other tasks as required.
+
+        } catch (error) {
+          console.error("Error while submitting the proof:", error);
+        }
+
       } catch (e) {
         expect(e, "Proving and Verifying").to.not.be.an("error");
         throw e;

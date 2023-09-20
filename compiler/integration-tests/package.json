@@ -20,6 +20,7 @@
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-webdriver": "^0.7.0",
+    "ethers": "^6.7.1",
     "fflate": "^0.8.0",
     "smol-toml": "^1.1.2"
   }
