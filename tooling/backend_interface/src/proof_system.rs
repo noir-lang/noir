@@ -7,7 +7,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use tempfile::tempdir;
 
-use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand, WriteVkCommand};
+use crate::cli::{GatesCommand, InfoCommand, ProveCommand, VerifyCommand};
 use crate::{Backend, BackendError, BackendOpcodeSupport};
 
 impl Backend {
@@ -101,19 +101,8 @@ impl Backend {
         let serialized_circuit = serialize_circuit(circuit);
         write_to_file(&serialized_circuit, &bytecode_path);
 
-        // Create the verification key and write it to the specified path
-        let vk_path = temp_directory.join("vk");
-
-        WriteVkCommand {
-            crs_path: self.crs_directory(),
-            is_recursive,
-            bytecode_path,
-            vk_path_output: vk_path.clone(),
-        }
-        .run(binary_path)?;
-
         // Verify the proof
-        VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, vk_path }
+        VerifyCommand { crs_path: self.crs_directory(), is_recursive, proof_path, bytecode_path }
             .run(binary_path)
     }
 }
