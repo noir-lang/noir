@@ -47,8 +47,8 @@ jobs:
       - name: Build noirc_abi_wasm
         run: |
           nix build -L .#noirc_abi_wasm
-          cp -r ./result/nodejs ./tooling/noirc_abi_wasm
-          cp -r ./result/web ./tooling/noirc_abi_wasm
+          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
 
       - name: Export cache from nix store
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
@@ -63,7 +63,7 @@ jobs:
           key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -75,7 +75,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: [build]
-  
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
@@ -85,7 +85,7 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-    
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
@@ -94,7 +94,7 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
-          
+
       - name: Run browser tests
         run: yarn workspace @noir-lang/noirc_abi test:browser
 
