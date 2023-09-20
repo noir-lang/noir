@@ -16,14 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install dependencies
-        working-directory: ./compiler/source-resolver
-        run: npm install
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
-      - name: Build noir-source-resolver
-        working-directory: ./compiler/source-resolver
-        run: npm run build
+      - name: Build @noir-lang/source-resolver
+        run: yarn workspace @noir-lang/source-resolver build
 
       - name: Run tests
-        working-directory: ./compiler/source-resolver
-        run: npm run test
+        run: yarn workspace @noir-lang/source-resolver test

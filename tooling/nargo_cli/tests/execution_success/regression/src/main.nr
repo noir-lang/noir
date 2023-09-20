@@ -71,6 +71,26 @@ fn enc<N>(value: [u8; N], value_length: Field) -> ([u8; 32], Field)
 	}
 }
 
+fn bitshift_literal_0() -> u64 {
+    let mut bits: u64 = 0;
+    bits |= 1 << 0;
+
+    bits
+}
+fn bitshift_literal_4() -> u64 {
+    let mut bits: u64 = 0;
+    bits |= 1 << 4;
+
+    bits
+}
+fn bitshift_variable(idx: u64) -> u64 {
+    let mut bits: u64 = 0;
+    bits |= 1 << idx;
+
+    bits
+}
+
+
 fn main(x: [u8; 5], z: Field)
 {
     //Issue 1144
@@ -86,5 +106,15 @@ fn main(x: [u8; 5], z: Field)
 
     assert(enc_val1.0 == [0x94,0xb8,0x8f,0x61,0xe6,0xfb,0xda,0x83,0xfb,0xff,0xfa,0xbe,0x36,0x41,0x12,0x13,0x74,0x80,0x39,0x80,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]);
     assert(enc_val1.1 == 21);
+
+	// Issue 2399
+    let result_0 = bitshift_literal_0();
+    assert(result_0 == 1);
+    let result_4 = bitshift_literal_4();
+    assert(result_4 == 16);
+	    let result_0 = bitshift_variable(0);
+    assert(result_0 == 1);
+    let result_4 = bitshift_variable(4);
+    assert(result_4 == 16);
 
 }

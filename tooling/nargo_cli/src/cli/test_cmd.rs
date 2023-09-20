@@ -65,7 +65,7 @@ pub(crate) fn run(
     };
 
     #[allow(deprecated)]
-    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
     for package in &workspace {
         // By unwrapping here with `?`, we stop the test runner upon a package failing
         // TODO: We should run the whole suite even if there are failures in a package

@@ -556,14 +556,13 @@ impl Context {
         let predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
         let new_value = if let Some(store) = store_value {
-            let store_var = Some(self.convert_value(store, dfg).into_var()?);
+            let store_var = self.convert_value(store, dfg).into_var()?;
             if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-                store_var
+                Some(store_var)
             } else {
                 let dummy = self.array_get(instruction, array, predicate_index, dfg)?;
-                let true_pred = self
-                    .acir_context
-                    .mul_var(store_var.unwrap(), self.current_side_effects_enabled_var)?;
+                let true_pred =
+                    self.acir_context.mul_var(store_var, self.current_side_effects_enabled_var)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let not_pred =
                     self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
@@ -1060,10 +1059,7 @@ impl Context {
                 // Casting into a Field as a no-op
                 Ok(variable)
             }
-            NumericType::Unsigned { bit_size } => {
-                if incoming_type.is_signed() {
-                    todo!("Cast from unsigned to signed")
-                }
+            NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
                 let max_bit_size = incoming_type.bit_size();
                 if max_bit_size <= *bit_size {
                     // Incoming variable already fits into target bit size -  this is a no-op
@@ -1071,7 +1067,6 @@ impl Context {
                 }
                 self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
             }
-            NumericType::Signed { .. } => todo!("Cast into signed"),
         }
     }
 

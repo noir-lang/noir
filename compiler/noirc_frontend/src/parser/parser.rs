@@ -39,9 +39,9 @@ use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, To
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
-    NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
-    TraitBound, TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern,
+    Recoverable, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -487,7 +487,7 @@ fn validate_struct_attributes(
 
 fn validate_where_clause(
     generics: &Vec<Ident>,
-    where_clause: &Vec<TraitConstraint>,
+    where_clause: &Vec<UnresolvedTraitConstraint>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) {
@@ -568,7 +568,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 other_args;
 
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            TopLevelStatement::TraitImpl(TraitImpl {
+            TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
                 trait_generics,
@@ -593,7 +593,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
     function.or(alias).repeated()
 }
 
-fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
+fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
     struct MultiTraitConstraint {
         typ: UnresolvedType,
         trait_bounds: Vec<TraitBound>,
@@ -611,11 +611,13 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .or_not()
         .map(|option| option.unwrap_or_default())
         .map(|x: Vec<MultiTraitConstraint>| {
-            let mut result: Vec<TraitConstraint> = Vec::new();
+            let mut result: Vec<UnresolvedTraitConstraint> = Vec::new();
             for constraint in x {
                 for bound in constraint.trait_bounds {
-                    result
-                        .push(TraitConstraint { typ: constraint.typ.clone(), trait_bound: bound });
+                    result.push(UnresolvedTraitConstraint {
+                        typ: constraint.typ.clone(),
+                        trait_bound: bound,
+                    });
                 }
             }
             result
@@ -627,9 +629,11 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
 }
 
 fn trait_bound() -> impl NoirParser<TraitBound> {
-    ident()
-        .then(generic_type_args(parse_type()))
-        .map(|(trait_name, trait_generics)| TraitBound { trait_name, trait_generics })
+    ident().then(generic_type_args(parse_type())).map(|(trait_name, trait_generics)| TraitBound {
+        trait_name,
+        trait_generics,
+        trait_id: None,
+    })
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
@@ -1412,6 +1416,10 @@ where
         .then(expr_no_constructors.clone())
         .map(|(start, end)| ForRange::Range(start, end))
         .or(expr_no_constructors.map(ForRange::Array))
+        .validate(|expr, span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::ForLoopDefaultTypeChanging, span));
+            expr
+        })
 }
 
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -1642,23 +1650,6 @@ mod test {
         })
     }
 
-    fn parse_all_warnings<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
-    where
-        P: NoirParser<T>,
-        T: std::fmt::Display,
-    {
-        programs
-            .into_iter()
-            .flat_map(|program| {
-                let (_expr, diagnostics) = parse_recover(&parser, program);
-                diagnostics.iter().for_each(|diagnostic| if diagnostic.is_error() {
-                    unreachable!("Expected this input to pass with warning:\n{program}\nYet it failed with error:\n{diagnostic}")
-                });
-                diagnostics
-            })
-            .collect()
-    }
-
     fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
     where
         P: NoirParser<T>,
@@ -1875,7 +1866,7 @@ mod test {
         // The first (inner) `==` is a predicate which returns 0/1
         // The outer layer is an infix `==` which is
         // associated with the Constrain statement
-        let errors = parse_all_warnings(
+        let errors = parse_all_failing(
             constrain(expression()),
             vec![
                 "constrain ((x + y) == k) + z == y",
@@ -1888,7 +1879,7 @@ mod test {
         assert_eq!(errors.len(), 5);
         assert!(errors
             .iter()
-            .all(|err| { err.is_warning() && err.to_string().contains("deprecated") }));
+            .all(|err| { err.is_error() && err.to_string().contains("deprecated") }));
     }
 
     /// This is the standard way to declare an assert statement

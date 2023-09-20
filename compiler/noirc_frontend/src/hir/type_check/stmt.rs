@@ -297,6 +297,10 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Prefix(_) => self
                 .errors
                 .push(TypeCheckError::InvalidUnaryOp { kind: annotated_type.to_string(), span }),
+            HirExpression::Infix(expr) => {
+                self.lint_overflowing_uint(&expr.lhs, annotated_type);
+                self.lint_overflowing_uint(&expr.rhs, annotated_type);
+            }
             _ => {}
         }
     }

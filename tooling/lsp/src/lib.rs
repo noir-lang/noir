@@ -215,7 +215,7 @@ fn on_test_run_request(
             match test_functions.into_iter().next() {
                 Some((_, test_function)) => {
                     #[allow(deprecated)]
-                    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+                    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
                     let test_result = run_test(
                         &blackbox_solver,
                         &context,

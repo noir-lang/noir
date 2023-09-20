@@ -161,7 +161,7 @@ impl DataFlowGraph {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self, block) {
+        match instruction.simplify(self, block, ctrl_typevars.clone()) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 SimplifiedToMultiple(simplification)

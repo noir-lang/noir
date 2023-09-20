@@ -1,5 +1,5 @@
 use acvm::Language;
-use acvm_backend_barretenberg::BackendError;
+use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::package::Package;
@@ -55,10 +55,15 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (compiled_programs, compiled_contracts) =
-        compile_workspace(backend, &binary_packages, &contract_packages, &args.compile_options)?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (compiled_programs, compiled_contracts) = compile_workspace(
+        &binary_packages,
+        &contract_packages,
+        np_language,
+        &opcode_support,
+        &args.compile_options,
+    )?;
 
-    let (np_language, _) = backend.get_backend_info()?;
     let program_info = binary_packages
         .into_par_iter()
         .zip(compiled_programs)

@@ -54,10 +54,12 @@ pub(crate) fn run(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let target_dir = &workspace.target_directory_path();
 
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
         let compiled_program =
-            compile_bin_package(package, &args.compile_options, np_language, &is_opcode_supported)?;
+            compile_bin_package(package, &args.compile_options, np_language, &|opcode| {
+                opcode_support.is_opcode_supported(opcode)
+            })?;
 
         let (return_value, solved_witness) =
             execute_program_and_decode(compiled_program, package, &args.prover_name)?;
@@ -190,7 +192,7 @@ pub(crate) fn execute_program(
     debug_data: Option<DebugArtifact>,
 ) -> Result<WitnessMap, CliError> {
     #[allow(deprecated)]
-    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
 
     let initial_witness = abi.encode(inputs_map, None)?;
 
