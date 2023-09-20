@@ -9,12 +9,12 @@ import Image from "@theme/IdealImage";
 # The Function Context
 
 ## What is the context
-The context is an object that is made available within every function in `Aztec.nr`. As mentioned in the [kernel circuit documentation](../../concepts/advanced/circuits/kernels/private_kernel.md). At the beginning of a function's execution, the context contains all of the kernel information that application needs to execute. During the lifecycle of a transaction, the function will update the context with each of it's side effects (created notes, nullifiers etc.). At the end of a function's execution the mutated context is returned to the kernel to be checked for validity. 
+The context is an object that is made available within every function in `Aztec.nr`. As mentioned in the [kernel circuit documentation](../../../concepts/advanced/circuits/kernels/private_kernel.md). At the beginning of a function's execution, the context contains all of the kernel information that application needs to execute. During the lifecycle of a transaction, the function will update the context with each of it's side effects (created notes, nullifiers etc.). At the end of a function's execution the mutated context is returned to the kernel to be checked for validity. 
 
 Behind the scenes, Aztec noir will pass data the kernel needs to and from a circuit, this is abstracted away from the developer. In an developer's eyes; the context is a useful structure that allows access and mutate the state of the `Aztec` blockchain.
 
 ## Two context's one API
-The `Aztec` blockchain contains two environments [public and private](../../concepts/foundation/state_model.md). 
+The `Aztec` blockchain contains two environments [public and private](../../../concepts/foundation/state_model.md). 
 - Private, for private transactions taking place on user's devices.
 - Public, for public transactions taking place on the network's sequencers.
 
@@ -52,7 +52,7 @@ The call context contains information about the current call being made:
     - This value is the address of the current context's contract address. This value will be the value of the current contract that is being executed except for when the current call is a delegate call (Warning: This is yet to be implemented). In this case the value will be that of the sending contract. 
 
 3. Portal Contract Address 
-    - This value stores the current contract's linked [portal contract](./portals/main.md) address. As a quick recap, this value is the value of the contracts related ethereum l1 contract address, and will be the recipient of any messages that are created by this contract.
+    - This value stores the current contract's linked [portal contract](../portals/main.md) address. As a quick recap, this value is the value of the contracts related ethereum l1 contract address, and will be the recipient of any messages that are created by this contract.
 4. Flags
     - Furthermore there are a series of flags that are stored within the application context:
         - is_delegate_call: Denotes whether the current call is a delegate call. If true, then the storage contract address will be the address of the sender.
@@ -80,7 +80,7 @@ To allow for flexibility in the number of arguments supported by Aztec functions
 The `args_hash` is the result of pedersen hashing all of a function's inputs.
 
 ### Return Values
-The return values are a set of values that are returned from an applications execution to be passed to other functions through the kernel. Developers do not need to worry about passing their function return values to the `context` directly as `Aztec.nr` takes care of it for you. See the documentation surrounding `Aztec.nr` [macro expansion](./syntax/functions.md#after-expansion) for more details.
+The return values are a set of values that are returned from an applications execution to be passed to other functions through the kernel. Developers do not need to worry about passing their function return values to the `context` directly as `Aztec.nr` takes care of it for you. See the documentation surrounding `Aztec.nr` [macro expansion](./functions.md#after-expansion) for more details.
 
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
 
@@ -105,7 +105,7 @@ The kernel circuit will orchestrate dispatching the calls and returning the valu
 The public call stack contains all of the external function calls that are created within the current context. Like the private call stack above, the calls are hashed and pushed to this stack. Unlike the private call stack, these calls are not executed client side. Whenever the function is sent to the network, it will have the public call stack attached to it. At this point the sequencer will take over and execute the transactions.
 
 ### New L2 to L1 msgs
-New L2 to L1 messages contains messages that are delivered to the [l1 outbox](../../concepts/foundation/communication/cross_chain_calls.md) on the execution of each rollup.
+New L2 to L1 messages contains messages that are delivered to the [l1 outbox](../../../concepts/foundation/communication/cross_chain_calls.md) on the execution of each rollup.
 
 ## Public Context
 The Public Context includes all of the information passed from the `Public VM` into the execution environment. It is very similar to the [Private Context](#the-private-context), however it has some minor differences (detailed below).

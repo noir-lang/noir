@@ -20,6 +20,7 @@ impl Token {
     );
   }
 
+  // docs:start:public_burn_interface
   fn burn_public(self: Self, context: PublicContext, from: Field, amount: Field, nonce: Field) {
     let _return_values = context.call_public_function(
       self.address,
@@ -27,6 +28,7 @@ impl Token {
       [from, amount, nonce]
     );
   }
+  // docs:end:public_burn_interface
 
   fn mint_private(self: Self, context: PublicContext, amount: Field, secret_hash: Field) {
     let _return_values = context.call_public_function(
@@ -36,6 +38,8 @@ impl Token {
     );
   }
 
+
+  // docs:start:private_burn_interface
   fn burn(self: Self, context: &mut PrivateContext, from: Field, amount: Field, nonce: Field) {
     let _return_values = context.call_private_function(
       self.address,
@@ -43,4 +47,5 @@ impl Token {
       [from, amount, nonce]
     );
   }
+  // docs:end:private_burn_interface
 }
