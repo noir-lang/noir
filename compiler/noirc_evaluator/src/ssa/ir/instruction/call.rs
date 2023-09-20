@@ -27,6 +27,7 @@ pub(super) fn simplify_call(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
+    ctrl_typevars: Option<Vec<Type>>,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
@@ -223,6 +224,17 @@ pub(super) fn simplify_call(
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
+        Intrinsic::AsField => {
+            let instruction = Instruction::Cast(
+                arguments[0],
+                Type::Numeric(crate::ssa::ir::types::NumericType::NativeField),
+            );
+            SimplifyResult::SimplifiedToInstruction(instruction)
+        }
+        Intrinsic::FromField => {
+            let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
+            SimplifyResult::SimplifiedToInstruction(instruction)
+        }
     }
 }
 
