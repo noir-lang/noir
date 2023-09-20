@@ -79,6 +79,15 @@ impl HirPattern {
             other => panic!("Tried to iterate over the fields of '{other:?}', which has none"),
         }
     }
+
+    pub fn span(&self) -> Span {
+        match self {
+            HirPattern::Identifier(ident) => ident.location.span,
+            HirPattern::Mutable(_, span)
+            | HirPattern::Tuple(_, span)
+            | HirPattern::Struct(_, _, span) => *span,
+        }
+    }
 }
 
 /// Represents an Ast form that can be assigned to. These
