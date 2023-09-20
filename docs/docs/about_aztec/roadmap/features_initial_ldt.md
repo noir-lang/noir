@@ -85,7 +85,3 @@ A bundle of packages which emulate the actions of all eventual Aztec network par
 - World state DB
   - Reconstructs the Aztec Network's various trees.
   - Allows tree state to be queried.
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

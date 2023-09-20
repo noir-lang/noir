@@ -37,3 +37,7 @@ This is achieved with two main features:
 - Custom nullifiers
 - Emission of custom note data to L1
 - Decrypting and storing encrypted note data
+
+## Further reading
+
+Read more about how to leverage the Aztec state model in Aztec contracts [here](../../dev_docs/contracts/syntax/state_variables.md).

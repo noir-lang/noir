@@ -322,7 +322,3 @@ In addition, we can perform checks on each opcode to validate conditions on sele
 No doubt many, but first one on my mind is:
 
 Q: Do we want to support JUMP/JUMPI instructions for public ACIR functions? Would be _very_ nice to have but creates discontinuity between public/private functions.
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

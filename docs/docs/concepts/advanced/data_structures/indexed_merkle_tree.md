@@ -3,7 +3,7 @@ title: Indexed Merkle Tree
 ---
 
 import Image from "@theme/IdealImage";
-import Disclaimer from "../../../misc/common/_disclaimer.mdx";
+import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 
 <Disclaimer />
 
@@ -51,39 +51,46 @@ _For the remainder of this article I will refer to the node that provides the no
 
 The insertion protocol is described below:
 
-1. Look for a nullifier's corresponding low_nullifier where: 
-$$  
-low\_nullifier_{\textsf{next\_value}} > v
-$$
-> if $new\_nullifier$ is the largest use the leaf:
-$$
-low\_nullifier_{\textsf{next\_value}} == 0
-$$
+1. Look for a nullifier's corresponding low_nullifier where:
+
+   $$
+   low\_nullifier_{\textsf{next\_value}} > v
+   $$
+
+   > if $new\_nullifier$ is the largest use the leaf:
+
+   $$
+   low\_nullifier_{\textsf{next\_value}} == 0
+   $$
 
 2. Perform membership check of the low nullifier.
-3. Perform a range check on the low nullifier's value and next_value fields:   
+3. Perform a range check on the low nullifier's value and next_value fields:
 
 $$
 new\_nullifier > low\_nullifier_{\textsf{value}} \: \&\&  \: ( new\_nullifier < low\_nullifier_{\textsf{next\_value}} \: \| \:  low\_nullifier_{\textsf{next\_value}} == 0 )
 $$
 
-4. Update the low nullifier pointers  
-$$
-low\_nullifier_{\textsf{next\_index}} = new\_insertion\_index
-$$
-$$
-low\_nullifier_{\textsf{next\_value}} = new\_nullifier
-$$
+4. Update the low nullifier pointers
 
-5. Perform insertion of new updated low nullifier (yields new root)  
+   $$
+   low\_nullifier_{\textsf{next\_index}} = new\_insertion\_index
+   $$
+
+   $$
+   low\_nullifier_{\textsf{next\_value}} = new\_nullifier
+   $$
+
+5. Perform insertion of new updated low nullifier (yields new root)
 6. Update pointers on new leaf. Note: low_nullifier is from before update in step 4
 
 $$
 new\_nullifier\_leaf_{\textsf{value}} = new\_nullifier
 $$
+
 $$
 new\_nullifier\_leaf_{\textsf{next\_value}} = low\_nullifier_{\textsf{next\_value}}
 $$
+
 $$
 new\_nullifier\_leaf_{\textsf{next\_index}} = low\_nullifier_{\textsf{next\_index}}
 $$
@@ -112,7 +119,7 @@ A visual aid for insertion is presented below:
 
 3. Add a new value $v=10$
 
-<Image img={require("/img/indexed-merkle-tree/index-merkle-tree-3.png")} />  
+<Image img={require("/img/indexed-merkle-tree/index-merkle-tree-3.png")} />
 
 4. Add a new value $v=20$
 
@@ -157,6 +164,7 @@ First we will go over batch insertions in an append only merkle tree.
 In the following example we insert a subtree of size 4 into our tree at step 4. above. Our subtree is greyed out as it is "pending".
 
 **Legend**:
+
 - Green: New Inserted Value
 - Orange: Low Nullifier
 
@@ -358,7 +366,3 @@ Despite offering large performance improvements within the circuits, these come 
 #### Closing Notes
 
 We have been working with these new trees in order to reduce the proving time for our rollups in Aztec, however we think EVERY protocol leveraging nullifier trees should know about these trees as their performance benefit is considerable.
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

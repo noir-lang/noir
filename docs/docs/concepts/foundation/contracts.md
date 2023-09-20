@@ -34,3 +34,7 @@ The only information leaked about the transaction is:
 2. The set of public calls generated
 
 The addresses of all private calls are hidden from observers.
+
+## Further reading
+
+Read more about writing Aztec contracts [here](../../dev_docs/contracts/main.md).

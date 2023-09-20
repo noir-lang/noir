@@ -59,7 +59,73 @@
     to = "/dev_docs/cli"
 
 [[redirects]]
-    from = "/aztec/overview"
+    from = "/aztec/cryptography/cryptography-roadmap"
+    to = "/about_aztec/roadmap/cryptography_roadmap"
+
+[[redirects]]
+    from = "/aztec/milestones"
+    to = "/about_aztec/roadmap/engineering_roadmap"
+
+[[redirects]]
+    from = "/aztec/milestones/features-initial-ldt"
+    to = "/about_aztec/roadmap/features_initial_ldt"
+
+[[redirects]]
+    from = "/aztec/protocol/trees"
+    to = "/concepts/advanced/data_structures/trees"
+
+[[redirects]]
+    from = "/aztec/protocol/trees/indexed-merkle-tree"
+    to = "/concepts/advanced/data_structures/indexed_merkle_tree"
+
+[[redirects]]
+    from = "/aztec/protocol/circuits/private-kernel"
+    to = "/concepts/advanced/circuits/kernels/private_kernel"
+
+[[redirects]]
+    from = "/aztec/protocol/circuits/public-kernel"
+    to = "/concepts/advanced/circuits/kernels/public_kernel"
+
+[[redirects]]
+    from = "/aztec/protocol/circuits/rollup"
+    to = "/concepts/advanced/circuits/rollup_circuits/main"
+
+[[redirects]]
+    from = "/aztec/protocol/public-functions-vm-architectures"
+    to = "/concepts/advanced/public_vm"
+
+[[redirects]]
+    from = "/aztec/how-it-works/private-smart-contracts"
+    to = "/concepts/foundation/contracts"
+
+[[redirects]]
+    from = "/aztec/how-it-works/private-state"
+    to = "/concepts/foundation/state_model"
+
+[[redirects]]
+    from = "/aztec/how-it-works/private-public-execution"
+    to = "/concepts/foundation/communication/public_private_calls"
+
+[[redirects]]
+    from = "/aztec/how-it-works/l1-l2-messaging"
+    to = "/concepts/foundation/communication/cross_chain_calls"
+
+[[redirects]]
+    from = "/aztec/protocol/contract-creation"
+    to = "/concepts/advanced/contract_creation"
+
+[[redirects]]
+    from = "/noir"
     to = "/"
 
-    
+[[redirects]]
+    from = "/aztec-connect-sunset"
+    to = "/misc/aztec-connect-sunset"
+
+[[redirects]]
+    from = "/glossary"
+    to = "/misc/glossary"
+
+[[redirects]]
+    from = "/aztec/*"
+    to = "/"

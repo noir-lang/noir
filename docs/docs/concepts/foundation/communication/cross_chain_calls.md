@@ -4,11 +4,12 @@ title: L1 <--> L2 communication
 
 import Image from "@theme/IdealImage";
 
-import Disclaimer from "../../../misc/common/_disclaimer.mdx";
+import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 
 <Disclaimer />
 
 In the following section, we will look at cross-chain communication, mixing L1 and L2 for composability and profits.
+
 # Objective
 
 The goal is to set up a minimal-complexity mechanism, that will allow a base-layer (L1) and the Aztec Network (L2) to communicate arbitrary messages such that:
@@ -126,10 +127,10 @@ struct L2ToL1Msg {
 	bytes32: content,
 }
 ```
-:::info
-The `bytes32` elements for `content` and `secretHash` hold values that must fit in a field element (~ 254 bits). 
-:::
 
+:::info
+The `bytes32` elements for `content` and `secretHash` hold values that must fit in a field element (~ 254 bits).
+:::
 
 :::info
 The nullifier computation should include the index of the message in the message tree to ensure that it is possible to send duplicate messages (e.g., 2 x deposit of 500 dai to the same account).
@@ -143,19 +144,19 @@ The following diagram shows the overall architecture, combining the earlier sect
 
 <Image img={require("/img/com-abs-7.png")} />
 
-
-
 ## Linking L1 and L2 contracts
-As mentioned earlier, there will be a link between L1 and L2 contracts (with the L1 part of the link being the portal contract), this link is created at "birth" when the contract leaf is inserted. However, the specific requirements of the link is not yet fully decided. And we will outline a few options below. 
 
-The reasoning behind having a link, comes from the difficulty of L2 access control (see "A note on L2 access control"). By having a link that only allows 1 contract (specified at deployment) to send messages to the L2 contract makes this issue "go away" from the application developers point of view as the message could only come from the specified contract. The complexity is moved to the protocol layer, that must now ensure that messages to the L2 contract are only sent from the specified L1 contract. 
+As mentioned earlier, there will be a link between L1 and L2 contracts (with the L1 part of the link being the portal contract), this link is created at "birth" when the contract leaf is inserted. However, the specific requirements of the link is not yet fully decided. And we will outline a few options below.
+
+The reasoning behind having a link, comes from the difficulty of L2 access control (see "A note on L2 access control"). By having a link that only allows 1 contract (specified at deployment) to send messages to the L2 contract makes this issue "go away" from the application developers point of view as the message could only come from the specified contract. The complexity is moved to the protocol layer, that must now ensure that messages to the L2 contract are only sent from the specified L1 contract.
 
 :::info
 The design space for linking L1 and L2 contracts is still open, and we are looking into making access control more efficient to use in the models.
 :::
 
 ### One L2 contract linking to one L1
-One option is to have a 1:1 link between L1 and L2 contracts. This would mean that the L2 contract would only be able to receive messages from the specified L1 contract but also that the L1 should only be able to send messages to the specified L2 contract. This model is very restrictive, but makes access control easy to handle (but with no freedom). 
+
+One option is to have a 1:1 link between L1 and L2 contracts. This would mean that the L2 contract would only be able to receive messages from the specified L1 contract but also that the L1 should only be able to send messages to the specified L2 contract. This model is very restrictive, but makes access control easy to handle (but with no freedom).
 
 It is possible to model many-to-many relationships through implementing "relays" and listing those. However, L2 contracts that want to use the relay would have to either use dynamic access control to ensure that messages are coming from the relayer and that they where indeed relayed from the correct L1 contract. Essentially back in a similar case to no links.
 
@@ -165,21 +166,16 @@ To enforce the restriction, the circuit must ensure that neither of the contract
 
 From the L2 contract receiving messages, this model is very similar to the 1:1, only one L1 contract could be the sender of messages so no extra work needed there. On the L1 side of things, as many L2 could be sending messages to the L1 contract, we need to be able to verify that the message is coming from the correct L2 contract. However, this can be done using easy access control in the form of storage variables on the L1 contract, moving the design-space back to something that closely resembles multi-contract systems on L1.
 
-When the L1 contract can itself handle where messages are coming from (it could before as well but useless as only 1 address could send), we don't need to worry about it being in only a single pair. The circuits can therefore simply insert the contract leafs without requiring it to ensure that neither have been used before. 
+When the L1 contract can itself handle where messages are coming from (it could before as well but useless as only 1 address could send), we don't need to worry about it being in only a single pair. The circuits can therefore simply insert the contract leafs without requiring it to ensure that neither have been used before.
 
 With many L2's reading from the same L1, we can also more easily setup generic bridges (with many assets) living in a single L1 contract but minting multiple L2 assets, as the L1 contract can handle the access control and the L2's simply point to it as the portal. This reduces complexity of the L2 contracts as all access control is handled by the L1 contract.
 
-
-
 ## Open Questions
-- Can we handle L2 access control without public function calls? 
-  - Essentially, can we have "private shared state" that is updated very sparingly but where we accept the race-conditions as they are desired in specific instances. 
+
+- Can we handle L2 access control without public function calls?
+  - Essentially, can we have "private shared state" that is updated very sparingly but where we accept the race-conditions as they are desired in specific instances.
 - What is the best way to handle "linking", with efficient access control, could use this directly.
-- What is the best way to handle messages in a multi-rollup system? E.g., rollup upgrade is rejected by some part of users that use the old rollup. 
+- What is the best way to handle messages in a multi-rollup system? E.g., rollup upgrade is rejected by some part of users that use the old rollup.
   - What happens to pending messages (sent on old system then upgrade)?
   - Should both versions push messages into same message boxes?
-  - How should users or developers signal what versions their contracts respects as the "current" version? 
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
+  - How should users or developers signal what versions their contracts respects as the "current" version?

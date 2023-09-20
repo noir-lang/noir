@@ -1,9 +1,10 @@
 ---
 title: Glossary
 ---
+
 ### Smart Contracts
 
-Programs that run on the Aztec network are called smart contracts, similar to [programs](https://ethereum.org/en/developers/docs/smart-contracts/) that run on Ethereum. 
+Programs that run on the Aztec network are called smart contracts, similar to [programs](https://ethereum.org/en/developers/docs/smart-contracts/) that run on Ethereum.
 
 However, these will be written in the [Noir](https://noir-lang.org/index.html) programming language, and may optionally include [private state and private functions](https://docs.aztec.network/aztec/how-it-works/private-smart-contracts).
 
@@ -11,13 +12,13 @@ However, these will be written in the [Noir](https://noir-lang.org/index.html) p
 
 Aztec's cryptography back-end. Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
 
-Barretenberg's source code can be found [here](https://github.com/AztecProtocol/barretenberg). 
+Barretenberg's source code can be found [here](https://github.com/AztecProtocol/barretenberg).
 
 ### Sequencer
 
 Aztec will be launched with a fully permissionless sequencer network that anyone can participate in.
 
-How this works is being discussed actively in the [Discourse forum](https://discourse.aztec.network/t/request-for-proposals-decentralized-sequencer-selection/350/). Once this discussion process is completed, we will update the glossary and documentation with specifications and instructions for how to run. 
+How this works is being discussed actively in the [Discourse forum](https://discourse.aztec.network/t/request-for-proposals-decentralized-sequencer-selection/350/). Once this discussion process is completed, we will update the glossary and documentation with specifications and instructions for how to run.
 
 Sequencers are generally responsible for:
 
@@ -34,6 +35,7 @@ Sequencers are generally responsible for:
 Previously in [Aztec Connect](https://medium.com/aztec-protocol/sunsetting-aztec-connect-a786edce5cae) there was a single sequencer, and you can find the Typescript reference implementation called Falafel [here](https://github.com/AztecProtocol/aztec-connect/tree/master/falafel).
 
 ### Provers
+
 Aztec will be launched with a fully permissionless proving network that anyone can participate in.
 
-How this works will be discussed via a future RFP process on Discourse, similarly to the Sequencer RFP. 
+How this works will be discussed via a future RFP process on Discourse, similarly to the Sequencer RFP.

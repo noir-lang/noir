@@ -65,3 +65,7 @@ Aztec is a hybrid private/public rollup.
 Aztec is a network.
 
 Still confused? Explore these docs!
+
+## Participate
+
+We are building the Aztec network in public. Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network) and check out our code on [Github](https://github.com/AztecProtocol).

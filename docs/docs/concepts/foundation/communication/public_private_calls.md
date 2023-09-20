@@ -71,15 +71,13 @@ Theoretically the builder has all the state trees after the public function has 
 
 From the above, we should have a decent idea about what private and public functions can do inside the L2, and how they might interact.
 
-
-
 ## A note on L2 access control
 
 Many applications rely on some form of access control to function well. USDC have a blacklist, where only parties not on the list should be able to transfer. And other systems such as Aave have limits such that only the pool contract is able to mint debt tokens and transfers held funds.
 
 Access control like this cannot easily be enforced in the private domain, as reading is also nullifying(to ensure data is up to date). However, as it is possible to read historic public state, one can combine private and public functions to get the desired effect.
 
-Say the public state holds a `mapping(address user => bool blacklisted)` and a value with the block number of the last update `last_updated`. The private functions can then use this public blacklist IF it also performs a public function call that reverts if the block number of the historic state is older than the `last_updated`. This means that updating the blacklist would make pending transactions fail, but allow a public blacklist to be used. Similar would work for the Aave example, where it is just a public value with the allowed caller contracts. Example of how this would be written is seen below. Note that because the `onlyFresh` is done in public, the user might not know when he is generating his proof whether it will be valid or not. 
+Say the public state holds a `mapping(address user => bool blacklisted)` and a value with the block number of the last update `last_updated`. The private functions can then use this public blacklist IF it also performs a public function call that reverts if the block number of the historic state is older than the `last_updated`. This means that updating the blacklist would make pending transactions fail, but allow a public blacklist to be used. Similar would work for the Aave example, where it is just a public value with the allowed caller contracts. Example of how this would be written is seen below. Note that because the `onlyFresh` is done in public, the user might not know when he is generating his proof whether it will be valid or not.
 
 ```solidity
 function transfer(
@@ -100,8 +98,3 @@ function onlyFresh(pub uint256 blockNumber) public {
 :::info
 This is not a perfect solution, as any functions using access control might end up doing a lot of public calls it could put a significant burden on sequencers and greatly increase the cost of the transaction for the user. We are investigating ways to improve.
 :::
-
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

@@ -325,6 +325,6 @@ As an extension of this example, the deployer might wish bake-into the private c
 
 Adds initial public state variables to the public data tree.
 
-## Participate
+## Further reading
 
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
+To see how to deploy a contract in practice, check out the [dapp development tutorial](../../dev_docs/dapps/tutorials/main.md).

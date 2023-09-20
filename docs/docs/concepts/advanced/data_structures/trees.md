@@ -139,7 +139,3 @@ The contract tree contains information about every function of every contract de
 ## Trees of valid Kernel/Rollup circuit VKs
 
 Eventually, we'll have trees of VKs for various permutations of kernel/rollup circuits. Such permutations might be the number of public inputs, or the logic contained within the circuits.
-
-## Participate
-
-Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
