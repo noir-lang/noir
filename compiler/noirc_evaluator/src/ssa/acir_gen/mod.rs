@@ -582,7 +582,7 @@ impl Context {
         }
 
         let (new_index, new_value) =
-            self.convert_array_operation_inputs(dfg, index, store_value)?;
+            self.convert_array_operation_inputs(array, dfg, index, store_value)?;
 
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
@@ -679,17 +679,17 @@ impl Context {
     /// - index_var is the index of the array
     /// - predicate_index is 0, or the index if the predicate is true
     /// - new_value is the optional value when the operation is an array_set
-    ///      When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is zero.
-    ///      It is a dummy value because in the case of a false predicate, the value stored at the requested index is zeroed out
-    ///      and will never be used elsewhere in the program.
+    ///      When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    ///      It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     fn convert_array_operation_inputs(
         &mut self,
+        array: ValueId,
         dfg: &DataFlowGraph,
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let predicate_index =
+        let mut predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
 
         let new_value = if let Some(store) = store_value {
@@ -697,10 +697,20 @@ impl Context {
             if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                 Some(store_value)
             } else {
-                // We use zero as the dummy value. As the dummy value will never be accessed
-                // it is ok to zero out the value at the requested index
-                let zero = self.acir_context.add_constant(FieldElement::zero());
-                Some(self.convert_array_set_store_value(&store_value, zero)?)
+                let (_, _, block_id) = self.check_array_is_initialized(array, dfg)?;
+
+                let store_type = dfg.type_of_value(store);
+
+                // We must setup the dummy value to match the type of the value we wish to store
+                let mut is_first_elem = true;
+                let dummy = self.array_get_value(
+                    &store_type,
+                    block_id,
+                    &mut predicate_index,
+                    &mut is_first_elem,
+                )?;
+
+                Some(self.convert_array_set_store_value(&store_value, &dummy)?)
             }
         } else {
             None
@@ -719,31 +729,39 @@ impl Context {
     fn convert_array_set_store_value(
         &mut self,
         store_value: &AcirValue,
-        dummy: AcirVar,
+        dummy_value: &AcirValue,
     ) -> Result<AcirValue, RuntimeError> {
-        match store_value {
-            AcirValue::Var(store_var, _) => {
+        match (store_value, dummy_value) {
+            (AcirValue::Var(store_var, _), AcirValue::Var(dummy_var, _)) => {
                 let true_pred =
                     self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let not_pred =
                     self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-                let false_pred = self.acir_context.mul_var(not_pred, dummy)?;
+                let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
                 Ok(AcirValue::Var(new_value, AcirType::field()))
             }
-            AcirValue::Array(values) => {
+            (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
                 let mut elements = im::Vector::new();
 
-                for val in values {
-                    elements.push_back(self.convert_array_set_store_value(val, dummy)?);
+                assert_eq!(
+                    values.len(),
+                    dummy_values.len(),
+                    "ICE: The store value and dummy must have the same number of inner values"
+                );
+                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                    elements.push_back(self.convert_array_set_store_value(val, dummy_val)?);
                 }
 
                 Ok(AcirValue::Array(elements))
             }
-            AcirValue::DynamicArray(_) => {
+            (AcirValue::DynamicArray(_), AcirValue::DynamicArray(_)) => {
                 unimplemented!("ICE: setting a dynamic array not supported");
+            }
+            _ => {
+                unreachable!("ICE: The store value and dummy value must match");
             }
         }
     }
@@ -755,30 +773,8 @@ impl Context {
         array: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-    ) -> Result<(), RuntimeError> {
-        let array_id = dfg.resolve(array);
-
-        let array_typ = dfg.type_of_value(array_id);
-        let block_id = self.block_id(&array_id);
-        if !self.initialized_arrays.contains(&block_id) {
-            match &dfg[array_id] {
-                Value::Array { array, .. } => {
-                    let value = self.convert_value(array_id, dfg);
-                    let len = if matches!(array_typ, Type::Array(_, _)) {
-                        array_typ.flattened_size()
-                    } else {
-                        array.len()
-                    };
-                    self.initialize_array(block_id, len, Some(value))?;
-                }
-                _ => {
-                    return Err(RuntimeError::UnInitialized {
-                        name: "array".to_string(),
-                        call_stack: self.acir_context.get_call_stack(),
-                    });
-                }
-            }
-        }
+    ) -> Result<AcirValue, RuntimeError> {
+        let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         let mut var_index = if matches!(array_typ, Type::Array(_, _)) {
             let array_len = dfg.try_get_array_length(array_id).expect("ICE: expected an array");
@@ -793,9 +789,9 @@ impl Context {
         let mut first_elem = true;
         let value = self.array_get_value(&res_typ, block_id, &mut var_index, &mut first_elem)?;
 
-        self.define_result(dfg, instruction, value);
+        self.define_result(dfg, instruction, value.clone());
 
-        Ok(())
+        Ok(value)
     }
 
     fn array_get_value(
@@ -864,11 +860,7 @@ impl Context {
             }
         };
 
-        // Fetch the internal SSA ID for the array
-        let array_id = dfg.resolve(array);
-
-        // Use the SSA ID to get or create its block ID
-        let block_id = self.block_id(&array_id);
+        let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
@@ -877,7 +869,6 @@ impl Context {
         // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
         // and may contain data for which we want to restrict access. The true slice length is tracked in a
         // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
-        let array_typ = dfg.type_of_value(array_id);
         let array_len = match &array_typ {
             Type::Array(_, _) => {
                 // Flatten the array length to handle arrays of complex types
@@ -895,31 +886,6 @@ impl Context {
             }
             _ => unreachable!("ICE - expected an array"),
         };
-
-        // Check if the array has already been initialized in ACIR gen
-        // if not, we initialize it using the values from SSA
-        let already_initialized = self.initialized_arrays.contains(&block_id);
-        if !already_initialized {
-            let value = &dfg[array_id];
-            match value {
-                Value::Array { array, .. } => {
-                    let value = self.convert_value(array_id, dfg);
-                    let len = if matches!(array_typ, Type::Array(_, _)) {
-                        array_typ.flattened_size()
-                    } else {
-                        array.len()
-                    };
-                    self.initialize_array(block_id, len, Some(value))?;
-                }
-                _ => {
-                    return Err(InternalError::General {
-                        message: format!("Array {array} should be initialized"),
-                        call_stack: self.acir_context.get_call_stack(),
-                    }
-                    .into())
-                }
-            }
-        }
 
         // Since array_set creates a new array, we create a new block ID for this
         // array, unless map_array is true. In that case, we operate directly on block_id
@@ -1000,6 +966,47 @@ impl Context {
             }
         }
         Ok(())
+    }
+
+    fn check_array_is_initialized(
+        &mut self,
+        array: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Result<(ValueId, Type, BlockId), RuntimeError> {
+        // Fetch the internal SSA ID for the array
+        let array_id = dfg.resolve(array);
+
+        let array_typ = dfg.type_of_value(array_id);
+
+        // Use the SSA ID to get or create its block ID
+        let block_id = self.block_id(&array_id);
+
+        // Check if the array has already been initialized in ACIR gen
+        // if not, we initialize it using the values from SSA
+        let already_initialized = self.initialized_arrays.contains(&block_id);
+        if !already_initialized {
+            let value = &dfg[array_id];
+            match value {
+                Value::Array { array, .. } => {
+                    let value = self.convert_value(array_id, dfg);
+                    let len = if matches!(array_typ, Type::Array(_, _)) {
+                        array_typ.flattened_size()
+                    } else {
+                        array.len()
+                    };
+                    self.initialize_array(block_id, len, Some(value))?;
+                }
+                _ => {
+                    return Err(InternalError::General {
+                        message: format!("Array {array} should be initialized"),
+                        call_stack: self.acir_context.get_call_stack(),
+                    }
+                    .into())
+                }
+            }
+        }
+
+        Ok((array_id, array_typ, block_id))
     }
 
     fn init_element_types_size_array(
