@@ -257,10 +257,10 @@ contract Token {
         },
         oracle::compute_selector::compute_selector,
         auth::{assert_valid_message_for, assert_valid_public_message_for}
+        types::address::AztecAddress,
     };
 
-    use crate::types::{AztecAddress, TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN};
-    use crate::account_interface::AccountContract;
+    use crate::types::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN};
     use crate::util::{compute_message_hash};
 ```
 
