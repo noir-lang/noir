@@ -13,8 +13,6 @@ import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
-// import compiled1Mul from "../../../../../foundry-project/out/1_mul.sol/UltraVerifier.json"
-
 const mnemonic = "test test test test test test test test test test test junk";
 const contractAddress = process.env.CONTRACT_ADDRESS || "";
 
@@ -26,10 +24,8 @@ const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic, walletPath);
 const wallet = walletMnemonic.connect(provider);
 
 // Assuming your contract ABI is named `contractAbi`
-const contractAbi = ""; //compiled1Mul.abi;
 
 // Create a contract instance
-const contract = new ethers.Contract(contractAddress, contractAbi, wallet);
 
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
 const { default: newABICoder, abiEncode } = noirc;
@@ -55,9 +51,11 @@ const CIRCUIT_SIZE = 2 ** 19;
 const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
+    compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
   },
   {
     case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
+    compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
   },
 ];
 
@@ -68,6 +66,7 @@ const suite = Mocha.Suite.create(mocha.suite, "Noir end to end test");
 suite.timeout(60 * 20e3); //20mins
 
 test_cases.forEach((testInfo) => {
+
   const test_name = testInfo.case.split("/").pop();
   const mochaTest = new Mocha.Test(
     `${test_name} (Compile, Execute, Prove, Verify)`,
@@ -83,9 +82,16 @@ test_cases.forEach((testInfo) => {
         `${base_relative_path}/${test_case}/Prover.toml`,
         import.meta.url
       );
+      const compiled_contract_url = new URL(
+        `${base_relative_path}/${testInfo.compiled}`,
+        import.meta.url
+      );
 
       const noir_source = await getFile(noir_source_url);
       const prover_toml = await getFile(prover_toml_url);
+      const compiled_contract = await getFile(compiled_contract_url);
+
+      const contract = new ethers.Contract(contractAddress, JSON.parse(compiled_contract).abi, wallet);
 
       expect(noir_source).to.be.a.string;
 
