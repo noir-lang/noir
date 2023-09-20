@@ -577,9 +577,7 @@ impl Context {
             }
         };
 
-        let accessed_constant_index =
-            self.handle_constant_index(instruction, dfg, index, array, store_value)?;
-        if accessed_constant_index {
+        if self.handle_constant_index(instruction, dfg, index, array, store_value)? {
             return Ok(());
         }
 
