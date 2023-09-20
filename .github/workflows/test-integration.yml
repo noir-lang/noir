@@ -146,13 +146,9 @@ jobs:
         run: |
           echo "Deployed contract address is $CONTRACT_ADDRESS"
 
-      - name: Setup `integration-tests`
-        run: |
-          yarn workspace @noir-lang/source-resolver build
-
       - name: Run `integration-tests`
-        run: |
-          yarn test:integration
+        working-directory: compiler/integration-tests
+        run: yarn workspace integration-tests test
         env:
           CONTRACT_ADDRESS: ${{ env.CONTRACT_ADDRESS }}
 
