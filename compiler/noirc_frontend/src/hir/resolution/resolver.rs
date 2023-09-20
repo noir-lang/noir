@@ -753,13 +753,12 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_definition_type(name_ident.id, typ.clone());
 
+        self.handle_function_type(&func_id);
+        self.handle_is_function_internal(&func_id);
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
-            attributes,
-            contract_function_type: self.handle_function_type(func),
-            is_internal: self.handle_is_function_internal(func),
-            is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
             parameters: parameters.into(),
@@ -791,31 +790,23 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn handle_function_type(&mut self, func: &NoirFunction) -> Option<ContractFunctionType> {
-        if func.def.is_open {
-            if self.in_contract() {
-                Some(ContractFunctionType::Open)
-            } else {
-                self.push_err(ResolverError::ContractFunctionTypeInNormalFunction {
-                    span: func.name_ident().span(),
-                });
-                None
-            }
-        } else {
-            Some(ContractFunctionType::Secret)
+    fn handle_function_type(&mut self, function: &FuncId) {
+        let function_type = self.interner.function_modifiers(function).contract_function_type;
+
+        if !self.in_contract() && function_type == Some(ContractFunctionType::Open) {
+            let span = self.interner.function_ident(function).span();
+            self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
+            self.interner.function_modifiers_mut(function).contract_function_type = None;
         }
     }
 
-    fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
-        if self.in_contract() {
-            Some(func.def.is_internal)
-        } else {
-            if func.def.is_internal {
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
-                    span: func.name_ident().span(),
-                });
+    fn handle_is_function_internal(&mut self, function: &FuncId) {
+        if !self.in_contract() {
+            if self.interner.function_modifiers(function).is_internal == Some(true) {
+                let span = self.interner.function_ident(function).span();
+                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
             }
-            None
+            self.interner.function_modifiers_mut(function).is_internal = None;
         }
     }
 
@@ -1580,7 +1571,6 @@ mod test {
 
     use crate::graph::CrateId;
     use crate::hir_def::expr::HirExpression;
-    use crate::hir_def::function::HirFunction;
     use crate::hir_def::stmt::HirStatement;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::ParsedModule;
@@ -1633,9 +1623,7 @@ mod test {
             init_src_code_resolution(src);
 
         let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.to_string(), id, true, ModuleId::dummy_id());
-            id
+            interner.push_test_function_definition(name.to_string())
         });
 
         for (name, id) in func_namespace.into_iter().zip(func_ids) {
@@ -1644,9 +1632,7 @@ mod test {
 
         let mut errors = Vec::new();
         for func in program.functions {
-            let id = interner.push_fn(HirFunction::empty());
-            let name = func.name().to_string();
-            interner.push_function_definition(name, id, true, ModuleId::dummy_id());
+            let id = interner.push_test_function_definition(func.name().to_string());
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (_, _, err) = resolver.resolve_function(func, id);
@@ -1662,9 +1648,8 @@ mod test {
 
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.functions {
-            let id = interner.push_fn(HirFunction::empty());
             let name = func.name().to_string();
-            interner.push_function_definition(name, id, true, ModuleId::dummy_id());
+            let id = interner.push_test_function_definition(name);
             path_resolver.insert_func(func.name().to_owned(), id);
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);

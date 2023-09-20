@@ -259,17 +259,17 @@ fn compile_contract_inner(
                 continue;
             }
         };
-        let func_meta = context.def_interner.function_meta(&function_id);
-        let func_type = func_meta
+        let modifiers = context.def_interner.function_modifiers(&function_id);
+        let func_type = modifiers
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+        let function_type = ContractFunctionType::new(func_type, modifiers.is_unconstrained);
 
         functions.push(ContractFunction {
             name,
             function_type,
-            is_internal: func_meta.is_internal.unwrap_or(false),
+            is_internal: modifiers.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
             debug: function.debug,

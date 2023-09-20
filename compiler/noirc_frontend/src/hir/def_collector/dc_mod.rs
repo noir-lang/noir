@@ -9,8 +9,9 @@ use crate::{
         def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
         def_map::ScopeResolveError,
     },
-    node_interner::TraitId,
+    node_interner::{FunctionModifiers, TraitId},
     parser::SubModule,
+    token::Attributes,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, ParsedModule, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -123,14 +124,7 @@ impl<'a> ModCollector<'a> {
 
             for method in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
-                let is_public = method.def.is_public;
-
-                context.def_interner.push_function_definition(
-                    method.name().to_owned(),
-                    func_id,
-                    is_public,
-                    module_id,
-                );
+                context.def_interner.push_function(func_id, &method.def, module_id);
                 unresolved_functions.push_fn(self.module_id, func_id, method);
             }
 
@@ -166,12 +160,8 @@ impl<'a> ModCollector<'a> {
                 );
 
                 for (_, func_id, noir_function) in &unresolved_functions.functions {
-                    let name = noir_function.name().to_owned();
-                    let is_public = noir_function.def.is_public;
-
-                    context
-                        .def_interner
-                        .push_function_definition(name, *func_id, is_public, module_id);
+                    let function = &noir_function.def;
+                    context.def_interner.push_function(*func_id, function, module_id);
                 }
 
                 let unresolved_trait_impl = UnresolvedTraitImpl {
@@ -227,12 +217,7 @@ impl<'a> ModCollector<'a> {
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                context.def_interner.push_function_definition(
-                    impl_method.name().to_owned(),
-                    func_id,
-                    impl_method.def.is_public,
-                    module,
-                );
+                context.def_interner.push_function(func_id, &impl_method.def, module);
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
         }
@@ -266,11 +251,19 @@ impl<'a> ModCollector<'a> {
                             // if there's a default implementation for the method, use it
                             let method_name = name.0.contents.clone();
                             let func_id = context.def_interner.push_empty_fn();
-                            let is_public = false; // trait functions are always public
+                            let modifiers = FunctionModifiers {
+                                // trait functions are always public
+                                visibility: crate::Visibility::Public,
+                                attributes: Attributes::empty(),
+                                is_unconstrained: false,
+                                contract_function_type: None,
+                                is_internal: None,
+                            };
+
                             context.def_interner.push_function_definition(
                                 method_name,
                                 func_id,
-                                is_public,
+                                modifiers,
                                 module,
                             );
                             let impl_method = NoirFunction::normal(FunctionDefinition::normal(
@@ -331,12 +324,10 @@ impl<'a> ModCollector<'a> {
         for mut function in functions {
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
-            let is_public = function.def.is_public;
-            let name_string = name.0.contents.clone();
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            context.def_interner.push_function_definition(name_string, func_id, is_public, module);
+            context.def_interner.push_function(func_id, &function.def, module);
 
             // Then go over the where clause and assign trait_ids to the constraints
             for constraint in &mut function.def.where_clause {

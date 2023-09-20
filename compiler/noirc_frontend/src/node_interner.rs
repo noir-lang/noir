@@ -21,8 +21,8 @@ use crate::hir_def::{
 };
 use crate::token::Attributes;
 use crate::{
-    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
-    TypeVariableKind, Visibility,
+    ContractFunctionType, FunctionDefinition, Generics, Shared, TypeAliasType, TypeBinding,
+    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, Visibility,
 };
 
 #[derive(Eq, PartialEq, Hash, Clone)]
@@ -43,9 +43,10 @@ pub struct NodeInterner {
     func_meta: HashMap<FuncId, FuncMeta>,
     function_definition_ids: HashMap<FuncId, DefinitionId>,
 
-    // For a given function ID, give whether it is publically visible or not.
+    // For a given function ID, this gives the function's modifiers which includes
+    // its visibility and whether it is unconstrained, among other information.
     // Unlike func_meta, this map is filled out during definition collection rather than name resolution.
-    function_visibilities: HashMap<FuncId, Visibility>,
+    function_modifiers: HashMap<FuncId, FunctionModifiers>,
 
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
@@ -111,6 +112,38 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+}
+
+pub struct FunctionModifiers {
+    /// Whether the function is `pub` or not.
+    pub visibility: Visibility,
+
+    pub attributes: Attributes,
+
+    pub is_unconstrained: bool,
+
+    /// This function's type in its contract.
+    /// If this function is not in a contract, this is always 'Secret'.
+    pub contract_function_type: Option<ContractFunctionType>,
+
+    /// This function's contract visibility.
+    /// If this function is internal can only be called by itself.
+    /// Will be None if not in contract.
+    pub is_internal: Option<bool>,
+}
+
+impl FunctionModifiers {
+    /// A semi-reasonable set of default FunctionModifiers used for testing.
+    #[cfg(test)]
+    pub fn new() -> Self {
+        Self {
+            visibility: Visibility::Public,
+            attributes: Attributes::empty(),
+            is_unconstrained: false,
+            is_internal: None,
+            contract_function_type: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -319,7 +352,7 @@ impl Default for NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
             function_definition_ids: HashMap::new(),
-            function_visibilities: HashMap::new(),
+            function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
@@ -538,15 +571,45 @@ impl NodeInterner {
         id
     }
 
+    /// Push a function with the default modifiers and moduleid for testing
+    #[cfg(test)]
+    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
+        let id = self.push_fn(HirFunction::empty());
+        let modifiers = FunctionModifiers::new();
+        let module = ModuleId::dummy_id();
+        self.push_function_definition(name, id, modifiers, module);
+        id
+    }
+
+    pub fn push_function(
+        &mut self,
+        id: FuncId,
+        function: &FunctionDefinition,
+        module: ModuleId,
+    ) -> DefinitionId {
+        use ContractFunctionType::*;
+        let name = function.name.0.contents.clone();
+
+        // We're filling in contract_function_type and is_internal now, but these will be verified
+        // later during name resolution.
+        let modifiers = FunctionModifiers {
+            visibility: if function.is_public { Visibility::Public } else { Visibility::Private },
+            attributes: function.attributes.clone(),
+            is_unconstrained: function.is_unconstrained,
+            contract_function_type: Some(if function.is_open { Open } else { Secret }),
+            is_internal: Some(function.is_internal),
+        };
+        self.push_function_definition(name, id, modifiers, module)
+    }
+
     pub fn push_function_definition(
         &mut self,
         name: String,
         func: FuncId,
-        is_public: bool,
+        modifiers: FunctionModifiers,
         module: ModuleId,
     ) -> DefinitionId {
-        let visibility = if is_public { Visibility::Public } else { Visibility::Private };
-        self.function_visibilities.insert(func, visibility);
+        self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
         self.push_definition(name, false, DefinitionKind::Function(func))
     }
@@ -556,7 +619,7 @@ impl NodeInterner {
     /// The underlying function_visibilities map is populated during def collection,
     /// so this function can be called anytime afterward.
     pub fn function_visibility(&self, func: FuncId) -> Visibility {
-        self.function_visibilities[&func]
+        self.function_modifiers[&func].visibility
     }
 
     /// Returns the module this function was defined within
@@ -596,8 +659,16 @@ impl NodeInterner {
         self.definition_name(name_id)
     }
 
-    pub fn function_attributes(&self, func_id: &FuncId) -> Attributes {
-        self.function_meta(func_id).attributes
+    pub fn function_modifiers(&self, func_id: &FuncId) -> &FunctionModifiers {
+        &self.function_modifiers[func_id]
+    }
+
+    pub fn function_modifiers_mut(&mut self, func_id: &FuncId) -> &mut FunctionModifiers {
+        self.function_modifiers.get_mut(func_id).expect("func_id should always have modifiers")
+    }
+
+    pub fn function_attributes(&self, func_id: &FuncId) -> &Attributes {
+        &self.function_modifiers[func_id].attributes
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
