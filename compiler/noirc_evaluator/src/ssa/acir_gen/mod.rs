@@ -688,8 +688,18 @@ impl Context {
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
+        let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
+
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let mut predicate_index =
+        // TODO(#2752): Need to add support for dynamic indices with non-homogenous slices
+        let index_var = if matches!(array_typ, Type::Array(_, _)) {
+            let array_len = dfg.try_get_array_length(array_id).expect("ICE: expected an array");
+            self.get_flattened_index(&array_typ, array_id, array_len, index_var)?
+        } else {
+            index_var
+        };
+
+        let predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
 
         let new_value = if let Some(store) = store_value {
@@ -697,16 +707,15 @@ impl Context {
             if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                 Some(store_value)
             } else {
-                let (_, _, block_id) = self.check_array_is_initialized(array, dfg)?;
-
                 let store_type = dfg.type_of_value(store);
 
+                let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
                 let mut is_first_elem = true;
                 let dummy = self.array_get_value(
                     &store_type,
                     block_id,
-                    &mut predicate_index,
+                    &mut dummy_predicate_index,
                     &mut is_first_elem,
                 )?;
 
@@ -771,17 +780,10 @@ impl Context {
         &mut self,
         instruction: InstructionId,
         array: ValueId,
-        var_index: AcirVar,
+        mut var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
-        let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
-
-        let mut var_index = if matches!(array_typ, Type::Array(_, _)) {
-            let array_len = dfg.try_get_array_length(array_id).expect("ICE: expected an array");
-            self.get_flattened_index(&array_typ, array_id, array_len, var_index)?
-        } else {
-            var_index
-        };
+        let (_, _, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
@@ -824,7 +826,7 @@ impl Context {
                 Ok(AcirValue::Array(values))
             }
             Type::Slice(_) => {
-                // TODO: need SSA values here to fetch the len like we do for a Type::Array
+                // TODO(#2752): need SSA values here to fetch the len like we do for a Type::Array
                 Err(InternalError::UnExpected {
                     expected: "array".to_owned(),
                     found: ssa_type.to_string(),
@@ -842,7 +844,7 @@ impl Context {
     fn array_set(
         &mut self,
         instruction: InstructionId,
-        var_index: AcirVar,
+        mut var_index: AcirVar,
         store_value: AcirValue,
         dfg: &DataFlowGraph,
         map_array: bool,
@@ -860,7 +862,7 @@ impl Context {
             }
         };
 
-        let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
+        let (_, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
@@ -919,16 +921,6 @@ impl Context {
                 Some(AcirValue::Array(init_values.into())),
             )?;
         }
-
-        // TODO: Need to add support for dynamic indices with non-homogenous slices
-        let mut var_index = if matches!(array_typ, Type::Array(_, _)) {
-            // This is the user facing array len without the element types flattened
-            let true_array_len =
-                dfg.try_get_array_length(array_id).expect("ICE: expected an array");
-            self.get_flattened_index(&array_typ, array_id, true_array_len, var_index)?
-        } else {
-            var_index
-        };
 
         let mut is_first_elem = true;
         self.array_set_value(store_value, result_block_id, &mut var_index, &mut is_first_elem)?;
