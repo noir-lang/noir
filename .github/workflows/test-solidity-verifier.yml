@@ -36,14 +36,14 @@ jobs:
           noirup
           echo "/home/runner/.nargo/bin" >> $GITHUB_PATH
           nargo -V
-      
+
       - name: Create new Foundry project
         run: forge init foundry-project
 
       - name: Run codegen-verifier for 1_mul
         working-directory: tooling/nargo_cli/tests/execution_success/1_mul
         run: nargo codegen-verifier
-      
+
       # - name: Run codegen-verifier for double_verify_proof
       #   working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
       #   run: nargo codegen-verifier
@@ -53,7 +53,7 @@ jobs:
 
       # - name: Copy compiled double_verify_proof
       #   working-directory: foundry-project
-      # run: cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol src/double_verify_proof.sol
+      # run: cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol foundry-project/src/double_verify_proof.sol
 
       - name: Forge build
         working-directory: foundry-project
