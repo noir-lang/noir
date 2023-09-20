@@ -32,7 +32,7 @@ describe('guides/dapp/testing', () => {
         owner = await createAccount(rpc);
         recipient = await createAccount(rpc);
         token = await TokenContract.deploy(owner).send().deployed();
-        await token.methods._initialize({ address: owner.getAddress() }).send().wait();
+        await token.methods._initialize(owner.getAddress()).send().wait();
       }, 60_000);
 
       // docs:start:stop-in-proc-sandbox
@@ -40,12 +40,12 @@ describe('guides/dapp/testing', () => {
       // docs:end:stop-in-proc-sandbox
 
       it('increases recipient funds on mint', async () => {
-        expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(0n);
+        expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(0n);
         const secret = Fr.random();
         const secretHash = await computeMessageSecretHash(secret);
         await token.methods.mint_private(20n, secretHash).send().wait();
-        await token.methods.redeem_shield({ address: recipient.getAddress() }, 20n, secret).send().wait();
-        expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(20n);
+        await token.methods.redeem_shield(recipient.getAddress(), 20n, secret).send().wait();
+        expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(20n);
       }, 30_000);
     });
   });
@@ -68,16 +68,16 @@ describe('guides/dapp/testing', () => {
         owner = await createAccount(rpc);
         recipient = await createAccount(rpc);
         token = await TokenContract.deploy(owner).send().deployed();
-        await token.methods._initialize({ address: owner.getAddress() }).send().wait();
+        await token.methods._initialize(owner.getAddress()).send().wait();
       }, 30_000);
 
       it('increases recipient funds on mint', async () => {
-        expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(0n);
+        expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(0n);
         const secret = Fr.random();
         const secretHash = await computeMessageSecretHash(secret);
         await token.methods.mint_private(20n, secretHash).send().wait();
-        await token.methods.redeem_shield({ address: recipient.getAddress() }, 20n, secret).send().wait();
-        expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(20n);
+        await token.methods.redeem_shield(recipient.getAddress(), 20n, secret).send().wait();
+        expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(20n);
       }, 30_000);
     });
     // docs:end:sandbox-example
@@ -93,17 +93,17 @@ describe('guides/dapp/testing', () => {
         rpc = createAztecRpcClient(SANDBOX_URL);
         [owner, recipient] = await getSandboxAccountsWallets(rpc);
         token = await TokenContract.deploy(owner).send().deployed();
-        await token.methods._initialize({ address: owner.getAddress() }).send().wait();
+        await token.methods._initialize(owner.getAddress()).send().wait();
         // docs:end:use-existing-wallets
       }, 30_000);
 
       it('increases recipient funds on mint', async () => {
-        expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(0n);
+        expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(0n);
         const secret = Fr.random();
         const secretHash = await computeMessageSecretHash(secret);
         await token.methods.mint_private(20n, secretHash).send().wait();
-        await token.methods.redeem_shield({ address: recipient.getAddress() }, 20n, secret).send().wait();
-        expect(await token.methods.balance_of_private({ address: recipient.getAddress() }).view()).toEqual(20n);
+        await token.methods.redeem_shield(recipient.getAddress(), 20n, secret).send().wait();
+        expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(20n);
       }, 30_000);
     });
 
@@ -144,11 +144,11 @@ describe('guides/dapp/testing', () => {
         recipient = await createAccount(rpc);
         testContract = await TestContract.deploy(owner).send().deployed();
         token = await TokenContract.deploy(owner).send().deployed();
-        await token.methods._initialize({ address: owner.getAddress() }).send().wait();
+        await token.methods._initialize(owner.getAddress()).send().wait();
         const secret = Fr.random();
         const secretHash = await computeMessageSecretHash(secret);
         await token.methods.mint_private(100n, secretHash).send().wait();
-        await token.methods.redeem_shield({ address: owner.getAddress() }, 100n, secret).send().wait();
+        await token.methods.redeem_shield(owner.getAddress(), 100n, secret).send().wait();
 
         // docs:start:calc-slot
         cheats = await CheatCodes.create(ETHEREUM_HOST, rpc);
@@ -168,7 +168,7 @@ describe('guides/dapp/testing', () => {
 
       it('checks public storage', async () => {
         // docs:start:public-storage
-        await token.methods.mint_public({ address: owner.getAddress() }, 100n).send().wait();
+        await token.methods.mint_public(owner.getAddress(), 100n).send().wait();
         const ownerPublicBalanceSlot = cheats.aztec.computeSlotInMap(6n, owner.getAddress());
         const balance = await rpc.getPublicStorageAt(token.address, ownerPublicBalanceSlot);
         expect(toBigIntBE(balance!)).toEqual(100n);
@@ -187,42 +187,22 @@ describe('guides/dapp/testing', () => {
 
       it('asserts a local transaction simulation fails by calling simulate', async () => {
         // docs:start:local-tx-fails
-        const call = token.methods.transfer(
-          { address: owner.getAddress() },
-          { address: recipient.getAddress() },
-          200n,
-          0,
-        );
+        const call = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 200n, 0);
         await expect(call.simulate()).rejects.toThrowError(/Balance too low/);
         // docs:end:local-tx-fails
       });
 
       it('asserts a local transaction simulation fails by calling send', async () => {
         // docs:start:local-tx-fails-send
-        const call = token.methods.transfer(
-          { address: owner.getAddress() },
-          { address: recipient.getAddress() },
-          200n,
-          0,
-        );
+        const call = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 200n, 0);
         await expect(call.send().wait()).rejects.toThrowError(/Balance too low/);
         // docs:end:local-tx-fails-send
       });
 
       it('asserts a transaction is dropped', async () => {
         // docs:start:tx-dropped
-        const call1 = token.methods.transfer(
-          { address: owner.getAddress() },
-          { address: recipient.getAddress() },
-          80n,
-          0,
-        );
-        const call2 = token.methods.transfer(
-          { address: owner.getAddress() },
-          { address: recipient.getAddress() },
-          50n,
-          0,
-        );
+        const call1 = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 80n, 0);
+        const call2 = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 50n, 0);
 
         await call1.simulate();
         await call2.simulate();
@@ -234,24 +214,14 @@ describe('guides/dapp/testing', () => {
 
       it('asserts a simulation for a public function call fails', async () => {
         // docs:start:local-pub-fails
-        const call = token.methods.transfer_public(
-          { address: owner.getAddress() },
-          { address: recipient.getAddress() },
-          1000n,
-          0,
-        );
+        const call = token.methods.transfer_public(owner.getAddress(), recipient.getAddress(), 1000n, 0);
         await expect(call.simulate()).rejects.toThrowError(/Underflow/);
         // docs:end:local-pub-fails
       });
 
       it('asserts a transaction with a failing public call is dropped (until we get public reverts)', async () => {
         // docs:start:pub-dropped
-        const call = token.methods.transfer_public(
-          { address: owner.getAddress() },
-          { address: recipient.getAddress() },
-          1000n,
-          0,
-        );
+        const call = token.methods.transfer_public(owner.getAddress(), recipient.getAddress(), 1000n, 0);
         await expect(call.send({ skipPublicSimulation: true }).wait()).rejects.toThrowError(/dropped/);
         // docs:end:pub-dropped
       });

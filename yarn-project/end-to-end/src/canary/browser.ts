@@ -123,7 +123,7 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           const owner = (await client.getRegisteredAccounts())[0].address;
           const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
           const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractAbi, wallet);
-          const balance = await contract.methods.balance_of_private({ address: owner }).view({ from: owner });
+          const balance = await contract.methods.balance_of_private(owner).view({ from: owner });
           return balance;
         },
         SANDBOX_URL,
@@ -143,12 +143,9 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           const receiver = accounts[1].address;
           const [wallet] = await AztecJs.getSandboxAccountsWallets(client);
           const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractAbi, wallet);
-          await contract.methods
-            .transfer({ address: accounts[0].address }, { address: receiver }, transferAmount, 0)
-            .send()
-            .wait();
+          await contract.methods.transfer(accounts[0].address, receiver, transferAmount, 0).send().wait();
           console.log(`Transferred ${transferAmount} tokens to new Account`);
-          return await contract.methods.balance_of_private({ address: receiver }).view({ from: receiver });
+          return await contract.methods.balance_of_private(receiver).view({ from: receiver });
         },
         SANDBOX_URL,
         (await getTokenAddress()).toString(),
@@ -186,11 +183,11 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           console.log(`Contract Deployed: ${receipt.contractAddress}`);
 
           const token = await Contract.at(receipt.contractAddress!, TokenContractAbi, owner);
-          await token.methods._initialize({ address: owner.getAddress() }).send().wait();
+          await token.methods._initialize(owner.getAddress()).send().wait();
           const secret = Fr.random();
           const secretHash = await computeMessageSecretHash(secret);
           await token.methods.mint_private(initialBalance, secretHash).send().wait();
-          await token.methods.redeem_shield({ address: owner.getAddress() }, initialBalance, secret).send().wait();
+          await token.methods.redeem_shield(owner.getAddress(), initialBalance, secret).send().wait();
 
           return receipt.txHash.toString();
         },

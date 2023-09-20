@@ -25,7 +25,7 @@ async function showPrivateBalances(client) {
 
   for (const account of accounts) {
     // highlight-next-line:showPrivateBalances
-    const balance = await token.methods.balance_of_private({ address: account.address }).view();
+    const balance = await token.methods.balance_of_private(account.address).view();
     console.log(`Balance of ${account.address}: ${balance}`);
   }
   // docs:end:showPrivateBalances
@@ -41,7 +41,7 @@ async function mintPrivateFunds(client) {
   const secret = Fr.random();
   const secretHash = await computeMessageSecretHash(secret);
   await token.methods.mint_private(mintAmount, secretHash).send().wait();
-  await token.methods.redeem_shield({ address: owner.getAddress() }, mintAmount, secret).send().wait();
+  await token.methods.redeem_shield(owner.getAddress(), mintAmount, secret).send().wait();
 
   await showPrivateBalances(client);
 }
@@ -51,7 +51,7 @@ async function transferPrivateFunds(client) {
   const [owner, recipient] = await getSandboxAccountsWallets(client);
   const token = await getToken(owner);
 
-  const tx = token.methods.transfer({ address: owner.getAddress() }, { address: recipient.getAddress() }, 1n, 0).send();
+  const tx = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 1n, 0).send();
   console.log(`Sent transfer transaction ${await tx.getTxHash()}`);
   await showPrivateBalances(client);
 
@@ -69,7 +69,7 @@ async function showPublicBalances(client) {
 
   for (const account of accounts) {
     // highlight-next-line:showPublicBalances
-    const balance = await token.methods.balance_of_public({ address: account.address }).view();
+    const balance = await token.methods.balance_of_public(account.address).view();
     console.log(`Balance of ${account.address}: ${balance}`);
   }
   // docs:end:showPublicBalances
@@ -80,7 +80,7 @@ async function mintPublicFunds(client) {
   const [owner] = await getSandboxAccountsWallets(client);
   const token = await getToken(owner);
 
-  const tx = token.methods.mint_public({ address: owner.getAddress() }, 100n).send();
+  const tx = token.methods.mint_public(owner.getAddress(), 100n).send();
   console.log(`Sent mint transaction ${await tx.getTxHash()}`);
   await showPublicBalances(client);
 

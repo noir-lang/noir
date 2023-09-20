@@ -47,15 +47,15 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     tokenAddress = token.address;
     logger(`Token deployed at ${tokenAddress}`);
 
-    expect((await token.methods._initialize({ address: accounts[0] }).send().wait()).status).toBe(TxStatus.MINED);
+    expect((await token.methods._initialize(accounts[0]).send().wait()).status).toBe(TxStatus.MINED);
 
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
     expect((await token.methods.mint_private(initialBalance, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
-    expect(
-      (await token.methods.redeem_shield({ address: accounts[0] }, initialBalance, secret).send().wait()).status,
-    ).toEqual(TxStatus.MINED);
+    expect((await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait()).status).toEqual(
+      TxStatus.MINED,
+    );
   }, 100_000);
 
   afterEach(async () => {
@@ -71,7 +71,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     // Then check the balance
     const contractWithWallet = await TokenContract.at(tokenAddress, wallet);
-    const balance = await contractWithWallet.methods.balance_of_private({ address: owner }).view({ from: owner });
+    const balance = await contractWithWallet.methods.balance_of_private(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
@@ -89,10 +89,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     const contractWithWallet = await TokenContract.at(tokenAddress, wallets[senderIndex]);
 
-    const receipt = await contractWithWallet.methods
-      .transfer({ address: sender }, { address: receiver }, transferAmount, 0)
-      .send()
-      .wait();
+    const receipt = await contractWithWallet.methods.transfer(sender, receiver, transferAmount, 0).send().wait();
     expect(receipt.status).toBe(TxStatus.MINED);
 
     for (let i = 0; i < expectedBalances.length; i++) {

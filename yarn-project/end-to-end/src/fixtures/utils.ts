@@ -352,10 +352,10 @@ export async function deployAndInitializeStandardizedTokenAndBridgeContracts(
   const bridgeAddress = bridge.address.toString() as `0x${string}`;
 
   // initialize l2 token
-  const initializeTx = token.methods._initialize({ address: owner }).send();
+  const initializeTx = token.methods._initialize(owner).send();
 
   // initialize bridge
-  const initializeBridgeTx = bridge.methods._initialize({ address: token.address }).send();
+  const initializeBridgeTx = bridge.methods._initialize(token.address).send();
 
   // now we wait for the txs to be mined. This way we send all tx in the same rollup.
   const initializeReceipt = await initializeTx.wait();
@@ -370,12 +370,11 @@ export async function deployAndInitializeStandardizedTokenAndBridgeContracts(
     throw new Error(`Bridge token is not ${token.address}`);
 
   // make the bridge a minter on the token:
-  const makeMinterTx = token.methods.set_minter({ address: bridge.address }, true).send();
+  const makeMinterTx = token.methods.set_minter(bridge.address, true).send();
   const makeMinterReceipt = await makeMinterTx.wait();
   if (makeMinterReceipt.status !== TxStatus.MINED)
     throw new Error(`Make bridge a minter tx status is ${makeMinterReceipt.status}`);
-  if ((await token.methods.is_minter({ address: bridge.address }).view()) === 1n)
-    throw new Error(`Bridge is not a minter`);
+  if ((await token.methods.is_minter(bridge.address).view()) === 1n) throw new Error(`Bridge is not a minter`);
 
   // initialize portal
   await tokenPortal.write.initialize(

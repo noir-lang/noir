@@ -53,15 +53,15 @@ describe('e2e_escrow_contract', () => {
     // Deploy Private Token contract and mint funds for the escrow contract
     token = await TokenContract.deploy(wallet).send().deployed();
 
-    expect((await token.methods._initialize({ address: owner }).send().wait()).status).toBe(TxStatus.MINED);
+    expect((await token.methods._initialize(owner).send().wait()).status).toBe(TxStatus.MINED);
 
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
     expect((await token.methods.mint_private(100n, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
-    expect(
-      (await token.methods.redeem_shield({ address: escrowContract.address }, 100n, secret).send().wait()).status,
-    ).toEqual(TxStatus.MINED);
+    expect((await token.methods.redeem_shield(escrowContract.address, 100n, secret).send().wait()).status).toEqual(
+      TxStatus.MINED,
+    );
 
     logger(`Token contract deployed at ${token.address}`);
   }, 100_000);
@@ -72,7 +72,7 @@ describe('e2e_escrow_contract', () => {
   }, 30_000);
 
   const expectBalance = async (who: AztecAddress, expectedBalance: bigint) => {
-    const balance = await token.methods.balance_of_private({ address: who }).view({ from: who });
+    const balance = await token.methods.balance_of_private(who).view({ from: who });
     logger(`Account ${who} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
@@ -102,14 +102,12 @@ describe('e2e_escrow_contract', () => {
     const secretHash = await computeMessageSecretHash(secret);
 
     expect((await token.methods.mint_private(50n, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
-    expect((await token.methods.redeem_shield({ address: owner }, 50n, secret).send().wait()).status).toEqual(
-      TxStatus.MINED,
-    );
+    expect((await token.methods.redeem_shield(owner, 50n, secret).send().wait()).status).toEqual(TxStatus.MINED);
 
     await expectBalance(owner, 50n);
 
     const actions = [
-      token.methods.transfer({ address: owner }, { address: recipient }, 10, 0).request(),
+      token.methods.transfer(owner, recipient, 10, 0).request(),
       escrowContract.methods.withdraw(token.address, 20, recipient).request(),
     ];
 

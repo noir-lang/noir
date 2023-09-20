@@ -73,9 +73,9 @@ describe('e2e_lending_contract', () => {
     }
 
     await waitForSuccess(collateralAsset.methods._initialize(accounts[0]).send());
-    await waitForSuccess(collateralAsset.methods.set_minter({ address: lendingContract.address }, true).send());
+    await waitForSuccess(collateralAsset.methods.set_minter(lendingContract.address, true).send());
     await waitForSuccess(stableCoin.methods._initialize(accounts[0]).send());
-    await waitForSuccess(stableCoin.methods.set_minter({ address: lendingContract.address }, true).send());
+    await waitForSuccess(stableCoin.methods.set_minter(lendingContract.address, true).send());
 
     return { priceFeedContract, lendingContract, collateralAsset, stableCoin };
   };
@@ -127,13 +127,11 @@ describe('e2e_lending_contract', () => {
         const secret = Fr.random();
         const secretHash = await computeMessageSecretHash(secret);
 
-        const a = asset.methods.mint_public({ address: lendingAccount.address }, mintAmount).send();
+        const a = asset.methods.mint_public(lendingAccount.address, mintAmount).send();
         const b = asset.methods.mint_private(mintAmount, secretHash).send();
 
         await Promise.all([a, b].map(waitForSuccess));
-        await waitForSuccess(
-          asset.methods.redeem_shield({ address: lendingAccount.address }, mintAmount, secret).send(),
-        );
+        await waitForSuccess(asset.methods.redeem_shield(lendingAccount.address, mintAmount, secret).send());
       }
     }
 

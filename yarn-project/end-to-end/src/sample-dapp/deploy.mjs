@@ -12,7 +12,7 @@ async function main() {
   const [owner] = await getSandboxAccountsWallets(client);
 
   const token = await Contract.deploy(client, TokenContractAbi, []).send().deployed();
-  await token.withWallet(owner).methods._initialize({ address: owner.getAddress() }).send().wait();
+  await token.withWallet(owner).methods._initialize(owner.getAddress()).send().wait();
 
   console.log(`Token deployed at ${token.address.toString()}`);
 

@@ -1,4 +1,4 @@
-import { ABIType, FunctionAbiHeader } from '@aztec/foundation/abi';
+import { ABIType, FunctionAbiHeader, isAddressStruct } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -33,8 +33,6 @@ class ArgumentEncoder {
             this.flattened.push(Fr.fromBuffer(arg));
           } else if (typeof arg.toField === 'function') {
             this.flattened.push(arg.toField());
-          } else if (arg instanceof Fr) {
-            this.flattened.push(arg);
           } else {
             throw new Error(`Argument for ${name} cannot be serialised to a field`);
           }
@@ -51,6 +49,12 @@ class ArgumentEncoder {
         }
         break;
       case 'struct':
+        // If the abi expects a struct like { address: Field } and the supplied arg does not have
+        // an address field in it, we try to encode it as if it were a field directly.
+        if (isAddressStruct(abiType) && typeof arg.address === 'undefined') {
+          this.encodeArgument({ kind: 'field' }, arg, `${name}.address`);
+          break;
+        }
         for (const field of abiType.fields) {
           this.encodeArgument(field.type, arg[field.name], `${name}.${field.name}`);
         }

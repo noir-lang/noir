@@ -168,7 +168,7 @@ describe('e2e_cross_chain_messaging', () => {
         .methods.claim_private(
           bridgeAmount,
           secretHashForL2MessageConsumption,
-          { address: ethAccount.toField() },
+          ethAccount,
           messageKey,
           secretForL2MessageConsumption,
         )
@@ -181,7 +181,7 @@ describe('e2e_cross_chain_messaging', () => {
       .methods.claim_private(
         bridgeAmount,
         secretHashForRedeemingMintedNotes,
-        { address: ethAccount.toField() },
+        ethAccount,
         messageKey,
         secretForL2MessageConsumption,
       )
@@ -212,13 +212,7 @@ describe('e2e_cross_chain_messaging', () => {
     await expect(
       l2Bridge
         .withWallet(user1Wallet)
-        .methods.exit_to_l1_private(
-          { address: ethAccount.toField() },
-          { address: l2Token.address },
-          withdrawAmount,
-          { address: EthAddress.ZERO.toField() },
-          nonce,
-        )
+        .methods.exit_to_l1_private(ethAccount, l2Token.address, withdrawAmount, EthAddress.ZERO, nonce)
         .simulate(),
     ).rejects.toThrowError(`Unknown auth witness for message hash 0x${expectedBurnMessageHash.toString('hex')}`);
   });

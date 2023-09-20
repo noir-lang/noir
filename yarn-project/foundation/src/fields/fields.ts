@@ -148,6 +148,11 @@ export class Fr {
   toFriendlyJSON() {
     return this.toString();
   }
+
+  /** Returns self. */
+  toField() {
+    return this;
+  }
 }
 
 /**
@@ -242,5 +247,10 @@ export class Fq {
    */
   toFriendlyJSON() {
     return this.toString();
+  }
+
+  /** Returns self. */
+  toField() {
+    return this;
   }
 }

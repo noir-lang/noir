@@ -95,8 +95,8 @@ describe('e2e_sandbox_example', () => {
     const tokenContractAlice = await TokenContract.at(contract.address, await accounts[0].getWallet());
 
     // Initialize the contract and add Bob as a minter
-    await tokenContractAlice.methods._initialize({ address: alice }).send().wait();
-    await tokenContractAlice.methods.set_minter({ address: bob }, true).send().wait();
+    await tokenContractAlice.methods._initialize(alice).send().wait();
+    await tokenContractAlice.methods.set_minter(bob, true).send().wait();
 
     logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);
 
@@ -104,7 +104,7 @@ describe('e2e_sandbox_example', () => {
     const secretHash = await computeMessageSecretHash(secret);
 
     await tokenContractAlice.methods.mint_private(initialSupply, secretHash).send().wait();
-    await tokenContractAlice.methods.redeem_shield({ address: alice }, initialSupply, secret).send().wait();
+    await tokenContractAlice.methods.redeem_shield(alice, initialSupply, secret).send().wait();
     // docs:end:Deployment
 
     // ensure that token contract is registered in the rpc
@@ -118,10 +118,10 @@ describe('e2e_sandbox_example', () => {
     // Since we already have a token link, we can simply create a new instance of the contract linked to Bob's wallet
     const tokenContractBob = tokenContractAlice.withWallet(await accounts[1].getWallet());
 
-    let aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
+    let aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).view();
     logger(`Alice's balance ${aliceBalance}`);
 
-    let bobBalance = await tokenContractBob.methods.balance_of_private({ address: bob }).view();
+    let bobBalance = await tokenContractBob.methods.balance_of_private(bob).view();
     logger(`Bob's balance ${bobBalance}`);
 
     // docs:end:Balance
@@ -135,13 +135,13 @@ describe('e2e_sandbox_example', () => {
     // We will now transfer tokens from ALice to Bob
     const transferQuantity = 543n;
     logger(`Transferring ${transferQuantity} tokens from Alice to Bob...`);
-    await tokenContractAlice.methods.transfer({ address: alice }, { address: bob }, transferQuantity, 0).send().wait();
+    await tokenContractAlice.methods.transfer(alice, bob, transferQuantity, 0).send().wait();
 
     // Check the new balances
-    aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
+    aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).view();
     logger(`Alice's balance ${aliceBalance}`);
 
-    bobBalance = await tokenContractBob.methods.balance_of_private({ address: bob }).view();
+    bobBalance = await tokenContractBob.methods.balance_of_private(bob).view();
     logger(`Bob's balance ${bobBalance}`);
     // docs:end:Transfer
 
@@ -155,13 +155,13 @@ describe('e2e_sandbox_example', () => {
     const mintQuantity = 10_000n;
     logger(`Minting ${mintQuantity} tokens to Bob...`);
     await tokenContractBob.methods.mint_private(mintQuantity, secretHash).send().wait();
-    await tokenContractBob.methods.redeem_shield({ address: bob }, mintQuantity, secret).send().wait();
+    await tokenContractBob.methods.redeem_shield(bob, mintQuantity, secret).send().wait();
 
     // Check the new balances
-    aliceBalance = await tokenContractAlice.methods.balance_of_private({ address: alice }).view();
+    aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).view();
     logger(`Alice's balance ${aliceBalance}`);
 
-    bobBalance = await tokenContractBob.methods.balance_of_private({ address: bob }).view();
+    bobBalance = await tokenContractBob.methods.balance_of_private(bob).view();
     logger(`Bob's balance ${bobBalance}`);
     // docs:end:Mint
 
