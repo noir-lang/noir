@@ -39,9 +39,9 @@ use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
-    NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
-    TraitBound, TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind, Pattern,
+    Recoverable, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -459,7 +459,7 @@ fn validate_attributes(
 
 fn validate_where_clause(
     generics: &Vec<Ident>,
-    where_clause: &Vec<TraitConstraint>,
+    where_clause: &Vec<UnresolvedTraitConstraint>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) {
@@ -540,7 +540,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 other_args;
 
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            TopLevelStatement::TraitImpl(TraitImpl {
+            TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
                 trait_generics,
@@ -565,7 +565,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
     function.or(alias).repeated()
 }
 
-fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
+fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
     struct MultiTraitConstraint {
         typ: UnresolvedType,
         trait_bounds: Vec<TraitBound>,
@@ -583,11 +583,13 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .or_not()
         .map(|option| option.unwrap_or_default())
         .map(|x: Vec<MultiTraitConstraint>| {
-            let mut result: Vec<TraitConstraint> = Vec::new();
+            let mut result: Vec<UnresolvedTraitConstraint> = Vec::new();
             for constraint in x {
                 for bound in constraint.trait_bounds {
-                    result
-                        .push(TraitConstraint { typ: constraint.typ.clone(), trait_bound: bound });
+                    result.push(UnresolvedTraitConstraint {
+                        typ: constraint.typ.clone(),
+                        trait_bound: bound,
+                    });
                 }
             }
             result
@@ -599,9 +601,11 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
 }
 
 fn trait_bound() -> impl NoirParser<TraitBound> {
-    ident()
-        .then(generic_type_args(parse_type()))
-        .map(|(trait_name, trait_generics)| TraitBound { trait_name, trait_generics })
+    ident().then(generic_type_args(parse_type())).map(|(trait_name, trait_generics)| TraitBound {
+        trait_name,
+        trait_generics,
+        trait_id: None,
+    })
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a

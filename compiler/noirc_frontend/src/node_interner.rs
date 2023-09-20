@@ -7,24 +7,30 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::{
-    UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
-};
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
+use crate::hir_def::traits::Trait;
+use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
-    traits::Trait,
 };
 use crate::token::Attributes;
 use crate::{
     Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
     TypeVariableKind,
 };
+
+#[derive(Eq, PartialEq, Hash, Clone)]
+pub struct TraitImplKey {
+    pub typ: Type,
+    pub trait_id: TraitId,
+    // pub generics: Generics - TODO
+}
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -78,7 +84,7 @@ pub struct NodeInterner {
     // Trait implementation map
     // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
     // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
-    trait_implementaions: HashMap<(Type, TraitId), Ident>,
+    trait_implementations: HashMap<TraitImplKey, Shared<TraitImpl>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -191,6 +197,12 @@ impl TraitId {
     pub fn dummy_id() -> TraitId {
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TraitMethodId {
+    pub trait_id: TraitId,
+    pub method_index: usize, // index in Trait::methods
 }
 
 macro_rules! into_index {
@@ -306,7 +318,7 @@ impl Default for NodeInterner {
             structs: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
-            trait_implementaions: HashMap::new(),
+            trait_implementations: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -721,24 +733,16 @@ impl NodeInterner {
         }
     }
 
-    pub fn get_previous_trait_implementation(&self, key: &(Type, TraitId)) -> Option<&Ident> {
-        self.trait_implementaions.get(key)
+    pub fn get_trait_implementation(&self, key: &TraitImplKey) -> Option<Shared<TraitImpl>> {
+        self.trait_implementations.get(key).cloned()
     }
 
-    pub fn add_trait_implementaion(
-        &mut self,
-        key: &(Type, TraitId),
-        trait_definition_ident: &Ident,
-        methods: &UnresolvedFunctions,
-    ) -> Vec<FuncId> {
-        self.trait_implementaions.insert(key.clone(), trait_definition_ident.clone());
-        methods
-            .functions
-            .iter()
-            .flat_map(|(_, func_id, _)| {
-                self.add_method(&key.0, self.function_name(func_id).to_owned(), *func_id)
-            })
-            .collect::<Vec<FuncId>>()
+    pub fn add_trait_implementation(&mut self, key: &TraitImplKey, trait_impl: Shared<TraitImpl>) {
+        self.trait_implementations.insert(key.clone(), trait_impl.clone());
+
+        for func_id in &trait_impl.borrow().methods {
+            self.add_method(&key.typ, self.function_name(func_id).to_owned(), *func_id);
+        }
     }
 
     /// Search by name for a method on the given struct
