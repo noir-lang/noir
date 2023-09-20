@@ -1622,23 +1622,6 @@ mod test {
         })
     }
 
-    fn parse_all_warnings<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
-    where
-        P: NoirParser<T>,
-        T: std::fmt::Display,
-    {
-        programs
-            .into_iter()
-            .flat_map(|program| {
-                let (_expr, diagnostics) = parse_recover(&parser, program);
-                diagnostics.iter().for_each(|diagnostic| if diagnostic.is_error() {
-                    unreachable!("Expected this input to pass with warning:\n{program}\nYet it failed with error:\n{diagnostic}")
-                });
-                diagnostics
-            })
-            .collect()
-    }
-
     fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
     where
         P: NoirParser<T>,
@@ -1855,7 +1838,7 @@ mod test {
         // The first (inner) `==` is a predicate which returns 0/1
         // The outer layer is an infix `==` which is
         // associated with the Constrain statement
-        let errors = parse_all_warnings(
+        let errors = parse_all_failing(
             constrain(expression()),
             vec![
                 "constrain ((x + y) == k) + z == y",
@@ -1868,7 +1851,7 @@ mod test {
         assert_eq!(errors.len(), 5);
         assert!(errors
             .iter()
-            .all(|err| { err.is_warning() && err.to_string().contains("deprecated") }));
+            .all(|err| { err.is_error() && err.to_string().contains("deprecated") }));
     }
 
     /// This is the standard way to declare an assert statement

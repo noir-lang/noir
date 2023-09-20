@@ -124,9 +124,9 @@ impl From<ParserError> for Diagnostic {
         match &error.reason {
             Some(reason) => {
                 match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
+                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
