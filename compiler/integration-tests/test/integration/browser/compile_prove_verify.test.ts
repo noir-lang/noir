@@ -13,7 +13,7 @@ import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
-import compiled1Mul from "../../../../../foundry-project/out/1_mul.sol/UltraVerifier.json"
+// import compiled1Mul from "../../../../../foundry-project/out/1_mul.sol/UltraVerifier.json"
 
 const mnemonic = "test test test test test test test test test test test junk";
 const contractAddress = process.env.CONTRACT_ADDRESS || "";
@@ -26,7 +26,7 @@ const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic, walletPath);
 const wallet = walletMnemonic.connect(provider);
 
 // Assuming your contract ABI is named `contractAbi`
-const contractAbi = compiled1Mul.abi;
+const contractAbi = "";//compiled1Mul.abi;
 
 // Create a contract instance
 const contract = new ethers.Contract(contractAddress, contractAbi, wallet);
