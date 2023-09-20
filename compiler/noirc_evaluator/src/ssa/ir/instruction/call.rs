@@ -232,7 +232,7 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::FromField => {
-            let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap()[0].clone());
+            let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
     }
