@@ -180,27 +180,9 @@ test_cases.forEach((testInfo) => {
         expect(verified).to.be.true;
 
         try {
-          const tx = await contract.verify(proof);
-          console.log("Transaction hash:", tx.hash);
-
-          await tx.wait();
-
-          // Retrieve the result from the contract event/logs or however you're setup to get the verification result
-          // You might want to listen for a specific event emitted by your contract upon verification
-
-          const logs = await provider.getLogs({
-            fromBlock: tx.blockNumber,
-            toBlock: tx.blockNumber,
-            address: testInfo.address,
-          });
-
-          // Decode the logs using your contract's interface to get the verification result
-          const parsedLogs = logs.map((log) =>
-            contract.interface.parseLog(log)
-          );
-          console.log(parsedLogs);
-
-          // Now you can extract data from parsedLogs or perform other tasks as required.
+          const result = await contract.verify(proof, []);
+          console.log(result);
+          expect(result).to.be.true;
         } catch (error) {
           console.error("Error while submitting the proof:", error);
         }
