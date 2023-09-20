@@ -9,10 +9,10 @@ mod proof_system;
 mod smart_contract;
 
 use acvm::acir::circuit::Opcode;
+use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 pub use download::download_backend;
 
 const BACKENDS_DIR: &str = ".nargo/backends";
-pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 
 pub fn backends_directory() -> PathBuf {
     let home_directory = dirs::home_dir().unwrap();
@@ -65,6 +65,10 @@ impl Backend {
         Backend { name, binary_path }
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     fn binary_path(&self) -> &PathBuf {
         &self.binary_path
     }
@@ -77,7 +81,7 @@ impl Backend {
             if self.name == ACVM_BACKEND_BARRETENBERG {
                 // If we're trying to use barretenberg, automatically go and install it.
                 let bb_url = std::env::var("BB_BINARY_URL")
-                    .unwrap_or_else(|_| env!("BB_BINARY_URL").to_string());
+                    .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
                 download_backend(&bb_url, binary_path)?;
                 return Ok(binary_path);
             }

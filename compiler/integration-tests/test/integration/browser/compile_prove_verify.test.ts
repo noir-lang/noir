@@ -6,14 +6,10 @@ import newCompiler, {
 } from "@noir-lang/noir_wasm";
 import { decompressSync as gunzip } from "fflate";
 import { ethers } from "ethers";
-import newABICoder, { abiEncode } from "@noir-lang/noirc_abi";
-import initACVM, {
-  executeCircuit,
-  WitnessMap,
-  compressWitness,
-} from "@noir-lang/acvm_js";
 
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
+import { acvm, noirc } from "@noir-lang/noir_js";
+import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
@@ -35,6 +31,10 @@ const contractAbi = compiled1Mul.abi;
 // Create a contract instance
 const contract = new ethers.Contract(contractAddress, contractAbi, wallet);
 
+const { default: initACVM, executeCircuit, compressWitness } = acvm;
+const { default: newABICoder, abiEncode } = noirc;
+
+type WitnessMap = acvm.WitnessMap;
 
 await newCompiler();
 await newABICoder();

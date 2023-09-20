@@ -10,6 +10,7 @@ use crate::errors::CliError;
 
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
@@ -91,7 +92,12 @@ fn smart_contract_for_package(
         }
     };
 
-    let smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
+    let mut smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
+
+    if backend.name() == ACVM_BACKEND_BARRETENBERG {
+        smart_contract_string =
+            bb_abstraction_leaks::complete_barretenberg_verifier_contract(smart_contract_string);
+    }
 
     Ok(smart_contract_string)
 }

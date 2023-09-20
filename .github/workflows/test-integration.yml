@@ -147,7 +147,9 @@ jobs:
           echo "Deployed contract address is $CONTRACT_ADDRESS"
 
       - name: Setup `integration-tests`
-        run: yarn build
+        run: |
+          yarn workspace @noir-lang/source-resolver build
+          yarn workspace @noir-lang/noir_js build
 
       - name: Run `integration-tests`
         run: yarn test:integration
