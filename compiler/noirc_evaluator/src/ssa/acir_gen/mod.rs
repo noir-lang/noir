@@ -1300,7 +1300,13 @@ impl Context {
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
                 // TODO(#2461): make sure that we have handled nested struct inputs
-                new_slice.insert(index, element);
+
+                // Constraints should be generated during SSA gen to tell the user
+                // they are attempting to insert at too large of an index.
+                // This check prevents a panic inside of the im::Vector insert method.
+                if index <= new_slice.len() {
+                    new_slice.insert(index, element);
+                }
 
                 Ok(vec![
                     AcirValue::Var(new_slice_length, AcirType::field()),
@@ -1328,7 +1334,15 @@ impl Context {
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
                 // TODO(#2461): make sure that we have handled nested struct inputs
-                let removed_elem = new_slice.remove(index);
+                // Constraints should be generated during SSA gen to tell the user
+                // they are attempting to remove at too large of an index.
+                // This check prevents a panic inside of the im::Vector remove method.
+                let removed_elem = if index < new_slice.len() {
+                    new_slice.remove(index)
+                } else {
+                    // This is a dummy value which should never be used.
+                    AcirValue::Var(slice_length, AcirType::field())
+                };
 
                 Ok(vec![
                     AcirValue::Var(new_slice_length, AcirType::field()),

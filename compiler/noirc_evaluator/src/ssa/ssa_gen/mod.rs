@@ -12,7 +12,7 @@ use noirc_frontend::{
     BinaryOpKind,
 };
 
-use crate::ssa::ir::types::NumericType;
+use crate::ssa::ir::{instruction::Intrinsic, types::NumericType};
 
 use self::{
     context::FunctionContext,
@@ -496,11 +496,36 @@ impl<'a> FunctionContext<'a> {
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
         let function = self.codegen_non_tuple_expression(&call.func);
+        // dbg!(call.func.clone());
+        // dbg!(function);
+        // let slice_insert = self
+
         let arguments = call
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
-            .collect();
+            .collect::<Vec<_>>();
+
+        if let Some(intrinsic) =
+            self.builder.set_location(call.location).get_intrinsic_from_value(function)
+        {
+            match intrinsic {
+                Intrinsic::SliceInsert => {
+                    let one = self.builder.numeric_constant(1u128, Type::field());
+                    // We add one here in the case of a slice insert as a slice insert at the length of the slice
+                    // can be converted to a slice push back
+                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+
+                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                }
+                Intrinsic::SliceRemove => {
+                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                }
+                _ => {
+                    // Do nothing as the other intrinsics do not require checks
+                }
+            }
+        }
 
         self.insert_call(function, arguments, &call.return_type, call.location)
     }

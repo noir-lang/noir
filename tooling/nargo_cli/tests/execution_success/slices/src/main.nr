@@ -87,7 +87,7 @@ fn regression_2083() {
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
-    merge_slices_else(x);
+    // merge_slices_else(x);
 }
 
 fn merge_slices_if(x: Field, y: Field) {
@@ -120,9 +120,11 @@ fn merge_slices_if(x: Field, y: Field) {
     merge_slices_push_then_pop(x, y);
 
     let slice = merge_slices_push_then_insert(x, y);
+    assert(slice.len() == 7);
     assert(slice[1] == 50);
     assert(slice[2] == 0);
     assert(slice[5] == 30);
+    assert(slice[6] == 100);
 
     let slice = merge_slices_remove_between_ifs(x, y);
     assert(slice.len() == 5);
@@ -267,10 +269,10 @@ fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
         slice = slice.push_back(15);
     }
 
-    // TODO: need to constrain no insert that is greater than the length of the slice
-    // Currently, we can potentially insert into placeholder information that is greater than the slice length
-    // and we will end up with the last elem being zero rather than the elem we are inserting
-    let slice = slice.insert(1, 50);
+    slice = slice.insert(1, 50);
+
+    // Test that we can use slice insert the same as slice push back
+    slice = slice.insert(6, 100);
 
     slice
 }

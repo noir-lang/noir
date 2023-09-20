@@ -269,6 +269,32 @@ impl DataFlowGraph {
         self.intrinsics.get(&intrinsic)
     }
 
+    pub(crate) fn get_intrinsic_from_value(&self, value: ValueId) -> Option<Intrinsic> {
+        let intrinsics = self
+            .intrinsics
+            .iter()
+            .filter_map(
+                |(intrinsic, intrinsic_value_id)| {
+                    if value == *intrinsic_value_id {
+                        Some(*intrinsic)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect::<Vec<_>>();
+        if intrinsics.is_empty() {
+            None
+        } else {
+            assert_eq!(
+                intrinsics.len(),
+                1,
+                "ICE: Multiple intrinsics associated with the same ValueId"
+            );
+            Some(intrinsics[0])
+        }
+    }
+
     /// Attaches results to the instruction, clearing any previous results.
     ///
     /// This does not normally need to be called manually as it is called within

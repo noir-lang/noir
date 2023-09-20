@@ -167,6 +167,14 @@ pub(super) fn simplify_call(
                 let elements = &arguments[3..];
                 let mut index = index.to_u128() as usize * elements.len();
 
+                // Do not simplify the index is greater than the slice capacity
+                // or else we will panic inside of the im::Vector insert method
+                // Constraints should be generated during SSA gen to tell the user
+                // they are attempting to insert at too large of an index
+                if index > slice.len() {
+                    return SimplifyResult::None;
+                }
+
                 for elem in &arguments[3..] {
                     slice.insert(index, *elem);
                     index += 1;
@@ -187,6 +195,14 @@ pub(super) fn simplify_call(
                 let element_count = typ.element_size();
                 let mut results = Vec::with_capacity(element_count + 1);
                 let index = index.to_u128() as usize * element_count;
+
+                // Do not simplify if the index is not less than the slice capacity
+                // or else we will panic inside of the im::Vector remove method.
+                // Constraints should be generated during SSA gen to tell the user
+                // they are attempting to remove at too large of an index.
+                if index >= slice.len() {
+                    return SimplifyResult::None;
+                }
 
                 for _ in 0..element_count {
                     results.push(slice.remove(index));
