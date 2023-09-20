@@ -3,6 +3,7 @@ use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
+use super::traits::TraitConstraint;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attributes, FunctionKind};
 use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
@@ -127,6 +128,8 @@ pub struct FuncMeta {
 
     // This flag is needed for the attribute check pass
     pub has_body: bool,
+
+    pub trait_constraints: Vec<TraitConstraint>,
 }
 
 impl FuncMeta {

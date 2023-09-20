@@ -23,6 +23,10 @@ gloo-utils = { version = "0.1", features = ["serde"] }
 
 js-sys = "0.3.62"
 
+# This is an unused dependency, we are adding it
+# so that we can enable the js feature in getrandom.
+getrandom = { version = "*", features = ["js"] }
+
 [build-dependencies]
 build-data = "0.1.3"
 

@@ -10,6 +10,7 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
+barretenberg_blackbox_solver.workspace = true
 codespan-lsp.workspace = true
 codespan-reporting.workspace = true
 fm.workspace = true

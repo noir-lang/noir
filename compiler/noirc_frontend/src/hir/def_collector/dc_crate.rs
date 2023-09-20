@@ -11,8 +11,10 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
-use crate::hir_def::traits::{TraitConstant, TraitFunction, TraitType};
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType};
+use crate::node_interner::{
+    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
+};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem, Type, TypeBinding,
@@ -696,6 +698,13 @@ fn resolve_trait_impls(
             errors,
         );
 
+        let resolved_trait_impl = Shared::new(TraitImpl {
+            ident: trait_impl.trait_impl_ident.clone(),
+            typ: self_type.clone(),
+            trait_id,
+            methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
+        });
+
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
         new_resolver.set_self_type(Some(self_type.clone()));
@@ -703,17 +712,17 @@ fn resolve_trait_impls(
         check_methods_signatures(&mut new_resolver, &impl_methods, trait_id, errors);
 
         let trait_definition_ident = &trait_impl.trait_impl_ident;
-        let key = (self_type.clone(), trait_id);
-        if let Some(prev_trait_impl_ident) = interner.get_previous_trait_implementation(&key) {
+        let key = TraitImplKey { typ: self_type.clone(), trait_id };
+
+        if let Some(prev_trait_impl_ident) = interner.get_trait_implementation(&key) {
             let err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::TraitImplementation,
-                first_def: prev_trait_impl_ident.clone(),
+                first_def: prev_trait_impl_ident.borrow().ident.clone(),
                 second_def: trait_definition_ident.clone(),
             };
             errors.push(err.into_file_diagnostic(trait_impl.methods.file_id));
         } else {
-            let _func_ids =
-                interner.add_trait_implementaion(&key, trait_definition_ident, &trait_impl.methods);
+            interner.add_trait_implementation(&key, resolved_trait_impl);
         }
 
         methods.append(&mut impl_methods);

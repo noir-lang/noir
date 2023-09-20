@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -371,7 +371,7 @@ pub struct FunctionDefinition {
     pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,
     pub span: Span,
-    pub where_clause: Vec<TraitConstraint>,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
     pub return_distinctness: Distinctness,
@@ -637,7 +637,7 @@ impl FunctionDefinition {
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         body: &BlockExpression,
-        where_clause: &[TraitConstraint],
+        where_clause: &[UnresolvedTraitConstraint],
         return_type: &FunctionReturnType,
     ) -> FunctionDefinition {
         let p = parameters

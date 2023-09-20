@@ -33,7 +33,8 @@ rust-version = "1.66"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-acvm = "0.26.1"
+acvm = "0.27.0"
+barretenberg_blackbox_solver = "0.27.0"
 arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
 iter-extended = { path = "compiler/utils/iter-extended" }

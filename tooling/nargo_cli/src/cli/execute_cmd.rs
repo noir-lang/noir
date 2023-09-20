@@ -192,7 +192,7 @@ pub(crate) fn execute_program(
     debug_data: Option<DebugArtifact>,
 ) -> Result<WitnessMap, CliError> {
     #[allow(deprecated)]
-    let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
 
     let initial_witness = abi.encode(inputs_map, None)?;
 

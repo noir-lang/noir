@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddfd6bb6cb07ac4869c58d6e0219f447c2d550a9b2f135f27a6bc6ae0178c379"
+checksum = "8abf742e547b620f91166bd85f4925516f6841b73c7307045abdf7dd7b0c7843"
 dependencies = [
  "acir_field",
  "bincode",
@@ -18,9 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f41bc6e6dab8bd68516970371d7dd897d09e9bf0aa17a72c5e51cefcdad6573"
+checksum = "1b6d939739bb4876374058e0705e93c64c83ece679c5c29a8d3a514061cea728"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79eb3b6adc177c907e03b9414a45ef5b37100eb51503c573b3eaf383e93a7543"
+checksum = "c6782bb77fa0b3d38dd3aaa29c64c3a013a2634ddbd095668da642e747619a2e"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -48,35 +48,24 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aac4ad683de5aebb590168405c46cdfd76dc7706a7d2c51d029258772d1933e"
+checksum = "73f11d9b69669e0be6f0bfc33a0e604dd9c852b128d3d52fa815259470debc75"
 dependencies = [
  "acir",
  "blake2",
- "flate2",
- "getrandom",
- "hex",
- "js-sys",
  "k256",
- "num-bigint",
  "p256",
- "pkg-config",
- "reqwest",
- "rust-embed",
  "sha2",
  "sha3",
- "tar",
  "thiserror",
- "wasm-bindgen-futures",
- "wasmer",
 ]
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3344180fe2a59d57cdb0e6251cdc7d9978f15c06eace1af7d82bab12dd3ced9"
+checksum = "44d6fffcc2d449d50604843fecc909fd2183fb04642d943ddcd3cb08e13b3450"
 dependencies = [
  "acir",
 ]
@@ -419,6 +408,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "barretenberg_blackbox_solver"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc04b1d6e25d3081809c6092f4ca14fc0c4eab716384c8e474fc4e9326d7a9a9"
+dependencies = [
+ "acir",
+ "acvm_blackbox_solver",
+ "flate2",
+ "getrandom",
+ "hex",
+ "js-sys",
+ "num-bigint",
+ "pkg-config",
+ "reqwest",
+ "rust-embed",
+ "tar",
+ "thiserror",
+ "wasm-bindgen-futures",
+ "wasmer",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -507,9 +518,9 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "448a380e86405ad785c235907654bea2080386d03c77a2003063ddabb853d744"
+checksum = "e297d6951ff2e18f927cbb85b655efd7320ae60b641db194ede29ac503693c7f"
 dependencies = [
  "acir_field",
  "serde",
@@ -517,9 +528,9 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed1097a496ff44eb2b8f01789dfefb5bbd9364b132d9c2446a4ca18090259bf6"
+checksum = "b72120fc18f1749dac7033cd350ca9cb970f12a00d3cd561dea3fd654cf94cc9"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -851,9 +862,9 @@ checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
 
 [[package]]
 name = "corosensei"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9847f90f32a50b0dcbd68bc23ff242798b13080b97b0569f6ed96a45ce4cf2cd"
+checksum = "80128832c58ea9cbd041d2a759ec449224487b2c1e400453d99d244eead87a8e"
 dependencies = [
  "autocfg",
  "cfg-if",
@@ -1131,9 +1142,9 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "5.5.0"
+version = "5.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6943ae99c34386c84a470c499d3414f66502a41340aa895406e0d2e4a207b91d"
+checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
 dependencies = [
  "cfg-if",
  "hashbrown 0.14.0",
@@ -2200,6 +2211,7 @@ dependencies = [
  "assert_fs",
  "async-lsp",
  "backend-interface",
+ "barretenberg_blackbox_solver",
  "bb_abstraction_leaks",
  "build-data",
  "clap",
@@ -2268,6 +2280,7 @@ version = "0.12.0"
 dependencies = [
  "acvm",
  "async-lsp",
+ "barretenberg_blackbox_solver",
  "codespan-lsp",
  "codespan-reporting",
  "fm",
@@ -2292,6 +2305,7 @@ dependencies = [
  "build-data",
  "console_error_panic_hook",
  "fm",
+ "getrandom",
  "gloo-utils",
  "log",
  "nargo",
@@ -2326,6 +2340,7 @@ dependencies = [
  "acvm",
  "build-data",
  "console_error_panic_hook",
+ "getrandom",
  "gloo-utils",
  "iter-extended",
  "js-sys",
@@ -3597,9 +3612,9 @@ dependencies = [
 
 [[package]]
 name = "target-lexicon"
-version = "0.12.10"
+version = "0.12.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2faeef5759ab89935255b1a4cd98e0baf99d1085e37d36599c625dac49ae8e"
+checksum = "9d0e916b1148c8e263850e1ebcbd046f333e0683c724876bb0da63ea4373dc8a"
 
 [[package]]
 name = "tempfile"
@@ -4151,9 +4166,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-encoder"
-version = "0.31.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06a3d1b4a575ffb873679402b2aedb3117555eb65c27b1b86c8a91e574bc2a2a"
+checksum = "b39de0723a53d3c8f54bed106cfbc0d06b3e4d945c5c5022115a61e3b29183ae"
 dependencies = [
  "leb128",
 ]
@@ -4314,9 +4329,9 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "62.0.0"
+version = "65.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f7ee878019d69436895f019b65f62c33da63595d8e857cbdc87c13ecb29a32"
+checksum = "5fd8c1cbadf94a0b0d1071c581d3cfea1b7ed5192c79808dd15406e508dd0afb"
 dependencies = [
  "leb128",
  "memchr",
@@ -4326,9 +4341,9 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.0.68"
+version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "295572bf24aa5b685a971a83ad3e8b6e684aaad8a9be24bc7bf59bed84cc1c08"
+checksum = "3209e35eeaf483714f4c6be93f4a03e69aad5f304e3fa66afa7cb90fe1c8051f"
 dependencies = [
  "wast",
 ]

@@ -7,7 +7,7 @@
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "dependencies": {
-    "@noir-lang/acvm_js": "0.26.1",
+    "@noir-lang/acvm_js": "0.27.0",
     "@noir-lang/noirc_abi": "workspace:*"
   },
   "files": [

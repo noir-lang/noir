@@ -17,8 +17,8 @@ use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
-    MethodCallExpression, NoirFunction, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern,
-    Recoverable, Statement, TraitImpl, TypeImpl, UnresolvedType, UseTree,
+    MethodCallExpression, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind,
+    Pattern, Recoverable, Statement, TypeImpl, UnresolvedType, UseTree,
 };
 
 use acvm::FieldElement;
@@ -41,7 +41,7 @@ pub(crate) enum TopLevelStatement {
     Import(UseTree),
     Struct(NoirStruct),
     Trait(NoirTrait),
-    TraitImpl(TraitImpl),
+    TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     SubModule(SubModule),
@@ -224,7 +224,7 @@ pub struct ParsedModule {
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
     pub traits: Vec<NoirTrait>,
-    pub trait_impls: Vec<TraitImpl>,
+    pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<NoirTypeAlias>,
     pub globals: Vec<LetStatement>,
@@ -258,7 +258,7 @@ impl ParsedModule {
         self.traits.push(noir_trait);
     }
 
-    fn push_trait_impl(&mut self, trait_impl: TraitImpl) {
+    fn push_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
         self.trait_impls.push(trait_impl);
     }
 
