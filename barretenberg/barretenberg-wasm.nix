@@ -6,7 +6,7 @@ in
 stdenv.mkDerivation
 {
   pname = "barretenberg.wasm";
-  version = "0.7.9"; # x-release-please-version
+  version = "0.7.10"; # x-release-please-version
 
   src = ./cpp;
 
