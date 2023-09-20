@@ -82,16 +82,9 @@ test_cases.forEach((testInfo) => {
       const prover_toml = await getFile(prover_toml_url);
       const compiled_contract = await getFile(compiled_contract_url);
 
-
       const { abi } = JSON.parse(compiled_contract);
 
-      console.log({ abi })
-
       const contract = new ethers.Contract(testInfo.address, abi, wallet);
-
-      const callable_functions = abi.filter(item => item.type === 'function' && item.stateMutability !== 'view' && item.stateMutability !== 'pure');
-
-      console.log({ callable_functions })
 
       expect(noir_source).to.be.a.string;
 
@@ -180,7 +173,10 @@ test_cases.forEach((testInfo) => {
         expect(verified).to.be.true;
 
         try {
-          const result = await contract.verify(proof, []);
+          const publicInputs = proof.slice(0, 32);
+          const slicedProof = proof.slice(32);
+
+          const result = await contract.verify(slicedProof, [publicInputs]);
           console.log(result);
           expect(result).to.be.true;
         } catch (error) {
