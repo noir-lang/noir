@@ -249,9 +249,11 @@ We can break this down as follows:
 
 A token contract wouldn't be very useful if you aren't able to query the balance of an account. As part of the deployment, tokens were minted to Alice. We can now call the contract's `balance_of_private()` function to retrieve the balances of the accounts.
 
+Here is the `balance_of_private` code from the contract (no need to paste it into `index.ts`):
+
 #include_code balance_of_private /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-Call the `balance_of_private` function using the following code:
+Call the `balance_of_private` function using the following code (paste this):
 
 #include_code Balance /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
@@ -289,7 +291,7 @@ Now lets transfer some funds from Alice to Bob by calling the `transfer` functio
 3. The quantity of tokens to be transferred.
 4. The nonce for the [authentication witness](../../concepts//foundation/accounts/main.md#authorizing-actions), or 0 if msg.sender equal sender.
 
-Here is the Noir code for the `transfer` function:
+Here is the Noir code for the `transfer` function (don't paste this into `index.ts`):
 
 #include_code transfer /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 

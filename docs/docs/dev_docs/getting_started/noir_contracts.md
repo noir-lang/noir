@@ -67,8 +67,12 @@ compiler_version = "0.1"
 type = "contract"
 
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/aztec-nr/aztec" }
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="master", directory="yarn-project/aztec-nr/aztec" }
 ```
+
+:::note
+You may need to update your dependencies depending on the contract that you are writing. For example, the token contract [imports more](../getting_started/token_contract_tutorial#project-setup).
+:::
 
 You are now ready to write your own contracts!
 

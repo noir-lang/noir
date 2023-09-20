@@ -1,4 +1,5 @@
 // docs:start:token_all
+// docs:start:imports
 mod types;
 mod util;
 
@@ -38,7 +39,9 @@ contract Token {
 
     use crate::types::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN};
     use crate::util::{compute_message_hash};
+    // docs:end::imports
 
+    // docs:start:storage_struct
     struct Storage {
         admin: PublicState<Field, FIELD_SERIALISED_LEN>,
         minters: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
@@ -47,7 +50,9 @@ contract Token {
         pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
         public_balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
     }
+    // docs:end:storage_struct
 
+    // docs:start:storage_init
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
@@ -94,14 +99,18 @@ contract Token {
             }
         }
     }
+    // docs:end:storage_init
 
+    // docs:start:constructor
     #[aztec(private)]
     fn constructor() {
         // Currently not possible to execute public calls from constructor as code not yet available to sequencer.
         // let selector = compute_selector("_initialize((Field))");
         // let _callStackItem = context.call_public_function(context.this_address(), selector, [context.msg_sender()]);
     }
+    // docs:end:constructor
 
+    // docs:start:set_admin
     #[aztec(public)]
     fn set_admin(
         new_admin: AztecAddress,
@@ -110,8 +119,9 @@ contract Token {
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
         storage.admin.write(new_admin.address);
     }
+    // docs:end:set_admin
 
-    // docs:start:add_minter
+    // docs:start:set_minter
     #[aztec(public)]
     fn set_minter(
         minter: AztecAddress,
@@ -121,8 +131,9 @@ contract Token {
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
         storage.minters.at(minter.address).write(approve as Field);
     }
-    // docs:end:add_minter
+    // docs:end:set_minter
 
+    // docs:start:mint_public
     #[aztec(public)]
     fn mint_public(
         to: AztecAddress,
@@ -138,7 +149,9 @@ contract Token {
         storage.total_supply.write(supply.value as Field);
         1
     }
+    // docs:end:mint_public
 
+    // docs:start:mint_private
     #[aztec(public)]
     fn mint_private(
         amount: Field,
@@ -154,6 +167,7 @@ contract Token {
         pending_shields.insert_from_public(&mut note);
         1
     }
+    // docs:end:mint_private
 
     // docs:start:shield
     #[aztec(public)]
@@ -186,7 +200,7 @@ contract Token {
     }
     // docs:end:shield
 
-    
+    // docs:start:transfer_public
     #[aztec(public)]
     fn transfer_public(
         from: AztecAddress,
@@ -213,7 +227,9 @@ contract Token {
 
         1
     }
+    // docs:end:transfer_public
 
+    // docs:start:burn_public
     #[aztec(public)]
     fn burn_public(
         from: AztecAddress,
@@ -239,6 +255,7 @@ contract Token {
 
         1
     }
+    // docs:end:burn_public
 
     // docs:start:redeem_shield
     #[aztec(private)]
@@ -314,7 +331,8 @@ contract Token {
         1
     }
     // docs:end:transfer
-
+    
+    // docs:start:burn
     #[aztec(private)]
     fn burn(
         from: AztecAddress,
@@ -340,9 +358,11 @@ contract Token {
 
         1
     }
+    // docs:end:burn
 
     /// SHOULD BE Internal ///
 
+    // docs:start:initialize
     // We cannot do this from the constructor currently 
     // Since this should be internal, for now, we ignore the safety checks of it, as they are 
     // enforced by it being internal and only called from the constructor.
@@ -354,6 +374,7 @@ contract Token {
         storage.admin.write(new_admin.address);
         storage.minters.at(new_admin.address).write(1);
     }
+    // docs:end:initialize
 
     /// Internal ///
 
@@ -369,6 +390,7 @@ contract Token {
     }
     // docs:end:increase_public_balance
 
+    // docs:start:reduce_total_supply
     #[aztec(public)]
     internal fn _reduce_total_supply(
         amount: Field,
@@ -378,25 +400,32 @@ contract Token {
         let new_supply = SafeU120::new(storage.total_supply.read()).sub(SafeU120::new(amount));
         storage.total_supply.write(new_supply.value as Field);
     }
+    // docs:end:reduce_total_supply
 
     /// Unconstrained /// 
 
+    // docs:start:admin
     unconstrained fn admin() -> Field {
         let storage = Storage::init(Context::none());
         storage.admin.read()
     }
+    // docs:end:admin
 
+    // docs:start:is_minter
     unconstrained fn is_minter(
         minter: AztecAddress,
     ) -> bool {
         let storage = Storage::init(Context::none());
         storage.minters.at(minter.address).read() as bool
     }
+    // docs:end:is_minter
 
+    // docs:start:total_supply
     unconstrained fn total_supply() -> Field {
         let storage = Storage::init(Context::none());
         storage.total_supply.read()
     }
+    // docs:end:total_supply
 
     // docs:start:balance_of_private
     unconstrained fn balance_of_private(
@@ -409,12 +438,14 @@ contract Token {
     }
     // docs:end:balance_of_private
 
+    // docs:start:balance_of_public
     unconstrained fn balance_of_public(
         owner: AztecAddress,
     ) -> Field {
         let storage = Storage::init(Context::none());
         storage.public_balances.at(owner.address).read()
     }
+    // docs:end:balance_of_public
 
     // Below this point is the stuff of nightmares.
     // This should ideally not be required. What do we do if vastly different types of preimages?

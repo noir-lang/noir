@@ -230,39 +230,7 @@ Before we can implement the functions, we need set up the contract storage, and 
 
 Just below the contract definition, add the following imports:
 
-```rust
-mod types;
-mod util;
-
-contract Token {
-    use dep::std::option::Option;
-
-    use dep::safe_math::SafeU120;
-
-    use dep::value_note::{
-        balance_utils,
-        utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
-    };
-
-    use dep::aztec::{
-        note::{
-            note_header::NoteHeader,
-            utils as note_utils,
-        },
-        context::{PrivateContext, PublicContext, Context},
-        state_vars::{map::Map, public_state::PublicState, set::Set},
-        types::type_serialisation::field_serialisation::{
-            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
-        },
-        oracle::compute_selector::compute_selector,
-        auth::{assert_valid_message_for, assert_valid_public_message_for}
-        types::address::AztecAddress,
-    };
-
-    use crate::types::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN};
-    use crate::util::{compute_message_hash};
-```
+#include_code imports /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 We are importing the Option type, items from the `value_note` library to help manage private value storage, note utilities, context (for managing private and public execution contexts), `state_vars` for helping manage state, `types` for data manipulation and `oracle` for help passing data from the private to public execution context. We also import the `auth` [library](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/auth.nr) to handle token authorizations from [Account Contracts](../../concepts/foundation/accounts/main). Check out the Account Contract with AuthWitness [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/schnorr_auth_witness_account_contract/src/main.nr).
 
@@ -284,16 +252,7 @@ Now that we have dependencies imported into our contract we can define the stora
 
 Below the dependencies, paste the following Storage struct:
 
-```rust
-    struct Storage {
-        admin: PublicState<Field, FIELD_SERIALISED_LEN>,
-        minters: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
-        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        total_supply: PublicState<Field, FIELD_SERIALISED_LEN>,
-        pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
-        public_balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
-    }
-```
+#include_code storage_struct /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 Reading through the storage variables:
 
@@ -312,60 +271,7 @@ Once we have Storage defined, we need to specify how to initialize it. The `init
 
 Also, the public storage variables define the type that they store by passing the methods by which they are serialized. Because all `PublicState` in this contract is storing Field elements, each storage variable takes `FieldSerialisationMethods`.
 
-```rust
-    impl Storage {
-        fn init(context: Context) -> pub Self {
-            Storage {
-                // storage slot 1
-                admin: PublicState::new(
-                    context,
-                    1,
-                    FieldSerialisationMethods,
-                ),
-                // storage slot 2
-                minters: Map::new(
-                    context,
-                    2,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot,
-                            FieldSerialisationMethods,
-                        )
-                    },
-                ),
-                // storage slot 3
-                balances: Map::new(
-                    context,
-                    3,
-                    |context, slot| {
-                        Set::new(context, slot, ValueNoteMethods)
-                    },
-                ),
-                // storage slot 4
-                total_supply: PublicState::new(
-                    context,
-                    4,
-                    FieldSerialisationMethods,
-                ),
-                // storage slot 5
-                pending_shields: Set::new(context, 5, TransparentNoteMethods),
-                // storage slot 6
-                public_balances: Map::new(
-                    context,
-                    6,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot,
-                            FieldSerialisationMethods,
-                        )
-                    },
-                ),
-            }
-        }
-    }
-```
+#include_code storage_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ## Functions
 
@@ -373,16 +279,9 @@ Copy and paste the body of each function into the appropriate place in your proj
 
 ### Constructor
 
-In the source code, the constructor logic is commented out. I uncommented it here for legibility, but you should comment out the body of the function in your example, otherwise the contract may not successfully deploy.
+In the source code, the constructor logic is commented out due to some limitations of the current state of the development.
 
-```rust
-    #[aztec(private)]
-    fn constructor() {
-        // Currently not possible to execute public calls from constructor as code not yet available to sequencer.
-        let selector = compute_selector("_initialize((Field))");
-        let _callStackItem = context.call_public_function(context.this_address(), selector, [context.msg_sender()]);
-    }
-```
+#include_code constructor /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 The constructor is a private function. There isn't any private state to set up in this function, but there is public state to set up. The `context` is a global variable that is available to private and public functions, but the available methods differ based on the context. You can see the implementation details [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/context.nr). The `context.call_public_function` allows a private function to call a public function on any contract. In this case, the constructor is passing the `msg_sender` as the argument to the `_initialize` function, which is also defined in this contract.
 
@@ -390,11 +289,7 @@ The constructor is a private function. There isn't any private state to set up i
 
 Public functions are declared with the `#[aztec(public)]` macro above the function name like so:
 
-```rust
-    #[aztec(public)]
-    fn set_admin(
-        new_admin: AztecAddress,
-```
+#include_code set_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 As described in the [execution contexts section above](#execution-contexts), public function logic and transaction information is transparent to the world. Public functions update public state, but can be used to prepare data to be used in a private context, as we will go over below (e.g. see the [shield](#shield) function).
 
@@ -410,32 +305,13 @@ After this, storage is referenced as `storage.variable`. We won't go over this s
 
 After storage is initialized, the contract checks that the `msg_sender` is the `admin`. If not, the transaction will fail. If it is, the `new_admin` is saved as the `admin`.
 
-```rust
-    #[aztec(public)]
-    fn set_admin(
-        new_admin: AztecAddress,
-    ) {
-        let storage = Storage::init(Context::public(&mut context));
-        assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
-        storage.admin.write(new_admin.address);
-    }
-```
+#include_code set_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `set_minter`
 
 This function allows the `admin` to add or a remove a `minter` from the public `minters` mapping. It checks that `msg_sender` is the `admin` and finally adds the `minter` to the `minters` mapping.
 
-```rust
-    #[aztec(public)]
-    fn set_minter(
-        minter: AztecAddress,
-        approve: bool,
-    ) {
-        let storage = Storage::init(Context::public(&mut context));
-        assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
-        storage.minters.at(minter.address).write(approve as Field);
-    }
-```
+#include_code set_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `mint_public`
 
@@ -445,23 +321,7 @@ First, storage is initialized. Then the function checks that the `msg_sender` is
 
 The function returns 1 to indicate successful execution.
 
-```rust
-    #[aztec(public)]
-    fn mint_public(
-        to: AztecAddress,
-        amount: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-        assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
-        let amount = SafeU120::new(amount);
-        let new_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(amount);
-        let supply = SafeU120::new(storage.total_supply.read()).add(amount);
-
-        storage.public_balances.at(to.address).write(new_balance.value as Field);
-        storage.total_supply.write(supply.value as Field);
-        1
-    }
-```
+#include_code mint_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `mint_private`
 
@@ -469,23 +329,7 @@ This public function allows an account approved in the public `minters` mapping 
 
 First, public storage is initialized. Then it checks that the `msg_sender` is an approved minter. Then a new `TransparentNote` is created with the specified `amount` and `secret_hash`. You can read the details of the `TransparentNote` in the `types.nr` file [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/types.nr#L61). The `amount` is added to the existing public `total_supply` and the storage value is updated. Then the new `TransparentNote` is added to the `pending_shields` using the `insert_from_public` function, which is accessible on the `Set` type. Then it's ready to be claimed by anyone with the `secret_hash` pre-image using the `redeem_shield` function. It returns `1` to indicate successful execution.
 
-```rust
-    #[aztec(public)]
-    fn mint_private(
-        amount: Field,
-        secret_hash: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-        assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
-        let pending_shields = storage.pending_shields;
-        let mut note = TransparentNote::new(amount, secret_hash);
-        let supply = SafeU120::new(storage.total_supply.read()).add(SafeU120::new(amount));
-
-        storage.total_supply.write(supply.value as Field);
-        pending_shields.insert_from_public(&mut note);
-        1
-    }
-```
+#include_code mint_private /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `shield`
 
@@ -501,36 +345,7 @@ If the `msg_sender` is the same as the account to debit tokens from, the authori
 
 It returns `1` to indicate successful execution.
 
-```rust
-    #[aztec(public)]
-    fn shield(
-        from: AztecAddress,
-        amount: Field,
-        secret_hash: Field,
-        nonce: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
-        if (from.address != context.msg_sender()) {
-            // The redeem is only spendable once, so we need to ensure that you cannot insert multiple shields from the same message.
-            let selector = compute_selector("shield((Field),Field,Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, secret_hash, nonce]);
-            assert_valid_public_message_for(&mut context, from.address, message_field);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
-
-        let amount = SafeU120::new(amount);
-        let from_balance = SafeU120::new(storage.public_balances.at(from.address).read()).sub(amount);
-
-        let pending_shields = storage.pending_shields;
-        let mut note = TransparentNote::new(amount.value as Field, secret_hash);
-
-        storage.public_balances.at(from.address).write(from_balance.value as Field);
-        pending_shields.insert_from_public(&mut note);
-        1
-    }
-```
+#include_code shield /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `transfer_public`
 
@@ -538,34 +353,7 @@ This public function enables public transfers between Aztec accounts. The sender
 
 After storage is initialized, the [authorization flow specified above](#authorizing-token-spends) is checked. Then the sender and recipient's balances are updated and saved to storage using the `SafeU120` library.
 
-```rust
-    #[aztec(public)]
-    fn transfer_public(
-        from: AztecAddress,
-        to: AztecAddress,
-        amount: Field,
-        nonce: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
-        if (from.address != context.msg_sender()) {
-            let selector = compute_selector("transfer_public((Field),(Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
-            assert_valid_public_message_for(&mut context, from.address, message_field);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
-
-        let amount = SafeU120::new(amount);
-        let from_balance = SafeU120::new(storage.public_balances.at(from.address).read()).sub(amount);
-        storage.public_balances.at(from.address).write(from_balance.value as Field);
-
-        let to_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(amount);
-        storage.public_balances.at(to.address).write(to_balance.value as Field);
-
-        1
-    }
-```
+#include_code transfer_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `burn_public`
 
@@ -573,33 +361,7 @@ This public function enables public burning (destroying) of tokens from the send
 
 After storage is initialized, the [authorization flow specified above](#authorizing-token-spends) is checked. Then the sender's public balance and the `total_supply` are updated and saved to storage using the `SafeU120` library.
 
-```rust
-    #[aztec(public)]
-    fn burn_public(
-        from: AztecAddress,
-        amount: Field,
-        nonce: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
-        if (from.address != context.msg_sender()) {
-            let selector = compute_selector("burn_public((Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, nonce]);
-            assert_valid_public_message_for(&mut context, from.address, message_field);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
-
-        let amount = SafeU120::new(amount);
-        let from_balance = SafeU120::new(storage.public_balances.at(from.address).read()).sub(amount);
-        storage.public_balances.at(from.address).write(from_balance.value as Field);
-
-        let new_supply = SafeU120::new(storage.total_supply.read()).sub(amount);
-        storage.total_supply.write(new_supply.value as Field);
-
-        1
-    }
-```
+#include_code burn_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ### Private function implementations
 
@@ -628,24 +390,7 @@ Going through the function logic, first storage is initialized. Then it gets the
 
 The function returns `1` to indicate successful execution.
 
-```rust
-    #[aztec(private)]
-    fn redeem_shield(
-        to: AztecAddress,
-        amount: Field,
-        secret: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-        let pending_shields = storage.pending_shields;
-        let balance = storage.balances.at(to.address);
-        let mut public_note = TransparentNote::new_from_secret(amount, secret);
-
-        pending_shields.assert_contains_and_remove_publicly_created(&mut public_note);
-        increment(balance, amount, to.address);
-
-        1
-    }
-```
+#include_code redeem_shield /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `unshield`
 
@@ -655,33 +400,7 @@ After initializing storage, the function checks that the `msg_sender` is authori
 
 The function returns `1` to indicate successful execution.
 
-```rust
-    #[aztec(private)]
-    fn unshield(
-        from: AztecAddress,
-        to: AztecAddress,
-        amount: Field,
-        nonce: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-
-        if (from.address != context.msg_sender()) {
-            let selector = compute_selector("unshield((Field),(Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
-            assert_valid_message_for(&mut context, from.address, message_field);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
-
-        let from_balance = storage.balances.at(from.address);
-        decrement(from_balance, amount, from.address);
-
-        let selector = compute_selector("_increase_public_balance((Field),Field)");
-        let _void = context.call_public_function(context.this_address(), selector, [to.address, amount]);
-
-        1
-    }
-```
+#include_code unshield /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `transfer`
 
@@ -689,33 +408,7 @@ This private function enables private token transfers between Aztec accounts.
 
 After initializing storage, the function checks that the `msg_sender` is authorized to spend tokens. See [the Authorizing token spends section](#authorizing-token-spends) above for more detail--the only difference being that `assert_valid_message_for` is modified to work specifically in the private context. After authorization, the function gets the current balances for the sender and recipient and decrements and increments them, respectively, using the `value_note` helper functions.
 
-```rust
-    #[aztec(private)]
-    fn transfer(
-        from: AztecAddress,
-        to: AztecAddress,
-        amount: Field,
-        nonce: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-
-        if (from.address != context.msg_sender()) {
-            let selector = compute_selector("transfer((Field),(Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
-            assert_valid_message_for(&mut context, from.address, message_field);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
-
-        let from_balance = storage.balances.at(from.address);
-        let to_balance = storage.balances.at(to.address);
-
-        decrement(from_balance, amount, from.address);
-        increment(to_balance, amount, to.address);
-
-        1
-    }
-```
+#include_code transfer /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `burn`
 
@@ -723,33 +416,7 @@ This private function enables accounts to privately burn (destroy) tokens.
 
 After initializing storage, the function checks that the `msg_sender` is authorized to spend tokens. Then it gets the sender's current balance and decrements it. Finally it stages a public function call to [`_reduce_total_supply`](#_reduce_total_supply).
 
-```rust
-    #[aztec(private)]
-    fn burn(
-        from: AztecAddress,
-        amount: Field,
-        nonce: Field,
-    ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-
-        if (from.address != context.msg_sender()) {
-            let selector = compute_selector("burn((Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, nonce]);
-            assert_valid_message_for(&mut context, from.address, message_field);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
-
-        let from_balance = storage.balances.at(from.address);
-
-        decrement(from_balance, amount, from.address);
-
-        let selector = compute_selector("_reduce_total_supply(Field)");
-        let _void = context.call_public_function(context.this_address(), selector, [amount]);
-
-        1
-    }
-```
+#include_code burn /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ### Internal function implementations
 
@@ -761,51 +428,19 @@ This function is called via the [constructor](#constructor). Note that it is not
 
 This function sets the creator of the contract (passed as `msg_sender` from the constructor) as the admin and makes them a minter.
 
-```rust
-    // We cannot do this from the constructor currently
-    // Since this should be internal, for now, we ignore the safety checks of it, as they are
-    // enforced by it being internal and only called from the constructor.
-    #[aztec(public)]
-    fn _initialize(
-        new_admin: AztecAddress,
-    ) {
-        let storage = Storage::init(Context::public(&mut context));
-        storage.admin.write(new_admin.address);
-        storage.minters.at(new_admin.address).write(1);
-    }
-```
+#include_code initialize /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `_increase_public_balance`
 
 This function is called from [`unshield`](#unshield). The account's private balance is decremented in `shield` and the public balance is increased in this function.
 
-```rust
-    #[aztec(public)]
-    internal fn _increase_public_balance(
-        to: AztecAddress,
-        amount: Field,
-    ) {
-        let storage = Storage::init(Context::public(&mut context));
-        let new_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(SafeU120::new(amount));
-        storage.public_balances.at(to.address).write(new_balance.value as Field);
-    }
-```
+#include_code increase_public_balance /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `_reduce_total_supply`
 
-This function is called from [`burn`](#burn). The account's private balance is decremened in `burn` and the public `total_supply` is reduced in this function.
+This function is called from [`burn`](#burn). The account's private balance is decremented in `burn` and the public `total_supply` is reduced in this function.
 
-```rust
-    #[aztec(public)]
-    internal fn _reduce_total_supply(
-        amount: Field,
-    ) {
-        // Only to be called from burn.
-        let storage = Storage::init(Context::public(&mut context));
-        let new_supply = SafeU120::new(storage.total_supply.read()).sub(SafeU120::new(amount));
-        storage.total_supply.write(new_supply.value as Field);
-    }
-```
+#include_code reduce_total_supply /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ### Unconstrained function implementations
 
@@ -815,64 +450,31 @@ Unconstrained functions are similar to `view` functions in Solidity in that they
 
 A getter function for reading the public `admin` value.
 
-```rust
-    unconstrained fn admin() -> Field {
-        let storage = Storage::init(Context::none());
-        storage.admin.read()
-    }
-```
+#include_code admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `is_minter`
 
 A getter function for checking the value of associated with a `minter` in the public `minters` mapping.
 
-```rust
-    unconstrained fn is_minter(
-        minter: AztecAddress,
-    ) -> bool {
-        let storage = Storage::init(Context::none());
-        storage.minters.at(minter.address).read() as bool
-    }
-```
+#include_code is_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `total_supply`
 
 A getter function for checking the token `total_supply`.
 
-```rust
-    unconstrained fn total_supply() -> Field {
-        let storage = Storage::init(Context::none());
-        storage.total_supply.read()
-    }
-```
+#include_code total_supply /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `balance_of_private`
 
 A getter function for checking the private balance of the provided Aztec account. Note that the [Aztec RPC Server](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-rpc) must have access to the `owner`s decryption keys in order to decrypt their notes.
 
-```rust
-    unconstrained fn balance_of_private(
-        owner: AztecAddress,
-    ) -> Field {
-        let storage = Storage::init(Context::none());
-        let owner_balance = storage.balances.at(owner.address);
-
-        balance_utils::get_balance(owner_balance)
-    }
-```
+#include_code balance_of_private /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `balance_of_public`
 
 A getter function for checking the public balance of the provided Aztec account.
 
-```rust
-    unconstrained fn balance_of_public(
-        owner: AztecAddress,
-    ) -> Field {
-        let storage = Storage::init(Context::none());
-        storage.public_balances.at(owner.address).read()
-    }
-```
+#include_code balance_of_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 #### `compute_note_hash_and_nullifier`
 
@@ -880,19 +482,7 @@ A getter function to compute the note hash and nullifier for notes in the contra
 
 This must be included in every contract because it depends on the storage slots, which are defined when we set up storage.
 
-```rust
-    // Computes note hash and nullifier.
-    // Note 1: Needs to be defined by every contract producing logs.
-    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader { contract_address, nonce, storage_slot };
-        if (storage_slot == 5) {
-            note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, preimage)
-        } else {
-            note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
-        }
-    }
-```
+#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 ## Compiling
 
