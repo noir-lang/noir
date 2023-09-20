@@ -15,6 +15,7 @@ members = [
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
     "tooling/lsp",
+    "tooling/lsp_wasm",
     "tooling/nargo",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -43,6 +44,7 @@ nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
+noir_lsp_wasm = { path = "tooling/lsp_wasm" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 noirc_driver = { path = "compiler/noirc_driver" }
@@ -73,3 +75,5 @@ wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 fxhash = "0.2.1"
+futures = { version = "0.3.28", default-features = false, features = ["async-await", "std", "executor"] }
+rustix = { version = "0.37.1", default-features = false, features = [ "std", "fs" ] }

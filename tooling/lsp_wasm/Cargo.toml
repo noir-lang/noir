@@ -1,0 +1,17 @@
+[package]
+name = "noir_lsp_wasm"
+description = "Language server for Noir compiled to WASI"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acvm.workspace = true
+noir_lsp.workspace = true
+tower.workspace = true
+futures.workspace = true
+rustix.workspace = true
+async-lsp = { version = "0.0.5", default-features = false, features = ["omni-trait"] }

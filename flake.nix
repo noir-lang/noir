@@ -125,6 +125,9 @@
       noirc-abi-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
         pname = "noirc_abi_wasm";
       });
+      noir-lsp-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
+        pname = "noir_lsp_wasm";
+      });
 
       nargo = craneLib.buildPackage (nativeConfig // {
         pname = "nargo";
@@ -179,6 +182,19 @@
         doCheck = false;
       });
 
+      noir_lsp_wasm = craneLib.buildPackage (wasmConfig // rec {
+        pname = "noir_lsp_wasm";
+
+        inherit GIT_COMMIT GIT_DIRTY;
+
+        cargoArtifacts = noir-lsp-wasm-cargo-artifacts;
+
+        cargoExtraArgs = "--package ${pname} --target wasm32-wasi";
+
+        # We don't want to run tests because they don't work in the Nix sandbox
+        doCheck = false;
+      });
+
       wasm-bindgen-cli = pkgs.callPackage ./wasm-bindgen-cli.nix {
         rustPlatform = pkgs.makeRustPlatform {
           rustc = rustToolchain;
@@ -211,17 +227,19 @@
 
         # Nix flakes cannot build more than one derivation in one command (see https://github.com/NixOS/nix/issues/5591)
         # so we use `symlinkJoin` to build everything as the "all" package.
-        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm ]; };
+        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm noir_lsp_wasm ]; };
 
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
         inherit noir_wasm;
         inherit noirc_abi_wasm;
+        inherit noir_lsp_wasm;
 
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
         inherit noir-wasm-cargo-artifacts;
         inherit noirc-abi-wasm-cargo-artifacts;
+        inherit noir-lsp-wasm-cargo-artifacts;
       };
 
       # Setup the environment to match the environment settings, the inputs from our checks derivations,
