@@ -2,11 +2,13 @@
 title: Quickstart
 ---
 
-Get started with the Aztec Sandbox
+Get started with the Aztec Sandbox.
 
 ## Introduction
 
 The Aztec Sandbox is an environment for local development on the Aztec Network. It's easy to get setup with just a single, simple command, and contains all the components needed to develop and test Aztec contracts and applications.
+
+This is a 1 page introduction to getting started with running the sandbox, and interacting with it via the CLI. We will go over how to deploy a token contract to the sandbox, mint tokens and transfer them between accounts. You will find more in depth information on the following pages in this Getting Started section.
 
 ### Background
 
@@ -29,6 +31,11 @@ With the help of Aztec.js you will be able to:
 - Query chain state such as chain id, block number etc.
 
 This quickstart walks you through installing the Sandbox, deploying your first Noir contract, and verifying its execution!
+
+## Requirements
+
+- Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
+- Docker and Docker Compose (Docker Desktop under WSL2 on windows)
 
 ## Installation
 
@@ -64,7 +71,7 @@ npx @aztec/aztec-sandbox
 
 ### CLI
 
-To interact with the sandbox now that it's running locally, install the Aztec CLI:
+To interact with the sandbox now that it's running locally, install the [Aztec CLI](https://www.npmjs.com/package/@aztec/cli):
 
 ```bash
 npm install -g @aztec/cli
@@ -72,7 +79,7 @@ npm install -g @aztec/cli
 
 ## Deploying a contract
 
-The sandbox is preloaded with two accounts. Let's assign them to shell variables. Run the following in your terminal, so we can refer to the accounts as $ALICE and $BOB from now on:
+The sandbox is preloaded with multiple accounts. Let's assign them to shell variables. Run the following in your terminal, so we can refer to the accounts as $ALICE and $BOB from now on:
 
 :::note
 The default accounts that come with sandbox will likely change over time. Save two of the "Initial accounts" that are printed in the terminal when you started the sandbox.
@@ -84,11 +91,7 @@ Start by deploying a token contract. After it is deployed, we check that the dep
 
 #include_code deploy yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
-The contract address of the newly-deployed contract should be printed to the console. Store this contract address for future commands:
-
-```bash
-CONTRACT="Paste the contract address here"
-```
+Note that the deployed contract address is exported, so we can use it as `$CONTRACT` later on.
 
 ## Calling a contract
 

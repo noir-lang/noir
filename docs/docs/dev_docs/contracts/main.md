@@ -26,6 +26,10 @@ To write an Aztec.nr contract, you need to write Noir, and to write Noir, you ne
 
 There are a number of tools to make writing Aztec.nr contracts more pleasant. See [here](https://github.com/noir-lang/awesome-noir#get-coding).
 
+## Quickstart
+
+See the [contracts quickstart](../getting_started/noir_contracts.md) for more info on getting set up to write contracts.
+
 ## Learn more
 
 <DocCardList />

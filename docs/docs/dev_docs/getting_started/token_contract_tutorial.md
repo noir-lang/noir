@@ -902,8 +902,16 @@ Now that the contract is complete, you should be able to compile it with the `az
 aztec-cli compile /path/to/token_contracts_folder
 ```
 
-## Testing
+## Next Steps
 
-End to end tests for reference:
+### Testing
+
+Review the end to end tests for reference:
 
 https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/end-to-end/src/e2e_token_contract.test.ts
+
+### Token Bridge Contract
+
+The [token bridge tutorial](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/token-bridge-standard) is a great follow up to this one.
+
+It builds on the Token contract described here and goes into more detail about Aztec contract composability and Ethereum (L1) and Aztec (L2) cross-chain messaging.

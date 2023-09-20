@@ -1,5 +1,5 @@
 ---
-title: Aztec.nr Contracts
+title: Aztec.nr Contracts Quickstart
 ---
 
 ## Introduction

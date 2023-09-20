@@ -14,6 +14,8 @@ Here's a summary of the features we intend to support with the first release of 
 
 ## Aztec.nr Contracts
 
+See the source on Github [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-nr).
+
 - Noir `contract` scopes.
   - Declare a `contract`, containing a collection of state variables and functions.
 - private state variables:
@@ -46,16 +48,16 @@ Here's a summary of the features we intend to support with the first release of 
 
 ## `aztec.js`
 
-A typescript wrapper for making RPC calls to an Aztec Sandbox node.
+A typescript wrapper for making RPC calls to an Aztec Sandbox node. See the source on Github [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec.js).
 
 - Similar in purpose to `web3.js`/`ethers.js`/`viem`, but for interacting with Aztec Network nodes. The RPC interface for an Aztec node is necessarily different from that of an Ethereum node, because it deals with encrypted transactions and state variables.
 - A library for public/private key management.
 - Construct `Contract` instances from a Aztec.nr contract's JSON ABI.
-- Deploy new contracts to the Aztec LDT.
+- Deploy new contracts to the Aztec Sandbox.
 - Construct tx requests, passing arguments to a function of a contract.
 - Sign tx requests.
-- Send txs to the LDT node, for simulating.
-- Send txs to the LDT node, to be sent to the LDT network.
+- Send txs to the Sandbox node, for simulating.
+- Send txs to the Sandbox node, to be sent to the Sandbox network.
 - Call `unconstrained` functions of a Aztec.nr contract, to perform `pure` calculations or retrieve state.
 
 ## Aztec Sandbox Node
