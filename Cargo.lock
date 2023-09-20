@@ -2339,6 +2339,7 @@ dependencies = [
  "acvm",
  "build-data",
  "console_error_panic_hook",
+ "getrandom",
  "gloo-utils",
  "iter-extended",
  "js-sys",
