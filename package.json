@@ -14,6 +14,9 @@
         "build": "yarn workspaces foreach run build",
         "test": "yarn workspaces foreach run test",
         "test:integration": "yarn workspace integration-tests test",
+        "clean:workspaces": "yarn workspaces foreach run clean",
+        "clean:root": "rm -rf ./result ./target",
+        "clean": "yarn clean:workspaces && yarn clean:parent",
         "lint": "yarn workspaces foreach run lint"
     },
     "devDependencies": {
