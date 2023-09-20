@@ -20,7 +20,9 @@ import * as TOML from "smol-toml";
 import compiled1Mul from "../../../../../foundry-project/out/1_mul.sol/UltraVerifier.json"
 
 const mnemonic = "test test test test test test test test test test test junk";
-const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+const contractAddress = process.env.CONTRACT_ADDRESS || "";
+
+console.log({ contractAddress })
 
 const provider = new ethers.JsonRpcProvider('http://localhost:8545');
 const walletPath = ethers.utils.defaultPath;
