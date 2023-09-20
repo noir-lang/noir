@@ -49,7 +49,7 @@ const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
-    address: "1_MUL_CONTRACT_ADDRESS"
+    address: "MUL_CONTRACT_ADDRESS"
   },
   {
     case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
