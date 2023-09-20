@@ -1,9 +1,7 @@
-use std::path::PathBuf;
-
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_bin_package,
-    fs::{create_named_dir, program::read_program_from_file, write_to_file},
+    fs::{create_named_dir, write_to_file},
 };
 use crate::backends::Backend;
 use crate::errors::CliError;
@@ -12,14 +10,11 @@ use acvm::acir::circuit::Opcode;
 use acvm::Language;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
-use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
-
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
@@ -49,12 +44,10 @@ pub(crate) fn run(
 
     let (np_language, opcode_support) = backend.get_backend_info()?;
     for package in &workspace {
-        let circuit_build_path = workspace.package_build_path(package);
-
         let smart_contract_string = smart_contract_for_package(
+            &workspace,
             backend,
             package,
-            circuit_build_path,
             &args.compile_options,
             np_language,
             &|opcode| opcode_support.is_opcode_supported(opcode),
@@ -72,27 +65,22 @@ pub(crate) fn run(
 }
 
 fn smart_contract_for_package(
+    workspace: &Workspace,
     backend: &Backend,
     package: &Package,
-    circuit_build_path: PathBuf,
     compile_options: &CompileOptions,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<String, CliError> {
-    let preprocessed_program = if circuit_build_path.exists() {
-        read_program_from_file(circuit_build_path)?
-    } else {
-        let program =
-            compile_bin_package(package, compile_options, np_language, &is_opcode_supported)?;
+    let program = compile_bin_package(
+        workspace,
+        package,
+        compile_options,
+        np_language,
+        &is_opcode_supported,
+    )?;
 
-        PreprocessedProgram {
-            backend: String::from(BACKEND_IDENTIFIER),
-            abi: program.abi,
-            bytecode: program.circuit,
-        }
-    };
-
-    let mut smart_contract_string = backend.eth_contract(&preprocessed_program.bytecode)?;
+    let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
 
     if backend.name() == ACVM_BACKEND_BARRETENBERG {
         smart_contract_string =

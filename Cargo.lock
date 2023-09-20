@@ -2358,6 +2358,7 @@ dependencies = [
  "base64",
  "clap",
  "fm",
+ "fxhash",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",

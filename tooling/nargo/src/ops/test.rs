@@ -20,7 +20,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
     show_output: bool,
     config: &CompileOptions,
 ) -> TestStatus {
-    let program = compile_no_check(context, config, test_function.get_id());
+    let program = compile_no_check(context, config, test_function.get_id(), None);
     match program {
         Ok(program) => {
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,

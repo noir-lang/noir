@@ -48,7 +48,7 @@ pub struct HirAssignStatement {
 #[derive(Debug, Clone)]
 pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<String>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
