@@ -146,9 +146,11 @@ jobs:
         run: |
           echo "Deployed contract address is $CONTRACT_ADDRESS"
 
+      - name: Setup `integration-tests`
+        run: yarn build
+
       - name: Run `integration-tests`
-        working-directory: compiler/integration-tests
-        run: yarn workspace integration-tests test
+        run: yarn test:integration
         env:
           CONTRACT_ADDRESS: ${{ env.CONTRACT_ADDRESS }}
 
