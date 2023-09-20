@@ -145,7 +145,7 @@ jobs:
       - name: Replace 1_MUL_CONTRACT_ADDRESS in the file
         working-directory: compiler/integration-tests/test/integration/browser
         run: |
-          sed -i 's|address: "1_MUL_CONTRACT_ADDRESS"|address: "'"$1_MUL_CONTRACT_ADDRESS"'"|g' compile_prove_verify.test.ts
+          sed -i 's|address: "1_MUL_CONTRACT_ADDRESS"|address: "'"${1_MUL_CONTRACT_ADDRESS}"'"|g' compile_prove_verify.test.ts
 
       - name: Check injection
         working-directory: compiler/integration-tests/test/integration/browser
