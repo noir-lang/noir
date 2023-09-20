@@ -22,7 +22,7 @@ pub(super) fn is_stdlib_asset(path: &Path) -> bool {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))] {
         use wasm_bindgen::{prelude::*, JsValue};
 
         #[wasm_bindgen(module = "@noir-lang/source-resolver")]
