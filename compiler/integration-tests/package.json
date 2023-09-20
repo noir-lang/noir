@@ -12,7 +12,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {
-    "@aztec/bb.js": "^0.6.7",
+    "@aztec/bb.js": "0.7.2",
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noir_wasm": "workspace:*",
     "@noir-lang/source-resolver": "workspace:*",
