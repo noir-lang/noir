@@ -16,8 +16,7 @@ import * as TOML from "smol-toml";
 const mnemonic = "test test test test test test test test test test test junk";
 
 const provider = new ethers.JsonRpcProvider("http://localhost:8545");
-const walletPath = ethers.utils.defaultPath;
-const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic, walletPath);
+const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic);
 const wallet = walletMnemonic.connect(provider);
 
 // Assuming your contract ABI is named `contractAbi`
