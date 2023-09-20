@@ -496,18 +496,25 @@ impl<'a> FunctionContext<'a> {
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
         let function = self.codegen_non_tuple_expression(&call.func);
-        // dbg!(call.func.clone());
-        // dbg!(function);
-        // let slice_insert = self
-
         let arguments = call
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect::<Vec<_>>();
 
+        self.codegen_intrinsic_call_checks(function, &arguments, call.location);
+
+        self.insert_call(function, arguments, &call.return_type, call.location)
+    }
+
+    fn codegen_intrinsic_call_checks(
+        &mut self,
+        function: ValueId,
+        arguments: &[ValueId],
+        location: Location,
+    ) {
         if let Some(intrinsic) =
-            self.builder.set_location(call.location).get_intrinsic_from_value(function)
+            self.builder.set_location(location).get_intrinsic_from_value(function)
         {
             match intrinsic {
                 Intrinsic::SliceInsert => {
@@ -526,8 +533,6 @@ impl<'a> FunctionContext<'a> {
                 }
             }
         }
-
-        self.insert_call(function, arguments, &call.return_type, call.location)
     }
 
     /// Generate SSA for the given variable.

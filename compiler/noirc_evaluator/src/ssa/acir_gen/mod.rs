@@ -1299,12 +1299,16 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
-                // TODO(#2461): make sure that we have handled nested struct inputs
 
+                // We do not return an index out of bounds error directly here
+                // as the length of the slice is dynamic, and length of `new_slice`
+                // represents the capacity of the slice, not the actual length.
+                //
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index.
                 // This check prevents a panic inside of the im::Vector insert method.
                 if index <= new_slice.len() {
+                    // TODO(#2461): make sure that we have handled nested struct inputs
                     new_slice.insert(index, element);
                 }
 
@@ -1333,14 +1337,20 @@ impl Context {
 
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
-                // TODO(#2461): make sure that we have handled nested struct inputs
+
+                // We do not return an index out of bounds error directly here
+                // as the length of the slice is dynamic, and length of `new_slice`
+                // represents the capacity of the slice, not the actual length.
+                //
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to remove at too large of an index.
                 // This check prevents a panic inside of the im::Vector remove method.
                 let removed_elem = if index < new_slice.len() {
+                    // TODO(#2461): make sure that we have handled nested struct inputs
                     new_slice.remove(index)
                 } else {
-                    // This is a dummy value which should never be used.
+                    // This is a dummy value which should never be used if the appropriate
+                    // slice access checks are generated before this slice remove call.
                     AcirValue::Var(slice_length, AcirType::field())
                 };
 

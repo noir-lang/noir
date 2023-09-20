@@ -241,10 +241,9 @@ impl<'a> ValueMerger<'a> {
                 let instruction = &self.dfg[*instruction_id];
                 match instruction {
                     Instruction::ArraySet { array, .. } => {
-                        dbg!("got an array set");
                         let array = *array;
                         let len = self.get_slice_length(array);
-                        dbg!(self.slice_sizes.insert(array, len));
+                        self.slice_sizes.insert(array, len);
                         len
                     }
                     Instruction::Load { address } => {
