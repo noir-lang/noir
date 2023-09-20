@@ -174,7 +174,7 @@ test_cases.forEach((testInfo) => {
         expect(verified).to.be.true;
 
         try {
-          const tx = await contract.verifyProof(proof); // replace `verifyProof` with the correct method name if it's different
+          const tx = await contract.verify(proof);
           console.log("Transaction hash:", tx.hash);
 
           await tx.wait();
