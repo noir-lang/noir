@@ -7,6 +7,9 @@ on:
       - ./compiler/integration-tests
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
+  push:
+    branches:
+      - kh-recursive-e2e
 
 jobs:
   wasm-packages-build-test:

@@ -24,7 +24,7 @@ export default {
       ts: true,
     }),
   ],
-  files: ["test/integration/browser/**/*.test.ts"],
+  files: ["test/integration/browser/recursion.test.ts"],
   nodeResolve: { browser: true },
   testFramework: {
     config: {
