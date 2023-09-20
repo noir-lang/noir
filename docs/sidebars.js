@@ -225,7 +225,6 @@ const sidebars = {
             "dev_docs/contracts/syntax/functions",
             "dev_docs/contracts/syntax/context",
             "dev_docs/contracts/syntax/globals",
-            "dev_docs/contracts/syntax/messaging",
           ],
         },
         {

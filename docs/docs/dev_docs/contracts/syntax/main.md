@@ -14,7 +14,7 @@ Aztec.nr contains abstractions which remove the need to understand the low-level
 - [Oracle functions](./functions.md#oracle-functions) for accessing:
   - private state
   - secrets
-- Functions for communicating with [Ethereum L1](./messaging.md)
+- Functions for communicating with [Ethereum L1](../portals/main.md)
 
 To import Aztec.nr into your Aztec contract project, simply include it as a dependency. For example:
 

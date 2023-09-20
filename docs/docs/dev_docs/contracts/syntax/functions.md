@@ -228,7 +228,7 @@ If you recall the `redeem_shield` from back in the [private function section](#p
 
 #include_code redeem_shield /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-When the note is removed, it emits a nullifier so that it cannot be used again. This nullifier is then added to the private data tree, and can be used to prove that the note was removed from the pending shields. Interestingly, we can generate the nullifier such that no-one who saw the public execution will know that it have been consumed. When sending messages between L1 and L2 in [messages](./messaging.md) we are going to see this pattern again.
+When the note is removed, it emits a nullifier so that it cannot be used again. This nullifier is then added to the private data tree, and can be used to prove that the note was removed from the pending shields. Interestingly, we can generate the nullifier such that no-one who saw the public execution will know that it have been consumed. When sending messages between L1 and L2 in [portals](../portals/main.md) we are going to see this pattern again.
 
 :::danger
 Something to be mindful of when inserting from public. Everyone can see the insertion and what happens in public, so if you are including a secret directly anyone would be able to see it. This is why the hash of the secret is used in the snippet above (`secret_hash`).
