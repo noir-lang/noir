@@ -722,7 +722,7 @@ fn resolve_trait_impls(
             };
             errors.push(err.into_file_diagnostic(trait_impl.methods.file_id));
         } else {
-            interner.add_trait_implementation(&key, resolved_trait_impl.clone());
+            interner.add_trait_implementation(&key, resolved_trait_impl);
         }
 
         methods.append(&mut impl_methods);
