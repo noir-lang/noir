@@ -18,15 +18,15 @@ import * as TOML from "smol-toml";
 const mnemonic = "test test test test test test test test test test test junk";
 const contractAddress = process.env.CONTRACT_ADDRESS || "";
 
-console.log({ contractAddress })
+console.log({ contractAddress });
 
-const provider = new ethers.JsonRpcProvider('http://localhost:8545');
+const provider = new ethers.JsonRpcProvider("http://localhost:8545");
 const walletPath = ethers.utils.defaultPath;
 const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic, walletPath);
 const wallet = walletMnemonic.connect(provider);
 
 // Assuming your contract ABI is named `contractAbi`
-const contractAbi = "";//compiled1Mul.abi;
+const contractAbi = ""; //compiled1Mul.abi;
 
 // Create a contract instance
 const contract = new ethers.Contract(contractAddress, contractAbi, wallet);
@@ -39,7 +39,6 @@ type WitnessMap = acvm.WitnessMap;
 await newCompiler();
 await newABICoder();
 await initACVM();
-
 
 compilerLogLevel("DEBUG");
 
@@ -186,19 +185,19 @@ test_cases.forEach((testInfo) => {
           const logs = await provider.getLogs({
             fromBlock: tx.blockNumber,
             toBlock: tx.blockNumber,
-            address: contractAddress
+            address: contractAddress,
           });
 
           // Decode the logs using your contract's interface to get the verification result
-          const parsedLogs = logs.map(log => contract.interface.parseLog(log));
+          const parsedLogs = logs.map((log) =>
+            contract.interface.parseLog(log)
+          );
           console.log(parsedLogs);
 
           // Now you can extract data from parsedLogs or perform other tasks as required.
-
         } catch (error) {
           console.error("Error while submitting the proof:", error);
         }
-
       } catch (e) {
         expect(e, "Proving and Verifying").to.not.be.an("error");
         throw e;
