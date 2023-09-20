@@ -92,7 +92,7 @@ For example, the following function calls the account contract before it updates
 
 In contrast to public state, private state is persistent state that is _not_ visible to the whole world. Depending on the logic of the smart contract, a _private_ state variable's current value will only be known to one entity, or a closed group of entities.
 
-The value of a private state variable can either be shared via [events](../events), or offchain via web2, or completely offline: it's up to the app developer.
+The value of a private state variable can either be shared via [events](./events.md), or offchain via web2, or completely offline: it's up to the app developer.
 
 Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the [private state tree](/concepts/advanced/data_structures/trees#private-state-tree).
 

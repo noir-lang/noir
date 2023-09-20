@@ -149,7 +149,7 @@ We can query the RPC server for all notes encrypted for a given user in a contra
 
 ### Logs
 
-Last but not least, we can check the logs of [events](../contracts/events.md) emitted by our contracts. Contracts in Aztec can emit both [encrypted](../contracts/events.md#encrypted-events) and [unencrypted](../contracts/events.md#unencrypted-events) events.
+Last but not least, we can check the logs of [events](../contracts/syntax/events.md) emitted by our contracts. Contracts in Aztec can emit both [encrypted](../contracts/syntax/events.md#encrypted-events) and [unencrypted](../contracts/syntax/events.md#unencrypted-events) events.
 
 :::info
 At the time of this writing, only unencrypted events can be queried directly. Encrypted events are always assumed to be encrypted notes.

@@ -27,7 +27,7 @@ contract DocsExample {
         rules_note::{RulesNote, RulesNoteMethods, RULES_NOTE_LEN},
     };
 
-    // docs:start:storage-declaration
+    // docs:start:storage-struct-declaration
     struct Storage {
         locked: PublicState<bool, BOOL_SERIALISED_LEN>,
         queen: PublicState<Queen, QUEEN_SERIALISED_LEN>,
@@ -36,7 +36,9 @@ contract DocsExample {
         cards: Set<CardNote, CARD_NOTE_LEN>,
         profiles: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     }
+    // docs:end:storage-struct-declaration
 
+    // docs:start:storage-declaration
     // docs:start:state_vars-PublicState
     // docs:start:state_vars-PublicStateCustomStruct
     // docs:start:state_vars-Singleton

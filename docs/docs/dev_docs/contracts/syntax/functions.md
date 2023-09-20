@@ -1,5 +1,6 @@
 ---
 title: Functions
+description: This page covers functions, private and public functions composability, as well as their differences.
 ---
 
 
@@ -21,6 +22,15 @@ A good place to use `internal` is when you want a private function to be able to
 
 :::danger
 Note that non-internal functions could be used directly as an entry-point, which currently means that the `msg_sender` would be `0`, so for now, using address `0` as a burn address is not recommended.
+:::
+
+## Mutability
+Currently, any function is "mutable" in the sense that it might alter state. In the future, we will support static calls, similarly to EVM. A static call is essentially a call that does not alter state (it keeps state static). This is useful for when you want to call a function in a separate contract, but ensure that it cannot alter state, or call other functions that might alter state (such as re-entering).
+
+Similarly, a special case of a mutating call is the `delegatecall` where the function executed might not be in the same contract as the state being altered. It is at this moment, not certain if `delegatecall`s should become a fully fledged feature. 
+
+:::danger No `staticcall` or `delegatecall` support
+While `staticcall` and `delegatecall` both have flags in the call context, they are currently not supported and will not behave as one would expect if usage is attempted.
 :::
 
 ## `constructor`
@@ -92,6 +102,7 @@ Oracles introduce **non-determinism** into a circuit, and thus are `unconstraine
 - [`auth_witness`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/oracle/auth_witness.nr) - Provides a way to fetch the authentication witness for a given address. This is useful when building account contracts to support approve-like functionality.
 - [`get_l1_to_l2_message`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/oracle/get_l1_to_l2_message.nr) - Useful for application that receive messages from L1 to be consumed on L2, such as token bridges or other cross-chain applications.
 - [`notes`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/oracle/notes.nr) - Provides a lot of functions related to notes, such as fetches notes from storage etc, used behind the scenes for value notes and other pre-build note implementations.
+- [`logs`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/oracle/logs.nr) - Provides the to log encrypted and unencrypted data.
 
 
 ---

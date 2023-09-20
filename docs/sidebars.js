@@ -58,6 +58,125 @@ const sidebars = {
       value: '<span class="sidebar-divider" />',
     },
 
+    // SPECIFICATION
+
+    {
+      type: "html",
+      className: "sidebar-title",
+      value: "Specification",
+      defaultStyle: true,
+    },
+
+    {
+      label: "Foundational Concepts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "concepts/foundation/main",
+      },
+      items: [
+        "concepts/foundation/state_model",
+        {
+          label: "Accounts",
+          type: "category",
+          link: { type: "doc", id: "concepts/foundation/accounts/main" },
+          items: ["concepts/foundation/accounts/keys"],
+        },
+        "concepts/foundation/contracts",
+        "concepts/foundation/transactions",
+        // "concepts/foundation/blocks",
+        // "concepts/foundation/globals",
+        {
+          label: "Communication",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/foundation/communication/main",
+          },
+          items: [
+            "concepts/foundation/communication/public_private_calls",
+            "concepts/foundation/communication/cross_chain_calls",
+          ],
+        },
+        // {
+        //   label: "Nodes and Clients",
+        //   type: "category",
+        //   link: {
+        //     type: "doc",
+        //     id: "concepts/foundation/nodes_clients/main",
+        //   },
+        //   items: [
+        //     "concepts/foundation/nodes_clients/execution_client",
+        //     "concepts/foundation/nodes_clients/prover_client",
+        //     "concepts/foundation/nodes_clients/sequencer_client",
+        //   ],
+        // },
+        // "concepts/foundation/block_production",
+        // "concepts/foundation/upgrade_mechanism",
+      ],
+    },
+
+    {
+      label: "Advanced Concepts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "concepts/advanced/main",
+      },
+      items: [
+        {
+          label: "Data Structures",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/advanced/data_structures/main",
+          },
+          items: [
+            "concepts/advanced/data_structures/trees",
+            "concepts/advanced/data_structures/indexed_merkle_tree",
+          ],
+        },
+        {
+          label: "Circuits",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/advanced/circuits/main",
+          },
+          items: [
+            {
+              label: "Kernels",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/advanced/circuits/kernels/main",
+              },
+              items: [
+                "concepts/advanced/circuits/kernels/private_kernel",
+                "concepts/advanced/circuits/kernels/public_kernel",
+              ],
+            },
+            {
+              label: "Rollup Circuits",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/advanced/circuits/rollup_circuits/main",
+              },
+              items: [],
+            },
+          ],
+        },
+        "concepts/advanced/public_vm",
+        "concepts/advanced/contract_creation",
+      ],
+    },
+
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+
     // DEVELOPER DOCUMENTATION
 
     {
@@ -92,10 +211,6 @@ const sidebars = {
       items: [
         "dev_docs/contracts/workflow",
         "dev_docs/contracts/layout",
-        "dev_docs/contracts/events",
-        "dev_docs/contracts/compiling",
-        "dev_docs/contracts/deploying",
-        "dev_docs/contracts/artifacts",
         {
           label: "Syntax",
           type: "category",
@@ -104,9 +219,9 @@ const sidebars = {
             id: "dev_docs/contracts/syntax/main",
           },
           items: [
-            "dev_docs/contracts/syntax/contract",
             "dev_docs/contracts/syntax/storage",
             "dev_docs/contracts/syntax/state_variables",
+            "dev_docs/contracts/syntax/events",
             "dev_docs/contracts/syntax/functions",
             "dev_docs/contracts/syntax/context",
             "dev_docs/contracts/syntax/globals",
@@ -127,6 +242,9 @@ const sidebars = {
             "dev_docs/contracts/portals/outbox",
           ],
         },
+        "dev_docs/contracts/compiling",
+        "dev_docs/contracts/deploying",
+        "dev_docs/contracts/artifacts",
         // {
         //   label: "Resources",
         //   type: "category",
@@ -242,130 +360,13 @@ const sidebars = {
       ],
     },
 
-    {
+    /*    {
       label: "Security Considerations",
       type: "category",
-      items: ["dev_docs/limitations/main", "dev_docs/privacy/main"],
-    },
-
-    {
-      type: "html",
-      value: '<span class="sidebar-divider" />',
-    },
-
-    // SPECIFICATION
-
-    {
-      type: "html",
-      className: "sidebar-title",
-      value: "Specification",
-      defaultStyle: true,
-    },
-
-    {
-      label: "Foundational Concepts",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "concepts/foundation/main",
-      },
-      items: [
-        "concepts/foundation/state_model",
-        {
-          label: "Accounts",
-          type: "category",
-          link: { type: "doc", id: "concepts/foundation/accounts/main" },
-          items: ["concepts/foundation/accounts/keys"],
-        },
-        "concepts/foundation/contracts",
-        "concepts/foundation/transactions",
-        // "concepts/foundation/blocks",
-        // "concepts/foundation/globals",
-        {
-          label: "Communication",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/foundation/communication/main",
-          },
-          items: [
-            "concepts/foundation/communication/public_private_calls",
-            "concepts/foundation/communication/cross_chain_calls",
-          ],
-        },
-        // {
-        //   label: "Nodes and Clients",
-        //   type: "category",
-        //   link: {
-        //     type: "doc",
-        //     id: "concepts/foundation/nodes_clients/main",
-        //   },
-        //   items: [
-        //     "concepts/foundation/nodes_clients/execution_client",
-        //     "concepts/foundation/nodes_clients/prover_client",
-        //     "concepts/foundation/nodes_clients/sequencer_client",
-        //   ],
-        // },
-        // "concepts/foundation/block_production",
-        // "concepts/foundation/upgrade_mechanism",
-      ],
-    },
-
-    {
-      label: "Advanced Concepts",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "concepts/advanced/main",
-      },
-      items: [
-        {
-          label: "Data Structures",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/advanced/data_structures/main",
-          },
-          items: [
-            "concepts/advanced/data_structures/trees",
-            "concepts/advanced/data_structures/indexed_merkle_tree",
-          ],
-        },
-        {
-          label: "Circuits",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "concepts/advanced/circuits/main",
-          },
-          items: [
-            {
-              label: "Kernels",
-              type: "category",
-              link: {
-                type: "doc",
-                id: "concepts/advanced/circuits/kernels/main",
-              },
-              items: [
-                "concepts/advanced/circuits/kernels/private_kernel",
-                "concepts/advanced/circuits/kernels/public_kernel",
-              ],
-            },
-            {
-              label: "Rollup Circuits",
-              type: "category",
-              link: {
-                type: "doc",
-                id: "concepts/advanced/circuits/rollup_circuits/main",
-              },
-              items: [],
-            },
-          ],
-        },
-        "concepts/advanced/public_vm",
-        "concepts/advanced/contract_creation",
-      ],
-    },
+      items: [],
+    },*/
+    "dev_docs/privacy/main",
+    "dev_docs/limitations/main",
 
     {
       type: "html",

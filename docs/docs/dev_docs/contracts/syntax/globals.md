@@ -47,6 +47,6 @@ context.block_number();
 ```
 
 :::info *Why do the available global variables differ per execution environment?*  
-> The global variables are constrained by the proving environment. In the case of public functions, they are executed on a sequencer that will know the timestamp and number of the next block ( as they are the block producer ).  
-> In the case of private functions, we cannot be sure which block our transaction will be included in, hence we can not guarantee values for the timestamp or block number.
+The global variables are constrained by the proving environment. In the case of public functions, they are executed on a sequencer that will know the timestamp and number of the next block ( as they are the block producer ).  
+In the case of private functions, we cannot be sure which block our transaction will be included in, hence we can not guarantee values for the timestamp or block number.
 :::

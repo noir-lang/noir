@@ -10,11 +10,11 @@ Aztec.nr contains abstractions which remove the need to understand the low-level
 
 - Public and private [state variable types](./state_variables.md)
 - Some pre-designed notes
-- Functions for [emitting](../events.md) encrypted and unencrypted logs
-- [Oracle functions](./functions.md#oracle-calls) for accessing:
+- Functions for [emitting](./events.md) encrypted and unencrypted logs
+- [Oracle functions](./functions.md#oracle-functions) for accessing:
   - private state
   - secrets
-- Functions for communicating with Ethereum L1
+- Functions for communicating with [Ethereum L1](./messaging.md)
 
 To import Aztec.nr into your Aztec contract project, simply include it as a dependency. For example:
 

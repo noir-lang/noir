@@ -419,6 +419,7 @@ contract Token {
     // Below this point is the stuff of nightmares.
     // This should ideally not be required. What do we do if vastly different types of preimages?
 
+    // docs:start:compute_note_hash_and_nullifier
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
@@ -430,6 +431,7 @@ contract Token {
             note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
         }
     }
+    // docs:end:compute_note_hash_and_nullifier
 
 }
 // docs:end:token_all
