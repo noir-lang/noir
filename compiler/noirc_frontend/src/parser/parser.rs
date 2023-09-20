@@ -1388,8 +1388,8 @@ where
             emit(ParserError::with_reason(ParserErrorReason::ForLoopDefaultTypeChanging, span));
             expr
         })
-    }
-    
+}
+
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
