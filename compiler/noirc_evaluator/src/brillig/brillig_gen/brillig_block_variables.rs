@@ -23,10 +23,7 @@ impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
         BlockVariables {
-            available_variables: live_in
-                .into_iter()
-                .chain(all_block_parameters)
-                .collect(),
+            available_variables: live_in.into_iter().chain(all_block_parameters).collect(),
             ..Default::default()
         }
     }
