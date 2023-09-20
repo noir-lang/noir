@@ -58,4 +58,8 @@
     from = "/dev_docs/getting_started/cli"
     to = "/dev_docs/cli"
 
+[[redirects]]
+    from = "/aztec/overview"
+    to = "/"
+
     
