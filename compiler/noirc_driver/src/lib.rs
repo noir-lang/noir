@@ -186,6 +186,12 @@ pub fn compile_contract(
         let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
             .in_file(FileId::default());
         return Err(vec![err]);
+    } else if contracts.is_empty() {
+        let err = CustomDiagnostic::from_message(
+            "cannot compile crate into a contract as it does not contain any contracts",
+        )
+        .in_file(FileId::default());
+        return Err(vec![err]);
     };
 
     for contract in contracts {
