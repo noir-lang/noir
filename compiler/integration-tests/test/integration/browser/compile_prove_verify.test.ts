@@ -4,17 +4,13 @@ import newCompiler, {
   compile,
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
+import { acvm, noirc } from "@noir-lang/noir_js";
+import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 import { decompressSync as gunzip } from "fflate";
 import { ethers } from "ethers";
-
-import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
-import { acvm, noirc } from "@noir-lang/noir_js";
-import { decompressSync as gunzip } from "fflate";
-
 import * as TOML from "smol-toml";
 
 const mnemonic = "test test test test test test test test test test test junk";
-
 const provider = new ethers.JsonRpcProvider("http://localhost:8545");
 const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic);
 const wallet = walletMnemonic.connect(provider);
@@ -89,7 +85,7 @@ test_cases.forEach((testInfo) => {
       const prover_toml = await getFile(prover_toml_url);
       const compiled_contract = await getFile(compiled_contract_url);
 
-      const contract = new ethers.Contract(contractAddress, JSON.parse(compiled_contract).abi, wallet);
+      const contract = new ethers.Contract(testInfo.address, JSON.parse(compiled_contract).abi, wallet);
 
       expect(noir_source).to.be.a.string;
 
@@ -189,7 +185,7 @@ test_cases.forEach((testInfo) => {
           const logs = await provider.getLogs({
             fromBlock: tx.blockNumber,
             toBlock: tx.blockNumber,
-            address: contractAddress,
+            address: testInfo.address,
           });
 
           // Decode the logs using your contract's interface to get the verification result
