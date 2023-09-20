@@ -1,5 +1,5 @@
 [package]
-name = "8_integration"
+name = "conditional_3_regression"
 type = "bin"
 authors = [""]
 compiler_version = "0.1"

@@ -452,6 +452,10 @@ impl GeneratedAcir {
         if let Some(rhs_const) = rhs.to_const() {
             max_rhs_bits = rhs_const.num_bits();
             if max_rhs_bits != 0 {
+                if max_rhs_bits > max_bit_size {
+                    let zero = self.get_or_create_witness(&Expression::zero());
+                    return Ok((zero, zero));
+                }
                 max_q_bits = max_bit_size - max_rhs_bits + 1;
             }
         }

@@ -2,6 +2,9 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+// See Cargo.toml for explanation.
+use getrandom as _;
+
 use acvm::acir::native_types::WitnessMap;
 use iter_extended::try_btree_map;
 use noirc_abi::{errors::InputParserError, input_parser::InputValue, Abi, MAIN_RETURN_NAME};
