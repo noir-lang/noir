@@ -373,7 +373,7 @@ Copy and paste the body of each function into the appropriate place in your proj
 
 ### Constructor
 
-In the source code, the constructor logic is commented out. I uncommented it here for legibility, but you should comment out the body of the function in your example, otherwise the contract may not compile.
+In the source code, the constructor logic is commented out. I uncommented it here for legibility, but you should comment out the body of the function in your example, otherwise the contract may not successfully deploy.
 
 ```rust
     #[aztec(private)]
