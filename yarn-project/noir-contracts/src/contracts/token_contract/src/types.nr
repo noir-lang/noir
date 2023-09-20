@@ -1,3 +1,4 @@
+// docs:start:token_types_all
 use dep::std::hash::pedersen;
 use dep::std::hash::pedersen_with_separator;
 use dep::aztec::note::{
@@ -126,3 +127,4 @@ global TransparentNoteMethods = NoteInterface {
     get_header,
     set_header,
 };
+// docs:end:token_types_all

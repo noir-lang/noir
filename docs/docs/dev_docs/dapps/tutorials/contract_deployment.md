@@ -8,24 +8,35 @@ Follow the instructions [here](../../getting_started/noir_contracts.md) to insta
 
 ## Initialise nargo project
 
-Create a new `contracts` folder, and from there, initialise a new project called `private_token`:
+Create a new `contracts` folder, and from there, initialise a new project called `token`:
 
 ```sh
 mkdir contracts && cd contracts
-nargo new --contract private_token
+nargo new --contract token
 ```
 
-Then, open the `contracts/private_token/Nargo.toml` configuration file, and add the `aztec.nr` and `value_note` libraries as dependencies:
+Then, open the `contracts/token/Nargo.toml` configuration file, and add the `aztec.nr` and `value_note` libraries as dependencies:
 
 ```toml
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-nr", tag="master", directory="aztec" }
 value_note = { git="https://github.com/AztecProtocol/aztec-nr", tag="master", directory="value-note" }
+safe_math = {  git="https://github.com/AztecProtocol/aztec-nr", tag="master", directory="safe-math" }
 ```
 
-Last, copy-paste the code from the `PrivateToken` contract into `contracts/private_token/main.nr`:
+Last, copy-paste the code from the `Token` contract into `contracts/token/main.nr`:
 
-#include_code all yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
+#include_code token_all yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+The `Token` contract also requires two helper files. Copy-them too:
+
+Create `contracts/token/types.nr` and copy-paste the following:
+
+#include_code token_types_all yarn-project/noir-contracts/src/contracts/token_contract/src/types.nr rust
+
+Finally, create `contracts/token/util.nr` and copy-paste the following:
+
+#include_code token_util_all yarn-project/noir-contracts/src/contracts/token_contract/src/util.nr rust
 
 ## Compile your contract
 
@@ -38,41 +49,26 @@ yarn add -D @aztec/cli
 Now run the following from your project root:
 
 ```sh
-yarn aztec-cli compile contracts/private_token
+yarn aztec-cli compile contracts/token
 ```
 
 :::info
 If you are using Typescript, consider including the `--typescript` option to [generate type-safe wrappers](../../contracts/compiling.md#typescript-interfaces) for your contracts.
 :::
 
-This should have created an artifact `contracts/private_token/target/private_token-Main.json` with the interface and bytecode for your contract.
-
-## Adding a second contract
-
-For the purposes of this tutorial, we'll set up a second contract: a public token contract. Follow the same steps as above for initialising a new Nargo project, include the dependencies, and copy-paste the following code into `contracts/public_token/main.nr`:
-
-#include_code all yarn-project/noir-contracts/src/contracts/public_token_contract/src/main.nr rust
-
-Compile the contract with the CLI:
-
-```sh
-yarn aztec-cli compile contracts/public_token
-```
-
-With both contracts ready, we'll now proceed to deployment.
+This should have created an artifact `contracts/token/target/Token.json` with the interface and bytecode for your contract.
 
 ## Deploy your contracts
 
 Let's now write a script for deploying your contracts to the Sandbox. We'll create an RPC client, and then use the `ContractDeployer` class to deploy our contracts, and store the deployment address to a local JSON file.
 
-Create a new file `src/deploy.mjs`, importing the contract artifacts we have generated plus the dependencies we'll need, and with a call to a `main` function that we'll populate in a second:
+Create a new file `src/deploy.mjs`, with a call to a `main` function that we'll populate in a second:
 
 ```js
 // src/deploy.mjs
-import { writeFileSync } from "fs";
-import { createAztecRpcClient, ContractDeployer } from "@aztec/aztec.js";
-import PrivateTokenArtifact from "../contracts/private_token/target/PrivateToken.json" assert { type: "json" };
-import PublicTokenArtifact from "../contracts/public_token/target/PublicToken.json" assert { type: "json" };
+import { writeFileSync } from 'fs';
+import { Contract, ContractDeployer, createAztecRpcClient, getSandboxAccountsWallets } from '@aztec/aztec.js';
+import TokenContractAbi from "../contracts/token/target/Token.json" assert { type: "json" };
 
 async function main() {}
 
@@ -82,17 +78,17 @@ main().catch((err) => {
 });
 ```
 
-Now we can deploy the contracts by adding the following code to the `src/deploy.mjs` file. Here, we are using the `ContractDeployer` class with the compiled artifact to send a new deployment transaction. The `wait` method will block execution until the transaction is successfully mined, and return a receipt with the deployed contract address.
+Now we will import the contract artifacts we have generated plus the dependencies we'll need, and then we can deploy the contracts by adding the following code to the `src/deploy.mjs` file. Here, we are using the `ContractDeployer` class with the compiled artifact to send a new deployment transaction. The `wait` method will block execution until the transaction is successfully mined, and return a receipt with the deployed contract address.
 
 #include_code dapp-deploy yarn-project/end-to-end/src/sample-dapp/deploy.mjs javascript
 
-Note that the private token constructor expects an `owner` address to mint an initial set of tokens to. We are using the first account from the Sandbox for this.
+Note that the token's `_initialize()` method expects an `owner` address to mint an initial set of tokens to. We are using the first account from the Sandbox for this.
 
 :::info
 If you are using the generated typescript classes, you can drop the generic `ContractDeployer` in favor of using the `deploy` method of the generated class, which will automatically load the artifact for you and type-check the constructor arguments:
 
 ```typescript
-await PrivateToken.deploy(client, 100n, owner.address).send().wait();
+await Token.deploy(client).send().wait();
 ```
 
 :::
@@ -100,8 +96,7 @@ await PrivateToken.deploy(client, 100n, owner.address).send().wait();
 Run the snippet above as `node src/deploy.mjs`, and you should see the following output, along with a new `addresses.json` file in your project root:
 
 ```text
-Private token deployed to 0x2950b0f290422ff86b8ee8b91af4417e1464ddfd9dda26de8af52dac9ea4f869
-Public token deployed to 0x2b54f68fd1e18f7dcfa71e3be3c91bb06ecbe727a28d609e964c225a4b5549c8
+Token deployed to 0x2950b0f290422ff86b8ee8b91af4417e1464ddfd9dda26de8af52dac9ea4f869
 ```
 
 ## Next steps

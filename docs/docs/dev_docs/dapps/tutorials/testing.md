@@ -27,9 +27,9 @@ Create a new file `src/index.test.mjs` with the imports we'll be using and an em
 ```js
 import { createSandbox } from "@aztec/aztec-sandbox";
 import { Contract, createAccount } from "@aztec/aztec.js";
-import PrivateTokenArtifact from "../contracts/private_token/target/PrivateToken.json" assert { type: "json" };
+import TokenContractAbi from "../contracts/token/target/Token.json" assert { type: "json" };
 
-describe("private token", () => {});
+describe("token", () => {});
 ```
 
 Let's set up our test suite. We'll start [a new Sandbox instance within the test](../../testing/testing.md#running-sandbox-in-the-nodejs-process), create two fresh accounts to test with, and deploy an instance of our contract. The `aztec-sandbox` and `aztec.js` provide the helper functions we need to do this:
@@ -40,7 +40,7 @@ Note that, since we are starting a new Sandbox instance, we need to `stop` it in
 
 ## Writing our test
 
-Now that we have a working test environment, we can write our first test for exercising the `transfer` function on the private token contract. We will use the same `aztec.js` methods we used when building our dapp:
+Now that we have a working test environment, we can write our first test for exercising the `transfer` function on the token contract. We will use the same `aztec.js` methods we used when building our dapp:
 
 #include_code test yarn-project/end-to-end/src/sample-dapp/index.test.mjs javascript
 

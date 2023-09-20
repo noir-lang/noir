@@ -12,12 +12,13 @@ async function main() {
   const [owner] = await getSandboxAccountsWallets(client);
 
   const token = await Contract.deploy(client, TokenContractAbi, []).send().deployed();
-
   await token.withWallet(owner).methods._initialize({ address: owner.getAddress() }).send().wait();
 
   console.log(`Token deployed at ${token.address.toString()}`);
 
-  const addresses = { token: token.address.toString() };
+  const addresses = {
+    token: token.address.toString(),
+  };
   writeFileSync('addresses.json', JSON.stringify(addresses, null, 2));
 }
 // docs:end:dapp-deploy
