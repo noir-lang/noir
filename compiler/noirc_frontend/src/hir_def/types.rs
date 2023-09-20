@@ -407,7 +407,7 @@ pub struct TypeVariableId(pub usize);
 
 impl Type {
     pub fn default_int_type() -> Type {
-        Type::FieldElement
+        Type::Integer(Signedness::Unsigned, 64)
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {

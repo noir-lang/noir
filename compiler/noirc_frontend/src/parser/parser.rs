@@ -1384,10 +1384,6 @@ where
         .then(expr_no_constructors.clone())
         .map(|(start, end)| ForRange::Range(start, end))
         .or(expr_no_constructors.map(ForRange::Array))
-        .validate(|expr, span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ForLoopDefaultTypeChanging, span));
-            expr
-        })
 }
 
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
