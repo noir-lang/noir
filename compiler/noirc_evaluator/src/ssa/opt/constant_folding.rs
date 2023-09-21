@@ -78,7 +78,7 @@ impl Context {
         // Cache of instructions without any side-effects along with their outputs.
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
         let mut constrained_values: HashMap<ValueId, ValueId> = HashMap::default();
-        let mut side_effects_enabled: bool = false;
+        let mut side_effects_enabled = false;
 
         for instruction_id in instructions {
             Self::fold_constants_into_instruction(
