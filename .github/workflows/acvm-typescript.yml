@@ -23,4 +23,6 @@ jobs:
 
       - name: Run eslint
         working-directory: ./acvm-repo/acvm_js
-        run: yarn lint
+        run: |
+          yarn 
+          yarn lint
