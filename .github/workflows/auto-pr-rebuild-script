@@ -34,7 +34,7 @@ jobs:
           git config --local user.name "GitHub Action"
 
       - name: Run rebuild script
-        working-directory: crates/nargo_cli/tests
+        working-directory: tooling/nargo_cli/tests
         run: |
           chmod +x ./rebuild.sh
           ./rebuild.sh
