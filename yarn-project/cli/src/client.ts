@@ -32,7 +32,7 @@ export async function createCompatibleClient(rpcUrl: string, logger: DebugLogger
     await checkServerVersion(client, expectedVersionRange);
   } catch (err) {
     if (err instanceof VersionMismatchError) {
-      logger.debug(err.message);
+      logger.warn(err.message);
     } else {
       throw err;
     }
