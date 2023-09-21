@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
@@ -265,8 +266,17 @@ impl<'interner> TypeChecker<'interner> {
                     expr_span,
                 }
             });
-            if annotated_type.is_unsigned() {
-                self.lint_overflowing_uint(&rhs_expr, &annotated_type);
+            if let Some(bit_size) = annotated_type.bit_size() {
+                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
+                if bit_size > max_integer_bit_size {
+                    self.errors.push(TypeCheckError::UnsupportedIntegerSize {
+                        num_bits: bit_size,
+                        max_num_bits: max_integer_bit_size,
+                        span: expr_span,
+                    });
+                } else if annotated_type.is_unsigned() {
+                    self.lint_overflowing_uint(&rhs_expr, &annotated_type);
+                }
             }
             annotated_type
         } else {
