@@ -8,30 +8,30 @@ export const read_file = function (source_id: string): string {
       return result;
     } else {
       throw new Error(
-        "Noir source resolver function MUST return String synchronously. Are you trying to return anything else, eg. `Promise`?",
+        "Noir source resolver function MUST return String synchronously. Are you trying to return anything else, eg. `Promise`?"
       );
     }
   } else {
     throw new Error(
-      "Not yet initialized. Use initializeResolver(() => string)",
+      "Not yet initialized. Use initializeResolver(() => string)"
     );
   }
 };
 
 function initialize(
-  noir_resolver: (source_id: string) => string,
+  noir_resolver: (source_id: string) => string
 ): (source_id: string) => string {
   if (typeof noir_resolver === "function") {
     return noir_resolver;
   } else {
     throw new Error(
-      "Provided Noir Resolver is not a function, hint: use function(module_id) => NoirSource as second parameter",
+      "Provided Noir Resolver is not a function, hint: use function(module_id) => NoirSource as second parameter"
     );
   }
 }
 
 export function initializeResolver(
-  resolver: (source_id: string) => string,
+  resolver: (source_id: string) => string
 ): void {
   resolveFunction = initialize(resolver);
 }
