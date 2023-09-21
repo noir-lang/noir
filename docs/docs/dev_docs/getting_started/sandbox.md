@@ -117,7 +117,7 @@ Add a `tsconfig.json` file into the project root, here is an example:
     "build": "yarn clean && tsc -b",
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest tsconfig.tsbuildinfo",
-    "start": "yarn build && export DEBUG='token' && node ./dest/index.js"
+    "start": "yarn build && DEBUG='token' node ./dest/index.js"
   },
   "devDependencies": {
     "@types/node": "^20.4.9",
