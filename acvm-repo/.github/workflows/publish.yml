@@ -1,0 +1,72 @@
+name: Publish crates
+
+on:
+  workflow_dispatch:
+    inputs:
+      acvm-ref:
+        description: The acvm reference to checkout
+        required: true
+
+jobs:
+  publish:
+    name: Publish in order
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.acvm-ref }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.66.0
+
+      # These steps are in a specific order so crate dependencies are updated first
+      - name: Publish acir_field
+        run: |
+          cargo publish --package acir_field
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish brillig
+        run: |
+          cargo publish --package brillig
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish acir
+        run: |
+          cargo publish --package acir
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish acvm_blackbox_solver
+        run: |
+          cargo publish --package acvm_blackbox_solver
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish barretenberg_blackbox_solver
+        run: |
+          cargo publish --package barretenberg_blackbox_solver
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish acvm_stdlib
+        run: |
+          cargo publish --package acvm_stdlib
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish brillig_vm
+        run: |
+          cargo publish --package brillig_vm
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish acvm
+        run: |
+          cargo publish --package acvm
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
