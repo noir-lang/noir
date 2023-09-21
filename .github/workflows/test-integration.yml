@@ -42,22 +42,11 @@ jobs:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
-      - name: Build Nargo
-        run: cargo build --package nargo_cli --release
-
       - name: Package artifacts
         run: |
           mkdir dist
           cp ./target/release/nargo ./dist/nargo
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
-
-      - name: Compile test program with Nargo CLI
-        working-directory: ./compiler/wasm/noir-script
-        run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
-          chmod +x $nargo_binary
-          $nargo_binary compile
-          nargo -V
 
       - name: Restore nix store cache
         uses: actions/cache/restore@v3
@@ -75,6 +64,14 @@ jobs:
             path=$(head -n 1 "$narinfo" | awk '{print $2}')
             nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
           done
+
+      - name: Build Nargo
+        run: |
+          cargo build --package nargo_cli --release
+          nargo_binary=${{ github.workspace }}/nargo/nargo
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          nargo -V
 
       - name: Build noir_wasm package
         run: |
