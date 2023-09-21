@@ -3,6 +3,9 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+// See Cargo.toml for explanation.
+use getrandom as _;
+
 use gloo_utils::format::JsValueSerdeExt;
 use log::Level;
 use serde::{Deserialize, Serialize};

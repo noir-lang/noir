@@ -17,7 +17,9 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
-use crate::token::PrimaryAttribute;
+
+use crate::token::FunctionAttribute;
+use crate::hir_def::traits::{Trait, TraitConstraint};
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -35,9 +37,9 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, Pattern, Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-    Visibility, ERROR_IDENT,
+    Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -76,7 +78,7 @@ pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
-    interner: &'a mut NodeInterner,
+    pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
     file: FileId,
 
@@ -125,6 +127,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_self_type(&mut self, self_type: Option<Type>) {
         self.self_type = self_type;
+    }
+
+    pub fn get_self_type(&mut self) -> Option<&Type> {
+        self.self_type.as_ref()
     }
 
     fn push_err(&mut self, err: ResolverError) {
@@ -664,6 +670,18 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// TODO: This is currently only respected for generic free functions
+    /// there's a bunch of other places where trait constraints can pop up
+    fn resolve_trait_constraints(
+        &mut self,
+        where_clause: &Vec<UnresolvedTraitConstraint>,
+    ) -> Vec<TraitConstraint> {
+        vecmap(where_clause, |constraint| TraitConstraint {
+            typ: self.resolve_type(constraint.typ.clone()),
+            trait_id: constraint.trait_bound.trait_id,
+        })
+    }
+
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
@@ -731,7 +749,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if matches!(attributes.primary, Some(PrimaryAttribute::Test { .. }))
+        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
             && !parameters.is_empty()
         {
             self.push_err(ResolverError::TestFunctionHasParameters {
@@ -762,6 +780,7 @@ impl<'a> Resolver<'a> {
             return_visibility: func.def.return_visibility,
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
+            trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
         }
     }
 

@@ -3,7 +3,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
-use crate::token::{PrimaryAttribute, TestScope};
+use crate::token::{FunctionAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{FileDiagnostic, Location};
@@ -140,8 +140,8 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let func_meta = interner.function_meta(&func_id);
-                    match func_meta.attributes.primary {
-                        Some(PrimaryAttribute::Test(scope)) => {
+                    match func_meta.attributes.function {
+                        Some(FunctionAttribute::Test(scope)) => {
                             Some(TestFunction::new(func_id, scope, func_meta.name.location))
                         }
                         _ => None,
@@ -160,15 +160,15 @@ impl CrateDefMap {
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let function_ids: Vec<FuncId> =
-                        module.value_definitions().filter_map(|id| id.as_function()).collect();
-
-                    let functions = function_ids
-                        .into_iter()
-                        .map(|id| {
-                            let is_entry_point =
-                                !interner.function_attributes(&id).has_contract_library_method();
-                            ContractFunctionMeta { function_id: id, is_entry_point }
+                    let functions = module
+                        .value_definitions()
+                        .filter_map(|id| {
+                            id.as_function().map(|function_id| {
+                                let is_entry_point = !interner
+                                    .function_attributes(&function_id)
+                                    .has_contract_library_method();
+                                ContractFunctionMeta { function_id, is_entry_point }
+                            })
                         })
                         .collect();
 

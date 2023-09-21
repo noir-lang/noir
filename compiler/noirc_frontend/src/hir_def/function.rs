@@ -3,6 +3,7 @@ use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
+use super::traits::TraitConstraint;
 use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attributes, FunctionKind};
@@ -100,7 +101,7 @@ pub struct FuncMeta {
 
     /// A function's attributes are the `#[...]` items above the function
     /// definition.
-    /// Primary Attributes will alter the function kind, secondary attributes do not
+    /// Function Attributes will alter the function kind, secondary attributes do not
     pub attributes: Attributes,
 
     /// This function's type in its contract.
@@ -130,6 +131,8 @@ pub struct FuncMeta {
 
     // This flag is needed for the attribute check pass
     pub has_body: bool,
+
+    pub trait_constraints: Vec<TraitConstraint>,
 }
 
 impl FuncMeta {
