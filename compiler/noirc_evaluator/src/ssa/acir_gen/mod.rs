@@ -711,13 +711,8 @@ impl Context {
 
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
-                let mut is_first_elem = true;
-                let dummy = self.array_get_value(
-                    &store_type,
-                    block_id,
-                    &mut dummy_predicate_index,
-                    &mut is_first_elem,
-                )?;
+                let dummy =
+                    self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
 
                 Some(self.convert_array_set_store_value(&store_value, &dummy)?)
             }
@@ -788,8 +783,7 @@ impl Context {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
 
-        let mut first_elem = true;
-        let value = self.array_get_value(&res_typ, block_id, &mut var_index, &mut first_elem)?;
+        let value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
 
         self.define_result(dfg, instruction, value.clone());
 
@@ -801,17 +795,16 @@ impl Context {
         ssa_type: &Type,
         block_id: BlockId,
         var_index: &mut AcirVar,
-        first_elem: &mut bool,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
-                if !*first_elem {
-                    *var_index = self.acir_context.add_var(*var_index, one)?;
-                }
-                *first_elem = false;
-
+                // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
+
+                // Incremement the var_index in case of a nested array
+                *var_index = self.acir_context.add_var(*var_index, one)?;
+
                 let typ = AcirType::NumericType(numeric_type);
                 Ok(AcirValue::Var(read, typ))
             }
@@ -819,8 +812,7 @@ impl Context {
                 let mut values = Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
-                        values
-                            .push_back(self.array_get_value(typ, block_id, var_index, first_elem)?);
+                        values.push_back(self.array_get_value(typ, block_id, var_index)?);
                     }
                 }
                 Ok(AcirValue::Array(values))
@@ -922,8 +914,7 @@ impl Context {
             )?;
         }
 
-        let mut is_first_elem = true;
-        self.array_set_value(store_value, result_block_id, &mut var_index, &mut is_first_elem)?;
+        self.array_set_value(store_value, result_block_id, &mut var_index)?;
 
         let result_value =
             AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len: array_len });
@@ -936,25 +927,22 @@ impl Context {
         value: AcirValue,
         block_id: BlockId,
         var_index: &mut AcirVar,
-        first_elem: &mut bool,
     ) -> Result<(), RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match value {
             AcirValue::Var(store_var, _) => {
-                if !*first_elem {
-                    *var_index = self.acir_context.add_var(*var_index, one)?;
-                }
-                *first_elem = false;
                 // Write the new value into the new array at the specified index
                 self.acir_context.write_to_memory(block_id, var_index, &store_var)?;
+                // Incremement the var_index in case of a nested array
+                *var_index = self.acir_context.add_var(*var_index, one)?;
             }
             AcirValue::Array(values) => {
                 for value in values {
-                    self.array_set_value(value, block_id, var_index, first_elem)?;
+                    self.array_set_value(value, block_id, var_index)?;
                 }
             }
             AcirValue::DynamicArray(_) => {
-                panic!("ahhh got dyn array for set")
+                unimplemented!("ICE: setting a dynamic array not supported");
             }
         }
         Ok(())
