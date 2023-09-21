@@ -2317,7 +2317,7 @@ dependencies = [
  "async-lsp",
  "futures",
  "noir_lsp",
- "rustix 0.37.23",
+ "rustix 0.38.4",
  "tower",
 ]
 
