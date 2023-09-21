@@ -65,7 +65,7 @@ describe('e2e_cross_chain_messaging', () => {
     await crossChainTestHarness?.stop();
   });
 
-  it.skip('Milestone 2: Deposit funds from L1 -> L2 and withdraw back to L1', async () => {
+  it('Milestone 2: Deposit funds from L1 -> L2 and withdraw back to L1', async () => {
     // Generate a claim secret using pedersen
     const l1TokenBalance = 1000000n;
     const bridgeAmount = 100n;
@@ -97,9 +97,9 @@ describe('e2e_cross_chain_messaging', () => {
     // 3. Consume L1-> L2 message and mint private tokens on L2
     await crossChainTestHarness.consumeMessageOnAztecAndMintSecretly(
       bridgeAmount,
+      secretHashForRedeemingMintedNotes,
       messageKey,
       secretForL2MessageConsumption,
-      secretHashForRedeemingMintedNotes,
     );
     // tokens were minted privately in a TransparentNote which the owner (person who knows the secret) must redeem:
     await crossChainTestHarness.redeemShieldPrivatelyOnL2(bridgeAmount, secretForRedeemingMintedNotes);
