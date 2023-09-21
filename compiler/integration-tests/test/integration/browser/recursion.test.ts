@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "@esm-bundle/chai";
+import { TEST_LOG_LEVEL } from "../../environment.js";
+import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
   compile,
@@ -17,6 +19,8 @@ import initACVM, {
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 
 import * as TOML from "smol-toml";
+
+const logger = new Logger({ name: "test", minLevel: TEST_LOG_LEVEL });
 
 await newCompiler();
 await newABICoder();
@@ -155,6 +159,8 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       optimizeMainProofForRecursion
     );
 
+    logger.debug("main_verification", main_verification);
+
     expect(main_verification).to.be.true;
 
     const numPublicInputs = 1;
@@ -179,6 +185,8 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       // eslint-disable-next-line prettier/prettier
       input_aggregation_object: ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
     };
+
+    logger.debug("recursion_inputs", recursion_inputs);
 
     const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(
       circuit_recursion_source
@@ -207,7 +215,21 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       optimizeRecursionProofForRecursion
     );
 
+    const recursion_numPublicInputs = 1;
+
+    const recursion_proofAsFields = (
+      await api.acirSerializeProofIntoFields(
+        acirComposer,
+        recursion_proof,
+        recursion_numPublicInputs
+      )
+    ).map((p) => p.toString());
+
+    logger.debug("recursion_proofAsFields", recursion_proofAsFields);
+
     const recursion_verification = await verifyProof(recursion_proof, false);
+
+    logger.debug("recursion_verification", recursion_verification);
 
     expect(recursion_verification).to.be.true;
   }).timeout(60 * 20e3);

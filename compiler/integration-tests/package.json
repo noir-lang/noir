@@ -20,6 +20,7 @@
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-webdriver": "^0.7.0",
     "fflate": "^0.8.0",
-    "smol-toml": "^1.1.2"
+    "smol-toml": "^1.1.2",
+    "tslog": "^4.9.2"
   }
 }
