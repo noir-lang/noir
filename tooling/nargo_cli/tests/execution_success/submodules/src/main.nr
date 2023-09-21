@@ -6,10 +6,10 @@ fn main(x: u1, y: u1) {
 }
 
 mod mysubmodule {
-    fn my_bool_or(x: u1, y: u1) {
+    pub fn my_bool_or(x: u1, y: u1) {
         assert(x | y == 1);
     }
 
-    fn my_helper() {}
+    pub fn my_helper() {}
 }
     

@@ -44,6 +44,8 @@ pub(crate) enum Intrinsic {
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
+    FromField,
+    AsField,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -64,6 +66,8 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
+            Intrinsic::FromField => write!(f, "from_field"),
+            Intrinsic::AsField => write!(f, "as_field"),
         }
     }
 }
@@ -86,7 +90,9 @@ impl Intrinsic {
             | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_) => false,
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::FromField
+            | Intrinsic::AsField => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -111,6 +117,8 @@ impl Intrinsic {
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
+            "from_field" => Some(Intrinsic::FromField),
+            "as_field" => Some(Intrinsic::AsField),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -357,7 +365,12 @@ impl Instruction {
     ///
     /// The `block` parameter indicates the block this new instruction will be inserted into
     /// after this call.
-    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph, block: BasicBlockId) -> SimplifyResult {
+    pub(crate) fn simplify(
+        &self,
+        dfg: &mut DataFlowGraph,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
@@ -425,7 +438,9 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg, block),
+            Instruction::Call { func, arguments } => {
+                simplify_call(*func, arguments, dfg, block, ctrl_typevars)
+            }
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];

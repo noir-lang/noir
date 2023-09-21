@@ -21,7 +21,7 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
-    token::PrimaryAttribute,
+    token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
     Visibility,
 };
@@ -142,17 +142,17 @@ impl<'interner> Monomorphizer<'interner> {
             Some(id) => Definition::Function(*id),
             None => {
                 // Function has not been monomorphized yet
-                let meta = self.interner.function_meta(&id);
-                match meta.kind {
+                let attributes = self.interner.function_attributes(&id);
+                match self.interner.function_meta(&id).kind {
                     FunctionKind::LowLevel => {
-                        let attribute = meta.attributes.primary.expect("all low level functions must contain a primary attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.clone().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.foreign().expect(
                             "ice: function marked as foreign, but attribute kind does not match this",
                         );
                         Definition::LowLevel(opcode)
                     }
                     FunctionKind::Builtin => {
-                        let attribute = meta.attributes.primary.expect("all low level functions must contain a primary  attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.clone().expect("all low level functions must contain a function  attribute which contains the opcode which it links to");
                         let opcode = attribute.builtin().expect(
                             "ice: function marked as builtin, but attribute kind does not match this",
                         );
@@ -163,13 +163,13 @@ impl<'interner> Monomorphizer<'interner> {
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
-                        let attr = meta
-                            .attributes
-                            .primary
+                        let attr = attributes
+                            .function
+                            .clone()
                             .expect("Oracle function must have an oracle attribute");
 
                         match attr {
-                            PrimaryAttribute::Oracle(name) => Definition::Oracle(name),
+                            FunctionAttribute::Oracle(name) => Definition::Oracle(name),
                             _ => unreachable!("Oracle function must have an oracle attribute"),
                         }
                     }
@@ -198,13 +198,14 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
         let meta = self.interner.function_meta(&f);
+        let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
 
         let return_type = Self::convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr(*self.interner.function(&f).as_expr());
-        let unconstrained = meta.is_unconstrained
-            || matches!(meta.contract_function_type, Some(ContractFunctionType::Open));
+        let unconstrained = modifiers.is_unconstrained
+            || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
 
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
@@ -1344,7 +1345,6 @@ mod tests {
                 import::PathResolutionError, path_resolver::PathResolver, resolver::Resolver,
             },
         },
-        hir_def::function::HirFunction,
         node_interner::{FuncId, NodeInterner},
         parse_program,
     };
@@ -1361,14 +1361,10 @@ mod tests {
         // the whole vec if the assert fails rather than just two booleans
         assert_eq!(errors, vec![]);
 
-        let main_id = interner.push_fn(HirFunction::empty());
-        interner.push_function_definition("main".into(), main_id);
+        let main_id = interner.push_test_function_definition("main".into());
 
-        let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.into(), id);
-            id
-        });
+        let func_ids =
+            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into()));
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
@@ -1394,8 +1390,7 @@ mod tests {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, _resolver_errors) =
-                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
+            let (hir_func, func_meta, _resolver_errors) = resolver.resolve_function(nf, main_id);
             // TODO: not sure why, we do get an error here,
             // but otherwise seem to get an ok monomorphization result
             // assert_eq!(resolver_errors, vec![]);

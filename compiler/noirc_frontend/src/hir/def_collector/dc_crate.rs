@@ -11,8 +11,10 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
-use crate::hir_def::traits::{TraitConstant, TraitFunction, TraitType};
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType};
+use crate::node_interner::{
+    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
+};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem, Type, TypeBinding,
@@ -696,6 +698,13 @@ fn resolve_trait_impls(
             errors,
         );
 
+        let resolved_trait_impl = Shared::new(TraitImpl {
+            ident: trait_impl.trait_impl_ident.clone(),
+            typ: self_type.clone(),
+            trait_id,
+            methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
+        });
+
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
         new_resolver.set_self_type(Some(self_type.clone()));
@@ -703,17 +712,17 @@ fn resolve_trait_impls(
         check_methods_signatures(&mut new_resolver, &impl_methods, trait_id, errors);
 
         let trait_definition_ident = &trait_impl.trait_impl_ident;
-        let key = (self_type.clone(), trait_id);
-        if let Some(prev_trait_impl_ident) = interner.get_previous_trait_implementation(&key) {
+        let key = TraitImplKey { typ: self_type.clone(), trait_id };
+
+        if let Some(prev_trait_impl_ident) = interner.get_trait_implementation(&key) {
             let err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::TraitImplementation,
-                first_def: prev_trait_impl_ident.clone(),
+                first_def: prev_trait_impl_ident.borrow().ident.clone(),
                 second_def: trait_definition_ident.clone(),
             };
             errors.push(err.into_file_diagnostic(trait_impl.methods.file_id));
         } else {
-            let _func_ids =
-                interner.add_trait_implementaion(&key, trait_definition_ident, &trait_impl.methods);
+            interner.add_trait_implementation(&key, resolved_trait_impl);
         }
 
         methods.append(&mut impl_methods);
@@ -841,8 +850,7 @@ fn resolve_function_set(
 
     vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
         let module_id = ModuleId { krate: crate_id, local_id: mod_id };
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
         // Must use set_generics here to ensure we re-use the same generics from when
@@ -851,7 +859,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 
-        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id, module_id);
+        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
         extend_errors(errors, file_id, errs);

@@ -57,6 +57,7 @@ pub(crate) fn run(
 
     let (np_language, opcode_support) = backend.get_backend_info()?;
     let (compiled_programs, compiled_contracts) = compile_workspace(
+        &workspace,
         &binary_packages,
         &contract_packages,
         np_language,

@@ -1,4 +1,4 @@
 
-fn hello(x : Field) -> Field {
+pub fn hello(x : Field) -> Field {
     x
 }
