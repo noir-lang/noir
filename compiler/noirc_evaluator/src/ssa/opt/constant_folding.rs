@@ -30,7 +30,7 @@ use crate::ssa::{
         dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
-        value::{Value, ValueId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -77,8 +77,6 @@ impl Context {
 
         // Cache of instructions without any side-effects along with their outputs.
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
-        let mut constrained_values: HashMap<ValueId, ValueId> = HashMap::default();
-        let mut side_effects_enabled = false;
 
         for instruction_id in instructions {
             Self::fold_constants_into_instruction(
@@ -86,8 +84,6 @@ impl Context {
                 block,
                 instruction_id,
                 &mut cached_instruction_results,
-                &mut constrained_values,
-                &mut side_effects_enabled,
             );
         }
         self.block_queue.extend(function.dfg[block].successors());
@@ -98,11 +94,8 @@ impl Context {
         block: BasicBlockId,
         id: InstructionId,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
-        constrained_values: &mut HashMap<ValueId, ValueId>,
-        side_effects_enabled: &mut bool,
     ) {
-        let instruction =
-            Self::resolve_instruction(id, dfg, constrained_values, *side_effects_enabled);
+        let instruction = Self::resolve_instruction(id, dfg);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
@@ -116,57 +109,15 @@ impl Context {
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
-        Self::cache_instruction(
-            instruction,
-            new_results,
-            dfg,
-            instruction_result_cache,
-            constrained_values,
-            side_effects_enabled,
-        );
+        Self::cache_instruction(instruction, new_results, dfg, instruction_result_cache);
     }
 
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
-    fn resolve_instruction(
-        instruction_id: InstructionId,
-        dfg: &DataFlowGraph,
-        constrained_values: &HashMap<ValueId, ValueId>,
-        side_effects_enabled: bool,
-    ) -> Instruction {
+    fn resolve_instruction(instruction_id: InstructionId, dfg: &DataFlowGraph) -> Instruction {
         let instruction = dfg[instruction_id].clone();
 
-        // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
-        // has been constrained to be equal to some simpler value in the current block.
-        //
-        // This allows us to reach a stable final `ValueId` for each instruction input as we add more
-        // constraints to the cache.
-        //
-        // We also must check whether side effects are currently enabled. If they are enabled we do not want
-        // to replace constrained values as they could be reliant upon runtime values. The runtime values
-        // would then be replaced later in the SSA, possibly leading to a mismatched constant constraint failure
-        // when we should have a runtime constraint failure earlier in the SSA.
-        fn resolve_cache(
-            dfg: &DataFlowGraph,
-            cache: &HashMap<ValueId, ValueId>,
-            value_id: ValueId,
-            side_effects_enabled: bool,
-        ) -> ValueId {
-            let resolved_id = dfg.resolve(value_id);
-            if side_effects_enabled {
-                return resolved_id;
-            }
-            match cache.get(&resolved_id) {
-                Some(cached_value) => {
-                    resolve_cache(dfg, cache, *cached_value, side_effects_enabled)
-                }
-                None => resolved_id,
-            }
-        }
-
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| {
-            resolve_cache(dfg, constrained_values, value_id, side_effects_enabled)
-        })
+        instruction.map_values(|value_id| dfg.resolve(value_id))
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -204,52 +155,7 @@ impl Context {
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
-        constraint_cache: &mut HashMap<ValueId, ValueId>,
-        side_effects_enabled: &mut bool,
     ) {
-        match instruction {
-            Instruction::EnableSideEffects { condition } => {
-                if let Value::NumericConstant { constant, .. } = &dfg[condition] {
-                    if constant.is_one() {
-                        *side_effects_enabled = true;
-                    } else {
-                        *side_effects_enabled = false;
-                    }
-                } else {
-                    // If the `enable_side_effects` condition is not a constant we cannot know for sure whether
-                    // side effects are not enabled. Thus, we mark the side effects as being enabled to make sure
-                    // that we do not mistakenly replace constrained values dependent upon runtime side effects.
-                    *side_effects_enabled = true;
-                }
-            }
-            Instruction::Constrain(lhs, rhs, _) => {
-                match (&dfg[lhs], &dfg[rhs]) {
-                    // Ignore trivial constraints
-                    (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
-
-                    // Prefer replacing with constants where possible.
-                    (Value::NumericConstant { .. }, _) => {
-                        constraint_cache.insert(rhs, lhs);
-                    }
-                    (_, Value::NumericConstant { .. }) => {
-                        constraint_cache.insert(lhs, rhs);
-                    }
-                    // Otherwise prefer block parameters over instruction results.
-                    // This is as block parameters are more likely to be a single witness rather than a full expression.
-                    (Value::Param { .. }, Value::Instruction { .. }) => {
-                        constraint_cache.insert(rhs, lhs);
-                    }
-                    (Value::Instruction { .. }, Value::Param { .. }) => {
-                        constraint_cache.insert(lhs, rhs);
-                    }
-                    (_, _) => (),
-                }
-            }
-            _ => {
-                // The remaining instructions are not cached, so do nothing
-            }
-        }
-
         // If the instruction doesn't have side-effects, cache the results so we can reuse them if
         // the same instruction appears again later in the block.
         if instruction.is_pure(dfg) {
@@ -426,111 +332,5 @@ mod test {
         let instruction = &main.dfg[instructions[0]];
 
         assert_eq!(instruction, &Instruction::Cast(ValueId::test_new(0), Type::unsigned(32)));
-    }
-
-    #[test]
-    fn constrained_value_replacement() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     constrain v0 == Field 10
-        //     v1 = add v0, Field 1
-        //     constrain v1 == Field 11
-        // }
-        //
-        // After constructing this IR, we run constant folding which should replace references to `v0`
-        // with the constant `10`. This then allows us to optimize away the rest of the circuit.
-
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-        constrained_value_replacement_setup(&mut builder, false);
-
-        let mut ssa = builder.finish();
-        let main = ssa.main_mut();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 3);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     constrain v0 == Field 10
-        // }
-        let ssa = ssa.fold_constants();
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-
-        assert_eq!(instructions.len(), 1);
-        let instruction = &main.dfg[instructions[0]];
-
-        assert_eq!(
-            instruction,
-            &Instruction::Constrain(ValueId::test_new(0), ValueId::test_new(1), None)
-        );
-    }
-
-    #[test]
-    fn constrained_value_replacement_with_side_effects() {
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     enable_side_effects u1 1
-        //     constrain v0 == Field 10
-        //     v1 = add v0, Field 1
-        //     constrain v1 == Field 11
-        // }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-        constrained_value_replacement_setup(&mut builder, true);
-
-        let mut ssa = builder.finish();
-        let main = ssa.main_mut();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 4);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     enable_side_effects u1 1
-        //     constrain v0 == Field 10
-        //     v6 = add v0, Field 1
-        //     constrain v6 == Field 11
-        // }
-        let ssa = ssa.fold_constants();
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 4);
-
-        assert_eq!(
-            &main.dfg[instructions[0]],
-            &Instruction::EnableSideEffects { condition: ValueId::test_new(1) }
-        );
-
-        assert_eq!(
-            &main.dfg[instructions[3]],
-            &Instruction::Constrain(ValueId::test_new(6), ValueId::test_new(5), None)
-        );
-    }
-
-    fn constrained_value_replacement_setup(builder: &mut FunctionBuilder, with_side_effects: bool) {
-        let v0 = builder.add_parameter(Type::field());
-
-        if with_side_effects {
-            let field_one = builder.numeric_constant(1u128, Type::unsigned(1));
-            let enable_side_effects = Instruction::EnableSideEffects { condition: field_one };
-            builder.insert_instruction(enable_side_effects, None);
-        }
-
-        let field_10 = builder.field_constant(10u128);
-        builder.insert_constrain(v0, field_10, None);
-
-        let field_1 = builder.field_constant(1u128);
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, field_1);
-
-        let field_11 = builder.field_constant(11u128);
-        builder.insert_constrain(v1, field_11, None);
     }
 }
