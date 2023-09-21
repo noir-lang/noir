@@ -24,18 +24,21 @@ mod string;
 #[oracle(println)]
 unconstrained fn println_oracle<T>(_input: T) {}
 
-unconstrained fn println<T>(input: T) {
+unconstrained pub fn println<T>(input: T) {
     println_oracle(input);
 }
 
 #[foreign(recursive_aggregation)]
-fn verify_proof<N>(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field; N]) -> [Field; N] {}
+pub fn verify_proof<N>(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field; N]) -> [Field; N] {}
 
 // Asserts that the given value is known at compile-time.
 // Useful for debugging for-loop bounds.
 #[builtin(assert_constant)]
-fn assert_constant<T>(_x: T) {}
+pub fn assert_constant<T>(_x: T) {}
 
+// from_field and as_field are private since they are not valid for every type.
+// `as` should be the default for users to cast between primitive types, and in the future
+// traits can be used to work with generic types.
 #[builtin(from_field)]
 fn from_field<T>(x : Field) -> T {}
 
@@ -43,20 +46,19 @@ fn from_field<T>(x : Field) -> T {}
 fn as_field<T>(x : T) -> Field {}
 
 
-fn wrapping_add<T>(x : T, y: T) -> T {
+pub fn wrapping_add<T>(x : T, y: T) -> T {
     crate::from_field(crate::as_field(x) + crate::as_field(y))
 }
 
-
-fn wrapping_sub<T>(x : T, y: T) -> T {
+pub fn wrapping_sub<T>(x : T, y: T) -> T {
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
     crate::from_field(crate::as_field(x) + 340282366920938463463374607431768211456 - crate::as_field(y))
 }
 
-fn wrapping_mul<T>(x : T, y: T) -> T {
+pub fn wrapping_mul<T>(x : T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
 
-fn wrapping_shift_left<T>(x : T, y: T) -> T {
+pub fn wrapping_shift_left<T>(x : T, y: T) -> T {
     crate::from_field(crate::as_field(x) * 2.pow_32(crate::as_field(y)))
 }

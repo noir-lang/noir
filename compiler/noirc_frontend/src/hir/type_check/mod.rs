@@ -184,7 +184,6 @@ mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
-    use crate::token::Attributes;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -254,12 +253,7 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
-            module_id: ModuleId::dummy_id(),
-            attributes: Attributes::empty(),
             location,
-            contract_function_type: None,
-            is_internal: None,
-            is_unconstrained: false,
             typ: Type::Function(
                 vec![Type::FieldElement, Type::FieldElement],
                 Box::new(Type::Unit),
@@ -420,14 +414,10 @@ mod test {
             errors
         );
 
-        let main_id = interner.push_fn(HirFunction::empty());
-        interner.push_function_definition("main".into(), main_id);
+        let main_id = interner.push_test_function_definition("main".into());
 
-        let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.into(), id);
-            id
-        });
+        let func_ids =
+            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into()));
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
@@ -453,8 +443,7 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) =
-                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

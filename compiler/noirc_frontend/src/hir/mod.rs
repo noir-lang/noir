@@ -79,11 +79,11 @@ impl Context {
 
         let name = self.def_interner.function_name(id);
 
-        let meta = self.def_interner.function_meta(id);
-        let module = self.module(meta.module_id);
+        let module_id = self.def_interner.function_module(*id);
+        let module = self.module(module_id);
 
         let parent =
-            def_map.get_module_path_with_separator(meta.module_id.local_id.0, module.parent, "::");
+            def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
 
         if parent.is_empty() {
             name.into()

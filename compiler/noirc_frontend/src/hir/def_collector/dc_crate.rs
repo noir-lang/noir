@@ -850,8 +850,7 @@ fn resolve_function_set(
 
     vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
         let module_id = ModuleId { krate: crate_id, local_id: mod_id };
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
         // Must use set_generics here to ensure we re-use the same generics from when
@@ -860,7 +859,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 
-        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id, module_id);
+        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
         extend_errors(errors, file_id, errs);
