@@ -2,6 +2,9 @@
 title: Contract Workflow
 ---
 
+## Setup
+[Set up your project](./setup.md)
+
 ## Write
 
 [Write a contract](./syntax/main.md).

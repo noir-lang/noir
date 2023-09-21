@@ -6,6 +6,7 @@ import {
   createAztecRpcClient,
   createDebugLogger,
   getSchnorrAccount,
+  getSandboxAccountsWallets,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { GrumpkinScalar } from '@aztec/circuits.js';
@@ -34,54 +35,19 @@ describe('e2e_sandbox_example', () => {
     expect(typeof nodeInfo.chainId).toBe('number');
     expect(typeof nodeInfo.rollupAddress).toBe('object');
 
-    // docs:start:Accounts
-    ////////////// CREATE SOME ACCOUNTS WITH SCHNORR SIGNERS //////////////
-    // Creates new accounts using an account contract that verifies schnorr signatures
-    // Returns once the deployment transactions have settled
-    const createSchnorrAccounts = async (numAccounts: number, aztecRpc: AztecRPC) => {
-      const accountManagers = Array(numAccounts)
-        .fill(0)
-        .map(() =>
-          getSchnorrAccount(
-            aztecRpc,
-            GrumpkinScalar.random(), // encryption private key
-            GrumpkinScalar.random(), // signing private key
-          ),
-        );
-      return await Promise.all(
-        accountManagers.map(async x => {
-          await x.waitDeploy({});
-          return x;
-        }),
-      );
-    };
+    // For the sandbox quickstart we just want to show them preloaded accounts (since it is a quickstart)
+    // We show creation of accounts in a later test
 
-    // Create 2 accounts and wallets to go with each
-    logger(`Creating accounts using schnorr signers...`);
-    const accounts = await createSchnorrAccounts(2, aztecRpc);
-
-    ////////////// VERIFY THE ACCOUNTS WERE CREATED SUCCESSFULLY //////////////
-
-    const [alice, bob] = (await Promise.all(accounts.map(x => x.getCompleteAddress()))).map(x => x.address);
-
-    // Verify that the accounts were deployed
-    const registeredAccounts = (await aztecRpc.getRegisteredAccounts()).map(x => x.address);
-    for (const [account, name] of [
-      [alice, 'Alice'],
-      [bob, 'Bob'],
-    ] as const) {
-      if (registeredAccounts.find(acc => acc.equals(account))) {
-        logger(`Created ${name}'s account at ${account.toShortString()}`);
-        continue;
-      }
-      logger(`Failed to create account for ${name}!`);
-    }
-    // docs:end:Accounts
-
-    // check that alice and bob are in registeredAccounts
-    expect(registeredAccounts.find(acc => acc.equals(alice))).toBeTruthy();
-    expect(registeredAccounts.find(acc => acc.equals(bob))).toBeTruthy();
-
+    // docs:start:load_accounts
+    ////////////// LOAD SOME ACCOUNTS FROM THE SANDBOX //////////////
+    // The sandbox comes with a set of created accounts. Load them
+    const accounts = await getSandboxAccountsWallets(aztecRpc);
+    const alice = accounts[0].getAddress();
+    const bob = accounts[1].getAddress();
+    logger(`Loaded alice's account at ${alice.toShortString()}`);
+    logger(`Loaded bob's account at ${bob.toShortString()}`);
+    // docs:end:load_accounts
+    
     // docs:start:Deployment
     ////////////// DEPLOY OUR TOKEN CONTRACT //////////////
 
@@ -92,7 +58,7 @@ describe('e2e_sandbox_example', () => {
     const contract = await TokenContract.deploy(aztecRpc).send().deployed();
 
     // Create the contract abstraction and link to Alice's wallet for future signing
-    const tokenContractAlice = await TokenContract.at(contract.address, await accounts[0].getWallet());
+    const tokenContractAlice = await TokenContract.at(contract.address, accounts[0]);
 
     // Initialize the contract and add Bob as a minter
     await tokenContractAlice.methods._initialize(alice).send().wait();
@@ -116,7 +82,7 @@ describe('e2e_sandbox_example', () => {
 
     // Bob wants to mint some funds, the contract is already deployed, create an abstraction and link it his wallet
     // Since we already have a token link, we can simply create a new instance of the contract linked to Bob's wallet
-    const tokenContractBob = tokenContractAlice.withWallet(await accounts[1].getWallet());
+    const tokenContractBob = tokenContractAlice.withWallet(accounts[1]);
 
     let aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).view();
     logger(`Alice's balance ${aliceBalance}`);
@@ -168,4 +134,60 @@ describe('e2e_sandbox_example', () => {
     expect(aliceBalance).toBe(initialSupply - transferQuantity);
     expect(bobBalance).toBe(transferQuantity + mintQuantity);
   }, 120_000);
+
+  it('can create accounts on the sandbox', async () => {
+    const logger = createDebugLogger('token');
+    // We create AztecRPC client connected to the sandbox URL
+    const aztecRpc = createAztecRpcClient(SANDBOX_URL);
+    // Wait for sandbox to be ready
+    await waitForSandbox(aztecRpc);
+
+    // docs:start:create_accounts
+    ////////////// CREATE SOME ACCOUNTS WITH SCHNORR SIGNERS //////////////
+    // Creates new accounts using an account contract that verifies schnorr signatures
+    // Returns once the deployment transactions have settled
+    const createSchnorrAccounts = async (numAccounts: number, aztecRpc: AztecRPC) => {
+      const accountManagers = Array(numAccounts)
+        .fill(0)
+        .map(() =>
+          getSchnorrAccount(
+            aztecRpc,
+            GrumpkinScalar.random(), // encryption private key
+            GrumpkinScalar.random(), // signing private key
+          ),
+        );
+      return await Promise.all(
+        accountManagers.map(async x => {
+          await x.waitDeploy({});
+          return x;
+        }),
+      );
+    };
+
+    // Create 2 accounts and wallets to go with each
+    logger(`Creating accounts using schnorr signers...`);
+    const accounts = await createSchnorrAccounts(2, aztecRpc);
+
+    ////////////// VERIFY THE ACCOUNTS WERE CREATED SUCCESSFULLY //////////////
+
+    const [alice, bob] = (await Promise.all(accounts.map(x => x.getCompleteAddress()))).map(x => x.address);
+
+    // Verify that the accounts were deployed
+    const registeredAccounts = (await aztecRpc.getRegisteredAccounts()).map(x => x.address);
+    for (const [account, name] of [
+      [alice, 'Alice'],
+      [bob, 'Bob'],
+    ] as const) {
+      if (registeredAccounts.find(acc => acc.equals(account))) {
+        logger(`Created ${name}'s account at ${account.toShortString()}`);
+        continue;
+      }
+      logger(`Failed to create account for ${name}!`);
+    }
+    // docs:end:create_accounts
+
+    // check that alice and bob are in registeredAccounts
+    expect(registeredAccounts.find(acc => acc.equals(alice))).toBeTruthy();
+    expect(registeredAccounts.find(acc => acc.equals(bob))).toBeTruthy();
+  });
 });

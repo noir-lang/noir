@@ -3,7 +3,7 @@
 To add contracts to your application, we'll start by creating a new `nargo` project. We'll then compile the contracts, and write a simple script to deploy them to our Sandbox.
 
 :::info
-Follow the instructions [here](../../getting_started/noir_contracts.md) to install `nargo` if you haven't done so already.
+Follow the instructions [here](../../contracts/setup.md) to install `nargo` if you haven't done so already.
 :::
 
 ## Initialise nargo project

@@ -56,7 +56,43 @@
 
 [[redirects]]
     from = "/dev_docs/getting_started/cli"
-    to = "/dev_docs/cli"
+    to = "/dev_docs/cli/main"
+
+[[redirects]]
+    from = "/dev_docs/getting_started/noir_contracts"
+    to = "/dev_docs/contracts/main"
+
+[[redirects]]
+    from = "/dev_docs/getting_started/token_contract_tutorial"
+    to = "/dev_docs/tutorials/writing_token_contract"
+
+[[redirects]]
+    from = "/dev_docs/sandbox/main"
+    to = "/dev_docs/getting_started/sandbox"
+
+[[redirects]]
+    from = "/dev_docs/dapps/tutorials/main"
+    to = "/dev_docs/tutorials/writing_dapp/main"
+
+[[redirects]]
+    from = "/dev_docs/dapps/tutorials/project_setup"
+    to = "/dev_docs/tutorials/writing_dapp/project_setup"
+
+[[redirects]]
+    from = "/dev_docs/dapps/tutorials/contract_deployment"
+    to = "/dev_docs/tutorials/writing_dapp/contract_deployment"
+
+[[redirects]]
+    from = "/dev_docs/dapps/tutorials/contract_interaction"
+    to = "/dev_docs/tutorials/writing_dapp/contract_interaction"
+
+[[redirects]]
+    from = "/dev_docs/dapps/tutorials/rpc_server"
+    to = "/dev_docs/tutorials/writing_dapp/rpc_server"
+
+[[redirects]]
+    from = "/dev_docs/dapps/tutorials/testing"
+    to = "/dev_docs/tutorials/writing_dapp/testing"
 
 [[redirects]]
     from = "/aztec/cryptography/cryptography-roadmap"

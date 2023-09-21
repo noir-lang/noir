@@ -145,7 +145,7 @@ The compiler exposes the following functions:
 
 ## Next steps
 
-Once you have compiled your contracts, you can use the generated artifacts via the `Contract` class in the `aztec.js` package to deploy and interact with them, or rely on the type-safe typescript classes directly. Alternatively, use the CLI [to deploy](../../dev_docs/cli/cli.md#deploying-a-token-contract) and [interact](../../dev_docs/cli/cli.md#sending-a-transaction) with them.
+Once you have compiled your contracts, you can use the generated artifacts via the `Contract` class in the `aztec.js` package to deploy and interact with them, or rely on the type-safe typescript classes directly. Alternatively, use the CLI [to deploy](../../dev_docs/cli/main.md#deploying-a-token-contract) and [interact](../../dev_docs/cli/main.md#sending-a-transaction) with them.
 
 import Disclaimer from "../../misc/common/\_disclaimer.mdx";
 <Disclaimer/>

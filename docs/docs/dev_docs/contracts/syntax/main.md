@@ -1,4 +1,5 @@
 import DocCardList from '@theme/DocCardList';
+import { AztecPackagesVersion } from "@site/src/components/Version";
 
 # Aztec.nr Syntax
 
@@ -16,26 +17,6 @@ Aztec.nr contains abstractions which remove the need to understand the low-level
   - secrets
 - Functions for communicating with [Ethereum L1](../portals/main.md)
 
-To import Aztec.nr into your Aztec contract project, simply include it as a dependency. For example:
-
-```toml
-[package]
-name = "token_contract"
-authors = [""]
-compiler_version = "0.1"
-type = "contract"
-
-[dependencies]
-# Framework import
-aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-
-# Utility dependencies
-value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note"}
-safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/safe-math"}
-```
-
-:::info 
-Note: currently the dependency name ***MUST*** be `aztec`. The framework expects this namespace to be available when compiling into contracts. This limitation may be removed in the future.
-:::
+To setup a aztec-nr project, follow the [setup instructions](../setup.md)
 
 <DocCardList />

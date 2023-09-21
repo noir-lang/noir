@@ -87,7 +87,7 @@ The default accounts that come with sandbox will likely change over time. Save t
 
 #include_code declare-accounts yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
-Start by deploying a token contract. After it is deployed, we check that the deployment succeeded, export the deployment address to use in future commands and then call the `_initialize` function. For more detail on how the token contract works, see the [token contract tutorial](./token_contract_tutorial).
+Start by deploying a token contract. After it is deployed, we check that the deployment succeeded, export the deployment address to use in future commands and then call the `_initialize` function. For more detail on how the token contract works, see the [token contract tutorial](../tutorials/writing_token_contract.md).
 
 #include_code deploy yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
@@ -97,7 +97,7 @@ Note that the deployed contract address is exported, so we can use it as `$CONTR
 
 Alice is set up as the contract admin and token minter in the `_initialize` function. Let's get Alice some private tokens.
 
-We need to export the `SECRET` and `SECRET_HASH` values in order to privately mint tokens. Private tokens are claimable by anyone with the pre-image to a provided hash, see more about how the token contract works in the [token contract tutorial](./token_contract_tutorial.md). Once the tokens have been minted, Alice can claim them with the `redeem_shield` function. After this, Alice should have 1000 tokens in their private balance.
+We need to export the `SECRET` and `SECRET_HASH` values in order to privately mint tokens. Private tokens are claimable by anyone with the pre-image to a provided hash, see more about how the token contract works in the [token contract tutorial](../tutorials/writing_token_contract.md). Once the tokens have been minted, Alice can claim them with the `redeem_shield` function. After this, Alice should have 1000 tokens in their private balance.
 
 #include_code mint-private yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
@@ -116,4 +116,5 @@ Aztec's Layer 2 network is a fully programmable combined private/public ZK rollu
 - Aztec Node - Aggregates all of the 'backend' services necessary for the building and publishing of rollups.
 - Aztec RPC Server - Normally residing with the end client, this decrypts and stores a client's private state, executes simulations and submits transactions to the Aztec Node.
 - [Aztec.js](./sandbox) - Aztec's client library for interacting with the Aztec RPC Server (think Ethers.js).
-- [Write your own contracts](./noir_contracts.md)
+- [Aztec.nr](../contracts/main.md) - Aztec's smart contract framework
+

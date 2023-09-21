@@ -35,4 +35,4 @@ Here's a common layout for a basic Aztec.nr Contract project:
 ```
 
 - See the vanilla Noir docs for [more info on packages](https://noir-lang.org/modules_packages_crates/crates_and_packages).
-- You can review the structure of a complete contract in the token contract tutorial [here](../getting_started/token_contract_tutorial.md).
+- You can review the structure of a complete contract in the token contract tutorial [here](../tutorials/writing_token_contract.md).

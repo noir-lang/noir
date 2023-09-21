@@ -8,7 +8,7 @@ We will be using typescript to write our tests, and rely on the [`aztec.js`](htt
 
 ## A simple example
 
-Let's start with a simple example for a test using the [Sandbox](../sandbox/main.md). We will create two accounts and deploy a token contract in a setup step, and then issue a transfer from one user to another.
+Let's start with a simple example for a test using the [Sandbox](../getting_started/sandbox.md#install-the-sandbox). We will create two accounts and deploy a token contract in a setup step, and then issue a transfer from one user to another.
 
 #include_code sandbox-example /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 

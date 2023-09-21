@@ -119,7 +119,7 @@ It has prebuilt binaries and is super easy to install using `noirup`
 1. Go to `src/contracts` folder.
 2. Create a new package whose name has to end with **\_contract**. E.g.:
    ```
-   nargo new example_contract
+   nargo new --contract example_contract
    ```
 3. Add the aztec dependency to `nargo.toml`:
 

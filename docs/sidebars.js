@@ -196,8 +196,33 @@ const sidebars = {
       items: [
         "dev_docs/getting_started/quickstart",
         "dev_docs/getting_started/sandbox",
-        "dev_docs/getting_started/noir_contracts",
-        "dev_docs/getting_started/token_contract_tutorial",
+      ],
+    },
+
+    {
+      label: "Tutorials",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/tutorials/main",
+      },
+      items: [
+        "dev_docs/tutorials/writing_token_contract",
+        {
+          label: "Writing a DApp",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "dev_docs/tutorials/writing_dapp/main",
+          },
+          items: [
+            "dev_docs/tutorials/writing_dapp/project_setup",
+            "dev_docs/tutorials/writing_dapp/rpc_server",
+            "dev_docs/tutorials/writing_dapp/contract_deployment",
+            "dev_docs/tutorials/writing_dapp/contract_interaction",
+            "dev_docs/tutorials/writing_dapp/testing",
+          ],
+        },
       ],
     },
 
@@ -210,6 +235,7 @@ const sidebars = {
       },
       items: [
         "dev_docs/contracts/workflow",
+        "dev_docs/contracts/setup",
         "dev_docs/contracts/layout",
         {
           label: "Syntax",
@@ -227,6 +253,9 @@ const sidebars = {
             "dev_docs/contracts/syntax/globals",
           ],
         },
+        "dev_docs/contracts/compiling",
+        "dev_docs/contracts/deploying",
+        "dev_docs/contracts/artifacts",
         {
           label: "Portals",
           type: "category",
@@ -241,9 +270,6 @@ const sidebars = {
             "dev_docs/contracts/portals/outbox",
           ],
         },
-        "dev_docs/contracts/compiling",
-        "dev_docs/contracts/deploying",
-        "dev_docs/contracts/artifacts",
         // {
         //   label: "Resources",
         //   type: "category",
@@ -283,58 +309,7 @@ const sidebars = {
       ],
     },
 
-    {
-      label: "Sandbox",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "dev_docs/sandbox/main",
-      },
-      items: ["dev_docs/sandbox/common_errors"],
-    },
-
-    {
-      label: "CLI",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "dev_docs/cli/main",
-      },
-      items: ["dev_docs/cli/cli"],
-    },
-    {
-      label: "DApp Development",
-      type: "category",
-      items: [
-        // {
-        //   label: "API",
-        //   type: "category",
-        //   link: {
-        //     type: "doc",
-        //     id: "dev_docs/dapps/api/main",
-        //   },
-        //   items: [
-        //     "dev_docs/dapps/api/aztec_rpc",
-        //     "dev_docs/dapps/api/contract_interaction",
-        //   ],
-        // },
-        {
-          label: "Tutorials",
-          type: "category",
-          link: {
-            type: "doc",
-            id: "dev_docs/dapps/tutorials/main",
-          },
-          items: [
-            "dev_docs/dapps/tutorials/project_setup",
-            "dev_docs/dapps/tutorials/rpc_server",
-            "dev_docs/dapps/tutorials/contract_deployment",
-            "dev_docs/dapps/tutorials/contract_interaction",
-            "dev_docs/dapps/tutorials/testing",
-          ],
-        },
-      ],
-    },
+    "dev_docs/cli/main",
 
     {
       label: "Testing",
@@ -356,6 +331,7 @@ const sidebars = {
       items: [
         "dev_docs/wallets/architecture",
         "dev_docs/wallets/writing_an_account_contract",
+        "dev_docs/wallets/creating_schnorr_accounts",
       ],
     },
 
@@ -364,6 +340,7 @@ const sidebars = {
       type: "category",
       items: [],
     },*/
+    "dev_docs/sandbox_errors/main",
     "dev_docs/privacy/main",
     "dev_docs/limitations/main",
 
