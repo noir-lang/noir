@@ -56,10 +56,12 @@ Most changes are reflected live without having to restart the server.
 $ yarn build
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+This command generates static content into the `build` directory and can be served using any static contents hosting service. When run on Netlify, it will also build the typescript projects needed for extracting type information via typedoc.
 
 
-## #include_code macro
+## Macros
+
+### `#include_code`
 
 You can embed code snippets into a `.md`/`.mdx` file from code which lives elsewhere in the repo.
 - In your markdown file:
@@ -119,7 +121,26 @@ You can embed code snippets into a `.md`/`.mdx` file from code which lives elsew
   - `#include_code hello path/from/repo/root/to/file.ts typescript noTitle,noLineNumbers,noSourceLink`
 - Ironically, we can't show you a rendering of these examples, because this README.md file doesn't support the `#include_code` macro!
 
+> See [here](./src/components/GithubCode/index.js) for another way to include code, although this approach is flakier, so the above `#include_code` macro is preferred.
 
-### Another way to include code.
+### `#include_aztec_version`
 
-See [here](./src/components/GithubCode/index.js), although this approach is flakier, so the above `#include_code` macro is preferred.
+This macros will be replaced inline with the current aztec packages tag, which is `aztec-packages-v0.7.10` at the time of these writing. This value is sourced from `.release-please-manifest.json` on the project root.
+
+Alternatively, you can also use the `AztecPackagesVersion()` js function, which you need to import explicitly:
+
+```
+import { AztecPackagesVersion } from "@site/src/components/Version";
+<>{AztecPackagesVersion()}</>
+```
+
+ ### `#include_noir_version`
+
+This macros will be replaced inline with the required nargo version, which is `0.11.1-aztec.0` at the time of these writing. This value is sourced from `yarn-project/noir-compiler/src/noir-version.json`.
+
+Alternatively, you can also use the `NoirVersion()` js function, which you need to import explicitly:
+
+```
+import { NoirVersion } from "@site/src/components/Version";
+<>{NoirVersion()}</>
+```

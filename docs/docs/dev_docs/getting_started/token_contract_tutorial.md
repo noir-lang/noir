@@ -80,19 +80,18 @@ Your project should look like this:
 
 Add the following dependencies to your Nargo.toml file, below the package information:
 
-import { AztecPackagesVersion } from "@site/src/components/Version";
-
-<CodeBlock language="toml">{`[package]
+```toml
+[package]
 name = "token_contract"
 authors = [""]
 compiler_version = "0.1"
 type = "contract"
- 
+
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${AztecPackagesVersion()}", directory="yarn-project/aztec-nr/aztec" }
-value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${AztecPackagesVersion()}", directory="yarn-project/aztec-nr/value-note"}
-safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${AztecPackagesVersion()}", directory="yarn-project/aztec-nr/safe-math"}
-`}</CodeBlock>
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
+value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note"}
+safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/safe-math"}
+```
 
 ## Contract Interface
 
