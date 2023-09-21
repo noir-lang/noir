@@ -17,8 +17,9 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
+
+use crate::token::FunctionAttribute;
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::token::PrimaryAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
@@ -748,7 +749,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if matches!(attributes.primary, Some(PrimaryAttribute::Test { .. }))
+        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
             && !parameters.is_empty()
         {
             self.push_err(ResolverError::TestFunctionHasParameters {
