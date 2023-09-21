@@ -42,6 +42,23 @@ jobs:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Compile test program with Nargo CLI
+        working-directory: ./compiler/wasm/noir-script
+        run: |
+          nargo_binary=${{ github.workspace }}/nargo/nargo
+          chmod +x $nargo_binary
+          $nargo_binary compile
+          nargo -V
+
       - name: Restore nix store cache
         uses: actions/cache/restore@v3
         id: cache
@@ -105,14 +122,6 @@ jobs:
           git config user.name kevaundray
           git config user.email kevtheappdev@gmail.com
 
-      - name: Install nargo
-        run: |
-          curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-          export PATH="/home/runner/.nargo/bin:$PATH"
-          noirup
-          echo "/home/runner/.nargo/bin" >> $GITHUB_PATH
-          nargo -V
-
       - name: Create new Foundry project
         run: forge init --no-git --no-commit --force foundry-project
 
@@ -120,14 +129,14 @@ jobs:
         working-directory: tooling/nargo_cli/tests/execution_success/1_mul
         run: nargo codegen-verifier
 
-      # - name: Run codegen-verifier for double_verify_proof
-      #   working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
-      #   run: nargo codegen-verifier
+      - name: Run codegen-verifier for double_verify_proof
+        working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
+        run: nargo codegen-verifier
 
       - name: Copy compiled contracts
         run: |
           cp tooling/nargo_cli/tests/execution_success/1_mul/contract/1_mul/plonk_vk.sol foundry-project/src/1_mul.sol
-          # cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol foundry-project/src/double_verify_proof.sol
+          cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol foundry-project/src/double_verify_proof.sol
 
       - name: Forge build
         working-directory: foundry-project
@@ -140,7 +149,11 @@ jobs:
           echo "$result"
           address=$(echo "$result" | grep "Deployed to:" | awk '{print $3}')
           echo "MUL_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
-          # forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/double_verify_proof.sol:UltraVerifier
+
+          # result=$(forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/double_verify_proof.sol:UltraVerifier)
+          # echo "$result"
+          # address=$(echo "$result" | grep "Deployed to:" | awk '{print $3}')
+          # echo "MUL_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
 
       - name: Replace MUL_CONTRACT_ADDRESS in the file
         working-directory: compiler/integration-tests/test/integration/browser
