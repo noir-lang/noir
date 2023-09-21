@@ -364,14 +364,14 @@ impl fmt::Display for TestScope {
 // Calls to functions which have the foreign attribute are executed in the host language
 pub struct Attributes {
     // Each function can have a single Primary Attribute
-    pub primary: Option<PrimaryAttribute>,
+    pub function: Option<FunctionAttribute>,
     // Each function can have many Secondary Attributes
     pub secondary: Vec<SecondaryAttribute>,
 }
 
 impl Attributes {
     pub fn empty() -> Self {
-        Self { primary: None, secondary: Vec::new() }
+        Self { function: None, secondary: Vec::new() }
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`
@@ -398,14 +398,14 @@ impl Attributes {
 /// A secondary attribute has no effect and is either consumed by a library or used as a notice for the developer
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Attribute {
-    Primary(PrimaryAttribute),
+    Function(FunctionAttribute),
     Secondary(SecondaryAttribute),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Attribute::Primary(attribute) => write!(f, "{}", attribute),
+            Attribute::Function(attribute) => write!(f, "{}", attribute),
             Attribute::Secondary(attribute) => write!(f, "{}", attribute),
         }
     }
@@ -442,23 +442,23 @@ impl Attribute {
             // Primary Attributes
             ["foreign", name] => {
                 validate(name)?;
-                Attribute::Primary(PrimaryAttribute::Foreign(name.to_string()))
+                Attribute::Function(FunctionAttribute::Foreign(name.to_string()))
             }
             ["builtin", name] => {
                 validate(name)?;
-                Attribute::Primary(PrimaryAttribute::Builtin(name.to_string()))
+                Attribute::Function(FunctionAttribute::Builtin(name.to_string()))
             }
             ["oracle", name] => {
                 validate(name)?;
-                Attribute::Primary(PrimaryAttribute::Oracle(name.to_string()))
+                Attribute::Function(FunctionAttribute::Oracle(name.to_string()))
             }
-            ["test"] => Attribute::Primary(PrimaryAttribute::Test(TestScope::None)),
+            ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
                     LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
                 match TestScope::lookup_str(name) {
-                    Some(scope) => Attribute::Primary(PrimaryAttribute::Test(scope)),
+                    Some(scope) => Attribute::Function(FunctionAttribute::Test(scope)),
                     None => return Err(malformed_scope),
                 }
             }
@@ -492,44 +492,44 @@ impl Attribute {
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum PrimaryAttribute {
+pub enum FunctionAttribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
     Test(TestScope),
 }
 
-impl PrimaryAttribute {
+impl FunctionAttribute {
     pub fn builtin(self) -> Option<String> {
         match self {
-            PrimaryAttribute::Builtin(name) => Some(name),
+            FunctionAttribute::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn foreign(self) -> Option<String> {
         match self {
-            PrimaryAttribute::Foreign(name) => Some(name),
+            FunctionAttribute::Foreign(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn is_foreign(&self) -> bool {
-        matches!(self, PrimaryAttribute::Foreign(_))
+        matches!(self, FunctionAttribute::Foreign(_))
     }
 
     pub fn is_low_level(&self) -> bool {
-        matches!(self, PrimaryAttribute::Foreign(_) | PrimaryAttribute::Builtin(_))
+        matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
     }
 }
 
-impl fmt::Display for PrimaryAttribute {
+impl fmt::Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PrimaryAttribute::Test(scope) => write!(f, "#[test{}]", scope),
-            PrimaryAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
-            PrimaryAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
-            PrimaryAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
+            FunctionAttribute::Test(scope) => write!(f, "#[test{}]", scope),
+            FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
+            FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
+            FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
         }
     }
 }
@@ -560,13 +560,13 @@ impl fmt::Display for SecondaryAttribute {
     }
 }
 
-impl AsRef<str> for PrimaryAttribute {
+impl AsRef<str> for FunctionAttribute {
     fn as_ref(&self) -> &str {
         match self {
-            PrimaryAttribute::Foreign(string) => string,
-            PrimaryAttribute::Builtin(string) => string,
-            PrimaryAttribute::Oracle(string) => string,
-            PrimaryAttribute::Test { .. } => "",
+            FunctionAttribute::Foreign(string) => string,
+            FunctionAttribute::Builtin(string) => string,
+            FunctionAttribute::Oracle(string) => string,
+            FunctionAttribute::Test { .. } => "",
         }
     }
 }

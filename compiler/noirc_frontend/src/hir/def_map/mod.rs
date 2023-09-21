@@ -3,7 +3,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
-use crate::token::{PrimaryAttribute, TestScope};
+use crate::token::{FunctionAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{FileDiagnostic, Location};
@@ -140,8 +140,8 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
-                    match &attributes.primary {
-                        Some(PrimaryAttribute::Test(scope)) => {
+                    match &attributes.function {
+                        Some(FunctionAttribute::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
                             Some(TestFunction::new(func_id, scope.clone(), location))
                         }

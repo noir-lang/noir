@@ -34,9 +34,11 @@ pub enum ParserErrorReason {
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
     #[error(
-        "Multiple primary attributes found. Only one primary attribute is allowed per function."
+        "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
-    MultiplePrimaryAttributesFound,
+    MultipleFunctionAttributesFound,
+    #[error("A function attribute cannot be placed on a struct")]
+    NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
 }
@@ -124,9 +126,9 @@ impl From<ParserError> for Diagnostic {
         match &error.reason {
             Some(reason) => {
                 match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
+                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
