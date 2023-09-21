@@ -43,8 +43,8 @@ jobs:
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Update Acir artifacts"
-          title: "Auto PR - Update ACIR artifacts"
+          commit-message: "chore: update acir artifacts"
+          title: "chore: Update ACIR artifacts"
           body: "Automatic PR to update acir artifacts"
           labels: "auto-pr"
           branch: "auto-pr-rebuild-script-branch"
