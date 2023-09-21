@@ -132,21 +132,17 @@ Add a `tsconfig.json` file into the project root, here is an example:
 yarn add @aztec/aztec.js @aztec/noir-contracts
 ```
 
-7. Create an `index.ts` file in the `src` directory and add the following imports:
-
-#include_code imports /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
-
-Below the imports, set up a function in which we'll add the logic to interact with the Sandbox.
+7. Create an `index.ts` file in the `src` directory with the following sandbox connection setup:
 
 ```ts
-async function main() {}
+#include_code imports /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts raw
+
+async function main() {
+#include_code setup /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts raw
+}
 
 main();
 ```
-
-and the following setup code goes in the `main` function:
-
-#include_code setup /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 
 8. Finally, run the package:
 

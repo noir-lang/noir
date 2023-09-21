@@ -221,7 +221,6 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
           );
 
           const relativeCodeFilePath = path.resolve(rootDir, codeFilePath);
-
           const url = `https://github.com/AztecProtocol/aztec-packages/blob/master/${relativeCodeFilePath}#L${startLine}-L${endLine}`;
 
           const title = noTitle ? "" : `title="${identifier}"`;
@@ -229,8 +228,11 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
           const source = noSourceLink
             ? ""
             : `\n> [<sup><sub>Source code: ${url}</sub></sup>](${url})`;
-          const replacement = `\`\`\`${language} ${title} ${lineNumbers} \n${codeSnippet}\n\`\`\`${source}\n`;
-
+          let replacement = codeSnippet;
+          if (language !== "raw") {
+            // if we aren't raw mode, wrap in a code block
+            replacement = `\`\`\`${language} ${title} ${lineNumbers} \n${codeSnippet}\n\`\`\`${source}\n`;
+          }
           // Replace the include tag with the code snippet
           updatedContent = updatedContent.replace(fullMatch, replacement);
         } catch (error) {
