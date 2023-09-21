@@ -6,8 +6,8 @@ use std::{env, fs};
 
 fn check_rustc_version() {
     assert!(
-        version().unwrap() >= Version::parse("1.66.0").unwrap(),
-        "The minimal supported rustc version is 1.66.0."
+        version().unwrap() >= Version::parse("1.67.0").unwrap(),
+        "The minimal supported rustc version is 1.67.0."
     );
 }
 
@@ -105,7 +105,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             r#"
 #[test]
 fn compile_success_empty_{test_name}() {{
-    
+
     // We use a mocked backend for this test as we do not rely on the returned circuit size
     // but we must call a backend as part of querying the number of opcodes in the circuit.
 

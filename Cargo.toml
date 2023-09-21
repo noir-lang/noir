@@ -31,7 +31,7 @@ version = "0.12.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.67"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
