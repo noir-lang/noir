@@ -407,6 +407,10 @@ pub struct TypeVariableId(pub usize);
 
 impl Type {
     pub fn default_int_type() -> Type {
+        Type::FieldElement
+    }
+
+    pub fn default_range_loop_type() -> Type {
         Type::Integer(Signedness::Unsigned, 64)
     }
 
