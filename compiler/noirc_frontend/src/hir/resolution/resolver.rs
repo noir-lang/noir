@@ -18,8 +18,8 @@ use crate::hir_def::expr::{
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
 
-use crate::token::FunctionAttribute;
 use crate::hir_def::traits::{Trait, TraitConstraint};
+use crate::token::FunctionAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
