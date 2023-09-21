@@ -1,6 +1,9 @@
 import React from "react";
 import MDXComponents from "@theme-original/MDXComponents";
-import Version, { NoirVersion } from "@site/src/components/Version";
+import Version, {
+  NoirVersion,
+  AztecPackagesVersion,
+} from "@site/src/components/Version";
 import InstallNargoInstructions from "@site/src/components/InstallNargoInstructions";
 import CodeBlock from "@theme/CodeBlock";
 
@@ -9,6 +12,7 @@ export default {
   ...MDXComponents,
   Version,
   NoirVersion,
+  AztecPackagesVersion,
   InstallNargoInstructions,
   CodeBlock,
 };

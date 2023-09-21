@@ -17,12 +17,13 @@ nargo new --contract token
 
 Then, open the `contracts/token/Nargo.toml` configuration file, and add the `aztec.nr` and `value_note` libraries as dependencies:
 
-```toml
-[dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-nr", tag="master", directory="aztec" }
-value_note = { git="https://github.com/AztecProtocol/aztec-nr", tag="master", directory="value-note" }
-safe_math = {  git="https://github.com/AztecProtocol/aztec-nr", tag="master", directory="safe-math" }
-```
+import { AztecPackagesVersion } from "@site/src/components/Version";
+
+<CodeBlock language="toml">{`[dependencies]
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${AztecPackagesVersion()}", directory="yarn-project/aztec-nr/aztec" }
+value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${AztecPackagesVersion()}", directory="yarn-project/aztec-nr/value-note"}
+safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${AztecPackagesVersion()}", directory="yarn-project/aztec-nr/safe-math"}
+`}</CodeBlock>
 
 Last, copy-paste the code from the `Token` contract into `contracts/token/main.nr`:
 

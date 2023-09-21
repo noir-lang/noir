@@ -8,3 +8,4 @@ export default function Version({ what }) {
 }
 
 export const NoirVersion = () => Versions()["noir"];
+export const AztecPackagesVersion = () => Versions()["aztec-packages"];
