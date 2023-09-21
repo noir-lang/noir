@@ -78,5 +78,6 @@ jobs:
           commit-message: "chore: update acir artifacts"
           title: "chore: Update ACIR artifacts"
           body: "Automatic PR to update acir artifacts"
+          add-paths: tooling/nargo_cli/tests/acir_artifacts/*.gz
           labels: "auto-pr"
           branch: "auto-pr-rebuild-script-branch"
