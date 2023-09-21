@@ -94,7 +94,9 @@ jobs:
 
       - name: Run browser tests
         working-directory: ./acvm-repo/acvm_js
-        run: yarn test:browser
+        run: |
+          yarn
+          yarn test:browser
 
   test-acvm_js-rust:
     name: Rust Tests
