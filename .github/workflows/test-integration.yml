@@ -16,7 +16,7 @@ on:
 jobs:
   build-nargo:
 
-    runs-on: ubuntu-latest-16-cores
+    runs-on: ubuntu-large
     strategy:
       matrix:
         target: [x86_64-unknown-linux-gnu]
@@ -51,7 +51,7 @@ jobs:
           retention-days: 3
 
   build-wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-large
     env:
       CACHED_PATH: /tmp/nix-cache
 
@@ -109,7 +109,7 @@ jobs:
           retention-days: 3
 
   build-noirc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-large
     env:
       CACHED_PATH: /tmp/nix-cache
 
@@ -169,7 +169,7 @@ jobs:
           retention-days: 10
 
   test-solidity-verifier:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-large
     needs: [build-wasm, build-nargo, build-noirc]
     env:
       CACHED_PATH: /tmp/nix-cache
