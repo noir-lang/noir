@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const childProcess = require("child_process");
 
 const getLineNumberFromIndex = (fileContent, index) => {
   return fileContent.substring(0, index).split("\n").length;
@@ -58,6 +59,62 @@ function processHighlighting(codeSnippet, identifier) {
   return result.trim();
 }
 
+let lastReleasedVersion;
+
+/** Returns the last released tag */
+function getLatestTag() {
+  if (!lastReleasedVersion) {
+    const manifest = path.resolve(
+      __dirname,
+      "../../../.release-please-manifest.json"
+    );
+    lastReleasedVersion = JSON.parse(fs.readFileSync(manifest).toString())["."];
+  }
+  return lastReleasedVersion
+    ? `aztec-packages-v${lastReleasedVersion}`
+    : undefined;
+}
+
+/** Returns whether to use the latest release or the current version of stuff. */
+function useLastRelease() {
+  return process.env.NETLIFY || process.env.INCLUDE_RELEASED_CODE;
+}
+
+/**
+ * Returns the contents of a file. If the build is running for publishing, it will load the contents
+ * of the file in the last released version.
+ */
+function readFile(filePath, tag) {
+  if (tag && tag !== "master") {
+    try {
+      const tag = getLatestTag();
+      const root = path.resolve(__dirname, "../../../");
+      const relPath = path.relative(root, filePath);
+      return childProcess.execSync(`git show ${tag}:${relPath}`).toString();
+    } catch (err) {
+      console.error(
+        `Error reading file ${relPath} from latest version. Falling back to current content.`
+      );
+    }
+  }
+  return fs.readFileSync(filePath, "utf-8");
+}
+
+/** Extracts a code snippet, trying with the last release if applicable, and falling back to current content. */
+function extractCodeSnippet(filePath, identifier) {
+  if (useLastRelease()) {
+    try {
+      return doExtractCodeSnippet(filePath, identifier, false);
+    } catch (err) {
+      console.error(
+        `Error extracting code snippet ${identifier} for ${filePath}: ${err}. Falling back to current content.`
+      );
+    }
+  }
+
+  return doExtractCodeSnippet(filePath, identifier, true);
+}
+
 /**
  * Parse a code file, looking for identifiers of the form:
  * `docs:start:${identifier}` and `docs:end:{identifier}`.
@@ -66,12 +123,11 @@ function processHighlighting(codeSnippet, identifier) {
  * It's complicated if code snippet identifiers overlap (i.e. the 'start' of one code snippet is in the
  * middle of another code snippet). The extra logic in this function searches for all identifiers, and
  * removes any which fall within the bounds of the code snippet for this particular `identifier` param.
- * @param {string} filePath
- * @param {string} identifier
  * @returns the code snippet, and start and end line numbers which can later be used for creating a link to github source code.
  */
-function extractCodeSnippet(filePath, identifier) {
-  let fileContent = fs.readFileSync(filePath, "utf-8");
+function doExtractCodeSnippet(filePath, identifier, useCurrent) {
+  const tag = useCurrent ? "master" : getLatestTag();
+  let fileContent = readFile(filePath, tag);
   let lineRemovalCount = 0;
   let linesToRemove = [];
 
@@ -170,7 +226,7 @@ function extractCodeSnippet(filePath, identifier) {
   // The code snippet might contain some docusaurus highlighting comments for other identifiers. We should remove those.
   codeSnippet = processHighlighting(codeSnippet, identifier);
 
-  return [codeSnippet, startLineNum, endLineNum];
+  return [codeSnippet, startLineNum, endLineNum, tag];
 }
 
 async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
@@ -212,35 +268,35 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
         const noSourceLink = opts.includes("noSourceLink");
 
         try {
-          const absoluteCodeFilePath = path.join(rootDir, codeFilePath);
+          const absCodeFilePath = path.join(rootDir, codeFilePath);
 
           // Extract the code snippet between the specified comments
-          const [codeSnippet, startLine, endLine] = extractCodeSnippet(
-            absoluteCodeFilePath,
-            identifier
-          );
+          const extracted = extractCodeSnippet(absCodeFilePath, identifier);
+          const [codeSnippet, startLine, endLine, tag] = extracted;
 
           const relativeCodeFilePath = path.resolve(rootDir, codeFilePath);
-          const url = `https://github.com/AztecProtocol/aztec-packages/blob/master/${relativeCodeFilePath}#L${startLine}-L${endLine}`;
+
+          let urlText = `${relativeCodeFilePath}#L${startLine}-L${endLine}`;
+          if (tag && tag !== "master") urlText += ` (${tag})`;
+          const url = `https://github.com/AztecProtocol/aztec-packages/blob/${tag}/${relativeCodeFilePath}#L${startLine}-L${endLine}`;
 
           const title = noTitle ? "" : `title="${identifier}"`;
           const lineNumbers = noLineNumbers ? "" : "showLineNumbers";
           const source = noSourceLink
             ? ""
-            : `\n> [<sup><sub>Source code: ${url}</sub></sup>](${url})`;
-          let replacement = codeSnippet;
-          if (language !== "raw") {
-            // if we aren't raw mode, wrap in a code block
-            replacement = `\`\`\`${language} ${title} ${lineNumbers} \n${codeSnippet}\n\`\`\`${source}\n`;
-          }
+            : `\n> [<sup><sub>Source code: ${urlText}</sub></sup>](${url})`;
+          const replacement = (language === "raw")
+            ? codeSnippet
+            : `\`\`\`${language} ${title} ${lineNumbers} \n${codeSnippet}\n\`\`\`${source}\n`;
+
           // Replace the include tag with the code snippet
           updatedContent = updatedContent.replace(fullMatch, replacement);
         } catch (error) {
           const lineNum = getLineNumberFromIndex(markdownContent, match.index);
-          let wrapped_msg = `Error processing "${filePath}:${lineNum}": ${error.message}.`;
-
           // We were warning here, but code snippets were being broken. So making this throw an error instead:
-          throw new Error(`${wrapped_msg}\n`);
+          throw new Error(
+            `Error processing "${filePath}:${lineNum}": ${error.message}.`
+          );
         }
       }
 
