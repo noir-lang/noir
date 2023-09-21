@@ -170,7 +170,7 @@ test_cases.forEach((testInfo) => {
           isRecursive
         );
 
-        expect(verified).to.be.true;
+        expect(verified, "Proof fails verification in JS").to.be.true;
 
         try {
           let result;
