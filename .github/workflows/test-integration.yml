@@ -107,7 +107,7 @@ jobs:
           nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          nargo -V
+          $nargo_binary -V
 
       - name: Build noir_wasm package
         run: |
