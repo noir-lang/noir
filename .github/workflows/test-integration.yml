@@ -14,8 +14,44 @@ on:
 #     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
 jobs:
+  build-nargo:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        target: [x86_64-unknown-linux-gnu]
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo
+          path: ./dist/*
+          retention-days: 3
+
   test-solidity-verifier:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    needs: [build-nargo]
     env:
       CACHED_PATH: /tmp/nix-cache
 
@@ -42,12 +78,6 @@ jobs:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/release/nargo ./dist/nargo
-          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
-
       - name: Restore nix store cache
         uses: actions/cache/restore@v3
         id: cache
@@ -65,9 +95,15 @@ jobs:
             nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
           done
 
-      - name: Build Nargo
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        working-directory: ./compiler/wasm/noir-script
         run: |
-          cargo build --package nargo_cli --release
           nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
