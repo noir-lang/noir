@@ -35,7 +35,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
+use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
@@ -174,7 +174,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
-            // Validate collected attributes, filtering them into primary and secondary variants
+            // Validate collected attributes, filtering them into function and secondary variants
             let attrs = validate_attributes(attributes, span, emit);
             validate_where_clause(&generics, &where_clause, span, emit);
             FunctionDefinition {
@@ -237,11 +237,16 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ),
     );
 
-    keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
-        |((name, generics), fields), span| {
-            TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
-        },
-    )
+    attributes()
+        .or_not()
+        .then_ignore(keyword(Struct))
+        .then(ident())
+        .then(generics())
+        .then(fields)
+        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
+            let attributes = validate_struct_attributes(raw_attributes, span, emit);
+            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
+        })
 }
 
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
@@ -441,10 +446,10 @@ fn validate_attributes(
 
     for attribute in attrs {
         match attribute {
-            Attribute::Primary(attr) => {
+            Attribute::Function(attr) => {
                 if primary.is_some() {
                     emit(ParserError::with_reason(
-                        ParserErrorReason::MultiplePrimaryAttributesFound,
+                        ParserErrorReason::MultipleFunctionAttributesFound,
                         span,
                     ));
                 }
@@ -454,7 +459,30 @@ fn validate_attributes(
         }
     }
 
-    Attributes { primary, secondary }
+    Attributes { function: primary, secondary }
+}
+
+fn validate_struct_attributes(
+    attributes: Option<Vec<Attribute>>,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> Vec<SecondaryAttribute> {
+    let attrs = attributes.unwrap_or_default();
+    let mut struct_attributes = vec![];
+
+    for attribute in attrs {
+        match attribute {
+            Attribute::Function(..) => {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
+                    span,
+                ));
+            }
+            Attribute::Secondary(attr) => struct_attributes.push(attr),
+        }
+    }
+
+    struct_attributes
 }
 
 fn validate_where_clause(
@@ -1622,23 +1650,6 @@ mod test {
         })
     }
 
-    fn parse_all_warnings<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
-    where
-        P: NoirParser<T>,
-        T: std::fmt::Display,
-    {
-        programs
-            .into_iter()
-            .flat_map(|program| {
-                let (_expr, diagnostics) = parse_recover(&parser, program);
-                diagnostics.iter().for_each(|diagnostic| if diagnostic.is_error() {
-                    unreachable!("Expected this input to pass with warning:\n{program}\nYet it failed with error:\n{diagnostic}")
-                });
-                diagnostics
-            })
-            .collect()
-    }
-
     fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
     where
         P: NoirParser<T>,
@@ -1855,7 +1866,7 @@ mod test {
         // The first (inner) `==` is a predicate which returns 0/1
         // The outer layer is an infix `==` which is
         // associated with the Constrain statement
-        let errors = parse_all_warnings(
+        let errors = parse_all_failing(
             constrain(expression()),
             vec![
                 "constrain ((x + y) == k) + z == y",
@@ -1868,7 +1879,7 @@ mod test {
         assert_eq!(errors.len(), 5);
         assert!(errors
             .iter()
-            .all(|err| { err.is_warning() && err.to_string().contains("deprecated") }));
+            .all(|err| { err.is_error() && err.to_string().contains("deprecated") }));
     }
 
     /// This is the standard way to declare an assert statement
@@ -2226,10 +2237,16 @@ mod test {
             "struct Foo { }",
             "struct Bar { ident: Field, }",
             "struct Baz { ident: Field, other: Field }",
+            "#[attribute] struct Baz { ident: Field, other: Field }",
         ];
         parse_all(struct_definition(), cases);
 
-        let failing = vec!["struct {  }", "struct Foo { bar: pub Field }"];
+        let failing = vec![
+            "struct {  }",
+            "struct Foo { bar: pub Field }",
+            "struct Foo { bar: pub Field }",
+            "#[oracle(some)] struct Foo { bar: Field }",
+        ];
         parse_all_failing(struct_definition(), failing);
     }
 

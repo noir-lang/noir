@@ -25,7 +25,7 @@ pub struct Workspace {
 impl Workspace {
     pub fn package_build_path(&self, package: &Package) -> PathBuf {
         let name: String = package.name.clone().into();
-        self.target_directory_path().join(name)
+        self.target_directory_path().join(name).with_extension("json")
     }
 
     pub fn contracts_directory_path(&self, package: &Package) -> PathBuf {

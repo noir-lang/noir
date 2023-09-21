@@ -67,11 +67,11 @@ test_cases.forEach((testInfo) => {
 
       const noir_source_url = new URL(
         `${base_relative_path}/${test_case}/src/main.nr`,
-        import.meta.url
+        import.meta.url,
       );
       const prover_toml_url = new URL(
         `${base_relative_path}/${test_case}/Prover.toml`,
-        import.meta.url
+        import.meta.url,
       );
       const compiled_contract_url = new URL(
         `${base_relative_path}/${testInfo.compiled}`,
@@ -121,7 +121,7 @@ test_cases.forEach((testInfo) => {
       try {
         compressedByteCode = Uint8Array.from(
           atob(compile_output.circuit),
-          (c) => c.charCodeAt(0)
+          (c) => c.charCodeAt(0),
         );
 
         solvedWitness = await executeCircuit(
@@ -129,7 +129,7 @@ test_cases.forEach((testInfo) => {
           witnessMap,
           () => {
             throw Error("unexpected oracle");
-          }
+          },
         );
       } catch (e) {
         expect(e, "Abi Encoding Step").to.not.be.an("error");
@@ -150,7 +150,7 @@ test_cases.forEach((testInfo) => {
         await api.srsInitSrs(
           new RawBuffer(crs.getG1Data()),
           crs.numPoints,
-          new RawBuffer(crs.getG2Data())
+          new RawBuffer(crs.getG2Data()),
         );
 
         const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
@@ -160,14 +160,14 @@ test_cases.forEach((testInfo) => {
           acirComposer,
           acirUint8Array,
           witnessUint8Array,
-          isRecursive
+          isRecursive,
         );
 
         // And this took ~5 minutes!
         const verified = await api.acirVerifyProof(
           acirComposer,
           proof,
-          isRecursive
+          isRecursive,
         );
 
         expect(verified).to.be.true;
@@ -192,7 +192,7 @@ test_cases.forEach((testInfo) => {
         expect(e, "Proving and Verifying").to.not.be.an("error");
         throw e;
       }
-    }
+    },
   );
 
   suite.addTest(mochaTest);

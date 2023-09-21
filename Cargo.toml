@@ -14,6 +14,7 @@ members = [
     # Crates related to tooling built ontop of the Noir compiler
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
+    "tooling/lsp",
     "tooling/nargo",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -71,3 +72,4 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
+fxhash = "0.2.1"

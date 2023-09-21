@@ -14,7 +14,7 @@ use crate::{hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Si
 ///   e.g. `let (a, b) = (1, 2)` have been split up: `let tmp = (1, 2); let a = tmp.0; let b = tmp.1;`.
 ///   This also affects function parameters: `fn foo((a, b): (i32, i32)` => `fn foo(a: i32, b: i32)`.
 /// - All structs are replaced with tuples
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum Expression {
     Ident(Ident),
     Literal(Literal),
@@ -55,7 +55,7 @@ pub struct LocalId(pub u32);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Ident {
     pub location: Option<Location>,
     pub definition: Definition,
@@ -64,7 +64,7 @@ pub struct Ident {
     pub typ: Type,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct For {
     pub index_variable: LocalId,
     pub index_name: String,
@@ -78,7 +78,7 @@ pub struct For {
     pub end_range_location: Location,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
     Integer(FieldElement, Type),
@@ -87,7 +87,7 @@ pub enum Literal {
     FmtStr(String, u64, Box<Expression>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
@@ -97,7 +97,7 @@ pub struct Unary {
 
 pub type BinaryOp = BinaryOpKind;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Binary {
     pub lhs: Box<Expression>,
     pub operator: BinaryOp,
@@ -111,7 +111,7 @@ pub struct Lambda {
     pub env: Ident,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct If {
     pub condition: Box<Expression>,
     pub consequence: Box<Expression>,
@@ -119,20 +119,20 @@ pub struct If {
     pub typ: Type,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Cast {
     pub lhs: Box<Expression>,
     pub r#type: Type,
     pub location: Location,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct ArrayLiteral {
     pub contents: Vec<Expression>,
     pub typ: Type,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Call {
     pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
@@ -140,7 +140,7 @@ pub struct Call {
     pub location: Location,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
@@ -160,7 +160,7 @@ pub struct Index {
 /// let field1 = tmp.0; // the struct has been translated to a tuple as well
 /// let field2 = tmp.1;
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Let {
     pub id: LocalId,
     pub mutable: bool,
@@ -168,7 +168,7 @@ pub struct Let {
     pub expression: Box<Expression>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Assign {
     pub lvalue: LValue,
     pub expression: Box<Expression>,
@@ -182,7 +182,7 @@ pub struct BinaryStatement {
 }
 
 /// Represents an Ast form that can be assigned to
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
     Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
@@ -192,7 +192,7 @@ pub enum LValue {
 
 pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Function {
     pub id: FuncId,
     pub name: String,
@@ -209,7 +209,7 @@ pub struct Function {
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     Field,
     Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
@@ -233,7 +233,7 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub main_function_signature: FunctionSignature,

@@ -101,7 +101,7 @@ pub struct FuncMeta {
 
     /// A function's attributes are the `#[...]` items above the function
     /// definition.
-    /// Primary Attributes will alter the function kind, secondary attributes do not
+    /// Function Attributes will alter the function kind, secondary attributes do not
     pub attributes: Attributes,
 
     /// This function's type in its contract.
