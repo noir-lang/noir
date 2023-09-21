@@ -15,7 +15,6 @@ const provider = new ethers.JsonRpcProvider("http://localhost:8545");
 const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic);
 const wallet = walletMnemonic.connect(provider);
 
-
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
 const { default: newABICoder, abiEncode } = noirc;
 
@@ -42,13 +41,13 @@ const test_cases = [
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
     address: "MUL_CONTRACT_ADDRESS",
-    publicInputsLength: 0
+    publicInputsLength: 0,
   },
   {
     case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
     compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
     address: "DV_CONTRACT_ADDRESS",
-    publicInputsLength: 16 * 32
+    publicInputsLength: 16 * 32,
   },
 ];
 
@@ -59,7 +58,6 @@ const suite = Mocha.Suite.create(mocha.suite, "Noir end to end test");
 suite.timeout(60 * 20e3); //20mins
 
 test_cases.forEach((testInfo) => {
-
   const test_name = testInfo.case.split("/").pop();
   const mochaTest = new Mocha.Test(
     `${test_name} (Compile, Execute, Prove, Verify)`,
