@@ -194,7 +194,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/downloaded
+          path: ./compiler/wasm
+
+      - name: Output wasm
+        working-directory: ./compiler/wasm
+        run: ls -R
 
       - name: Download noirc package artifact
         uses: actions/download-artifact@v3
