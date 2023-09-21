@@ -104,9 +104,10 @@ jobs:
       - name: Set nargo on PATH
         working-directory: ./compiler/wasm/noir-script
         run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
 
       - name: Build noir_wasm package
