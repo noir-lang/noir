@@ -37,12 +37,12 @@ async function getFile(url: URL): Promise<string> {
 const CIRCUIT_SIZE = 2 ** 19;
 
 const test_cases = [
-  // {
-  //   case: "tooling/nargo_cli/tests/execution_success/1_mul",
-  //   compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
-  //   address: "MUL_CONTRACT_ADDRESS",
-  //   publicInputsLength: 0,
-  // },
+  {
+    case: "tooling/nargo_cli/tests/execution_success/1_mul",
+    compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
+    address: "MUL_CONTRACT_ADDRESS",
+    publicInputsLength: 0,
+  },
   {
     case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
     compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
