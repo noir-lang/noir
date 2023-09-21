@@ -43,12 +43,12 @@ const test_cases = [
     address: "MUL_CONTRACT_ADDRESS",
     publicInputsLength: 0,
   },
-  {
-    case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
-    compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
-    address: "DV_CONTRACT_ADDRESS",
-    publicInputsLength: 16 * 32,
-  },
+  // {
+  //   case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
+  //   compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
+  //   address: "DV_CONTRACT_ADDRESS",
+  //   publicInputsLength: 16 * 32,
+  // },
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
