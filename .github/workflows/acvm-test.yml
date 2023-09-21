@@ -62,7 +62,9 @@ jobs:
 
       - name: Run node tests
         working-directory: ./acvm-repo/acvm_js
-        run: yarn test
+        run: |
+          yarn
+          yarn test
 
   test-acvm_js-browser:
     needs: [build-acvm-js-package]
