@@ -76,4 +76,4 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 fxhash = "0.2.1"
 futures = { version = "0.3.28", default-features = false, features = ["async-await", "std", "executor"] }
-rustix = { version = "0.37.1", default-features = false, features = [ "std", "fs" ] }
+rustix = { version = "0.38", default-features = false, features = [ "std", "fs" ] }
