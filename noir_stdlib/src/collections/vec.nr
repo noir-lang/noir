@@ -18,7 +18,7 @@ impl<T> Vec<T> {
     /// Get an element from the vector at the given index.
     /// Panics if the given index
     /// points beyond the end of the vector.
-    pub fn get(&mut self, index: Field) -> T {
+    pub fn get(self, index: Field) -> T {
         self.slice[index]
      }
 
@@ -54,7 +54,7 @@ impl<T> Vec<T> {
     }
 
     /// Returns the number of elements in the vector
-    pub fn len(self: Self) -> Field {
+    pub fn len(self) -> Field {
         self.slice.len()
     }
 }
