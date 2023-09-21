@@ -49,20 +49,34 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-  build-wasm:
-    runs-on: ubuntu-latest
+  test-solidity-verifier:
+    runs-on: ubuntu-22.04
+    needs: [build-nargo]
     env:
       CACHED_PATH: /tmp/nix-cache
 
     steps:
-      - name: Checkout sources
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Checkout acvm sources
+        uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
+        with:
+          repository: noir-lang/acvm
+          path: acvm
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-23.05
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Restore nix store cache
         uses: actions/cache/restore@v3
@@ -81,135 +95,47 @@ jobs:
             nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
           done
 
-      - name: Build wasm package
-        run: |
-          nix build -L .#noir_wasm
-
-      - name: Export cache from nix store
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        run: |
-          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noir-wasm-cargo-artifacts
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
-
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: noir_wasm
-          path: ${{ env.UPLOAD_PATH }}
-          retention-days: 3
-
-  build-noirc:
-    runs-on: ubuntu-latest
-    env:
-      CACHED_PATH: /tmp/nix-cache
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-23.05
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Restore nix store cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ runner.os }}-flake-abi-wasm-${{ hashFiles('*.lock') }}
-
-      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
-      - name: Copy cache into nix store
-        if: steps.cache.outputs.cache-hit == 'true'
-        # We don't check the signature because we're the one that created the cache
-        run: |
-          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
-            path=$(head -n 1 "$narinfo" | awk '{print $2}')
-            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
-          done
-
-      - name: Build noirc_abi_wasm
-        run: |
-          nix build -L .#noirc_abi_wasm
-          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
-          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
-
-      - name: Export cache from nix store
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        run: |
-          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noirc-abi-wasm-cargo-artifacts
-
-      - uses: actions/cache/save@v3
-        # Don't create cache entries for the merge queue.
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
-
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: noirc_abi_wasm
-          path: ${{ env.UPLOAD_PATH }}
-          retention-days: 10
-
-  test-solidity-verifier:
-    runs-on: ubuntu-22.04
-    needs: [build-wasm, build-nargo, build-noirc]
-    env:
-      CACHED_PATH: /tmp/nix-cache
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
-
-      - name: Checkout acvm sources
-        uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
-        with:
-          repository: noir-lang/acvm
-          path: acvm
-
       - name: Download nargo binary
         uses: actions/download-artifact@v3
         with:
           name: nargo
           path: ./nargo
 
-      - name: Download wasm package artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: noir_wasm
-          path: ./compiler/wasm
-
-      - name: Download noirc package artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
-
       - name: Set nargo on PATH
         working-directory: ./compiler/wasm/noir-script
         run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
+
+      - name: Build noir_wasm package
+        run: |
+          nix build -L .#noir_wasm
+          echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
+          cp -r ./result/noir_wasm/nodejs ./compiler/wasm
+          cp -r ./result/noir_wasm/web ./compiler/wasm
+
+      - name: Upload `noir_wasm` artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+      - name: Build noirc_abi_wasm package
+        run: |
+          nix build -L .#noirc_abi_wasm
+          echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
+          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
+
+      - name: Upload `noirc_abi_wasm` artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
