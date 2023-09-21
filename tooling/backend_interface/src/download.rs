@@ -17,8 +17,10 @@ pub fn download_backend(backend_url: &str, destination_path: &Path) -> std::io::
     use tempfile::tempdir;
 
     // Download sources
+    println!("Downloading backend...");
     let compressed_file: Cursor<Vec<u8>> = download_binary_from_url(backend_url)
         .map_err(|_| std::io::Error::from(ErrorKind::Other))?;
+    println!("Backend download complete.");
 
     // Unpack the tarball
     let gz_decoder = GzDecoder::new(compressed_file);
