@@ -96,7 +96,7 @@ fn merge_slices_if(x: Field, y: Field) {
     assert(slice[2] == 10);
 
     let slice = merge_slices_mutate(x, y);
-    assert(slice.len() == 4);
+    assert(slice.len() == 3);
     assert(slice[3] == 5);
 
     let slice = merge_slices_mutate_in_loop(x, y);
