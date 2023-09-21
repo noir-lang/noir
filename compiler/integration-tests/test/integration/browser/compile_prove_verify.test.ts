@@ -43,11 +43,11 @@ const test_cases = [
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
     address: "MUL_CONTRACT_ADDRESS"
   },
-  // {
-  //   case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
-  //   compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
-  //   address: "DOUBLE_VERIFY_CONTRACT_ADDRESS"
-  // },
+  {
+    case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
+    compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
+    address: "DV_CONTRACT_ADDRESS"
+  },
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
@@ -174,10 +174,10 @@ test_cases.forEach((testInfo) => {
 
         try {
           // https://github.com/AztecProtocol/aztec-packages/issues/1315
-          const publicInputs = proof.slice(0, 32);
-          const slicedProof = proof.slice(32);
+          // const publicInputs = proof.slice(0, 32);
+          // const slicedProof = proof.slice(32);
 
-          const result = await contract.verify(slicedProof, []);
+          const result = await contract.verify(proof, []);
           console.log(result);
           expect(result).to.be.true;
         } catch (error) {
