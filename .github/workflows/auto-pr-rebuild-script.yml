@@ -57,6 +57,7 @@ jobs:
 
       - name: Add Nargo to $PATH
         run: |
+          chmod +x ${{ github.workspace }}/nargo/nargo
           echo "${{ github.workspace }}/nargo" >> $GITHUB_PATH
 
       - name: Set up Git user (Github Action)
