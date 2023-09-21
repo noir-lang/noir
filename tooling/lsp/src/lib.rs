@@ -160,7 +160,7 @@ fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
-    state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
+    state.root_path = params.root_uri.and_then(|root_uri| uri_to_file_path(&root_uri).ok());
 
     async {
         let text_document_sync =
@@ -355,7 +355,7 @@ fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
-    let file_path = match params.text_document.uri.to_file_path() {
+    let file_path = match uri_to_file_path(&params.text_document.uri) {
         Ok(file_path) => file_path,
         Err(()) => {
             return future::ready(Err(ResponseError::new(
@@ -571,7 +571,7 @@ fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let file_path = match params.text_document.uri.to_file_path() {
+    let file_path = match uri_to_file_path(&params.text_document.uri) {
         Ok(file_path) => file_path,
         Err(()) => {
             return ControlFlow::Break(Err(ResponseError::new(
@@ -709,6 +709,8 @@ fn get_package_tests_in_crate(
         package_tests.push(NargoTest {
             id: NargoTestId::new(crate_name.clone(), func_name.clone()),
             label: func_name,
+            // These `file://` URIs are currently normalized inside of the vscode extension
+            // TODO: Do proper normalization inside the LSP instead of at the extension
             uri: Url::from_file_path(file_path)
                 .expect("Expected a valid file path that can be converted into a URI"),
             range,
@@ -743,6 +745,15 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
         Some(range)
     } else {
         None
+    }
+}
+
+// This smooths over `vscode-test-web://` or other schemes that may be sent from a browser client
+fn uri_to_file_path(uri: &Url) -> Result<PathBuf, ()> {
+    if uri.scheme() == "vscode-test-web" {
+        Ok(PathBuf::from("/").join(uri.path()))
+    } else {
+        uri.to_file_path()
     }
 }
 
