@@ -41,12 +41,14 @@ const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
-    address: "MUL_CONTRACT_ADDRESS"
+    address: "MUL_CONTRACT_ADDRESS",
+    publicInputsLength: 0
   },
   {
     case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
     compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
-    address: "DV_CONTRACT_ADDRESS"
+    address: "DV_CONTRACT_ADDRESS",
+    publicInputsLength: 16 * 32
   },
 ];
 
@@ -173,10 +175,19 @@ test_cases.forEach((testInfo) => {
         expect(verified).to.be.true;
 
         try {
-          const result = await contract.verify(proof, []);
+          let result;
+          if (testInfo.publicInputsLength === 0) {
+            result = await contract.verify(proof, []);
+          } else {
+            const publicInputs = proof.slice(0, testInfo.publicInputsLength);
+            const slicedProof = proof.slice(testInfo.publicInputsLength);
+            result = await contract.verify(slicedProof, [publicInputs]);
+          }
+
           expect(result).to.be.true;
         } catch (error) {
           console.error("Error while submitting the proof:", error);
+          throw error;
         }
       } catch (e) {
         expect(e, "Proving and Verifying").to.not.be.an("error");
