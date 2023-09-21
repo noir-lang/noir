@@ -175,12 +175,11 @@ test_cases.forEach((testInfo) => {
         try {
           let result;
           if (testInfo.publicInputsLength === 0) {
-            console.log("Running ", testInfo.case, " with no publicInput")
+            console.log({ proof })
             result = await contract.verify(proof, []);
           } else {
             const publicInputs = proof.slice(0, testInfo.publicInputsLength);
             const slicedProof = proof.slice(testInfo.publicInputsLength);
-            console.log("Running ", testInfo.case, " slicing by ", testInfo.publicInputsLength)
             result = await contract.verify(slicedProof, [publicInputs]);
           }
 
