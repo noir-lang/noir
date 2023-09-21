@@ -179,7 +179,7 @@ test_cases.forEach((testInfo) => {
           } else {
             const publicInputs = proof.slice(0, testInfo.publicInputsLength);
             const slicedProof = proof.slice(testInfo.publicInputsLength);
-            result = await contract.verify(slicedProof, [publicInputs]);
+            result = await contract.verify(slicedProof, publicInputs);
           }
 
           expect(result).to.be.true;
