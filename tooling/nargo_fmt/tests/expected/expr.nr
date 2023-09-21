@@ -28,7 +28,7 @@ fn fooblock() {
 }
 fn comment() {
     // this is a test comment
-        1
+    1
 }
 fn only_comment() {
 // Keep this here

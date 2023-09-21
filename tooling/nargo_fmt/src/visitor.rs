@@ -1,7 +1,8 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{ItemKind, ParsedModule},
-    BlockExpression, Expression, ExpressionKind, NoirFunction, StatementKind, Visibility,
+    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, StatementKind,
+    Visibility,
 };
 
 use crate::config::Config;
@@ -93,7 +94,20 @@ impl<'a> FmtVisitor<'a> {
         self.block_indent.block_indent(&self.config);
         self.push_str("{");
 
-        for stmt in block.0 {
+        self.visit_stmts(block.0);
+
+        self.last_position = block_span.end();
+        self.block_indent.block_unindent(&self.config);
+
+        self.push_str("\n");
+        if should_indent {
+            self.push_str(&self.block_indent.to_string());
+        }
+        self.push_str("}");
+    }
+
+    fn visit_stmts(&mut self, stmts: Vec<Statement>) {
+        for stmt in stmts {
             match stmt.kind {
                 StatementKind::Expression(expr) => self.visit_expr(expr),
                 StatementKind::Semi(expr) => {
@@ -108,15 +122,6 @@ impl<'a> FmtVisitor<'a> {
 
             self.last_position = stmt.span.end();
         }
-
-        self.last_position = block_span.end();
-        self.block_indent.block_unindent(&self.config);
-
-        self.push_str("\n");
-        if should_indent {
-            self.push_str(&self.block_indent.to_string());
-        }
-        self.push_str("}");
     }
 
     fn visit_expr(&mut self, expr: Expression) {
@@ -202,21 +207,35 @@ impl<'a> FmtVisitor<'a> {
         let slice = slice!(self, start, end);
         self.last_position = end;
 
-        if slice.trim().is_empty() && !self.buffer.is_empty() {
+        if slice.trim().is_empty() && !self.at_start() {
             self.push_str("\n");
             process_last_slice(self, "", slice);
         } else {
-            self.buffer.push_str(slice);
-            let indent = self.block_indent.to_string();
-            self.push_str(&indent);
+            process_last_slice(self, slice, slice)
         }
     }
 
     fn rewrite_fn_before_block(&self, func: NoirFunction) -> String {
+        let ident_end = func.name_ident().span().end();
+
         let mut result = String::with_capacity(1024);
 
         result.push_str("fn ");
         result.push_str(func.name());
+
+        let slice = slice!(self, ident_end, func.span().end());
+
+        let (params_start, params_end) = if func.parameters().is_empty() {
+            let params_start = slice.find('(').unwrap() as u32;
+            let params_end = slice.find(')').unwrap() as u32 + 1;
+
+            (ident_end + params_start, ident_end + params_end)
+        } else {
+            (0, 0)
+        };
+
+        let slice = slice!(self, params_start, params_end);
+        dbg!(slice);
 
         if !func.def.generics.is_empty() {
             todo!("emit generics")
@@ -224,7 +243,10 @@ impl<'a> FmtVisitor<'a> {
 
         result.push('(');
         if func.parameters().is_empty() {
-            // TODO: Inside the parameters, there can be a comment, for example `fn hello(/**/) {}`.
+            let slice = slice!(self, params_start + 1, params_end - 1);
+            if !slice.trim().is_empty() {
+                result.push_str(slice);
+            }
         } else {
             let parameters = func.parameters();
 

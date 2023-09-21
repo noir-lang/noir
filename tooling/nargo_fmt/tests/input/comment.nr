@@ -28,3 +28,5 @@ fn comment7()
 // some comment some comment some comment some comment some comment some comment some comment
 {
 }
+
+fn comment8(/*test*/) {}
