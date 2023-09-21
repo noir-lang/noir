@@ -48,7 +48,7 @@ function generateYupSchema(functionAbi: FunctionAbi, defaultAddress: string) {
             return value;
           });
         initialValues[param.name] = Array(arrayLength).fill(
-          CONTRACT_ADDRESS_PARAM_NAMES.includes(param.name) ? DEFAULT_PUBLIC_ADDRESS : 200,
+          CONTRACT_ADDRESS_PARAM_NAMES.includes(param.name) ? defaultAddress : 200,
         );
         break;
       case 'boolean':

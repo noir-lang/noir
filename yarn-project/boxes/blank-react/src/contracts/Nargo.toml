@@ -1,0 +1,8 @@
+[package]
+name = "blank"
+authors = [""]
+compiler_version = "0.1"
+type = "contract"
+
+[dependencies]
+aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="master", directory="yarn-project/aztec-nr/aztec" }

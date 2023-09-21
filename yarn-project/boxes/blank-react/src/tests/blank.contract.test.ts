@@ -1,3 +1,5 @@
+import { BlankContract } from '../artifacts/blank.js';
+import { callContractFunction, deployContract, getWallet } from '../scripts/index.js';
 import {
   AccountWallet,
   AztecAddress,
@@ -11,9 +13,8 @@ import {
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { BlankContract } from '../artifacts/blank.js';
-import { callContractFunction, deployContract, getWallet } from '../index.js';
-const logger = createDebugLogger('aztec:blank-box-test');
+
+const logger = createDebugLogger('aztec:http-rpc-client');
 
 // assumes sandbox is running locally, which this script does not trigger
 // as well as anvil.  anvil can be started with yarn test:integration
@@ -62,6 +63,7 @@ describe('ZK Contract Tests', () => {
       rpcClient,
       owner,
     );
+
     expect(callTxReceipt.status).toBe(TxStatus.MINED);
   }, 40000);
 });

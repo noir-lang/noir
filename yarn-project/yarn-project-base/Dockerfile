@@ -26,6 +26,7 @@ COPY aztec.js/package.json aztec.js/package.json
 COPY aztec.js/package.local.json aztec.js/package.local.json
 COPY canary/package.json canary/package.json
 COPY boxes/private-token/package.json boxes/private-token/package.json
+COPY boxes/blank-react/package.json boxes/blank-react/package.json
 COPY boxes/blank/package.json boxes/blank/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json

@@ -2,23 +2,19 @@ import { AztecAddress, AztecRPC, CompleteAddress, Contract } from '@aztec/aztec.
 import { ContractAbi } from '@aztec/foundation/abi';
 import { getWallet } from './util.js';
 
-export async function callContractFunction(
+export async function viewContractFunction(
   address: AztecAddress,
   abi: ContractAbi,
   functionName: string,
-  typedArgs: any[], // for the exposed functions, this is an array of field elements Fr[]
+  typedArgs: any[],
   rpc: AztecRPC,
   wallet: CompleteAddress,
 ) {
-  // selectedWallet is how we specify the "sender" of the transaction
+  // we specify the account that is calling the view function by passing in the wallet to the Contract
   const selectedWallet = await getWallet(wallet, rpc);
-
-  // TODO: switch to the generated typescript class?
   const contract = await Contract.at(address, abi, selectedWallet);
 
-  const returnVal = contract.methods[functionName](...typedArgs)
-    .send()
-    .wait();
-
-  return await returnVal;
+  // TODO: see if we can remove the {from: wallet.address}?
+  const viewResult = await contract.methods[functionName](...typedArgs).view({ from: wallet.address });
+  return viewResult;
 }

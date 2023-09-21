@@ -78,18 +78,11 @@ export async function callContractFunction(
   // TODO: switch to the generated typescript class?
   const contract = await Contract.at(address, abi, selectedWallet);
 
-  const returnVal = await contract.methods[functionName](...typedArgs)
+  return contract.methods[functionName](...typedArgs)
     .send()
     .wait();
-
-  if (returnVal.error) {
-    throw new Error(returnVal.error);
-  }
-
-  return `Transaction (${returnVal.txHash}) ${returnVal.status} on block ${
-    returnVal.blockNumber
-  } (hash ${returnVal.blockHash?.toString('hex')})!`;
 }
+
 /**
  * terminology is confusing, but the `account` points to a smart contract's public key information
  * while the "wallet" has the account's private key and is used to sign transactions
@@ -134,7 +127,7 @@ export function convertArgs(functionAbi: FunctionAbi, args: any): Fr[] {
         // convert those back to bigints before turning into Fr
         return BigInt(args[param.name]);
       default:
-        // they are all fields in the privatetoken contract, need more testing on other types
+        // need more testing on other types
         return args[param.name];
     }
   });

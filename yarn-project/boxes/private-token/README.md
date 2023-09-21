@@ -15,7 +15,7 @@ yarn install:sandbox
 yarn build
 ```
 
-In addition to the usual javascript dependencies, this project requires `nargo` (package manager) and `noir` (Aztec ZK smart contract language) in addition to `@aztec/aztec-cli`.
+In addition to the usual javascript dependencies, this project requires `nargo` (package manager) and `noir` (a Domain Specific Language for SNARK proving systems) in addition to `@aztec/aztec-cli`.
 
 The former are installed within `yarn install:noir` which executes
 
