@@ -75,7 +75,7 @@ test_cases.forEach((testInfo) => {
       );
       const compiled_contract_url = new URL(
         `${base_relative_path}/${testInfo.compiled}`,
-        import.meta.url
+        import.meta.url,
       );
 
       const noir_source = await getFile(noir_source_url);
@@ -175,7 +175,7 @@ test_cases.forEach((testInfo) => {
         try {
           let result;
           if (testInfo.publicInputsLength === 0) {
-            console.log({ proof })
+            console.log({ proof });
             result = await contract.verify(proof, []);
           } else {
             const publicInputs = proof.slice(0, testInfo.publicInputsLength);
