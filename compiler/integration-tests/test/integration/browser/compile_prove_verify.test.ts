@@ -173,12 +173,7 @@ test_cases.forEach((testInfo) => {
         expect(verified).to.be.true;
 
         try {
-          // https://github.com/AztecProtocol/aztec-packages/issues/1315
-          // const publicInputs = proof.slice(0, 32);
-          // const slicedProof = proof.slice(32);
-
           const result = await contract.verify(proof, []);
-          console.log(result);
           expect(result).to.be.true;
         } catch (error) {
           console.error("Error while submitting the proof:", error);
