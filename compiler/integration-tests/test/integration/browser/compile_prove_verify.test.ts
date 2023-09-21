@@ -4,7 +4,7 @@ import newCompiler, {
   compile,
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
-import { acvm, noirc } from "@noir-lang/noir_js";
+import { acvm, abi } from "@noir-lang/noir_js";
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 import { decompressSync as gunzip } from "fflate";
 import { ethers } from "ethers";
@@ -16,7 +16,7 @@ const walletMnemonic = ethers.Wallet.fromPhrase(mnemonic);
 const wallet = walletMnemonic.connect(provider);
 
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
-const { default: newABICoder, abiEncode } = noirc;
+const { default: newABICoder, abiEncode } = abi;
 
 type WitnessMap = acvm.WitnessMap;
 
