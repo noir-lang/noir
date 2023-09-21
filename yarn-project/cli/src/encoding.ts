@@ -91,7 +91,9 @@ function encodeArg(arg: string, abiType: ABIType, name: string): any {
 export function encodeArgs(args: any[], params: ABIParameter[]) {
   if (args.length !== params.length) {
     throw new Error(
-      `Invalid number of args provided. Expected: ${params.length}, received: ${args.length}\nReceived args: ${args}`,
+      `Invalid args provided.\nExpected args: [${params
+        .map(param => param.name + ': ' + param.type.kind)
+        .join(', ')}]\nReceived args: ${args.join(', ')}`,
     );
   }
   return args.map((arg: any, index) => {

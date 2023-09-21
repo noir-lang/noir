@@ -74,9 +74,7 @@ describe('CLI Utils', () => {
   it('Errors on invalid inputs', () => {
     // invalid number of args
     const args1 = [field.toString(), 'false'];
-    expect(() => encodeArgs(args1, mockContractAbi.functions[1].parameters)).toThrow(
-      'Invalid number of args provided. Expected: 5, received: 2',
-    );
+    expect(() => encodeArgs(args1, mockContractAbi.functions[1].parameters)).toThrow('Invalid args provided');
 
     // invalid array length
     const invalidArray = fieldArray.concat([Fr.random().toString()]);

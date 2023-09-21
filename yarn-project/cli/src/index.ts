@@ -172,11 +172,6 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
       const constructor = getAbiFunction(contractAbi, 'constructor');
       if (!constructor) throw new Error(`Constructor not found in contract ABI`);
-      if (constructor.parameters.length !== options.args.length) {
-        throw new Error(
-          `Invalid number of args passed (expected ${constructor.parameters.length} but got ${options.args.length})`,
-        );
-      }
 
       debugLogger(`Input arguments: ${options.args.map((x: any) => `"${x}"`).join(', ')}`);
       const args = encodeArgs(options.args, constructorAbi!.parameters);
@@ -375,13 +370,6 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         options.args,
         log,
       );
-
-      const fnAbi = getAbiFunction(contractAbi, functionName);
-      if (fnAbi.parameters.length !== options.args.length) {
-        throw Error(
-          `Invalid number of args passed. Expected ${fnAbi.parameters.length}; Received: ${options.args.length}`,
-        );
-      }
 
       const privateKey = GrumpkinScalar.fromString(stripLeadingHex(options.privateKey));
 
