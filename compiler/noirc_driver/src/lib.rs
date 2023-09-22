@@ -301,9 +301,14 @@ pub fn compile_no_check(
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);
-    if let Some(cached_program) = cached_program {
-        if hash == cached_program.hash {
-            return Ok(cached_program);
+
+    // If user has specified that they want to see intermediate steps printed then we should
+    // force compilation even if the program hasn't changed.
+    if !(options.print_acir || options.show_brillig || options.show_ssa) {
+        if let Some(cached_program) = cached_program {
+            if hash == cached_program.hash {
+                return Ok(cached_program);
+            }
         }
     }
 
