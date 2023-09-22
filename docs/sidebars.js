@@ -272,6 +272,7 @@ const sidebars = {
             "dev_docs/contracts/portals/outbox",
           ],
         },
+        "dev_docs/contracts/common_errors",
         // {
         //   label: "Resources",
         //   type: "category",
