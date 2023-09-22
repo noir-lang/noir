@@ -40,10 +40,10 @@ pub fn assert_constant<T>(_x: T) {}
 // `as` should be the default for users to cast between primitive types, and in the future
 // traits can be used to work with generic types.
 #[builtin(from_field)]
-fn from_field<T>(x : Field) -> T {}
+fn from_field<T>(_x : Field) -> T {}
 
 #[builtin(as_field)]
-fn as_field<T>(x : T) -> Field {}
+fn as_field<T>(_x : T) -> Field {}
 
 
 pub fn wrapping_add<T>(x : T, y: T) -> T {
