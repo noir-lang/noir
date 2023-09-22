@@ -108,8 +108,6 @@ pub enum TypeCheckError {
         parameter_span: Span,
         parameter_index: usize,
     },
-    #[error("Integer annotation specifies {num_bits:?} bits which is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, span: Span },
 }
 
 impl TypeCheckError {
@@ -196,8 +194,7 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
-            | TypeCheckError::OverflowingAssignment { span, .. }
-            | TypeCheckError::UnsupportedIntegerSize { span, .. } => {
+            | TypeCheckError::OverflowingAssignment { span, .. } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(

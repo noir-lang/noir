@@ -446,14 +446,6 @@ impl Type {
         matches!(self.follow_bindings(), Type::FieldElement)
     }
 
-    // Return the bit size of an integer type, otherwise return `None`
-    pub fn bit_size(&self) -> Option<u32> {
-        match self.follow_bindings() {
-            Type::Integer(_, bit_size) => Some(bit_size),
-            _ => None,
-        }
-    }
-
     pub fn is_signed(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
     }

@@ -302,7 +302,7 @@ impl IntType {
             Err(_) => return Ok(None),
         };
 
-        let max_bits = FieldElement::max_num_bits();
+        let max_bits = FieldElement::max_num_bits() / 2;
 
         if str_as_u32 > max_bits {
             return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
