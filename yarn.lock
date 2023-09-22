@@ -36,20 +36,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:^0.6.7":
-  version: 0.6.7
-  resolution: "@aztec/bb.js@npm:0.6.7"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: 68299e5b0ef9583d78d1aaeb4e6a80cf5e049d45e48fb02798a41a2dfda0e68d729e8fbc1d23ab692914ce3857c729b48da9200fca49b838416b7988e5516d0b
-  languageName: node
-  linkType: hard
-
 "@babel/code-frame@npm:^7.12.11, @babel/code-frame@npm:^7.21.4":
   version: 7.22.13
   resolution: "@babel/code-frame@npm:7.22.13"
