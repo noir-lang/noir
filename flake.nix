@@ -213,6 +213,8 @@
         # so we use `symlinkJoin` to build everything as the "all" package.
         all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm ]; };
 
+        wasm = pkgs.symlinkJoin { name = "wasm"; paths = [ noir_wasm noirc_abi_wasm ]; };
+
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
         inherit noir_wasm;
