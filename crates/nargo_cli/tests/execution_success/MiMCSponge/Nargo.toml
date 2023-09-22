@@ -1,5 +1,8 @@
 [package]
+name = "MiMCSponge"
+description = "MiMCSponge test on 3 elements with given two inputs, 1 and 2"
+type = "bin"
 authors = [""]
-compiler_version = "0.9.0"
+compiler_version = "0.13.0"
 
 [dependencies]
