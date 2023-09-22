@@ -37,7 +37,7 @@ export default {
     }),
     ...debugPlugins,
   ],
-  files: ["test/integration/browser/recursion.test.ts"],
+  files: ["test/integration/browser/**/*.test.ts"],
   nodeResolve: { browser: true },
   testFramework: {
     config: {
