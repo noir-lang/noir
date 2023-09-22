@@ -252,6 +252,7 @@ impl<'a> ModCollector<'a> {
                             let method_name = name.0.contents.clone();
                             let func_id = context.def_interner.push_empty_fn();
                             let modifiers = FunctionModifiers {
+                                name: name.0.contents.clone(),
                                 // trait functions are always public
                                 visibility: crate::Visibility::Public,
                                 attributes: Attributes::empty(),

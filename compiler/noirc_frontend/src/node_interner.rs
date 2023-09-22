@@ -114,7 +114,12 @@ pub struct NodeInterner {
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 }
 
+/// All the information from a function that is filled out during definition collection rather than
+/// name resolution. Resultingly, if information about a function is needed during name resolution,
+/// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
 pub struct FunctionModifiers {
+    pub name: String,
+
     /// Whether the function is `pub` or not.
     pub visibility: Visibility,
 
@@ -138,6 +143,7 @@ impl FunctionModifiers {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
+            name: String::new(),
             visibility: Visibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
@@ -594,6 +600,7 @@ impl NodeInterner {
         // We're filling in contract_function_type and is_internal now, but these will be verified
         // later during name resolution.
         let modifiers = FunctionModifiers {
+            name: function.name.0.contents.clone(),
             visibility: if function.is_public { Visibility::Public } else { Visibility::Private },
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
@@ -656,8 +663,7 @@ impl NodeInterner {
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
-        let name_id = self.function_meta(func_id).name.id;
-        self.definition_name(name_id)
+        &self.function_modifiers[func_id].name
     }
 
     pub fn function_modifiers(&self, func_id: &FuncId) -> &FunctionModifiers {
