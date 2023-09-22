@@ -27,37 +27,16 @@ jobs:
           repository: noir-lang/acvm
           path: acvm
 
-      - uses: nixbuild/nix-quick-install-action@v25
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
         with:
-          nix_conf: |
-            substituters = https://cache.nixos.org/ https://nix-community.cachix.org
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
-            keep-outputs = true
-      - name: Restore and cache Nix store - ${{ matrix.id }}
-        uses: nix-community/cache-nix-action@v4
+          nix_path: nixpkgs=channel:nixos-23.05
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
         with:
-          # save a new cache every time ci file changes
-          key: ${{ runner.os }}-flake-wasm-${{ hashFiles('*.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flake-wasm
-            gc-linux: true
-            gc-max-store-size-linux: 1000000000
-            
-            purge-caches: true
-            purge-key: ${{ runner.os }}-flake-wasm
-            purge-created: true
-            purge-created-max-age: 42
-
-      # - name: Setup Nix
-      #   uses: cachix/install-nix-action@v22
-      #   with:
-      #     nix_path: nixpkgs=channel:nixos-23.05
-      #     github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      # - uses: cachix/cachix-action@v12
-      #   with:
-      #     name: barretenberg
-      #     authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
 
       - name: Build noir_wasm package
