@@ -286,23 +286,35 @@ impl<'f> Context<'f> {
                 let else_block = *else_destination;
                 let then_condition = self.inserter.resolve(old_condition);
 
-                if let Some(condition) =
-                    self.inserter.function.dfg.get_numeric_constant(then_condition)
-                {
-                    if condition.is_zero() {
-                        self.handle_constant_jmpif(block, else_block, old_condition)
-                    } else {
-                        self.handle_constant_jmpif(block, then_block, old_condition)
-                    }
-                } else {
-                    self.handle_non_constant_jmpif(
-                        block,
-                        then_block,
-                        else_block,
-                        old_condition,
-                        then_condition,
-                    )
-                }
+                let one = FieldElement::one();
+                let then_branch =
+                    self.inline_branch(block, then_block, old_condition, then_condition, one);
+
+                let else_condition =
+                    self.insert_instruction(Instruction::Not(then_condition), CallStack::new());
+                let zero = FieldElement::zero();
+
+                // Make sure the else branch sees the previous values of each store
+                // rather than any values created in the 'then' branch.
+                self.undo_stores_in_then_branch(&then_branch);
+
+                let else_branch =
+                    self.inline_branch(block, else_block, old_condition, else_condition, zero);
+
+                // We must remember to reset whether side effects are enabled when both branches
+                // end, in addition to resetting the value of old_condition since it is set to
+                // known to be true/false within the then/else branch respectively.
+                self.insert_current_side_effects_enabled();
+
+                // We must map back to `then_condition` here. Mapping `old_condition` to itself would
+                // lose any previous mappings.
+                self.inserter.map_value(old_condition, then_condition);
+
+                // While there is a condition on the stack we don't compile outside the condition
+                // until it is popped. This ensures we inline the full then and else branches
+                // before continuing from the end of the conditional here where they can be merged properly.
+                let end = self.branch_ends[&block];
+                self.inline_branch_end(end, then_branch, else_branch)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if let Some((end_block, _)) = self.conditions.last() {
@@ -323,78 +335,6 @@ impl<'f> Context<'f> {
                 block
             }
         }
-    }
-
-    fn handle_constant_jmpif(
-        &mut self,
-        block: BasicBlockId,
-        branch_block: BasicBlockId,
-        old_condition: ValueId,
-    ) -> BasicBlockId {
-        // This value will be unused since the condition is constant
-        let one = FieldElement::one();
-        let new_condition = self.inserter.function.dfg.make_constant(one, Type::bool());
-
-        let branch = self.inline_branch(block, branch_block, old_condition, new_condition, one);
-
-        // We must remember to reset whether side effects are enabled when both branches
-        // end, in addition to resetting the value of old_condition since it is set to
-        // known to be true/false within the then/else branch respectively.
-        self.insert_current_side_effects_enabled();
-
-        // We must map back to `new_condition` here. Mapping `old_condition` to itself would
-        // lose any previous mappings.
-        self.inserter.map_value(old_condition, new_condition);
-
-        // While there is a condition on the stack we don't compile outside the condition
-        // until it is popped. This ensures we inline the full then and else branches
-        // before continuing from the end of the conditional here where they can be merged properly.
-        let end = self.branch_ends[&block];
-
-        let args = self.inserter.function.dfg[branch.last_block].terminator_arguments().to_vec();
-        let params = self.inserter.function.dfg.block_parameters(end);
-        assert_eq!(params.len(), args.len());
-
-        // insert merge instruction
-        self.inline_block(end, &args)
-    }
-
-    fn handle_non_constant_jmpif(
-        &mut self,
-        block: BasicBlockId,
-        then_block: BasicBlockId,
-        else_block: BasicBlockId,
-        old_condition: ValueId,
-        then_condition: ValueId,
-    ) -> BasicBlockId {
-        let one = FieldElement::one();
-        let then_branch = self.inline_branch(block, then_block, old_condition, then_condition, one);
-
-        let else_condition =
-            self.insert_instruction(Instruction::Not(then_condition), CallStack::new());
-        let zero = FieldElement::zero();
-
-        // Make sure the else branch sees the previous values of each store
-        // rather than any values created in the 'then' branch.
-        self.undo_stores_in_then_branch(&then_branch);
-
-        let else_branch =
-            self.inline_branch(block, else_block, old_condition, else_condition, zero);
-
-        // We must remember to reset whether side effects are enabled when both branches
-        // end, in addition to resetting the value of old_condition since it is set to
-        // known to be true/false within the then/else branch respectively.
-        self.insert_current_side_effects_enabled();
-
-        // We must map back to `then_condition` here. Mapping `old_condition` to itself would
-        // lose any previous mappings.
-        self.inserter.map_value(old_condition, then_condition);
-
-        // While there is a condition on the stack we don't compile outside the condition
-        // until it is popped. This ensures we inline the full then and else branches
-        // before continuing from the end of the conditional here where they can be merged properly.
-        let end = self.branch_ends[&block];
-        self.inline_branch_end(end, then_branch, else_branch)
     }
 
     /// Push a condition to the stack of conditions.
