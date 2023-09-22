@@ -1,7 +1,5 @@
 #include "barretenberg/honk/flavor/goblin_ultra.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
-#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
 #include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
 #include "barretenberg/proof_system/relations/ecc_op_queue_relation.hpp"
 #include "barretenberg/proof_system/relations/elliptic_relation.hpp"
@@ -47,12 +45,6 @@ template <typename Flavor, typename Relation> void execute_relation(::benchmark:
     }
 }
 
-void arithmetic_relation(::benchmark::State& state) noexcept
-{
-    execute_relation<honk::flavor::Standard, ArithmeticRelation<FF>>(state);
-}
-BENCHMARK(arithmetic_relation);
-
 void auxiliary_relation(::benchmark::State& state) noexcept
 {
     execute_relation<honk::flavor::Ultra, AuxiliaryRelation<FF>>(state);
@@ -83,11 +75,11 @@ void lookup_relation(::benchmark::State& state) noexcept
 }
 BENCHMARK(lookup_relation);
 
-void permutation_relation(::benchmark::State& state) noexcept
+void ultra_permutation_relation(::benchmark::State& state) noexcept
 {
-    execute_relation<honk::flavor::Standard, PermutationRelation<FF>>(state);
+    execute_relation<honk::flavor::Ultra, UltraPermutationRelation<FF>>(state);
 }
-BENCHMARK(permutation_relation);
+BENCHMARK(ultra_permutation_relation);
 
 void ultra_arithmetic_relation(::benchmark::State& state) noexcept
 {

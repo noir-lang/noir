@@ -23,7 +23,7 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
     std::shared_ptr<VerificationKey> verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory_;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory_;
 
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<CommitmentKey> commitment_key;
@@ -42,7 +42,8 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
         crs_factory_ = barretenberg::srs::get_crs_factory();
     };
 
-    explicit ECCVMComposer_(std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory)
+    explicit ECCVMComposer_(
+        std::shared_ptr<barretenberg::srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
@@ -65,7 +66,7 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
     ECCVMProver_<Flavor> create_prover(CircuitConstructor& circuit_constructor);
     ECCVMVerifier_<Flavor> create_verifier(CircuitConstructor& circuit_constructor);
 
-    void add_table_column_selector_poly_to_proving_key(polynomial& small, const std::string& tag);
+    void add_table_column_selector_poly_to_proving_key(barretenberg::polynomial& small, const std::string& tag);
 
     void compute_commitment_key(size_t circuit_size)
     {

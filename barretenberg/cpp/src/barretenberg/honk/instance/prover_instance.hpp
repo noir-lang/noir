@@ -1,7 +1,5 @@
 #pragma once
 #include "barretenberg/honk/flavor/goblin_ultra.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
-#include "barretenberg/honk/flavor/standard_grumpkin.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include "barretenberg/honk/proof_system/folding_result.hpp"
@@ -51,13 +49,7 @@ template <class Flavor> class ProverInstance_ {
 
     ProverInstance_(Circuit& circuit)
     {
-        if constexpr (IsUltraFlavor<Flavor>) {
-            compute_circuit_size_parameters(circuit);
-        } else {
-            num_public_inputs = circuit.public_inputs.size();
-            total_num_gates = circuit.num_gates + num_public_inputs;
-            dyadic_circuit_size = circuit.get_circuit_subgroup_size(total_num_gates);
-        }
+        compute_circuit_size_parameters(circuit);
         compute_proving_key(circuit);
         compute_witness(circuit);
     }
@@ -74,11 +66,9 @@ template <class Flavor> class ProverInstance_ {
 
     void initialise_prover_polynomials();
 
-    void compute_sorted_accumulator_polynomials(FF)
-        requires IsUltraFlavor<Flavor>;
+    void compute_sorted_accumulator_polynomials(FF);
 
-    void compute_sorted_list_accumulator(FF)
-        requires IsUltraFlavor<Flavor>;
+    void compute_sorted_list_accumulator(FF);
 
     void compute_grand_product_polynomials(FF, FF);
 
@@ -96,25 +86,20 @@ template <class Flavor> class ProverInstance_ {
 
     std::shared_ptr<ProvingKey> compute_proving_key(Circuit&);
 
-    void compute_circuit_size_parameters(Circuit&)
-        requires IsUltraFlavor<Flavor>;
+    void compute_circuit_size_parameters(Circuit&);
 
     void compute_witness(Circuit&);
 
-    void construct_ecc_op_wire_polynomials(auto&)
-        requires IsUltraFlavor<Flavor>;
+    void construct_ecc_op_wire_polynomials(auto&);
 
     void add_table_column_selector_poly_to_proving_key(barretenberg::polynomial& small, const std::string& tag);
 
-    void add_plookup_memory_records_to_wire_4(FF)
-        requires IsUltraFlavor<Flavor>;
+    void add_plookup_memory_records_to_wire_4(FF);
 };
 
 extern template class ProverInstance_<honk::flavor::Ultra>;
 extern template class ProverInstance_<honk::flavor::UltraGrumpkin>;
 extern template class ProverInstance_<honk::flavor::GoblinUltra>;
-extern template class ProverInstance_<honk::flavor::Standard>;
-extern template class ProverInstance_<honk::flavor::StandardGrumpkin>;
 
 using ProverInstance = ProverInstance_<honk::flavor::Ultra>;
 

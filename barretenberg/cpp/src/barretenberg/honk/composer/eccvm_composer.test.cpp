@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "barretenberg/honk/composer/eccvm_composer.hpp"
-#include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
@@ -15,7 +14,7 @@
 
 using namespace proof_system::honk;
 
-namespace test_standard_honk_composer {
+namespace test_eccvm_composer {
 
 template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
   protected:
@@ -103,4 +102,4 @@ TYPED_TEST(ECCVMComposerTests, EqFails)
     bool verified = verifier.verify_proof(proof);
     ASSERT_FALSE(verified);
 }
-} // namespace test_standard_honk_composer
+} // namespace test_eccvm_composer

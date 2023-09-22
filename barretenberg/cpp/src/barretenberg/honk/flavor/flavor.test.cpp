@@ -1,4 +1,4 @@
-#include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include <cstddef>
@@ -8,9 +8,9 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 namespace proof_system::test_flavor {
-TEST(Flavor, StandardGetters)
+TEST(Flavor, Getters)
 {
-    using Flavor = proof_system::honk::flavor::Standard;
+    using Flavor = proof_system::honk::flavor::Ultra;
     using FF = Flavor::FF;
     using ProvingKey = typename Flavor::ProvingKey;
 
@@ -42,7 +42,7 @@ TEST(Flavor, StandardGetters)
     // Shited polynomials have the righ tsize
     EXPECT_EQ(prover_polynomials.size(), prover_polynomials.get_unshifted_then_shifted().size());
     // Commitment lables are stored in the flavor.
-    EXPECT_EQ(commitment_labels.w_r, "W_2");
+    EXPECT_EQ(commitment_labels.w_r, "W_R");
 
     auto get_test_polynomial = [](size_t& idx) {
         Flavor::Polynomial poly(4);
@@ -56,6 +56,7 @@ TEST(Flavor, StandardGetters)
     auto w_l = get_test_polynomial(idx);
     auto w_r = get_test_polynomial(idx);
     auto w_o = get_test_polynomial(idx);
+    auto w_4 = get_test_polynomial(idx);
     auto z_perm = get_test_polynomial(idx);
     auto z_perm_shift = get_test_polynomial(idx);
     auto q_m = get_test_polynomial(idx);
@@ -75,6 +76,7 @@ TEST(Flavor, StandardGetters)
     prover_polynomials.w_l = w_l;
     prover_polynomials.w_r = w_r;
     prover_polynomials.w_o = w_o;
+    prover_polynomials.w_4 = w_4;
     prover_polynomials.z_perm = z_perm;
     prover_polynomials.z_perm_shift = z_perm_shift;
     prover_polynomials.q_m = q_m;
@@ -101,20 +103,11 @@ TEST(Flavor, StandardGetters)
         EXPECT_EQ(poly[3], 4 * idx + 3);
         ++idx;
     };
-
-    idx = 4; // z_perm_shift is shifted
-    for (auto& poly : prover_polynomials.get_shifted()) {
-        EXPECT_EQ(poly[0], 4 * idx);
-        EXPECT_EQ(poly[1], 4 * idx + 1);
-        EXPECT_EQ(poly[2], 4 * idx + 2);
-        EXPECT_EQ(poly[3], 4 * idx + 3);
-        ++idx;
-    };
 }
 
 TEST(Flavor, AllEntitiesSpecialMemberFunctions)
 {
-    using Flavor = proof_system::honk::flavor::Standard;
+    using Flavor = proof_system::honk::flavor::Ultra;
     using FF = Flavor::FF;
     using PartiallyEvaluatedMultivariates = Flavor::PartiallyEvaluatedMultivariates;
     using Polynomial = barretenberg::Polynomial<FF>;

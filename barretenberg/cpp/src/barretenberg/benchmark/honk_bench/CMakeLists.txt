@@ -1,6 +1,5 @@
 # Each source represents a separate benchmark suite 
 set(BENCHMARK_SOURCES
-standard_honk.bench.cpp
 standard_plonk.bench.cpp
 ultra_honk.bench.cpp
 ultra_plonk.bench.cpp
@@ -14,7 +13,7 @@ set(LINKED_LIBRARIES
   benchmark::benchmark
 )
 
-# Add executable and custom target for each suite, e.g. standard_honk_bench
+# Add executable and custom target for each suite, e.g. ultra_honk_bench
 foreach(BENCHMARK_SOURCE ${BENCHMARK_SOURCES})
   get_filename_component(BENCHMARK_NAME ${BENCHMARK_SOURCE} NAME_WE) # extract name without extension
   add_executable(${BENCHMARK_NAME}_bench main.bench.cpp ${BENCHMARK_SOURCE} benchmark_utilities.hpp)

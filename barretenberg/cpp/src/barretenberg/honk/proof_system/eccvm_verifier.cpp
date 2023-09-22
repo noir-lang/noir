@@ -1,5 +1,6 @@
 #include "./eccvm_verifier.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/pcs/gemini/gemini.hpp"
+#include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"

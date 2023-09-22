@@ -1,10 +1,8 @@
 #include "sumcheck.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/proof_system/relations/arithmetic_relation.hpp"
 #include "barretenberg/proof_system/relations/auxiliary_relation.hpp"
 #include "barretenberg/proof_system/relations/elliptic_relation.hpp"
 #include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
@@ -15,52 +13,68 @@
 
 using namespace proof_system::honk;
 using namespace proof_system::honk::sumcheck;
-using Flavor = proof_system::honk::flavor::Standard; // TODO(Cody): Generalize this test.
+using Flavor = proof_system::honk::flavor::Ultra; // TODO(Cody): Generalize this test.
 using FF = typename Flavor::FF;
 using ProverPolynomials = typename Flavor::ProverPolynomials;
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
 namespace test_sumcheck_round {
 
-template <class FF, size_t N>
-ProverPolynomials construct_full_polynomials(std::array<FF, N>& w_l,
-                                             std::array<FF, N>& w_r,
-                                             std::array<FF, N>& w_o,
-                                             std::array<FF, N>& z_perm,
-                                             std::array<FF, N>& z_perm_shift,
-                                             std::array<FF, N>& q_m,
-                                             std::array<FF, N>& q_l,
-                                             std::array<FF, N>& q_r,
-                                             std::array<FF, N>& q_o,
-                                             std::array<FF, N>& q_c,
-                                             std::array<FF, N>& sigma_1,
-                                             std::array<FF, N>& sigma_2,
-                                             std::array<FF, N>& sigma_3,
-                                             std::array<FF, N>& id_1,
-                                             std::array<FF, N>& id_2,
-                                             std::array<FF, N>& id_3,
-                                             std::array<FF, N>& lagrange_first,
-                                             std::array<FF, N>& lagrange_last)
+barretenberg::Polynomial<FF> random_poly(size_t size)
+{
+    auto poly = barretenberg::Polynomial<FF>(size);
+    for (auto& coeff : poly) {
+        coeff = FF::random_element();
+    }
+    return poly;
+}
+
+ProverPolynomials construct_ultra_full_polynomials(auto& input_polynomials)
 {
     ProverPolynomials full_polynomials;
-    full_polynomials.w_l = w_l;
-    full_polynomials.w_r = w_r;
-    full_polynomials.w_o = w_o;
-    full_polynomials.z_perm = z_perm;
-    full_polynomials.z_perm_shift = z_perm_shift;
-    full_polynomials.q_m = q_m;
-    full_polynomials.q_l = q_l;
-    full_polynomials.q_r = q_r;
-    full_polynomials.q_o = q_o;
-    full_polynomials.q_c = q_c;
-    full_polynomials.sigma_1 = sigma_1;
-    full_polynomials.sigma_2 = sigma_2;
-    full_polynomials.sigma_3 = sigma_3;
-    full_polynomials.id_1 = id_1;
-    full_polynomials.id_2 = id_2;
-    full_polynomials.id_3 = id_3;
-    full_polynomials.lagrange_first = lagrange_first;
-    full_polynomials.lagrange_last = lagrange_last;
+    full_polynomials.q_c = input_polynomials[0];
+    full_polynomials.q_l = input_polynomials[1];
+    full_polynomials.q_r = input_polynomials[2];
+    full_polynomials.q_o = input_polynomials[3];
+    full_polynomials.q_4 = input_polynomials[4];
+    full_polynomials.q_m = input_polynomials[5];
+    full_polynomials.q_arith = input_polynomials[6];
+    full_polynomials.q_sort = input_polynomials[7];
+    full_polynomials.q_elliptic = input_polynomials[8];
+    full_polynomials.q_aux = input_polynomials[9];
+    full_polynomials.q_lookup = input_polynomials[10];
+    full_polynomials.sigma_1 = input_polynomials[11];
+    full_polynomials.sigma_2 = input_polynomials[12];
+    full_polynomials.sigma_3 = input_polynomials[13];
+    full_polynomials.sigma_4 = input_polynomials[14];
+    full_polynomials.id_1 = input_polynomials[15];
+    full_polynomials.id_2 = input_polynomials[16];
+    full_polynomials.id_3 = input_polynomials[17];
+    full_polynomials.id_4 = input_polynomials[18];
+    full_polynomials.table_1 = input_polynomials[19];
+    full_polynomials.table_2 = input_polynomials[20];
+    full_polynomials.table_3 = input_polynomials[21];
+    full_polynomials.table_4 = input_polynomials[22];
+    full_polynomials.lagrange_first = input_polynomials[23];
+    full_polynomials.lagrange_last = input_polynomials[24];
+    full_polynomials.w_l = input_polynomials[25];
+    full_polynomials.w_r = input_polynomials[26];
+    full_polynomials.w_o = input_polynomials[27];
+    full_polynomials.w_4 = input_polynomials[28];
+    full_polynomials.sorted_accum = input_polynomials[29];
+    full_polynomials.z_perm = input_polynomials[30];
+    full_polynomials.z_lookup = input_polynomials[31];
+    full_polynomials.table_1_shift = input_polynomials[32];
+    full_polynomials.table_2_shift = input_polynomials[33];
+    full_polynomials.table_3_shift = input_polynomials[34];
+    full_polynomials.table_4_shift = input_polynomials[35];
+    full_polynomials.w_l_shift = input_polynomials[36];
+    full_polynomials.w_r_shift = input_polynomials[37];
+    full_polynomials.w_o_shift = input_polynomials[38];
+    full_polynomials.w_4_shift = input_polynomials[39];
+    full_polynomials.sorted_accum_shift = input_polynomials[40];
+    full_polynomials.z_perm_shift = input_polynomials[41];
+    full_polynomials.z_lookup_shift = input_polynomials[42];
 
     return full_polynomials;
 }
@@ -76,63 +90,18 @@ TEST_F(SumcheckTests, PolynomialNormalization)
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
 
-    std::array<FF, multivariate_n> w_l;
-    std::array<FF, multivariate_n> w_r;
-    std::array<FF, multivariate_n> w_o;
-    std::array<FF, multivariate_n> z_perm;
-    std::array<FF, multivariate_n> z_perm_shift;
-    std::array<FF, multivariate_n> q_m;
-    std::array<FF, multivariate_n> q_l;
-    std::array<FF, multivariate_n> q_r;
-    std::array<FF, multivariate_n> q_o;
-    std::array<FF, multivariate_n> q_c;
-    std::array<FF, multivariate_n> sigma_1;
-    std::array<FF, multivariate_n> sigma_2;
-    std::array<FF, multivariate_n> sigma_3;
-    std::array<FF, multivariate_n> id_1;
-    std::array<FF, multivariate_n> id_2;
-    std::array<FF, multivariate_n> id_3;
-    std::array<FF, multivariate_n> lagrange_first;
-    std::array<FF, multivariate_n> lagrange_last;
-    for (size_t i = 0; i < multivariate_n; i++) {
-        w_l[i] = FF::random_element();
-        w_r[i] = FF::random_element();
-        w_o[i] = FF::random_element();
-        z_perm[i] = FF::random_element();
-        z_perm_shift[i] = FF::random_element();
-        q_m[i] = FF::random_element();
-        q_l[i] = FF::random_element();
-        q_r[i] = FF::random_element();
-        q_o[i] = FF::random_element();
-        q_c[i] = FF::random_element();
-        sigma_1[i] = FF::random_element();
-        sigma_2[i] = FF::random_element();
-        sigma_3[i] = FF::random_element();
-        id_1[i] = FF::random_element();
-        id_2[i] = FF::random_element();
-        id_3[i] = FF::random_element();
-        lagrange_first[i] = FF::random_element();
-        lagrange_last[i] = FF::random_element();
+    // Randomly construct the prover polynomials that are input to Sumcheck.
+    // Note: ProverPolynomials are defined as spans so the polynomials they point to need to exist in memory.
+    std::array<barretenberg::Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
+    for (auto& poly : random_polynomials) {
+        poly = random_poly(multivariate_n);
     }
+    auto full_polynomials = construct_ultra_full_polynomials(random_polynomials);
 
-    auto full_polynomials = construct_full_polynomials(w_l,
-                                                       w_r,
-                                                       w_o,
-                                                       z_perm,
-                                                       z_perm_shift,
-                                                       q_m,
-                                                       q_l,
-                                                       q_r,
-                                                       q_o,
-                                                       q_c,
-                                                       sigma_1,
-                                                       sigma_2,
-                                                       sigma_3,
-                                                       id_1,
-                                                       id_2,
-                                                       id_3,
-                                                       lagrange_first,
-                                                       lagrange_last);
+    info(full_polynomials.w_l[0]);
+    info(full_polynomials.w_l[1]);
+    info(full_polynomials.w_l[2]);
+    info(full_polynomials.w_l[3]);
 
     auto transcript = ProverTranscript<FF>::init_empty();
 
@@ -178,201 +147,83 @@ TEST_F(SumcheckTests, PolynomialNormalization)
 
 TEST_F(SumcheckTests, Prover)
 {
-    auto run_test = [](bool is_random_input) {
-        const size_t multivariate_d(2);
-        const size_t multivariate_n(1 << multivariate_d);
-        std::array<std::array<FF, multivariate_n>, NUM_POLYNOMIALS> input_polynomials;
-        if (is_random_input) {
-            for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] = {
-                    FF::random_element(), FF::random_element(), FF::random_element(), FF::random_element()
-                };
-            }
-        } else {
-            for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] = { 1, 2, 0, 0 };
-            }
-        };
-        std::array<FF, multivariate_n> w_l = input_polynomials[0];
-        std::array<FF, multivariate_n> w_r = input_polynomials[1];
-        std::array<FF, multivariate_n> w_o = input_polynomials[2];
-        std::array<FF, multivariate_n> z_perm = input_polynomials[3];
-        std::array<FF, multivariate_n> z_perm_shift = input_polynomials[4];
-        std::array<FF, multivariate_n> q_m = input_polynomials[5];
-        std::array<FF, multivariate_n> q_l = input_polynomials[6];
-        std::array<FF, multivariate_n> q_r = input_polynomials[7];
-        std::array<FF, multivariate_n> q_o = input_polynomials[8];
-        std::array<FF, multivariate_n> q_c = input_polynomials[9];
-        std::array<FF, multivariate_n> sigma_1 = input_polynomials[10];
-        std::array<FF, multivariate_n> sigma_2 = input_polynomials[11];
-        std::array<FF, multivariate_n> sigma_3 = input_polynomials[12];
-        std::array<FF, multivariate_n> id_1 = input_polynomials[13];
-        std::array<FF, multivariate_n> id_2 = input_polynomials[14];
-        std::array<FF, multivariate_n> id_3 = input_polynomials[15];
-        std::array<FF, multivariate_n> lagrange_first = input_polynomials[16];
-        std::array<FF, multivariate_n> lagrange_last = input_polynomials[17];
-        auto full_polynomials = construct_full_polynomials(w_l,
-                                                           w_r,
-                                                           w_o,
-                                                           z_perm,
-                                                           z_perm_shift,
-                                                           q_m,
-                                                           q_l,
-                                                           q_r,
-                                                           q_o,
-                                                           q_c,
-                                                           sigma_1,
-                                                           sigma_2,
-                                                           sigma_3,
-                                                           id_1,
-                                                           id_2,
-                                                           id_3,
-                                                           lagrange_first,
-                                                           lagrange_last);
-
-        auto transcript = ProverTranscript<FF>::init_empty();
-
-        auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
-
-        auto [multivariate_challenge, evaluations] = sumcheck.prove(full_polynomials, {});
-        FF u_0 = multivariate_challenge[0];
-        FF u_1 = multivariate_challenge[1];
-        std::vector<FF> expected_values;
-        for (auto& polynomial : full_polynomials) {
-            // using knowledge of inputs here to derive the evaluation
-            FF expected_lo = polynomial[0] * (FF(1) - u_0) + polynomial[1] * u_0;
-            expected_lo *= (FF(1) - u_1);
-            FF expected_hi = polynomial[2] * (FF(1) - u_0) + polynomial[3] * u_0;
-            expected_hi *= u_1;
-            expected_values.emplace_back(expected_lo + expected_hi);
-        }
-
-        for (size_t poly_idx = 0; poly_idx < NUM_POLYNOMIALS; poly_idx++) {
-            EXPECT_EQ(evaluations[poly_idx], expected_values[poly_idx]);
-        }
-    };
-    run_test(/* is_random_input=*/false);
-    run_test(/* is_random_input=*/true);
-}
-
-// TODO(#223)(Cody): write standalone test of the verifier.
-// Note(luke): This test (and ProverAndVerifierLonger) are slighly misleading in that they include the grand product
-// realtions but do not test their correctness due to the choice of zero polynomials for sigma, id etc.
-TEST_F(SumcheckTests, ProverAndVerifier)
-{
-    const size_t multivariate_d(1);
+    const size_t multivariate_d(2);
     const size_t multivariate_n(1 << multivariate_d);
 
-    std::array<FF, 2> w_l = { 0, 1 };
-    std::array<FF, 2> w_r = { 0, 1 };
-    std::array<FF, 2> w_o = { 0, 2 };
-    std::array<FF, 2> z_perm = { 0, 0 };
-    std::array<FF, 2> z_perm_shift = { 0, 0 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> q_m = { 0, 0 };
-    std::array<FF, 2> q_l = { 1, 1 };
-    std::array<FF, 2> q_r = { 0, 1 };
-    std::array<FF, 2> q_o = { 0, -1 };
-    std::array<FF, 2> q_c = { 0, 0 };
-    std::array<FF, 2> sigma_1 = { 0, 0 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> sigma_2 = { 0, 0 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> sigma_3 = { 0, 0 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> id_1 = { 0, 0 };    // NOTE: Not set up to be valid.
-    std::array<FF, 2> id_2 = { 0, 0 };    // NOTE: Not set up to be valid.
-    std::array<FF, 2> id_3 = { 0, 0 };    // NOTE: Not set up to be valid.
-    std::array<FF, 2> lagrange_first = { 0, 0 };
-    std::array<FF, 2> lagrange_last = { 0, 0 }; // NOTE: Not set up to be valid.
+    // Randomly construct the prover polynomials that are input to Sumcheck.
+    // Note: ProverPolynomials are defined as spans so the polynomials they point to need to exist in memory.
+    std::array<barretenberg::Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
+    for (auto& poly : random_polynomials) {
+        poly = random_poly(multivariate_n);
+    }
+    auto full_polynomials = construct_ultra_full_polynomials(random_polynomials);
 
-    auto full_polynomials = construct_full_polynomials(w_l,
-                                                       w_r,
-                                                       w_o,
-                                                       z_perm,
-                                                       z_perm_shift,
-                                                       q_m,
-                                                       q_l,
-                                                       q_r,
-                                                       q_o,
-                                                       q_c,
-                                                       sigma_1,
-                                                       sigma_2,
-                                                       sigma_3,
-                                                       id_1,
-                                                       id_2,
-                                                       id_3,
-                                                       lagrange_first,
-                                                       lagrange_last);
-    // Set aribitrary random relation parameters
-    proof_system::RelationParameters<FF> relation_parameters{
-        .beta = FF::random_element(),
-        .gamma = FF::random_element(),
-        .public_input_delta = FF::one(),
-    };
+    auto transcript = ProverTranscript<FF>::init_empty();
 
-    auto prover_transcript = ProverTranscript<FF>::init_empty();
+    auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
-    auto sumcheck_prover = SumcheckProver<Flavor>(multivariate_n, prover_transcript);
+    auto [multivariate_challenge, evaluations] = sumcheck.prove(full_polynomials, {});
+    FF u_0 = multivariate_challenge[0];
+    FF u_1 = multivariate_challenge[1];
+    std::vector<FF> expected_values;
+    for (auto& polynomial : full_polynomials) {
+        // using knowledge of inputs here to derive the evaluation
+        FF expected_lo = polynomial[0] * (FF(1) - u_0) + polynomial[1] * u_0;
+        expected_lo *= (FF(1) - u_1);
+        FF expected_hi = polynomial[2] * (FF(1) - u_0) + polynomial[3] * u_0;
+        expected_hi *= u_1;
+        expected_values.emplace_back(expected_lo + expected_hi);
+    }
 
-    auto prover_output = sumcheck_prover.prove(full_polynomials, relation_parameters);
-
-    auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
-
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n);
-
-    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
-
-    ASSERT_TRUE(verifier_output.has_value());
-    ASSERT_EQ(prover_output, *verifier_output);
+    for (size_t poly_idx = 0; poly_idx < NUM_POLYNOMIALS; poly_idx++) {
+        EXPECT_EQ(evaluations[poly_idx], expected_values[poly_idx]);
+    }
 }
 
-// TODO(#225): make the inputs to this test more interesting, e.g. num_public_inputs > 0 and non-trivial permutations
-TEST_F(SumcheckTests, ProverAndVerifierLonger)
+// TODO(#225): make the inputs to this test more interesting, e.g. non-trivial permutations
+TEST_F(SumcheckTests, ProverAndVerifierSimple)
 {
     auto run_test = [](bool expect_verified) {
         const size_t multivariate_d(2);
         const size_t multivariate_n(1 << multivariate_d);
 
-        // clang-format off
-    std::array<FF, multivariate_n> w_l;
-    if (expect_verified) {         w_l =            { 0,  1,  2, 0 };
-    } else {                       w_l =            { 0,  0,  2, 0 };
-    }
-    std::array<FF, multivariate_n> w_r            = { 0,  1,  2, 0 };
-    std::array<FF, multivariate_n> w_o            = { 0,  2,  4, 0 };
-    std::array<FF, multivariate_n> z_perm         = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> z_perm_shift   = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> q_m            = { 0,  0,  1, 0 };
-    std::array<FF, multivariate_n> q_l            = { 1,  1,  0, 0 };
-    std::array<FF, multivariate_n> q_r            = { 0,  1,  0, 0 };
-    std::array<FF, multivariate_n> q_o            = { 0, -1,  -1, 0 };
-    std::array<FF, multivariate_n> q_c            = { 0,  0,  0, 0 };
-    // Setting all of these to 0 ensures the GrandProductRelation is satisfied
-    std::array<FF, multivariate_n> sigma_1        = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> sigma_2        = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> sigma_3        = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> id_1           = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> id_2           = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> id_3           = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> lagrange_first = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> lagrange_last  = { 0,  0,  0, 0 };
-        // clang-format on
+        // Construct prover polynomials where each is the zero polynomial.
+        // Note: ProverPolynomials are defined as spans so the polynomials they point to need to exist in memory.
+        std::array<barretenberg::Polynomial<FF>, NUM_POLYNOMIALS> zero_polynomials;
+        for (auto& poly : zero_polynomials) {
+            poly = barretenberg::Polynomial<FF>(multivariate_n);
+        }
+        auto full_polynomials = construct_ultra_full_polynomials(zero_polynomials);
 
-        auto full_polynomials = construct_full_polynomials(w_l,
-                                                           w_r,
-                                                           w_o,
-                                                           z_perm,
-                                                           z_perm_shift,
-                                                           q_m,
-                                                           q_l,
-                                                           q_r,
-                                                           q_o,
-                                                           q_c,
-                                                           sigma_1,
-                                                           sigma_2,
-                                                           sigma_3,
-                                                           id_1,
-                                                           id_2,
-                                                           id_3,
-                                                           lagrange_first,
-                                                           lagrange_last);
+        // Add some non-trivial values to certain polynomials so that the arithmetic relation will have non-trivial
+        // contribution. Note: since all other polynomials are set to 0, all other relations are trivially satisfied.
+        std::array<FF, multivariate_n> w_l;
+        if (expect_verified) {
+            w_l = { 0, 1, 2, 0 };
+        } else {
+            w_l = { 0, 0, 2, 0 };
+        }
+        std::array<FF, multivariate_n> w_r = { 0, 1, 2, 0 };
+        std::array<FF, multivariate_n> w_o = { 0, 2, 4, 0 };
+        std::array<FF, multivariate_n> w_4 = { 0, 0, 0, 0 };
+        std::array<FF, multivariate_n> q_m = { 0, 0, 1, 0 };
+        std::array<FF, multivariate_n> q_l = { 0, 1, 0, 0 };
+        std::array<FF, multivariate_n> q_r = { 0, 1, 0, 0 };
+        std::array<FF, multivariate_n> q_o = { 0, -1, -1, 0 };
+        std::array<FF, multivariate_n> q_c = { 0, 0, 0, 0 };
+        std::array<FF, multivariate_n> q_arith = { 0, 1, 1, 0 };
+        // Setting all of these to 0 ensures the GrandProductRelation is satisfied
+
+        full_polynomials.w_l = w_l;
+        full_polynomials.w_r = w_r;
+        full_polynomials.w_o = w_o;
+        full_polynomials.w_4 = w_4;
+        full_polynomials.q_m = q_m;
+        full_polynomials.q_l = q_l;
+        full_polynomials.q_r = q_r;
+        full_polynomials.q_o = q_o;
+        full_polynomials.q_c = q_c;
+        full_polynomials.q_arith = q_arith;
 
         // Set aribitrary random relation parameters
         proof_system::RelationParameters<FF> relation_parameters{
@@ -398,54 +249,6 @@ TEST_F(SumcheckTests, ProverAndVerifierLonger)
 
     run_test(/* expect_verified=*/true);
     run_test(/* expect_verified=*/false);
-}
-
-/**
- * @brief Test the Standard Sumcheck Prover and Verifier for a real circuit
- *
- */
-TEST_F(SumcheckTests, RealCircuitStandard)
-{
-    // Create a composer and a dummy circuit with a few gates
-    auto builder = proof_system::StandardCircuitBuilder();
-    FF a = FF::one();
-    // Using the public variable to check that public_input_delta is computed and added to the relation correctly
-    uint32_t a_idx = builder.add_public_variable(a);
-    FF b = FF::one();
-    FF c = a + b;
-    FF d = a + c;
-    uint32_t b_idx = builder.add_variable(b);
-    uint32_t c_idx = builder.add_variable(c);
-    uint32_t d_idx = builder.add_variable(d);
-    for (size_t i = 0; i < 16; i++) {
-        builder.create_add_gate({ a_idx, b_idx, c_idx, FF::one(), FF::one(), FF::neg_one(), FF::zero() });
-        builder.create_add_gate({ d_idx, c_idx, a_idx, FF::one(), FF::neg_one(), FF::neg_one(), FF::zero() });
-    }
-    // Create a prover (it will compute proving key and witness)
-    auto composer = StandardComposer();
-    auto instance = composer.create_instance(builder);
-
-    // Generate beta and gamma
-    FF beta = FF::random_element();
-    FF gamma = FF::random_element();
-
-    instance->initialise_prover_polynomials();
-    instance->compute_grand_product_polynomials(beta, gamma);
-
-    auto prover_transcript = ProverTranscript<FF>::init_empty();
-    auto circuit_size = instance->proving_key->circuit_size;
-
-    auto sumcheck_prover = SumcheckProver<Flavor>(circuit_size, prover_transcript);
-
-    auto prover_output = sumcheck_prover.prove(instance->prover_polynomials, instance->relation_parameters);
-
-    auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
-
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
-
-    std::optional verifier_output = sumcheck_verifier.verify(instance->relation_parameters, verifier_transcript);
-
-    ASSERT_TRUE(verifier_output.has_value());
 }
 
 /**

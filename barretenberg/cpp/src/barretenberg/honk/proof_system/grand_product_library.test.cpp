@@ -1,7 +1,6 @@
 
 #include "grand_product_library.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
-#include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
@@ -118,17 +117,11 @@ template <class FF> class GrandProductTests : public testing::Test {
         constexpr size_t PERMUTATION_RELATION_INDEX = 0;
         using LHS =
             typename std::tuple_element<PERMUTATION_RELATION_INDEX, typename Flavor::GrandProductRelations>::type;
-        if constexpr (Flavor::NUM_WIRES == 4) {
-            using RHS = typename proof_system::UltraPermutationRelation<FF>;
-            static_assert(std::same_as<LHS, RHS>);
-            grand_product_library::compute_grand_product<Flavor, RHS>(
-                proving_key->circuit_size, prover_polynomials, params);
-        } else {
-            using RHS = proof_system::PermutationRelation<FF>;
-            static_assert(std::same_as<LHS, RHS>);
-            grand_product_library::compute_grand_product<Flavor, RHS>(
-                proving_key->circuit_size, prover_polynomials, params);
-        }
+        ASSERT(Flavor::NUM_WIRES == 4);
+        using RHS = typename proof_system::UltraPermutationRelation<FF>;
+        static_assert(std::same_as<LHS, RHS>);
+        grand_product_library::compute_grand_product<Flavor, RHS>(
+            proving_key->circuit_size, prover_polynomials, params);
 
         // Method 2: Compute z_perm locally using the simplest non-optimized syntax possible. The comment below,
         // which describes the computation in 4 steps, is adapted from a similar comment in
@@ -376,7 +369,6 @@ TYPED_TEST_SUITE(GrandProductTests, FieldTypes);
 
 TYPED_TEST(GrandProductTests, GrandProductPermutation)
 {
-    TestFixture::template test_permutation_grand_product_construction<flavor::Standard>();
     TestFixture::template test_permutation_grand_product_construction<flavor::Ultra>();
 }
 

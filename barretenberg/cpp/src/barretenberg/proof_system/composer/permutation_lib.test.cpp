@@ -1,5 +1,5 @@
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
-#include "barretenberg/honk/flavor/standard.hpp" // TODO: needed?
+#include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
@@ -10,7 +10,7 @@ namespace proof_system::test_composer_lib {
 
 class PermutationHelperTests : public ::testing::Test {
   protected:
-    using Flavor = honk::flavor::Standard;
+    using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;
     using ProvingKey = Flavor::ProvingKey;
     Flavor::CircuitBuilder circuit_constructor;
@@ -88,8 +88,6 @@ TEST_F(PermutationHelperTests, ComputeHonkStyleSigmaLagrangePolynomialsFromMappi
 TEST_F(PermutationHelperTests, ComputeStandardAuxPolynomials)
 {
     // TODO(#425) Flesh out these tests
-    compute_standard_honk_id_polynomials<Flavor>(proving_key);
-    compute_standard_honk_sigma_permutations<Flavor>(circuit_constructor, proving_key.get());
     compute_first_and_last_lagrange_polynomials<Flavor>(proving_key);
 }
 

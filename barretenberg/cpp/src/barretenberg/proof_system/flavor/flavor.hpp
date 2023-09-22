@@ -284,7 +284,7 @@ template <typename T>
 concept IsPlonkFlavor = IsAnyOf<T, plonk::flavor::Standard, plonk::flavor::Turbo, plonk::flavor::Ultra>;
 
 template <typename T> 
-concept IsHonkFlavor = IsAnyOf<T, honk::flavor::Standard, honk::flavor::Ultra, honk::flavor::StandardGrumpkin, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
+concept IsHonkFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
 
 template <typename T> 
 concept IsUltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
@@ -300,9 +300,7 @@ concept IsRecursiveFlavor = IsAnyOf<T, honk::flavor::UltraRecursive_<UltraCircui
                                        honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>, 
                                        honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
 
-template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, honk::flavor::StandardGrumpkin, honk::flavor::UltraGrumpkin>;
-
-template <typename T> concept StandardFlavor = IsAnyOf<T, honk::flavor::Standard,  honk::flavor::StandardGrumpkin>;
+template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, honk::flavor::UltraGrumpkin>;
 
 template <typename T> concept UltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
 

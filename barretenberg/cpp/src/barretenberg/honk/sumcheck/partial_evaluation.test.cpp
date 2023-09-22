@@ -1,4 +1,4 @@
-#include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include <gtest/gtest.h>
 
@@ -7,7 +7,7 @@ namespace test_sumcheck_polynomials {
 
 template <typename Flavor> class PartialEvaluationTests : public testing::Test {};
 
-using Flavors = testing::Types<proof_system::honk::flavor::Standard>;
+using Flavors = testing::Types<proof_system::honk::flavor::Ultra>;
 
 TYPED_TEST_SUITE(PartialEvaluationTests, Flavors);
 
