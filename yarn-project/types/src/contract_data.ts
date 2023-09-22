@@ -120,7 +120,7 @@ export class ExtendedContractData {
     private publicFunctions: EncodedContractFunction[],
     /** Partial addresses of the contract. */
     public readonly partialAddress: PartialAddress,
-    /** Public keys of the contract. */
+    /** Public key of the contract. */
     public readonly publicKey: PublicKey,
   ) {
     this.bytecode = serializeBufferArrayToVector(publicFunctions.map(fn => fn.toBuffer()));

@@ -6,12 +6,12 @@ import { SentTx } from './sent_tx.js';
  * Represents options for calling a (constrained) function in a contract.
  * Allows the user to specify the sender address and nonce for a transaction.
  */
-export interface SendMethodOptions {
+export type SendMethodOptions = {
   /**
    * Wether to skip the simulation of the public part of the transaction.
    */
   skipPublicSimulation?: boolean;
-}
+};
 
 /**
  * Base class for an interaction with a contract, be it a deployment, a function call, or a batch.

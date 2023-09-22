@@ -19,6 +19,7 @@
     "build": "yarn clean && tsc -b && webpack",
     "build:web": "webpack",
     "build:dev": "tsc -b --watch",
+    "build:ts": "tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",

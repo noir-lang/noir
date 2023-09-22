@@ -4,19 +4,20 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "start:dev": "concurrently \"yarn preprocess:dev\" \"docusaurus start --host 0.0.0.0\"",
-    "start:dev:local": "concurrently \"yarn preprocess:dev\" \"docusaurus start\"",
-    "build": "yarn preprocess && docusaurus build",
+    "start": "yarn preprocess && yarn typedoc && docusaurus start",
+    "start:dev": "concurrently \"yarn preprocess:dev\" \"yarn typedoc:dev\" \"sleep 2 && docusaurus start --host 0.0.0.0\"",
+    "start:dev:local": "concurrently \"yarn preprocess:dev\" \"yarn typedoc:dev\" \"sleep 2 && docusaurus start\"",
+    "build": "./scripts/build.sh",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
-    "clear": "rm -rf 'processed-docs' 'processed-docs-cache' && docusaurus clear",
+    "clear": "rm -rf 'processed-docs' 'processed-docs-cache' docs/apis && docusaurus clear",
     "serve": "docusaurus serve",
     "preprocess": "yarn node ./src/preprocess/index.js",
     "preprocess:dev": "nodemon --config nodemon.json ./src/preprocess/index.js",
+    "typedoc": "rm -rf docs/apis && docusaurus generate-typedoc && cp -a docs/apis processed-docs/",
+    "typedoc:dev": "nodemon -w ../yarn-project -e '*.js,*.ts,*.nr,*.md' --exec \"rm -rf docs/apis && yarn docusaurus generate-typedoc && cp -a docs/apis processed-docs/\"",
     "write-translations": "docusaurus write-translations",
-    "write-heading-ids": "docusaurus write-heading-ids",
-    "update-specs": "./scripts/update_specs.sh"
+    "write-heading-ids": "docusaurus write-heading-ids"
   },
   "dependencies": {
     "@docusaurus/core": "^2.4.1",
@@ -36,9 +37,12 @@
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "^2.4.1",
+    "@spalladino/docusaurus-plugin-typedoc": "^0.20.3",
     "@tsconfig/docusaurus": "^1.0.5",
     "concurrently": "^8.0.1",
     "nodemon": "^3.0.1",
+    "typedoc": "^0.25.1",
+    "typedoc-plugin-markdown": "^3.16.0",
     "typescript": "^4.7.2"
   },
   "browserslist": {

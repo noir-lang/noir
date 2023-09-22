@@ -1,44 +1,46 @@
 # Aztec.js
 
-Aztec.js is a tool that provides APIs for interacting with contracts on the Aztec network. It communicates with the [AztecRPCServer](../aztec-rpc/) through an AztecRPCClient implementation, allowing developers to easily deploy contracts, view functions, and send transactions.
+Aztec.js is a library that provides APIs for managing accounts and interacting with contracts on the Aztec network. It communicates with the [Aztec RPC Server](https://docs.aztec.network/apis/aztec-rpc/interfaces/AztecRPC) through an `AztecRPCClient` implementation, allowing developers to easily register new accounts, deploy contracts, view functions, and send transactions.
 
-### Usage
+## Usage
 
-#### Deploy a contract
+### Create a new account
 
 ```typescript
-import { ContractDeployer } from '@aztec/aztec.js';
+import { getSchnorrAccount } from '@aztec/aztec.js';
+import { GrumpkinPrivateKey } from '@aztec/types';
 
-const deployer = new ContractDeployer(contractAbi, aztecRpcServer);
-const tx = deployer.deploy(constructorArgs[0], constructorArgs[1]).send();
-// wait for tx to be mined
-const receipt = await tx.wait();
-console.log(`Contract deployed at ${receipt.contractAddress}`);
+const encryptionPrivateKey = GrumpkinPrivateKey.random();
+const signingPrivateKey = GrumpkinPrivateKey.random();
+const wallet = getSchnorrAccount(rpc, encryptionPrivateKey, signingPrivateKey).waitDeploy();
+console.log(`New account deployed at ${wallet.getAddress()}`);
 ```
 
-#### Send a transaction
+### Deploy a contract
 
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.at(contractAddress, contractAbi, aztecRpcServer);
-const tx = contract.methods
-    .transfer(amount, recipientAddress)
-    .send({ origin: senderAddress });
-
-// wait for tx to be mined
-await tx.wait();
-console.log(`Transferred ${amount} to ${recipientAddress}!`);
+const contract = await Contract.deploy(wallet, MyContractAbi, [...constructorArgs]).send().deployed();
+console.log(`Contract deployed at ${contract.address}`);
 ```
 
-#### Call a view function
+### Send a transaction
 
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.at(contractAddress, contractAbi, aztecRpcServer);
-const balance = contract.methods
-    .getBalance(accountPublicKey))
-    .view({ from: accountAddress });
-console.log(`Account balance: ${balance}.`);
+const contract = await Contract.at(contractAddress, MyContractAbi, wallet);
+const tx = await contract.methods.transfer(amount, recipientAddress).send().wait();
+console.log(`Transferred ${amount} to ${recipientAddress} on block ${tx.blockNumber}`);
+```
+
+### Call a view function
+
+```typescript
+import { Contract } from '@aztec/aztec.js';
+
+const contract = await Contract.at(contractAddress, MyContractAbi, wallet);
+const balance = await contract.methods.getBalance(wallet.getAddress()).view();
+console.log(`Account balance is ${balance}`);
 ```

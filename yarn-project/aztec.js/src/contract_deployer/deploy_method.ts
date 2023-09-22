@@ -18,7 +18,7 @@ import { DeploySentTx } from './deploy_sent_tx.js';
  * Options for deploying a contract on the Aztec network.
  * Allows specifying a portal contract, contract address salt, and additional send method options.
  */
-export interface DeployOptions extends SendMethodOptions {
+export type DeployOptions = {
   /**
    * The Ethereum address of the Portal contract.
    */
@@ -27,7 +27,7 @@ export interface DeployOptions extends SendMethodOptions {
    * An optional salt value used to deterministically calculate the contract address.
    */
   contractAddressSalt?: Fr;
-}
+} & SendMethodOptions;
 
 /**
  * Creates a TxRequest from a contract ABI, for contract deployment.

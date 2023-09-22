@@ -5,7 +5,7 @@ import { getSchnorrAccount } from '../index.js';
 import { AccountWallet } from '../wallet/account_wallet.js';
 
 /**
- * Deploys and registers a new account using random private keys and returns the associated wallet. Useful for testing.
+ * Deploys and registers a new account using random private keys and returns the associated Schnorr account wallet. Useful for testing.
  * @param rpc - RPC client.
  * @returns - A wallet for a fresh account.
  */

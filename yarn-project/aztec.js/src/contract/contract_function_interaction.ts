@@ -11,12 +11,12 @@ export { SendMethodOptions };
  * Represents the options for a view method in a contract function interaction.
  * Allows specifying the address from which the view method should be called.
  */
-export interface ViewMethodOptions {
+export type ViewMethodOptions = {
   /**
    * The sender's Aztec address.
    */
   from?: AztecAddress;
-}
+};
 
 /**
  * This is the class that is returned when calling e.g. `contract.methods.myMethod(arg0, arg1)`.

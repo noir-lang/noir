@@ -93,7 +93,7 @@ function readFile(filePath, tag) {
       return childProcess.execSync(`git show ${tag}:${relPath}`).toString();
     } catch (err) {
       console.error(
-        `Error reading file ${relPath} from latest version. Falling back to current content.`
+        `Error reading file ${filePath} from latest version. Falling back to current content.`
       );
     }
   }
