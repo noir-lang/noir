@@ -6,40 +6,40 @@ use dep::aztec::state_vars::{
     immutable_singleton::ImmutableSingleton, map::Map, public_state::PublicState, set::Set,
     singleton::Singleton,
 };
-use dep::aztec::types::type_serialisation::bool_serialisation::BOOL_SERIALISED_LEN;
+use dep::aztec::types::type_serialization::bool_serialization::BOOL_SERIALIZED_LEN;
 use dep::std::option::Option;
 
 use crate::types::{
     card_note::{CardNote, CARD_NOTE_LEN},
     profile_note::{ProfileNote, PROFILE_NOTE_LEN},
-    queen::{Queen, QUEEN_SERIALISED_LEN},
+    queen::{Queen, QUEEN_SERIALIZED_LEN},
     rules_note::{RulesNote, RULES_NOTE_LEN},
 };
 
 // docs:start:state_vars-PublicStateRead
-fn is_locked(state_var: PublicState<bool, BOOL_SERIALISED_LEN>) -> bool {
+fn is_locked(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) -> bool {
     state_var.read()
 }
 // docs:end:state_vars-PublicStateRead
 
 // docs:start:state_vars-PublicStateWrite
-fn lock(state_var: PublicState<bool, BOOL_SERIALISED_LEN>) {
+fn lock(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) {
     state_var.write(true);
 }
 // docs:end:state_vars-PublicStateWrite
 
-fn unlock(state_var: PublicState<bool, BOOL_SERIALISED_LEN>) {
+fn unlock(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) {
     state_var.write(false);
 }
 
 // docs:start:state_vars-PublicStateReadCustom
-fn get_current_queen(state_var: PublicState<Queen, QUEEN_SERIALISED_LEN>) -> Queen {
+fn get_current_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>) -> Queen {
     state_var.read()
 }
 // docs:end:state_vars-PublicStateReadCustom
 
 fn can_replace_queen(
-    state_var: PublicState<Queen, QUEEN_SERIALISED_LEN>,
+    state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>,
     new_queen: Queen,
 ) -> bool {
     let current_queen = get_current_queen(state_var);
@@ -47,13 +47,13 @@ fn can_replace_queen(
 }
 
 // docs:start:state_vars-PublicStateWriteCustom
-fn replace_queen(state_var: PublicState<Queen, QUEEN_SERIALISED_LEN>, new_queen: Queen) {
+fn replace_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_queen: Queen) {
     state_var.write(new_queen);
 }
 // docs:end:state_vars-PublicStateWriteCustom
 
 // docs:start:state_vars-PublicStateReadWriteCustom
-fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALISED_LEN>, new_points: u8) {
+fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_points: u8) {
     let mut queen = state_var.read();
     queen.points += new_points;
     state_var.write(queen);
@@ -62,7 +62,7 @@ fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALISED_LEN>, new_
 
 // docs:start:state_vars-SingletonInit
 fn init_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
-    state_var.initialise(card);
+    state_var.initialize(card);
 }
 // docs:end:state_vars-SingletonInit
 
@@ -83,7 +83,7 @@ fn init_game_rules(
     state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
     rules: &mut RulesNote,
 ) {
-    state_var.initialise(rules);
+    state_var.initialize(rules);
 }
 // docs:end:state_vars-ImmutableSingletonInit
 
@@ -161,7 +161,7 @@ fn add_new_profile(
     account: Field,
     profile: &mut ProfileNote,
 ) {
-    state_var.at(account).initialise(profile);
+    state_var.at(account).initialize(profile);
 }
 // docs:end:state_vars-MapAtSingletonInit
 

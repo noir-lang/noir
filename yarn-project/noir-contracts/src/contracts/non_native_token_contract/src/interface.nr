@@ -24,11 +24,11 @@ impl NonNativeTokenPrivateContextInterface {
     amount: Field,
     recipient: Field
   ) {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
 
-    context.call_public_function(self.address, 0x716a727f, serialised_args)
+    context.call_public_function(self.address, 0x716a727f, serialized_args)
   }
   
 
@@ -41,14 +41,14 @@ impl NonNativeTokenPrivateContextInterface {
     secret: Field,
     canceller: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 5];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner;
-    serialised_args[2] = msg_key;
-    serialised_args[3] = secret;
-    serialised_args[4] = canceller;
+    let mut serialized_args = [0; 5];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner;
+    serialized_args[2] = msg_key;
+    serialized_args[3] = secret;
+    serialized_args[4] = canceller;
 
-    context.call_private_function(self.address, 0x641662d1, serialised_args)
+    context.call_private_function(self.address, 0x641662d1, serialized_args)
   }
   
 
@@ -61,14 +61,14 @@ impl NonNativeTokenPrivateContextInterface {
     secret: Field,
     canceller: Field
   ) {
-    let mut serialised_args = [0; 5];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner_address;
-    serialised_args[2] = msg_key;
-    serialised_args[3] = secret;
-    serialised_args[4] = canceller;
+    let mut serialized_args = [0; 5];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner_address;
+    serialized_args[2] = msg_key;
+    serialized_args[3] = secret;
+    serialized_args[4] = canceller;
 
-    context.call_public_function(self.address, 0x93343cc1, serialised_args)
+    context.call_public_function(self.address, 0x93343cc1, serialized_args)
   }
   
 
@@ -79,12 +79,12 @@ impl NonNativeTokenPrivateContextInterface {
     secret: Field,
     owner: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 3];
-    serialised_args[0] = amount;
-    serialised_args[1] = secret;
-    serialised_args[2] = owner;
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = amount;
+    serialized_args[1] = secret;
+    serialized_args[2] = owner;
 
-    context.call_private_function(self.address, 0x8ecff612, serialised_args)
+    context.call_private_function(self.address, 0x8ecff612, serialized_args)
   }
   
 
@@ -94,11 +94,11 @@ impl NonNativeTokenPrivateContextInterface {
     amount: Field,
     secretHash: Field
   ) {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = secretHash;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0x72451161, serialised_args)
+    context.call_public_function(self.address, 0x72451161, serialized_args)
   }
   
 
@@ -108,11 +108,11 @@ impl NonNativeTokenPrivateContextInterface {
     amount: Field,
     recipient: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
 
-    context.call_private_function(self.address, 0xc0888d22, serialised_args)
+    context.call_private_function(self.address, 0xc0888d22, serialized_args)
   }
   
 
@@ -122,11 +122,11 @@ impl NonNativeTokenPrivateContextInterface {
     amount: Field,
     recipient: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
 
-    context.call_private_function(self.address, 0x906b1f4f, serialised_args)
+    context.call_private_function(self.address, 0x906b1f4f, serialized_args)
   }
   
 
@@ -138,13 +138,13 @@ impl NonNativeTokenPrivateContextInterface {
     recipient: Field,
     callerOnL1: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 4];
-    serialised_args[0] = amount;
-    serialised_args[1] = sender;
-    serialised_args[2] = recipient;
-    serialised_args[3] = callerOnL1;
+    let mut serialized_args = [0; 4];
+    serialized_args[0] = amount;
+    serialized_args[1] = sender;
+    serialized_args[2] = recipient;
+    serialized_args[3] = callerOnL1;
 
-    context.call_private_function(self.address, 0x760d58ea, serialised_args)
+    context.call_private_function(self.address, 0x760d58ea, serialized_args)
   }
   
 
@@ -155,12 +155,12 @@ impl NonNativeTokenPrivateContextInterface {
     recipient: Field,
     callerOnL1: Field
   ) {
-    let mut serialised_args = [0; 3];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
-    serialised_args[2] = callerOnL1;
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
+    serialized_args[2] = callerOnL1;
 
-    context.call_public_function(self.address, 0xc80c80d3, serialised_args)
+    context.call_public_function(self.address, 0xc80c80d3, serialized_args)
   }
   
 }
@@ -186,11 +186,11 @@ impl NonNativeTokenPublicContextInterface {
     amount: Field,
     recipient: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
 
-    context.call_public_function(self.address, 0x716a727f, serialised_args)
+    context.call_public_function(self.address, 0x716a727f, serialized_args)
   }
   
 
@@ -203,14 +203,14 @@ impl NonNativeTokenPublicContextInterface {
     secret: Field,
     canceller: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 5];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner_address;
-    serialised_args[2] = msg_key;
-    serialised_args[3] = secret;
-    serialised_args[4] = canceller;
+    let mut serialized_args = [0; 5];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner_address;
+    serialized_args[2] = msg_key;
+    serialized_args[3] = secret;
+    serialized_args[4] = canceller;
 
-    context.call_public_function(self.address, 0x93343cc1, serialised_args)
+    context.call_public_function(self.address, 0x93343cc1, serialized_args)
   }
   
 
@@ -220,11 +220,11 @@ impl NonNativeTokenPublicContextInterface {
     amount: Field,
     secretHash: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = secretHash;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0x72451161, serialised_args)
+    context.call_public_function(self.address, 0x72451161, serialized_args)
   }
   
 
@@ -235,12 +235,12 @@ impl NonNativeTokenPublicContextInterface {
     recipient: Field,
     callerOnL1: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 3];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
-    serialised_args[2] = callerOnL1;
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
+    serialized_args[2] = callerOnL1;
 
-    context.call_public_function(self.address, 0xc80c80d3, serialised_args)
+    context.call_public_function(self.address, 0xc80c80d3, serialized_args)
   }
   
 }

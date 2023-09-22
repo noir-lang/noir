@@ -34,7 +34,7 @@ export interface AztecRPC {
    *
    * @param authWitness - The auth witness to insert. Composed of an identifier, which is the hash of
    * the action to be authorised, and the actual witness as an array of fields, which are to be
-   * deserialised and processed by the account contract.
+   * deserialized and processed by the account contract.
    */
   addAuthWitness(authWitness: AuthWitness): Promise<void>;
 
@@ -232,23 +232,23 @@ export interface AztecRPC {
    * @remarks This indicates that blocks and transactions are synched even if notes are not. Compares local block number with the block number from aztec node.
    * @deprecated Use `getSyncStatus` instead.
    */
-  isGlobalStateSynchronised(): Promise<boolean>;
+  isGlobalStateSynchronized(): Promise<boolean>;
 
   /**
-   * Checks if the specified account is synchronised.
+   * Checks if the specified account is synchronized.
    * @param account - The aztec address for which to query the sync status.
    * @returns True if the account is fully synched, false otherwise.
    * @deprecated Use `getSyncStatus` instead.
    * @remarks Checks whether all the notes from all the blocks have been processed. If it is not the case, the
    * retrieved information from contracts might be old/stale (e.g. old token balance).
    */
-  isAccountStateSynchronised(account: AztecAddress): Promise<boolean>;
+  isAccountStateSynchronized(account: AztecAddress): Promise<boolean>;
 
   /**
-   * Returns the latest block that has been synchronised globally and for each account. The global block number
+   * Returns the latest block that has been synchronized globally and for each account. The global block number
    * indicates whether global state has been updated up to that block, whereas each address indicates up to which
    * block the private state has been synced for that account.
-   * @returns The latest block synchronised for blocks, and the latest block synched for notes for each public key being tracked.
+   * @returns The latest block synchronized for blocks, and the latest block synched for notes for each public key being tracked.
    */
   getSyncStatus(): Promise<SyncStatus>;
 }

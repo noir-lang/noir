@@ -38,7 +38,7 @@ While `staticcall` and `delegatecall` both have flags in the call context, they 
 ## `constructor`
 
 - A special `constructor` function MUST be declared within a contract's scope.
-- A constructor doesn't have a name, because its purpose is clear: to initialise contract state.
+- A constructor doesn't have a name, because its purpose is clear: to initialize contract state.
 - In Aztec terminology, a constructor is always a '`private` function' (i.e. it cannot be a `public` function, in the current version of the sandbox it cannot call public functions either).
 - A constructor behaves almost identically to any other function. It's just important for Aztec to be able to identify this function as special: it may only be called once, and will not be deployed as part of the contract.
 

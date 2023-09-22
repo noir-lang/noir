@@ -91,11 +91,11 @@ export abstract class BaseWallet implements Wallet {
   getNodeInfo(): Promise<NodeInfo> {
     return this.rpc.getNodeInfo();
   }
-  isGlobalStateSynchronised() {
-    return this.rpc.isGlobalStateSynchronised();
+  isGlobalStateSynchronized() {
+    return this.rpc.isGlobalStateSynchronized();
   }
-  isAccountStateSynchronised(account: AztecAddress) {
-    return this.rpc.isAccountStateSynchronised(account);
+  isAccountStateSynchronized(account: AztecAddress) {
+    return this.rpc.isAccountStateSynchronized(account);
   }
   getSyncStatus(): Promise<SyncStatus> {
     return this.rpc.getSyncStatus();

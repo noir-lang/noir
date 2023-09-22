@@ -83,7 +83,7 @@ export class TxExecutionRequest {
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
-   * @returns The deserialised TxRequest object.
+   * @returns The deserialized TxRequest object.
    */
   static fromBuffer(buffer: Buffer | BufferReader): TxExecutionRequest {
     const reader = BufferReader.asReader(buffer);
@@ -100,7 +100,7 @@ export class TxExecutionRequest {
   /**
    * Deserializes from a string, corresponding to a write in cpp.
    * @param str - String to read from.
-   * @returns The deserialised TxRequest object.
+   * @returns The deserialized TxRequest object.
    */
   static fromString(str: string): TxExecutionRequest {
     return TxExecutionRequest.fromBuffer(Buffer.from(str, 'hex'));

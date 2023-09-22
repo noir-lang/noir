@@ -60,7 +60,7 @@ struct NoteGetterOptions<Note, N, FILTER_ARGS> {
 // `selects` to specify fields, `sorts` to establish sorting criteria, `offset` to skip items, and `limit` to cap the result size.
 // And finally, a custom filter to refine the outcome further.
 impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
-    // This function initialises a NoteGetterOptions that simply returns the maximum number of notes allowed in a call.
+    // This function initializes a NoteGetterOptions that simply returns the maximum number of notes allowed in a call.
     fn new() -> NoteGetterOptions<Note, N, Field> {
         NoteGetterOptions {
             selects: BoundedVec::new(Option::none()),
@@ -72,7 +72,7 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
         }
     }
 
-    // This function initialises a NoteGetterOptions with a filter, which takes the notes returned from the database and filter_args as its parameters.
+    // This function initializes a NoteGetterOptions with a filter, which takes the notes returned from the database and filter_args as its parameters.
     // `filter_args` allows you to provide additional data or context to the custom filter.
     fn with_filter(
         filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL],

@@ -1,4 +1,4 @@
-use dep::aztec::types::type_serialisation::TypeSerialisationInterface;
+use dep::aztec::types::type_serialization::TypeSerializationInterface;
 
 // Struct to be used to represent "totals". Generally, there should be one per asset.
 // It stores the global values that are shared among all users, such as an accumulator
@@ -12,11 +12,11 @@ struct Asset {
     oracle_address: Field,
 }
 
-global ASSET_SERIALISED_LEN: Field = 4;
+global ASSET_SERIALIZED_LEN: Field = 4;
 
 // Right now we are wasting so many writes. If changing last_updated_ts
 // we will end up rewriting all of them, wasting writes.
-fn deserialiseAsset(fields: [Field; ASSET_SERIALISED_LEN]) -> Asset {
+fn deserializeAsset(fields: [Field; ASSET_SERIALIZED_LEN]) -> Asset {
     Asset {
         interest_accumulator: fields[0] as u120,
         last_updated_ts: fields[1] as u120,
@@ -25,7 +25,7 @@ fn deserialiseAsset(fields: [Field; ASSET_SERIALISED_LEN]) -> Asset {
     }
 }
 
-fn serialiseAsset(asset: Asset) -> [Field; ASSET_SERIALISED_LEN] {
+fn serializeAsset(asset: Asset) -> [Field; ASSET_SERIALIZED_LEN] {
     [
         asset.interest_accumulator as Field,
         asset.last_updated_ts as Field,
@@ -35,12 +35,12 @@ fn serialiseAsset(asset: Asset) -> [Field; ASSET_SERIALISED_LEN] {
 }
 
 impl Asset {
-    fn serialize(self: Self) -> [Field; ASSET_SERIALISED_LEN] {
-        serialiseAsset(self)
+    fn serialize(self: Self) -> [Field; ASSET_SERIALIZED_LEN] {
+        serializeAsset(self)
     }
 }
 
-global AssetSerialisationMethods = TypeSerialisationInterface {
-    deserialise: deserialiseAsset,
-    serialise: serialiseAsset,
+global AssetSerializationMethods = TypeSerializationInterface {
+    deserialize: deserializeAsset,
+    serialize: serializeAsset,
 };

@@ -63,7 +63,7 @@ void function_2_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const&
 
     public_inputs.return_values[0] = product;
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // info("public inputs: ", public_inputs);
 

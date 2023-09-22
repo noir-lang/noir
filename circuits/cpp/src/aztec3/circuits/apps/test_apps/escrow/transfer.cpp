@@ -95,7 +95,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     /// TODO: merkle membership check
     // public_inputs.historic_private_data_tree_root
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // info("public inputs: ", public_inputs);
 

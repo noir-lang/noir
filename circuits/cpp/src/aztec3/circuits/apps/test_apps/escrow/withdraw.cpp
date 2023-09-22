@@ -83,7 +83,7 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
     public_inputs.args_hash = compute_var_args_hash<CT>({ amount, asset_id, memo, l1_withdrawal_address, fee });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     /// TODO: merkle membership check
     // public_inputs.historic_private_data_tree_root

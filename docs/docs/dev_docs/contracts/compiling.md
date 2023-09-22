@@ -102,25 +102,25 @@ impl PrivateTokenPrivateContextInterface {
   fn mint(
     self, context: &mut PrivateContext, amount: Field, owner: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner;
 
     // 0x1dc9c3c0 is the function selector for `mint(field,field)`
-    context.call_private_function(self.address, 0x1dc9c3c0, serialised_args)
+    context.call_private_function(self.address, 0x1dc9c3c0, serialized_args)
   }
 
 
   fn transfer(
     self, context: &mut PrivateContext, amount: Field, sender: Field, recipient: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 3];
-    serialised_args[0] = amount;
-    serialised_args[1] = sender;
-    serialised_args[2] = recipient;
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = amount;
+    serialized_args[1] = sender;
+    serialized_args[2] = recipient;
 
     // 0xdcd4c318 is the function selector for `transfer(field,field,field)`
-    context.call_private_function(self.address, 0xdcd4c318, serialised_args)
+    context.call_private_function(self.address, 0xdcd4c318, serialized_args)
   }
 }
 ```

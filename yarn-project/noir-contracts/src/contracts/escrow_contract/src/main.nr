@@ -55,7 +55,7 @@ contract Escrow {
             this,
             storage.owners.storage_slot,
             get_public_key(this),
-            note.serialise(),
+            note.serialize(),
         );
     }
     // docs:end:constructor

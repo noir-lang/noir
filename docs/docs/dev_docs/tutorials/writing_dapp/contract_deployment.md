@@ -6,9 +6,9 @@ To add contracts to your application, we'll start by creating a new `nargo` proj
 Follow the instructions [here](../../contracts/setup.md) to install `nargo` if you haven't done so already.
 :::
 
-## Initialise nargo project
+## initialize nargo project
 
-Create a new `contracts` folder, and from there, initialise a new project called `token`:
+Create a new `contracts` folder, and from there, initialize a new project called `token`:
 
 ```sh
 mkdir contracts && cd contracts

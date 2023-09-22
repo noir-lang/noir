@@ -1,7 +1,7 @@
 import { MerkleTreeOperations } from '../index.js';
 
 /**
- * Defines the possible states of the world state synchroniser.
+ * Defines the possible states of the world state synchronizer.
  */
 export enum WorldStateRunningState {
   IDLE,
@@ -11,37 +11,37 @@ export enum WorldStateRunningState {
 }
 
 /**
- * Defines the status of the world state synchroniser.
+ * Defines the status of the world state synchronizer.
  */
 export interface WorldStateStatus {
   /**
-   * The current state of the world state synchroniser.
+   * The current state of the world state synchronizer.
    */
   state: WorldStateRunningState;
   /**
-   * The block number that the world state synchroniser is synced to.
+   * The block number that the world state synchronizer is synced to.
    */
   syncedToL2Block: number;
 }
 
 /**
- * Defines the interface for a world state synchroniser.
+ * Defines the interface for a world state synchronizer.
  */
-export interface WorldStateSynchroniser {
+export interface WorldStateSynchronizer {
   /**
-   * Starts the synchroniser.
+   * Starts the synchronizer.
    * @returns A promise that resolves once the initial sync is completed.
    */
   start(): void;
 
   /**
-   * Returns the current status of the synchroniser.
-   * @returns The current status of the synchroniser.
+   * Returns the current status of the synchronizer.
+   * @returns The current status of the synchronizer.
    */
   status(): Promise<WorldStateStatus>;
 
   /**
-   * Stops the synchroniser.
+   * Stops the synchronizer.
    */
   stop(): Promise<void>;
 

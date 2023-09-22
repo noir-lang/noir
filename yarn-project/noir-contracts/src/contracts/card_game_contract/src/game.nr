@@ -1,4 +1,4 @@
-use dep::aztec::types::type_serialisation::TypeSerialisationInterface;
+use dep::aztec::types::type_serialization::TypeSerializationInterface;
 use crate::cards::Card;
 
 global NUMBER_OF_PLAYERS = 2;
@@ -11,7 +11,7 @@ struct PlayerEntry {
 }
 
 impl PlayerEntry {
-    fn is_initialised(self) -> bool {
+    fn is_initialized(self) -> bool {
         self.address != 0
     }
 }
@@ -28,9 +28,9 @@ struct Game {
     current_round: u32,
 }
 
-global GAME_SERIALISED_LEN: Field = 15;
+global GAME_SERIALIZED_LEN: Field = 15;
 
-fn deserialiseGame(fields: [Field; GAME_SERIALISED_LEN]) -> Game {
+fn deserializeGame(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
     let players = [
         PlayerEntry {
             address: fields[0],
@@ -58,7 +58,7 @@ fn deserialiseGame(fields: [Field; GAME_SERIALISED_LEN]) -> Game {
     }
 }
 
-fn serialiseGame(game: Game) -> [Field; GAME_SERIALISED_LEN] {
+fn serializeGame(game: Game) -> [Field; GAME_SERIALIZED_LEN] {
     [
         game.players[0].address,
         game.players[0].deck_strength as Field,
@@ -79,8 +79,8 @@ fn serialiseGame(game: Game) -> [Field; GAME_SERIALISED_LEN] {
 }
 
 impl Game {
-    fn serialize(self: Self) -> [Field; GAME_SERIALISED_LEN] {
-        serialiseGame(self)
+    fn serialize(self: Self) -> [Field; GAME_SERIALIZED_LEN] {
+        serializeGame(self)
     }
 
     fn add_player(&mut self, player_entry: PlayerEntry) -> bool {
@@ -88,7 +88,7 @@ impl Game {
 
         for i in 0..NUMBER_OF_PLAYERS {
             let entry = self.players[i];
-            if entry.is_initialised() {
+            if entry.is_initialized() {
                 assert(entry.address != player_entry.address, "Player already in game");
             } else if !added {
                 self.players[i] = player_entry;
@@ -103,7 +103,7 @@ impl Game {
         assert(!self.started, "Game already started");
         for i in 0..NUMBER_OF_PLAYERS {
             let entry = self.players[i];
-            assert(entry.is_initialised(), "Game not full");
+            assert(entry.is_initialized(), "Game not full");
         }
         let sorted_by_deck_strength = self.players.sort_via(|a: PlayerEntry, b: PlayerEntry| a.deck_strength < b.deck_strength);
         self.players = sorted_by_deck_strength;
@@ -166,7 +166,7 @@ impl Game {
     }
 }
 
-global GameSerialisationMethods = TypeSerialisationInterface {
-    deserialise: deserialiseGame,
-    serialise: serialiseGame,
+global GameSerializationMethods = TypeSerializationInterface {
+    deserialize: deserializeGame,
+    serialize: serializeGame,
 };

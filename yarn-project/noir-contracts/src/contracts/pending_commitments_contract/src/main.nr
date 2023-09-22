@@ -67,7 +67,7 @@ contract PendingCommitments {
             context.inputs.call_context.storage_contract_address,
             owner_balance.storage_slot,
             get_public_key(owner),
-            note.serialise(),
+            note.serialize(),
         );
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
@@ -108,7 +108,7 @@ contract PendingCommitments {
             context.inputs.call_context.storage_contract_address,
             owner_balance.storage_slot,
             get_public_key(owner),
-            note.serialise(),
+            note.serialize(),
         );
 
         0
@@ -139,7 +139,7 @@ contract PendingCommitments {
             context.inputs.call_context.storage_contract_address,
             owner_balance.storage_slot,
             get_public_key(owner),
-            note.serialise(),
+            note.serialize(),
         );
     }
 

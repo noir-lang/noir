@@ -5,14 +5,14 @@ import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { WorldStateConfig } from './config.js';
-import { WorldStateRunningState, WorldStateStatus, WorldStateSynchroniser } from './world_state_synchroniser.js';
+import { WorldStateRunningState, WorldStateStatus, WorldStateSynchronizer } from './world_state_synchronizer.js';
 
 /**
- * Synchronises the world state with the L2 blocks from a L2BlockSource.
- * The synchroniser will download the L2 blocks from the L2BlockSource and insert the new commitments into the merkle
+ * Synchronizes the world state with the L2 blocks from a L2BlockSource.
+ * The synchronizer will download the L2 blocks from the L2BlockSource and insert the new commitments into the merkle
  * tree.
  */
-export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
+export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
   private currentL2BlockNum = 0;
   private latestBlockNumberAtStart = 0;
 
@@ -47,7 +47,7 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
 
   public async start() {
     if (this.currentState === WorldStateRunningState.STOPPED) {
-      throw new Error('Synchroniser already stopped');
+      throw new Error('Synchronizer already stopped');
     }
     if (this.currentState !== WorldStateRunningState.IDLE) {
       return this.syncPromise;

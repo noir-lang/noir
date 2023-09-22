@@ -88,7 +88,7 @@ export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
     if (cc.isRegisteredClassName(obj.type)) {
       return cc.toClassObj(obj);
     } else {
-      throw new Error(`Object ${obj.type} not registered for serialisation FROM JSON`);
+      throw new Error(`Object ${obj.type} not registered for serialization FROM JSON`);
     }
   }
 
@@ -154,7 +154,7 @@ export function convertToJsonObj(cc: ClassConverter, obj: any): any {
       return newObj;
     } else {
       // Throw if this is a non-primitive class that was not registered
-      throw new Error(`Object ${obj.constructor.name} not registered for serialisation TO JSON`);
+      throw new Error(`Object ${obj.constructor.name} not registered for serialization TO JSON`);
     }
   }
 

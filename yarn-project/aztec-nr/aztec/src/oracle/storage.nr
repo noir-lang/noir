@@ -11,10 +11,10 @@ unconstrained fn storage_read_oracle_wrapper<N>(_storage_slot: Field)-> [Field; 
 
 fn storage_read<T, N>(
     storage_slot: Field,
-    deserialise: fn ([Field; N]) -> T,
+    deserialize: fn ([Field; N]) -> T,
 ) -> T {
     let fields = storage_read_oracle_wrapper(storage_slot);
-    deserialise(fields)
+    deserialize(fields)
 }
 
 #[oracle(storageWrite)]

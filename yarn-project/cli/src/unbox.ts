@@ -284,7 +284,7 @@ export async function unboxContract(
   await updatePackagingConfigurations(packageVersion, tag, outputPath, log);
 
   log('');
-  log(`${contractName} has been successfully initialised!`);
+  log(`${contractName} has been successfully initialized!`);
   log('To get started, simply run the following commands:');
   log(`    cd ${outputDirectoryName}`);
   log('    yarn');

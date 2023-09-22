@@ -45,13 +45,13 @@ export class NoteProcessor {
   ) {}
 
   /**
-   * Check if the NoteProcessor is synchronised with the remote block number.
+   * Check if the NoteProcessor is synchronized with the remote block number.
    * The function queries the remote block number from the AztecNode and compares it with the syncedToBlock value in the NoteProcessor.
-   * If the values are equal, then the NoteProcessor is considered to be synchronised, otherwise not.
+   * If the values are equal, then the NoteProcessor is considered to be synchronized, otherwise not.
    *
-   * @returns A boolean indicating whether the NoteProcessor is synchronised with the remote block number or not.
+   * @returns A boolean indicating whether the NoteProcessor is synchronized with the remote block number or not.
    */
-  public async isSynchronised() {
+  public async isSynchronized() {
     const remoteBlockNumber = await this.node.getBlockNumber();
     return this.syncedToBlock === remoteBlockNumber;
   }

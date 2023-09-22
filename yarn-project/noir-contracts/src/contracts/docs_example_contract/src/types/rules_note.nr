@@ -21,11 +21,11 @@ impl RulesNote {
         }
     }
 
-    fn serialise(self) -> [Field; RULES_NOTE_LEN] {
+    fn serialize(self) -> [Field; RULES_NOTE_LEN] {
         [self.min_points as Field, self.max_points as Field]
     }
 
-    fn deserialise(preimage: [Field; RULES_NOTE_LEN]) -> Self {
+    fn deserialize(preimage: [Field; RULES_NOTE_LEN]) -> Self {
         RulesNote {
             min_points: preimage[0] as u8,
             max_points: preimage[1] as u8,
@@ -50,12 +50,12 @@ impl RulesNote {
     }
 }
 
-fn deserialise(preimage: [Field; RULES_NOTE_LEN]) -> RulesNote {
-    RulesNote::deserialise(preimage)
+fn deserialize(preimage: [Field; RULES_NOTE_LEN]) -> RulesNote {
+    RulesNote::deserialize(preimage)
 }
 
-fn serialise(note: RulesNote) -> [Field; RULES_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: RulesNote) -> [Field; RULES_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: RulesNote) -> Field {
@@ -75,8 +75,8 @@ fn set_header(note: &mut RulesNote, header: NoteHeader) {
 }
 
 global RulesNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

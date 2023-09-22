@@ -208,7 +208,7 @@ TEST_F(state_var_tests, circuit_utxo_of_default_private_note_fr)
                      .creator_address = msg_sender,
                      .memo = 1234 });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
@@ -270,7 +270,7 @@ TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
         .memo = 1234,
     });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
@@ -318,7 +318,7 @@ TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_not
 
     my_utxo.initialise({ .value = 100, .owner = owner_of_initialised_note });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
@@ -367,7 +367,7 @@ TEST_F(state_var_tests, circuit_modify_utxo_of_default_singleton_private_note_fr
         .owner = msg_sender,
     });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.

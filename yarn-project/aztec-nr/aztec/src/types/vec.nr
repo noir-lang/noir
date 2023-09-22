@@ -92,7 +92,7 @@ fn test_vec_get_not_declared() {
 }
 
 #[test(should_fail)]
-fn test_vec_get_uninitialised() {
+fn test_vec_get_uninitialized() {
     let mut vec: BoundedVec<Field, 2> = BoundedVec::new(0);
     let _x = vec.get(0);
 }

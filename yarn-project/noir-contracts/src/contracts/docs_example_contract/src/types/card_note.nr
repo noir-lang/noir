@@ -28,11 +28,11 @@ impl CardNote {
         }
     }
 
-    fn serialise(self) -> [Field; CARD_NOTE_LEN] {
+    fn serialize(self) -> [Field; CARD_NOTE_LEN] {
         [self.points as Field, self.secret, self.owner]
     }
 
-    fn deserialise(preimage: [Field; CARD_NOTE_LEN]) -> Self {
+    fn deserialize(preimage: [Field; CARD_NOTE_LEN]) -> Self {
         CardNote {
             points: preimage[0] as u8,
             secret: preimage[1],
@@ -64,12 +64,12 @@ impl CardNote {
     }
 }
 
-fn deserialise(preimage: [Field; CARD_NOTE_LEN]) -> CardNote {
-    CardNote::deserialise(preimage)
+fn deserialize(preimage: [Field; CARD_NOTE_LEN]) -> CardNote {
+    CardNote::deserialize(preimage)
 }
 
-fn serialise(note: CardNote) -> [Field; CARD_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: CardNote) -> [Field; CARD_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: CardNote) -> Field {
@@ -89,8 +89,8 @@ fn set_header(note: &mut CardNote, header: NoteHeader) {
 }
 
 global CardNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

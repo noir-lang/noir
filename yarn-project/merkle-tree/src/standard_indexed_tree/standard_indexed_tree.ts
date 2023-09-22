@@ -552,12 +552,12 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
   private async encodeAndAppendLeaves(leaves: LeafData[], hash0Leaf: boolean): Promise<void> {
     const startInsertionIndex = Number(this.getNumLeaves(true));
 
-    const serialisedLeaves = leaves.map((leaf, i) => {
+    const serializedLeaves = leaves.map((leaf, i) => {
       this.cachedLeaves[startInsertionIndex + i] = leaf;
       return this.encodeLeaf(leaf, hash0Leaf);
     });
 
-    await super.appendLeaves(serialisedLeaves);
+    await super.appendLeaves(serializedLeaves);
   }
 
   /**

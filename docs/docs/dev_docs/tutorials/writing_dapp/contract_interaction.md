@@ -12,7 +12,7 @@ Let's start by showing our user's private balance for the token across their acc
 Note that this function will only return a valid response for accounts registered in the RPC Server, since it requires access to the [user's private state](../../wallets/main.md#private-state). In other words, you cannot query the private balance of another user for the token contract.
 :::
 
-To do this, let's first initialise a new `Contract` instance using `aztec.js` that represents our deployed token contracts. Create a new `src/contracts.mjs` file with the imports for our artifacts and other dependencies:
+To do this, let's first initialize a new `Contract` instance using `aztec.js` that represents our deployed token contracts. Create a new `src/contracts.mjs` file with the imports for our artifacts and other dependencies:
 
 ```js
 // src/contracts.mjs
@@ -45,7 +45,7 @@ Balance of 0x0e1f60e8566e2c6d32378bdcadb7c63696e853281be798c107266b8c3a88ea9b: 0
 
 Now that we can see the balance for each user, let's transfer tokens from one account to another. To do this, we will first need access to a `Wallet` object. This wraps access to an RPC Server and also provides an interface to craft and sign transactions on behalf of one of the user accounts.
 
-We can initialise a wallet using one of the `getAccount` methods from `aztec.js`, along with the corresponding signing and encryption keys:
+We can initialize a wallet using one of the `getAccount` methods from `aztec.js`, along with the corresponding signing and encryption keys:
 
 ```js
 import { getSchnorrAccount } from "@aztec/aztec.js";
@@ -56,17 +56,17 @@ const wallet = await getSchnorrAccount(
 ).getWallet();
 ```
 
-For ease of use, `aztec.js` also ships with a helper `getSandboxAccountsWallets` method that returns a wallet for each of the pre-initialised accounts in the Sandbox, so you can send transactions as any of them. 
+For ease of use, `aztec.js` also ships with a helper `getSandboxAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them. 
 
 ```js
 import { getSandboxAccountsWallets } from '@aztec/aztec.js';
 ```
 
-We'll use one of these wallets to initialise the `Contract` instance that represents our private token contract, so every transaction sent through it will be sent through that wallet.
+We'll use one of these wallets to initialize the `Contract` instance that represents our private token contract, so every transaction sent through it will be sent through that wallet.
 
 #include_code transferPrivateFunds yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
 
-Let's go step-by-step on this snippet. We first get wallets for two of the Sandbox accounts, and name them `owner` and `recipient`. Then, we initialise the private token `Contract` instance using the `owner` wallet, meaning that any transactions sent through it will have the `owner` as sender.
+Let's go step-by-step on this snippet. We first get wallets for two of the Sandbox accounts, and name them `owner` and `recipient`. Then, we initialize the private token `Contract` instance using the `owner` wallet, meaning that any transactions sent through it will have the `owner` as sender.
 
 Next, we send a transfer transaction, moving 1 unit of balance to the `recipient` account address. This has no immediate effect, since the transaction first needs to be simulated locally and then submitted and mined. Only once this has finished we can query the balances again and see the effect of our transaction. We are using a `showPrivateBalances` helper function here which has the code we wrote in the section above.
 

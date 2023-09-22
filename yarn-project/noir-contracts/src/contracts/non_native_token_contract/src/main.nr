@@ -40,15 +40,15 @@ contract NonNativeToken {
         },
         oracle::compute_selector::compute_selector,
         state_vars::{map::Map, public_state::PublicState, set::Set},
-        types::type_serialisation::field_serialisation::{
-            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
+        types::type_serialization::field_serialization::{
+            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
     };
 
     struct Storage {
         balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
         pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
-        public_balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+        public_balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -69,7 +69,7 @@ contract NonNativeToken {
                         PublicState::new(
                             context,
                             slot,
-                            FieldSerialisationMethods,
+                            FieldSerializationMethods,
                         )
                     },
                 ),

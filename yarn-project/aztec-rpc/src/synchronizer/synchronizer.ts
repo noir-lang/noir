@@ -8,13 +8,13 @@ import { Database } from '../database/index.js';
 import { NoteProcessor } from '../note_processor/index.js';
 
 /**
- * The Synchroniser class manages the synchronization of note processors and interacts with the Aztec node
+ * The Synchronizer class manages the synchronization of note processors and interacts with the Aztec node
  * to obtain encrypted logs, blocks, and other necessary information for the accounts.
  * It provides methods to start or stop the synchronization process, add new accounts, retrieve account
- * details, and fetch transactions by hash. The Synchroniser ensures that it maintains the note processors
+ * details, and fetch transactions by hash. The Synchronizer ensures that it maintains the note processors
  * in sync with the blockchain while handling retries and errors gracefully.
  */
-export class Synchroniser {
+export class Synchronizer {
   private runningPromise?: Promise<void>;
   private noteProcessors: NoteProcessor[] = [];
   private interruptableSleep = new InterruptableSleep();
@@ -26,7 +26,7 @@ export class Synchroniser {
 
   constructor(private node: AztecNode, private db: Database, logSuffix = '') {
     this.log = createDebugLogger(
-      logSuffix ? `aztec:aztec_rpc_synchroniser_${logSuffix}` : 'aztec:aztec_rpc_synchroniser',
+      logSuffix ? `aztec:aztec_rpc_synchronizer_${logSuffix}` : 'aztec:aztec_rpc_synchronizer',
     );
   }
 
@@ -224,13 +224,13 @@ export class Synchroniser {
   }
 
   /**
-   * Add a new account to the Synchroniser with the specified private key.
+   * Add a new account to the Synchronizer with the specified private key.
    * Creates a NoteProcessor instance for the account and pushes it into the noteProcessors array.
    * The method resolves immediately after pushing the new note processor.
    *
    * @param publicKey - The public key for the account.
    * @param keyStore - The key store.
-   * @returns A promise that resolves once the account is added to the Synchroniser.
+   * @returns A promise that resolves once the account is added to the Synchronizer.
    */
   public addAccount(publicKey: PublicKey, keyStore: KeyStore) {
     const processor = this.noteProcessors.find(x => x.publicKey.equals(publicKey));
@@ -242,13 +242,13 @@ export class Synchroniser {
   }
 
   /**
-   * Checks if the specified account is synchronised.
+   * Checks if the specified account is synchronized.
    * @param account - The aztec address for which to query the sync status.
    * @returns True if the account is fully synched, false otherwise.
    * @remarks Checks whether all the notes from all the blocks have been processed. If it is not the case, the
    *          retrieved information from contracts might be old/stale (e.g. old token balance).
    */
-  public async isAccountStateSynchronised(account: AztecAddress) {
+  public async isAccountStateSynchronized(account: AztecAddress) {
     const completeAddress = await this.db.getCompleteAddress(account);
     if (!completeAddress) {
       return false;
@@ -257,7 +257,7 @@ export class Synchroniser {
     if (!processor) {
       return false;
     }
-    return await processor.isSynchronised();
+    return await processor.isSynchronized();
   }
 
   /**
@@ -266,14 +266,14 @@ export class Synchroniser {
    * @remarks This indicates that blocks and transactions are synched even if notes are not.
    * @remarks Compares local block number with the block number from aztec node.
    */
-  public async isGlobalStateSynchronised() {
+  public async isGlobalStateSynchronized() {
     const latest = await this.node.getBlockNumber();
     return latest <= this.synchedToBlock;
   }
 
   /**
-   * Returns the latest block that has been synchronised by the synchronizer and each account.
-   * @returns The latest block synchronised for blocks, and the latest block synched for notes for each public key being tracked.
+   * Returns the latest block that has been synchronized by the synchronizer and each account.
+   * @returns The latest block synchronized for blocks, and the latest block synched for notes for each public key being tracked.
    */
   public getSyncStatus() {
     return {

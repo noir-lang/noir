@@ -34,7 +34,7 @@ class ArgumentEncoder {
           } else if (typeof arg.toField === 'function') {
             this.flattened.push(arg.toField());
           } else {
-            throw new Error(`Argument for ${name} cannot be serialised to a field`);
+            throw new Error(`Argument for ${name} cannot be serialized to a field`);
           }
         } else {
           throw new Error(`Invalid argument "${arg}" of type ${abiType.kind}`);

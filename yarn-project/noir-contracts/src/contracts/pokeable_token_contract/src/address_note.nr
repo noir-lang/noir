@@ -18,7 +18,7 @@ impl AddressNote {
         }
     }
 
-    fn serialise(self) -> [Field; ADDRESS_NOTE_LEN] {
+    fn serialize(self) -> [Field; ADDRESS_NOTE_LEN] {
         let mut res: [Field; ADDRESS_NOTE_LEN] = [0; ADDRESS_NOTE_LEN];
         res[0] = self.address;
         res
@@ -40,20 +40,20 @@ impl AddressNote {
     }
 }
 
-fn deserialise(preimage: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
+fn deserialize(preimage: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
     AddressNote {
         address: preimage[0],
         header: NoteHeader::empty(),
     }
 }
 
-fn serialise(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: AddressNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    dep::std::hash::pedersen(note.serialise())[0]
+    dep::std::hash::pedersen(note.serialize())[0]
 }
 
 fn compute_nullifier(note: AddressNote) -> Field {
@@ -69,8 +69,8 @@ fn set_header(note: &mut AddressNote, header: NoteHeader) {
 }
 
 global AddressNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

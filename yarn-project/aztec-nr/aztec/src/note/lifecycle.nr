@@ -25,8 +25,8 @@ fn create_note<Note, N>(
     set_header(note, header);
     let inner_note_hash = compute_inner_note_hash(note_interface, *note);
 
-    let serialise = note_interface.serialise;
-    let preimage = serialise(*note);
+    let serialize = note_interface.serialize;
+    let preimage = serialize(*note);
     assert(notify_created_note(storage_slot, preimage, inner_note_hash) == 0);
 
     context.push_new_note_hash(inner_note_hash);

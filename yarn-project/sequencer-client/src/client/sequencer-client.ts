@@ -1,6 +1,6 @@
 import { P2P } from '@aztec/p2p';
 import { ContractDataSource, L1ToL2MessageSource, L2BlockSource } from '@aztec/types';
-import { WorldStateSynchroniser } from '@aztec/world-state';
+import { WorldStateSynchronizer } from '@aztec/world-state';
 
 import { SoloBlockBuilder } from '../block_builder/solo_block_builder.js';
 import { SequencerClientConfig } from '../config.js';
@@ -20,7 +20,7 @@ export class SequencerClient {
    * Initializes and starts a new instance.
    * @param config - Configuration for the sequencer, publisher, and L1 tx sender.
    * @param p2pClient - P2P client that provides the txs to be sequenced.
-   * @param worldStateSynchroniser - Provides access to world state.
+   * @param worldStateSynchronizer - Provides access to world state.
    * @param contractDataSource - Provides access to contract bytecode for public executions.
    * @param l2BlockSource - Provides information about the previously published blocks.
    * @param l1ToL2MessageSource - Provides access to L1 to L2 messages.
@@ -29,14 +29,14 @@ export class SequencerClient {
   public static async new(
     config: SequencerClientConfig,
     p2pClient: P2P,
-    worldStateSynchroniser: WorldStateSynchroniser,
+    worldStateSynchronizer: WorldStateSynchronizer,
     contractDataSource: ContractDataSource,
     l2BlockSource: L2BlockSource,
     l1ToL2MessageSource: L1ToL2MessageSource,
   ) {
     const publisher = getL1Publisher(config);
     const globalsBuilder = getGlobalVariableBuilder(config);
-    const merkleTreeDb = worldStateSynchroniser.getLatest();
+    const merkleTreeDb = worldStateSynchronizer.getLatest();
 
     const blockBuilder = new SoloBlockBuilder(
       merkleTreeDb,
@@ -51,7 +51,7 @@ export class SequencerClient {
       publisher,
       globalsBuilder,
       p2pClient,
-      worldStateSynchroniser,
+      worldStateSynchronizer,
       blockBuilder,
       l2BlockSource,
       l1ToL2MessageSource,

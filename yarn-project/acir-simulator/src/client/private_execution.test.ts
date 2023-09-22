@@ -644,8 +644,8 @@ describe('Private Execution test suite', () => {
       const deepStruct = { aField: 1, aBool: true, aNote: dummyNote, manyNotes: [dummyNote, dummyNote, dummyNote] };
       args = [1, true, 1, [1, 2], dummyNote, deepStruct];
       testCodeGenAbi = TestContractAbi.functions.find(f => f.name === 'testCodeGen')!;
-      const serialisedArgs = encodeArguments(testCodeGenAbi, args);
-      argsHash = await computeVarArgsHash(await CircuitsWasm.get(), serialisedArgs);
+      const serializedArgs = encodeArguments(testCodeGenAbi, args);
+      argsHash = await computeVarArgsHash(await CircuitsWasm.get(), serializedArgs);
     });
 
     it('test function should be directly callable', async () => {

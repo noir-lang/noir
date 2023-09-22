@@ -31,7 +31,7 @@ You cannot execute a public Aztec.nr function in the private kernel
 #### 2011 - PRIVATE_KERNEL__UNSUPPORTED_OP
 You are trying to do something that is currently unsupported in the private kernel. If this is a blocker feel free to open up an issue on our monorepo [aztec3-packages](https://github.com/AztecProtocol/aztec3-packages/tree/master) or reach out to us on discord
 
-Note that certain operations are unsupported on certain versions of the private kernel. Eg static calls are allowed for all but the initial iteration of the private kernel (which initialises the kernel for subsequent function calls).
+Note that certain operations are unsupported on certain versions of the private kernel. Eg static calls are allowed for all but the initial iteration of the private kernel (which initializes the kernel for subsequent function calls).
 
 #### 2012 - PRIVATE_KERNEL__CONTRACT_ADDRESS_MISMATCH
 For the initial iteration of the private kernel, only the expected Aztec.nr contract should be the entrypoint. Static and delegate calls are not allowed in the initial iteration.

@@ -45,11 +45,11 @@ impl TestPrivateContextInterface {
     amount: Field,
     secretHash: Field
   ) {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = secretHash;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0xbac98727, serialised_args)
+    context.call_public_function(self.address, 0xbac98727, serialized_args)
   }
   
 
@@ -59,11 +59,11 @@ impl TestPrivateContextInterface {
     amount: Field,
     secretHash: Field
   ) {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = secretHash;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0x42040a24, serialised_args)
+    context.call_public_function(self.address, 0x42040a24, serialized_args)
   }
   
 
@@ -72,10 +72,10 @@ impl TestPrivateContextInterface {
     context: &mut PrivateContext,
     value: Field
   ) {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = value;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = value;
 
-    context.call_public_function(self.address, 0x817a64cb, serialised_args)
+    context.call_public_function(self.address, 0x817a64cb, serialized_args)
   }
   
 
@@ -84,10 +84,10 @@ impl TestPrivateContextInterface {
     context: &mut PrivateContext,
     aztec_address: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = aztec_address;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = aztec_address;
 
-    context.call_private_function(self.address, 0xaf15a45f, serialised_args)
+    context.call_private_function(self.address, 0xaf15a45f, serialized_args)
   }
   
 
@@ -96,10 +96,10 @@ impl TestPrivateContextInterface {
     context: &mut PrivateContext,
     address: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = address;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = address;
 
-    context.call_private_function(self.address, 0x88f0753b, serialised_args)
+    context.call_private_function(self.address, 0x88f0753b, serialized_args)
   }
   
 
@@ -107,9 +107,9 @@ impl TestPrivateContextInterface {
     self,
     context: &mut PrivateContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 0];
+    let mut serialized_args = [0; 0];
 
-    context.call_private_function(self.address, 0xd3953822, serialised_args)
+    context.call_private_function(self.address, 0xd3953822, serialized_args)
   }
   
 
@@ -117,9 +117,9 @@ impl TestPrivateContextInterface {
     self,
     context: &mut PrivateContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 0];
+    let mut serialized_args = [0; 0];
 
-    context.call_private_function(self.address, 0x82cc9431, serialised_args)
+    context.call_private_function(self.address, 0x82cc9431, serialized_args)
   }
   
 
@@ -128,10 +128,10 @@ impl TestPrivateContextInterface {
     context: &mut PrivateContext,
     time: Field
   ) {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = time;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = time;
 
-    context.call_public_function(self.address, 0xfff6026c, serialised_args)
+    context.call_public_function(self.address, 0xfff6026c, serialized_args)
   }
   
 
@@ -145,26 +145,26 @@ impl TestPrivateContextInterface {
     aStruct: AStructTestCodeGenStruct,
     aDeepStruct: ADeepStructTestCodeGenStruct
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 17];
-    serialised_args[0] = aField;
-    serialised_args[1] = aBool as Field;
-    serialised_args[2] = aNumber as Field;
-    serialised_args[3] = anArray[0];
-    serialised_args[4] = anArray[1];
-    serialised_args[5] = aStruct.amount;
-    serialised_args[6] = aStruct.secretHash;
-    serialised_args[7] = aDeepStruct.aField;
-    serialised_args[8] = aDeepStruct.aBool as Field;
-    serialised_args[9] = aDeepStruct.aNote.amount;
-    serialised_args[10] = aDeepStruct.aNote.secretHash;
-    serialised_args[11] = aDeepStruct.manyNotes[0].amount;
-    serialised_args[12] = aDeepStruct.manyNotes[0].secretHash;
-    serialised_args[13] = aDeepStruct.manyNotes[1].amount;
-    serialised_args[14] = aDeepStruct.manyNotes[1].secretHash;
-    serialised_args[15] = aDeepStruct.manyNotes[2].amount;
-    serialised_args[16] = aDeepStruct.manyNotes[2].secretHash;
+    let mut serialized_args = [0; 17];
+    serialized_args[0] = aField;
+    serialized_args[1] = aBool as Field;
+    serialized_args[2] = aNumber as Field;
+    serialized_args[3] = anArray[0];
+    serialized_args[4] = anArray[1];
+    serialized_args[5] = aStruct.amount;
+    serialized_args[6] = aStruct.secretHash;
+    serialized_args[7] = aDeepStruct.aField;
+    serialized_args[8] = aDeepStruct.aBool as Field;
+    serialized_args[9] = aDeepStruct.aNote.amount;
+    serialized_args[10] = aDeepStruct.aNote.secretHash;
+    serialized_args[11] = aDeepStruct.manyNotes[0].amount;
+    serialized_args[12] = aDeepStruct.manyNotes[0].secretHash;
+    serialized_args[13] = aDeepStruct.manyNotes[1].amount;
+    serialized_args[14] = aDeepStruct.manyNotes[1].secretHash;
+    serialized_args[15] = aDeepStruct.manyNotes[2].amount;
+    serialized_args[16] = aDeepStruct.manyNotes[2].secretHash;
 
-    context.call_private_function(self.address, 0x81d7c118, serialised_args)
+    context.call_private_function(self.address, 0x81d7c118, serialized_args)
   }
   
 }
@@ -190,11 +190,11 @@ impl TestPublicContextInterface {
     amount: Field,
     secretHash: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = secretHash;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0xbac98727, serialised_args)
+    context.call_public_function(self.address, 0xbac98727, serialized_args)
   }
   
 
@@ -204,11 +204,11 @@ impl TestPublicContextInterface {
     amount: Field,
     secretHash: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = secretHash;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = secretHash;
 
-    context.call_public_function(self.address, 0x42040a24, serialised_args)
+    context.call_public_function(self.address, 0x42040a24, serialized_args)
   }
   
 
@@ -217,10 +217,10 @@ impl TestPublicContextInterface {
     context: PublicContext,
     value: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = value;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = value;
 
-    context.call_public_function(self.address, 0x817a64cb, serialised_args)
+    context.call_public_function(self.address, 0x817a64cb, serialized_args)
   }
   
 
@@ -229,10 +229,10 @@ impl TestPublicContextInterface {
     context: PublicContext,
     time: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = time;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = time;
 
-    context.call_public_function(self.address, 0xfff6026c, serialised_args)
+    context.call_public_function(self.address, 0xfff6026c, serialized_args)
   }
   
 }

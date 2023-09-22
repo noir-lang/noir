@@ -55,7 +55,7 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ct
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
     public_inputs.args_hash = compute_var_args_hash<CT>({ amount, asset_id, memo });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 
     // info("public inputs: ", public_inputs);
 

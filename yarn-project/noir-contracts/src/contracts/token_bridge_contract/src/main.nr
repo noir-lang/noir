@@ -10,8 +10,8 @@ contract TokenBridge {
     use dep::aztec::{
         context::{Context},
         state_vars::{public_state::PublicState},
-        types::type_serialisation::field_serialisation::{
-            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
+        types::type_serialization::field_serialization::{
+            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
         types::address::{AztecAddress, EthereumAddress},
         oracle::compute_selector::compute_selector,
@@ -31,7 +31,7 @@ contract TokenBridge {
                 token: PublicState::new(
                     context,
                     1,
-                    FieldSerialisationMethods,
+                    FieldSerializationMethods,
                 ),
             }
         }

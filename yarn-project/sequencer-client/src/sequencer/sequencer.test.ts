@@ -7,7 +7,7 @@ import {
 } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
 import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx, TxHash, mockTx } from '@aztec/types';
-import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchroniser } from '@aztec/world-state';
+import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchronizer } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import times from 'lodash.times';
@@ -23,7 +23,7 @@ describe('sequencer', () => {
   let publisher: MockProxy<L1Publisher>;
   let globalVariableBuilder: MockProxy<GlobalVariableBuilder>;
   let p2p: MockProxy<P2P>;
-  let worldState: MockProxy<WorldStateSynchroniser>;
+  let worldState: MockProxy<WorldStateSynchronizer>;
   let blockBuilder: MockProxy<BlockBuilder>;
   let merkleTreeOps: MockProxy<MerkleTreeOperations>;
   let publicProcessor: MockProxy<PublicProcessor>;
@@ -50,7 +50,7 @@ describe('sequencer', () => {
       getStatus: () => Promise.resolve({ state: P2PClientState.IDLE, syncedToL2Block: lastBlockNumber }),
     });
 
-    worldState = mock<WorldStateSynchroniser>({
+    worldState = mock<WorldStateSynchronizer>({
       getLatest: () => merkleTreeOps,
       status: () => Promise.resolve({ state: WorldStateRunningState.IDLE, syncedToL2Block: lastBlockNumber }),
     });

@@ -24,8 +24,8 @@ impl PublicKeyNote {
         }
     }
 
-    // Serialise the note as 3 fields
-    fn serialise(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
+    // serialize the note as 3 fields
+    fn serialize(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
         [self.x, self.y, self.owner]
     }
 
@@ -45,7 +45,7 @@ impl PublicKeyNote {
     }
 }
 
-fn deserialise(preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
+fn deserialize(preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
     PublicKeyNote {
         x: preimage[0],
         y: preimage[1],
@@ -54,13 +54,13 @@ fn deserialise(preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
     }
 }
 
-fn serialise(note: PublicKeyNote) -> [Field; PUBLIC_KEY_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: PublicKeyNote) -> [Field; PUBLIC_KEY_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: PublicKeyNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    dep::std::hash::pedersen(note.serialise())[0]
+    dep::std::hash::pedersen(note.serialize())[0]
 }
 
 fn compute_nullifier(note: PublicKeyNote) -> Field {
@@ -76,8 +76,8 @@ fn set_header(note: &mut PublicKeyNote, header: NoteHeader) {
 }
 
 global PublicKeyNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

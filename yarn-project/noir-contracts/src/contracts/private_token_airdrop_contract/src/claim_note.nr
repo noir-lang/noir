@@ -22,11 +22,11 @@ impl ClaimNote {
         }
     }
 
-    fn serialise(self) -> [Field; CLAIM_NOTE_LEN] {
+    fn serialize(self) -> [Field; CLAIM_NOTE_LEN] {
         [self.value, self.secret_hash]
     }
 
-    fn deserialise(preimage: [Field; CLAIM_NOTE_LEN]) -> Self {
+    fn deserialize(preimage: [Field; CLAIM_NOTE_LEN]) -> Self {
         ClaimNote {
             value: preimage[0],
             secret_hash: preimage[1],
@@ -56,12 +56,12 @@ impl ClaimNote {
     }
 }
 
-fn deserialise(preimage: [Field; CLAIM_NOTE_LEN]) -> ClaimNote {
-    ClaimNote::deserialise(preimage)
+fn deserialize(preimage: [Field; CLAIM_NOTE_LEN]) -> ClaimNote {
+    ClaimNote::deserialize(preimage)
 }
 
-fn serialise(note: ClaimNote) -> [Field; CLAIM_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: ClaimNote) -> [Field; CLAIM_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: ClaimNote) -> Field {
@@ -81,8 +81,8 @@ fn set_header(note: &mut ClaimNote, header: NoteHeader) {
 }
 
 global ClaimNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

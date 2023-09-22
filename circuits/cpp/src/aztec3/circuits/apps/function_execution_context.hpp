@@ -67,7 +67,7 @@ template <typename Builder> class FunctionExecutionContext {
 
     PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs{};
 
-    bool is_finalised = false;
+    bool is_finalized = false;
 
   public:
     FunctionExecutionContext(Builder& builder, OracleWrapperInterface<Builder>& oracle)
@@ -101,8 +101,8 @@ template <typename Builder> class FunctionExecutionContext {
     PrivateCircuitPublicInputs<NT> get_final_private_circuit_public_inputs()
     {
         // For safety, only return this if the circuit is complete.
-        if (!is_finalised) {
-            throw_or_abort("You need to call exec_ctx.finalise() in your circuit first.");
+        if (!is_finalized) {
+            throw_or_abort("You need to call exec_ctx.finalize() in your circuit first.");
         }
         return final_private_circuit_public_inputs;
     }
@@ -287,7 +287,7 @@ template <typename Builder> class FunctionExecutionContext {
      * TODO: Might need some refactoring. Roles between: Opcodes modifying exec_ctx members; and the exec_ctx directly
      * modifying its members, are somewhat blurred at the moment.
      */
-    void finalise_utxos()
+    void finalize_utxos()
     {
         // Copy some vectors, as we can't control whether they'll be pushed-to further, when we call Note methods.
         auto new_nullifiers_copy = new_nullifiers;
@@ -319,16 +319,16 @@ template <typename Builder> class FunctionExecutionContext {
         std::copy(new_nonces.begin(), new_nonces.end(), std::back_inserter(new_nullifiers));
     }
 
-    void finalise()
+    void finalize()
     {
-        finalise_utxos();
+        finalize_utxos();
         private_circuit_public_inputs.set_commitments(new_commitments);
         private_circuit_public_inputs.set_nullifiers(new_nullifiers);
         private_circuit_public_inputs.set_nullified_commitments(nullified_commitments);
         private_circuit_public_inputs.set_public(builder);
         final_private_circuit_public_inputs =
             private_circuit_public_inputs.remove_optionality().template to_native_type<Builder>();
-        is_finalised = true;
+        is_finalized = true;
     }
 };
 

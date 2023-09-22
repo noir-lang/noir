@@ -2,9 +2,9 @@
 title: State Variables
 ---
 
-State variables come in two flavours: [**public** state](#publicstatet-t_serialised_len) and [**private** state](#private-state-variables).
+State variables come in two flavours: [**public** state](#publicstatet-t_serialized_len) and [**private** state](#private-state-variables).
 
-## `PublicState<T, T_SERIALISED_LEN>`
+## `PublicState<T, T_SERIALIZED_LEN>`
 
 Public state is persistent state that is _publicly visible_ to anyone in the world.
 
@@ -12,7 +12,7 @@ For developers coming from other blockchain ecosystems (such as Ethereum), this 
 
 Aztec public state follows an account-based model. That is, each state occupies a leaf in an account-based merkle tree: the public state tree. See [here](/concepts/advanced/data_structures/trees#public-state-tree) for more of the technical details.
 
-The `PublicState<T, T_SERIALISED_LEN>` struct serves as a wrapper around conventional Noir types `T`, allowing these types to be written to and read from the public state tree.
+The `PublicState<T, T_SERIALIZED_LEN>` struct serves as a wrapper around conventional Noir types `T`, allowing these types to be written to and read from the public state tree.
 
 ### `::new`
 
@@ -22,13 +22,13 @@ In the following example, we define a public state with a boolean type:
 
 #include_code state_vars-PublicState /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-The BoolSerialisationMethods is part of the Aztec stdlib:
+The BoolSerializationMethods is part of the Aztec stdlib:
 
 #include_code state_vars-PublicStateBoolImport /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-It contains methods that instruct its PublicState wrapper how to serialise and deserialise a boolean to and from a Field, which is the data type being saved in the public state tree.
+It contains methods that instruct its PublicState wrapper how to serialize and deserialize a boolean to and from a Field, which is the data type being saved in the public state tree.
 
-The Aztec stdlib provides serialization methods for various common types. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/types/type_serialisation) for the complete list.
+The Aztec stdlib provides serialization methods for various common types. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/types/type_serialization) for the complete list.
 
 ### Custom types
 
@@ -36,17 +36,17 @@ It's possible to create a public state for any types. Simply define methods that
 
 The methods should be implemented in a struct that conforms to the following interface:
 
-#include_code TypeSerialisationInterface /yarn-project/aztec-nr/aztec/src/types/type_serialisation.nr rust
+#include_code TypeSerializationInterface /yarn-project/aztec-nr/aztec/src/types/type_serialization.nr rust
 
 For example, to create a public state for the following type:
 
 #include_code state_vars-CustomStruct /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/types/queen.nr rust
 
-First, define how to serialise and deserialise the custom type:
+First, define how to serialize and deserialize the custom type:
 
 #include_code state_vars-PublicStateCustomStruct /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/types/queen.nr rust
 
-And then initialise the PublicState with it:
+And then initialize the PublicState with it:
 
 #include_code state_vars-PublicStateCustomStruct /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
@@ -66,7 +66,7 @@ Every public state can be read before its value is written. The default value is
 
 The currently-stored value of a private state variable can be overwritten with `.write()`.
 
-Due to the way public states are [declared](#new), a public state knows how to serialise a given value and store it in the protocol's public state tree.
+Due to the way public states are [declared](#new), a public state knows how to serialize a given value and store it in the protocol's public state tree.
 
 We can pass the associated type directly to the `write()` method:
 
@@ -133,7 +133,7 @@ The interplay between a private state variable and its notes can be confusing. H
 
 ## `Singleton<NoteType>`
 
-Singleton is a private state variable that is unique in a way. When a Singleton is initialised, a note is created to represent its value. And the way to update the value is to destroy the current note, and create a new one with the updated value.
+Singleton is a private state variable that is unique in a way. When a Singleton is initialized, a note is created to represent its value. And the way to update the value is to destroy the current note, and create a new one with the updated value.
 
 ### `::new`
 
@@ -141,15 +141,15 @@ Here we define a Singleton for storing a `CardNote`:
 
 #include_code state_vars-Singleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-### `.initialise`
+### `.initialize`
 
-The initial value of a Singleton is set via calling `initialise`:
+The initial value of a Singleton is set via calling `initialize`:
 
 #include_code state_vars-SingletonInit /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
-When this function is called, a nullifier of the storage slot is created, preventing this Singleton from being initialised again.
+When this function is called, a nullifier of the storage slot is created, preventing this Singleton from being initialized again.
 
-Unlike public states, which have a default initial value of `0` (or many zeros, in the case of a struct, array or map), a private state (of type `Singleton`, `ImmutableSingleton` or `Set`) does not have a default initial value. The `initialise` method (or `insert`, in the case of a `Set`) must be called.
+Unlike public states, which have a default initial value of `0` (or many zeros, in the case of a struct, array or map), a private state (of type `Singleton`, `ImmutableSingleton` or `Set`) does not have a default initial value. The `initialize` method (or `insert`, in the case of a `Set`) must be called.
 
 ### `.replace`
 
@@ -179,9 +179,9 @@ In the following example, we define an ImmutableSingleton that utilises the `Rul
 
 #include_code state_vars-ImmutableSingleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 
-### `.initialise`
+### `.initialize`
 
-Set the initial value of an ImmutableSingleton by calling the `initialise` method:
+Set the initial value of an ImmutableSingleton by calling the `initialize` method:
 
 #include_code state_vars-ImmutableSingletonInit /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
 
@@ -195,7 +195,7 @@ Use this method to retrieve the value of an initialized ImmutableSingleton:
 
 Unlike a [`singleton`](#get_note-1), the `get_note` function for an ImmutableSingleton doesn't destroy the current note in the background. This means that multiple accounts can concurrently call this function to read the value.
 
-This function will throw if the ImmutableSingleton hasn't been initialised.
+This function will throw if the ImmutableSingleton hasn't been initialized.
 
 ## `Set<NoteType>`
 
@@ -269,11 +269,11 @@ Several methods are available on `NoteGetterOptions` to construct the options in
 
 #### `fn new() -> NoteGetterOptions<Note, N, Field>`
 
-This function initialises a `NoteGetterOptions` that simply returns the maximum number of notes allowed in a call.
+This function initializes a `NoteGetterOptions` that simply returns the maximum number of notes allowed in a call.
 
 #### `fn with_filter(filter, filter_args) -> NoteGetterOptions<Note, N, FILTER_ARGS>`
 
-This function initialises a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_read_requests_per_call-filter_args---optionnote-max_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
+This function initializes a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_read_requests_per_call-filter_args---optionnote-max_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
 
 #### `.select`
 
@@ -347,7 +347,7 @@ The `NoteViewerOptions` is essentially similar to the [`NoteGetterOptions`](#not
 
 ## `Map<T>`
 
-`Map` is a state variable that maps a `Field` to another state variable, which can be [`PublicState`](#publicstatet-t_serialised_len), all the [private state variables](#private-state-variables), and even another Map.
+`Map` is a state variable that maps a `Field` to another state variable, which can be [`PublicState`](#publicstatet-t_serialized_len), all the [private state variables](#private-state-variables), and even another Map.
 
 > `Map` can map from `Field` or any native Noir type which is convertible to `Field`.
 

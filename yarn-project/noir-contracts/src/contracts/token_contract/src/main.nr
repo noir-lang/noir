@@ -29,8 +29,8 @@ contract Token {
         },
         context::{PrivateContext, PublicContext, Context},
         state_vars::{map::Map, public_state::PublicState, set::Set},
-        types::type_serialisation::field_serialisation::{
-            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
+        types::type_serialization::field_serialization::{
+            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
         types::address::{AztecAddress},
         oracle::compute_selector::compute_selector,
@@ -43,12 +43,12 @@ contract Token {
 
     // docs:start:storage_struct
     struct Storage {
-        admin: PublicState<Field, FIELD_SERIALISED_LEN>,
-        minters: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+        admin: PublicState<Field, FIELD_SERIALIZED_LEN>,
+        minters: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
         balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        total_supply: PublicState<Field, FIELD_SERIALISED_LEN>,
+        total_supply: PublicState<Field, FIELD_SERIALIZED_LEN>,
         pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
-        public_balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+        public_balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
     // docs:end:storage_struct
 
@@ -59,7 +59,7 @@ contract Token {
                 admin: PublicState::new(
                     context,
                     1,
-                    FieldSerialisationMethods,
+                    FieldSerializationMethods,
                 ),
                 minters: Map::new(
                     context,
@@ -68,7 +68,7 @@ contract Token {
                         PublicState::new(
                             context,
                             slot,
-                            FieldSerialisationMethods,
+                            FieldSerializationMethods,
                         )
                     },
                 ),
@@ -82,7 +82,7 @@ contract Token {
                 total_supply: PublicState::new(
                     context,
                     4,
-                    FieldSerialisationMethods,
+                    FieldSerializationMethods,
                 ),
                 pending_shields: Set::new(context, 5, TransparentNoteMethods),
                 public_balances: Map::new(
@@ -92,7 +92,7 @@ contract Token {
                         PublicState::new(
                             context,
                             slot,
-                            FieldSerialisationMethods,
+                            FieldSerializationMethods,
                         )
                     },
                 ),

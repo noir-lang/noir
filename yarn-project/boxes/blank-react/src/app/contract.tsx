@@ -31,7 +31,7 @@ export function Contract({ wallet }: Props) {
     setResult(`Contract deployed at: ${address}`);
   };
   const handleResult = (returnValues: any) => {
-    // TODO: Serialise returnValues to string according to the returnTypes defined in the function abi.
+    // TODO: serialize returnValues to string according to the returnTypes defined in the function abi.
     setResult(`Return values: ${returnValues}`);
   };
   const handleClosePopup = () => {

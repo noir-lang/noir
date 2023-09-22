@@ -2,7 +2,7 @@
 
 The sequencer is a module responsible for creating and publishing new rollup blocks. This involves fetching txs from the P2P pool, ordering them, executing any public functions, running them through the rollup circuits, assembling the L2 block, and posting it to the L1 rollup contract along with any contract deployment public data.
 
-The client itself is implemented as a continuous loop. After being started, it polls the P2P pool for new txs, assembles a new block if any is found, and goes back to sleep. On every new block assembled, it modifies the world state database to reflect the txs processed, but these changes are only committed once the world state synchroniser sees the new block on L1.
+The client itself is implemented as a continuous loop. After being started, it polls the P2P pool for new txs, assembles a new block if any is found, and goes back to sleep. On every new block assembled, it modifies the world state database to reflect the txs processed, but these changes are only committed once the world state synchronizer sees the new block on L1.
 
 ## Components
 

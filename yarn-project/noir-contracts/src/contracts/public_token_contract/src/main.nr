@@ -12,13 +12,13 @@ contract PublicToken {
             map::Map,
             public_state::PublicState,
         },
-        types::type_serialisation::field_serialisation::{
-            FieldSerialisationMethods, FIELD_SERIALISED_LEN,
+        types::type_serialization::field_serialization::{
+            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
     };
 
     struct Storage {
-        balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
+        balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -28,7 +28,7 @@ contract PublicToken {
                     context,
                     1,
                     |context, slot| {
-                        PublicState::new(context, slot, FieldSerialisationMethods)
+                        PublicState::new(context, slot, FieldSerializationMethods)
                     },
                 ),
             }

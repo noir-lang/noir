@@ -138,7 +138,7 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
       expect(nodeInfo.rollupAddress.toString()).toMatch(/0x[a-fA-F0-9]+/);
     });
 
-    // Note: Not testing `isGlobalStateSynchronised`, `isAccountStateSynchronised` and `getSyncStatus` as these methods
-    //       only call synchroniser.
+    // Note: Not testing `isGlobalStateSynchronized`, `isAccountStateSynchronized` and `getSyncStatus` as these methods
+    //       only call synchronizer.
   });
 };

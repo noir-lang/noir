@@ -26,17 +26,17 @@ impl PrivateTokenAirdropPrivateContextInterface {
     recipients: [Field;3],
     spend_note_offset: u32
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 8];
-    serialised_args[0] = sender;
-    serialised_args[1] = amounts[0];
-    serialised_args[2] = amounts[1];
-    serialised_args[3] = amounts[2];
-    serialised_args[4] = recipients[0];
-    serialised_args[5] = recipients[1];
-    serialised_args[6] = recipients[2];
-    serialised_args[7] = spend_note_offset as Field;
+    let mut serialized_args = [0; 8];
+    serialized_args[0] = sender;
+    serialized_args[1] = amounts[0];
+    serialized_args[2] = amounts[1];
+    serialized_args[3] = amounts[2];
+    serialized_args[4] = recipients[0];
+    serialized_args[5] = recipients[1];
+    serialized_args[6] = recipients[2];
+    serialized_args[7] = spend_note_offset as Field;
 
-    context.call_private_function(self.address, 0xbf748730, serialised_args)
+    context.call_private_function(self.address, 0xbf748730, serialized_args)
   }
   
 
@@ -46,11 +46,11 @@ impl PrivateTokenAirdropPrivateContextInterface {
     amount: Field,
     owner: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner;
 
-    context.call_private_function(self.address, 0xa4fa3a6f, serialised_args)
+    context.call_private_function(self.address, 0xa4fa3a6f, serialized_args)
   }
   
 
@@ -62,13 +62,13 @@ impl PrivateTokenAirdropPrivateContextInterface {
     owner: Field,
     nonce: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 4];
-    serialised_args[0] = amount;
-    serialised_args[1] = secret;
-    serialised_args[2] = owner;
-    serialised_args[3] = nonce;
+    let mut serialized_args = [0; 4];
+    serialized_args[0] = amount;
+    serialized_args[1] = secret;
+    serialized_args[2] = owner;
+    serialized_args[3] = nonce;
 
-    context.call_private_function(self.address, 0xa9220f0f, serialised_args)
+    context.call_private_function(self.address, 0xa9220f0f, serialized_args)
   }
   
 
@@ -78,41 +78,41 @@ impl PrivateTokenAirdropPrivateContextInterface {
     amounts: [Field;16],
     secrets: [Field;16]
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 32];
-    serialised_args[0] = amounts[0];
-    serialised_args[1] = amounts[1];
-    serialised_args[2] = amounts[2];
-    serialised_args[3] = amounts[3];
-    serialised_args[4] = amounts[4];
-    serialised_args[5] = amounts[5];
-    serialised_args[6] = amounts[6];
-    serialised_args[7] = amounts[7];
-    serialised_args[8] = amounts[8];
-    serialised_args[9] = amounts[9];
-    serialised_args[10] = amounts[10];
-    serialised_args[11] = amounts[11];
-    serialised_args[12] = amounts[12];
-    serialised_args[13] = amounts[13];
-    serialised_args[14] = amounts[14];
-    serialised_args[15] = amounts[15];
-    serialised_args[16] = secrets[0];
-    serialised_args[17] = secrets[1];
-    serialised_args[18] = secrets[2];
-    serialised_args[19] = secrets[3];
-    serialised_args[20] = secrets[4];
-    serialised_args[21] = secrets[5];
-    serialised_args[22] = secrets[6];
-    serialised_args[23] = secrets[7];
-    serialised_args[24] = secrets[8];
-    serialised_args[25] = secrets[9];
-    serialised_args[26] = secrets[10];
-    serialised_args[27] = secrets[11];
-    serialised_args[28] = secrets[12];
-    serialised_args[29] = secrets[13];
-    serialised_args[30] = secrets[14];
-    serialised_args[31] = secrets[15];
+    let mut serialized_args = [0; 32];
+    serialized_args[0] = amounts[0];
+    serialized_args[1] = amounts[1];
+    serialized_args[2] = amounts[2];
+    serialized_args[3] = amounts[3];
+    serialized_args[4] = amounts[4];
+    serialized_args[5] = amounts[5];
+    serialized_args[6] = amounts[6];
+    serialized_args[7] = amounts[7];
+    serialized_args[8] = amounts[8];
+    serialized_args[9] = amounts[9];
+    serialized_args[10] = amounts[10];
+    serialized_args[11] = amounts[11];
+    serialized_args[12] = amounts[12];
+    serialized_args[13] = amounts[13];
+    serialized_args[14] = amounts[14];
+    serialized_args[15] = amounts[15];
+    serialized_args[16] = secrets[0];
+    serialized_args[17] = secrets[1];
+    serialized_args[18] = secrets[2];
+    serialized_args[19] = secrets[3];
+    serialized_args[20] = secrets[4];
+    serialized_args[21] = secrets[5];
+    serialized_args[22] = secrets[6];
+    serialized_args[23] = secrets[7];
+    serialized_args[24] = secrets[8];
+    serialized_args[25] = secrets[9];
+    serialized_args[26] = secrets[10];
+    serialized_args[27] = secrets[11];
+    serialized_args[28] = secrets[12];
+    serialized_args[29] = secrets[13];
+    serialized_args[30] = secrets[14];
+    serialized_args[31] = secrets[15];
 
-    context.call_private_function(self.address, 0x2eebe7ab, serialised_args)
+    context.call_private_function(self.address, 0x2eebe7ab, serialized_args)
   }
   
 
@@ -122,11 +122,11 @@ impl PrivateTokenAirdropPrivateContextInterface {
     amount: Field,
     owner: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner;
 
-    context.call_private_function(self.address, 0x1535439c, serialised_args)
+    context.call_private_function(self.address, 0x1535439c, serialized_args)
   }
   
 
@@ -136,11 +136,11 @@ impl PrivateTokenAirdropPrivateContextInterface {
     amount: Field,
     recipient: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
 
-    context.call_private_function(self.address, 0xc0888d22, serialised_args)
+    context.call_private_function(self.address, 0xc0888d22, serialized_args)
   }
   
 }

@@ -80,7 +80,7 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::vector<NT::fr> const&
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
     public_inputs.args_hash = compute_var_args_hash<CT>({ a, b, c });
 
-    exec_ctx.finalise();
+    exec_ctx.finalize();
 };
 
 }  // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

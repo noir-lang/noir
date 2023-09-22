@@ -79,7 +79,7 @@ Let's double check that the accounts have been registered with the sandbox using
 
 #include_code get-accounts yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
-You will see a that a number of accounts exist that we did not create. The Sandbox initialises itself with 3 default accounts. Save one of the printed accounts (not the one that you generated above) in an environment variable. We will use it later.
+You will see a that a number of accounts exist that we did not create. The Sandbox initializes itself with 3 default accounts. Save one of the printed accounts (not the one that you generated above) in an environment variable. We will use it later.
 
 ```bash
 export ADDRESS2=<Account address printed by the above command>

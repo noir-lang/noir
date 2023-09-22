@@ -2,7 +2,7 @@
 
 As an app developer, the [Aztec RPC Server](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-rpc) interface provides you with access to the user's accounts and their private state, as well as a connection to the network for accessing public global state.
 
-During the Sandbox phase, this role is fulfilled by the [Aztec Sandbox](../../getting_started/sandbox.md), which runs a local RPC Server and an Aztec Node, both connected to a local Ethereum development node like Anvil. The Sandbox also includes a set of pre-initialised accounts that you can use from your app.
+During the Sandbox phase, this role is fulfilled by the [Aztec Sandbox](../../getting_started/sandbox.md), which runs a local RPC Server and an Aztec Node, both connected to a local Ethereum development node like Anvil. The Sandbox also includes a set of pre-initialized accounts that you can use from your app.
 
 In this section, we'll connect to the Sandbox from our project.
 
@@ -26,7 +26,7 @@ Should the above fail due to a connection error, make sure the Sandbox is runnin
 
 ## Load user accounts
 
-With our connection to the RPC server, let's try loading the accounts that are pre-initialised in the Sandbox:
+With our connection to the RPC server, let's try loading the accounts that are pre-initialized in the Sandbox:
 
 #include_code showAccounts yarn-project/end-to-end/src/sample-dapp/index.mjs javascript
 

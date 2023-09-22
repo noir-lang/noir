@@ -98,7 +98,7 @@ fn create_note(
         let application_contract_address = (*context).this_address();
         let note_storage_slot = balance.storage_slot;
         let encryption_pub_key = get_public_key(owner);
-        let encrypted_data = (*note).serialise();
+        let encrypted_data = (*note).serialize();
 
         emit_encrypted_log(
             context,

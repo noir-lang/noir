@@ -58,13 +58,13 @@ import { Database } from '../database/index.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
 import { KernelProver } from '../kernel_prover/kernel_prover.js';
 import { getAcirSimulator } from '../simulator/index.js';
-import { Synchroniser } from '../synchroniser/index.js';
+import { Synchronizer } from '../synchronizer/index.js';
 
 /**
  * A remote Aztec RPC Client implementation.
  */
 export class AztecRPCServer implements AztecRPC {
-  private synchroniser: Synchroniser;
+  private synchronizer: Synchronizer;
   private contractDataOracle: ContractDataOracle;
   private simulator: AcirSimulator;
   private log: DebugLogger;
@@ -78,7 +78,7 @@ export class AztecRPCServer implements AztecRPC {
     logSuffix?: string,
   ) {
     this.log = createDebugLogger(logSuffix ? `aztec:rpc_server_${logSuffix}` : `aztec:rpc_server`);
-    this.synchroniser = new Synchroniser(node, db, logSuffix);
+    this.synchronizer = new Synchronizer(node, db, logSuffix);
     this.contractDataOracle = new ContractDataOracle(db, node);
     this.simulator = getAcirSimulator(db, node, node, node, keyStore, this.contractDataOracle);
 
@@ -91,7 +91,7 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A promise that resolves when the server has started successfully.
    */
   public async start() {
-    await this.synchroniser.start(INITIAL_L2_BLOCK_NUM, 1, this.config.l2BlockPollingIntervalMS);
+    await this.synchronizer.start(INITIAL_L2_BLOCK_NUM, 1, this.config.l2BlockPollingIntervalMS);
     const info = await this.getNodeInfo();
     this.log.info(`Started RPC server connected to chain ${info.chainId} version ${info.protocolVersion}`);
   }
@@ -104,7 +104,7 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A Promise resolving once the server has been stopped successfully.
    */
   public async stop() {
-    await this.synchroniser.stop();
+    await this.synchronizer.stop();
     this.log.info('Stopped');
   }
 
@@ -117,7 +117,7 @@ export class AztecRPCServer implements AztecRPC {
     const wasAdded = await this.db.addCompleteAddress(completeAddress);
     if (wasAdded) {
       const pubKey = this.keyStore.addAccount(privKey);
-      this.synchroniser.addAccount(pubKey, this.keyStore);
+      this.synchronizer.addAccount(pubKey, this.keyStore);
       this.log.info(`Registered account ${completeAddress.address.toString()}`);
       this.log.debug(`Registered account\n ${completeAddress.toReadableString()}`);
     } else {
@@ -578,15 +578,15 @@ export class AztecRPCServer implements AztecRPC {
     );
   }
 
-  public async isGlobalStateSynchronised() {
-    return await this.synchroniser.isGlobalStateSynchronised();
+  public async isGlobalStateSynchronized() {
+    return await this.synchronizer.isGlobalStateSynchronized();
   }
 
-  public async isAccountStateSynchronised(account: AztecAddress) {
-    return await this.synchroniser.isAccountStateSynchronised(account);
+  public async isAccountStateSynchronized(account: AztecAddress) {
+    return await this.synchronizer.isAccountStateSynchronized(account);
   }
 
   public getSyncStatus() {
-    return Promise.resolve(this.synchroniser.getSyncStatus());
+    return Promise.resolve(this.synchronizer.getSyncStatus());
   }
 }

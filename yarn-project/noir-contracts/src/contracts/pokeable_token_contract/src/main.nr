@@ -55,8 +55,8 @@ contract PokeableToken {
         let mut sender_note = AddressNote::new(sender);
         let mut recipient_note = AddressNote::new(recipient);
 
-        storage.sender.initialise(&mut sender_note);
-        storage.recipient.initialise(&mut recipient_note);
+        storage.sender.initialize(&mut sender_note);
+        storage.recipient.initialize(&mut recipient_note);
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let sender_balance = storage.balances.at(sender);

@@ -31,11 +31,11 @@ impl ValueNote {
         }
     }
 
-    fn serialise(self) -> [Field; VALUE_NOTE_LEN] {
+    fn serialize(self) -> [Field; VALUE_NOTE_LEN] {
         [self.value, self.owner, self.randomness]
     }
 
-    fn deserialise(preimage: [Field; VALUE_NOTE_LEN]) -> Self {
+    fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> Self {
         ValueNote {
             value: preimage[0],
             owner: preimage[1],
@@ -73,12 +73,12 @@ impl ValueNote {
     }
 }
 
-fn deserialise(preimage: [Field; VALUE_NOTE_LEN]) -> ValueNote {
-    ValueNote::deserialise(preimage)
+fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> ValueNote {
+    ValueNote::deserialize(preimage)
 }
 
-fn serialise(note: ValueNote) -> [Field; VALUE_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: ValueNote) -> [Field; VALUE_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: ValueNote) -> Field {
@@ -98,8 +98,8 @@ fn set_header(note: &mut ValueNote, header: NoteHeader) {
 }
 
 global ValueNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

@@ -32,14 +32,14 @@ const verifyTx = (actual: Tx, expected: Tx) => {
 };
 
 describe('Messages', () => {
-  it('Correctly serialises and deserialises a single private transaction', () => {
+  it('Correctly serializes and deserializes a single private transaction', () => {
     const transaction = mockTx();
     const message = toTxMessage(transaction);
     const decodedTransaction = fromTxMessage(message);
     verifyTx(decodedTransaction, transaction);
   });
 
-  it('Correctly serialises and deserialises transactions messages', () => {
+  it('Correctly serializes and deserializes transactions messages', () => {
     const privateTransactions = [mockTx(), mockTx(), mockTx()];
     const message = createTransactionsMessage(privateTransactions);
     expect(decodeMessageType(message)).toBe(Messages.POOLED_TRANSACTIONS);
@@ -49,7 +49,7 @@ describe('Messages', () => {
     verifyTx(decodedTransactions[2], privateTransactions[2]);
   });
 
-  it('Correctly serialises and deserialises transaction hashes message', () => {
+  it('Correctly serializes and deserializes transaction hashes message', () => {
     const txHashes = [makeTxHash(), makeTxHash(), makeTxHash()];
     const message = createTransactionHashesMessage(txHashes);
     expect(decodeMessageType(message)).toEqual(Messages.POOLED_TRANSACTION_HASHES);
@@ -57,7 +57,7 @@ describe('Messages', () => {
     expect(decodedHashes.map(x => x.toString())).toEqual(txHashes.map(x => x.toString()));
   });
 
-  it('Correctly serialises and deserialises get transactions message', () => {
+  it('Correctly serializes and deserializes get transactions message', () => {
     const txHashes = [makeTxHash(), makeTxHash(), makeTxHash()];
     const message = createGetTransactionsRequestMessage(txHashes);
     expect(decodeMessageType(message)).toEqual(Messages.GET_TRANSACTIONS);

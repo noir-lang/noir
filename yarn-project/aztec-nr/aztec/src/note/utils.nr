@@ -68,9 +68,9 @@ fn compute_note_hash_and_nullifier<Note, N, S>(
     note_header: NoteHeader,
     preimage: [Field; S],
 ) -> [Field; 4] {
-    let deserialise = note_interface.deserialise;
+    let deserialize = note_interface.deserialize;
     let set_header = note_interface.set_header;
-    let mut note = deserialise(arr_copy_slice(preimage, [0; N], 0));
+    let mut note = deserialize(arr_copy_slice(preimage, [0; N], 0));
     set_header(&mut note, note_header);
 
     let compute_note_hash = note_interface.compute_note_hash;

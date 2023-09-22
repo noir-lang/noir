@@ -1,5 +1,5 @@
 /**
- * World State synchroniser configuration values.
+ * World State synchronizer configuration values.
  */
 export interface WorldStateConfig {
   /**
@@ -14,8 +14,8 @@ export interface WorldStateConfig {
 }
 
 /**
- * Returns the configuration values for the world state synchroniser.
- * @returns The configuration values for the world state synchroniser.
+ * Returns the configuration values for the world state synchronizer.
+ * @returns The configuration values for the world state synchronizer.
  */
 export function getConfigEnvVars(): WorldStateConfig {
   const { WS_BLOCK_CHECK_INTERVAL_MS, WS_L2_BLOCK_QUEUE_SIZE } = process.env;

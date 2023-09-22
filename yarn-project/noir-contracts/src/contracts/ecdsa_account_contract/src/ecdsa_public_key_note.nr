@@ -24,13 +24,13 @@ impl EcdsaPublicKeyNote {
         }
     }
 
-    // Serialise the note as 5 fields where:
+    // serialize the note as 5 fields where:
     // [0] = x[0..31] (upper bound excluded)
     // [1] = x[31]
     // [2] = y[0..31]
     // [3] = y[31]
     // [4] = owner
-    fn serialise(self) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
+    fn serialize(self) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
         let mut x: Field = 0;
         let mut y: Field = 0;
         let mut mul: Field = 1;
@@ -66,7 +66,7 @@ impl EcdsaPublicKeyNote {
     }
 }
 
-fn deserialise(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
+fn deserialize(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
     let mut x: [u8; 32] = [0;32];
     let mut y: [u8; 32] = [0;32];
 
@@ -86,13 +86,13 @@ fn deserialise(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNo
     }
 }
 
-fn serialise(note: EcdsaPublicKeyNote) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: EcdsaPublicKeyNote) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: EcdsaPublicKeyNote) -> Field {
     // TODO(#1205) Should use a non-zero generator index.
-    dep::std::hash::pedersen(note.serialise())[0]
+    dep::std::hash::pedersen(note.serialize())[0]
 }
 
 fn compute_nullifier(note: EcdsaPublicKeyNote) -> Field {
@@ -108,8 +108,8 @@ fn set_header(note: &mut EcdsaPublicKeyNote, header: NoteHeader) {
 }
 
 global EcdsaPublicKeyNoteInterface = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

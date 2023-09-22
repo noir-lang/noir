@@ -99,7 +99,7 @@ export class FunctionSelector {
   static fromNameAndParameters(name: string, parameters: ABIParameter[]) {
     const signature = decodeFunctionSignature(name, parameters);
     const selector = FunctionSelector.fromSignature(signature);
-    // If using the debug logger here it kill the typing in the `server_world_state_synchroniser` and jest tests.
+    // If using the debug logger here it kill the typing in the `server_world_state_synchronizer` and jest tests.
     // console.log(`Function selector for ${signature} is ${selector}`);
     return selector;
   }

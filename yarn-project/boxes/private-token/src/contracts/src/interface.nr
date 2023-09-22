@@ -24,11 +24,11 @@ impl PrivateTokenPrivateContextInterface {
     amount: Field,
     owner: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = owner;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = owner;
 
-    context.call_private_function(self.address, 0x1535439c, serialised_args)
+    context.call_private_function(self.address, 0x1535439c, serialized_args)
   }
   
 
@@ -38,11 +38,11 @@ impl PrivateTokenPrivateContextInterface {
     amount: Field,
     recipient: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 2];
-    serialised_args[0] = amount;
-    serialised_args[1] = recipient;
+    let mut serialized_args = [0; 2];
+    serialized_args[0] = amount;
+    serialized_args[1] = recipient;
 
-    context.call_private_function(self.address, 0xc0888d22, serialised_args)
+    context.call_private_function(self.address, 0xc0888d22, serialized_args)
   }
   
 }

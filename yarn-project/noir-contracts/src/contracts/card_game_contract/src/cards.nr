@@ -145,7 +145,7 @@ impl Deck {
                 (*context).this_address(),
                 self.set.storage_slot,
                 owner_key,
-                card_note.note.serialise(),
+                card_note.note.serialize(),
             );
             inserted_cards = inserted_cards.push_back(card_note);
         }

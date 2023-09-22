@@ -23,10 +23,10 @@ impl BlankPrivateContextInterface {
     context: &mut PrivateContext,
     address: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 1];
-    serialised_args[0] = address;
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = address;
 
-    context.call_private_function(self.address, 0x88f0753b, serialised_args)
+    context.call_private_function(self.address, 0x88f0753b, serialized_args)
   }
   
 }

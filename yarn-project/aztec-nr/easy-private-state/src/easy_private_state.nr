@@ -52,7 +52,7 @@ impl EasyPrivateUint {
             (*context).this_address(),
             self.set.storage_slot,
             owner_key,
-            addend_note.serialise(),
+            addend_note.serialize(),
         );
     }
 
@@ -87,7 +87,7 @@ impl EasyPrivateUint {
         // Emit the newly created encrypted note preimages via oracle calls.
         let mut encrypted_data = [0; VALUE_NOTE_LEN];
         if result_value != 0 {
-            encrypted_data = result_note.serialise();
+            encrypted_data = result_note.serialize();
         };
 
         let owner_key = get_public_key(owner);

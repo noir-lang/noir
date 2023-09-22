@@ -128,7 +128,7 @@ describe('abi/encoder', () => {
     ];
 
     expect(() => encodeArguments(testFunctionAbi, args)).toThrowError(
-      'Argument for owner cannot be serialised to a field',
+      'Argument for owner cannot be serialized to a field',
     );
   });
 });

@@ -30,12 +30,12 @@ impl<Note, N> ImmutableSingleton<Note, N> {
         }
     }
 
-    unconstrained fn is_initialised(self) -> bool {
+    unconstrained fn is_initialized(self) -> bool {
         let nullifier = self.compute_initialisation_nullifier();
         oracle::notes::is_nullifier_emitted(nullifier)
     }
 
-    fn initialise(self, note: &mut Note) {
+    fn initialize(self, note: &mut Note) {
         // Nullify the storage slot.
         let nullifier = self.compute_initialisation_nullifier();
         self.context.private

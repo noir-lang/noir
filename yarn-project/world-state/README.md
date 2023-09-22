@@ -23,11 +23,11 @@ As of the time of writing the collection consisted of the following trees.
 
 - The Public Data Tree. A tree whose leaves are the current value of every item of public state in the system, addressed as `leaf_index = hash(contract_address, storage_slot_in_contract)`
 
-### The Synchroniser
+### The Synchronizer
 
-The synchroniser's role is to periodically poll for new block information and reconcile that information with the current state of the Merkle Trees.
+The synchronizer's role is to periodically poll for new block information and reconcile that information with the current state of the Merkle Trees.
 
-Once a new block is received, the synchroniser checks the uncommitted root values of all of the trees against the roots published as part of the block. If they are all equal, the tree state is committed. If they are not equal, the tree states are rolled back to the last committed state before the published data is inserted and committed.
+Once a new block is received, the synchronizer checks the uncommitted root values of all of the trees against the roots published as part of the block. If they are all equal, the tree state is committed. If they are not equal, the tree states are rolled back to the last committed state before the published data is inserted and committed.
 
 ### The Merkle Tree Interface
 

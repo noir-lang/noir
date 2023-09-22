@@ -37,7 +37,7 @@ contract EasyPrivateToken {
     }
 
     /**
-     * Initialise the contract's initial state variables.
+     * initialize the contract's initial state variables.
      */ 
     #[aztec(private)]
     fn constructor(

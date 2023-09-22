@@ -223,9 +223,9 @@ impl TestContractPrivateContextInterface {
     self,
     context: &mut PrivateContext
   ) {
-    let mut serialised_args = [0; 0];
+    let mut serialized_args = [0; 0];
 
-    context.call_public_function(self.address, 0x46be982e, serialised_args)
+    context.call_public_function(self.address, 0x46be982e, serialized_args)
   }
   
 }
@@ -249,9 +249,9 @@ impl TestContractPublicContextInterface {
     self,
     context: PublicContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialised_args = [0; 0];
+    let mut serialized_args = [0; 0];
 
-    context.call_public_function(self.address, 0x46be982e, serialised_args)
+    context.call_public_function(self.address, 0x46be982e, serialized_args)
   }
   
 }

@@ -21,11 +21,11 @@ impl ProfileNote {
         }
     }
 
-    fn serialise(self) -> [Field; PROFILE_NOTE_LEN] {
+    fn serialize(self) -> [Field; PROFILE_NOTE_LEN] {
         [self.avatar, self.xp]
     }
 
-    fn deserialise(preimage: [Field; PROFILE_NOTE_LEN]) -> Self {
+    fn deserialize(preimage: [Field; PROFILE_NOTE_LEN]) -> Self {
         ProfileNote {
             avatar: preimage[1],
             xp: preimage[0],
@@ -50,12 +50,12 @@ impl ProfileNote {
     }
 }
 
-fn deserialise(preimage: [Field; PROFILE_NOTE_LEN]) -> ProfileNote {
-    ProfileNote::deserialise(preimage)
+fn deserialize(preimage: [Field; PROFILE_NOTE_LEN]) -> ProfileNote {
+    ProfileNote::deserialize(preimage)
 }
 
-fn serialise(note: ProfileNote) -> [Field; PROFILE_NOTE_LEN] {
-    note.serialise()
+fn serialize(note: ProfileNote) -> [Field; PROFILE_NOTE_LEN] {
+    note.serialize()
 }
 
 fn compute_note_hash(note: ProfileNote) -> Field {
@@ -75,8 +75,8 @@ fn set_header(note: &mut ProfileNote, header: NoteHeader) {
 }
 
 global ProfileNoteMethods = NoteInterface {
-    deserialise,
-    serialise,
+    deserialize,
+    serialize,
     compute_note_hash,
     compute_nullifier,
     get_header,

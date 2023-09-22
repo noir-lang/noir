@@ -13,8 +13,8 @@ contract DocsExample {
         },
     };
     // docs:start:state_vars-PublicStateBoolImport
-    use dep::aztec::types::type_serialisation::bool_serialisation::{
-        BoolSerialisationMethods, BOOL_SERIALISED_LEN,
+    use dep::aztec::types::type_serialization::bool_serialization::{
+        BoolSerializationMethods, BOOL_SERIALIZED_LEN,
     };
     // docs:end:state_vars-PublicStateBoolImport
     use crate::account_contract_interface::AccountContractInterface;
@@ -23,14 +23,14 @@ contract DocsExample {
     use crate::types::{
         card_note::{CardNote, CardNoteMethods, CARD_NOTE_LEN},
         profile_note::{ProfileNote, ProfileNoteMethods, PROFILE_NOTE_LEN},
-        queen::{Queen, QueenSerialisationMethods, QUEEN_SERIALISED_LEN},
+        queen::{Queen, QueenSerializationMethods, QUEEN_SERIALIZED_LEN},
         rules_note::{RulesNote, RulesNoteMethods, RULES_NOTE_LEN},
     };
 
     // docs:start:storage-struct-declaration
     struct Storage {
-        locked: PublicState<bool, BOOL_SERIALISED_LEN>,
-        queen: PublicState<Queen, QUEEN_SERIALISED_LEN>,
+        locked: PublicState<bool, BOOL_SERIALIZED_LEN>,
+        queen: PublicState<Queen, QUEEN_SERIALIZED_LEN>,
         game_rules: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
         legendary_card: Singleton<CardNote, CARD_NOTE_LEN>,
         cards: Set<CardNote, CARD_NOTE_LEN>,
@@ -49,12 +49,12 @@ contract DocsExample {
         fn init(context: Context) -> pub Self {
             Storage {
                 // highlight-next-line:state_vars-PublicState
-                locked: PublicState::new(context, 1, BoolSerialisationMethods),
+                locked: PublicState::new(context, 1, BoolSerializationMethods),
                 // highlight-next-line:state_vars-PublicStateCustomStruct
                 queen: PublicState::new(
                     context,
                     2,
-                    QueenSerialisationMethods,
+                    QueenSerializationMethods,
                 ),
                 // highlight-next-line:state_vars-ImmutableSingleton
                 game_rules: ImmutableSingleton::new(context, 3, RulesNoteMethods),
