@@ -226,10 +226,6 @@ jobs:
           anvil > /dev/null 2>&1 &
           sleep 10
 
-      - name: Configure git
-        run: |
-          git config user.name kevaundray
-          git config user.email kevtheappdev@gmail.com
 
       - name: Create new Foundry project
         run: forge init --no-git --no-commit --force foundry-project
