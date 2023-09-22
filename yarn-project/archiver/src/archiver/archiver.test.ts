@@ -12,8 +12,9 @@ import { Archiver } from './archiver.js';
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 
 describe('Archiver', () => {
-  const rollupAddress = '0x0000000000000000000000000000000000000000';
-  const inboxAddress = '0x0000000000000000000000000000000000000000';
+  const rollupAddress = EthAddress.ZERO.toString();
+  const inboxAddress = EthAddress.ZERO.toString();
+  const registryAddress = EthAddress.ZERO.toString();
   const contractDeploymentEmitterAddress = '0x0000000000000000000000000000000000000001';
   const blockNums = [1, 2, 3];
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
@@ -29,6 +30,7 @@ describe('Archiver', () => {
       publicClient,
       EthAddress.fromString(rollupAddress),
       EthAddress.fromString(inboxAddress),
+      EthAddress.fromString(registryAddress),
       EthAddress.fromString(contractDeploymentEmitterAddress),
       0,
       archiverStore,

@@ -15,6 +15,11 @@ export interface L1Addresses {
   inboxContract: EthAddress;
 
   /**
+   * Registry contract address.
+   */
+  registryContract: EthAddress;
+
+  /**
    * ContractDeploymentEmitter contract address.
    */
   contractDeploymentEmitterContract: EthAddress;

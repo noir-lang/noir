@@ -68,6 +68,12 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
   getRollupAddress(): Promise<EthAddress>;
 
   /**
+   * Method to fetch the registry contract address at the base-layer.
+   * @returns The registry address.
+   */
+  getRegistryAddress(): Promise<EthAddress>;
+
+  /**
    * Get the extended contract data for this contract.
    * @param contractAddress - The contract data address.
    * @returns The extended contract data or undefined if not found.

@@ -68,6 +68,7 @@ describe('L1Publisher integration', () => {
   let rollupAddress: Address;
   let inboxAddress: Address;
   let outboxAddress: Address;
+  let registryAddress: Address;
   let contractDeploymentEmitterAddress: Address;
   let decoderHelperAddress: Address;
 
@@ -95,6 +96,7 @@ describe('L1Publisher integration', () => {
       rollupAddress: rollupAddress_,
       inboxAddress: inboxAddress_,
       outboxAddress: outboxAddress_,
+      registryAddress: registryAddress_,
       contractDeploymentEmitterAddress: contractDeploymentEmitterAddress_,
       decoderHelperAddress: decoderHelperAddress_,
       publicClient: publicClient_,
@@ -105,6 +107,7 @@ describe('L1Publisher integration', () => {
     rollupAddress = getAddress(rollupAddress_.toString());
     inboxAddress = getAddress(inboxAddress_.toString());
     outboxAddress = getAddress(outboxAddress_.toString());
+    registryAddress = getAddress(registryAddress_.toString());
     contractDeploymentEmitterAddress = getAddress(contractDeploymentEmitterAddress_.toString());
     decoderHelperAddress = getAddress(decoderHelperAddress_!.toString());
 
@@ -145,6 +148,7 @@ describe('L1Publisher integration', () => {
       requiredConfirmations: 1,
       rollupContract: EthAddress.fromString(rollupAddress),
       inboxContract: EthAddress.fromString(inboxAddress),
+      registryContract: EthAddress.fromString(registryAddress),
       contractDeploymentEmitterContract: EthAddress.fromString(contractDeploymentEmitterAddress),
       publisherPrivateKey: sequencerPK,
       l1BlockPublishRetryIntervalMS: 100,

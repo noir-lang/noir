@@ -24,4 +24,8 @@ export type NodeInfo = {
    * The rollup contract address
    */
   rollupAddress: EthAddress;
+  /**
+   * The registry contract address
+   */
+  registryAddress: EthAddress;
 };

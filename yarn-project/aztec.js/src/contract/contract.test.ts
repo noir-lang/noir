@@ -34,6 +34,7 @@ describe('Contract Class', () => {
     protocolVersion: 1,
     chainId: 2,
     rollupAddress: EthAddress.random(),
+    registryAddress: EthAddress.random(),
   };
 
   const defaultAbi: ContractAbi = {

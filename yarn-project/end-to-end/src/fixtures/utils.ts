@@ -230,6 +230,7 @@ export async function setup(
   config.rollupContract = deployL1ContractsValues.rollupAddress;
   config.contractDeploymentEmitterContract = deployL1ContractsValues.contractDeploymentEmitterAddress;
   config.inboxContract = deployL1ContractsValues.inboxAddress;
+  config.registryContract = deployL1ContractsValues.registryAddress;
 
   const aztecNode = await createAztecNode(config, logger);
 

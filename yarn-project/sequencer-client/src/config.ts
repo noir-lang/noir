@@ -25,6 +25,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     SEQ_MAX_TX_PER_BLOCK,
     SEQ_MIN_TX_PER_BLOCK,
     ROLLUP_CONTRACT_ADDRESS,
+    REGISTRY_CONTRACT_ADDRESS,
     INBOX_CONTRACT_ADDRESS,
     CONTRACT_DEPLOYMENT_EMITTER_ADDRESS,
   } = process.env;
@@ -45,6 +46,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     transactionPollingIntervalMS: SEQ_TX_POLLING_INTERVAL_MS ? +SEQ_TX_POLLING_INTERVAL_MS : 1_000,
     rollupContract: ROLLUP_CONTRACT_ADDRESS ? EthAddress.fromString(ROLLUP_CONTRACT_ADDRESS) : EthAddress.ZERO,
     inboxContract: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
+    registryContract: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
     contractDeploymentEmitterContract: CONTRACT_DEPLOYMENT_EMITTER_ADDRESS
       ? EthAddress.fromString(CONTRACT_DEPLOYMENT_EMITTER_ADDRESS)
       : EthAddress.ZERO,

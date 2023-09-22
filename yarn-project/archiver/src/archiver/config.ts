@@ -53,12 +53,14 @@ export function getConfigEnvVars(): ArchiverConfig {
     SEARCH_START_BLOCK,
     API_KEY,
     INBOX_CONTRACT_ADDRESS,
+    REGISTRY_CONTRACT_ADDRESS,
   } = process.env;
   return {
     rpcUrl: ETHEREUM_HOST || 'http://127.0.0.1:8545/',
     archiverPollingIntervalMS: ARCHIVER_POLLING_INTERVAL_MS ? +ARCHIVER_POLLING_INTERVAL_MS : 1_000,
     viemPollingIntervalMS: ARCHIVER_VIEM_POLLING_INTERVAL_MS ? +ARCHIVER_VIEM_POLLING_INTERVAL_MS : 1_000,
     rollupContract: ROLLUP_CONTRACT_ADDRESS ? EthAddress.fromString(ROLLUP_CONTRACT_ADDRESS) : EthAddress.ZERO,
+    registryContract: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
     inboxContract: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
     contractDeploymentEmitterContract: CONTRACT_DEPLOYMENT_EMITTER_ADDRESS
       ? EthAddress.fromString(CONTRACT_DEPLOYMENT_EMITTER_ADDRESS)

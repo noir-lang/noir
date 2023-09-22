@@ -70,6 +70,7 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   aztecNodeConfig.rollupContract = l1Contracts.rollupAddress;
   aztecNodeConfig.contractDeploymentEmitterContract = l1Contracts.contractDeploymentEmitterAddress;
   aztecNodeConfig.inboxContract = l1Contracts.inboxAddress;
+  aztecNodeConfig.registryContract = l1Contracts.registryAddress;
 
   const node = await AztecNodeService.createAndSync(aztecNodeConfig);
   const rpcServer = await createAztecRPCServer(node, rpcConfig);

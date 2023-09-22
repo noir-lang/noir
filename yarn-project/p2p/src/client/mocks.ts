@@ -25,6 +25,14 @@ export class MockBlockSource implements L2BlockSource {
   }
 
   /**
+   * Method to fetch the registry contract address at the base-layer.
+   * @returns The registry address.
+   */
+  getRegistryAddress(): Promise<EthAddress> {
+    return Promise.resolve(EthAddress.random());
+  }
+
+  /**
    * Gets the number of the latest L2 block processed by the block source implementation.
    * @returns In this mock instance, returns the number of L2 blocks that we've mocked.
    */

@@ -15,6 +15,12 @@ export interface L2BlockSource {
   getRollupAddress(): Promise<EthAddress>;
 
   /**
+   * Method to fetch the registry contract address at the base-layer.
+   * @returns The registry address.
+   */
+  getRegistryAddress(): Promise<EthAddress>;
+
+  /**
    * Gets the number of the latest L2 block processed by the block source implementation.
    * @returns The number of the latest L2 block processed by the block source implementation.
    */

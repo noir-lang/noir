@@ -44,7 +44,6 @@ describe('e2e_public_cross_chain_messaging', () => {
       logger_,
       cheatCodes,
     );
-
     l2Token = crossChainTestHarness.l2Token;
     l2Bridge = crossChainTestHarness.l2Bridge;
     ownerEthAddress = crossChainTestHarness.ethAccount;

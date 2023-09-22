@@ -181,6 +181,10 @@ export class AztecNodeService implements AztecNode {
     return this.blockSource.getRollupAddress();
   }
 
+  public getRegistryAddress(): Promise<EthAddress> {
+    return this.blockSource.getRegistryAddress();
+  }
+
   /**
    * Get the extended contract data for this contract.
    * @param contractAddress - The contract data address.
