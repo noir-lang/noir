@@ -205,7 +205,6 @@ jobs:
           path: ./tooling/noirc_abi_wasm
 
       - name: Set nargo on PATH
-        working-directory: ./compiler/wasm/noir-script
         run: |
           nargo_binary="${{ github.workspace }}/nargo/nargo"
           chmod +x $nargo_binary
