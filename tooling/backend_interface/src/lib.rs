@@ -40,11 +40,16 @@ pub enum BackendError {
     #[error("Backend binary does not exist")]
     MissingBinary,
 
-    #[error("The backend responded with malformed data: {0:?}")]
-    MalformedResponse(Vec<u8>),
+    #[error("The backend responded with a malformed UTF8 byte vector: {0:?}")]
+    InvalidUTF8Vector(Vec<u8>),
 
-    #[error("The backend encountered an error")]
-    CommandFailed(Vec<u8>),
+    #[error(
+        "The backend responded with a unexpected number of bytes. Expected: {0:} but got {1:?}"
+    )]
+    UnexpectedNumberOfBytes(usize, Vec<u8>),
+
+    #[error("The backend encountered an error: {0:?}")]
+    CommandFailed(String),
 }
 
 #[derive(Debug)]
