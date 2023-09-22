@@ -3,6 +3,5 @@ import * as abi from '@noir-lang/noirc_abi';
 
 export { acvm, abi };
 
-import { generateWitness } from './witness_generation.js';
-import { acirToUint8Array, witnessMapToUint8Array } from './serialize.js';
-export { acirToUint8Array, witnessMapToUint8Array, generateWitness };
+export { generateWitness } from './witness_generation.js';
+export { acirToUint8Array, witnessMapToUint8Array } from './serialize.js';

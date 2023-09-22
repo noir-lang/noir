@@ -5,13 +5,13 @@ import newCompiler, {
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
-import { acvm, noirc } from "@noir-lang/noir_js";
+import { acvm, abi } from "@noir-lang/noir_js";
 import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
-const { default: newABICoder, abiEncode } = noirc;
+const { default: newABICoder, abiEncode } = abi;
 
 type WitnessMap = acvm.WitnessMap;
 
