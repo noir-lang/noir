@@ -78,6 +78,7 @@ impl FileManager {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
         self.file_map.get_file(file_id).unwrap()
     }
+
     pub fn path(&self, file_id: FileId) -> &Path {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
@@ -85,23 +86,38 @@ impl FileManager {
     }
 
     pub fn find_module(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
-        let mut candidate_files = Vec::new();
-
         let anchor_path = self.path(anchor).to_path_buf();
         let anchor_dir = anchor_path.parent().unwrap();
 
-        // First we attempt to look at `base/anchor/mod_name.nr` (child of the anchor)
-        candidate_files.push(anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}")));
-        // If not found, we attempt to look at `base/mod_name.nr` (sibling of the anchor)
-        candidate_files.push(anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}")));
+        // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{modname}.nr`, we check siblings of
+        // the anchor at `base/mod_name.nr`.
+        let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
+            anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
+        } else {
+            // Otherwise, we check for children of the anchor at `base/anchor/mod_name.nr`
+            anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
+        };
 
-        for candidate in candidate_files.iter() {
-            if let Some(file_id) = self.add_file(candidate) {
-                return Ok(file_id);
-            }
-        }
+        self.add_file(&candidate).ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
+    }
+}
 
-        Err(candidate_files.remove(0).as_os_str().to_str().unwrap().to_owned())
+/// Returns true if a module's child module's are expected to be in the same directory.
+/// Returns false if they are expected to be in a subdirectory matching the name of the module.
+fn should_check_siblings_for_module(module_path: &PathBuf, parent_path: &Path) -> bool {
+    if let Some(filename) = module_path.file_name() {
+        // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
+        // check its same directory for child modules instead of a subdirectory. Should we prohibit
+        // `main.nr` and `lib.nr` files outside of the crate root?
+        filename == "main"
+            || filename == "lib"
+            || filename == "mod"
+            || Some(filename) == parent_path.file_name()
+    } else {
+        // If there's no filename, we arbitrarily return true.
+        // Alternatively, we could panic, but this is left to a different step where we
+        // ideally have some source location to issue an error.
+        true
     }
 }
 

@@ -844,8 +844,8 @@ impl Type {
             // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
-            (Struct(fields_a, args_a), Struct(fields_b, args_b)) => {
-                if fields_a == fields_b {
+            (Struct(id_a, args_a), Struct(id_b, args_b)) => {
+                if id_a == id_b && args_a.len() == args_b.len() {
                     for (a, b) in args_a.iter().zip(args_b) {
                         a.try_unify(b)?;
                     }

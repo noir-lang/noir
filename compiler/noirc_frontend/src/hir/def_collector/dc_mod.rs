@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use fm::FileId;
-use noirc_errors::{FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
 use crate::{
     graph::CrateId,
@@ -528,13 +528,31 @@ impl<'a> ModCollector<'a> {
         let child_file_id =
             match context.file_manager.find_module(self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
-                Err(_) => {
+                Err(expected_path) => {
+                    let mod_name = mod_name.clone();
                     let err =
-                        DefCollectorErrorKind::UnresolvedModuleDecl { mod_name: mod_name.clone() };
+                        DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
                     errors.push(err.into_file_diagnostic(self.file_id));
                     return;
                 }
             };
+
+        let location = Location { file: self.file_id, span: mod_name.span() };
+
+        if let Some(old_location) = context.visited_files.get(&child_file_id) {
+            let message = format!("Module '{mod_name}' is already part of the crate");
+            let secondary = format!("");
+            let error = CustomDiagnostic::simple_error(message, secondary, location.span);
+            errors.push(error.in_file(location.file));
+
+            let message = format!("Note: {mod_name} was originally declared here");
+            let secondary = format!("");
+            let error = CustomDiagnostic::simple_error(message, secondary, old_location.span);
+            errors.push(error.in_file(old_location.file));
+            return;
+        }
+
+        context.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let ast = parse_file(&context.file_manager, child_file_id, errors);
