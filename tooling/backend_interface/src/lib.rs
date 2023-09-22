@@ -44,7 +44,7 @@ pub enum BackendError {
     InvalidUTF8Vector(Vec<u8>),
 
     #[error(
-        "The backend responded with a unexpected number of bytes. Expected: {0:} but got {1:?}"
+        "The backend responded with a unexpected number of bytes. Expected: {0} but got {.1.len()} ({1:?})",
     )]
     UnexpectedNumberOfBytes(usize, Vec<u8>),
 
