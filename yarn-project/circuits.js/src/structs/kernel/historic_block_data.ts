@@ -5,6 +5,11 @@ import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 
 /**
+ * The string encoding used for serialising HistoricBlockData objects.
+ */
+const STRING_ENCODING: BufferEncoding = 'hex';
+
+/**
  * Information about the tree roots used for both public and private kernels.
  */
 export class HistoricBlockData {
@@ -78,7 +83,8 @@ export class HistoricBlockData {
   }
 
   toString() {
-    return this.toBuffer().toString();
+    // originally this was encoding as utf-8 (the default). This caused problems decoding back the data.
+    return this.toBuffer().toString(STRING_ENCODING);
   }
 
   /**
@@ -110,6 +116,10 @@ export class HistoricBlockData {
       reader.readFr(),
       reader.readFr(),
     );
+  }
+
+  static fromString(str: string) {
+    return HistoricBlockData.fromBuffer(Buffer.from(str, STRING_ENCODING));
   }
 
   isEmpty() {

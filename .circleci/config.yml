@@ -671,17 +671,6 @@ jobs:
           name: "Build"
           command: build ethereum
 
-  rollup-provider:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: build rollup-provider
-
   e2e-2-rpc-servers:
     machine:
       image: ubuntu-2004:202010-01
@@ -1429,7 +1418,6 @@ workflows:
       - sequencer-client: *yarn_project
       - types: *yarn_project
       - circuits-js: *yarn_project
-      - rollup-provider: *yarn_project
       - aztec-sandbox-base: *yarn_project
       - canary: *yarn_project
 
@@ -1470,7 +1458,6 @@ workflows:
             - sequencer-client
             - types
             - circuits-js
-            - rollup-provider
             - aztec-sandbox-ecr-manifest
             - canary
           <<: *defaults

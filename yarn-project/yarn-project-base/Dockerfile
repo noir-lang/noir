@@ -42,7 +42,6 @@ COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
 COPY p2p-bootstrap/package.json p2p-bootstrap/package.json
 COPY prover-client/package.json prover-client/package.json
-COPY rollup-provider/package.json rollup-provider/package.json
 COPY sequencer-client/package.json sequencer-client/package.json
 COPY types/package.json types/package.json
 COPY world-state/package.json world-state/package.json
@@ -96,7 +95,6 @@ COPY p2p/tsconfig.json p2p/tsconfig.json
 COPY p2p-bootstrap/tsconfig.json p2p-bootstrap/tsconfig.json
 COPY prover-client/tsconfig.json prover-client/tsconfig.json
 COPY sequencer-client/tsconfig.json sequencer-client/tsconfig.json
-COPY rollup-provider/tsconfig.json rollup-provider/tsconfig.json
 COPY types/tsconfig.json types/tsconfig.json
 COPY world-state/tsconfig.json world-state/tsconfig.json
 

@@ -259,7 +259,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The index of the given leaf in the contracts tree or undefined if not found.
    */
   public async findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     return committedDb.findLeafIndex(MerkleTreeId.CONTRACT_TREE, leafValue);
   }
 
@@ -269,7 +269,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The sibling path for the leaf index.
    */
   public async getContractPath(leafIndex: bigint): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.CONTRACT_TREE, leafIndex);
   }
 
@@ -279,7 +279,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The index of the given leaf in the private data tree or undefined if not found.
    */
   public async findCommitmentIndex(leafValue: Buffer): Promise<bigint | undefined> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     return committedDb.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, leafValue);
   }
 
@@ -289,7 +289,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The sibling path for the leaf index.
    */
   public async getDataTreePath(leafIndex: bigint): Promise<SiblingPath<typeof PRIVATE_DATA_TREE_HEIGHT>> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.PRIVATE_DATA_TREE, leafIndex);
   }
 
@@ -301,7 +301,7 @@ export class AztecNodeService implements AztecNode {
    */
   public async getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex> {
     // todo: #697 - make this one lookup.
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
     const index = (await committedDb.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey.toBuffer()))!;
     return Promise.resolve({ message, index });
@@ -313,7 +313,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The sibling path.
    */
   public async getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, leafIndex);
   }
 
@@ -325,7 +325,7 @@ export class AztecNodeService implements AztecNode {
    * Note: Aztec's version of `eth_getStorageAt`.
    */
   public async getPublicStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     const leafIndex = computePublicDataTreeLeafIndex(contract, new Fr(slot), await CircuitsWasm.get());
     return committedDb.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex);
   }
@@ -335,7 +335,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The current committed roots for the data trees.
    */
   public async getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     const getTreeRoot = async (id: MerkleTreeId) => Fr.fromBuffer((await committedDb.getTreeInfo(id)).root);
 
     const [privateDataTree, nullifierTree, contractTree, l1ToL2MessagesTree, blocksTree, publicDataTree] =
@@ -363,7 +363,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The current committed block data.
    */
   public async getHistoricBlockData(): Promise<HistoricBlockData> {
-    const committedDb = await this.getWorldState();
+    const committedDb = await this.#getWorldState();
     const [roots, globalsHash] = await Promise.all([this.getTreeRoots(), committedDb.getLatestGlobalVariablesHash()]);
 
     return new HistoricBlockData(
@@ -413,10 +413,10 @@ export class AztecNodeService implements AztecNode {
    * Returns an instance of MerkleTreeOperations having first ensured the world state is fully synched
    * @returns An instance of a committed MerkleTreeOperations
    */
-  private async getWorldState() {
+  async #getWorldState() {
     try {
       // Attempt to sync the world state if necessary
-      await this.syncWorldState();
+      await this.#syncWorldState();
     } catch (err) {
       this.log.error(`Error getting world state: ${err}`);
     }
@@ -427,7 +427,7 @@ export class AztecNodeService implements AztecNode {
    * Ensure we fully sync the world state
    * @returns A promise that fulfils once the world state is synced
    */
-  private async syncWorldState() {
+  async #syncWorldState() {
     const blockSourceHeight = await this.blockSource.getBlockNumber();
     await this.worldStateSynchroniser.syncImmediate(blockSourceHeight);
   }

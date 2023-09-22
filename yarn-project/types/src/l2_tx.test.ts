@@ -6,4 +6,10 @@ describe('L2Tx', () => {
     const buf = tx.toBuffer();
     expect(L2Tx.fromBuffer(buf)).toEqual(tx);
   });
+
+  it('converts to and from string', () => {
+    const tx = L2Tx.random();
+    const str = tx.toString();
+    expect(L2Tx.fromString(str)).toEqual(tx);
+  });
 });

@@ -220,10 +220,6 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/prover-client"
   },
-  "rollup-provider": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/rollup-provider"
-  },
   "aztec-node": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-node"

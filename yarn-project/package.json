@@ -39,7 +39,6 @@
     "boxes/blank",
     "boxes/private-token",
     "prover-client",
-    "rollup-provider",
     "aztec-node",
     "sequencer-client",
     "types",

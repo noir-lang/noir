@@ -20,6 +20,11 @@ import { ContractData, L2Tx, LogType, PublicDataWrite, TxL2Logs } from './index.
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
 
 /**
+ * String encoding of serialised L2 block data.
+ */
+const STRING_ENCODING: BufferEncoding = 'hex';
+
+/**
  * The data that makes up the rollup proof, with encoder decoder functions.
  * TODO: Reuse data types and serialization functions from circuits package.
  */
@@ -389,6 +394,14 @@ export class L2Block {
   }
 
   /**
+   * Encodes the block as a hex string
+   * @returns The encoded L2 block data as a hex string.
+   */
+  toString() {
+    return this.toBuffer().toString(STRING_ENCODING);
+  }
+
+  /**
    * Decode the L2 block data from a buffer.
    * @param encoded - The encoded L2 block data.
    * @returns The decoded L2 block data.
@@ -445,6 +458,15 @@ export class L2Block {
       newEncryptedLogs,
       newUnencryptedLogs,
     });
+  }
+
+  /**
+   * Decode the L2 block from a string
+   * @param str - The serialised L2 block
+   * @returns An L2 block
+   */
+  static fromString(str: string): L2Block {
+    return L2Block.decode(Buffer.from(str, STRING_ENCODING));
   }
 
   /**

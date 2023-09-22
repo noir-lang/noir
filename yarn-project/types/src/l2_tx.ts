@@ -16,6 +16,11 @@ import { PublicDataWrite } from './public_data_write.js';
 import { TxHash } from './tx/tx_hash.js';
 
 /**
+ * The string encoding used for serialising L2Tx objects to strings.
+ */
+const STRING_ENCODING: BufferEncoding = 'hex';
+
+/**
  * Represents an L2 transaction.
  */
 export class L2Tx {
@@ -82,6 +87,15 @@ export class L2Tx {
   }
 
   /**
+   * Deserializes an L2Tx object from a string.
+   * @param str - String to deserialize.
+   * @returns An instance of L2Tx.
+   */
+  static fromString(str: string) {
+    return L2Tx.fromBuffer(Buffer.from(str, STRING_ENCODING));
+  }
+
+  /**
    * Serializes the Tx object into a Buffer.
    * @returns Buffer representation of the Tx object.
    */
@@ -96,6 +110,13 @@ export class L2Tx {
       this.blockHash,
       numToUInt32BE(this.blockNumber),
     ]);
+  }
+
+  /**
+   * Returns a string representation of the Tx object.
+   */
+  toString(): string {
+    return this.toBuffer().toString(STRING_ENCODING);
   }
 
   static random() {
