@@ -224,6 +224,7 @@ const sidebars = {
             "dev_docs/tutorials/writing_dapp/testing",
           ],
         },
+        "dev_docs/tutorials/testing",
       ],
     },
 
@@ -319,7 +320,7 @@ const sidebars = {
         type: "doc",
         id: "dev_docs/testing/main",
       },
-      items: ["dev_docs/testing/testing", "dev_docs/testing/cheat_codes"],
+      items: ["dev_docs/testing/cheat_codes"],
     },
 
     {

@@ -9,6 +9,10 @@ import Disclaimer from "../../../misc/common/\_disclaimer.mdx";
 
 ## Indexed Merkle Trees
 
+This article will introduce the concept of an indexed merkle tree, and how it can be used to improve the performance of nullifier trees in circuits. The content was also covered in a presentation for the [Privacy + Scaling Explorations team at the Ethereum Foundation](https://pse.dev/).
+
+<iframe width="100%" height="720" src="https://www.youtube-nocookie.com/embed/x_0ZhUKtWSs?si=TmguEhgz4Gu07Dac" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 #### Primer on Nullifier Trees
 
 Currently the only feasible way to get privacy in public blockchains is via a UTXO model. In this model, state is stored in encrypted UTXO's in merkle trees. However, to maintain privacy, state can not be updated. The very act of performing an update leaks information. In order to simulate "updating" the state, we "destroy" old UTXO's and create new ones for each state update. Resulting in a merkle tree that is append-only.

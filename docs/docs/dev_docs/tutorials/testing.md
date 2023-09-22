@@ -127,7 +127,7 @@ In the near future, transactions where a public function call fails will get min
 
 We can check private or public state directly rather than going through view-only methods, as we did in the initial example by calling `token.methods.balance().view()`. Bear in mind that directly accessing contract storage will break any kind of encapsulation.
 
-To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/syntax/storage.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the `CheatCodes` utility class:
+To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/syntax/storage.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the [`CheatCodes`](./../testing/cheat_codes.md) utility class:
 
 #include_code calc-slot /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
@@ -163,7 +163,7 @@ We can query the RPC server for the unencrypted logs emitted in the block where 
 
 ## Cheats
 
-The `CheatCodes` class, which we used for [calculating the storage slot above](#state), also includes a set of cheat methods for modifying the chain state that can be handy for testing.
+The [`CheatCodes`](./../testing/cheat_codes.md) class, which we used for [calculating the storage slot above](#state), also includes a set of cheat methods for modifying the chain state that can be handy for testing.
 
 ### Set next block timestamp
 
