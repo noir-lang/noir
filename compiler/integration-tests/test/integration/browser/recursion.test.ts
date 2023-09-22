@@ -51,7 +51,7 @@ const crs = await Crs.new(CIRCUIT_SIZE + 1);
 await api.srsInitSrs(
   new RawBuffer(crs.getG1Data()),
   crs.numPoints,
-  new RawBuffer(crs.getG2Data())
+  new RawBuffer(crs.getG2Data()),
 );
 
 const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
@@ -69,7 +69,7 @@ async function generateWitness(acir, abi, inputs) {
   const witnessMap: WitnessMap = abiEncode(abi, inputs, null);
 
   const compressedByteCode = Uint8Array.from(atob(acir), (c) =>
-    c.charCodeAt(0)
+    c.charCodeAt(0),
   );
 
   return executeCircuit(compressedByteCode, witnessMap, () => {
@@ -80,14 +80,14 @@ async function generateWitness(acir, abi, inputs) {
 async function generateProof(
   acirUint8Array: Uint8Array,
   witnessUint8Array: Uint8Array,
-  optimizeForRecursion: boolean
+  optimizeForRecursion: boolean,
 ) {
   // This took ~6.5 minutes!
   return api.acirCreateProof(
     acirComposer,
     acirUint8Array,
     witnessUint8Array,
-    optimizeForRecursion
+    optimizeForRecursion,
   );
 }
 
@@ -96,7 +96,7 @@ async function verifyProof(proof: Uint8Array, optimizeForRecursion: boolean) {
   const verified = await api.acirVerifyProof(
     acirComposer,
     proof,
-    optimizeForRecursion
+    optimizeForRecursion,
   );
   return verified;
 }
@@ -109,11 +109,11 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
   before(async () => {
     const circuit_main_source_url = new URL(
       `${base_relative_path}/${circuit_main}/src/main.nr`,
-      import.meta.url
+      import.meta.url,
     );
     const circuit_main_toml_url = new URL(
       `${base_relative_path}/${circuit_main}/Prover.toml`,
-      import.meta.url
+      import.meta.url,
     );
 
     circuit_main_source = await getFile(circuit_main_source_url);
@@ -121,7 +121,7 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
 
     const circuit_recursion_source_url = new URL(
       `${base_relative_path}/${circuit_recursion}/src/main.nr`,
-      import.meta.url
+      import.meta.url,
     );
 
     circuit_recursion_source = await getFile(circuit_recursion_source_url);
@@ -129,18 +129,17 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
 
   it("Should generate valid inner proof for correct input, then verify proof within a proof", async () => {
     //@ts-ignore
-    const { circuit: main_circuit, abi: main_abi } = await getCircuit(
-      circuit_main_source
-    );
+    const { circuit: main_circuit, abi: main_abi } =
+      await getCircuit(circuit_main_source);
     const main_inputs = TOML.parse(circuit_main_toml);
 
     const main_witness = await generateWitness(
       main_circuit,
       main_abi,
-      main_inputs
+      main_inputs,
     );
     const main_compressedByteCode = Uint8Array.from(atob(main_circuit), (c) =>
-      c.charCodeAt(0)
+      c.charCodeAt(0),
     );
     const main_compressedWitness = compressWitness(main_witness);
     const main_acirUint8Array = gunzip(main_compressedByteCode);
@@ -151,12 +150,12 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
     const main_proof = await generateProof(
       main_acirUint8Array,
       main_witnessUint8Array,
-      optimizeMainProofForRecursion
+      optimizeMainProofForRecursion,
     );
 
     const main_verification = await verifyProof(
       main_proof,
-      optimizeMainProofForRecursion
+      optimizeMainProofForRecursion,
     );
 
     logger.debug("main_verification", main_verification);
@@ -168,7 +167,7 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       await api.acirSerializeProofIntoFields(
         acirComposer,
         main_proof,
-        numPublicInputs
+        numPublicInputs,
       )
     ).map((p) => p.toString());
 
@@ -189,18 +188,18 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
     logger.debug("recursion_inputs", recursion_inputs);
 
     const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(
-      circuit_recursion_source
+      circuit_recursion_source,
     );
 
     const recursion_witness = await generateWitness(
       recursion_circuit,
       recursion_abi,
-      recursion_inputs
+      recursion_inputs,
     );
 
     const recursion_compressedByteCode = Uint8Array.from(
       atob(recursion_circuit),
-      (c) => c.charCodeAt(0)
+      (c) => c.charCodeAt(0),
     );
 
     const recursion_compressedWitness = compressWitness(recursion_witness);
@@ -212,7 +211,7 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
     const recursion_proof = await generateProof(
       recursion_acirUint8Array,
       recursion_witnessUint8Array,
-      optimizeRecursionProofForRecursion
+      optimizeRecursionProofForRecursion,
     );
 
     const recursion_numPublicInputs = 1;
@@ -221,7 +220,7 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       await api.acirSerializeProofIntoFields(
         acirComposer,
         recursion_proof,
-        recursion_numPublicInputs
+        recursion_numPublicInputs,
       )
     ).map((p) => p.toString());
 
