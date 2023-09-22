@@ -272,7 +272,8 @@ jobs:
           yarn workspace @noir-lang/noir_js build
 
       - name: Run `integration-tests`
-        run: yarn test:integration
+        run: |
+          yarn test:integration
 
       - name: Alert on nightly test failure
         uses: JasonEtco/create-an-issue@v2
