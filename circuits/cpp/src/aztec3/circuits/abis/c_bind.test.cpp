@@ -3,6 +3,7 @@
 #include "function_leaf_preimage.hpp"
 #include "tx_request.hpp"
 
+#include "aztec3/circuits/abis/complete_address.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/hash.hpp"
@@ -50,56 +51,6 @@ template <size_t NUM_BYTES> std::string bytes_to_hex_str(std::array<uint8_t, NUM
 
 namespace aztec3::circuits::abis {
 
-TEST(abi_tests, compute_partial_address)
-{
-    auto const contract_address_salt = NT::fr(3);
-    auto const function_tree_root = NT::fr(4);
-    auto const constructor_hash = NT::fr(5);
-    NT::fr const expected = compute_partial_address<NT>(contract_address_salt, function_tree_root, constructor_hash);
-
-    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
-    std::vector<uint8_t> salt_buf;
-    std::vector<uint8_t> function_tree_root_buf;
-    std::vector<uint8_t> constructor_hash_buf;
-    write(salt_buf, contract_address_salt);
-    write(function_tree_root_buf, function_tree_root);
-    write(constructor_hash_buf, constructor_hash);
-    abis__compute_partial_address(
-        salt_buf.data(), function_tree_root_buf.data(), constructor_hash_buf.data(), output.data());
-
-    // Convert buffer to `fr` for comparison to in-test calculated hash
-    NT::fr const actual = NT::fr::serialize_from_buffer(output.data());
-    EXPECT_EQ(actual, expected);
-}
-
-TEST(abi_tests, compute_contract_address)
-{
-    Point<NT> const point = { .x = 1, .y = 3 };
-    auto const contract_address_salt = NT::fr(5);
-    auto const function_tree_root = NT::fr(6);
-    auto const constructor_hash = NT::fr(7);
-    NT::fr const expected =
-        compute_contract_address(point, contract_address_salt, function_tree_root, constructor_hash);
-
-    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
-    std::vector<uint8_t> contract_address_salt_buf;
-    std::vector<uint8_t> function_tree_root_buf;
-    std::vector<uint8_t> constructor_hash_buf;
-    std::vector<uint8_t> point_buf;
-    write(contract_address_salt_buf, contract_address_salt);
-    write(function_tree_root_buf, function_tree_root);
-    write(constructor_hash_buf, constructor_hash);
-    serialize::write(point_buf, point);
-    abis__compute_contract_address(point_buf.data(),
-                                   contract_address_salt_buf.data(),
-                                   function_tree_root_buf.data(),
-                                   constructor_hash_buf.data(),
-                                   output.data());
-
-    // Convert buffer to `fr` for comparison to in-test calculated hash
-    NT::fr const actual = NT::fr::serialize_from_buffer(output.data());
-    EXPECT_EQ(actual, expected);
-}
 TEST(abi_tests, hash_tx_request)
 {
     // Construct TxRequest with some randomized fields

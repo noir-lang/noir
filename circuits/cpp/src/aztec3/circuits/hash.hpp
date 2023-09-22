@@ -72,19 +72,6 @@ typename NCT::address compute_contract_address_from_partial(Point<NCT> const& po
     return { NCT::hash(inputs, aztec3::GeneratorIndex::CONTRACT_ADDRESS) };
 }
 
-template <typename NCT> typename NCT::address compute_contract_address(Point<NCT> const& point,
-                                                                       typename NCT::fr const& contract_address_salt,
-                                                                       typename NCT::fr const& function_tree_root,
-                                                                       typename NCT::fr const& constructor_hash)
-{
-    using fr = typename NCT::fr;
-
-    const fr partial_address =
-        compute_partial_address<NCT>(contract_address_salt, function_tree_root, constructor_hash);
-
-    return compute_contract_address_from_partial(point, partial_address);
-}
-
 template <typename NCT> typename NCT::fr compute_commitment_nonce(typename NCT::fr const& first_nullifier,
                                                                   typename NCT::fr const& commitment_index)
 {

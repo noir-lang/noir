@@ -16,6 +16,7 @@ import {
   CircuitError,
   CombinedAccumulatedData,
   CombinedConstantData,
+  CompleteAddress,
   ConstantRollupData,
   ContractDeploymentData,
   ContractStorageRead,
@@ -63,6 +64,70 @@ import {
   isCircuitError,
   toBuffer,
 } from './types.js';
+
+interface MsgpackPoint {
+  x: Buffer;
+  y: Buffer;
+}
+
+export function toPoint(o: MsgpackPoint): Point {
+  if (o.x === undefined) {
+    throw new Error('Expected x in Point deserialization');
+  }
+  if (o.y === undefined) {
+    throw new Error('Expected y in Point deserialization');
+  }
+  return new Point(Fr.fromBuffer(o.x), Fr.fromBuffer(o.y));
+}
+
+export function fromPoint(o: Point): MsgpackPoint {
+  if (o.x === undefined) {
+    throw new Error('Expected x in Point serialization');
+  }
+  if (o.y === undefined) {
+    throw new Error('Expected y in Point serialization');
+  }
+  return {
+    x: toBuffer(o.x),
+    y: toBuffer(o.y),
+  };
+}
+
+interface MsgpackCompleteAddress {
+  address: Buffer;
+  public_key: MsgpackPoint;
+  partial_address: Buffer;
+}
+
+export function toCompleteAddress(o: MsgpackCompleteAddress): CompleteAddress {
+  if (o.address === undefined) {
+    throw new Error('Expected address in CompleteAddress deserialization');
+  }
+  if (o.public_key === undefined) {
+    throw new Error('Expected public_key in CompleteAddress deserialization');
+  }
+  if (o.partial_address === undefined) {
+    throw new Error('Expected partial_address in CompleteAddress deserialization');
+  }
+  return new CompleteAddress(Address.fromBuffer(o.address), toPoint(o.public_key), Fr.fromBuffer(o.partial_address));
+}
+
+export function fromCompleteAddress(o: CompleteAddress): MsgpackCompleteAddress {
+  if (o.address === undefined) {
+    throw new Error('Expected address in CompleteAddress serialization');
+  }
+  if (o.publicKey === undefined) {
+    throw new Error('Expected publicKey in CompleteAddress serialization');
+  }
+  if (o.partialAddress === undefined) {
+    throw new Error('Expected partialAddress in CompleteAddress serialization');
+  }
+  return {
+    address: toBuffer(o.address),
+    public_key: fromPoint(o.publicKey),
+    partial_address: toBuffer(o.partialAddress),
+  };
+}
 
 interface MsgpackGlobalVariables {
   chain_id: Buffer;
@@ -699,34 +764,6 @@ export function fromHistoricBlockData(o: HistoricBlockData): MsgpackHistoricBloc
     private_kernel_vk_tree_root: toBuffer(o.privateKernelVkTreeRoot),
     public_data_tree_root: toBuffer(o.publicDataTreeRoot),
     global_variables_hash: toBuffer(o.globalVariablesHash),
-  };
-}
-
-interface MsgpackPoint {
-  x: Buffer;
-  y: Buffer;
-}
-
-export function toPoint(o: MsgpackPoint): Point {
-  if (o.x === undefined) {
-    throw new Error('Expected x in Point deserialization');
-  }
-  if (o.y === undefined) {
-    throw new Error('Expected y in Point deserialization');
-  }
-  return new Point(Fr.fromBuffer(o.x), Fr.fromBuffer(o.y));
-}
-
-export function fromPoint(o: Point): MsgpackPoint {
-  if (o.x === undefined) {
-    throw new Error('Expected x in Point serialization');
-  }
-  if (o.y === undefined) {
-    throw new Error('Expected y in Point serialization');
-  }
-  return {
-    x: toBuffer(o.x),
-    y: toBuffer(o.y),
   };
 }
 
@@ -3088,6 +3125,22 @@ export function fromRootRollupPublicInputs(o: RootRollupPublicInputs): MsgpackRo
   };
 }
 
+export function abisComputeCompleteAddress(
+  wasm: IWasmModule,
+  arg0: Point,
+  arg1: Fr,
+  arg2: Fr,
+  arg3: Fr,
+): CompleteAddress {
+  return toCompleteAddress(
+    callCbind(wasm, 'abis__compute_complete_address', [
+      fromPoint(arg0),
+      toBuffer(arg1),
+      toBuffer(arg2),
+      toBuffer(arg3),
+    ]),
+  );
+}
 export function abisComputeCommitmentNonce(wasm: IWasmModule, arg0: Fr, arg1: Fr): Fr {
   return Fr.fromBuffer(callCbind(wasm, 'abis__compute_commitment_nonce', [toBuffer(arg0), toBuffer(arg1)]));
 }

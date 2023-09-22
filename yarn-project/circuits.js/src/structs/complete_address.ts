@@ -3,9 +3,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { computeContractAddressFromPartial } from '../abis/abis.js';
 import { Grumpkin } from '../barretenberg/index.js';
-import { CircuitsWasm, Fr, GrumpkinPrivateKey, Point } from '../index.js';
-import { PartialAddress } from './partial_address.js';
-import { PublicKey } from './public_key.js';
+import { CircuitsWasm, Fr, GrumpkinPrivateKey, PartialAddress, Point, PublicKey } from '../index.js';
 
 /**
  * A complete address is a combination of an Aztec address, a public key and a partial address.

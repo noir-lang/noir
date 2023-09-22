@@ -2,6 +2,7 @@
 
 #include "init.hpp"
 
+#include "aztec3/circuits/abis/complete_address.hpp"
 #include "aztec3/circuits/abis/contract_deployment_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
@@ -288,10 +289,11 @@ void common_contract_logic(DummyBuilder& builder,
         auto constructor_hash =
             compute_constructor_hash(function_data, private_call_public_inputs.args_hash, private_call_vk_hash);
 
-        auto const new_contract_address = compute_contract_address<NT>(contract_dep_data.deployer_public_key,
-                                                                       contract_dep_data.contract_address_salt,
-                                                                       contract_dep_data.function_tree_root,
-                                                                       constructor_hash);
+        auto const new_contract_address = abis::CompleteAddress<NT>::compute(contract_dep_data.deployer_public_key,
+                                                                             contract_dep_data.contract_address_salt,
+                                                                             contract_dep_data.function_tree_root,
+                                                                             constructor_hash)
+                                              .address;
 
         // Add new contract data if its a contract deployment function
         NewContractData<NT> const native_new_contract_data{ new_contract_address,

@@ -1,7 +1,6 @@
 import {
   CONTRACT_TREE_HEIGHT,
   CircuitsWasm,
-  CompleteAddress,
   EthAddress,
   FUNCTION_TREE_HEIGHT,
   Fr,
@@ -17,10 +16,9 @@ import {
   isConstructor,
 } from '@aztec/circuits.js';
 import {
-  computeContractAddress,
+  computeCompleteAddress,
   computeContractLeaf,
   computeFunctionTreeRoot,
-  computePartialAddress,
   computeVarArgsHash,
   hashConstructor,
 } from '@aztec/circuits.js/abis';
@@ -95,11 +93,8 @@ export class ContractTree {
     const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
     const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
-    // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/1873: create computeCompleteAddress
-    // function --> The following is wasteful as it computes partial address twice
-    const partialAddress = computePartialAddress(wasm, contractAddressSalt, root, constructorHash);
-    const address = computeContractAddress(wasm, from, contractAddressSalt, root, constructorHash);
-    const completeAddress = await CompleteAddress.create(address, from, partialAddress);
+
+    const completeAddress = computeCompleteAddress(wasm, from, contractAddressSalt, root, constructorHash);
 
     const contractDao: ContractDao = {
       ...abi,

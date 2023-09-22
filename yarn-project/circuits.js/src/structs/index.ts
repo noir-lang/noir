@@ -29,6 +29,7 @@ export * from './aggregation_object.js';
 export * from './membership_witness.js';
 export * from './read_request_membership_witness.js';
 export * from './public_call_request.js';
+export * from './complete_address.js';
 export * from '@aztec/foundation/eth-address';
 
 export * from '@aztec/foundation/fields';

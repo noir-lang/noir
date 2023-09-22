@@ -23,3 +23,4 @@ export * from './interfaces/index.js';
 export * from './sibling_path.js';
 export * from './auth_witness.js';
 export * from '@aztec/circuits.js/types';
+export { CompleteAddress } from '@aztec/circuits.js';

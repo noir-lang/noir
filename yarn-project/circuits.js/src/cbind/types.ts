@@ -95,6 +95,7 @@ export {
   ContractDeploymentData,
   TxContext,
   CombinedConstantData,
+  CompleteAddress,
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
   Proof,
