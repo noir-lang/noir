@@ -231,12 +231,13 @@ mod tests {
 
         let dep_file_name = Path::new("foo.nr");
         create_dummy_file(&dir, dep_file_name);
-        fm.find_module(file_id, "foo").unwrap();
+        fm.find_module(file_id, "foo").unwrap_err();
     }
+
     #[test]
     fn path_resolve_file_module_other_ext() {
         let dir = tempdir().unwrap();
-        let file_name = Path::new("foo.noir");
+        let file_name = Path::new("foo.nr");
         create_dummy_file(&dir, file_name);
 
         let mut fm = FileManager::new(dir.path());
@@ -245,6 +246,7 @@ mod tests {
 
         assert!(fm.path(file_id).ends_with("foo"));
     }
+
     #[test]
     fn path_resolve_sub_module() {
         let dir = tempdir().unwrap();
