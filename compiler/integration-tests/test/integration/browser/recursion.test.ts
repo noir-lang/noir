@@ -8,12 +8,7 @@ import newCompiler, {
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
 import { decompressSync as gunzip } from "fflate";
-import newABICoder, { abiEncode } from "@noir-lang/noirc_abi";
-import initACVM, {
-  executeCircuit,
-  WitnessMap,
-  compressWitness,
-} from "@noir-lang/acvm_js";
+import { acvm, abi } from "@noir-lang/noir_js";
 
 // @ts-ignore
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
@@ -21,6 +16,9 @@ import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 import * as TOML from "smol-toml";
 
 const logger = new Logger({ name: "test", minLevel: TEST_LOG_LEVEL });
+
+const { default: initACVM, executeCircuit, compressWitness } = acvm;
+const { default: newABICoder, abiEncode } = abi;
 
 await newCompiler();
 await newABICoder();
