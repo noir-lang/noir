@@ -19,6 +19,7 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    DocComment(DocComments),
     /// <
     Less,
     /// <=
@@ -150,6 +151,7 @@ impl fmt::Display for Token {
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::IntType(ref i) => write!(f, "{i}"),
+            Token::DocComment(ref d) => write!(f, "{d}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),
@@ -756,5 +758,20 @@ impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
 
         let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
         chumsky::Stream::from_iter(end_of_input, iter)
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum DocComments {
+    Single(String),
+    Block(String),
+}
+
+impl fmt::Display for DocComments {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DocComments::Single(comment) => write!(f, "{}", comment),
+            DocComments::Block(comment) => write!(f, "{}", comment),
+        }
     }
 }

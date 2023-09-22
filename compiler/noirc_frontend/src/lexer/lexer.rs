@@ -178,9 +178,15 @@ impl<'a> Lexer<'a> {
             Token::Slash => {
                 if self.peek_char_is('/') {
                     self.next_char();
+                    if self.peek_char_is('/') {
+                        return self.parse_doc_comment();
+                    }
                     return self.parse_comment();
                 } else if self.peek_char_is('*') {
                     self.next_char();
+                    if self.peek_char_is('*') {
+                        return self.parse_block_doc_comment();
+                    }
                     return self.parse_block_comment();
                 }
                 Ok(spanned_prev_token)
@@ -397,6 +403,65 @@ impl<'a> Lexer<'a> {
     fn eat_whitespace(&mut self) {
         self.eat_while(None, |ch| ch.is_whitespace());
     }
+
+    fn parse_doc_comment(&mut self) -> SpannedTokenResult {
+        use crate::token::DocComments;
+
+        self.next_char();
+        let start = self.position;
+        let doc_comment = self.eat_while(None, |ch| ch != '\n');
+        let end = start + (doc_comment.len() as u32);
+        Ok(SpannedToken::new(
+            Token::DocComment(DocComments::Single(doc_comment)),
+            Span::inclusive(start, end),
+        ))
+    }
+
+    fn parse_block_doc_comment(&mut self) -> SpannedTokenResult {
+        use crate::token::DocComments;
+
+        self.next_char();
+        let start = self.position;
+        let mut depth = 1usize;
+        let mut doc_comment = String::new();
+
+        while let Some(ch) = self.next_char() {
+            match ch {
+                '/' if self.peek_char_is('*') => {
+                    self.next_char();
+                    depth += 1;
+                }
+                '*' if self.peek_char_is('/') => {
+                    self.next_char();
+                    depth -= 1;
+
+                    // This block comment is closed, so for a construction like "/* */ */"
+                    // there will be a successfully parsed block comment "/* */"
+                    // and " */" will be processed separately.
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                ' ' if self.peek_char_is(' ') => {}
+                _ => {
+                    doc_comment.push(ch);
+                }
+            }
+        }
+
+        let end = start + (doc_comment.len() as u32);
+        dbg!(&doc_comment);
+
+        if depth == 0 {
+            Ok(SpannedToken::new(
+                Token::DocComment(DocComments::Block(doc_comment)),
+                Span::inclusive(start, end),
+            ))
+        } else {
+            let span = Span::inclusive(start, self.position);
+            Err(LexerErrorKind::UnterminatedBlockComment { span })
+        }
+    }
 }
 
 impl<'a> Iterator for Lexer<'a> {
@@ -413,7 +478,7 @@ impl<'a> Iterator for Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{DocComments, FunctionAttribute, SecondaryAttribute, TestScope};
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -851,6 +916,34 @@ mod tests {
             Token::Semicolon,
             Token::EOF,
         ];
+        let mut lexer = Lexer::new(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn doc_comment_parse() {
+        let input = "
+            ///doc comment
+            let five = 5;
+            /**
+            block doc comment
+            */
+        ";
+
+        let expected = vec![
+            Token::DocComment(DocComments::Single("doc comment".to_string())),
+            Token::Keyword(Keyword::Let),
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int(5_i128.into()),
+            Token::Semicolon,
+            Token::DocComment(DocComments::Block("\n block doc comment\n ".to_string())),
+        ];
+
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
