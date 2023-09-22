@@ -22,9 +22,14 @@ fn no_command_provided_works() -> Result<(), crate::BackendError> {
 
     let output = std::process::Command::new(backend.binary_path()).output()?;
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = string_from_stderr(&output.stderr);
     // Assert help message is printed due to no command being provided.
     assert!(stderr.contains("Usage: mock_backend <COMMAND>"));
 
     Ok(())
+}
+
+// Converts a stderr byte array to a string (including invalid characters)
+fn string_from_stderr(stderr: &[u8]) -> String {
+    String::from_utf8_lossy(stderr).to_string()
 }

@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use crate::BackendError;
 
+use super::string_from_stderr;
+
 /// GatesCommand will call the barretenberg binary
 /// to return the number of gates needed to create a proof
 /// for the given bytecode.
@@ -21,13 +23,16 @@ impl GatesCommand {
             .output()?;
 
         if !output.status.success() {
-            return Err(BackendError::CommandFailed(output.stderr));
+            return Err(BackendError::CommandFailed(string_from_stderr(&output.stderr)));
         }
         // Note: barretenberg includes the newline, so that subsequent prints to stdout
         // are not on the same line as the gates output.
 
-        let gates_bytes: [u8; 8] =
-            output.stdout.try_into().map_err(BackendError::MalformedResponse)?;
+        const EXPECTED_BYTES: usize = 8;
+        let gates_bytes: [u8; EXPECTED_BYTES] =
+            output.stdout.as_slice().try_into().map_err(|_| {
+                BackendError::UnexpectedNumberOfBytes(EXPECTED_BYTES, output.stdout.clone())
+            })?;
 
         // Convert bytes to u64 in little-endian format
         let value = u64::from_le_bytes(gates_bytes);
