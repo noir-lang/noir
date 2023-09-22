@@ -1,5 +1,6 @@
 #include "./ultra_verifier.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
@@ -157,16 +158,65 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     // Produce a Gemini claim consisting of:
     // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
     // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
-    auto gemini_claim = Gemini::reduce_verification(multivariate_challenge,
-                                                    batched_evaluation,
-                                                    batched_commitment_unshifted,
-                                                    batched_commitment_to_be_shifted,
-                                                    transcript);
+    auto univariate_opening_claims = Gemini::reduce_verification(multivariate_challenge,
+                                                                 batched_evaluation,
+                                                                 batched_commitment_unshifted,
+                                                                 batched_commitment_to_be_shifted,
+                                                                 transcript);
+
+    // Perform ECC op queue transcript aggregation protocol
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
+        std::array<Commitment, Flavor::NUM_WIRES> prev_agg_op_queue_commitments;
+        std::array<Commitment, Flavor::NUM_WIRES> shifted_op_wire_commitments;
+        std::array<Commitment, Flavor::NUM_WIRES> agg_op_queue_commitments;
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            prev_agg_op_queue_commitments[idx] =
+                transcript.template receive_from_prover<Commitment>("PREV_AGG_OP_QUEUE_" + std::to_string(idx + 1));
+            shifted_op_wire_commitments[idx] =
+                transcript.template receive_from_prover<Commitment>("SHIFTED_OP_WIRE_" + std::to_string(idx + 1));
+            agg_op_queue_commitments[idx] =
+                transcript.template receive_from_prover<Commitment>("AGG_OP_QUEUE_" + std::to_string(idx + 1));
+        }
+
+        // Receive transcript poly evaluations
+        FF kappa = transcript.get_challenge("kappa");
+        std::array<FF, Flavor::NUM_WIRES> prev_agg_op_queue_evals;
+        std::array<FF, Flavor::NUM_WIRES> shifted_op_wire_evals;
+        std::array<FF, Flavor::NUM_WIRES> agg_op_queue_evals;
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            prev_agg_op_queue_evals[idx] =
+                transcript.template receive_from_prover<FF>("prev_agg_op_queue_eval_" + std::to_string(idx + 1));
+            shifted_op_wire_evals[idx] =
+                transcript.template receive_from_prover<FF>("op_wire_eval_" + std::to_string(idx + 1));
+            agg_op_queue_evals[idx] =
+                transcript.template receive_from_prover<FF>("agg_op_queue_eval_" + std::to_string(idx + 1));
+
+            // Check the identity T_i(\kappa) = T_{i-1}(\kappa) + t_i^{shift}(\kappa). If it fails, return false
+            if (agg_op_queue_evals[idx] != prev_agg_op_queue_evals[idx] + shifted_op_wire_evals[idx]) {
+                return false;
+            }
+        }
+
+        // Add corresponding univariate opening claims {(\kappa, p(\kappa), [p(X)]}
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            univariate_opening_claims.emplace_back(pcs::OpeningClaim<Curve>{ { kappa, prev_agg_op_queue_evals[idx] },
+                                                                             prev_agg_op_queue_commitments[idx] });
+        }
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            univariate_opening_claims.emplace_back(
+                pcs::OpeningClaim<Curve>{ { kappa, shifted_op_wire_evals[idx] }, shifted_op_wire_commitments[idx] });
+        }
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            univariate_opening_claims.emplace_back(
+                pcs::OpeningClaim<Curve>{ { kappa, agg_op_queue_evals[idx] }, agg_op_queue_commitments[idx] });
+        }
+    }
 
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
-    auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, gemini_claim, transcript);
+    auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, univariate_opening_claims, transcript);
 
-    // // Verify the Shplonk claim with KZG or IPA
+    // Verify the Shplonk claim with KZG or IPA
     return PCS::verify(pcs_verification_key, shplonk_claim, transcript);
 }
 

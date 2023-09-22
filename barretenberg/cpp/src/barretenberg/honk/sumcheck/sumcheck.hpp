@@ -206,6 +206,7 @@ template <typename Flavor> class SumcheckVerifier {
             round.compute_next_target_sum(round_univariate, round_challenge);
             pow_univariate.partially_evaluate(round_challenge);
 
+            // TODO(#726): Properly handle this in the recursive setting.
             if (!verified) {
                 return std::nullopt;
             }

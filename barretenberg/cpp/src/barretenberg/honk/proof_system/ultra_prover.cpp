@@ -156,13 +156,116 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_univariatizatio
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_pcs_evaluation_round()
 {
     const FF r_challenge = transcript.get_challenge("Gemini:r");
-    gemini_output = Gemini::compute_fold_polynomial_evaluations(
+    univariate_openings = Gemini::compute_fold_polynomial_evaluations(
         sumcheck_output.challenge_point, std::move(gemini_polynomials), r_challenge);
 
     for (size_t l = 0; l < instance->proving_key->log_circuit_size; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
-        const auto& evaluation = gemini_output.opening_pairs[l + 1].evaluation;
+        const auto& evaluation = univariate_openings.opening_pairs[l + 1].evaluation;
         transcript.send_to_verifier(label, evaluation);
+    }
+}
+
+/**
+ * @brief Prove proper construction of the aggregate Goblin ECC op queue polynomials T_i^(j), j = 1,2,3,4.
+ * @details Let T_i^(j) be the jth column of the aggregate op queue after incorporating the contribution from the
+ * present circuit. T_{i-1}^(j) corresponds to the aggregate op queue at the previous stage and $t_i^(j)$ represents
+ * the contribution from the present circuit only. For each j, we have the relationship T_i = T_{i-1} + right_shift(t_i,
+ * M_{i-1}), where the shift magnitude M_{i-1} is the length of T_{i-1}. This stage of the protocol demonstrates that
+ * the aggregate op queue has been constructed correctly.
+ *
+ */
+template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_op_queue_transcript_aggregation_round()
+{
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        // Extract size M_{i-1} of T_{i-1} from op_queue
+        size_t prev_op_queue_size = instance->proving_key->op_queue->get_previous_size(); // M_{i-1}
+        // TODO(#723): Cannot currently support an empty T_{i-1}. Need to be able to properly handle zero commitment.
+        ASSERT(prev_op_queue_size > 0);
+
+        auto circuit_size = instance->proving_key->circuit_size;
+
+        // TODO(#723): The below assert ensures that M_{i-1} + m_i < n, i.e. the right shifted result can be expressed
+        // as a size n polynomial. If this is not the case then we should still be able to proceed without increasing
+        // the circuit size but need to handle with care.
+        ASSERT(prev_op_queue_size + instance->proving_key->num_ecc_op_gates < circuit_size); // M_{i-1} + m_i < n
+
+        // Construct right-shift of op wires t_i^{shift} so that T_i(X) = T_{i-1}(X) + t_i^{shift}(X).
+        // Note: The op_wire polynomials (like all others) have constant coefficient equal to zero. Thus to obtain
+        // t_i^{shift} we must left-shift by 1 then right-shift by M_{i-1}, or equivalently, right-shift by
+        // M_{i-1} - 1.
+        std::array<Polynomial, Flavor::NUM_WIRES> right_shifted_op_wires;
+        auto op_wires = instance->proving_key->get_ecc_op_wires();
+        for (size_t i = 0; i < op_wires.size(); ++i) {
+            // Right shift by M_{i-1} - 1.
+            right_shifted_op_wires[i].set_to_right_shifted(op_wires[i], prev_op_queue_size - 1);
+        }
+
+        // Compute/get commitments [t_i^{shift}], [T_{i-1}], and [T_i] and add to transcript
+        std::array<Commitment, Flavor::NUM_WIRES> prev_aggregate_op_queue_commitments;
+        std::array<Commitment, Flavor::NUM_WIRES> shifted_op_wire_commitments;
+        std::array<Commitment, Flavor::NUM_WIRES> aggregate_op_queue_commitments;
+        for (size_t idx = 0; idx < right_shifted_op_wires.size(); ++idx) {
+            // Get previous transcript commitment [T_{i-1}] from op queue
+            prev_aggregate_op_queue_commitments[idx] = instance->proving_key->op_queue->ultra_ops_commitments[idx];
+            // Compute commitment [t_i^{shift}] directly
+            shifted_op_wire_commitments[idx] = pcs_commitment_key->commit(right_shifted_op_wires[idx]);
+            // Compute updated aggregate transcript commitmen as [T_i] = [T_{i-1}] + [t_i^{shift}]
+            aggregate_op_queue_commitments[idx] =
+                prev_aggregate_op_queue_commitments[idx] + shifted_op_wire_commitments[idx];
+
+            std::string suffix = std::to_string(idx + 1);
+            transcript.send_to_verifier("PREV_AGG_OP_QUEUE_" + suffix, prev_aggregate_op_queue_commitments[idx]);
+            transcript.send_to_verifier("SHIFTED_OP_WIRE_" + suffix, shifted_op_wire_commitments[idx]);
+            transcript.send_to_verifier("AGG_OP_QUEUE_" + suffix, aggregate_op_queue_commitments[idx]);
+        }
+
+        // Store the commitments [T_{i}] (to be used later in subsequent iterations as [T_{i-1}]).
+        instance->proving_key->op_queue->set_commitment_data(aggregate_op_queue_commitments);
+
+        // Compute evaluations T_i(\kappa), T_{i-1}(\kappa), t_i^{shift}(\kappa), add to transcript. For each polynomial
+        // we add a univariate opening claim {(\kappa, p(\kappa)), p(X)} to the set of claims to be combined in the
+        // batch univariate polynomial Q in Shplonk. (The other univariate claims come from the output of Gemini).
+        // TODO(#729): It should be possible to reuse the opening challenge from Gemini rather than generate a new one.
+        auto kappa = transcript.get_challenge("kappa");
+        auto prev_aggregate_ecc_op_transcript = instance->proving_key->op_queue->get_previous_aggregate_transcript();
+        auto aggregate_ecc_op_transcript = instance->proving_key->op_queue->get_aggregate_transcript();
+        std::array<FF, Flavor::NUM_WIRES> prev_agg_op_queue_evals;
+        std::array<FF, Flavor::NUM_WIRES> right_shifted_op_wire_evals;
+        std::array<FF, Flavor::NUM_WIRES> agg_op_queue_evals;
+        std::array<Polynomial, Flavor::NUM_WIRES> prev_agg_op_queue_polynomials;
+        std::array<Polynomial, Flavor::NUM_WIRES> agg_op_queue_polynomials;
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            std::string suffix = std::to_string(idx + 1);
+
+            // Compute evaluation T_{i-1}(\kappa)
+            prev_agg_op_queue_polynomials[idx] = Polynomial(prev_aggregate_ecc_op_transcript[idx]);
+            prev_agg_op_queue_evals[idx] = prev_agg_op_queue_polynomials[idx].evaluate(kappa);
+            transcript.send_to_verifier("prev_agg_op_queue_eval_" + suffix, prev_agg_op_queue_evals[idx]);
+
+            // Compute evaluation t_i^{shift}(\kappa)
+            right_shifted_op_wire_evals[idx] = right_shifted_op_wires[idx].evaluate(kappa);
+            transcript.send_to_verifier("op_wire_eval_" + suffix, right_shifted_op_wire_evals[idx]);
+
+            // Compute evaluation T_i(\kappa)
+            agg_op_queue_polynomials[idx] = Polynomial(aggregate_ecc_op_transcript[idx]);
+            agg_op_queue_evals[idx] = agg_op_queue_polynomials[idx].evaluate(kappa);
+            transcript.send_to_verifier("agg_op_queue_eval_" + suffix, agg_op_queue_evals[idx]);
+        }
+
+        // Add univariate opening claims for each polynomial.
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            univariate_openings.opening_pairs.emplace_back(OpenPair{ kappa, prev_agg_op_queue_evals[idx] });
+            univariate_openings.witnesses.emplace_back(std::move(prev_agg_op_queue_polynomials[idx]));
+        }
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            univariate_openings.opening_pairs.emplace_back(OpenPair{ kappa, right_shifted_op_wire_evals[idx] });
+            univariate_openings.witnesses.emplace_back(std::move(right_shifted_op_wires[idx]));
+        }
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            univariate_openings.opening_pairs.emplace_back(OpenPair{ kappa, agg_op_queue_evals[idx] });
+            univariate_openings.witnesses.emplace_back(std::move(agg_op_queue_polynomials[idx]));
+        }
     }
 }
 
@@ -174,8 +277,8 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_shplonk_batched
 {
     nu_challenge = transcript.get_challenge("Shplonk:nu");
 
-    batched_quotient_Q =
-        Shplonk::compute_batched_quotient(gemini_output.opening_pairs, gemini_output.witnesses, nu_challenge);
+    batched_quotient_Q = Shplonk::compute_batched_quotient(
+        univariate_openings.opening_pairs, univariate_openings.witnesses, nu_challenge);
 
     // commit to Q(X) and add [Q] to the transcript
     queue.add_commitment(batched_quotient_Q, "Shplonk:Q");
@@ -189,8 +292,11 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_shplonk_partial
 {
     const FF z_challenge = transcript.get_challenge("Shplonk:z");
 
-    shplonk_output = Shplonk::compute_partially_evaluated_batched_quotient(
-        gemini_output.opening_pairs, gemini_output.witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
+    shplonk_output = Shplonk::compute_partially_evaluated_batched_quotient(univariate_openings.opening_pairs,
+                                                                           univariate_openings.witnesses,
+                                                                           std::move(batched_quotient_Q),
+                                                                           nu_challenge,
+                                                                           z_challenge);
 }
 /**
  * - Compute final PCS opening proof:
@@ -239,6 +345,9 @@ template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proo
     // Fiat-Shamir: r
     // Compute Fold evaluations
     execute_pcs_evaluation_round();
+
+    // ECC op queue transcript aggregation
+    execute_op_queue_transcript_aggregation_round();
 
     // Fiat-Shamir: nu
     // Compute Shplonk batched quotient commitment Q

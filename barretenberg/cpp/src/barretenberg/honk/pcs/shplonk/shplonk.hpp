@@ -145,7 +145,7 @@ template <typename Curve> class ShplonkProver_ {
  * @brief Shplonk Verifier
  *
  */
-template <typename Curve, bool goblin_flag = false> class ShplonkVerifier_ {
+template <typename Curve> class ShplonkVerifier_ {
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
@@ -231,7 +231,7 @@ template <typename Curve, bool goblin_flag = false> class ShplonkVerifier_ {
             scalars.emplace_back(G_commitment_constant);
 
             // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
-            G_commitment = GroupElement::template batch_mul<goblin_flag>(commitments, scalars);
+            G_commitment = GroupElement::batch_mul(commitments, scalars);
 
         } else {
             // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]

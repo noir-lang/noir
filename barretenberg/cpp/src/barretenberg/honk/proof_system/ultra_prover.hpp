@@ -15,6 +15,7 @@ namespace proof_system::honk {
 
 template <UltraFlavor Flavor> class UltraProver_ {
     using FF = typename Flavor::FF;
+    using Commitment = typename Flavor::Commitment;
     using PCS = typename Flavor::PCS;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using ProvingKey = typename Flavor::ProvingKey;
@@ -23,6 +24,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Curve = typename Flavor::Curve;
     using Instance = ProverInstance_<Flavor>;
+    using OpenPair = pcs::OpeningPair<Curve>;
 
   public:
     explicit UltraProver_(std::shared_ptr<Instance>);
@@ -33,6 +35,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     void execute_relation_check_rounds();
     void execute_univariatization_round();
     void execute_pcs_evaluation_round();
+    void execute_op_queue_transcript_aggregation_round();
     void execute_shplonk_batched_quotient_round();
     void execute_shplonk_partial_evaluation_round();
     void execute_final_pcs_round();
@@ -60,7 +63,7 @@ template <UltraFlavor Flavor> class UltraProver_ {
     std::shared_ptr<Instance> instance;
 
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
-    pcs::gemini::ProverOutput<Curve> gemini_output;
+    pcs::gemini::ProverOutput<Curve> univariate_openings;
     pcs::shplonk::ProverOutput<Curve> shplonk_output;
     std::shared_ptr<CommitmentKey> pcs_commitment_key;
 

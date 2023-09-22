@@ -12,7 +12,7 @@ namespace proof_system::plonk::stdlib::recursion::honk {
 
 using Builder = UltraCircuitBuilder;
 using UltraFlavor = ::proof_system::honk::flavor::Ultra;
-using UltraRecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive;
+using UltraRecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<Builder>;
 using FF = barretenberg::fr;
 using ProverTranscript = ::proof_system::honk::ProverTranscript<FF>;
 using VerifierTranscript = ::proof_system::honk::VerifierTranscript<FF>;

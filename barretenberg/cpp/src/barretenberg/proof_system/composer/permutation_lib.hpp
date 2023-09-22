@@ -112,10 +112,7 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const typename Flavor::C
         const auto& op_wires = circuit_constructor.ecc_op_wires;
         // Iterate over all variables of the ecc op gates, and add a corresponding node to the cycle for that variable
         for (size_t i = 0; i < num_ecc_op_gates; ++i) {
-            // Note: We exclude the first op wire since it contains the op codes which are not stored in variables
-            // TODO(luke): Kesha pointed out that we may need to constrain the op code values in some way, either with a
-            // copy cycle that constrains them to a constant or with a relation. Resolve this.
-            for (size_t op_wire_idx = 1; op_wire_idx < 4; ++op_wire_idx) {
+            for (size_t op_wire_idx = 0; op_wire_idx < Flavor::NUM_WIRES; ++op_wire_idx) {
                 const uint32_t var_index = circuit_constructor.real_variable_index[op_wires[op_wire_idx][i]];
                 const auto wire_index = static_cast<uint32_t>(op_wire_idx);
                 const auto gate_idx = static_cast<uint32_t>(i + op_gates_offset);

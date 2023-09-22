@@ -11,6 +11,25 @@
 
 using namespace barretenberg;
 
+/**
+ * @brief Ensure evaluate() gives consistent result for polynomials of different size but same non-zero coefficients.
+ */
+TEST(polynomials, evaluate)
+{
+    auto poly1 = polynomial(15); // non power of 2
+    auto poly2 = polynomial(64);
+    for (size_t i = 0; i < poly1.size(); ++i) {
+        poly1[i] = fr::random_element();
+        poly2[i] = poly1[i];
+    }
+
+    auto challenge = fr::random_element();
+    auto eval1 = poly1.evaluate(challenge);
+    auto eval2 = poly2.evaluate(challenge);
+
+    EXPECT_EQ(eval1, eval2);
+}
+
 TEST(polynomials, fft_with_small_degree)
 {
     constexpr size_t n = 16;
@@ -1215,4 +1234,37 @@ TYPED_TEST(PolynomialTests, default_construct_then_assign)
         EXPECT_EQ(poly[i], interesting_poly[i]);
     }
     EXPECT_EQ(poly.size(), interesting_poly.size());
+}
+
+/**
+ * @brief Test the right shift functionality of the polynomial class
+ *
+ */
+TYPED_TEST(PolynomialTests, RightShift)
+{
+    using FF = TypeParam;
+
+    // Define valid parameters for computing a right shifted polynomial
+    size_t num_coeffs = 32;
+    size_t num_nonzero_coeffs = 7;
+    size_t shift_magnitude = 21;
+    Polynomial<FF> poly(num_coeffs);
+    Polynomial<FF> right_shifted_poly(num_coeffs);
+
+    for (size_t idx = 0; idx < num_nonzero_coeffs; ++idx) {
+        poly[idx] = FF::random_element();
+    }
+
+    // evaluate the unshifted polynomial
+    auto evaluation_point = FF::random_element();
+    auto unshifted_evaluation = poly.evaluate(evaluation_point);
+
+    // compute the right shift of the original polynomial and its evaluation
+    right_shifted_poly.set_to_right_shifted(poly, shift_magnitude);
+    auto shifted_evaluation = right_shifted_poly.evaluate(evaluation_point);
+
+    // reconstruct the unshifted evaluation using that p^{shift}(X) = p(X)*X^m, where m is the shift magnitude
+    auto shifted_eval_reconstructed = unshifted_evaluation * evaluation_point.pow(shift_magnitude);
+
+    EXPECT_EQ(shifted_evaluation, shifted_eval_reconstructed);
 }

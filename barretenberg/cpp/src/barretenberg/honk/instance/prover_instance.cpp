@@ -23,7 +23,10 @@ void ProverInstance_<Flavor>::compute_circuit_size_parameters(Circuit& circuit)
     // Get num conventional gates, num public inputs and num Goblin style ECC op gates
     const size_t num_gates = circuit.num_gates;
     num_public_inputs = circuit.public_inputs.size();
-    num_ecc_op_gates = circuit.num_ecc_op_gates;
+    num_ecc_op_gates = 0;
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        num_ecc_op_gates = circuit.num_ecc_op_gates;
+    }
 
     // minimum circuit size due to the length of lookups plus tables
     const size_t minimum_circuit_size_due_to_lookups = tables_size + lookups_size + num_zero_rows;
@@ -260,6 +263,7 @@ std::shared_ptr<typename Flavor::ProvingKey> ProverInstance_<Flavor>::compute_pr
 
         if constexpr (IsGoblinFlavor<Flavor>) {
             proving_key->num_ecc_op_gates = num_ecc_op_gates;
+            proving_key->op_queue = circuit.op_queue;
         }
     }
 

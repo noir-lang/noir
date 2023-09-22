@@ -325,7 +325,7 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
     // by each relation are non-trivially exercised.
-    auto builder = proof_system::UltraCircuitBuilder();
+    auto builder = proof_system::GoblinUltraCircuitBuilder();
 
     // Create an assortment of representative gates
     create_some_add_gates<Flavor>(builder);

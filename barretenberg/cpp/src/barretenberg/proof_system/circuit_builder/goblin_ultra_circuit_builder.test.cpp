@@ -1,5 +1,4 @@
-#include "barretenberg/crypto/generators/generator_data.hpp"
-#include "ultra_circuit_builder.hpp"
+#include "goblin_ultra_circuit_builder.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
@@ -20,7 +19,7 @@ TEST(UltraCircuitBuilder, GoblinSimple)
 {
     const size_t CHUNK_SIZE = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
 
-    auto builder = UltraCircuitBuilder();
+    auto builder = GoblinUltraCircuitBuilder();
 
     // Compute a simple point accumulation natively
     auto P1 = g1::affine_element::random_element();
@@ -46,7 +45,7 @@ TEST(UltraCircuitBuilder, GoblinSimple)
     EXPECT_EQ(P_result_y, uint256_t(P_expected.y));
 
     // Check that the accumulator in the op queue has been reset to 0
-    auto accumulator = builder.op_queue.get_accumulator();
+    auto accumulator = builder.op_queue->get_accumulator();
     EXPECT_EQ(accumulator, g1::affine_point_at_infinity);
 
     // Check number of ecc op "gates"/rows = 3 ops * 2 rows per op = 6
@@ -77,4 +76,35 @@ TEST(UltraCircuitBuilder, GoblinSimple)
     auto P2_y = P2_y_lo + (P2_y_hi << CHUNK_SIZE);
     EXPECT_EQ(P2_y, uint256_t(P2.y));
 }
+
+/**
+ * @brief Check that the ultra ops are recorded correctly in the EccOpQueue
+ *
+ */
+TEST(UltraCircuitBuilder, GoblinEccOpQueueUltraOps)
+{
+    // Construct a simple circuit with op gates
+    auto builder = GoblinUltraCircuitBuilder();
+
+    // Compute a simple point accumulation natively
+    auto P1 = g1::affine_element::random_element();
+    auto P2 = g1::affine_element::random_element();
+    auto z = fr::random_element();
+
+    // Add gates corresponding to the above operations
+    builder.queue_ecc_add_accum(P1);
+    builder.queue_ecc_mul_accum(P2, z);
+    builder.queue_ecc_eq();
+
+    // Check that the ultra ops recorded in the EccOpQueue match the ops recorded in the wires
+    auto ultra_ops = builder.op_queue->get_aggregate_transcript();
+    for (size_t i = 1; i < 4; ++i) {
+        for (size_t j = 0; j < builder.num_ecc_op_gates; ++j) {
+            auto op_wire_val = builder.variables[builder.ecc_op_wires[i][j]];
+            auto ultra_op_val = ultra_ops[i][j];
+            ASSERT_EQ(op_wire_val, ultra_op_val);
+        }
+    }
+}
+
 } // namespace proof_system

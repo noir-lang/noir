@@ -11,7 +11,7 @@
 
 namespace proof_system::honk::pcs::kzg {
 
-template <typename Curve, bool goblin_flag = false> class KZG {
+template <typename Curve> class KZG {
     using CK = CommitmentKey<Curve>;
     using VK = VerifierCommitmentKey<Curve>;
     using Fr = typename Curve::ScalarField;
@@ -88,7 +88,7 @@ template <typename Curve, bool goblin_flag = false> class KZG {
             auto one = Fr(builder, 1);
             std::vector<GroupElement> commitments = { claim.commitment, quotient_commitment };
             std::vector<Fr> scalars = { one, claim.opening_pair.challenge };
-            P_0 = GroupElement::template batch_mul<goblin_flag>(commitments, scalars);
+            P_0 = GroupElement::batch_mul(commitments, scalars);
             // Note: This implementation assumes the evaluation is zero (as is the case for shplonk).
             ASSERT(claim.opening_pair.evaluation.get_value() == 0);
         } else {

@@ -14,19 +14,19 @@ namespace proof_system::plonk::stdlib::recursion::honk {
  * @details The recursive verification circuit is arithmetized in two different ways: 1) using the conventional Ultra
  * arithmetization (UltraCircuitBuilder), or 2) a Goblin-style Ultra arithmetization (GoblinUltraCircuitBuilder).
  *
- * @tparam Builder
+ * @tparam Builder Circuit builder for the recursive verifier circuit
  */
-template <typename BuilderType> class RecursiveVerifierTest : public testing::Test {
+template <typename BuilderType> class GoblinRecursiveVerifierTest : public testing::Test {
 
     // Define types relevant for inner circuit
-    using Flavor = ::proof_system::honk::flavor::Ultra;
+    using Flavor = ::proof_system::honk::flavor::GoblinUltra;
     using InnerComposer = ::proof_system::honk::UltraComposer_<Flavor>;
     using InnerBuilder = typename InnerComposer::CircuitBuilder;
     using NativeVerifier = ::proof_system::honk::UltraVerifier_<::proof_system::honk::flavor::Ultra>;
     using InnerCurve = bn254<InnerBuilder>;
 
     // Types for recursive verifier circuit
-    using RecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<BuilderType>;
+    using RecursiveFlavor = ::proof_system::honk::flavor::GoblinUltraRecursive_<BuilderType>;
     using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
     using OuterBuilder = BuilderType;
     using VerificationKey = typename RecursiveVerifier::VerificationKey;
@@ -38,14 +38,22 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
      * @param public_inputs
      * @param log_num_gates
      */
-    static void create_inner_circuit(InnerBuilder& builder, size_t log_num_gates = 10)
+    static InnerBuilder create_inner_circuit(size_t log_num_gates = 10)
     {
         using fr_ct = InnerCurve::ScalarField;
         using fq_ct = InnerCurve::BaseField;
+        using point_ct = InnerCurve::AffineElement;
         using public_witness_ct = InnerCurve::public_witness_ct;
         using witness_ct = InnerCurve::witness_ct;
         using byte_array_ct = InnerCurve::byte_array_ct;
         using fr = typename InnerCurve::ScalarFieldNative;
+        using point = typename InnerCurve::GroupNative::affine_element;
+
+        // Instantiate ECC op queue and add mock data to simulate interaction with a previous circuit
+        auto op_queue = std::make_shared<ECCOpQueue>();
+        op_queue->populate_with_mock_initital_data();
+
+        InnerBuilder builder(op_queue);
 
         // Create 2^log_n many add gates based on input log num gates
         const size_t num_gates = 1 << log_num_gates;
@@ -63,7 +71,17 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
             builder.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
         }
 
-        // Define some additional non-trivial but arbitrary circuit logic
+        // Add some arbitrary goblin-style ECC op gates via a batch mul
+        size_t num_points = 5;
+        std::vector<point_ct> circuit_points;
+        std::vector<fr_ct> circuit_scalars;
+        for (size_t i = 0; i < num_points; ++i) {
+            circuit_points.push_back(point_ct::from_witness(&builder, point::random_element()));
+            circuit_scalars.push_back(fr_ct::from_witness(&builder, fr::random_element()));
+        }
+        point_ct::batch_mul(circuit_points, circuit_scalars);
+
+        // Define some additional arbitrary convetional circuit logic
         fr_ct a(public_witness_ct(&builder, fr::random_element()));
         fr_ct b(public_witness_ct(&builder, fr::random_element()));
         fr_ct c(public_witness_ct(&builder, fr::random_element()));
@@ -84,6 +102,8 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         fq_ct big_b(fr_ct(witness_ct(&builder, bigfield_data_b.to_montgomery_form())), fr_ct(witness_ct(&builder, 0)));
 
         big_a* big_b;
+
+        return builder;
     };
 
   public:
@@ -95,11 +115,9 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
      */
     static void test_inner_circuit()
     {
-        InnerBuilder builder;
+        auto inner_circuit = create_inner_circuit();
 
-        create_inner_circuit(builder);
-
-        bool result = builder.check_circuit();
+        bool result = inner_circuit.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -110,11 +128,8 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
      */
     static void test_recursive_verification_key_creation()
     {
-        InnerBuilder inner_circuit;
-        OuterBuilder outer_circuit;
-
         // Create an arbitrary inner circuit
-        create_inner_circuit(inner_circuit);
+        auto inner_circuit = create_inner_circuit();
 
         // Compute native verification key
         InnerComposer inner_composer;
@@ -123,6 +138,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         const auto native_verification_key = instance->compute_verification_key();
 
         // Instantiate the recursive verification key from the native verification key
+        OuterBuilder outer_circuit;
         auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, native_verification_key);
 
         // Spot check some values in the recursive VK to ensure it was constructed correctly
@@ -133,6 +149,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         EXPECT_EQ(verification_key->q_r.get_value(), native_verification_key->q_r);
         EXPECT_EQ(verification_key->sigma_1.get_value(), native_verification_key->sigma_1);
         EXPECT_EQ(verification_key->id_3.get_value(), native_verification_key->id_3);
+        EXPECT_EQ(verification_key->lagrange_ecc_op.get_value(), native_verification_key->lagrange_ecc_op);
     }
 
     /**
@@ -142,8 +159,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
     static void test_recursive_verification()
     {
         // Create an arbitrary inner circuit
-        InnerBuilder inner_circuit;
-        create_inner_circuit(inner_circuit);
+        auto inner_circuit = create_inner_circuit();
 
         // Generate a proof over the inner circuit
         InnerComposer inner_composer;
@@ -185,19 +201,19 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 // Run the recursive verifier tests with conventional Ultra builder and Goblin builder
 using BuilderTypes = testing::Types<UltraCircuitBuilder, GoblinUltraCircuitBuilder>;
 
-TYPED_TEST_SUITE(RecursiveVerifierTest, BuilderTypes);
+TYPED_TEST_SUITE(GoblinRecursiveVerifierTest, BuilderTypes);
 
-HEAVY_TYPED_TEST(RecursiveVerifierTest, InnerCircuit)
+HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, InnerCircuit)
 {
     TestFixture::test_inner_circuit();
 }
 
-HEAVY_TYPED_TEST(RecursiveVerifierTest, RecursiveVerificationKey)
+HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, RecursiveVerificationKey)
 {
     TestFixture::test_recursive_verification_key_creation();
 }
 
-HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerification)
+HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, SingleRecursiveVerification)
 {
     TestFixture::test_recursive_verification();
 };

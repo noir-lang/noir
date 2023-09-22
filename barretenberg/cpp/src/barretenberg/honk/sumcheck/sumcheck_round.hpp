@@ -425,6 +425,8 @@ template <typename Flavor> class SumcheckVerifierRound {
         // with a simulated builder.
         bool sumcheck_round_failed(false);
         if constexpr (IsRecursiveFlavor<Flavor>) {
+            // TODO(#726): Need to constrain this equality and update the native optional return value mechanism for the
+            // recursive setting.
             sumcheck_round_failed = (target_total_sum != total_sum).get_value();
         } else {
             sumcheck_round_failed = (target_total_sum != total_sum);

@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/honk/flavor/goblin_ultra.hpp"
+#include "barretenberg/honk/flavor/goblin_ultra_recursive.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include "barretenberg/honk/flavor/ultra_recursive.hpp"
@@ -8,7 +9,8 @@
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 
 namespace proof_system::plonk::stdlib::recursion::honk {
-template <typename Flavor, bool goblin_flag = false> class UltraRecursiveVerifier_ {
+template <typename Flavor> class UltraRecursiveVerifier_ {
+  public:
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using GroupElement = typename Flavor::GroupElement;
@@ -17,7 +19,6 @@ template <typename Flavor, bool goblin_flag = false> class UltraRecursiveVerifie
     using Builder = typename Flavor::CircuitBuilder;
     using PairingPoints = std::array<GroupElement, 2>;
 
-  public:
     explicit UltraRecursiveVerifier_(Builder* builder, std::shared_ptr<VerificationKey> verifier_key = nullptr);
     UltraRecursiveVerifier_(UltraRecursiveVerifier_&& other) = delete;
     UltraRecursiveVerifier_(const UltraRecursiveVerifier_& other) = delete;
@@ -36,10 +37,12 @@ template <typename Flavor, bool goblin_flag = false> class UltraRecursiveVerifie
     Transcript<Builder> transcript;
 };
 
-extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive, /*goblin_flag*/ false>;
-extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive, /*goblin_flag*/ true>;
-
-using UltraRecursiveVerifier =
-    UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive, /*goblin_flag*/ false>;
+// Instance declarations for Ultra and Goblin-Ultra verifier circuits with both conventional Ultra and Goblin-Ultra
+// arithmetization.
+extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive_<UltraCircuitBuilder>>;
+extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::UltraRecursive_<GoblinUltraCircuitBuilder>>;
+extern template class UltraRecursiveVerifier_<proof_system::honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>>;
+extern template class UltraRecursiveVerifier_<
+    proof_system::honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
 
 } // namespace proof_system::plonk::stdlib::recursion::honk

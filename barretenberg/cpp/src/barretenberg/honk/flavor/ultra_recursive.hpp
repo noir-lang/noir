@@ -5,6 +5,7 @@
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 
+#include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -17,6 +18,7 @@
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "barretenberg/proof_system/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
+
 #include <array>
 #include <concepts>
 #include <span>
@@ -37,20 +39,25 @@ namespace proof_system::honk::flavor {
  * (e.g. Polynomial, ExtendedEdges, etc.) since we do not emulate prover computation in circuits, i.e. it only makes
  * sense to instantiate a Verifier with this flavor.
  *
+ * @note Unlike conventional flavors, "recursive" flavors are templated by a builder (much like native vs stdlib types).
+ * This is because the flavor itself determines the details of the underlying verifier algorithm (i.e. the set of
+ * relations), while the Builder determines the arithmetization of that algorithm into a circuit.
+ *
+ * @tparam BuilderType Determines the arithmetization of the verifier circuit defined based on this flavor.
  */
-class UltraRecursive {
+template <typename BuilderType> class UltraRecursive_ {
   public:
-    using CircuitBuilder = UltraCircuitBuilder;
+    using CircuitBuilder = BuilderType; // Determines arithmetization of circuit instantiated with this flavor
     using Curve = plonk::stdlib::bn254<CircuitBuilder>;
-    using GroupElement = Curve::Element;
-    using Commitment = Curve::Element;
-    using CommitmentHandle = Curve::Element;
-    using FF = Curve::ScalarField;
+    using GroupElement = typename Curve::Element;
+    using Commitment = typename Curve::Element;
+    using CommitmentHandle = typename Curve::Element;
+    using FF = typename Curve::ScalarField;
 
     // Note(luke): Eventually this may not be needed at all
     using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
 
-    static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = flavor::Ultra::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
@@ -113,8 +120,6 @@ class UltraRecursive {
         DataType& table_4 = std::get<22>(this->_data);
         DataType& lagrange_first = std::get<23>(this->_data);
         DataType& lagrange_last = std::get<24>(this->_data);
-
-        static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
         std::vector<HandleType> get_selectors() override
         {
@@ -274,31 +279,31 @@ class UltraRecursive {
             : VerificationKey_<PrecomputedEntities<Commitment, CommitmentHandle>>(native_key->circuit_size,
                                                                                   native_key->num_public_inputs)
         {
-            q_m = Commitment::from_witness(builder, native_key->q_m);
-            q_l = Commitment::from_witness(builder, native_key->q_l);
-            q_r = Commitment::from_witness(builder, native_key->q_r);
-            q_o = Commitment::from_witness(builder, native_key->q_o);
-            q_4 = Commitment::from_witness(builder, native_key->q_4);
-            q_c = Commitment::from_witness(builder, native_key->q_c);
-            q_arith = Commitment::from_witness(builder, native_key->q_arith);
-            q_sort = Commitment::from_witness(builder, native_key->q_sort);
-            q_elliptic = Commitment::from_witness(builder, native_key->q_elliptic);
-            q_aux = Commitment::from_witness(builder, native_key->q_aux);
-            q_lookup = Commitment::from_witness(builder, native_key->q_lookup);
-            sigma_1 = Commitment::from_witness(builder, native_key->sigma_1);
-            sigma_2 = Commitment::from_witness(builder, native_key->sigma_2);
-            sigma_3 = Commitment::from_witness(builder, native_key->sigma_3);
-            sigma_4 = Commitment::from_witness(builder, native_key->sigma_4);
-            id_1 = Commitment::from_witness(builder, native_key->id_1);
-            id_2 = Commitment::from_witness(builder, native_key->id_2);
-            id_3 = Commitment::from_witness(builder, native_key->id_3);
-            id_4 = Commitment::from_witness(builder, native_key->id_4);
-            table_1 = Commitment::from_witness(builder, native_key->table_1);
-            table_2 = Commitment::from_witness(builder, native_key->table_2);
-            table_3 = Commitment::from_witness(builder, native_key->table_3);
-            table_4 = Commitment::from_witness(builder, native_key->table_4);
-            lagrange_first = Commitment::from_witness(builder, native_key->lagrange_first);
-            lagrange_last = Commitment::from_witness(builder, native_key->lagrange_last);
+            this->q_m = Commitment::from_witness(builder, native_key->q_m);
+            this->q_l = Commitment::from_witness(builder, native_key->q_l);
+            this->q_r = Commitment::from_witness(builder, native_key->q_r);
+            this->q_o = Commitment::from_witness(builder, native_key->q_o);
+            this->q_4 = Commitment::from_witness(builder, native_key->q_4);
+            this->q_c = Commitment::from_witness(builder, native_key->q_c);
+            this->q_arith = Commitment::from_witness(builder, native_key->q_arith);
+            this->q_sort = Commitment::from_witness(builder, native_key->q_sort);
+            this->q_elliptic = Commitment::from_witness(builder, native_key->q_elliptic);
+            this->q_aux = Commitment::from_witness(builder, native_key->q_aux);
+            this->q_lookup = Commitment::from_witness(builder, native_key->q_lookup);
+            this->sigma_1 = Commitment::from_witness(builder, native_key->sigma_1);
+            this->sigma_2 = Commitment::from_witness(builder, native_key->sigma_2);
+            this->sigma_3 = Commitment::from_witness(builder, native_key->sigma_3);
+            this->sigma_4 = Commitment::from_witness(builder, native_key->sigma_4);
+            this->id_1 = Commitment::from_witness(builder, native_key->id_1);
+            this->id_2 = Commitment::from_witness(builder, native_key->id_2);
+            this->id_3 = Commitment::from_witness(builder, native_key->id_3);
+            this->id_4 = Commitment::from_witness(builder, native_key->id_4);
+            this->table_1 = Commitment::from_witness(builder, native_key->table_1);
+            this->table_2 = Commitment::from_witness(builder, native_key->table_2);
+            this->table_3 = Commitment::from_witness(builder, native_key->table_3);
+            this->table_4 = Commitment::from_witness(builder, native_key->table_4);
+            this->lagrange_first = Commitment::from_witness(builder, native_key->lagrange_first);
+            this->lagrange_last = Commitment::from_witness(builder, native_key->lagrange_last);
         };
     };
 
@@ -323,40 +328,40 @@ class UltraRecursive {
       public:
         CommitmentLabels()
         {
-            w_l = "W_L";
-            w_r = "W_R";
-            w_o = "W_O";
-            w_4 = "W_4";
-            z_perm = "Z_PERM";
-            z_lookup = "Z_LOOKUP";
-            sorted_accum = "SORTED_ACCUM";
+            this->w_l = "W_L";
+            this->w_r = "W_R";
+            this->w_o = "W_O";
+            this->w_4 = "W_4";
+            this->z_perm = "Z_PERM";
+            this->z_lookup = "Z_LOOKUP";
+            this->sorted_accum = "SORTED_ACCUM";
 
             // The ones beginning with "__" are only used for debugging
-            q_c = "__Q_C";
-            q_l = "__Q_L";
-            q_r = "__Q_R";
-            q_o = "__Q_O";
-            q_4 = "__Q_4";
-            q_m = "__Q_M";
-            q_arith = "__Q_ARITH";
-            q_sort = "__Q_SORT";
-            q_elliptic = "__Q_ELLIPTIC";
-            q_aux = "__Q_AUX";
-            q_lookup = "__Q_LOOKUP";
-            sigma_1 = "__SIGMA_1";
-            sigma_2 = "__SIGMA_2";
-            sigma_3 = "__SIGMA_3";
-            sigma_4 = "__SIGMA_4";
-            id_1 = "__ID_1";
-            id_2 = "__ID_2";
-            id_3 = "__ID_3";
-            id_4 = "__ID_4";
-            table_1 = "__TABLE_1";
-            table_2 = "__TABLE_2";
-            table_3 = "__TABLE_3";
-            table_4 = "__TABLE_4";
-            lagrange_first = "__LAGRANGE_FIRST";
-            lagrange_last = "__LAGRANGE_LAST";
+            this->q_c = "__Q_C";
+            this->q_l = "__Q_L";
+            this->q_r = "__Q_R";
+            this->q_o = "__Q_O";
+            this->q_4 = "__Q_4";
+            this->q_m = "__Q_M";
+            this->q_arith = "__Q_ARITH";
+            this->q_sort = "__Q_SORT";
+            this->q_elliptic = "__Q_ELLIPTIC";
+            this->q_aux = "__Q_AUX";
+            this->q_lookup = "__Q_LOOKUP";
+            this->sigma_1 = "__SIGMA_1";
+            this->sigma_2 = "__SIGMA_2";
+            this->sigma_3 = "__SIGMA_3";
+            this->sigma_4 = "__SIGMA_4";
+            this->id_1 = "__ID_1";
+            this->id_2 = "__ID_2";
+            this->id_3 = "__ID_3";
+            this->id_4 = "__ID_4";
+            this->table_1 = "__TABLE_1";
+            this->table_2 = "__TABLE_2";
+            this->table_3 = "__TABLE_3";
+            this->table_4 = "__TABLE_4";
+            this->lagrange_first = "__LAGRANGE_FIRST";
+            this->lagrange_last = "__LAGRANGE_LAST";
         };
     };
 
@@ -364,31 +369,31 @@ class UltraRecursive {
       public:
         VerifierCommitments(std::shared_ptr<VerificationKey> verification_key)
         {
-            q_m = verification_key->q_m;
-            q_l = verification_key->q_l;
-            q_r = verification_key->q_r;
-            q_o = verification_key->q_o;
-            q_4 = verification_key->q_4;
-            q_c = verification_key->q_c;
-            q_arith = verification_key->q_arith;
-            q_sort = verification_key->q_sort;
-            q_elliptic = verification_key->q_elliptic;
-            q_aux = verification_key->q_aux;
-            q_lookup = verification_key->q_lookup;
-            sigma_1 = verification_key->sigma_1;
-            sigma_2 = verification_key->sigma_2;
-            sigma_3 = verification_key->sigma_3;
-            sigma_4 = verification_key->sigma_4;
-            id_1 = verification_key->id_1;
-            id_2 = verification_key->id_2;
-            id_3 = verification_key->id_3;
-            id_4 = verification_key->id_4;
-            table_1 = verification_key->table_1;
-            table_2 = verification_key->table_2;
-            table_3 = verification_key->table_3;
-            table_4 = verification_key->table_4;
-            lagrange_first = verification_key->lagrange_first;
-            lagrange_last = verification_key->lagrange_last;
+            this->q_m = verification_key->q_m;
+            this->q_l = verification_key->q_l;
+            this->q_r = verification_key->q_r;
+            this->q_o = verification_key->q_o;
+            this->q_4 = verification_key->q_4;
+            this->q_c = verification_key->q_c;
+            this->q_arith = verification_key->q_arith;
+            this->q_sort = verification_key->q_sort;
+            this->q_elliptic = verification_key->q_elliptic;
+            this->q_aux = verification_key->q_aux;
+            this->q_lookup = verification_key->q_lookup;
+            this->sigma_1 = verification_key->sigma_1;
+            this->sigma_2 = verification_key->sigma_2;
+            this->sigma_3 = verification_key->sigma_3;
+            this->sigma_4 = verification_key->sigma_4;
+            this->id_1 = verification_key->id_1;
+            this->id_2 = verification_key->id_2;
+            this->id_3 = verification_key->id_3;
+            this->id_4 = verification_key->id_4;
+            this->table_1 = verification_key->table_1;
+            this->table_2 = verification_key->table_2;
+            this->table_3 = verification_key->table_3;
+            this->table_4 = verification_key->table_4;
+            this->lagrange_first = verification_key->lagrange_first;
+            this->lagrange_last = verification_key->lagrange_last;
         }
     };
 };

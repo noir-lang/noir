@@ -38,6 +38,12 @@ template <typename Flavor> class ECCVMCircuitBuilder {
     using ScalarMul = proof_system_eccvm::ScalarMul<CycleGroup>;
     using RawPolynomials = typename Flavor::RawPolynomials;
     using Polynomial = barretenberg::Polynomial<FF>;
+
+    ECCVMCircuitBuilder() = default;
+
+    ECCVMCircuitBuilder(std::vector<VMOperation> vm_operations)
+        : vm_operations(vm_operations){};
+
     [[nodiscard]] uint32_t get_number_of_muls() const
     {
         uint32_t num_muls = 0;

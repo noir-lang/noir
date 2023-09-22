@@ -816,7 +816,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     };
 };
 
-class ECCVM : public ECCVMBase<grumpkin::g1, curve::BN254, pcs::kzg::KZG<curve::BN254, true>> {};
+class ECCVM : public ECCVMBase<grumpkin::g1, curve::BN254, pcs::kzg::KZG<curve::BN254>> {};
 class ECCVMGrumpkin : public ECCVMBase<barretenberg::g1, curve::Grumpkin, pcs::ipa::IPA<curve::Grumpkin>> {};
 
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)

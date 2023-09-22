@@ -597,14 +597,14 @@ std::pair<element<C, Fq, Fr, G>, element<C, Fq, Fr, G>> element<C, Fq, Fr, G>::c
  * scalars See `bn254_endo_batch_mul` for description of algorithm
  **/
 template <typename C, class Fq, class Fr, class G>
-template <bool use_goblin>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element>& points,
                                                        const std::vector<Fr>& scalars,
                                                        const size_t max_num_bits)
 {
-    if constexpr (use_goblin) {
+    if constexpr (IsGoblinBuilder<C>) {
         return goblin_batch_mul(points, scalars);
     }
+
     const size_t num_points = points.size();
     ASSERT(scalars.size() == num_points);
     batch_lookup_table point_table(points);

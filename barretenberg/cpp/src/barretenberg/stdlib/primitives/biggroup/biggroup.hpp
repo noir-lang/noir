@@ -176,7 +176,6 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     // only works with Plookup!
     template <size_t max_num_bits = 0>
     static element wnaf_batch_mul(const std::vector<element>& points, const std::vector<Fr>& scalars);
-    template <bool use_goblin = false>
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
                              const size_t max_num_bits = 0);

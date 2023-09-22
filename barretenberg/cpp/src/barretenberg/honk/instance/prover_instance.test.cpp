@@ -12,6 +12,7 @@ namespace instance_tests {
 template <class Flavor> class InstanceTests : public testing::Test {
     using FF = typename Flavor::FF;
     using Polynomial = barretenberg::Polynomial<FF>;
+    using Builder = typename Flavor::CircuitBuilder;
 
   public:
     /**
@@ -47,7 +48,7 @@ template <class Flavor> class InstanceTests : public testing::Test {
     static void test_sorted_list_accumulator_construction()
     {
         // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-        auto builder = proof_system::UltraCircuitBuilder();
+        Builder builder;
 
         auto a = 2;
         builder.add_variable(a);

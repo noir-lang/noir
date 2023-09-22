@@ -41,7 +41,6 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
      */
     static void test_goblin_style_batch_mul()
     {
-        const bool goblin_flag = true; // used to indicate goblin-style in batch_mul
         const size_t num_points = 5;
         Builder builder;
 
@@ -59,7 +58,7 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
             circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
         }
 
-        element_ct result_point = element_ct::template batch_mul<goblin_flag>(circuit_points, circuit_scalars);
+        element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
 
         element expected_point = g1::one;
         expected_point.self_set_infinity();
@@ -78,7 +77,7 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     }
 };
 
-using TestTypes = testing::Types<stdlib::bn254<proof_system::UltraCircuitBuilder>>;
+using TestTypes = testing::Types<stdlib::bn254<proof_system::GoblinUltraCircuitBuilder>>;
 
 TYPED_TEST_SUITE(stdlib_biggroup_goblin, TestTypes);
 
