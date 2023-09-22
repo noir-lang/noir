@@ -410,6 +410,10 @@ impl Type {
         Type::FieldElement
     }
 
+    pub fn default_range_loop_type() -> Type {
+        Type::Integer(Signedness::Unsigned, 64)
+    }
+
     pub fn type_variable(id: TypeVariableId) -> Type {
         Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)), TypeVariableKind::Normal)
     }

@@ -68,6 +68,8 @@ struct Monomorphizer<'interner> {
 
     next_local_id: u32,
     next_function_id: u32,
+
+    is_range_loop: bool,
 }
 
 type HirType = crate::Type;
@@ -112,6 +114,7 @@ impl<'interner> Monomorphizer<'interner> {
             next_function_id: 0,
             interner,
             lambda_envs_stack: Vec::new(),
+            is_range_loop: false,
         }
     }
 
@@ -201,7 +204,7 @@ impl<'interner> Monomorphizer<'interner> {
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
 
-        let return_type = Self::convert_type(meta.return_type());
+        let return_type = self.convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr(*self.interner.function(&f).as_expr());
         let unconstrained = modifiers.is_unconstrained
@@ -237,7 +240,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                new_params.push((new_id, definition.mutable, name, Self::convert_type(typ)));
+                new_params.push((new_id, definition.mutable, name, self.convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
@@ -284,7 +287,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let typ = Self::convert_type(&self.interner.id_type(expr));
+                let typ = self.convert_type(&self.interner.id_type(expr));
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
@@ -301,7 +304,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Unary(ast::Unary {
                     operator: prefix.operator,
                     rhs: Box::new(self.expr(prefix.rhs)),
-                    result_type: Self::convert_type(&self.interner.id_type(expr)),
+                    result_type: self.convert_type(&self.interner.id_type(expr)),
                     location,
                 })
             }
@@ -326,13 +329,15 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Cast(cast) => ast::Expression::Cast(ast::Cast {
                 lhs: Box::new(self.expr(cast.lhs)),
-                r#type: Self::convert_type(&cast.r#type),
+                r#type: self.convert_type(&cast.r#type),
                 location: self.interner.expr_location(&expr),
             }),
 
             HirExpression::For(for_expr) => {
+                self.is_range_loop = true;
                 let start = self.expr(for_expr.start_range);
                 let end = self.expr(for_expr.end_range);
+                self.is_range_loop = false;
                 let index_variable = self.next_local_id();
                 self.define_local(for_expr.identifier.id, index_variable);
 
@@ -341,7 +346,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::For(ast::For {
                     index_variable,
                     index_name: self.interner.definition_name(for_expr.identifier.id).to_owned(),
-                    index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
+                    index_type: self.convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
                     start_range_location: self.interner.expr_location(&for_expr.start_range),
@@ -358,7 +363,7 @@ impl<'interner> Monomorphizer<'interner> {
                     condition: Box::new(cond),
                     consequence: Box::new(then),
                     alternative: else_,
-                    typ: Self::convert_type(&self.interner.id_type(expr)),
+                    typ: self.convert_type(&self.interner.id_type(expr)),
                 })
             }
 
@@ -382,7 +387,7 @@ impl<'interner> Monomorphizer<'interner> {
         array: node_interner::ExprId,
         array_elements: Vec<node_interner::ExprId>,
     ) -> ast::Expression {
-        let typ = Self::convert_type(&self.interner.id_type(array));
+        let typ = self.convert_type(&self.interner.id_type(array));
         let contents = vecmap(array_elements, |id| self.expr(id));
         ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
@@ -393,7 +398,7 @@ impl<'interner> Monomorphizer<'interner> {
         repeated_element: node_interner::ExprId,
         length: HirType,
     ) -> ast::Expression {
-        let typ = Self::convert_type(&self.interner.id_type(array));
+        let typ = self.convert_type(&self.interner.id_type(array));
 
         let contents = self.expr(repeated_element);
         let length = length
@@ -405,7 +410,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn index(&mut self, id: node_interner::ExprId, index: HirIndexExpression) -> ast::Expression {
-        let element_type = Self::convert_type(&self.interner.id_type(id));
+        let element_type = self.convert_type(&self.interner.id_type(id));
 
         let collection = Box::new(self.expr(index.collection));
         let index = Box::new(self.expr(index.index));
@@ -452,7 +457,7 @@ impl<'interner> Monomorphizer<'interner> {
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_local_id();
             let field_type = field_type_map.get(&field_name.0.contents).unwrap();
-            let typ = Self::convert_type(field_type);
+            let typ = self.convert_type(field_type);
 
             field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
             let expression = Box::new(self.expr(expr_id));
@@ -548,7 +553,7 @@ impl<'interner> Monomorphizer<'interner> {
             let mutable = false;
             let definition = Definition::Local(fresh_id);
             let name = i.to_string();
-            let typ = Self::convert_type(&field_type);
+            let typ = self.convert_type(&field_type);
 
             let new_rhs =
                 ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
@@ -590,7 +595,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mutable = definition.mutable;
 
         let definition = self.lookup_local(ident.id)?;
-        let typ = Self::convert_type(&self.interner.id_type(ident.id));
+        let typ = self.convert_type(&self.interner.id_type(ident.id));
 
         Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
     }
@@ -605,7 +610,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = self.interner.id_type(expr_id);
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
-                let typ = Self::convert_type(&typ);
+                let typ = self.convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
                 let ident_expression = ast::Expression::Ident(ident);
                 if self.is_function_closure_type(&typ) {
@@ -642,7 +647,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
-    fn convert_type(typ: &HirType) -> ast::Type {
+    fn convert_type(&self, typ: &HirType) -> ast::Type {
         match typ {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
@@ -650,13 +655,13 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
                 let size = size.evaluate_to_u64().unwrap_or(0);
-                let fields = Box::new(Self::convert_type(fields.as_ref()));
+                let fields = Box::new(self.convert_type(fields.as_ref()));
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
-                let element = Box::new(Self::convert_type(element.as_ref()));
+                let element = Box::new(self.convert_type(element.as_ref()));
 
                 if let Some(length) = length.evaluate_to_u64() {
                     ast::Type::Array(length, element)
@@ -667,7 +672,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return Self::convert_type(binding);
+                    return self.convert_type(binding);
                 }
 
                 // Default any remaining unbound type variables.
@@ -683,7 +688,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::TypeVariable(binding, kind) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return Self::convert_type(binding);
+                    return self.convert_type(binding);
                 }
 
                 // Default any remaining unbound type variables.
@@ -693,27 +698,33 @@ impl<'interner> Monomorphizer<'interner> {
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                let default = kind.default_type();
-                let monomorphized_default = Self::convert_type(&default);
+                let default =
+                    if self.is_range_loop && matches!(kind, TypeVariableKind::IntegerOrField) {
+                        Type::default_range_loop_type()
+                    } else {
+                        kind.default_type()
+                    };
+
+                let monomorphized_default = self.convert_type(&default);
                 *binding.borrow_mut() = TypeBinding::Bound(default);
                 monomorphized_default
             }
 
             HirType::Struct(def, args) => {
                 let fields = def.borrow().get_fields(args);
-                let fields = vecmap(fields, |(_, field)| Self::convert_type(&field));
+                let fields = vecmap(fields, |(_, field)| self.convert_type(&field));
                 ast::Type::Tuple(fields)
             }
 
             HirType::Tuple(fields) => {
-                let fields = vecmap(fields, Self::convert_type);
+                let fields = vecmap(fields, |x| self.convert_type(x));
                 ast::Type::Tuple(fields)
             }
 
             HirType::Function(args, ret, env) => {
-                let args = vecmap(args, Self::convert_type);
-                let ret = Box::new(Self::convert_type(ret));
-                let env = Self::convert_type(env);
+                let args = vecmap(args, |x| self.convert_type(x));
+                let ret = Box::new(self.convert_type(ret));
+                let env = self.convert_type(env);
                 match &env {
                     ast::Type::Unit => ast::Type::Function(args, ret, Box::new(env)),
                     ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![
@@ -729,7 +740,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::MutableReference(element) => {
-                let element = Self::convert_type(element);
+                let element = self.convert_type(element);
                 ast::Type::MutableReference(Box::new(element))
             }
 
@@ -743,7 +754,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn is_function_closure(&self, raw_func_id: node_interner::ExprId) -> bool {
-        let t = Self::convert_type(&self.interner.id_type(raw_func_id));
+        let t = self.convert_type(&self.interner.id_type(raw_func_id));
         if self.is_function_closure_type(&t) {
             true
         } else if let ast::Type::Tuple(elements) = t {
@@ -776,7 +787,7 @@ impl<'interner> Monomorphizer<'interner> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
-        let return_type = Self::convert_type(&return_type);
+        let return_type = self.convert_type(&return_type);
         let location = call.location;
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
@@ -811,7 +822,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Local(local_id),
                 mutable: false,
                 name: "tmp".to_string(),
-                typ: Self::convert_type(&self.interner.id_type(call.func)),
+                typ: self.convert_type(&self.interner.id_type(call.func)),
             });
 
             func = Box::new(ast::Expression::ExtractTupleField(
@@ -1010,12 +1021,12 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = self.interner.expr_location(&index);
                 let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr(index));
-                let element_type = Self::convert_type(&typ);
+                let element_type = self.convert_type(&typ);
                 ast::LValue::Index { array, index, element_type, location }
             }
             HirLValue::Dereference { lvalue, element_type } => {
                 let reference = Box::new(self.lvalue(*lvalue));
-                let element_type = Self::convert_type(&element_type);
+                let element_type = self.convert_type(&element_type);
                 ast::LValue::Dereference { reference, element_type }
             }
         }
@@ -1031,9 +1042,9 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn lambda_no_capture(&mut self, lambda: HirLambda) -> ast::Expression {
-        let ret_type = Self::convert_type(&lambda.return_type);
+        let ret_type = self.convert_type(&lambda.return_type);
         let lambda_name = "lambda";
-        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
+        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| self.convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters =
@@ -1082,9 +1093,9 @@ impl<'interner> Monomorphizer<'interner> {
         // patterns in the resulting tree,
         // which seems more fragile, we directly reuse the return parameters
         // of this function in those cases
-        let ret_type = Self::convert_type(&lambda.return_type);
+        let ret_type = self.convert_type(&lambda.return_type);
         let lambda_name = "lambda";
-        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
+        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| self.convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters =
@@ -1117,7 +1128,7 @@ impl<'interner> Monomorphizer<'interner> {
         }));
         let expr_type = self.interner.id_type(expr);
         let env_typ = if let types::Type::Function(_, _, function_env_type) = expr_type {
-            Self::convert_type(&function_env_type)
+            self.convert_type(&function_env_type)
         } else {
             unreachable!("expected a Function type for a Lambda node")
         };

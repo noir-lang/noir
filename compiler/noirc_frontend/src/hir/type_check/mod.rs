@@ -327,9 +327,7 @@ mod test {
 
         "#;
 
-        // expect a deprecation warning since we are changing for-loop default type.
-        // There is a deprecation warning per for-loop.
-        let expected_num_errors = 2;
+        let expected_num_errors = 0;
         type_check_src_code_errors_expected(
             src,
             expected_num_errors,
