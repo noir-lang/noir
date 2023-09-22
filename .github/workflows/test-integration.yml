@@ -274,13 +274,13 @@ jobs:
       - name: Run `integration-tests`
         run: yarn test:integration
 
-      # - name: Alert on nightly test failure
-      #   uses: JasonEtco/create-an-issue@v2
-      #   if: ${{ failure() && github.event_name == 'schedule' }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     WORKFLOW_NAME: ${{ github.workflow }}
-      #     WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      #   with:
-      #     update_existing: true
-      #     filename: .github/NIGHTLY_TEST_FAILURE.md
+      - name: Alert on nightly test failure
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           WORKFLOW_NAME: ${{ github.workflow }}
+           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+         with:
+           update_existing: true
+           filename: .github/NIGHTLY_TEST_FAILURE.md
