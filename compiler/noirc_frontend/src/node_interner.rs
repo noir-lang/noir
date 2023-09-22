@@ -135,6 +135,7 @@ pub struct FunctionModifiers {
 impl FunctionModifiers {
     /// A semi-reasonable set of default FunctionModifiers used for testing.
     #[cfg(test)]
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             visibility: Visibility::Public,
