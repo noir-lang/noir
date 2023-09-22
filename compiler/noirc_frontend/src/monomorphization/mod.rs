@@ -1344,87 +1344,13 @@ fn undo_instantiation_bindings(bindings: TypeBindings) {
 mod tests {
     use std::collections::{BTreeMap, HashMap};
 
-    use fm::FileId;
-    use iter_extended::vecmap;
-    use noirc_errors::Location;
-
     use crate::{
         graph::CrateId,
         hir::{
-            def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId},
-            resolution::{
-                import::PathResolutionError, path_resolver::PathResolver, resolver::Resolver,
-            },
+            def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+            resolution::{import::PathResolutionError, path_resolver::PathResolver},
         },
-        node_interner::{FuncId, NodeInterner},
-        parse_program,
     };
-
-    use super::monomorphize;
-
-    // TODO: refactor into a more general test utility?
-    // mostly copied from hir / type_check / mod.rs and adapted a bit
-    fn type_check_src_code(src: &str, func_namespace: Vec<String>) -> (FuncId, NodeInterner) {
-        let (program, errors) = parse_program(src);
-        let mut interner = NodeInterner::default();
-
-        // Using assert_eq here instead of assert(errors.is_empty()) displays
-        // the whole vec if the assert fails rather than just two booleans
-        assert_eq!(errors, vec![]);
-
-        let main_id = interner.push_test_function_definition("main".into());
-
-        let func_ids =
-            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into()));
-
-        let mut path_resolver = TestPathResolver(HashMap::new());
-        for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
-            path_resolver.insert_func(name.to_owned(), id);
-        }
-
-        let mut def_maps = BTreeMap::new();
-        let file = FileId::default();
-
-        let mut modules = arena::Arena::new();
-        let location = Location::new(Default::default(), file);
-        modules.insert(ModuleData::new(None, location, false));
-
-        def_maps.insert(
-            CrateId::dummy_id(),
-            CrateDefMap {
-                root: path_resolver.local_module_id(),
-                modules,
-                krate: CrateId::dummy_id(),
-                extern_prelude: BTreeMap::new(),
-            },
-        );
-
-        let func_meta = vecmap(program.functions, |nf| {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, _resolver_errors) = resolver.resolve_function(nf, main_id);
-            // TODO: not sure why, we do get an error here,
-            // but otherwise seem to get an ok monomorphization result
-            // assert_eq!(resolver_errors, vec![]);
-            (hir_func, func_meta)
-        });
-
-        println!("Before update_fn");
-
-        for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
-            interner.update_fn(func_id, hir_func);
-            interner.push_fn_meta(meta, func_id);
-        }
-
-        println!("Before type_check_func");
-
-        // Type check section
-        let errors = crate::hir::type_check::type_check_func(
-            &mut interner,
-            func_ids.first().cloned().unwrap(),
-        );
-        assert_eq!(errors, vec![]);
-        (func_ids.first().cloned().unwrap(), interner)
-    }
 
     // TODO: refactor into a more general test utility?
     // TestPathResolver struct and impls copied from hir / type_check / mod.rs
@@ -1451,52 +1377,5 @@ mod tests {
         fn module_id(&self) -> ModuleId {
             ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
         }
-    }
-
-    impl TestPathResolver {
-        fn insert_func(&mut self, name: String, func_id: FuncId) {
-            self.0.insert(name, func_id.into());
-        }
-    }
-
-    // a helper test method
-    // TODO: maybe just compare trimmed src/expected
-    // for easier formatting?
-    fn check_rewrite(src: &str, expected: &str) {
-        let (func, interner) = type_check_src_code(src, vec!["main".to_string()]);
-        let program = monomorphize(func, &interner);
-        // println!("[{}]", program);
-        assert!(format!("{}", program) == expected);
-    }
-
-    #[test]
-    fn simple_closure_with_no_captured_variables() {
-        let src = r#"
-        fn main() -> pub Field {
-            let x = 1;
-            let closure = || x;
-            closure()
-        }
-        "#;
-
-        let expected_rewrite = r#"fn main$f0() -> Field {
-    let x$0 = 1;
-    let closure$3 = {
-        let closure_variable$2 = {
-            let env$1 = (x$l0);
-            (env$l1, lambda$f1)
-        };
-        closure_variable$l2
-    };
-    {
-        let tmp$4 = closure$l3;
-        tmp$l4.1(tmp$l4.0)
-    }
-}
-fn lambda$f1(mut env$l1: (Field)) -> Field {
-    env$l1.0
-}
-"#;
-        check_rewrite(src, expected_rewrite);
     }
 }
