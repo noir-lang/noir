@@ -1,27 +1,27 @@
 .popup {
-    width: 66vw;
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: white;
-    border-radius: 20px;
-    justify-content: space-around;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, .1);
-    border: 3px solid rgb(47, 31, 73);
-    align-items: center;
-    gap: 30px;
-    padding: 30px;
-    overflow: scroll;
-    min-width: 600px;
-    z-index: 100;
+  width: 66vw;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  border-radius: 20px;
+  justify-content: space-around;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  border: 3px solid rgb(47, 31, 73);
+  align-items: center;
+  gap: 30px;
+  padding: 30px;
+  overflow: scroll;
+  min-width: 600px;
+  z-index: 100;
 }
 
 .alert {
-    width: 20px;
+  width: 20px;
 }
 
 .content {
-    width: 100%;
+  width: 100%;
 }

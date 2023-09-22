@@ -1,53 +1,53 @@
 .tos {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    cursor: pointer;
-    font-size: 14px;
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .selectorWrapper {
-    display: flex;
-    flex-direction: column;
-    margin: 30px;
-    gap: 20px;
+  display: flex;
+  flex-direction: column;
+  margin: 30px;
+  gap: 20px;
 }
 
 .functions {
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
 }
 
 .tag {
-    font-weight: 450;
-    display: flex;
-    position: relative;
-    flex-direction: column;
-    font-size: 16px;
-    gap: 5px;
-    background-color: #fff;
-    text-align: right;
-    padding: 14px 18px;
-    text-align: center;
-    background-color: #f9f9f9;
-    align-self: center;
-    border-radius: 10px;
+  font-weight: 450;
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  font-size: 16px;
+  gap: 5px;
+  background-color: #fff;
+  text-align: right;
+  padding: 14px 18px;
+  text-align: center;
+  background-color: #f9f9f9;
+  align-self: center;
+  border-radius: 10px;
 }
 
 .back {
-    top: 15px;
-    width: 20px;
-    left: 30px;
-    margin-bottom: 15px;
+  top: 15px;
+  width: 20px;
+  left: 30px;
+  margin-bottom: 15px;
 }
 
 .address {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .title {
-    font-weight: 500;
+  font-weight: 500;
 }

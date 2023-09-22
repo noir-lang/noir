@@ -1,65 +1,65 @@
 .selectBox {
-    border-radius: 10px;
-    background-color: white;
-    position: relative;
-    font-family: Sohne;
-    font-size: 16px;
-    height: 45px;
-    cursor: pointer;
-    font-weight: 450;
+  border-radius: 10px;
+  background-color: white;
+  position: relative;
+  font-family: Sohne;
+  font-size: 16px;
+  height: 45px;
+  cursor: pointer;
+  font-weight: 450;
 
-    @media (max-width: 480px) {
-        margin: 0;
-    }
+  @media (max-width: 480px) {
+    margin: 0;
+  }
 }
 
 .icon {
-    min-width: 12px;
+  min-width: 12px;
 }
 
 .border {
-    box-shadow: 0px 4px 14px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 4px 14px rgba(0, 0, 0, 0.1);
 }
 
 .innerFrame {
-    height: 45px;
-    padding: 0 15px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    overflow: hidden;
-    gap: 10px;
+  height: 45px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+  gap: 10px;
 }
 
 .innerFrameWithButton {
-    padding-right: 0px;
+  padding-right: 0px;
 }
 
 .value {
-    white-space: nowrap;
+  white-space: nowrap;
 }
 
 .dropdown {
-    top: 45px;
-    left: 0%;
-    min-width: 130px;
-    width: 100%;
+  top: 45px;
+  left: 0%;
+  min-width: 130px;
+  width: 100%;
 }
 
 .closeButton {
-    height: 30px;
-    padding: 15px 15px 15px 5px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+  height: 30px;
+  padding: 15px 15px 15px 5px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .disabled {
-    background-color: rgba(239, 239, 239, 0.3);
-    color: #4a4a4a;
-    cursor: not-allowed;
+  background-color: rgba(239, 239, 239, 0.3);
+  color: #4a4a4a;
+  cursor: not-allowed;
 }
 
 .placeholder {
-    color: #757575;
+  color: #757575;
 }
