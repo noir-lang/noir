@@ -59,6 +59,7 @@ const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 async function getCircuit(noirSource) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initializeResolver((id: string) => {
+    logger.debug("source-resolver: resolving:", id);
     return noirSource;
   });
 
