@@ -541,12 +541,12 @@ impl<'a> ModCollector<'a> {
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let message = format!("Module '{mod_name}' is already part of the crate");
-            let secondary = format!("");
+            let secondary = String::new();
             let error = CustomDiagnostic::simple_error(message, secondary, location.span);
             errors.push(error.in_file(location.file));
 
             let message = format!("Note: {mod_name} was originally declared here");
-            let secondary = format!("");
+            let secondary = String::new();
             let error = CustomDiagnostic::simple_error(message, secondary, old_location.span);
             errors.push(error.in_file(old_location.file));
             return;

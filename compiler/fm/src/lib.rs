@@ -104,7 +104,7 @@ impl FileManager {
 
 /// Returns true if a module's child module's are expected to be in the same directory.
 /// Returns false if they are expected to be in a subdirectory matching the name of the module.
-fn should_check_siblings_for_module(module_path: &PathBuf, parent_path: &Path) -> bool {
+fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
     if let Some(filename) = module_path.file_name() {
         // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
         // check its same directory for child modules instead of a subdirectory. Should we prohibit
