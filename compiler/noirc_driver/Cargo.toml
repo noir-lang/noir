@@ -17,3 +17,4 @@ acvm.workspace = true
 fm.workspace = true
 serde.workspace = true
 base64.workspace = true
+fxhash.workspace = true

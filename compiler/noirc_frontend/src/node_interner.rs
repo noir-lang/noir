@@ -7,13 +7,13 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::{
-    UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
-};
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::types::{StructType, Trait, Type};
+use crate::hir_def::traits::Trait;
+use crate::hir_def::traits::TraitImpl;
+use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -21,9 +21,16 @@ use crate::hir_def::{
 };
 use crate::token::Attributes;
 use crate::{
-    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
-    TypeVariableKind,
+    ContractFunctionType, FunctionDefinition, Generics, Shared, TypeAliasType, TypeBinding,
+    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, Visibility,
 };
+
+#[derive(Eq, PartialEq, Hash, Clone)]
+pub struct TraitImplKey {
+    pub typ: Type,
+    pub trait_id: TraitId,
+    // pub generics: Generics - TODO
+}
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -35,6 +42,14 @@ pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
     function_definition_ids: HashMap<FuncId, DefinitionId>,
+
+    // For a given function ID, this gives the function's modifiers which includes
+    // its visibility and whether it is unconstrained, among other information.
+    // Unlike func_meta, this map is filled out during definition collection rather than name resolution.
+    function_modifiers: HashMap<FuncId, FunctionModifiers>,
+
+    // Contains the source module each function was defined in
+    function_modules: HashMap<FuncId, ModuleId>,
 
     // Map each `Index` to it's own location
     id_to_location: HashMap<Index, Location>,
@@ -77,7 +92,7 @@ pub struct NodeInterner {
     // Trait implementation map
     // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
     // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
-    trait_implementaions: HashMap<(Type, TraitId), Ident>,
+    trait_implementations: HashMap<TraitImplKey, Shared<TraitImpl>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -97,6 +112,38 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+}
+
+pub struct FunctionModifiers {
+    /// Whether the function is `pub` or not.
+    pub visibility: Visibility,
+
+    pub attributes: Attributes,
+
+    pub is_unconstrained: bool,
+
+    /// This function's type in its contract.
+    /// If this function is not in a contract, this is always 'Secret'.
+    pub contract_function_type: Option<ContractFunctionType>,
+
+    /// This function's contract visibility.
+    /// If this function is internal can only be called by itself.
+    /// Will be None if not in contract.
+    pub is_internal: Option<bool>,
+}
+
+impl FunctionModifiers {
+    /// A semi-reasonable set of default FunctionModifiers used for testing.
+    #[cfg(test)]
+    pub fn new() -> Self {
+        Self {
+            visibility: Visibility::Public,
+            attributes: Attributes::empty(),
+            is_unconstrained: false,
+            is_internal: None,
+            contract_function_type: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -190,6 +237,12 @@ impl TraitId {
     pub fn dummy_id() -> TraitId {
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TraitMethodId {
+    pub trait_id: TraitId,
+    pub method_index: usize, // index in Trait::methods
 }
 
 macro_rules! into_index {
@@ -299,13 +352,15 @@ impl Default for NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
             function_definition_ids: HashMap::new(),
+            function_modifiers: HashMap::new(),
+            function_modules: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
-            trait_implementaions: HashMap::new(),
+            trait_implementations: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -349,13 +404,15 @@ impl NodeInterner {
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        let self_type_typevar_id = self.next_type_variable_id();
+        let self_type_typevar = Shared::new(TypeBinding::Unbound(self_type_typevar_id));
+
         self.traits.insert(
             type_id,
             Shared::new(Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.trait_def.span,
-                Vec::new(),
                 vecmap(&typ.trait_def.generics, |_| {
                     // Temporary type variable ids before the trait is resolved to its actual ids.
                     // This lets us record how many arguments the type expects so that other types
@@ -364,6 +421,8 @@ impl NodeInterner {
                     let id = TypeVariableId(0);
                     (id, Shared::new(TypeBinding::Unbound(id)))
                 }),
+                self_type_typevar_id,
+                self_type_typevar,
             )),
         );
     }
@@ -512,8 +571,60 @@ impl NodeInterner {
         id
     }
 
-    pub fn push_function_definition(&mut self, name: String, func: FuncId) -> DefinitionId {
+    /// Push a function with the default modifiers and moduleid for testing
+    #[cfg(test)]
+    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
+        let id = self.push_fn(HirFunction::empty());
+        let modifiers = FunctionModifiers::new();
+        let module = ModuleId::dummy_id();
+        self.push_function_definition(name, id, modifiers, module);
+        id
+    }
+
+    pub fn push_function(
+        &mut self,
+        id: FuncId,
+        function: &FunctionDefinition,
+        module: ModuleId,
+    ) -> DefinitionId {
+        use ContractFunctionType::*;
+        let name = function.name.0.contents.clone();
+
+        // We're filling in contract_function_type and is_internal now, but these will be verified
+        // later during name resolution.
+        let modifiers = FunctionModifiers {
+            visibility: if function.is_public { Visibility::Public } else { Visibility::Private },
+            attributes: function.attributes.clone(),
+            is_unconstrained: function.is_unconstrained,
+            contract_function_type: Some(if function.is_open { Open } else { Secret }),
+            is_internal: Some(function.is_internal),
+        };
+        self.push_function_definition(name, id, modifiers, module)
+    }
+
+    pub fn push_function_definition(
+        &mut self,
+        name: String,
+        func: FuncId,
+        modifiers: FunctionModifiers,
+        module: ModuleId,
+    ) -> DefinitionId {
+        self.function_modifiers.insert(func, modifiers);
+        self.function_modules.insert(func, module);
         self.push_definition(name, false, DefinitionKind::Function(func))
+    }
+
+    /// Returns the visibility of the given function.
+    ///
+    /// The underlying function_visibilities map is populated during def collection,
+    /// so this function can be called anytime afterward.
+    pub fn function_visibility(&self, func: FuncId) -> Visibility {
+        self.function_modifiers[&func].visibility
+    }
+
+    /// Returns the module this function was defined within
+    pub fn function_module(&self, func: FuncId) -> ModuleId {
+        self.function_modules[&func]
     }
 
     /// Returns the interned HIR function corresponding to `func_id`
@@ -548,8 +659,16 @@ impl NodeInterner {
         self.definition_name(name_id)
     }
 
-    pub fn function_attributes(&self, func_id: &FuncId) -> Attributes {
-        self.function_meta(func_id).attributes
+    pub fn function_modifiers(&self, func_id: &FuncId) -> &FunctionModifiers {
+        &self.function_modifiers[func_id]
+    }
+
+    pub fn function_modifiers_mut(&mut self, func_id: &FuncId) -> &mut FunctionModifiers {
+        self.function_modifiers.get_mut(func_id).expect("func_id should always have modifiers")
+    }
+
+    pub fn function_attributes(&self, func_id: &FuncId) -> &Attributes {
+        &self.function_modifiers[func_id].attributes
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -716,24 +835,16 @@ impl NodeInterner {
         }
     }
 
-    pub fn get_previous_trait_implementation(&self, key: &(Type, TraitId)) -> Option<&Ident> {
-        self.trait_implementaions.get(key)
+    pub fn get_trait_implementation(&self, key: &TraitImplKey) -> Option<Shared<TraitImpl>> {
+        self.trait_implementations.get(key).cloned()
     }
 
-    pub fn add_trait_implementaion(
-        &mut self,
-        key: &(Type, TraitId),
-        trait_definition_ident: &Ident,
-        methods: &UnresolvedFunctions,
-    ) -> Vec<FuncId> {
-        self.trait_implementaions.insert(key.clone(), trait_definition_ident.clone());
-        methods
-            .functions
-            .iter()
-            .flat_map(|(_, func_id, _)| {
-                self.add_method(&key.0, self.function_name(func_id).to_owned(), *func_id)
-            })
-            .collect::<Vec<FuncId>>()
+    pub fn add_trait_implementation(&mut self, key: &TraitImplKey, trait_impl: Shared<TraitImpl>) {
+        self.trait_implementations.insert(key.clone(), trait_impl.clone());
+
+        for func_id in &trait_impl.borrow().methods {
+            self.add_method(&key.typ, self.function_name(func_id).to_owned(), *func_id);
+        }
     }
 
     /// Search by name for a method on the given struct

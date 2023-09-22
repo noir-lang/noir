@@ -1,21 +1,16 @@
-use dep::std;
-
 trait Default {
-    fn default(x: Field, y: Field) -> Self;
+    fn default() -> Self;
 }
 
 struct Foo {
-    bar: Field,
-    array: [Field; 2],
 }
 
+// This should fail to compile as `default()` should return `Foo`
 impl Default for Foo {
-    fn default(x: Field, y: Field) -> Field {
+    fn default() -> Field {
         x
     }
 }
 
-fn main(x: Field, y: Field) {
-    let first = Foo::default(x,y);
-    assert(first.bar == x);
+fn main() {
 }

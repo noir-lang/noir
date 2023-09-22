@@ -23,7 +23,7 @@ fn lt_bytes32(x: Field, y: Field) -> bool {
 }
 
 // Returns true if signature is valid
-fn eddsa_poseidon_verify(
+pub fn eddsa_poseidon_verify(
     pub_key_x: Field,
     pub_key_y: Field,
     signature_s: Field,

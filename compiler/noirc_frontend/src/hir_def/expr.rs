@@ -41,7 +41,7 @@ impl HirExpression {
 }
 
 /// Corresponds to a variable in the source code
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,

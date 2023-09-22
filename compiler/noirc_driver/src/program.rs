@@ -11,6 +11,12 @@ use super::debug::DebugFile;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
+    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`CompiledProgram`]
+    /// was compiled.
+    ///
+    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    pub hash: u64,
+
     #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
