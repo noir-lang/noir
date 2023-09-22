@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 
-const VERSION_IDENTIFIERS = ["noir", "aztec"];
+const VERSION_IDENTIFIERS = ["noir", "aztec", "aztec_short"];
 
 let versions;
 async function getVersions() {
@@ -24,6 +24,7 @@ async function getVersions() {
       versions = {
         noir: noirVersion,
         aztec: `aztec-packages-v${aztecVersion}`,
+        aztec_short: aztecVersion,
       };
     } catch (err) {
       throw new Error(

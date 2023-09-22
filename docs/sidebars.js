@@ -196,6 +196,7 @@ const sidebars = {
       items: [
         "dev_docs/getting_started/quickstart",
         "dev_docs/getting_started/sandbox",
+        "dev_docs/getting_started/updating",
       ],
     },
 

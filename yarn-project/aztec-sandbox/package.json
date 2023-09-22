@@ -35,6 +35,7 @@
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
+    "@aztec/noir-compiler": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
     "abitype": "^0.8.11",

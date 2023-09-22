@@ -2,6 +2,7 @@
 import { deployInitialSandboxAccounts } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
+import NoirVersion from '@aztec/noir-compiler/noir-version';
 
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
@@ -23,7 +24,7 @@ async function main() {
   const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json');
   const version = JSON.parse(readFileSync(packageJsonPath).toString()).version;
 
-  logger.info(`Setting up Aztec Sandbox v${version}, please stand by...`);
+  logger.info(`Setting up Aztec Sandbox v${version} (nargo ${NoirVersion.tag}), please stand by...`);
 
   const { l1Contracts, rpcServer, stop } = await createSandbox();
 
@@ -55,7 +56,9 @@ async function main() {
     }
   }
   logger.info(
-    `${splash}\n${github}\n\n`.concat(...accountStrings).concat(`Aztec Sandbox v${version} is now ready for use!`),
+    `${splash}\n${github}\n\n`
+      .concat(...accountStrings)
+      .concat(`Aztec Sandbox v${version} (nargo ${NoirVersion.tag}) is now ready for use!`),
   );
 }
 

@@ -28,6 +28,9 @@
       "path": "../l1-artifacts"
     },
     {
+      "path": "../noir-compiler"
+    },
+    {
       "path": "../noir-contracts"
     },
     {
