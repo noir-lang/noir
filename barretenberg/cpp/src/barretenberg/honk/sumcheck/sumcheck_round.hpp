@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/common/thread.hpp"
+#include "barretenberg/common/thread_utils.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/pow.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
@@ -140,12 +141,10 @@ template <typename Flavor> class SumcheckProverRound {
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
         // on a specified minimum number of iterations per thread. This eventually leads to the use of a single thread.
         // For now we use a power of 2 number of threads simply to ensure the round size is evenly divided.
-        size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
         size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
-        size_t desired_num_threads = round_size / min_iterations_per_thread;
-        size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
-        num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
-        size_t iterations_per_thread = round_size / num_threads;             // actual iterations per thread
+        size_t num_threads =
+            barretenberg::thread_utils::calculate_num_threads_pow2(round_size, min_iterations_per_thread);
+        size_t iterations_per_thread = round_size / num_threads; // actual iterations per thread
 
         // Constuct univariate accumulator containers; one per thread
         std::vector<RelationUnivariates> thread_univariate_accumulators(num_threads);

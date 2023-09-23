@@ -1,6 +1,8 @@
 #include "polynomial.hpp"
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
+#include "barretenberg/common/thread.hpp"
+#include "barretenberg/common/thread_utils.hpp"
 #include "polynomial_arithmetic.hpp"
 #include <cstddef>
 #include <fcntl.h>
@@ -306,12 +308,17 @@ template <typename Fr> void Polynomial<Fr>::add_scaled(std::span<const Fr> other
     const size_t other_size = other.size();
     ASSERT(in_place_operation_viable(other_size));
 
-    /** TODO parallelize using some kind of generic evaluation domain
-     *  we really only need to know the thread size, but we don't need all the FFT roots
-     */
-    for (size_t i = 0; i < other_size; ++i) {
-        coefficients_.get()[i] += scaling_factor * other[i];
-    }
+    // Calculates number of threads with thread_utils::calculate_num_threads
+    size_t num_threads = thread_utils::calculate_num_threads(other_size);
+    size_t range_per_thread = other_size / num_threads;
+    size_t leftovers = other_size - (range_per_thread * num_threads);
+    parallel_for(num_threads, [&](size_t j) {
+        size_t offset = j * range_per_thread;
+        size_t end = (j == num_threads - 1) ? offset + range_per_thread + leftovers : offset + range_per_thread;
+        for (size_t i = offset; i < end; ++i) {
+            coefficients_.get()[i] += scaling_factor * other[i];
+        }
+    });
 }
 
 template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator+=(std::span<const Fr> other)
@@ -319,12 +326,16 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator+=(std::span<cons
     const size_t other_size = other.size();
     ASSERT(in_place_operation_viable(other_size));
 
-    /** TODO parallelize using some kind of generic evaluation domain
-     *  we really only need to know the thread size, but we don't need all the FFT roots
-     */
-    for (size_t i = 0; i < other_size; ++i) {
-        coefficients_.get()[i] += other[i];
-    }
+    size_t num_threads = thread_utils::calculate_num_threads(other_size);
+    size_t range_per_thread = other_size / num_threads;
+    size_t leftovers = other_size - (range_per_thread * num_threads);
+    parallel_for(num_threads, [&](size_t j) {
+        size_t offset = j * range_per_thread;
+        size_t end = (j == num_threads - 1) ? offset + range_per_thread + leftovers : offset + range_per_thread;
+        for (size_t i = offset; i < end; ++i) {
+            coefficients_.get()[i] += other[i];
+        }
+    });
 
     return *this;
 }
@@ -334,23 +345,35 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator-=(std::span<cons
     const size_t other_size = other.size();
     ASSERT(in_place_operation_viable(other_size));
 
-    /** TODO parallelize using some kind of generic evaluation domain
-     *  we really only need to know the thread size, but we don't need all the FFT roots
-     */
-    for (size_t i = 0; i < other_size; ++i) {
-        coefficients_.get()[i] -= other[i];
-    }
+    size_t num_threads = thread_utils::calculate_num_threads(other_size);
+    size_t range_per_thread = other_size / num_threads;
+    size_t leftovers = other_size - (range_per_thread * num_threads);
+    parallel_for(num_threads, [&](size_t j) {
+        size_t offset = j * range_per_thread;
+        size_t end = (j == num_threads - 1) ? offset + range_per_thread + leftovers : offset + range_per_thread;
+        for (size_t i = offset; i < end; ++i) {
+            coefficients_.get()[i] -= other[i];
+        }
+    });
 
     return *this;
 }
 
-template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator*=(const Fr scaling_facor)
+template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator*=(const Fr scaling_factor)
 {
     ASSERT(in_place_operation_viable());
 
-    for (size_t i = 0; i < size_; ++i) {
-        coefficients_.get()[i] *= scaling_facor;
-    }
+    size_t num_threads = thread_utils::calculate_num_threads(size_);
+    size_t range_per_thread = size_ / num_threads;
+    size_t leftovers = size_ - (range_per_thread * num_threads);
+    parallel_for(num_threads, [&](size_t j) {
+        size_t offset = j * range_per_thread;
+        size_t end = (j == num_threads - 1) ? offset + range_per_thread + leftovers : offset + range_per_thread;
+        for (size_t i = offset; i < end; ++i) {
+            coefficients_.get()[i] *= scaling_factor;
+        }
+    });
+
     return *this;
 }
 

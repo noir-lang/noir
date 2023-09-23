@@ -188,7 +188,7 @@ template <typename Fr> class Polynomial {
      *
      * @param scaling_factor s
      */
-    Polynomial& operator*=(const Fr scaling_facor);
+    Polynomial& operator*=(const Fr scaling_factor);
 
     /**
      * @brief evaluates p(X) = ∑ᵢ aᵢ⋅Xⁱ considered as multi-linear extension p(X₀,…,Xₘ₋₁) = ∑ᵢ aᵢ⋅Lᵢ(X₀,…,Xₘ₋₁)
