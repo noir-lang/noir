@@ -59,7 +59,7 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-23.05
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore nix store cache
