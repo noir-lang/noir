@@ -4,8 +4,8 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
-    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, UnresolvedGenerics,
-    UnresolvedType,
+    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction,
+    UnresolvedGenerics, UnresolvedType,
 };
 
 /// AST node for trait definitions:
@@ -14,7 +14,7 @@ use crate::{
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: Vec<Ident>,
-    pub where_clause: Vec<TraitConstraint>,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
 }
@@ -28,7 +28,7 @@ pub enum TraitItem {
         generics: Vec<Ident>,
         parameters: Vec<(Ident, UnresolvedType)>,
         return_type: FunctionReturnType,
-        where_clause: Vec<TraitConstraint>,
+        where_clause: Vec<UnresolvedTraitConstraint>,
         body: Option<BlockExpression>,
     },
     Constant {
@@ -54,7 +54,7 @@ pub struct TypeImpl {
 /// Ast node for an implementation of a trait for a particular type
 /// `impl trait_name<trait_generics> for object_type where where_clauses { ... items ... }`
 #[derive(Clone, Debug)]
-pub struct TraitImpl {
+pub struct NoirTraitImpl {
     pub impl_generics: UnresolvedGenerics,
 
     pub trait_name: Ident,
@@ -63,7 +63,7 @@ pub struct TraitImpl {
     pub object_type: UnresolvedType,
     pub object_type_span: Span,
 
-    pub where_clause: Vec<TraitConstraint>,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<TraitImplItem>,
 }
@@ -75,7 +75,7 @@ pub struct TraitImpl {
 ///   `Foo: TraitX`
 ///   `Foo: TraitY<U, V>`
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TraitConstraint {
+pub struct UnresolvedTraitConstraint {
     pub typ: UnresolvedType,
     pub trait_bound: TraitBound,
 }
@@ -84,6 +84,7 @@ pub struct TraitConstraint {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitBound {
     pub trait_name: Ident,
+    pub trait_id: Option<TraitId>, // initially None, gets assigned during DC
     pub trait_generics: Vec<UnresolvedType>,
 }
 
@@ -167,7 +168,7 @@ impl Display for TraitItem {
     }
 }
 
-impl Display for TraitConstraint {
+impl Display for UnresolvedTraitConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: {}", self.typ, self.trait_bound)
     }
@@ -184,7 +185,7 @@ impl Display for TraitBound {
     }
 }
 
-impl Display for TraitImpl {
+impl Display for NoirTraitImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
         let generics = generics.join(", ");

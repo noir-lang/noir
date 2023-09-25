@@ -58,7 +58,7 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 // with the restricted version which only uses one file
 pub fn compile_file(context: &mut Context, root_file: &Path) -> CompilationResult<CompiledProgram> {
     let crate_id = prepare_crate(context, root_file);
-    compile_main(context, crate_id, &CompileOptions::default())
+    compile_main(context, crate_id, &CompileOptions::default(), None)
 }
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
@@ -143,6 +143,7 @@ pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
@@ -158,7 +159,7 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main)?;
+    let compiled_program = compile_no_check(context, options, main, cached_program)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -185,6 +186,12 @@ pub fn compile_contract(
     if contracts.len() > 1 {
         let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
             .in_file(FileId::default());
+        return Err(vec![err]);
+    } else if contracts.is_empty() {
+        let err = CustomDiagnostic::from_message(
+            "cannot compile crate into a contract as it does not contain any contracts",
+        )
+        .in_file(FileId::default());
         return Err(vec![err]);
     };
 
@@ -246,24 +253,24 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id) {
+        let function = match compile_no_check(context, options, function_id, None) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error);
                 continue;
             }
         };
-        let func_meta = context.def_interner.function_meta(&function_id);
-        let func_type = func_meta
+        let modifiers = context.def_interner.function_modifiers(&function_id);
+        let func_type = modifiers
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+        let function_type = ContractFunctionType::new(func_type, modifiers.is_unconstrained);
 
         functions.push(ContractFunction {
             name,
             function_type,
-            is_internal: func_meta.is_internal.unwrap_or(false),
+            is_internal: modifiers.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
             debug: function.debug,
@@ -289,13 +296,26 @@ pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
+    cached_program: Option<CompiledProgram>,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
+
+    let hash = fxhash::hash64(&program);
+
+    // If user has specified that they want to see intermediate steps printed then we should
+    // force compilation even if the program hasn't changed.
+    if !(options.print_acir || options.show_brillig || options.show_ssa) {
+        if let Some(cached_program) = cached_program {
+            if hash == cached_program.hash {
+                return Ok(cached_program);
+            }
+        }
+    }
 
     let (circuit, debug, abi) =
         create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
 
-    Ok(CompiledProgram { circuit, debug, abi, file_map })
+    Ok(CompiledProgram { hash, circuit, debug, abi, file_map })
 }

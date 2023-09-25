@@ -8,7 +8,7 @@ struct BabyJubjub {
     suborder: Field,
 }
 
-fn baby_jubjub() -> BabyJubjub {
+pub fn baby_jubjub() -> BabyJubjub {
     assert(compat::is_bn254());
 
     BabyJubjub {

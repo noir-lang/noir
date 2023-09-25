@@ -1,17 +1,23 @@
 import { expect } from "@esm-bundle/chai";
+import { TEST_LOG_LEVEL } from "../../environment.js";
+import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
   compile,
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-ignore
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
-import { acvm, noirc } from "@noir-lang/noir_js";
+import { acvm, abi } from "@noir-lang/noir_js";
 import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
 
+const logger = new Logger({ name: "test", minLevel: TEST_LOG_LEVEL });
+
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
-const { default: newABICoder, abiEncode } = noirc;
+const { default: newABICoder, abiEncode } = abi;
 
 type WitnessMap = acvm.WitnessMap;
 
@@ -19,7 +25,7 @@ await newCompiler();
 await newABICoder();
 await initACVM();
 
-compilerLogLevel("DEBUG");
+compilerLogLevel("INFO");
 
 async function getFile(url: URL): Promise<string> {
   const response = await fetch(url);
@@ -48,6 +54,9 @@ suite.timeout(60 * 20e3); //20mins
 
 test_cases.forEach((testInfo) => {
   const test_name = testInfo.case.split("/").pop();
+  const caseLogger = logger.getSubLogger({
+    prefix: [test_name],
+  });
   const mochaTest = new Mocha.Test(
     `${test_name} (Compile, Execute, Prove, Verify)`,
     async () => {
@@ -56,11 +65,11 @@ test_cases.forEach((testInfo) => {
 
       const noir_source_url = new URL(
         `${base_relative_path}/${test_case}/src/main.nr`,
-        import.meta.url
+        import.meta.url,
       );
       const prover_toml_url = new URL(
         `${base_relative_path}/${test_case}/Prover.toml`,
-        import.meta.url
+        import.meta.url,
       );
 
       const noir_source = await getFile(noir_source_url);
@@ -69,7 +78,7 @@ test_cases.forEach((testInfo) => {
       expect(noir_source).to.be.a.string;
 
       initializeResolver((id: string) => {
-        console.log("Resolving:", id);
+        caseLogger.debug("source-resolver: resolving:", id);
         return noir_source;
       });
 
@@ -101,7 +110,7 @@ test_cases.forEach((testInfo) => {
       try {
         compressedByteCode = Uint8Array.from(
           atob(compile_output.circuit),
-          (c) => c.charCodeAt(0)
+          (c) => c.charCodeAt(0),
         );
 
         solvedWitness = await executeCircuit(
@@ -109,7 +118,7 @@ test_cases.forEach((testInfo) => {
           witnessMap,
           () => {
             throw Error("unexpected oracle");
-          }
+          },
         );
       } catch (e) {
         expect(e, "Abi Encoding Step").to.not.be.an("error");
@@ -130,7 +139,7 @@ test_cases.forEach((testInfo) => {
         await api.srsInitSrs(
           new RawBuffer(crs.getG1Data()),
           crs.numPoints,
-          new RawBuffer(crs.getG2Data())
+          new RawBuffer(crs.getG2Data()),
         );
 
         const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
@@ -140,14 +149,14 @@ test_cases.forEach((testInfo) => {
           acirComposer,
           acirUint8Array,
           witnessUint8Array,
-          isRecursive
+          isRecursive,
         );
 
         // And this took ~5 minutes!
         const verified = await api.acirVerifyProof(
           acirComposer,
           proof,
-          isRecursive
+          isRecursive,
         );
 
         expect(verified).to.be.true;
@@ -155,7 +164,7 @@ test_cases.forEach((testInfo) => {
         expect(e, "Proving and Verifying").to.not.be.an("error");
         throw e;
       }
-    }
+    },
   );
 
   suite.addTest(mochaTest);

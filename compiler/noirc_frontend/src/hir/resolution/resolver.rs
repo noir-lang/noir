@@ -17,14 +17,15 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
-use crate::hir_def::traits::Trait;
-use crate::token::PrimaryAttribute;
+
+use crate::hir_def::traits::{Trait, TraitConstraint};
+use crate::token::FunctionAttribute;
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
@@ -37,8 +38,8 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
     Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility,
-    ERROR_IDENT,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -145,7 +146,6 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
         func_id: FuncId,
-        module_id: ModuleId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
 
@@ -154,7 +154,7 @@ impl<'a> Resolver<'a> {
 
         self.add_generics(&func.def.generics);
 
-        let (hir_func, func_meta) = self.intern_function(func, func_id, module_id);
+        let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
@@ -313,13 +313,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn intern_function(
-        &mut self,
-        func: NoirFunction,
-        id: FuncId,
-        module_id: ModuleId,
-    ) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func, id, module_id);
+    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
+        let func_meta = self.extract_meta(&func, id);
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -669,16 +664,23 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// TODO: This is currently only respected for generic free functions
+    /// there's a bunch of other places where trait constraints can pop up
+    fn resolve_trait_constraints(
+        &mut self,
+        where_clause: &Vec<UnresolvedTraitConstraint>,
+    ) -> Vec<TraitConstraint> {
+        vecmap(where_clause, |constraint| TraitConstraint {
+            typ: self.resolve_type(constraint.typ.clone()),
+            trait_id: constraint.trait_bound.trait_id,
+        })
+    }
+
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
-    fn extract_meta(
-        &mut self,
-        func: &NoirFunction,
-        func_id: FuncId,
-        module_id: ModuleId,
-    ) -> FuncMeta {
+    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
@@ -736,7 +738,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if matches!(attributes.primary, Some(PrimaryAttribute::Test { .. }))
+        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
             && !parameters.is_empty()
         {
             self.push_err(ResolverError::TestFunctionHasParameters {
@@ -752,14 +754,12 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_definition_type(name_ident.id, typ.clone());
 
+        self.handle_function_type(&func_id);
+        self.handle_is_function_internal(&func_id);
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
-            attributes,
-            module_id,
-            contract_function_type: self.handle_function_type(func),
-            is_internal: self.handle_is_function_internal(func),
-            is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
             parameters: parameters.into(),
@@ -767,6 +767,7 @@ impl<'a> Resolver<'a> {
             return_visibility: func.def.return_visibility,
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
+            trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
         }
     }
 
@@ -790,31 +791,23 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn handle_function_type(&mut self, func: &NoirFunction) -> Option<ContractFunctionType> {
-        if func.def.is_open {
-            if self.in_contract() {
-                Some(ContractFunctionType::Open)
-            } else {
-                self.push_err(ResolverError::ContractFunctionTypeInNormalFunction {
-                    span: func.name_ident().span(),
-                });
-                None
-            }
-        } else {
-            Some(ContractFunctionType::Secret)
+    fn handle_function_type(&mut self, function: &FuncId) {
+        let function_type = self.interner.function_modifiers(function).contract_function_type;
+
+        if !self.in_contract() && function_type == Some(ContractFunctionType::Open) {
+            let span = self.interner.function_ident(function).span();
+            self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
+            self.interner.function_modifiers_mut(function).contract_function_type = None;
         }
     }
 
-    fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
-        if self.in_contract() {
-            Some(func.def.is_internal)
-        } else {
-            if func.def.is_internal {
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
-                    span: func.name_ident().span(),
-                });
+    fn handle_is_function_internal(&mut self, function: &FuncId) {
+        if !self.in_contract() {
+            if self.interner.function_modifiers(function).is_internal == Some(true) {
+                let span = self.interner.function_ident(function).span();
+                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
             }
-            None
+            self.interner.function_modifiers_mut(function).is_internal = None;
         }
     }
 
@@ -982,6 +975,40 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    // Issue an error if the given private function is being called from a non-child module
+    fn check_can_reference_private_function(&mut self, func: FuncId, span: Span) {
+        let function_module = self.interner.function_module(func);
+        let current_module = self.path_resolver.module_id();
+
+        let same_crate = function_module.krate == current_module.krate;
+        let krate = function_module.krate;
+        let current_module = current_module.local_id;
+
+        if !same_crate
+            || !self.module_descendent_of_target(krate, function_module.local_id, current_module)
+        {
+            let name = self.interner.function_name(&func).to_string();
+            self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
+        }
+    }
+
+    // Returns true if `current` is a (potentially nested) child module of `target`.
+    // This is also true if `current == target`.
+    fn module_descendent_of_target(
+        &self,
+        krate: CrateId,
+        target: LocalModuleId,
+        current: LocalModuleId,
+    ) -> bool {
+        if current == target {
+            return true;
+        }
+
+        self.def_maps[&krate].modules[current.0]
+            .parent
+            .map_or(false, |parent| self.module_descendent_of_target(krate, target, parent))
+    }
+
     fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
         let mut transitive_capture_index: Option<usize> = None;
 
@@ -1051,7 +1078,12 @@ impl<'a> Resolver<'a> {
 
                 if hir_ident.id != DefinitionId::dummy_id() {
                     match self.interner.definition(hir_ident.id).kind {
-                        DefinitionKind::Function(_) => {}
+                        DefinitionKind::Function(id) => {
+                            if self.interner.function_visibility(id) == Visibility::Private {
+                                let span = hir_ident.location.span;
+                                self.check_can_reference_private_function(id, span);
+                            }
+                        }
                         DefinitionKind::Global(_) => {}
                         DefinitionKind::GenericType(_) => {
                             // Initialize numeric generics to a polymorphic integer type in case
@@ -1540,7 +1572,6 @@ mod test {
 
     use crate::graph::CrateId;
     use crate::hir_def::expr::HirExpression;
-    use crate::hir_def::function::HirFunction;
     use crate::hir_def::stmt::HirStatement;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::ParsedModule;
@@ -1593,9 +1624,7 @@ mod test {
             init_src_code_resolution(src);
 
         let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.to_string(), id);
-            id
+            interner.push_test_function_definition(name.to_string())
         });
 
         for (name, id) in func_namespace.into_iter().zip(func_ids) {
@@ -1604,11 +1633,10 @@ mod test {
 
         let mut errors = Vec::new();
         for func in program.functions {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(func.name().to_string(), id);
+            let id = interner.push_test_function_definition(func.name().to_string());
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
+            let (_, _, err) = resolver.resolve_function(func, id);
             errors.extend(err);
         }
 
@@ -1621,12 +1649,12 @@ mod test {
 
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.functions {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(func.name().to_string(), id);
+            let name = func.name().to_string();
+            let id = interner.push_test_function_definition(name);
             path_resolver.insert_func(func.name().to_owned(), id);
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, _, _) = resolver.resolve_function(func, id, ModuleId::dummy_id());
+            let (hir_func, _, _) = resolver.resolve_function(func, id);
 
             // Iterate over function statements and apply filtering function
             parse_statement_blocks(

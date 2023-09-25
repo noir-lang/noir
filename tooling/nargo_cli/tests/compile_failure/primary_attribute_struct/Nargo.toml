@@ -1,0 +1,8 @@
+
+[package]
+name = "primary_attribute_struct"
+type = "bin"
+authors = [""]
+compiler_version = "0.11.1"
+
+[dependencies]
