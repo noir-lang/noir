@@ -1,17 +1,13 @@
-# Running on ubuntu until noir supports an alpine build
-
-# Builder stage to build the noir artifacts
 FROM ubuntu:lunar
-
 RUN apt-get update && apt-get install -y \
     jq \
     curl \
     git \
     sed
-
 WORKDIR /usr/src/yarn-project
-COPY . .
-
+COPY noir-contracts noir-contracts
+COPY noir-compiler noir-compiler
+COPY aztec-nr aztec-nr
 WORKDIR /usr/src/yarn-project/noir-contracts
 
 # Download and extract nargo

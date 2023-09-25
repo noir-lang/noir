@@ -23,22 +23,13 @@ ACCOUNT="aztecprotocol"
 USERNAME="aztecprotocolci"
 
 # Extract the version, if valid; exit otherwise.
-IMAGE_TAG=$(extract_tag_version $REPOSITORY "true")
+IMAGE_TAG=$(extract_tag_version $REPOSITORY true)
 
 MANIFEST_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
 MANIFEST_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
 
-function docker_login() {
-  # Retries up to 3 times with 10 second intervals
-  for i in $(seq 1 3); do
-    echo "$DOCKERHUB_PASSWORD" | docker login -u $USERNAME --password-stdin && return || sleep 10
-  done
-  echo "$@ failed docker_login after 3 attempts"
-  exit 1
-}
-
 # Login to dockerhub.
-docker_login
+dockerhub_login
 
 export DOCKER_CLI_EXPERIMENTAL=enabled
 
@@ -50,11 +41,11 @@ for A in $ARCH_LIST
 do
   IMAGE_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG-$A
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI"
-  docker manifest create $MANIFEST_DEPLOY_URI \
+  docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI \
   --amend $IMAGE_DEPLOY_URI
   
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_LATEST_URI"
-  docker manifest create $MANIFEST_LATEST_URI \
+  docker_or_dryrun manifest create $MANIFEST_LATEST_URI \
   --amend $IMAGE_DEPLOY_URI
 done
 
@@ -63,8 +54,8 @@ unset OLD_IFS
 
 echo "Pushing manifest list $MANIFEST_DEPLOY_URI..."
 # Push the version tagged list
-docker manifest push --purge $MANIFEST_DEPLOY_URI
+docker_or_dryrun manifest push --purge $MANIFEST_DEPLOY_URI
 
 echo "Pushing manifest list $MANIFEST_LATEST_URI..."
 # Push the latest tagged list
-docker manifest push --purge $MANIFEST_LATEST_URI
+docker_or_dryrun manifest push --purge $MANIFEST_LATEST_URI

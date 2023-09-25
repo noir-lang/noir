@@ -3,19 +3,67 @@
 set -eu
 
 NAME=$1
-CPUS=${2:-32}
+CPUS=$2
+
+# Declare an associative array to map CPU counts to instance type suffixes.
+declare -A cpu_map
+cpu_map=(
+  [2]="large"
+  [4]="xlarge"
+  [8]="2xlarge"
+  [16]="4xlarge"
+  [32]="8xlarge"
+  [48]="12xlarge"
+  [64]="16xlarge"
+  [96]="24xlarge"
+  [128]="32xlarge"
+  [192]="48xlarge"
+)
+
+INSTANCE_TYPE_SUFFIX=${cpu_map[$CPUS]}
+
+# Check if INSTANCE_TYPE_SUFFIX is set, if not, the CPU count is not recognized.
+if [ -z "$INSTANCE_TYPE_SUFFIX" ]; then
+  echo "Unrecognized CPU count: $CPUS"
+  exit 1
+fi
+
+# Construct the full instance type. We use r6a currently.
+INSTANCE_TYPE="r6a.$INSTANCE_TYPE_SUFFIX"
 
 export AWS_DEFAULT_REGION=us-east-2
 
 BID_PER_CPU_HOUR=0.03125
 PRICE=$(jq -n "$BID_PER_CPU_HOUR*$CPUS*100000 | round / 100000")
 
->&2 echo "Requesting $CPUS cpu instance (bid: $PRICE)..."
+launch_spec=$(cat <<EOF
+{
+  "ImageId": "ami-0e5df77ac318c7a18",
+  "KeyName": "build-instance",
+  "SecurityGroupIds": ["sg-0ccd4e5df0dcca0c9"],
+  "InstanceType": "$INSTANCE_TYPE",
+  "BlockDeviceMappings": [
+    {
+      "DeviceName": "/dev/sda1",
+      "Ebs": {
+        "VolumeSize": 16
+      }
+    }
+  ]
+}
+EOF
+)
+
+# Save the launch specification to a temporary file
+temp_file=$(mktemp)
+echo "$launch_spec" > "$temp_file"
+
+>&2 echo "Requesting $INSTANCE_TYPE spot instance (cpus: $CPUS) (bid: $PRICE)..."
 SIR=$(aws ec2 request-spot-instances \
   --spot-price "$PRICE" \
   --instance-count 1 \
   --type "one-time" \
-  --launch-specification file://$BUILD_SYSTEM_PATH/remote/${CPUS}core.json \
+  --launch-specification file://$temp_file \
   --query "SpotInstanceRequests[*].[SpotInstanceRequestId]" \
   --output text)
 

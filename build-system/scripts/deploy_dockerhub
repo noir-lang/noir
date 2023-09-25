@@ -16,7 +16,7 @@ echo "Arch: $ARCH"
 ACCOUNT="aztecprotocol"
 USERNAME="aztecprotocolci"
 
-IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
+IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 
 IMAGE_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
 if [[ -n "$ARCH" ]]; then
@@ -24,7 +24,7 @@ if [[ -n "$ARCH" ]]; then
   IMAGE_LATEST_URI=$IMAGE_LATEST_URI-$ARCH
 fi
 
-COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "true")
+COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY true)
 
 IMAGE_TAG=$COMMIT_TAG_VERSION
 IMAGE_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
@@ -37,17 +37,8 @@ echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
 # Login.
 retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 
-function docker_login() {
-  # Retries up to 3 times with 10 second intervals
-  for i in $(seq 1 3); do
-    echo "$DOCKERHUB_PASSWORD" | docker login -u $USERNAME --password-stdin && return || sleep 10
-  done
-  echo "$@ failed docker_login after 3 attempts"
-  exit 1
-}
-
 # Login to dockerhub.
-docker_login
+dockerhub_login
 
 echo "Pulling $IMAGE_COMMIT_URI"
 # Pull image.
@@ -55,13 +46,13 @@ retry docker pull $IMAGE_COMMIT_URI
 
 echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_DEPLOY_URI"
 # Tag with commit tag
-retry docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
+docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
 
 echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_LATEST_URI"
 # Tag with :latest
-retry docker tag $IMAGE_COMMIT_URI $IMAGE_LATEST_URI
+docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_LATEST_URI
 
 # Push tagged image to dockerhub.
-retry docker push $IMAGE_DEPLOY_URI
+docker_or_dryrun push $IMAGE_DEPLOY_URI
 # Push :latest image to dockerhub
-retry docker push $IMAGE_LATEST_URI
+docker_or_dryrun push $IMAGE_LATEST_URI

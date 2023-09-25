@@ -200,7 +200,6 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
       wethTokenPortalAddress,
       uniswapL2Contract,
       uniswapPortal,
-      uniswapPortalAddress,
     } = result;
 
     const ownerInitialBalance = await wethL2Contract.methods.getBalance(owner).view();

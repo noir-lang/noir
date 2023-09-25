@@ -1,0 +1,150 @@
+barretenberg-x86_64-linux-clang:
+  buildDir: barretenberg/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang
+  rebuildPatterns: .rebuild_patterns
+
+barretenberg-x86_64-linux-clang-assert:
+  buildDir: barretenberg/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-assert
+  rebuildPatterns: .rebuild_patterns
+
+barretenberg-x86_64-linux-clang-fuzzing:
+  buildDir: barretenberg/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-fuzzing
+  rebuildPatterns: .rebuild_patterns
+
+barretenberg-x86_64-linux-gcc:
+  buildDir: barretenberg/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-gcc
+  rebuildPatterns: .rebuild_patterns
+
+barretenberg-wasm-linux-clang:
+  buildDir: barretenberg/cpp
+  dockerfile: dockerfiles/Dockerfile.wasm-linux-clang
+  rebuildPatterns: .rebuild_patterns
+
+bb.js:
+  buildDir: barretenberg/ts
+  dependencies:
+    - barretenberg-wasm-linux-clang
+
+barretenberg-acir-tests-bb:
+  buildDir: barretenberg/acir_tests
+  dockerfile: Dockerfile.bb
+  dependencies:
+    - barretenberg-x86_64-linux-clang-assert
+
+barretenberg-acir-tests-bb.js:
+  buildDir: barretenberg/acir_tests
+  dockerfile: Dockerfile.bb.js
+  dependencies:
+    - bb.js
+
+circuits-wasm-linux-clang:
+  buildDir: circuits/cpp
+  dockerfile: dockerfiles/Dockerfile.wasm-linux-clang
+  rebuildPatterns: .rebuild_patterns
+  dependencies:
+    - barretenberg-wasm-linux-clang
+
+circuits-wasm-linux-clang-assert:
+  buildDir: circuits/cpp
+  dockerfile: dockerfiles/Dockerfile.wasm-linux-clang-assert
+  rebuildPatterns: .rebuild_patterns
+  dependencies:
+    - barretenberg-wasm-linux-clang
+
+circuits-x86_64-linux-clang-tidy:
+  buildDir: circuits/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-tidy
+  rebuildPatterns: .rebuild_patterns
+  dependencies:
+    - barretenberg-x86_64-linux-clang
+
+circuits-x86_64-linux-clang:
+  buildDir: circuits/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang
+  rebuildPatterns: .rebuild_patterns
+  dependencies:
+    - barretenberg-x86_64-linux-clang
+
+circuits-x86_64-linux-clang-assert:
+  buildDir: circuits/cpp
+  dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-assert
+  rebuildPatterns: .rebuild_patterns
+  dependencies:
+    - barretenberg-x86_64-linux-clang
+
+docs:
+  buildDir: .
+  dockerfile: docs/Dockerfile
+  rebuildPatterns:
+    - ^docs/
+    - ^.*.cpp$
+    - ^.*.ts$
+    - ^.release-please-manifest.json$
+    - ^.*/noir-version.json$
+
+l1-contracts:
+  buildDir: l1-contracts
+
+# We should move the noir source code to the top of the repo.
+# It's currently under yarn-project which looks very circular, but it isn't.
+# We're specific with our rebuild patterns as we depend on aztec.nr, but it doesn't have its own build.
+noir-contracts-build:
+  buildDir: yarn-project
+  projectDir: yarn-project/noir-contracts
+  dockerfile: Dockerfile.build
+  rebuildPatterns:
+    - ^yarn-project/noir-contracts/
+    - ^yarn-project/aztec-nr/
+  # Prevent automatic querying of get_dependencies.sh script. Needed because this looks like a yarn project.
+  dependencies: []
+
+yarn-project-base:
+  buildDir: yarn-project
+  projectDir: yarn-project/yarn-project-base
+  rebuildPatterns:
+    - ^yarn-project/yarn-project-base/
+    - ^yarn-project/yarn.lock
+  dependencies:
+    - circuits-wasm-linux-clang
+    - l1-contracts
+
+yarn-project:
+  buildDir: yarn-project
+  dependencies:
+    - yarn-project-base
+    - noir-contracts-build
+
+aztec-sandbox-base:
+  buildDir: yarn-project
+  projectDir: yarn-project/aztec-sandbox
+  dependencies:
+    - yarn-project
+
+aztec-sandbox:
+  buildDir: yarn-project
+  projectDir: yarn-project/aztec-sandbox
+  dockerfile: Dockerfile.final
+  dependencies:
+    - aztec-sandbox-base
+
+canary-build:
+  buildDir: yarn-project
+  projectDir: yarn-project/canary
+  dockerfile: Dockerfile.build
+  dependencies:
+    - yarn-project
+
+canary:
+  buildDir: yarn-project
+  projectDir: yarn-project/canary
+  dependencies:
+    - yarn-project
+
+end-to-end:
+  buildDir: yarn-project
+  projectDir: yarn-project/end-to-end
+  dependencies:
+    - yarn-project

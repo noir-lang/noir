@@ -1,0 +1,34 @@
+# The aim here is to not have to maintain a list of projects in either the Dockerfile or this ignore file.
+# We need to be careful not to exclude the project directories, as you cannot then use a wildcard in a negation
+# to re-include needed files. Here we use */* which doesn't exclude the directories themselves, but rather
+# the files within those directories. As we haven't excluded anything in the root, we manually exclude root files.
+*/*
+.*
+README.md
+bootstrap.sh
+
+# This is a sticking point, due to the project being under it's own dir.
+# Need to unexclude the dir and then exclude it's files.
+# TODO: These boxes might be better outside the workspace where they have their own dependencies
+# as they're meant to be consumers of the project, not a part of it.
+!boxes/private-token
+!boxes/blank
+!boxes/blank-react
+boxes/*/*
+
+# Unexclude package.json and yarn.lock files, for detecting any dependency changes.
+!**/package.json
+!**/package.*.json
+!yarn.lock
+
+# Unexclude parts of yarn related config as this also affects how dependencies are installed.
+!.yarnrc.yml
+!.yarn/plugins
+!.yarn/releases
+
+# Unexclude tsconfig files for running project reference checks.
+!**/tsconfig.json
+
+# Unexclude scripts we use in the Dockerfile.
+!yarn-project-base/scripts
+!l1-artifacts/scripts

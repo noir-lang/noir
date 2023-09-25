@@ -8,10 +8,7 @@ node_modules
 tsconfig.tsbuildinfo
 .eslintcache
 
-# Zero install: https://yarnpkg.com/features/zero-installs
 .yarn/*
-# Exclude cache until we're really sure we're ready.
-# !.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases

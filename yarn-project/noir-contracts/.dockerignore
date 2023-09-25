@@ -1,5 +1,8 @@
-src/artifacts/*
-src/types/*
+dest
+node_modules
+target
+src/artifacts/_
+src/types/_
 Dockerfile.build
 Dockerfile.lint
 Dockerfile.types

@@ -37,7 +37,22 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
+if [ ! -f ~/.nvm/nvm.sh ]; then
+  echo "Nvm not found at ~/.nvm"
+  exit 1
+fi
+
+# Install pre-commit git hooks.
+HOOKS_DIR=$(git rev-parse --git-path hooks)
+echo "(cd barretenberg/cpp && ./format.sh staged)" > $HOOKS_DIR/pre-commit
+echo "(cd circuits/cpp && ./format.sh staged)" >> $HOOKS_DIR/pre-commit
+# TODO: Call cci_gen to ensure .circleci/config.yml is up-to-date!
+chmod +x $HOOKS_DIR/pre-commit
+
+git submodule update --init --recursive
+
 # Lightweight bootstrap. Run `./bootstrap.sh clean` to bypass.
+# TODO: We shouldn't do this here. We should call each projects bootstrap script and it should decide between light/heavy.
 if [[ -f .bootstrapped && $(cat .bootstrapped) -eq "$VERSION" ]]; then
   echo -e '\033[1mRebuild L1 contracts...\033[0m'
   (cd l1-contracts && .foundry/bin/forge build)
@@ -53,25 +68,11 @@ if [[ -f .bootstrapped && $(cat .bootstrapped) -eq "$VERSION" ]]; then
 
   echo -e '\n\033[1mRebuild circuits wasm...\033[0m'
   (cd circuits/cpp && cmake --build --preset wasm -j --target aztec3-circuits.wasm)
+else
+  # Heavy bootstrap.
+  barretenberg/cpp/bootstrap.sh
+  circuits/cpp/bootstrap.sh
+  yarn-project/bootstrap.sh
 
-  exit 0
+  echo $VERSION > .bootstrapped
 fi
-
-git submodule update --init --recursive
-
-if [ ! -f ~/.nvm/nvm.sh ]; then
-  echo "Nvm not found at ~/.nvm"
-  exit 1
-fi
-
-# Install pre-commit git hooks.
-HOOKS_DIR=$(git rev-parse --git-path hooks)
-echo "(cd barretenberg/cpp && ./format.sh staged)" > $HOOKS_DIR/pre-commit
-echo "(cd circuits/cpp && ./format.sh staged)" >> $HOOKS_DIR/pre-commit
-chmod +x $HOOKS_DIR/pre-commit
-
-barretenberg/cpp/bootstrap.sh
-circuits/cpp/bootstrap.sh
-yarn-project/bootstrap.sh
-
-echo $VERSION > .bootstrapped

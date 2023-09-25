@@ -6,10 +6,11 @@ set -eu
 REPOSITORY=$1
 EXTRACT_FROM=${2:-/usr/src}
 EXTRACT_TO=${3:-./}
-IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
+IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 
 echo "Pulling $IMAGE_COMMIT_URI..."
-retry docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
+ecr_login
+retry docker pull $IMAGE_COMMIT_URI
 TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI)
 
 echo "Extracting $EXTRACT_FROM from $REPOSITORY to $EXTRACT_TO..."

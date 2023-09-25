@@ -1,0 +1,5 @@
+if [ -n "$COMMIT_TAG" ] ; then 
+  retry docker $@
+else
+  echo DRY RUN: docker $@
+fi

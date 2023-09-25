@@ -20,6 +20,7 @@ BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PROJECT=$(cat PROJECT)
 VERSION=$(cat VERSION)
 VERSION=${VERSION%% x-release-please-version*}
+COMMIT_MESSAGE=`git log -n 1 --pretty=format:"%s" $COMMIT_HASH`
 
 echo "COMMIT_HASH=$COMMIT_HASH"
 echo "COMMIT_TAG=$COMMIT_TAG"
@@ -68,8 +69,9 @@ fi
 
 echo export ROOT_PATH=$PWD >> $BASH_ENV
 echo export BUILD_SYSTEM_PATH=$BUILD_SYSTEM_PATH >> $BASH_ENV
+echo export DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} >> $BASH_ENV
 echo export SSH_CONFIG_PATH=$BUILD_SYSTEM_PATH/remote/ssh_config >> $BASH_ENV
-echo export PATH=$PATH:$BUILD_SYSTEM_PATH/scripts >> $BASH_ENV
+echo export PATH=\$PATH:$BUILD_SYSTEM_PATH/scripts >> $BASH_ENV
 echo export AWS_DEFAULT_REGION=eu-west-2 >> $BASH_ENV
 echo export ECR_REGION=us-east-2 >> $BASH_ENV
 echo export AWS_ACCOUNT=278380418400 >> $BASH_ENV
@@ -79,33 +81,47 @@ echo export ECR_DEPLOY_URL=278380418400.dkr.ecr.eu-west-2.amazonaws.com >> $BASH
 echo export PROJECT=$PROJECT >> $BASH_ENV
 echo export COMMIT_HASH=$COMMIT_HASH >> $BASH_ENV
 echo export COMMIT_TAG=$COMMIT_TAG >> $BASH_ENV
+echo "export COMMIT_MESSAGE=\"$COMMIT_MESSAGE\"" >> $BASH_ENV
 echo export JOB_NAME=$JOB_NAME >> $BASH_ENV
 echo export GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL >> $BASH_ENV
 echo export VERSION_TAG=$VERSION_TAG >> $BASH_ENV
 echo export DEPLOY_TAG=$DEPLOY_TAG >> $BASH_ENV
 echo export BRANCH=$BRANCH >> $BASH_ENV
-# Our alpine build image has jq installed, ubuntu build instances use our committed version.
-if [ ! -f /etc/alpine-release ]; then
-  echo export PATH=\$PATH:$BUILD_SYSTEM_PATH/bin >> $BASH_ENV
-  echo export LD_LIBRARY_PATH=$BUILD_SYSTEM_PATH/lib >> $BASH_ENV
+
+# Only run the following if we're the result of a commit (i.e. not being run manually).
+if [ -n "$COMMIT_HASH" ]; then
+  # Our alpine build image has yq installed, ubuntu build instances download from github.
+  if [ ! -f /etc/alpine-release ]; then
+    mkdir -p $BUILD_SYSTEM_PATH/bin
+    echo export PATH=$BUILD_SYSTEM_PATH/bin:\$PATH >> $BASH_ENV
+    YQ_PATH=$BUILD_SYSTEM_PATH/bin/yq
+    ARCH=$(uname -m)
+    if [ "$ARCH" == "x86_64" ]; then
+      curl -Ls https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_amd64 > $YQ_PATH
+    elif [ "$ARCH" == "aarch64" ]; then
+      curl -Ls https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_arm64 > $YQ_PATH
+    else
+      echo "Unknown arch: $ARCH"
+      exit 1
+    fi
+    chmod +x $YQ_PATH
+  fi
+
+  # Install and ensure correct permissions on build instance key.
+  mkdir -p ~/.ssh
+  echo ${BUILD_INSTANCE_KEY:-} | base64 -d > ~/.ssh/build_instance_key
+  chmod 600 ~/.ssh/build_instance_key
+
+  if [[ "$COMMIT_MESSAGE" == *"[ci debug]"* ]]; then
+    echo export BUILD_SYSTEM_DEBUG=1 >> $BASH_ENV
+  fi
 fi
+
+# Print for visibility.
 cat $BASH_ENV
 
 # Having written the variables to $BASH_ENV, we now want to set them in this shell context.
 source $BASH_ENV
 
-# Only run the following if we're the result of a commit (i.e. not being run manually).
-if [ -n "$COMMIT_HASH" ]; then
-  # Install and ensure correct permissions on build instance key.
-  mkdir -p ~/.ssh
-  echo ${BUILD_INSTANCE_KEY:-} | base64 -d > ~/.ssh/build_instance_key
-  chmod 600 ~/.ssh/build_instance_key
-  COMMIT_MESSAGE=`git log -n 1 --pretty=format:"%s" HEAD`
-  # if our commit messages has [debug ci] anywhere in it, we set -x in all build system BASH files
-  # this can also be used for other verbose logging
-  if [[ "$COMMIT_MESSAGE" == *"[debug ci]"* ]]; then
-    echo export BUILD_SYSTEM_DEBUG=1 >> $BASH_ENV
-  fi
-fi
-
+# This script is often "sourced", we don't want calling shell to exit on a subsequent error!
 set +e

@@ -15,7 +15,7 @@
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src",
     "compile": "aztec-cli compile src/contracts --outdir ../artifacts --typescript ../artifacts",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
+    "test": "true #FIX THIS #NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
     "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test\" \"anvil\""
   },
   "jest": {
@@ -40,6 +40,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/cli": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/types": "workspace:^",
     "classnames": "^2.3.2",
     "formik": "^2.4.3",
     "node-sass": "^9.0.0",

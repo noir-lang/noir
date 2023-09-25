@@ -58,16 +58,7 @@ function try_fetch_image() {
   return 0
 }
 
-function docker_login() {
-  # Retries up to 3 times with 10 second intervals
-  for i in $(seq 1 3); do
-    echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin && return || sleep 10
-  done
-  echo "$@ failed docker_login after 3 attempts"
-  exit 1
-}
-
-docker_login
+ecr_login
 
 # Ensure ECR repository exists.
 retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
@@ -131,7 +122,7 @@ for PARENT in $PARENTS; do
 done
 
 echo "Extracting commit tag version..."
-COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY "false")
+COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY false)
 
 # Pull, build and push each named stage to cache.
 STAGE_CACHE_FROM=""
@@ -146,27 +137,27 @@ for STAGE in $STAGES; do
       STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
     fi
   fi
-  
+
   echo "Building stage: $STAGE"
   STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
   # Build our dockerfile, add timing information
-  docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
-  | while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
-  
+  docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
+
   # We don't want to have redo this stages work when building the final image. Use it as a layer cache.
   CACHE_FROM="--cache-from $STAGE_IMAGE_COMMIT_URI $CACHE_FROM"
-  
+
   echo "Pushing stage: $STAGE"
   retry docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
   echo
 done
 
-# Pull previous image to use it as a layer cache if it exists.
-if [ -n "$CONTENT_HASH" ]; then
+# Pull previous image to use it as a layer cache if it exists, and if we have not manually ran.
+if [ -n "$COMMIT_HASH" ]; then
   LAST_SUCCESSFUL_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
   echo "Pulling previous build of $REPOSITORY..."
-  try_fetch_image $LAST_SUCCESSFUL_URI || true
-  CACHE_FROM="--cache-from $LAST_SUCCESSFUL_URI $CACHE_FROM"
+  if try_fetch_image $LAST_SUCCESSFUL_URI ; then
+    CACHE_FROM="--cache-from $LAST_SUCCESSFUL_URI $CACHE_FROM"
+  fi
   echo
 fi
 
@@ -176,9 +167,6 @@ if [[ -n "$ARCH" ]]; then
   IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
 fi
 echo "Building image: $IMAGE_COMMIT_URI"
-# Build our dockerfile, add timing information
-docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH . \
-| while read line ; do echo "$(date "+%H:%M:%S")| $line"; done
+docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
 echo "Pushing image: $IMAGE_COMMIT_URI"
 retry docker push $IMAGE_COMMIT_URI > /dev/null 2>&1
-untag_remote_image $REPOSITORY tainted

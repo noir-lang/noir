@@ -1,6 +1,3 @@
-[submodule "legacy-barretenberg-build-system"]
-	path = barretenberg/build-system
-	url = https://github.com/AztecProtocol/build-system
 [submodule "l1-contracts/lib/openzeppelin-contracts"]
 	path = l1-contracts/lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts

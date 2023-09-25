@@ -270,7 +270,7 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecRPC, PublicKey } from '@aztec/types';
 import { ContractAbi } from '@aztec/foundation/abi';
 import TestContractContractAbiJson from '../target/test.json' assert { type: 'json' };
-export const TestContractContractAbi = TestContractContractAbiJson as unknown as ContractAbi;
+export const TestContractContractAbi = TestContractContractAbiJson as ContractAbi;
 
 /**
  * Type-safe interface for contract TestContract;

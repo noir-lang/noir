@@ -10,7 +10,6 @@ add_subdirectory(dbs)
 add_subdirectory(utils)
 
 if (WASM)
-
     # We can't build a wasm module by just linking to the libraries as that produces, nothing.
     # There are a couple of other ways to avoiding listing all the object files here and leveraging the dependency
     # tree, but they come with the problem that they will import the 'env' object files. We explicitly want to avoid

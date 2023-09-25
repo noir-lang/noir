@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+# Retries up to 3 times with 10 second intervals
+for i in $(seq 1 3); do
+  echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin && exit || sleep 10
+done
+echo "$@ failed dockerhub_login after 3 attempts"
+exit 1

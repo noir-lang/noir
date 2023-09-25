@@ -14,7 +14,7 @@ cd project/src/$(query_manifest relativeProjectDir $REPOSITORY)
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
 
-VERSION=$(extract_tag_version $REPOSITORY "true")
+VERSION=$(extract_tag_version $REPOSITORY true)
 
 # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
 TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
@@ -53,5 +53,9 @@ fi
 jq '{name, version, exports, main, homepage, author, type, license, dependencies, description, bin} | with_entries( select( .value != null ) )' \
 package.json > $TMP && mv $TMP package.json
 
-# Publish
-npm publish $TAG_ARG --access public
+# Publish if we have a commit tag
+if [ -n "$COMMIT_TAG" ] ; then 
+  npm publish $TAG_ARG --access public
+else
+  npm publish --dry-run $TAG_ARG --access public
+fi

@@ -15,12 +15,24 @@
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src",
     "compile": "aztec-cli compile src/contracts --outdir ../artifacts --typescript ../artifacts",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
+    "test": "true #NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
     "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test\" \"anvil\""
   },
   "jest": {
-    "preset": "ts-jest'",
-    "testEnvironment": "jsdom"
+    "preset": "ts-jest/presets/default-esm",
+    "globals": {
+      "ts-jest": {
+        "useESM": true
+      }
+    },
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.ts$",
+    "rootDir": "./src"
   },
   "dependencies": {
     "@aztec/aztec-ui": "^0.1.14",

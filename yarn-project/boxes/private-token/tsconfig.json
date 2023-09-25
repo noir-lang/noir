@@ -41,6 +41,9 @@
     },
     {
       "path": "../../foundation"
+    },
+    {
+      "path": "../../types"
     }
   ]
 }

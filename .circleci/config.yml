@@ -85,7 +85,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build barretenberg-wasm-linux-clang 64
+          command: cond_spot_run_build barretenberg-wasm-linux-clang 128
 
   barretenberg-x86_64-linux-gcc:
     docker:
@@ -96,7 +96,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build barretenberg-x86_64-linux-gcc 64
+          command: cond_spot_run_build barretenberg-x86_64-linux-gcc 128
 
   barretenberg-x86_64-linux-clang:
     docker:
@@ -107,7 +107,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build barretenberg-x86_64-linux-clang 64
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang 128
 
   barretenberg-x86_64-linux-clang-fuzzing:
     docker:
@@ -118,7 +118,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build barretenberg-x86_64-linux-clang-fuzzing 64
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang-fuzzing 128
 
   barretenberg-x86_64-linux-clang-assert:
     docker:
@@ -129,7 +129,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build barretenberg-x86_64-linux-clang-assert 64
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang-assert 128
 
   barretenberg-stdlib-tests:
     docker:
@@ -253,7 +253,7 @@ jobs:
 
   bb-js:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -293,7 +293,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build circuits-wasm-linux-clang 64
+          command: cond_spot_run_build circuits-wasm-linux-clang 32
 
   circuits-wasm-linux-clang-assert:
     docker:
@@ -304,7 +304,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build circuits-wasm-linux-clang-assert 64
+          command: cond_spot_run_build circuits-wasm-linux-clang-assert 32
 
   circuits-x86_64-linux-clang-tidy:
     docker:
@@ -315,7 +315,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build circuits-x86_64-linux-clang-tidy 64
+          command: cond_spot_run_build circuits-x86_64-linux-clang-tidy 32
 
   circuits-x86_64-linux-clang:
     docker:
@@ -326,7 +326,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build circuits-x86_64-linux-clang 64
+          command: cond_spot_run_build circuits-x86_64-linux-clang 32
 
   circuits-x86_64-linux-clang-assert:
     docker:
@@ -337,7 +337,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build circuits-x86_64-linux-clang-assert 64
+          command: cond_spot_run_build circuits-x86_64-linux-clang-assert 32
 
   circuits-wasm-tests:
     docker:
@@ -365,7 +365,7 @@ jobs:
 
   l1-contracts:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -374,95 +374,40 @@ jobs:
           name: "Build and test"
           command: build l1-contracts
 
+  noir-contracts-build:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: Build
+          command: build noir-contracts-build | add_timestamps
+
   yarn-project-base:
     machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
+      image: ubuntu-2204:2023.07.2
+    resource_class: xlarge
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Build"
-          command: build yarn-project-base
+          command: build yarn-project-base | add_timestamps
 
-  foundation:
+  yarn-project:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
-          name: "Build and test"
-          command: build foundation
+          name: Build
+          command: build yarn-project | add_timestamps
 
-  aztec-js:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build aztec.js
-
-  cli:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build cli
-
-  types:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build types
-
-  l1-artifacts:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build l1-artifacts
-
-  aztec-node:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build aztec-node
-
-  key-store:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build key-store
-
-  noir-contracts-build:
+  yarn-project-format:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -470,111 +415,23 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: "Build and test"
-          command: cond_spot_run_build noir-contracts-build 32
+          name: Build
+          command: cond_spot_run_script yarn-project 32 cond_run_container yarn-project formatting | add_timestamps
 
-  noir-contracts:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
+  yarn-project-test:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
-          name: "Build and test"
-          command: build noir-contracts
-
-  noir-compiler:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build noir-compiler
-
-  world-state:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build world-state
-
-  merkle-tree:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build merkle-tree
-
-  p2p:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build p2p
-
-  p2p-bootstrap:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build p2p-bootstrap
-
-  acir-simulator:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build acir-simulator
-
-  archiver:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build archiver
-
-  aztec-rpc:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build aztec-rpc
+          name: Build
+          command: cond_spot_run_script yarn-project 64 cond_run_container yarn-project test | add_timestamps
 
   aztec-sandbox-base:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -585,7 +442,7 @@ jobs:
 
   aztec-sandbox-x86_64:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -596,18 +453,22 @@ jobs:
 
   aztec-sandbox-arm64:
     machine:
-      image: ubuntu-2204:2023.07.1
+      image: ubuntu-2204:2023.07.2
     resource_class: arm.large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Build and test"
-          command: force_deploy_build aztec-sandbox false arm64
+          # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
+          # out to eu-west2 despite the image being locally tagged, resulting in unauthorised 401. Weird docker bug?
+          command: |
+            echo "export DOCKER_BUILDKIT=" > $BASH_ENV
+            force_deploy_build aztec-sandbox false arm64
 
   aztec-sandbox-ecr-manifest:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -616,31 +477,9 @@ jobs:
           name: "Create ECR manifest"
           command: create_ecr_manifest aztec-sandbox-base aztec-sandbox x86_64,arm64
 
-  circuits-js:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build circuits.js
-
-  sequencer-client:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: build sequencer-client
-
   canary:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -651,7 +490,7 @@ jobs:
 
   end-to-end:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -660,20 +499,9 @@ jobs:
           name: "Build"
           command: build end-to-end
 
-  ethereum:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: build ethereum
-
   e2e-2-rpc-servers:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -684,7 +512,7 @@ jobs:
 
   e2e-multiple-accounts-1-enc-key:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -695,7 +523,7 @@ jobs:
 
   e2e-deploy-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -706,7 +534,7 @@ jobs:
 
   e2e-lending-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -717,7 +545,7 @@ jobs:
 
   e2e-token-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -728,7 +556,7 @@ jobs:
 
   e2e-private-airdrop:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -739,7 +567,7 @@ jobs:
 
   e2e-private-token-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -750,7 +578,8 @@ jobs:
 
   e2e-sandbox-example:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -760,7 +589,8 @@ jobs:
 
   e2e-multi-transfer-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -770,7 +600,7 @@ jobs:
 
   e2e-block-building:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -781,7 +611,7 @@ jobs:
 
   e2e-nested-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -792,7 +622,7 @@ jobs:
 
   e2e-non-contract-account:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -803,7 +633,7 @@ jobs:
 
   e2e-cross-chain-messaging:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -814,7 +644,7 @@ jobs:
 
   e2e-public-cross-chain-messaging:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -825,7 +655,7 @@ jobs:
 
   e2e-public-to-private-messaging:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -836,7 +666,7 @@ jobs:
 
   e2e-account-contracts:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -847,7 +677,8 @@ jobs:
 
   e2e-escrow-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -857,7 +688,7 @@ jobs:
 
   e2e-pending-commitments-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -868,7 +699,7 @@ jobs:
 
   e2e-ordering:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -879,7 +710,7 @@ jobs:
 
   uniswap-trade-on-l1-from-l2:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -890,7 +721,7 @@ jobs:
 
   integration-archiver-l1-to-l2:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -901,7 +732,7 @@ jobs:
 
   integration-l1-publisher:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -912,7 +743,7 @@ jobs:
 
   e2e-public-token-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -923,7 +754,7 @@ jobs:
 
   e2e-cli:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -934,7 +765,8 @@ jobs:
 
   e2e-p2p:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -944,7 +776,8 @@ jobs:
 
   e2e-browser-sandbox:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -954,7 +787,8 @@ jobs:
 
   e2e-card-game:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -964,7 +798,8 @@ jobs:
 
   aztec-rpc-sandbox:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -974,7 +809,8 @@ jobs:
 
   cli-docs-sandbox:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -984,7 +820,7 @@ jobs:
 
   guides-writing-an-account-contract:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -995,7 +831,8 @@ jobs:
 
   guides-dapp-testing:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -1005,7 +842,8 @@ jobs:
 
   guides-sample-dapp:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -1015,7 +853,8 @@ jobs:
 
   guides-up-quick-start:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -1025,7 +864,8 @@ jobs:
 
   e2e-canary-test:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -1035,7 +875,7 @@ jobs:
 
   build-docs:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -1049,7 +889,7 @@ jobs:
 
   e2e-join:
     docker:
-      - image: cimg/base:current
+      - image: cimg/base:2023.09
     resource_class: small
     steps:
       - run:
@@ -1058,7 +898,7 @@ jobs:
 
   e2e-end:
     docker:
-      - image: cimg/base:current
+      - image: cimg/base:2023.09
     resource_class: small
     steps:
       - run:
@@ -1067,132 +907,19 @@ jobs:
 
   deploy-npm:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: medium
     steps:
       - *checkout
       - *setup_env
       # Aztec.js and dependencies
       - run:
-          name: "foundation"
-          working_directory: foundation
-          command: |
-            deploy_ecr foundation
-            deploy_npm foundation
-      - run:
-          name: "circuits.js"
-          working_directory: circuits.js
-          command: |
-            deploy_ecr circuits.js
-            deploy_npm circuits.js
-      - run:
-          name: "types"
-          working_directory: types
-          command: |
-            deploy_ecr types
-            deploy_npm types
-      - run:
-          name: "aztec.js"
-          working_directory: aztec.js
-          command: |
-            deploy_ecr aztec.js
-            deploy_npm aztec.js
-      # Aztec CLI and dependencies
-      - run:
-          name: "l1-artifacts"
-          working_directory: l1-artifacts
-          command: |
-            deploy_ecr l1-artifacts
-            deploy_npm l1-artifacts
-      - run:
-          name: "aztec-ethereum"
-          working_directory: ethereum
-          command: |
-            deploy_ecr ethereum
-            deploy_npm ethereum
-      - run:
-          name: "noir-compiler"
-          working_directory: noir-compiler
-          command: |
-            deploy_ecr noir-compiler
-            deploy_npm noir-compiler
-      - run:
-          name: "noir-contracts"
-          working_directory: noir-contracts
-          command: |
-            deploy_ecr noir-contracts
-            deploy_npm noir-contracts
-      - run:
-          name: "cli"
-          working_directory: cli
-          command: |
-            deploy_ecr cli
-            deploy_npm cli
-      # Aztec Sandbox and dependencies
-      - run:
-          name: "aztec-rpc"
-          working_directory: aztec-rpc
-          command: |
-            deploy_ecr aztec-rpc
-            deploy_npm aztec-rpc
-      - run:
-          name: "acir-simulator"
-          working_directory: acir-simulator
-          command: |
-            deploy_ecr acir-simulator
-            deploy_npm acir-simulator
-      - run:
-          name: "archiver"
-          working_directory: archiver
-          command: |
-            deploy_ecr archiver
-            deploy_npm archiver
-      - run:
-          name: "merkle-tree"
-          working_directory: merkle-tree
-          command: |
-            deploy_ecr merkle-tree
-            deploy_npm merkle-tree
-      - run:
-          name: "p2p"
-          working_directory: p2p
-          command: |
-            deploy_ecr p2p
-            deploy_npm p2p
-      - run:
-          name: "sequencer-client"
-          working_directory: sequencer-client
-          command: |
-            deploy_ecr sequencer-client
-            deploy_npm sequencer-client
-      - run:
-          name: "world-state"
-          working_directory: world-state
-          command: |
-            deploy_ecr world-state
-            deploy_npm world-state
-      - run:
-          name: "key-store"
-          working_directory: key-store
-          command: |
-            deploy_ecr key-store
-            deploy_npm key-store
-      - run:
-          name: "aztec-node"
-          working_directory: aztec-node
-          command: |
-            deploy_ecr aztec-node
-            deploy_npm aztec-node
-      - run:
-          name: "aztec-sandbox"
-          working_directory: aztec-sandbox
-          command: |
-            deploy_ecr aztec-sandbox
-            deploy_npm aztec-sandbox
+          name: "yarn-project"
+          command: yarn-project/deploy_npm.sh
 
   deploy-dockerhub:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: medium
     steps:
       - *checkout
@@ -1201,15 +928,13 @@ jobs:
           name: "deploy-sandbox"
           working_directory: aztec-sandbox
           command: |
-            deploy_ecr aztec-sandbox x86_64
-            deploy_ecr aztec-sandbox arm64
             deploy_dockerhub aztec-sandbox x86_64
             deploy_dockerhub aztec-sandbox arm64
             create_dockerhub_manifest aztec-sandbox x86_64,arm64
 
   deploy-end:
     docker:
-      - image: cimg/base:current
+      - image: cimg/base:2023.09
     resource_class: small
     steps:
       - run:
@@ -1218,7 +943,7 @@ jobs:
 
   build-deployment-canary:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -1229,7 +954,7 @@ jobs:
 
   run-deployment-canary-uniswap:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -1240,7 +965,7 @@ jobs:
 
   run-deployment-canary-browser:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -1251,7 +976,7 @@ jobs:
 
   run-deployment-canary-cli:
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2204:2023.07.2
     resource_class: large
     steps:
       - *checkout
@@ -1288,7 +1013,7 @@ deploy_defaults: &deploy_defaults
         branch_pattern: "master"
 yarn_project: &yarn_project
   requires:
-    - yarn-project-base
+    - yarn-project
   <<: *defaults
 e2e_test: &e2e_test
   requires:
@@ -1377,15 +1102,6 @@ workflows:
             - circuits-x86_64-linux-clang-assert
           <<: *defaults
 
-      # - circuits-end:
-      #     requires:
-      #       - circuits-wasm-linux-clang
-      #       - circuits-x86_64-linux-clang-tidy
-      #       - circuits-x86_64-linux-clang
-      #       - circuits-wasm-tests
-      #       - circuits-x86_64-tests
-      #     <<: *defaults
-
       - l1-contracts: *defaults
       - noir-contracts-build: *defaults
 
@@ -1394,30 +1110,22 @@ workflows:
           requires:
             - circuits-wasm-linux-clang
             - l1-contracts
+          <<: *defaults
+      - yarn-project-format:
+          requires:
+            - yarn-project
+          <<: *defaults
+      - yarn-project-test:
+          requires:
+            - yarn-project
+          <<: *defaults
+      - yarn-project:
+          requires:
+            - yarn-project-base
             - noir-contracts-build
           <<: *defaults
-      
-      - build-docs: *yarn_project
-      - aztec-js: *yarn_project
+
       - end-to-end: *yarn_project
-      - ethereum: *yarn_project
-      - foundation: *yarn_project
-      - world-state: *yarn_project
-      - acir-simulator: *yarn_project
-      - archiver: *yarn_project
-      - aztec-rpc: *yarn_project
-      - aztec-node: *yarn_project
-      - cli: *yarn_project
-      - key-store: *yarn_project
-      - merkle-tree: *yarn_project
-      - p2p: *yarn_project
-      - p2p-bootstrap: *yarn_project
-      - l1-artifacts: *yarn_project
-      - noir-compiler: *yarn_project
-      - noir-contracts: *yarn_project
-      - sequencer-client: *yarn_project
-      - types: *yarn_project
-      - circuits-js: *yarn_project
       - aztec-sandbox-base: *yarn_project
       - canary: *yarn_project
 
@@ -1438,26 +1146,7 @@ workflows:
 
       - e2e-join:
           requires:
-            - aztec-js
             - end-to-end
-            - ethereum
-            - foundation
-            - world-state
-            - acir-simulator
-            - archiver
-            - aztec-rpc
-            - aztec-node
-            - cli
-            - key-store
-            - merkle-tree
-            - p2p
-            - p2p-bootstrap
-            - l1-artifacts
-            - noir-compiler
-            - noir-contracts
-            - sequencer-client
-            - types
-            - circuits-js
             - aztec-sandbox-ecr-manifest
             - canary
           <<: *defaults

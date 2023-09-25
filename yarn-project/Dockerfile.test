@@ -1,0 +1,7 @@
+# Runs all our typescript package non-e2e tests.
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project
+
+# Copy in the entire workspace.
+COPY . .
+
+RUN yarn test
