@@ -194,8 +194,6 @@ test_cases.forEach((testInfo) => {
             result = await contract.verify(slicedProof, [publicInputs]);
           }
 
-          console.log({ ...testInfo, result })
-
           expect(result).to.be.true;
         } catch (error) {
           console.error("Error while submitting the proof:", error);
