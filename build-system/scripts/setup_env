@@ -20,7 +20,7 @@ BUILD_SYSTEM_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PROJECT=$(cat PROJECT)
 VERSION=$(cat VERSION)
 VERSION=${VERSION%% x-release-please-version*}
-COMMIT_MESSAGE=`git log -n 1 --pretty=format:"%s" $COMMIT_HASH`
+COMMIT_MESSAGE=$(git log -n 1 --pretty=format:"%s" $COMMIT_HASH)
 
 echo "COMMIT_HASH=$COMMIT_HASH"
 echo "COMMIT_TAG=$COMMIT_TAG"
@@ -81,7 +81,7 @@ echo export ECR_DEPLOY_URL=278380418400.dkr.ecr.eu-west-2.amazonaws.com >> $BASH
 echo export PROJECT=$PROJECT >> $BASH_ENV
 echo export COMMIT_HASH=$COMMIT_HASH >> $BASH_ENV
 echo export COMMIT_TAG=$COMMIT_TAG >> $BASH_ENV
-echo "export COMMIT_MESSAGE=\"$COMMIT_MESSAGE\"" >> $BASH_ENV
+echo "export COMMIT_MESSAGE='$COMMIT_MESSAGE'" >> $BASH_ENV
 echo export JOB_NAME=$JOB_NAME >> $BASH_ENV
 echo export GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL >> $BASH_ENV
 echo export VERSION_TAG=$VERSION_TAG >> $BASH_ENV
