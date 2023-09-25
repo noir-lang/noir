@@ -14,6 +14,7 @@ members = [
     # Crates related to tooling built ontop of the Noir compiler
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
+    "tooling/lsp",
     "tooling/nargo",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -25,7 +26,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.12.0"
+version = "0.13.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"

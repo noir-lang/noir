@@ -364,6 +364,9 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
+    /// True if this function was defined with the 'pub' keyword
+    pub is_public: bool,
+
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,
@@ -649,6 +652,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
+            is_public: false,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),

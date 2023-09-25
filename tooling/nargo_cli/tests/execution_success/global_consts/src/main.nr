@@ -85,7 +85,7 @@ mod mysubmodule {
           assert(x | y == 1);
      }
 
-     fn my_helper() -> Field {
+     pub fn my_helper() -> Field {
           let N: Field = 15; // Like in Rust, local variables override globals
           let x = N;
           x

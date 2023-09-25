@@ -1,0 +1,51 @@
+[package]
+name = "barretenberg_blackbox_solver"
+description = "A wrapper around a barretenberg WASM binary to execute black box functions for which there is no rust implementation"
+version = "0.27.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acir.workspace = true
+acvm_blackbox_solver.workspace = true
+thiserror.workspace = true
+hex.workspace = true
+num-bigint.workspace = true
+
+rust-embed = { version = "6.6.0", features = [
+    "debug-embed",
+    "interpolate-folder-path",
+    "include-exclude",
+] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasmer = { version = "3.3", default-features = false, features = [
+    "js-default",
+] }
+
+getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen-futures = "0.4.36"
+js-sys = "0.3.62"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = "0.2"
+wasmer = "3.3"
+
+[build-dependencies]
+pkg-config = "0.3"
+tar = "~0.4.15"
+flate2 = "~1.0.1"
+reqwest = { version = "0.11.16", default-features = false, features = [
+    "rustls-tls",
+    "blocking",
+] }
+
+[features]
+default = ["bn254"]
+bn254 = ["acir/bn254"]
+bls12_381 = ["acir/bls12_381"]
