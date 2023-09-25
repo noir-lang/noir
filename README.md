@@ -37,6 +37,15 @@ This repository uses CircleCI for continuous integration. Build steps are manage
 
 All packages need to be included in the [build manifest](`build_manifest.json`), which declares what paths belong to each package, as well as dependencies between packages. When the CI runs, if none of the rebuild patterns or dependencies were changed, then the build step is skipped and the last successful image is re-tagged with the current commit. Read more on the [`build-system`](https://github.com/AztecProtocol/build-system) repository README.
 
+It is faster to debug CI failures within a persistent ssh session compared to pushing and waiting.  You can create a session with "Rerun step with SSH" on CircleCI which will generate an ssh command for debugging on a worker.  Run that command locally and then do
+```bash
+cd project
+./build-system/scripts/setup_env "$(git rev-parse HEAD)" "" "" ""
+source /tmp/.bash_env*
+{start testing your CI commands here}
+```
+This provide an interactive environment for debugging the CI test.
+
 ## Debugging
 
 Logging goes through the [`info` and `debug`](barretenberg/cpp/src/barretenberg/common/log.hpp) functions in C++, and through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
