@@ -1,8 +1,8 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{ItemKind, ParsedModule},
-    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, StatementKind,
-    Visibility,
+    BlockExpression, Expression, ExpressionKind, FunctionReturnType, NoirFunction, Statement,
+    StatementKind, Visibility,
 };
 
 use crate::config::Config;
@@ -55,12 +55,13 @@ impl<'a> FmtVisitor<'a> {
         for item in module.items {
             match item.kind {
                 ItemKind::Function(func) => {
-                    let fn_before_block = self.rewrite_fn_before_block(func.clone());
+                    let (fn_before_block, force_brace_newline) =
+                        self.rewrite_fn_before_block(func.clone());
 
                     self.format_missing_indent(item.span.start(), false);
-                    self.push_str(&fn_before_block);
 
-                    self.push_str(" ");
+                    self.push_str(&fn_before_block);
+                    self.push_str(if force_brace_newline { "\n" } else { " " });
 
                     self.visit_block(func.def.body, func.def.span, false);
                 }
@@ -215,8 +216,9 @@ impl<'a> FmtVisitor<'a> {
         }
     }
 
-    fn rewrite_fn_before_block(&self, func: NoirFunction) -> String {
+    fn rewrite_fn_before_block(&self, func: NoirFunction) -> (String, bool) {
         let ident_end = func.name_ident().span().end();
+        let mut force_brace_newline = false;
 
         let mut result = String::with_capacity(1024);
 
@@ -231,11 +233,10 @@ impl<'a> FmtVisitor<'a> {
 
             (ident_end + params_start, ident_end + params_end)
         } else {
-            (0, 0)
+            let (pattern, ty, _y) = func.parameters().last().unwrap();
+            // FIXME:
+            (pattern.name_ident().span().start(), ty.span.unwrap().end())
         };
-
-        let slice = slice!(self, params_start, params_end);
-        dbg!(slice);
 
         if !func.def.generics.is_empty() {
             todo!("emit generics")
@@ -266,7 +267,16 @@ impl<'a> FmtVisitor<'a> {
         }
 
         result.push(')');
-        result
+
+        if let FunctionReturnType::Default(span) = func.def.return_type {
+            let slice = slice!(self, params_end + 1, span.end() - 1);
+            if !slice.trim().is_empty() {
+                result.push_str(slice.trim_end());
+                force_brace_newline = true;
+            }
+        }
+
+        (result, force_brace_newline)
     }
 }
 
