@@ -502,7 +502,7 @@ impl<'interner> TypeChecker<'interner> {
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let the_trait = the_trait.borrow();
-                let method: &TraitFunction = &the_trait.methods[method.method_index];
+                let method = &the_trait.methods[method.method_index];
 
                 (method.get_type(), method.arguments.len())
             }
