@@ -39,11 +39,6 @@ jobs:
           cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
           cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
 
-      - name: Export cache from nix store
-        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
-        run: |
-          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noirc-abi-wasm-cargo-artifacts
-
       - name: Dereference symlink
         run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
 
