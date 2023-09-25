@@ -10,7 +10,10 @@ use crate::{
     ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData,
     Visibility,
 };
-use crate::{PrefixExpression, UnaryOp};
+use crate::{
+    FunctionDefinition, NoirStruct, PrefixExpression, Signedness, TypeImpl, UnaryOp,
+    UnresolvedTypeExpression,
+};
 use noirc_errors::FileDiagnostic;
 
 //
@@ -163,7 +166,7 @@ pub(crate) fn transform(
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
         let storage_defined = check_for_storage_definition(&submodule.contents);
 
-        if transform_module(&mut submodule.contents.functions, storage_defined) {
+        if transform_module(&mut submodule.contents, storage_defined) {
             check_for_aztec_dependency(crate_id, context, errors);
             include_relevant_imports(&mut submodule.contents);
         }
@@ -210,34 +213,49 @@ fn check_for_storage_definition(module: &ParsedModule) -> bool {
     module.types.iter().any(|function| function.name.0.contents == "Storage")
 }
 
+/// Checks if an attribute is a custom attribute with a specific name
+fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool {
+    if let SecondaryAttribute::Custom(custom_attr) = attr {
+        custom_attr.as_str() == attribute_name
+    } else {
+        false
+    }
+}
+
 /// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
 /// If it is, it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated function is found, false otherwise
-fn transform_module(functions: &mut [NoirFunction], storage_defined: bool) -> bool {
-    let mut has_annotated_functions = false;
-    for func in functions.iter_mut() {
+fn transform_module(module: &mut ParsedModule, storage_defined: bool) -> bool {
+    let mut has_transformed_module = false;
+
+    for structure in module.types.iter_mut() {
+        if structure
+            .attributes
+            .iter()
+            .any(|attribute| is_custom_attribute(attribute, "aztec(event)"))
+        {
+            module.impls.push(generate_selector_impl(structure));
+            has_transformed_module = true;
+        }
+    }
+
+    for func in module.functions.iter_mut() {
         for secondary_attribute in func.def.attributes.secondary.clone() {
-            if let SecondaryAttribute::Custom(custom_attribute) = secondary_attribute {
-                match custom_attribute.as_str() {
-                    "aztec(private)" => {
-                        transform_function("Private", func, storage_defined);
-                        has_annotated_functions = true;
-                    }
-                    "aztec(public)" => {
-                        transform_function("Public", func, storage_defined);
-                        has_annotated_functions = true;
-                    }
-                    _ => continue,
-                }
+            if is_custom_attribute(&secondary_attribute, "aztec(private)") {
+                transform_function("Private", func, storage_defined);
+                has_transformed_module = true;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
+                transform_function("Public", func, storage_defined);
+                has_transformed_module = true;
             }
         }
         // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
         if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
-            has_annotated_functions = true;
+            has_transformed_module = true;
         }
     }
-    has_annotated_functions
+    has_transformed_module
 }
 
 /// If it does, it will insert the following things:
@@ -295,6 +313,50 @@ fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) 
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 fn transform_unconstrained(func: &mut NoirFunction) {
     func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
+}
+
+/// Generates the impl for an event selector
+///
+/// Inserts the following code:
+/// ```noir
+/// impl SomeStruct {
+///    fn selector() -> Field {
+///       aztec::oracle::compute_selector::compute_selector("SomeStruct(u8, Field)")
+///    }
+/// }
+/// ```
+///
+/// This allows developers to emit events without having to write the signature of the event every time they emit it.
+fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
+    let signature = compute_signature(structure);
+
+    let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
+
+    let selector_fun_body = BlockExpression(vec![Statement::Expression(call(
+        variable_path(chained_path!("aztec", "oracle", "compute_selector", "compute_selector")),
+        vec![expression(ExpressionKind::Literal(Literal::Str(signature)))],
+    ))]);
+
+    let mut selector_fn_def = FunctionDefinition::normal(
+        &ident("selector"),
+        &vec![],
+        &[],
+        &selector_fun_body,
+        &[],
+        &FunctionReturnType::Ty(make_type(UnresolvedTypeData::FieldElement)),
+    );
+
+    selector_fn_def.is_public = true;
+
+    // Seems to be necessary on contract modules
+    selector_fn_def.return_visibility = Visibility::Public;
+
+    TypeImpl {
+        object_type: struct_type,
+        type_span: structure.span,
+        generics: vec![],
+        methods: vec![NoirFunction::normal(selector_fn_def)],
+    }
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -724,4 +786,22 @@ fn add_cast_to_hasher(identifier: &Ident) -> Statement {
         "add",                // method name
         vec![cast_operation], // args
     ))
+}
+
+fn signature_of_type(ty: &UnresolvedType) -> String {
+    match &ty.typ {
+        UnresolvedTypeData::Integer(Signedness::Signed, bit_size) => format!("i{}", bit_size),
+        UnresolvedTypeData::Integer(Signedness::Unsigned, bit_size) => format!("u{}", bit_size),
+        UnresolvedTypeData::FieldElement => "Field".to_owned(),
+        UnresolvedTypeData::Bool => "bool".to_owned(),
+        UnresolvedTypeData::Array(Some(UnresolvedTypeExpression::Constant(len, _)), typ) => {
+            format!("[{};{len}]", signature_of_type(typ))
+        }
+        _ => unimplemented!("Cannot generate signature for type {:?}", ty),
+    }
+}
+
+fn compute_signature(structure: &NoirStruct) -> String {
+    let fields: Vec<_> = structure.fields.iter().map(|(_, ty)| signature_of_type(ty)).collect();
+    format!("{}({})", structure.name.0.contents, fields.join(","))
 }
