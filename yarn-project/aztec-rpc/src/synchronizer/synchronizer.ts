@@ -247,15 +247,18 @@ export class Synchronizer {
    * @returns True if the account is fully synched, false otherwise.
    * @remarks Checks whether all the notes from all the blocks have been processed. If it is not the case, the
    *          retrieved information from contracts might be old/stale (e.g. old token balance).
+   * @throws If checking a sync status of account which is not registered.
    */
   public async isAccountStateSynchronized(account: AztecAddress) {
     const completeAddress = await this.db.getCompleteAddress(account);
     if (!completeAddress) {
-      return false;
+      throw new Error(`Checking if account is synched is not possible for ${account} because it is not registered.`);
     }
     const processor = this.noteProcessors.find(x => x.publicKey.equals(completeAddress.publicKey));
     if (!processor) {
-      return false;
+      throw new Error(
+        `Checking if account is synched is not possible for ${account} because it is only registered as a recipient.`,
+      );
     }
     return await processor.isSynchronized();
   }

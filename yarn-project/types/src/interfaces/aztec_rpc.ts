@@ -241,6 +241,7 @@ export interface AztecRPC {
    * @deprecated Use `getSyncStatus` instead.
    * @remarks Checks whether all the notes from all the blocks have been processed. If it is not the case, the
    * retrieved information from contracts might be old/stale (e.g. old token balance).
+   * @throws If checking a sync status of account which is not registered.
    */
   isAccountStateSynchronized(account: AztecAddress): Promise<boolean>;
 
