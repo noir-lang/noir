@@ -39,8 +39,6 @@ async function getFile(url: URL): Promise<string> {
 
 const CIRCUIT_SIZE = 2 ** 19;
 
-console.log({ MUL_CONTRACT_ADDRESS });
-
 const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
