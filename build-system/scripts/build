@@ -142,7 +142,7 @@ for STAGE in $STAGES; do
   if [ -n "$CONTENT_HASH" ]; then
     echo "Pulling stage: $STAGE"
     STAGE_IMAGE_LAST_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
-    if fetch_image $STAGE_IMAGE_LAST_URI; then
+    if try_fetch_image $STAGE_IMAGE_LAST_URI; then
       STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
     fi
   fi
