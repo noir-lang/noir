@@ -218,7 +218,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
 }
 
 #[derive(Default)]
-pub struct LegacyParsedModule {
+pub struct UnorderParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
@@ -242,8 +242,8 @@ pub struct ParsedModule {
 }
 
 impl ParsedModule {
-    pub fn into_legacy(self) -> LegacyParsedModule {
-        let mut module = LegacyParsedModule::default();
+    pub fn into_unorder(self) -> UnorderParsedModule {
+        let mut module = UnorderParsedModule::default();
 
         for item in self.items {
             match item.kind {
@@ -276,7 +276,7 @@ pub enum ItemKind {
     Function(NoirFunction),
     Struct(NoirStruct),
     Trait(NoirTrait),
-    TraitImpl(TraitImpl),
+    TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     Global(LetStatement),
@@ -293,7 +293,7 @@ pub struct SubModule {
     pub is_contract: bool,
 }
 
-impl LegacyParsedModule {
+impl UnorderParsedModule {
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
@@ -539,7 +539,7 @@ impl std::fmt::Display for TopLevelStatement {
 
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let legacy = self.clone().into_legacy();
+        let legacy = self.clone().into_unorder();
 
         for decl in &legacy.module_decls {
             writeln!(f, "mod {decl};")?;

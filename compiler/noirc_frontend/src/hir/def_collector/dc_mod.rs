@@ -10,7 +10,7 @@ use crate::{
         def_map::ScopeResolveError,
     },
     node_interner::{FunctionModifiers, TraitId},
-    parser::{LegacyParsedModule, SubModule},
+    parser::{UnorderParsedModule, SubModule},
     token::Attributes,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
@@ -39,7 +39,7 @@ struct ModCollector<'a> {
 /// This performs the entirety of the definition collection phase of the name resolution pass.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
-    ast: LegacyParsedModule,
+    ast: UnorderParsedModule,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
@@ -505,7 +505,7 @@ impl<'a> ModCollector<'a> {
             ) {
                 collect_defs(
                     self.def_collector,
-                    submodule.contents.into_legacy(),
+                    submodule.contents.into_unorder(),
                     file_id,
                     child,
                     crate_id,
@@ -556,7 +556,7 @@ impl<'a> ModCollector<'a> {
         context.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&context.file_manager, child_file_id, errors).into_legacy();
+        let ast = parse_file(&context.file_manager, child_file_id, errors).into_unorder();
 
         // Add module into def collector and get a ModuleId
         if let Some(child_mod_id) =

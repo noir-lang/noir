@@ -1634,7 +1634,7 @@ mod test {
         }
 
         let mut errors = Vec::new();
-        for func in program.into_legacy().functions {
+        for func in program.into_unorder().functions {
             let id = interner.push_test_function_definition(func.name().to_string());
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
@@ -1650,7 +1650,7 @@ mod test {
             init_src_code_resolution(src);
 
         let mut all_captures: Vec<Vec<String>> = Vec::new();
-        for func in program.into_legacy().functions {
+        for func in program.into_unorder().functions {
             let name = func.name().to_string();
             let id = interner.push_test_function_definition(name);
             path_resolver.insert_func(func.name().to_owned(), id);
