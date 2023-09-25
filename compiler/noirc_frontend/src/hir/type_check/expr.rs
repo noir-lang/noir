@@ -172,7 +172,7 @@ impl<'interner> TypeChecker<'interner> {
                                     &mut args,
                                 );
                             }
-                        };
+                        }
 
                         let (function_id, function_call) = method_call.into_function_call(
                             method_ref.clone(),
