@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use super::string_from_stderr;
 use crate::BackendError;
 
 /// WriteCommand will call the barretenberg binary
@@ -32,7 +33,7 @@ impl WriteVkCommand {
         if output.status.success() {
             Ok(())
         } else {
-            Err(BackendError::CommandFailed(output.stderr))
+            Err(BackendError::CommandFailed(string_from_stderr(&output.stderr)))
         }
     }
 }

@@ -61,6 +61,11 @@ impl AcirType {
         AcirType::NumericType(NumericType::NativeField)
     }
 
+    /// Returns an unsigned type of the specified bit size
+    pub(crate) fn unsigned(bit_size: u32) -> Self {
+        AcirType::NumericType(NumericType::Unsigned { bit_size })
+    }
+
     /// Returns a boolean type
     fn boolean() -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
@@ -90,7 +95,7 @@ impl<'a> From<&'a SsaType> for AcirType {
                 let elements = elements.iter().map(|e| e.into()).collect();
                 AcirType::Array(elements, *size)
             }
-            _ => unreachable!("The type {value}  cannot be represented in ACIR"),
+            _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
     }
 }
@@ -1203,35 +1208,44 @@ impl AcirContext {
         &mut self,
         block_id: BlockId,
         len: usize,
-        optional_values: Option<&[AcirValue]>,
+        optional_value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        // If the optional values are supplied, then we fill the initialized
-        // array with those values. If not, then we fill it with zeros.
-        let mut nested = false;
-        let initialized_values = match optional_values {
+        let initialized_values = match optional_value {
             None => {
                 let zero = self.add_constant(FieldElement::zero());
                 let zero_witness = self.var_to_witness(zero)?;
                 vec![zero_witness; len]
             }
-            Some(optional_values) => {
+            Some(optional_value) => {
                 let mut values = Vec::new();
-                for value in optional_values {
-                    if let Ok(some_value) = value.clone().into_var() {
-                        values.push(self.var_to_witness(some_value)?);
-                    } else {
-                        nested = true;
-                        break;
-                    }
-                }
+                self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }
         };
-        // we do not initialize nested arrays. This means that non-const indexes are not supported for nested arrays
-        if !nested {
-            self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
-        }
 
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+
+        Ok(())
+    }
+
+    fn initialize_array_inner(
+        &mut self,
+        witnesses: &mut Vec<Witness>,
+        input: AcirValue,
+    ) -> Result<(), InternalError> {
+        match input {
+            AcirValue::Var(var, _) => {
+                witnesses.push(self.var_to_witness(var)?);
+            }
+            AcirValue::Array(values) => {
+                for value in values {
+                    self.initialize_array_inner(witnesses, value)?;
+                }
+            }
+            AcirValue::DynamicArray(_) => {
+                unreachable!("Dynamic array should already be initialized");
+            }
+        }
         Ok(())
     }
 }

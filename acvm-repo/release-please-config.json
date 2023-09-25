@@ -1,0 +1,97 @@
+{
+  "release-type": "rust",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "group-pull-request-title-pattern": "chore: Release ${version}",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "root",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.acir.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.acir_field.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.stdlib.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.brillig.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.brillig_vm.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.dependencies.acvm_blackbox_solver.version"
+        },
+        {
+          "type": "json",
+          "path": "acvm_js/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "acir": {
+      "component": "acir"
+    },
+    "acir_field": {
+      "component": "acir_field"
+    },
+    "acvm": {
+      "component": "acvm"
+    },
+    "acvm_js": {
+      "component": "acvm_js"
+    },
+    "brillig": {
+      "component": "brillig"
+    },
+    "brillig_vm": {
+      "component": "brillig_vm"
+    },
+    "stdlib": {
+      "component": "acvm_stdlib"
+    },
+    "blackbox_solver": {
+      "component": "acvm_blackbox_solver"
+    },
+    "barretenberg_blackbox_solver": {
+      "component": "barretenberg_blackbox_solver"
+    }
+  },
+  "plugins": [
+    {
+      "type": "cargo-workspace",
+      "merge": false
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "acvm",
+      "components": [
+        "root",
+        "acir",
+        "acir_field",
+        "acvm",
+        "acvm_js",
+        "brillig",
+        "brillig_vm",
+        "acvm_stdlib",
+        "acvm_blackbox_solver"
+      ]
+    }
+  ]
+}

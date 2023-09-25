@@ -1,0 +1,12 @@
+{
+    ".": "0.27.0",
+    "acir": "0.27.0",
+    "acir_field": "0.27.0",
+    "acvm": "0.27.0",
+    "acvm_js": "0.27.0",
+    "stdlib": "0.27.0",
+    "brillig": "0.27.0",
+    "brillig_vm": "0.27.0",
+    "blackbox_solver": "0.27.0",
+    "barretenberg_blackbox_solver": "0.27.0"
+}

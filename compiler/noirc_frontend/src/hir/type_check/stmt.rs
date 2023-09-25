@@ -115,8 +115,8 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(&assign_stmt.expression);
         self.unify_with_coercions(&expr_type, &lvalue_type, assign_stmt.expression, || {
             TypeCheckError::TypeMismatchWithSource {
-                actual: lvalue_type.clone(),
-                expected: expr_type.clone(),
+                actual: expr_type.clone(),
+                expected: lvalue_type.clone(),
                 span,
                 source: Source::Assignment,
             }

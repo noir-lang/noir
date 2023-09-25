@@ -3,7 +3,7 @@
 // XXX: In the future we can add an arity parameter
 
 // Returns the merkle root of the tree from the provided leaf, its hashpath, using a pedersen hash function.
-fn compute_merkle_root<N>(leaf: Field, index: Field, hash_path: [Field; N]) -> Field {
+pub fn compute_merkle_root<N>(leaf: Field, index: Field, hash_path: [Field; N]) -> Field {
     let n = hash_path.len();
     let index_bits = index.to_le_bits(n as u32);
     let mut current = leaf;

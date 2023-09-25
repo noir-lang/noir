@@ -14,7 +14,14 @@
         "build": "yarn workspaces foreach run build",
         "test": "yarn workspaces foreach run test",
         "test:integration": "yarn workspace integration-tests test",
-        "lint": "yarn workspaces foreach run lint"
+        "clean:workspaces": "yarn workspaces foreach run clean",
+        "clean:root": "rm -rf ./result ./target",
+        "clean": "yarn clean:workspaces && yarn clean:parent",
+        "lint": "yarn workspaces foreach run lint",
+        "build:with:nix": "nix build -L .#wasm",
+        "install:from:nix:noirc_abi_wasm": "cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm && cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm",
+        "install:from:nix:noir_wasm": "cp -r ./result/noir_wasm/nodejs ./compiler/wasm && cp -r ./result/noir_wasm/web ./compiler/wasm",
+        "install:from:nix": "yarn build:with:nix && yarn install:from:nix:noirc_abi_wasm && yarn install:from:nix:noir_wasm"
     },
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.59.5",
@@ -27,5 +34,8 @@
         "ts-node": "^10.9.1",
         "typescript": "^5.0.4"
     },
-    "packageManager": "yarn@3.6.3"
+    "packageManager": "yarn@3.6.3",
+    "dependencies": {
+        "tslog": "^4.9.2"
+    }
 }

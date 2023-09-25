@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use fm::FileId;
-use noirc_errors::{FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
 use crate::{
     graph::CrateId,
@@ -9,8 +9,9 @@ use crate::{
         def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
         def_map::ScopeResolveError,
     },
-    node_interner::TraitId,
+    node_interner::{FunctionModifiers, TraitId},
     parser::SubModule,
+    token::Attributes,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, ParsedModule, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -71,11 +72,11 @@ pub fn collect_defs(
 
     collector.collect_type_aliases(context, ast.type_aliases, errors);
 
-    collector.collect_functions(context, ast.functions, errors);
+    collector.collect_functions(context, ast.functions, crate_id, errors);
 
-    collector.collect_trait_impls(context, ast.trait_impls, errors);
+    collector.collect_trait_impls(context, ast.trait_impls, crate_id, errors);
 
-    collector.collect_impls(context, ast.impls);
+    collector.collect_impls(context, ast.impls, crate_id);
 }
 
 impl<'a> ModCollector<'a> {
@@ -114,14 +115,16 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>) {
+    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: CrateId) {
+        let module_id = ModuleId { krate, local_id: self.module_id };
+
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
             for method in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
-                context.def_interner.push_function_definition(method.name().to_owned(), func_id);
+                context.def_interner.push_function(func_id, &method.def, module_id);
                 unresolved_functions.push_fn(self.module_id, func_id, method);
             }
 
@@ -135,8 +138,11 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         impls: Vec<NoirTraitImpl>,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
+        let module_id = ModuleId { krate, local_id: self.module_id };
+
         for trait_impl in impls {
             let trait_name = &trait_impl.trait_name;
             let module = &self.def_collector.def_map.modules[self.module_id.0];
@@ -149,13 +155,13 @@ impl<'a> ModCollector<'a> {
                     context,
                     &trait_impl,
                     &collected_trait.trait_def,
+                    krate,
                     errors,
                 );
 
                 for (_, func_id, noir_function) in &unresolved_functions.functions {
-                    let name = noir_function.name().to_owned();
-
-                    context.def_interner.push_function_definition(name, *func_id);
+                    let function = &noir_function.def;
+                    context.def_interner.push_function(*func_id, function, module_id);
                 }
 
                 let unresolved_trait_impl = UnresolvedTraitImpl {
@@ -200,17 +206,18 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         trait_impl: &NoirTraitImpl,
         trait_def: &NoirTrait,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) -> UnresolvedFunctions {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
+        let module = ModuleId { krate, local_id: self.module_id };
+
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                context
-                    .def_interner
-                    .push_function_definition(impl_method.name().to_owned(), func_id);
+                context.def_interner.push_function(func_id, &impl_method.def, module);
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
         }
@@ -244,7 +251,22 @@ impl<'a> ModCollector<'a> {
                             // if there's a default implementation for the method, use it
                             let method_name = name.0.contents.clone();
                             let func_id = context.def_interner.push_empty_fn();
-                            context.def_interner.push_function_definition(method_name, func_id);
+                            let modifiers = FunctionModifiers {
+                                name: name.0.contents.clone(),
+                                // trait functions are always public
+                                visibility: crate::Visibility::Public,
+                                attributes: Attributes::empty(),
+                                is_unconstrained: false,
+                                contract_function_type: None,
+                                is_internal: None,
+                            };
+
+                            context.def_interner.push_function_definition(
+                                method_name,
+                                func_id,
+                                modifiers,
+                                module,
+                            );
                             let impl_method = NoirFunction::normal(FunctionDefinition::normal(
                                 name,
                                 generics,
@@ -292,18 +314,21 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         functions: Vec<NoirFunction>,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
+        let module = ModuleId { krate, local_id: self.module_id };
+
         for mut function in functions {
             let name = function.name_ident().clone();
+            let func_id = context.def_interner.push_empty_fn();
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            let func_id = context.def_interner.push_empty_fn();
-            context.def_interner.push_function_definition(name.0.contents.clone(), func_id);
+            context.def_interner.push_function(func_id, &function.def, module);
 
             // Then go over the where clause and assign trait_ids to the constraints
             for constraint in &mut function.def.where_clause {
@@ -504,13 +529,31 @@ impl<'a> ModCollector<'a> {
         let child_file_id =
             match context.file_manager.find_module(self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
-                Err(_) => {
+                Err(expected_path) => {
+                    let mod_name = mod_name.clone();
                     let err =
-                        DefCollectorErrorKind::UnresolvedModuleDecl { mod_name: mod_name.clone() };
+                        DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
                     errors.push(err.into_file_diagnostic(self.file_id));
                     return;
                 }
             };
+
+        let location = Location { file: self.file_id, span: mod_name.span() };
+
+        if let Some(old_location) = context.visited_files.get(&child_file_id) {
+            let message = format!("Module '{mod_name}' is already part of the crate");
+            let secondary = String::new();
+            let error = CustomDiagnostic::simple_error(message, secondary, location.span);
+            errors.push(error.in_file(location.file));
+
+            let message = format!("Note: {mod_name} was originally declared here");
+            let secondary = String::new();
+            let error = CustomDiagnostic::simple_error(message, secondary, old_location.span);
+            errors.push(error.in_file(old_location.file));
+            return;
+        }
+
+        context.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let ast = parse_file(&context.file_manager, child_file_id, errors);

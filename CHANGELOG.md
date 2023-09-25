@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.13.0](https://github.com/noir-lang/noir/compare/v0.12.0...v0.13.0) (2023-09-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* constrain is now a hard error ([#2758](https://github.com/noir-lang/noir/issues/2758))
+
+### Features
+
+* Add `pub` modifier ([#2754](https://github.com/noir-lang/noir/issues/2754)) ([dda964e](https://github.com/noir-lang/noir/commit/dda964e82e170a59c328908117677c16f691be7b))
+* Add support for attributes on structs ([#2733](https://github.com/noir-lang/noir/issues/2733)) ([7b3df8e](https://github.com/noir-lang/noir/commit/7b3df8e8be11fe4288ed865951ef88566160f4af))
+* Add wrapping functions in stdlib and use them in relevant test cases ([#2725](https://github.com/noir-lang/noir/issues/2725)) ([49ab121](https://github.com/noir-lang/noir/commit/49ab121ef21819e028d407999a689b92c67d8df7))
+* **aztec-noir:** Abstract storage ([#2750](https://github.com/noir-lang/noir/issues/2750)) ([5481344](https://github.com/noir-lang/noir/commit/5481344feaa0403e1f6a499ff1e8e4dbbd0297aa))
+* Constrain is now a hard error ([#2758](https://github.com/noir-lang/noir/issues/2758)) ([388a2b1](https://github.com/noir-lang/noir/commit/388a2b1659b2a07bde1bc376fc4669f855780858))
+* Refine Noir.js API ([#2732](https://github.com/noir-lang/noir/issues/2732)) ([e79f1ed](https://github.com/noir-lang/noir/commit/e79f1ed357bf7002f14001689fb4b33e0346e679))
+* Short-circuit compilation and read build artifacts from file if program is unchanged ([#2743](https://github.com/noir-lang/noir/issues/2743)) ([87fea4b](https://github.com/noir-lang/noir/commit/87fea4b447596bdd11ab461f847e03d4f1cc45f2))
+* Signed arithmetic ([#2748](https://github.com/noir-lang/noir/issues/2748)) ([a84216d](https://github.com/noir-lang/noir/commit/a84216dd23513b008739ae0a749e48d0dd262a28))
+* **traits:** Implement trait bounds def collector + resolver passes ([#2716](https://github.com/noir-lang/noir/issues/2716)) ([e3d18bb](https://github.com/noir-lang/noir/commit/e3d18bb9889d84fa78eecf3783bac446eac5adef))
+* **traits:** Type checking for Trait impl method signatures  ([#2652](https://github.com/noir-lang/noir/issues/2652)) ([8617008](https://github.com/noir-lang/noir/commit/8617008d572c22fd9c830c233bfc0088fe0bafe4))
+* Variable liveness analysis for brillig ([#2715](https://github.com/noir-lang/noir/issues/2715)) ([ddb05ab](https://github.com/noir-lang/noir/commit/ddb05ab8d30ea2b60c06f3cd7d36d5bf1b21b3ef))
+
+
+### Bug Fixes
+
+* Add error message for a contract package with no contracts ([#2762](https://github.com/noir-lang/noir/issues/2762)) ([9701a0c](https://github.com/noir-lang/noir/commit/9701a0cc2cde3b3e8fa55c3f8d09343f8861f2f8))
+* Check for literal overflows in expressions ([#2742](https://github.com/noir-lang/noir/issues/2742)) ([4009f30](https://github.com/noir-lang/noir/commit/4009f30e18b17b5e7ef5af324bb9eaea5ed3780a))
+* Keep the correct type for bitshift ([#2739](https://github.com/noir-lang/noir/issues/2739)) ([04fc2ea](https://github.com/noir-lang/noir/commit/04fc2ea5bc2490cdd2cb4ec90e34986fa91f43d4))
+* Make `Vec::get` accept immutable `Vec`s ([#2776](https://github.com/noir-lang/noir/issues/2776)) ([f168a54](https://github.com/noir-lang/noir/commit/f168a5407b303d2e13d5975e9dc18ec13ff68c5f))
+* Nightly js test ([#2740](https://github.com/noir-lang/noir/issues/2740)) ([36dcd48](https://github.com/noir-lang/noir/commit/36dcd4883313faabefe201be3645dcad79dc7970))
+
 ## [0.12.0](https://github.com/noir-lang/noir/compare/v0.11.1...v0.12.0) (2023-09-15)
 
 

@@ -1,0 +1,47 @@
+name: ACVM Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release-please:
+    name: Create Release
+    outputs:
+      release-pr: ${{ steps.release.outputs.pr }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run release-please
+        id: release
+        uses: google-github-actions/release-please-action@v3
+        with:
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+          command: manifest
+
+  publish:
+    name: Publish crates
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to publish workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: acvm-publish.yml
+          ref: master
+          inputs: '{ "acvm-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  dispatch-publish-acvm-js:
+    name: Dispatch to publish-acvm-js workflow
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish-acvm-js.yml workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: acvm-publish-acvm-js.yml
+          ref: master
+          inputs: '{ "acvm-ref": "${{ needs.release-please.outputs.tag-name }}" }'

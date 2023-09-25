@@ -260,17 +260,17 @@ fn compile_contract_inner(
                 continue;
             }
         };
-        let func_meta = context.def_interner.function_meta(&function_id);
-        let func_type = func_meta
+        let modifiers = context.def_interner.function_modifiers(&function_id);
+        let func_type = modifiers
             .contract_function_type
             .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+        let function_type = ContractFunctionType::new(func_type, modifiers.is_unconstrained);
 
         functions.push(ContractFunction {
             name,
             function_type,
-            is_internal: func_meta.is_internal.unwrap_or(false),
+            is_internal: modifiers.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
             debug: function.debug,
@@ -301,9 +301,14 @@ pub fn compile_no_check(
     let program = monomorphize(main_function, &context.def_interner);
 
     let hash = fxhash::hash64(&program);
-    if let Some(cached_program) = cached_program {
-        if hash == cached_program.hash {
-            return Ok(cached_program);
+
+    // If user has specified that they want to see intermediate steps printed then we should
+    // force compilation even if the program hasn't changed.
+    if !(options.print_acir || options.show_brillig || options.show_ssa) {
+        if let Some(cached_program) = cached_program {
+            if hash == cached_program.hash {
+                return Ok(cached_program);
+            }
         }
     }
 

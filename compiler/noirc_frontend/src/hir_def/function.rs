@@ -4,10 +4,9 @@ use noirc_errors::{Location, Span};
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
-use crate::{token::Attributes, FunctionKind};
-use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
+use crate::FunctionKind;
+use crate::{Distinctness, FunctionReturnType, Type, Visibility};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -96,24 +95,6 @@ pub struct FuncMeta {
     pub name: HirIdent,
 
     pub kind: FunctionKind,
-
-    pub module_id: ModuleId,
-
-    /// A function's attributes are the `#[...]` items above the function
-    /// definition.
-    /// Function Attributes will alter the function kind, secondary attributes do not
-    pub attributes: Attributes,
-
-    /// This function's type in its contract.
-    /// If this function is not in a contract, this is always 'Secret'.
-    pub contract_function_type: Option<ContractFunctionType>,
-
-    /// This function's visibility.
-    /// If this function is internal can only be called by itself.
-    /// Will be None if not in contract.
-    pub is_internal: Option<bool>,
-
-    pub is_unconstrained: bool,
 
     pub parameters: Parameters,
 
