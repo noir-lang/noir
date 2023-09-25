@@ -247,10 +247,10 @@ jobs:
           echo "DV_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
 
       - name: Replace addresses in the file
-        working-directory: compiler/integration-tests/test/integration/browser
+        working-directory: compiler/integration-tests/test
         run: |
-          sed -i 's|address: "MUL_CONTRACT_ADDRESS"|address: "'"$MUL_CONTRACT_ADDRESS"'"|g' compile_prove_verify.test.ts
-          sed -i 's|address: "DV_CONTRACT_ADDRESS"|address: "'"$DV_CONTRACT_ADDRESS"'"|g' compile_prove_verify.test.ts
+          sed -i 's|MUL_CONTRACT_ADDRESS = ""|MUL_CONTRACT_ADDRESS = "'"$MUL_CONTRACT_ADDRESS"'"|g' environment.js
+          sed -i 's|DV_CONTRACT_ADDRESS = ""|DV_CONTRACT_ADDRESS = "'"$DV_CONTRACT_ADDRESS"'"|g' environment.js
 
       - name: Setup `integration-tests`
         run: |

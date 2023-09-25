@@ -1,5 +1,5 @@
 import { expect } from "@esm-bundle/chai";
-import { TEST_LOG_LEVEL } from "../../environment.js";
+import { TEST_LOG_LEVEL, MUL_CONTRACT_ADDRESS } from "../../environment.js";
 import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
@@ -43,13 +43,13 @@ const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
-    address: "MUL_CONTRACT_ADDRESS",
+    address: MUL_CONTRACT_ADDRESS,
     publicInputsLength: 0,
   },
   // {
   //   case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
   //   compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
-  //   address: "DV_CONTRACT_ADDRESS",
+  //   address: DV_CONTRACT_ADDRESS,
   //   publicInputsLength: 16 * 32,
   // },
 ];
