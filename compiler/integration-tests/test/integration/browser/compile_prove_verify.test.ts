@@ -50,7 +50,7 @@ const test_cases = [
     case: "compiler/integration-tests/test/circuits/main",
     compiled: "foundry-project/out/main.sol/UltraVerifier.json",
     deployInformation: "foundry-project/main_output.json",
-    publicInputsLength: 16 * 32,
+    publicInputsLength: 32,
   },
 ];
 
