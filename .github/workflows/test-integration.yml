@@ -168,11 +168,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Checkout acvm sources
-        uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
-        with:
-          repository: noir-lang/acvm
-          path: acvm
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
