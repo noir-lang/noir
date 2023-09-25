@@ -1,7 +1,5 @@
 import { expect } from "@esm-bundle/chai";
-import {
-  TEST_LOG_LEVEL
-} from "../../environment.js";
+import { TEST_LOG_LEVEL } from "../../environment.js";
 import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
