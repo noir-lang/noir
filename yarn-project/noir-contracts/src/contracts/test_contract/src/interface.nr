@@ -67,6 +67,18 @@ impl TestPrivateContextInterface {
   }
   
 
+  fn emit_nullifier(
+    self,
+    context: &mut PrivateContext,
+    nullifier: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialized_args = [0; 1];
+    serialized_args[0] = nullifier;
+
+    context.call_private_function(self.address, 0x82a8b183, serialized_args)
+  }
+  
+
   fn emit_unencrypted(
     self,
     context: &mut PrivateContext,

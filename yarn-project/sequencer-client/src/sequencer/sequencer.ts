@@ -124,6 +124,7 @@ export class Sequencer {
       if (pendingTxs.length < this.minTxsPerBLock) return;
 
       // Filter out invalid txs
+      // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const validTxs = await this.takeValidTxs(pendingTxs);
       if (validTxs.length < this.minTxsPerBLock) {
         return;
@@ -147,9 +148,11 @@ export class Sequencer {
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxData));
       }
 
-      // Only accept processed transactions that are not double-spends
-      // public functions emitting nullifiers would pass earlier check but fail here
-      const processedValidTxs = await this.takeValidProcessedTxs(processedTxs);
+      // Only accept processed transactions that are not double-spends,
+      // public functions emitting nullifiers would pass earlier check but fail here.
+      // Note that we're checking all nullifiers generated in the private execution twice,
+      // we could store the ones already checked and skip them here as an optimisation.
+      const processedValidTxs = await this.takeValidTxs(processedTxs);
 
       if (processedValidTxs.length === 0) {
         this.log('No txs processed correctly to build block. Exiting');
@@ -224,25 +227,27 @@ export class Sequencer {
     }
   }
 
-  // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
-  protected async takeValidTxs(txs: Tx[]) {
-    const validTxs = [];
+  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[]): Promise<T[]> {
+    const validTxs: T[] = [];
     const doubleSpendTxs = [];
+    const thisBlockNullifiers: Set<bigint> = new Set();
 
     // Process txs until we get to maxTxsPerBlock, rejecting double spends in the process
     for (const tx of txs) {
-      // TODO(AD) - eventually we should add a limit to how many transactions we
-      // skip in this manner and do something more DDOS-proof (like letting the transaction fail and pay a fee).
       if (await this.isTxDoubleSpend(tx)) {
-        this.log(`Deleting double spend tx ${await tx.getTxHash()}`);
+        this.log(`Deleting double spend tx ${await Tx.getHash(tx)}`);
         doubleSpendTxs.push(tx);
+        continue;
+      } else if (this.isTxDoubleSpendSameBlock(tx, thisBlockNullifiers)) {
+        // We don't drop these txs from the p2p pool immediately since they become valid
+        // again if the current block fails to be published for some reason.
+        this.log(`Skipping tx with double-spend for this same block ${await Tx.getHash(tx)}`);
         continue;
       }
 
+      tx.data.end.newNullifiers.forEach(n => thisBlockNullifiers.add(n.toBigInt()));
       validTxs.push(tx);
-      if (validTxs.length >= this.maxTxsPerBlock) {
-        break;
-      }
+      if (validTxs.length >= this.maxTxsPerBlock) break;
     }
 
     // Make sure we remove these from the tx pool so we do not consider it again
@@ -251,13 +256,6 @@ export class Sequencer {
     }
 
     return validTxs;
-  }
-
-  protected async takeValidProcessedTxs(txs: ProcessedTx[]) {
-    const isDoubleSpends = await Promise.all(txs.map(async tx => await this.isTxDoubleSpend(tx as unknown as Tx)));
-    const doubleSpends = txs.filter((tx, index) => isDoubleSpends[index]).map(tx => tx.hash);
-    await this.p2pClient.deleteTxs(doubleSpends);
-    return txs.filter((tx, index) => !isDoubleSpends[index]);
   }
 
   /**
@@ -308,24 +306,41 @@ export class Sequencer {
   }
 
   /**
+   * Returns true if one of the tx nullifiers exist on the block being built.
+   * @param tx - The tx to test.
+   * @param thisBlockNullifiers - The nullifiers added so far.
+   */
+  protected isTxDoubleSpendSameBlock(tx: Tx | ProcessedTx, thisBlockNullifiers: Set<bigint>): boolean {
+    // We only consider non-empty nullifiers
+    const newNullifiers = tx.data.end.newNullifiers.filter(n => !n.isZero());
+
+    for (const nullifier of newNullifiers) {
+      if (thisBlockNullifiers.has(nullifier.toBigInt())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns true if one of the transaction nullifiers exist.
    * Nullifiers prevent double spends in a private context.
    * @param tx - The transaction.
    * @returns Whether this is a problematic double spend that the L1 contract would reject.
    */
-  protected async isTxDoubleSpend(tx: Tx): Promise<boolean> {
-    // eslint-disable-next-line @typescript-eslint/await-thenable
-    for (const nullifier of tx.data.end.newNullifiers) {
-      // Skip nullifier if it's empty
-      if (nullifier.isZero()) continue;
+  protected async isTxDoubleSpend(tx: Tx | ProcessedTx): Promise<boolean> {
+    // We only consider non-empty nullifiers
+    const newNullifiers = tx.data.end.newNullifiers.filter(n => !n.isZero());
+
+    // Ditch this tx if it has a repeated nullifiers
+    const uniqNullifiers = new Set(newNullifiers.map(n => n.toBigInt()));
+    if (uniqNullifiers.size !== newNullifiers.length) return true;
+
+    for (const nullifier of newNullifiers) {
       // TODO(AD): this is an exhaustive search currently
-      if (
-        (await this.worldState.getLatest().findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer())) !==
-        undefined
-      ) {
-        // Our nullifier tree has this nullifier already - this transaction is a double spend / not well-formed
-        return true;
-      }
+      const db = this.worldState.getLatest();
+      const indexInDb = await db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+      if (indexInDb !== undefined) return true;
     }
     return false;
   }

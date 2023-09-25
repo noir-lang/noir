@@ -11,6 +11,7 @@ contract Test {
             logs::emit_unencrypted_log
         },
         types::vec::BoundedVec,
+        constants_gen::EMPTY_NULLIFIED_COMMITMENT,
     };
 
     #[aztec(private)]
@@ -103,6 +104,12 @@ contract Test {
         
         // Public oracle call to emit new commitment.
         context.push_new_nullifier(note.get_commitment(), 0);
+    }
+
+    // Forcefully emits a nullifier (for testing purposes)
+    #[aztec(private)]
+    fn emit_nullifier(nullifier: Field) {
+        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
     }
 
     // docs:start:is-time-equal
