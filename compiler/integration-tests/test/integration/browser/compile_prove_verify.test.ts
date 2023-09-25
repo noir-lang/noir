@@ -39,7 +39,7 @@ async function getFile(url: URL): Promise<string> {
 
 const CIRCUIT_SIZE = 2 ** 19;
 
-console.log({ MUL_CONTRACT_ADDRESS })
+console.log({ MUL_CONTRACT_ADDRESS });
 
 const test_cases = [
   {
