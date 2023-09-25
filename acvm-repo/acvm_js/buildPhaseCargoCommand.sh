@@ -32,7 +32,7 @@ NODE_WASM=${NODE_DIR}/${pname}_bg.wasm
 BROWSER_WASM=${BROWSER_DIR}/${pname}_bg.wasm
 
 # Build the new wasm package
-run_or_fail cargo build --lib --release --target $TARGET
+run_or_fail cargo build --lib --release --target $TARGET --package ${pname}
 run_or_fail wasm-bindgen $WASM_BINARY --out-dir $NODE_DIR --typescript --target nodejs
 run_or_fail wasm-bindgen $WASM_BINARY --out-dir $BROWSER_DIR --typescript --target web
 run_if_available wasm-opt $NODE_WASM -o $NODE_WASM -O

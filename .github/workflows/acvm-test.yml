@@ -25,12 +25,10 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Build acvm-js
-        working-directory: acvm-repo
         run: |
-          nix build .#
+          nix build -L .#acvm_js
 
       - name: Dereference symlink
-        working-directory: acvm-repo
         run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
       - name: Upload artifact
@@ -97,24 +95,3 @@ jobs:
         run: |
           yarn
           yarn test:browser
-
-  test-acvm_js-rust:
-    name: Rust Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.66.0
-        with:
-          targets: wasm32-unknown-unknown
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.87
-
-      - name: Run rust tests
-        working-directory: acvm-repo
-        run: cargo test
