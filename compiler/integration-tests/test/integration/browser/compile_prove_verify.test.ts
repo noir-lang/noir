@@ -84,7 +84,7 @@ test_cases.forEach((testInfo) => {
         import.meta.url,
       );
       const deploy_information_url = new URL(
-        `${base_relative_path}/${testInfo.compiled}`,
+        `${base_relative_path}/${testInfo.deployInformation}`,
         import.meta.url,
       );
 
@@ -95,7 +95,6 @@ test_cases.forEach((testInfo) => {
 
       const { abi } = JSON.parse(compiled_contract);
       const { deployedTo } = JSON.parse(deploy_information);
-      console.log({ deployedTo, deploy_information })
 
       const contract = new ethers.Contract(deployedTo, abi, wallet);
 
