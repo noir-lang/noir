@@ -1,4 +1,4 @@
 ^barretenberg/.*\\.(cpp|cc|cxx|c\\+\\+|h|hpp|hxx|h\\+\\+|c|h|inl|inc|ipp|tpp|cmake)$
 ^barretenberg/.*CMakeLists\\.txt$
 ^barretenberg/.*Dockerfile.*$
-^barretenberg/scripts/
+^barretenberg/cpp/scripts/
