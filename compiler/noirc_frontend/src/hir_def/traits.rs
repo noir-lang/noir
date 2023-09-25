@@ -62,7 +62,7 @@ pub struct TraitImpl {
 #[derive(Debug, Clone)]
 pub struct TraitConstraint {
     pub typ: Type,
-    pub trait_id: Option<TraitId>,
+    pub trait_id: TraitId,
     // pub trait_generics: Generics, TODO
 }
 
