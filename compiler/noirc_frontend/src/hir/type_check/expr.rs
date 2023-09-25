@@ -858,9 +858,6 @@ impl<'interner> TypeChecker<'interner> {
                 );
 
                 for constraint in func_meta.trait_constraints {
-                    // TODO(#2568): == on types is sketchy, since Field != TypeVar::Bound(Field)
-                    // unify() is sketchier here though, since it may accidentally commit typebindings.
-                    // this works for now, but likely needs to be revisited when we implement generic traits
                     if *object_type == constraint.typ {
                         let the_trait = self.interner.get_trait(constraint.trait_id);
                         let the_trait = the_trait.borrow();
