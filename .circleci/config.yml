@@ -1128,6 +1128,7 @@ workflows:
       - end-to-end: *yarn_project
       - aztec-sandbox-base: *yarn_project
       - canary: *yarn_project
+      - build-docs: *yarn_project
 
       - aztec-sandbox-x86_64:
           requires:
