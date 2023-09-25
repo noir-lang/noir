@@ -1,7 +1,9 @@
 [package]
 name = "acvm_js"
 description = "Typescript wrapper around the ACVM allowing execution of ACIR code"
-version = "0.27.0" # x-release-please-version
+# x-release-please-start-version
+version = "0.27.0"
+# x-release-please-end
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -17,8 +19,8 @@ crate-type = ["cdylib"]
 cfg-if = "1.0.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-acvm = { version = "0.27.0", path = "../acvm", default-features = false }
-barretenberg_blackbox_solver = { version = "0.27.0", path = "../barretenberg_blackbox_solver", default-features = false }
+acvm = { path = "../acvm", default-features = false }
+barretenberg_blackbox_solver = { path = "../barretenberg_blackbox_solver", default-features = false }
 wasm-bindgen = { version = "0.2.87", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4.36"
 serde = { version = "1.0.136", features = ["derive"] }
@@ -40,4 +42,3 @@ wasm-bindgen-test = "0.3.36"
 default = ["bn254"]
 bn254 = ["acvm/bn254", "barretenberg_blackbox_solver/bn254"]
 bls12_381 = ["acvm/bls12_381", "barretenberg_blackbox_solver/bls12_381"]
-
