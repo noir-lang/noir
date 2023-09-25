@@ -112,7 +112,7 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.87
+          tool: wasm-bindgen-cli@0.2.86
 
       - name: Run rust tests
         working-directory: acvm-repo
