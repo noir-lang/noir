@@ -1,8 +1,6 @@
 import { expect } from "@esm-bundle/chai";
 import {
-  TEST_LOG_LEVEL,
-  MUL_CONTRACT_ADDRESS,
-  MAIN_ADDRESS,
+  TEST_LOG_LEVEL
 } from "../../environment.js";
 import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
@@ -47,13 +45,13 @@ const test_cases = [
   {
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
-    address: MUL_CONTRACT_ADDRESS,
+    deployInformation: "foundry-project/mul_output.json",
     publicInputsLength: 0,
   },
   {
     case: "compiler/integration-tests/test/circuits/main",
     compiled: "foundry-project/out/main.sol/UltraVerifier.json",
-    address: MAIN_ADDRESS,
+    deployInformation: "foundry-project/main_output.json",
     publicInputsLength: 16 * 32,
   },
 ];
@@ -87,14 +85,20 @@ test_cases.forEach((testInfo) => {
         `${base_relative_path}/${testInfo.compiled}`,
         import.meta.url,
       );
+      const deploy_information_url = new URL(
+        `${base_relative_path}/${testInfo.compiled}`,
+        import.meta.url,
+      );
 
       const noir_source = await getFile(noir_source_url);
       const prover_toml = await getFile(prover_toml_url);
       const compiled_contract = await getFile(compiled_contract_url);
+      const deploy_information = await getFile(deploy_information_url);
 
       const { abi } = JSON.parse(compiled_contract);
+      const { deployedTo } = JSON.parse(deploy_information);
 
-      const contract = new ethers.Contract(testInfo.address, abi, wallet);
+      const contract = new ethers.Contract(deployedTo, abi, wallet);
 
       expect(noir_source).to.be.a.string;
 
