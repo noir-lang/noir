@@ -858,19 +858,18 @@ impl<'interner> TypeChecker<'interner> {
                 );
 
                 for constraint in func_meta.trait_constraints {
-                    if let Some(trait_id) = constraint.trait_id {
-                        // TODO(#2568): == on types is sketchy, since Field != TypeVar::Bound(Field)
-                        // unify() is sketchier here though, since it may accidentally commit typebindings.
-                        // this works for now, but likely needs to be revisited when we implement generic traits
-                        if *object_type == constraint.typ {
-                            let the_trait = self.interner.get_trait(trait_id);
-                            let the_trait = the_trait.borrow();
+                    // TODO(#2568): == on types is sketchy, since Field != TypeVar::Bound(Field)
+                    // unify() is sketchier here though, since it may accidentally commit typebindings.
+                    // this works for now, but likely needs to be revisited when we implement generic traits
+                    if *object_type == constraint.typ {
+                        let the_trait = self.interner.get_trait(constraint.trait_id);
+                        let the_trait = the_trait.borrow();
 
-                            for (method_index, method) in the_trait.methods.iter().enumerate() {
-                                if method.name.0.contents == method_name {
-                                    let trait_method = TraitMethodId { trait_id, method_index };
-                                    return Some(HirMethodReference::TraitMethodId(trait_method));
-                                }
+                        for (method_index, method) in the_trait.methods.iter().enumerate() {
+                            if method.name.0.contents == method_name {
+                                let trait_method =
+                                    TraitMethodId { trait_id: constraint.trait_id, method_index };
+                                return Some(HirMethodReference::TraitMethodId(trait_method));
                             }
                         }
                     }
