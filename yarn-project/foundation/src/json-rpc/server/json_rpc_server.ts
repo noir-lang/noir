@@ -51,6 +51,8 @@ export class JsonRpcServer {
     app.use(
       bodyParser({
         jsonLimit: '10mb',
+        enableTypes: ['json'],
+        detectJSON: () => true,
       }),
     );
     app.use(cors());
