@@ -1401,15 +1401,6 @@ impl Context {
         acir_vars
     }
 
-    fn bit_count(&self, lhs: ValueId, dfg: &DataFlowGraph) -> u32 {
-        match dfg.type_of_value(lhs) {
-            Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
-            _ => 0,
-        }
-    }
-
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
@@ -1449,13 +1440,6 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
-    }
-
-    /// Creates a default, meaningless value meant only to be a valid value of the given type.
-    fn create_default_value(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError> {
-        self.create_value_from_type(param_type, &mut |this, _| {
-            Ok(this.acir_context.add_constant(FieldElement::zero()))
-        })
     }
 }
 
