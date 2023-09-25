@@ -552,7 +552,8 @@ impl<'f> Context<'f> {
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = ((i * element_types.len() + element_index) as u128).into();
+                let index: FieldElement =
+                    ((i * element_types.len() + element_index) as u128).into();
                 let index = self.inserter.function.dfg.make_constant(index, Type::field());
 
                 let typevars = Some(vec![element_type.clone()]);
