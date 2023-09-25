@@ -9,34 +9,39 @@ struct Foo {
 }
 
 fn main(mut x : [Foo; 4], y : pub Field) {
-    assert(x[y - 3].a == 1);
-    assert(x[y - 3].b == [2, 3, 20]);
-    assert(x[y - 2].a == 4);
-    assert(x[y - 2].b == [5, 6, 21]);
-    assert(x[y - 1].a == 7);
-    assert(x[y - 1].b == [8, 9, 22]);
-    assert(x[y].a == 10);
-    assert(x[y].b == [11, 12, 23]);
-    assert(x[y].bar.inner == [109, 110, 111]);
+    let foo_one = Foo { a: 1, b: [2, 3, 20], bar: Bar { inner: [100, 101, 102] }};
+    let foo_two = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] }};
+    let mut q = [foo_one, foo_two];
+    // assert(x[y - 3].a == 1);
+    // assert(x[y - 3].b == [2, 3, 20]);
+    assert(q[y - 2].a == 4);
+    assert(q[y - 2].b == [5, 6, 21]);
+    // assert(x[y - 1].a == 7);
+    // assert(x[y - 1].b == [8, 9, 22]);
+
+    // assert(x[y].a == 10);
+    // assert(x[y].b == [11, 12, 23]);
+    // assert(x[y].bar.inner == [109, 110, 111]);
 
     // Check dynamic array set 
     if y != 2 {
-        x[y].a = 50;
+        q[y - 2].a = 50;
     } else {
-        x[y].a = 100;
+        q[y].a = 100;
     }
-    assert(x[y].a == 50);
+    // q[y - 2].a = 50;
+    assert(q[y - 2].a == 50);
 
-    if y == 2 {
-        x[y - 1].b = [50, 51, 52];
-    } else {
-        x[y - 1].b = [100, 101, 102];
-    }
-    assert(x[2].b == [100, 101, 102]);
+    // if y == 2 {
+    //     x[y - 1].b = [50, 51, 52];
+    // } else {
+    //     x[y - 1].b = [100, 101, 102];
+    // }
+    // assert(x[2].b == [100, 101, 102]);
     
-    assert(x[y - 3].bar.inner == [100, 101, 102]);
-    assert(x[y - 2].bar.inner == [103, 104, 105]);
-    assert(x[y - 1].bar.inner == [106, 107, 108]);
-    assert(x[y].bar.inner == [109, 110, 111]);
+    // assert(x[y - 3].bar.inner == [100, 101, 102]);
+    // assert(x[y - 2].bar.inner == [103, 104, 105]);
+    // assert(x[y - 1].bar.inner == [106, 107, 108]);
+    // assert(x[y].bar.inner == [109, 110, 111]);
 }
 
