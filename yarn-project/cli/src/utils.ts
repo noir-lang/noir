@@ -1,8 +1,9 @@
-import { AztecAddress, AztecRPC } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPC, Fr } from '@aztec/aztec.js';
 import { createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
+import { InvalidArgumentError } from 'commander';
 import fs from 'fs';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
@@ -140,4 +141,37 @@ export async function prepTx(
   const functionArgs = encodeArgs(_functionArgs, functionAbi.parameters);
 
   return { contractAddress, functionArgs, contractAbi };
+}
+
+/**
+ * Removes the leading 0x from a hex string. If no leading 0x is found the string is returned unchanged.
+ * @param hex - A hex string
+ * @returns A new string with leading 0x removed
+ */
+export const stripLeadingHex = (hex: string) => {
+  if (hex.length > 2 && hex.startsWith('0x')) {
+    return hex.substring(2);
+  }
+  return hex;
+};
+
+/**
+ * Parses a hex encoded string to an Fr integer to be used as salt
+ * @param str - Hex encoded string
+ * @returns A integer to be used as salt
+ */
+export function getSaltFromHexString(str: string): Fr {
+  const hex = stripLeadingHex(str);
+
+  // ensure it's a hex string
+  if (!hex.match(/^[0-9a-f]+$/i)) {
+    throw new InvalidArgumentError('Invalid hex string');
+  }
+
+  // pad it so that we may read it as a buffer.
+  // Buffer needs _exactly_ two hex characters per byte
+  const padded = hex.length % 2 === 1 ? '0' + hex : hex;
+
+  // finally, turn it into an integer
+  return Fr.fromBuffer(Buffer.from(padded, 'hex'));
 }

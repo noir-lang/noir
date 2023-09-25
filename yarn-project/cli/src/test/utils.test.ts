@@ -1,10 +1,11 @@
 import { AztecAddress, Fr } from '@aztec/aztec.js';
 import { AztecRPC, CompleteAddress } from '@aztec/types';
 
+import { InvalidArgumentError } from 'commander';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { encodeArgs } from '../encoding.js';
-import { getTxSender } from '../utils.js';
+import { getSaltFromHexString, getTxSender, stripLeadingHex } from '../utils.js';
 import { mockContractAbi } from './mocks.js';
 
 describe('CLI Utils', () => {
@@ -127,5 +128,35 @@ describe('CLI Utils', () => {
     expect(() => encodeArgs(args6, mockContractAbi.functions[1].parameters)).toThrow(
       'Invalid value passed for integerParam. Could not parse foo as an integer.',
     );
+  });
+
+  describe('stripLeadingHex', () => {
+    it.each([
+      ['0x1', '1'],
+      ['1', '1'],
+      ['0x00', '00'],
+      ['00', '00'],
+    ])('removes optional leading hex', (hex, expected) => {
+      expect(stripLeadingHex(hex)).toEqual(expected);
+    });
+  });
+
+  describe('getSaltFromHex', () => {
+    it.each([
+      ['0', Fr.ZERO],
+      ['0x0', Fr.ZERO],
+      ['00', Fr.ZERO],
+      ['1', new Fr(1)],
+      ['0x1', new Fr(1)],
+      ['0x01', new Fr(1)],
+      ['0xa', new Fr(0xa)],
+      ['fff', new Fr(0xfff)],
+    ])('correctly generates salt from a hex string', (hex, expected) => {
+      expect(getSaltFromHexString(hex)).toEqual(expected);
+    });
+
+    it.each(['foo', '', ' ', ' 0x1', '01foo', 'foo1', '0xfoo'])('throws an error for invalid hex strings', str => {
+      expect(() => getSaltFromHexString(str)).toThrow(InvalidArgumentError);
+    });
   });
 });
