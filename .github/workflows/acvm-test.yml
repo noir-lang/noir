@@ -25,9 +25,8 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Build acvm-js
-        working-directory: acvm-repo
         run: |
-          nix build .#
+          nix build .#acvm_js
 
       - name: Dereference symlink
         working-directory: acvm-repo
