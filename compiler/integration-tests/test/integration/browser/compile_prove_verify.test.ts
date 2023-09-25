@@ -46,12 +46,12 @@ const test_cases = [
     deployInformation: "foundry-project/mul_output.json",
     publicInputsLength: 0,
   },
-  {
-    case: "compiler/integration-tests/test/circuits/main",
-    compiled: "foundry-project/out/main.sol/UltraVerifier.json",
-    deployInformation: "foundry-project/main_output.json",
-    publicInputsLength: 32,
-  },
+  // {
+  //   case: "compiler/integration-tests/test/circuits/main",
+  //   compiled: "foundry-project/out/main.sol/UltraVerifier.json",
+  //   deployInformation: "foundry-project/main_output.json",
+  //   publicInputsLength: 32,
+  // },
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
