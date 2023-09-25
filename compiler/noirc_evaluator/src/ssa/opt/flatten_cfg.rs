@@ -216,7 +216,6 @@ struct Branch {
     condition: ValueId,
     last_block: BasicBlockId,
     store_values: HashMap<ValueId, Store>,
-    local_allocations: HashSet<ValueId>,
 }
 
 fn flatten_function_cfg(function: &mut Function) {
@@ -661,7 +660,6 @@ impl<'f> Context<'f> {
                 // block arguments, it is safe to use the jmpif block here.
                 last_block: jmpif_block,
                 store_values: HashMap::default(),
-                local_allocations: HashSet::new(),
             }
         } else {
             self.push_condition(jmpif_block, new_condition);
@@ -685,13 +683,12 @@ impl<'f> Context<'f> {
             self.conditions.pop();
 
             let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
-            let local_allocations = std::mem::replace(&mut self.local_allocations, old_allocations);
+            self.local_allocations = old_allocations;
 
             Branch {
                 condition: new_condition,
                 last_block: final_block,
                 store_values: stores_in_branch,
-                local_allocations,
             }
         }
     }
