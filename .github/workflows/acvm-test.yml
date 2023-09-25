@@ -29,7 +29,6 @@ jobs:
           nix build -L .#acvm_js
 
       - name: Dereference symlink
-        working-directory: acvm-repo
         run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
       - name: Upload artifact
