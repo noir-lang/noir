@@ -665,6 +665,7 @@ impl<'f> Context<'f> {
             self.push_condition(jmpif_block, new_condition);
             self.insert_current_side_effects_enabled();
             let old_stores = std::mem::take(&mut self.store_values);
+            let old_allocations = std::mem::take(&mut self.local_allocations);
 
             // Optimization: within the then branch we know the condition to be true, so replace
             // any references of it within this branch with true. Likewise, do the same with false
@@ -682,6 +683,7 @@ impl<'f> Context<'f> {
             self.conditions.pop();
 
             let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
+            self.local_allocations = old_allocations;
 
             Branch {
                 condition: new_condition,
