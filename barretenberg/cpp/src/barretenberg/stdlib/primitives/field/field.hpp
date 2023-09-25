@@ -212,11 +212,11 @@ template <typename Builder> class field_t {
 
     /**
      * multiply *this by `to_mul` and add `to_add`
-     * One `madd` call costs 1 constraint for Turbo plonk and Ultra plonk
+     * One `madd` call costs 1 constraint for Ultra plonk
      * */
     field_t madd(const field_t& to_mul, const field_t& to_add) const;
 
-    // add_two costs 1 constraint for turbo/ultra plonk
+    // add_two costs 1 constraint for ultra plonk
     field_t add_two(const field_t& add_a, const field_t& add_b) const;
     bool_t<Builder> operator==(const field_t& other) const;
     bool_t<Builder> operator!=(const field_t& other) const;

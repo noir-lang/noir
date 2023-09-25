@@ -276,53 +276,50 @@ TYPED_TEST(ultra_plonk_composer, non_trivial_tag_permutation_and_cycles)
 
 TYPED_TEST(ultra_plonk_composer, bad_tag_permutation)
 {
-    auto builder = UltraCircuitBuilder();
-    auto composer = UltraComposer();
-    fr a = fr::random_element();
-    fr b = -a;
+    {
+        auto builder = UltraCircuitBuilder();
+        auto composer = UltraComposer();
+        fr a = fr::random_element();
+        fr b = -a;
 
-    auto a_idx = builder.add_variable(a);
-    auto b_idx = builder.add_variable(b);
-    auto c_idx = builder.add_variable(b);
-    auto d_idx = builder.add_variable(a + 1);
+        auto a_idx = builder.add_variable(a);
+        auto b_idx = builder.add_variable(b);
+        auto c_idx = builder.add_variable(b);
+        auto d_idx = builder.add_variable(a + 1);
 
-    builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, 1, 1, 0, 0 });
-    builder.create_add_gate({ c_idx, d_idx, builder.zero_idx, 1, 1, 0, -1 });
+        builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, 1, 1, 0, 0 });
+        builder.create_add_gate({ c_idx, d_idx, builder.zero_idx, 1, 1, 0, -1 });
 
-    builder.create_tag(1, 2);
-    builder.create_tag(2, 1);
+        builder.create_tag(1, 2);
+        builder.create_tag(2, 1);
 
-    builder.assign_tag(a_idx, 1);
-    builder.assign_tag(b_idx, 1);
-    builder.assign_tag(c_idx, 2);
-    builder.assign_tag(d_idx, 2);
+        builder.assign_tag(a_idx, 1);
+        builder.assign_tag(b_idx, 1);
+        builder.assign_tag(c_idx, 2);
+        builder.assign_tag(d_idx, 2);
 
-    TestFixture::prove_and_verify(builder, composer, /*expected_result=*/false);
-}
+        TestFixture::prove_and_verify(builder, composer, /*expected_result=*/false);
+    }
+    // Same as above but without tag creation to check reason of failure is really tag mismatch
+    {
+        auto builder = UltraCircuitBuilder();
+        auto composer = UltraComposer();
+        fr a = fr::random_element();
+        fr b = -a;
 
-// same as above but with turbocomposer to check reason of failue is really tag mismatch
-TYPED_TEST(ultra_plonk_composer, bad_tag_turbo_permutation)
-{
-    auto builder = UltraCircuitBuilder();
-    auto composer = UltraComposer();
-    fr a = fr::random_element();
-    fr b = -a;
+        auto a_idx = builder.add_variable(a);
+        auto b_idx = builder.add_variable(b);
+        auto c_idx = builder.add_variable(b);
+        auto d_idx = builder.add_variable(a + 1);
 
-    auto a_idx = builder.add_variable(a);
-    auto b_idx = builder.add_variable(b);
-    auto c_idx = builder.add_variable(b);
-    auto d_idx = builder.add_variable(a + 1);
+        builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, 1, 1, 0, 0 });
+        builder.create_add_gate({ c_idx, d_idx, builder.zero_idx, 1, 1, 0, -1 });
 
-    builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, 1, 1, 0, 0 });
-    builder.create_add_gate({ c_idx, d_idx, builder.zero_idx, 1, 1, 0, -1 });
+        auto prover = composer.create_prover(builder);
+        auto verifier = composer.create_verifier(builder);
 
-    // builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
-    // builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
-    // builder.create_add_gate({ a_idx, b_idx, builder.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
-    auto prover = composer.create_prover(builder);
-    auto verifier = composer.create_verifier(builder);
-
-    TestFixture::prove_and_verify(builder, composer, /*expected_result=*/true);
+        TestFixture::prove_and_verify(builder, composer, /*expected_result=*/true);
+    }
 }
 
 TYPED_TEST(ultra_plonk_composer, sort_widget)

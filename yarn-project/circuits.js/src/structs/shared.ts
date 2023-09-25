@@ -32,8 +32,7 @@ export type UInt32 = number;
  */
 export enum CircuitType {
   STANDARD = 0,
-  TURBO = 1,
-  ULTRA = 2,
+  ULTRA = 1,
 }
 
 /**

@@ -33,7 +33,7 @@ TEST(commitment_scheme, kate_open)
 
     // compute opening polynomial W(X), and evaluation f = F(z)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
-    plonk::KateCommitmentScheme<turbo_settings> newKate;
+    plonk::KateCommitmentScheme<ultra_settings> newKate;
 
     // std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory = (new
     // FileReferenceStringFactory("../srs_db/ignition"));
@@ -92,7 +92,7 @@ TEST(commitment_scheme, kate_batch_open)
 
     // setting up the Kate commitment scheme class
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
-    plonk::KateCommitmentScheme<turbo_settings> newKate;
+    plonk::KateCommitmentScheme<ultra_settings> newKate;
 
     auto file_crs = std::make_shared<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);

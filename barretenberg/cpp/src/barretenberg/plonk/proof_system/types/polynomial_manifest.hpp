@@ -105,30 +105,6 @@ static constexpr PolynomialDescriptor standard_polynomial_manifest[STANDARD_MANI
     PolynomialDescriptor("SIGMA_3", "sigma_3", false, PERMUTATION, SIGMA_3), //
 };
 
-static constexpr size_t TURBO_MANIFEST_SIZE = 20;
-static constexpr PolynomialDescriptor turbo_polynomial_manifest[TURBO_MANIFEST_SIZE]{
-    PolynomialDescriptor("W_1", "w_1", true, WITNESS, W_1),                              //
-    PolynomialDescriptor("W_2", "w_2", true, WITNESS, W_2),                              //
-    PolynomialDescriptor("W_3", "w_3", true, WITNESS, W_3),                              //
-    PolynomialDescriptor("W_4", "w_4", true, WITNESS, W_4),                              //
-    PolynomialDescriptor("Z_PERM", "z_perm", true, WITNESS, Z),                          //
-    PolynomialDescriptor("Q_1", "q_1", false, SELECTOR, Q_1),                            //
-    PolynomialDescriptor("Q_2", "q_2", false, SELECTOR, Q_2),                            //
-    PolynomialDescriptor("Q_3", "q_3", false, SELECTOR, Q_3),                            //
-    PolynomialDescriptor("Q_4", "q_4", false, SELECTOR, Q_4),                            //
-    PolynomialDescriptor("Q_5", "q_5", false, SELECTOR, Q_5),                            //
-    PolynomialDescriptor("Q_M", "q_m", false, SELECTOR, Q_M),                            //
-    PolynomialDescriptor("Q_C", "q_c", false, SELECTOR, Q_C),                            //
-    PolynomialDescriptor("Q_ARITHMETIC", "q_arith", false, SELECTOR, Q_ARITHMETIC),      //
-    PolynomialDescriptor("Q_RANGE", "q_range", false, SELECTOR, Q_RANGE),                //
-    PolynomialDescriptor("Q_FIXED_BASE", "q_fixed_base", false, SELECTOR, Q_FIXED_BASE), //
-    PolynomialDescriptor("Q_LOGIC", "q_logic", false, SELECTOR, Q_LOGIC),                //
-    PolynomialDescriptor("SIGMA_1", "sigma_1", false, PERMUTATION, SIGMA_1),             //
-    PolynomialDescriptor("SIGMA_2", "sigma_2", false, PERMUTATION, SIGMA_2),             //
-    PolynomialDescriptor("SIGMA_3", "sigma_3", false, PERMUTATION, SIGMA_3),             //
-    PolynomialDescriptor("SIGMA_4", "sigma_4", false, PERMUTATION, SIGMA_4),             //
-};
-
 static constexpr size_t ULTRA_MANIFEST_SIZE = 30;
 static constexpr PolynomialDescriptor ultra_polynomial_manifest[ULTRA_MANIFEST_SIZE]{
     PolynomialDescriptor("W_1", "w_1", true, WITNESS, W_1),                         //
@@ -178,12 +154,6 @@ class PolynomialManifest {
         case CircuitType::STANDARD: {
             std::copy(standard_polynomial_manifest,
                       standard_polynomial_manifest + STANDARD_MANIFEST_SIZE,
-                      std::back_inserter(manifest));
-            break;
-        };
-        case CircuitType::TURBO: {
-            std::copy(turbo_polynomial_manifest,
-                      turbo_polynomial_manifest + TURBO_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };

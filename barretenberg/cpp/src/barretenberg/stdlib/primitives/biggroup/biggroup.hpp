@@ -717,7 +717,6 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     /**
      * Helper class to split a set of points into lookup table subsets
      *
-     * TurboPlonk version
      **/
     struct batch_lookup_table_base {
         batch_lookup_table_base(const std::vector<element>& points)

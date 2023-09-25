@@ -187,7 +187,7 @@ void Transcript::add_element(const std::string& element_name, const std::vector<
 void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const bool info_togglable*/)
 {
     // For reference, see the relevant manifest, which is defined in
-    // plonk/composer/[standard/turbo/ultra]_composer.hpp
+    // plonk/composer/[standard/ultra]_composer.hpp
     ASSERT(current_round <= manifest.get_num_rounds());
     // TODO(Cody): Coupling: this line insists that the challenges in the manifest
     // are encountered in the order that matches the order of the proof construction functions.

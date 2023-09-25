@@ -149,10 +149,6 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<plonk::verification_
         return output_vk_sol_standard(os, key, class_name);
         break;
     }
-    // case CircuitType::TURBO: {
-    //     return output_vk_sol_turbo(os, key, class_name);
-    //     break;
-    // }
     case CircuitType::ULTRA: {
         return output_vk_sol_ultra(os, key, class_name);
         break;

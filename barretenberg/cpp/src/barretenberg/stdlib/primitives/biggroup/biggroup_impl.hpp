@@ -661,7 +661,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator*(const Fr& scalar) const
      *
      * Now lets say we are constructing a SNARK circuit over another curve E2, whose order is r.
      *
-     * All of our addition / multiplication / turbo gates are going to be evaluating low degree multivariate
+     * All of our addition / multiplication / custom gates are going to be evaluating low degree multivariate
      * polynomials modulo r.
      *
      * E.g. our addition/mul gate (for wires a, b, c and selectors q_m, q_l, q_r, q_o, q_c) is:

@@ -65,7 +65,7 @@ template <typename Builder> field_t<Builder> add_normalize(const field_t<Builder
  *
  * Function `G' in the Blake2s and Blake3s algorithm which is the core
  * mixing step with additions, xors and right-rotates. This function is
- * used in both TurboPlonk (without lookup tables).
+ * used in StandardPlonk (without lookup tables).
  *
  * Inputs: - A pointer to a 16-word `state`,
  *         - indices a, b, c, d,
@@ -195,7 +195,7 @@ void g_lookup(field_t<Builder> state[BLAKE3_STATE_SIZE],
 }
 
 /*
- * This is the round function used in Blake2s and Blake3s for TurboPlonk.
+ * This is the round function used in Blake2s and Blake3s.
  * Inputs: - 16-word state
  *         - 16-word msg
  *         - round numbe

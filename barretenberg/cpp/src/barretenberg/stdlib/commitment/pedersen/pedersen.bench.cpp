@@ -1,7 +1,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "pedersen.hpp"
@@ -12,8 +12,8 @@
 using namespace benchmark;
 using namespace proof_system::plonk;
 
-using Builder = proof_system::TurboCircuitBuilder;
-using Composer = proof_system::plonk::TurboComposer;
+using Builder = proof_system::UltraCircuitBuilder;
+using Composer = proof_system::plonk::UltraComposer;
 
 constexpr size_t NUM_CIRCUITS = 10;
 
@@ -49,8 +49,8 @@ void generate_test_pedersen_circuit(Builder& builder, size_t num_repetitions)
     }
 }
 
-plonk::TurboProver pedersen_provers[NUM_CIRCUITS];
-plonk::TurboVerifier pedersen_verifiers[NUM_CIRCUITS];
+plonk::UltraProver pedersen_provers[NUM_CIRCUITS];
+plonk::UltraVerifier pedersen_verifiers[NUM_CIRCUITS];
 plonk::proof pedersen_proofs[NUM_CIRCUITS];
 
 grumpkin::fq pedersen_function(const size_t count)

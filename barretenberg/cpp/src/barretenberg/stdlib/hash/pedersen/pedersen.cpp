@@ -207,10 +207,10 @@ point<C> pedersen_hash<C>::hash_single_internal(const field_t& in,
         } else {
             if constexpr (HasPlookup<C> && (C::merkle_hash_type == merkle::HashType::FIXED_BASE_PEDERSEN ||
                                             C::commitment_type == pedersen::CommitmentType::FIXED_BASE_PEDERSEN)) {
-                /* In TurboBuilder, the selector q_5 is used to show that w_1 and w_2 are properly initialized to
-                 * the coordinates of P_s = (-s + 4^n)[g]. In UltraPlonK, we have removed q_5 for overall efficiency (it
-                 * would only be used here in this gate), but this presents us a cost in the present circuit: we must
-                 * use an additional gate to perform part of the initialization. Since q_5 is only involved in the
+                /* In TurboBuilder, the selector q_5 was used to show that w_1 and w_2 were properly initialized
+                 * to the coordinates of P_s = (-s + 4^n)[g]. In UltraPlonK, we have removed q_5 for overall efficiency
+                 * (it would only be used here in this gate), but this presents us a cost in the present circuit: we
+                 * must use an additional gate to perform part of the initialization. Since q_5 is only involved in the
                  * x-coordinate initialization (in the notation of the widget, Constraint 5), we only perform that part
                  * of the initialization with additional gates, letting Constraints 4 and 6  be handled in the Ultra
                  * version of the widget as in the Turbo verison.
@@ -242,8 +242,7 @@ point<C> pedersen_hash<C>::hash_single_internal(const field_t& in,
         accumulator_witnesses.push_back(round_quad.d);
     }
 
-    // In Turbo PLONK, this effectively just adds the last row of the table as witnesses.
-    // In Standard PLONK, this also creates the constraint involving the final two rows.
+    // In Standard PLONK, this creates the constraint involving the final two rows.
     add_quad_<fr> add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
                             ctx->add_variable(multiplication_transcript[num_quads].y),
                             ctx->add_variable(x_alpha),

@@ -304,7 +304,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(x, fr(1));
 
         // This logic requires on madd in field, which creates a big mul gate.
-        // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
+        // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
         } else {
@@ -332,7 +332,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(x, fr(0));
 
         // This logic requires on madd in field, which creates a big mul gate.
-        // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
+        // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
         } else {
@@ -361,7 +361,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(x, fr(1));
 
         // This logic requires on madd in field, which creates a big mul gate.
-        // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
+        // This gate is implemented in standard by create 2 actual gates, while in ultra there are 2
         if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 11UL);
         } else {
@@ -910,9 +910,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
     }
 };
 
-typedef testing::
-    Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>
-        CircuitTypes;
+typedef testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder> CircuitTypes;
 
 TYPED_TEST_SUITE(stdlib_field, CircuitTypes);
 

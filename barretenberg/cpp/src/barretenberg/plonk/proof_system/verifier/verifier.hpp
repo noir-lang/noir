@@ -29,13 +29,11 @@ template <typename program_settings> class VerifierBase {
 };
 
 extern template class VerifierBase<standard_verifier_settings>;
-extern template class VerifierBase<turbo_verifier_settings>;
 extern template class VerifierBase<ultra_verifier_settings>;
 extern template class VerifierBase<ultra_to_standard_verifier_settings>;
 extern template class VerifierBase<ultra_with_keccak_verifier_settings>;
 
 typedef VerifierBase<standard_verifier_settings> Verifier;
-typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
 typedef VerifierBase<ultra_verifier_settings> UltraVerifier;
 typedef VerifierBase<ultra_to_standard_verifier_settings> UltraToStandardVerifier;
 typedef VerifierBase<ultra_with_keccak_verifier_settings> UltraWithKeccakVerifier;

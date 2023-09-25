@@ -5,7 +5,7 @@
 namespace proof_system::plonk {
 namespace widget {
 
-template <class Field, class Getters, typename PolyContainer> class TurboLogicKernel {
+template <class Field, class Getters, typename PolyContainer> class LogicKernel {
   public:
     static constexpr size_t num_independent_relations = 4;
     // We state the challenges required for linear/nonlinear terms computation
@@ -228,9 +228,9 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
 } // namespace widget
 
 template <typename Settings>
-using ProverTurboLogicWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::TurboLogicKernel>;
+using ProverLogicWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::LogicKernel>;
 
 template <typename Field, typename Group, typename Transcript, typename Settings>
-using VerifierTurboLogicWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::TurboLogicKernel>;
+using VerifierLogicWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::LogicKernel>;
 
 } // namespace proof_system::plonk

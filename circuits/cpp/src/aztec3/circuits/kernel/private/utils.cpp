@@ -91,7 +91,7 @@ std::shared_ptr<NT::VK> fake_vk()
 {
     std::map<std::string, NT::bn254_point> commitments;
     commitments["FAKE"] = *new NT::bn254_point(NT::fq(0), NT::fq(0));
-    NT::VKData vk_data = { .circuit_type = static_cast<uint32_t>(proof_system::CircuitType::TURBO),
+    NT::VKData vk_data = { .circuit_type = static_cast<uint32_t>(CircuitType::ULTRA),
                            .circuit_size = 2048,
                            .num_public_inputs = 116,
                            .commitments = commitments,

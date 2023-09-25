@@ -1,11 +1,10 @@
 # Solidity Verifier contracts and tests
 
-**Note:** ONLY Ultra verifier as rolled versions were removed. [aztec-verifier-contracts](https://github.com/AztecProtocol/aztec-verifier-contracts) contains old code with rolled standard verifier and tests. 
-
+**Note:** ONLY Ultra verifier as rolled versions were removed. [aztec-verifier-contracts](https://github.com/AztecProtocol/aztec-verifier-contracts) contains old code with rolled standard verifier and tests.
 
 This folder contains verifier contracts and testing harnesses that are used by [Noir, our Zero-Knowledge Programming Language](https://github.com/noir-lang/noir).
 
-The implementations maintain the same interface, regardless of the verifier flavour (Standard, Turbo, Ultra), this should enable upstream implementations to be "plug-and-play".
+The implementations maintain the same interface, regardless of the verifier flavour (Standard, Ultra), this should enable upstream implementations to be "plug-and-play".
 
 The verifier will follow an overall architecture below, consisting of 3 contracts/libraries. Namely, the verifier algorithm (stable across circuits), the verification key (circuit dependent) and then the "verifier instance", a base that reads from the verification key and uses the key's values in the verification algorithm. The main advantage of this design is that we can generate verification key's per circuit and plug them into a general verification algorithm.
 
@@ -56,13 +55,16 @@ forge test --match-contract StandardTest --match-test testValidProof -vvvv
 ## Debugging in assembly
 
 Debugging from inside the assembly can be pretty inconvenient. The quickest way to get going is to add a custom error:
+
 ```solidity
 bytes4 internal constant ERR_S = 0xf7b44074;
 error ERR(bytes32,bytes32,bytes32);
 ```
+
 Where `ERR_S` is the selector (first 4 bytes of keccak256(function signature)).
 
 To revert the contract, and print values, you can then do as
+
 ```solidity
 mstore(0x00, ERR_S) // put the selector in memory
 mstore(0x04, val_1) // add first value after selector
@@ -70,11 +72,14 @@ mstore(0x24, val_2) // add second value after first
 mstore(0x44, val_3) // add third value after second
 revert(0x00, 0x64)  // revert with a message containing 0x64 bytes defined above
 ```
+
 When running a test, you will then see the three values `val_1, val_2, val_3` in the console.
 
 # Docker
+
 To run the docker image, which will build keygen and proofgen and then run tests, run the following from root:
+
 ```bash
-# From root 
+# From root
 docker build . -f sol/Dockerfile
 ```

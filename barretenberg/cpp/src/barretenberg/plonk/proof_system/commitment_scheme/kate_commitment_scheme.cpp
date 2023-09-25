@@ -39,7 +39,7 @@ void KateCommitmentScheme<settings>::compute_opening_polynomial(const fr* src,
 
     // We assume that the commitment is well-formed and that there is no remainder term.
     // Under these conditions we can perform this polynomial division in linear time with good constants.
-    // Note that the opening polynomial always has (n+1) coefficients for Standard/Turbo/Ultra due to
+    // Note that the opening polynomial always has (n+1) coefficients for Standard/Ultra due to
     // the blinding of the quotient polynomial parts.
     fr f = polynomial_arithmetic::evaluate(src, z_point, n + 1);
 
@@ -200,7 +200,7 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     }
     ITERATE_OVER_DOMAIN_END;
 
-    // Adjust the (n + 1)th coefficient of t_{0,1,2}(X) or r(X) (Note: t_4 (Turbo/Ultra) has only n coefficients)
+    // Adjust the (n + 1)th coefficient of t_{0,1,2}(X) or r(X) (Note: t_4 (Ultra) has only n coefficients)
     opening_poly[input_key->circuit_size] = 0;
     const fr zeta_pow_n = zeta.pow(static_cast<uint64_t>(input_key->circuit_size));
 
@@ -388,7 +388,6 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(
 }
 
 template class KateCommitmentScheme<standard_settings>;
-template class KateCommitmentScheme<turbo_settings>;
 template class KateCommitmentScheme<ultra_settings>;
 template class KateCommitmentScheme<ultra_to_standard_settings>;
 template class KateCommitmentScheme<ultra_with_keccak_settings>;

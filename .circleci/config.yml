@@ -191,18 +191,6 @@ jobs:
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 proof_system_tests
       - *save_logs
 
-  barretenberg-stdlib-recursion-turbo-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 stdlib_recursion_tests --gtest_filter=*turbo*
-      - *save_logs
-
   barretenberg-stdlib-recursion-ultra-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1040,14 +1028,12 @@ workflows:
       - barretenberg-dsl-tests: *bb_test
       - barretenberg-tests: *bb_test
       - barretenberg-stdlib-tests: *bb_test
-      - barretenberg-stdlib-recursion-turbo-tests: *bb_test
       - barretenberg-stdlib-recursion-ultra-tests: *bb_test
       - barretenberg-join-split-tests: *bb_test
       # - barretenberg-benchmark-aggregator:
       #     requires:
       #       - barretenberg-tests
       #       - barretenberg-stdlib-tests
-      #       - barretenberg-stdlib-recursion-turbo-tests
       #       - barretenberg-stdlib-recursion-ultra-tests
       #       - barretenberg-join-split-tests
       #     filters:

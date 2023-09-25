@@ -276,7 +276,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     // Why do we need 2 random scalars in witness polynomials? The reason is: our witness polynomials are
     // evaluated at only 1 point (\scripted{z}), so adding a random degree-1 polynomial suffices.
     //
-    // NOTE: In TurboPlonk and UltraPlonk, the witness polynomials are evaluated at 2 points and thus
+    // NOTE: In UltraPlonk, the witness polynomials are evaluated at 2 points and thus
     // we need to add 3 random scalars in them.
     //
     // On the other hand, permutation polynomial z(X) is evaluated at two points, namely \scripted{z} and

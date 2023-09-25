@@ -75,12 +75,12 @@ uint<Builder, Native> uint<Builder, Native>::operator>>(const size_t shift) cons
      *
      * Our range constraint will represent A via its accumulating sums (A_0, ..., A_{w-1}), where
      *
-     *           i                                    |       ~NOTE~       :           i
-     *          ===                                   | this is equivalent :         ===
-     *          \                             j       |   to the formula   :         \                  i - j
-     *   A   =  /    a                     . 4        |      given in      :  a   =  /    a         .  4
-     *    i     ===   (w - 1 - i + j)                 | turbo_plonk_composer.cpp :    i     ===   (15 - j)
-     *         j = 0                                  |   when width = 32  :        j = 0
+     *           i
+     *          ===
+     *          \                             j
+     *   A   =  /    a                     . 4
+     *    i     ===   (w - 1 - i + j)
+     *         j = 0
      *
      *
      * Write x = 2y + z with z in {0,1}. Let

@@ -99,12 +99,10 @@ template <typename settings> class ProverBase {
     plonk::proof proof;
 };
 extern template class ProverBase<standard_settings>;
-extern template class ProverBase<turbo_settings>;
 extern template class ProverBase<ultra_settings>;
 extern template class ProverBase<ultra_to_standard_settings>;
 
 typedef ProverBase<standard_settings> Prover;
-typedef ProverBase<turbo_settings> TurboProver;
 typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return a templated proverbase so that I don't
                                                 // need separate cases for ultra vs ultra_to_standard...???
                                                 // TODO(Cody): Make this into an issue?

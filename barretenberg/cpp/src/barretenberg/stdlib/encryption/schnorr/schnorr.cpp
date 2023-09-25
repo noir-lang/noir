@@ -20,8 +20,6 @@ namespace schnorr {
  * @warning While it is possible to express any 129-bit value in this form, this function only works correctly
  * on 128-bit values, since the same is true for fixed_wnaf<129, 1, 1>. This is illusrated in the tests.
  *
- *
- * TurboPLONK: ~260 gates.
  */
 template <typename C> wnaf_record<C> convert_field_into_wnaf(C* context, const field_t<C>& limb)
 {
@@ -269,7 +267,6 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
  *          e' = hash(([s]g + [e]pub).x | message)
           and return e'.
  *
- * @details TurboPlonk: ~10850 gates (~4k for variable_base_mul, ~6k for blake2s) for a string of length < 32.
  */
 template <typename C>
 std::array<field_t<C>, 2> verify_signature_internal(const byte_array<C>& message,

@@ -903,7 +903,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
     }
 }
 
-/* the following test was only developed as a test of Ultra Circuit Constructor. It fails for Turbo and Standard in the
+/* the following test was only developed as a test of Ultra Circuit Constructor. It fails for Standard in the
    case where Fr is a bigfield. */
 HEAVY_TYPED_TEST(stdlib_biggroup, compute_wnaf)
 {

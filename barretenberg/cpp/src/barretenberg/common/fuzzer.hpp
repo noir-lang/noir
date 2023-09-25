@@ -1,7 +1,6 @@
 #pragma once
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
-#include "barretenberg/proof_system/circuit_builder/turbo_circuit_builder.hpp"
 #include <concepts>
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage, google-runtime-int)
@@ -692,9 +691,6 @@ constexpr void RunWithBuilders(const uint8_t* Data, const size_t Size, FastRando
 {
     if (Composers & 1) {
         RunWithBuilder<Fuzzer, proof_system::StandardCircuitBuilder>(Data, Size, VarianceRNG);
-    }
-    if (Composers & 2) {
-        RunWithBuilder<Fuzzer, proof_system::TurboCircuitBuilder>(Data, Size, VarianceRNG);
     }
 }
 

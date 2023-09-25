@@ -8,7 +8,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 /**
- * @brief  In the case of TurboPLONK, range constrain the given witness.
+ * @brief Constrain accumulators
  */
 template <typename Builder, typename Native>
 std::vector<uint32_t> uint<Builder, Native>::constrain_accumulators(Builder* context,
@@ -251,14 +251,6 @@ template <typename Builder, typename Native> uint<Builder, Native> uint<Builder,
 
     if (witness_status == WitnessStatus::NOT_NORMALIZED) {
         weak_normalize();
-        /**
-         * constrain_accumulators will do more for PlookupBuilder, but in TurboPLONK it just imposes
-         * the range constraint that the witness can be expressed in width-many bits.
-         *
-         * The Turbo-only strategy for imposing a range constraint on a w is develop a base-4 expansion
-         * of w, storing this in accumulators (just partial sums), and checking that a partial sum of a
-         * fixed length actually does reproduce the witness value.
-         */
         accumulators = constrain_accumulators(
             context, witness_index, width, "uint: range constraint fails in uint normalization from unnormlized");
         // This will only change the value of the uint if the range constraint fails.

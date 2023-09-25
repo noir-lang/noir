@@ -1010,18 +1010,6 @@ template <typename Builder> field_t<Builder> field_t<Builder>::accumulate(const 
             accumulating_total = witness_t<Builder>(ctx, new_total);
         }
         return total.normalize();
-    } else if constexpr (std::same_as<Builder, TurboCircuitBuilder>) {
-
-        field_t total(0);
-        bool odd_number = (input.size() & 0x01UL) == 0x01ULL;
-        size_t end = input.size() - (odd_number ? 2 : 0);
-        for (size_t i = 0; i < end; i += 2) {
-            total = total.add_two(input[(size_t)i], input[(size_t)i + 1]);
-        }
-        if (odd_number) {
-            total += input[input.size() - 1];
-        }
-        return total.normalize();
     }
     field_t<Builder> total;
     for (const auto& item : input) {

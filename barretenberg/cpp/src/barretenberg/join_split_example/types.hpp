@@ -2,7 +2,6 @@
 
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
@@ -21,15 +20,10 @@ namespace join_split_example {
 using Builder = proof_system::UltraCircuitBuilder;
 using Composer = plonk::UltraComposer;
 
-using Prover = std::conditional_t<
-    std::same_as<Composer, plonk::UltraComposer>,
-    plonk::UltraProver,
-    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboProver, plonk::Prover>>;
+using Prover = std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraProver, plonk::Prover>;
 
-using Verifier = std::conditional_t<
-    std::same_as<Composer, plonk::UltraComposer>,
-    plonk::UltraVerifier,
-    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboVerifier, plonk::Verifier>>;
+using Verifier =
+    std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraVerifier, plonk::Verifier>;
 
 using witness_ct = proof_system::plonk::stdlib::witness_t<Builder>;
 using public_witness_ct = proof_system::plonk::stdlib::public_witness_t<Builder>;

@@ -71,7 +71,7 @@ namespace widget {
  *     Link: https://hackmd.io/MCmV2bipRYelT1WUNLj02g
  *
  **/
-template <class Field, class Getters, typename PolyContainer, bool turbo> class FixedBaseKernel {
+template <class Field, class Getters, typename PolyContainer> class FixedBaseKernel {
   public:
     // UltraPlonkComposer only needs 6 independent relations, (α^5 is not added), but  we accept the tiny inefficiency
     // of computing and storing an extra power of α (we use power 0,1,2,3,4 and 6) to minimize code changes.
@@ -151,21 +151,12 @@ template <class Field, class Getters, typename PolyContainer, bool turbo> class 
 
         Field q_5_multiplicand;
 
-        if constexpr (turbo) { // α^5 terms not present in UltraPlonK
-            q_4_multiplicand = w_3 * q_fixed_base * q_c * challenges.alpha_powers[5];
-            q_5_multiplicand = (Field(1) - w_4) * q_fixed_base * q_c * challenges.alpha_powers[5];
-        }
-
         Field q_m_multiplicand = w_3 * q_fixed_base * q_c * challenges.alpha_powers[6];
 
-        linear_terms[0] = q_m_multiplicand;     // α^6 q_fixed_base q_c w_3
-        linear_terms[1] = q_1_multiplicand;     // α   q_fixed_base     δ^2
-        linear_terms[2] = q_2_multiplicand;     // α   q_fixed_base
-        linear_terms[3] = q_3_multiplicand;     // α^3 q_fixed_base     δ * (w_1,ω - w_1) * w_3,ω
-        if constexpr (turbo) {                  // α^5 terms not present in UltraPlonK
-            linear_terms[4] = q_4_multiplicand; // α^5 q_fixed_base q_c w_3
-            linear_terms[5] = q_5_multiplicand; // α^5 q_fixed_base q_c (1 - w_4)
-        }
+        linear_terms[0] = q_m_multiplicand; // α^6 q_fixed_base q_c w_3
+        linear_terms[1] = q_1_multiplicand; // α   q_fixed_base     δ^2
+        linear_terms[2] = q_2_multiplicand; // α   q_fixed_base
+        linear_terms[3] = q_3_multiplicand; // α^3 q_fixed_base     δ * (w_1,ω - w_1) * w_3,ω
     }
 
     inline static Field sum_linear_terms(PolyContainer& polynomials,
@@ -188,12 +179,6 @@ template <class Field, class Getters, typename PolyContainer, bool turbo> class 
         result += (linear_terms[1] * q_1);
         result += (linear_terms[2] * q_2);
         result += (linear_terms[3] * q_3);
-        if constexpr (turbo) {
-            const Field& q_5 =
-                Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_5>(polynomials, i);
-            result += (linear_terms[4] * q_4);
-            result += (linear_terms[5] * q_5);
-        }
         return result;
     }
 
@@ -270,10 +255,6 @@ template <class Field, class Getters, typename PolyContainer, bool turbo> class 
         Field accumulator_init_identity = T0 * T1 * challenges.alpha_powers[4];
 
         Field x_init_identity;
-        if constexpr (turbo) { // α^5 terms not present in UltraPlonK
-            // x_init_identity = -α^5 * w_1 * w_3
-            x_init_identity = -(w_1 * w_3) * challenges.alpha_powers[5];
-        }
 
         // y_init_identity = α^6 * (q_c * (1 - w_4) - w_2 * w_3)
         T0 = Field(1) - w_4;
@@ -282,9 +263,6 @@ template <class Field, class Getters, typename PolyContainer, bool turbo> class 
         Field y_init_identity = (T0 - T1) * challenges.alpha_powers[6];
 
         Field gate_identity = accumulator_init_identity + y_init_identity;
-        if constexpr (turbo) { // α^5 terms not present in UltraPlonK
-            gate_identity += x_init_identity;
-        }
         gate_identity = gate_identity * q_c;
         gate_identity =
             gate_identity + accumulator_identity + x_alpha_identity + x_accumulator_identity + y_accumulator_identity;
@@ -301,29 +279,15 @@ template <class Field, class Getters, typename PolyContainer, bool turbo> class 
         scalars["Q_1"] += linear_terms[1];
         scalars["Q_2"] += linear_terms[2];
         scalars["Q_3"] += linear_terms[3];
-        if constexpr (turbo) { // α^5 terms not present in UltraPlonK
-            scalars["Q_4"] += linear_terms[4];
-            scalars["Q_5"] += linear_terms[5];
-        }
     }
 };
 
 template <class Field, class Getters, typename PolyContainer>
-using TurboFixedBaseKernel = FixedBaseKernel<Field, Getters, PolyContainer, true>;
-
-template <class Field, class Getters, typename PolyContainer>
-using UltraFixedBaseKernel = FixedBaseKernel<Field, Getters, PolyContainer, false>;
+using UltraFixedBaseKernel = FixedBaseKernel<Field, Getters, PolyContainer>;
 } // namespace widget
 
 template <typename Settings>
-using ProverTurboFixedBaseWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::TurboFixedBaseKernel>;
-
-template <typename Settings>
 using ProverUltraFixedBaseWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::UltraFixedBaseKernel>;
-
-template <typename Field, typename Group, typename Transcript, typename Settings>
-using VerifierTurboFixedBaseWidget =
-    widget::GenericVerifierWidget<Field, Transcript, Settings, widget::TurboFixedBaseKernel>;
 
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierUltraFixedBaseWidget =

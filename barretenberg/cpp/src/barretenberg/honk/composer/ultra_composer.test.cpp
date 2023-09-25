@@ -368,54 +368,48 @@ TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation_and_cycles)
 
 TEST_F(UltraHonkComposerTests, bad_tag_permutation)
 {
-    auto circuit_builder = proof_system::UltraCircuitBuilder();
-    fr a = fr::random_element();
-    fr b = -a;
+    {
+        auto circuit_builder = proof_system::UltraCircuitBuilder();
+        fr a = fr::random_element();
+        fr b = -a;
 
-    auto a_idx = circuit_builder.add_variable(a);
-    auto b_idx = circuit_builder.add_variable(b);
-    auto c_idx = circuit_builder.add_variable(b);
-    auto d_idx = circuit_builder.add_variable(a + 1);
+        auto a_idx = circuit_builder.add_variable(a);
+        auto b_idx = circuit_builder.add_variable(b);
+        auto c_idx = circuit_builder.add_variable(b);
+        auto d_idx = circuit_builder.add_variable(a + 1);
 
-    circuit_builder.create_add_gate({ a_idx, b_idx, circuit_builder.zero_idx, 1, 1, 0, 0 });
-    circuit_builder.create_add_gate({ c_idx, d_idx, circuit_builder.zero_idx, 1, 1, 0, -1 });
+        circuit_builder.create_add_gate({ a_idx, b_idx, circuit_builder.zero_idx, 1, 1, 0, 0 });
+        circuit_builder.create_add_gate({ c_idx, d_idx, circuit_builder.zero_idx, 1, 1, 0, -1 });
 
-    circuit_builder.create_tag(1, 2);
-    circuit_builder.create_tag(2, 1);
+        circuit_builder.create_tag(1, 2);
+        circuit_builder.create_tag(2, 1);
 
-    circuit_builder.assign_tag(a_idx, 1);
-    circuit_builder.assign_tag(b_idx, 1);
-    circuit_builder.assign_tag(c_idx, 2);
-    circuit_builder.assign_tag(d_idx, 2);
+        circuit_builder.assign_tag(a_idx, 1);
+        circuit_builder.assign_tag(b_idx, 1);
+        circuit_builder.assign_tag(c_idx, 2);
+        circuit_builder.assign_tag(d_idx, 2);
 
-    auto composer = UltraComposer();
-    prove_and_verify(circuit_builder, composer, /*expected_result=*/false);
-}
+        auto composer = UltraComposer();
+        prove_and_verify(circuit_builder, composer, /*expected_result=*/false);
+    }
+    // Same as above but without tag creation to check reason of failure is really tag mismatch
+    {
+        auto circuit_builder = proof_system::UltraCircuitBuilder();
+        fr a = fr::random_element();
+        fr b = -a;
 
-// same as above but with turbocomposer to check reason of failue is really tag mismatch
-TEST_F(UltraHonkComposerTests, bad_tag_turbo_permutation)
-{
-    auto circuit_builder = proof_system::UltraCircuitBuilder();
-    fr a = fr::random_element();
-    fr b = -a;
+        auto a_idx = circuit_builder.add_variable(a);
+        auto b_idx = circuit_builder.add_variable(b);
+        auto c_idx = circuit_builder.add_variable(b);
+        auto d_idx = circuit_builder.add_variable(a + 1);
 
-    auto a_idx = circuit_builder.add_variable(a);
-    auto b_idx = circuit_builder.add_variable(b);
-    auto c_idx = circuit_builder.add_variable(b);
-    auto d_idx = circuit_builder.add_variable(a + 1);
+        circuit_builder.create_add_gate({ a_idx, b_idx, circuit_builder.zero_idx, 1, 1, 0, 0 });
+        circuit_builder.create_add_gate({ c_idx, d_idx, circuit_builder.zero_idx, 1, 1, 0, -1 });
 
-    circuit_builder.create_add_gate({ a_idx, b_idx, circuit_builder.zero_idx, 1, 1, 0, 0 });
-    circuit_builder.create_add_gate({ c_idx, d_idx, circuit_builder.zero_idx, 1, 1, 0, -1 });
+        auto composer = UltraComposer();
 
-    auto composer = UltraComposer();
-    // circuit_builder.create_add_gate({ a_idx, b_idx, circuit_builder.zero_idx, fr::one(), fr::neg_one(),
-    // fr::zero(), fr::zero() }); circuit_builder.create_add_gate({ a_idx, b_idx, circuit_builder.zero_idx,
-    // fr::one(), fr::neg_one(), fr::zero(), fr::zero() }); circuit_builder.create_add_gate({ a_idx, b_idx,
-    // circuit_builder.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
-    // auto prover = composer.create_prover(circuit_builder);
-    // auto verifier = composer.create_verifier(circuit_builder);
-
-    prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
+        prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
+    }
 }
 
 TEST_F(UltraHonkComposerTests, sort_widget)

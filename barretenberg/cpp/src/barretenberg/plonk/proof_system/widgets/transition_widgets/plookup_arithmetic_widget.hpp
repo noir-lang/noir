@@ -6,7 +6,7 @@ namespace proof_system::plonk {
 namespace widget {
 
 /**
- * @brief Core class implementing the arithmetic gate in Turbo plonk
+ * @brief Core class implementing the arithmetic gate in Ultra plonk
  *
  * @details ArithmethicKernel provides the logic that can implement one of several transitions. The whole formula
  * without alpha scaling is:

@@ -79,8 +79,7 @@ bigfield<Builder, T>::bigfield(const field_t<Builder>& low_bits_in,
             low_accumulator = context->decompose_into_base4_accumulators(
                 low_bits_in.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2), "bigfield: low_bits_in too large.");
             mid_index = static_cast<size_t>((NUM_LIMB_BITS / 2) - 1);
-            // Turbo plonk range constraint returns an array of partial sums, midpoint will happen to hold the big limb
-            // value
+            // Range constraint returns an array of partial sums, midpoint will happen to hold the big limb value
             limb_1.witness_index = low_accumulator[mid_index];
             // We can get the first half bits of low_bits_in from the variables we already created
             limb_0 = (low_bits_in - (limb_1 * shift_1));
@@ -862,7 +861,7 @@ bigfield<Builder, T> bigfield<Builder, T>::div_check_denominator_nonzero(const s
 /**
  * Compute a * a = c mod p
  *
- * Slightly cheaper than operator* for StandardPlonk and TurboPlonk
+ * Slightly cheaper than operator* for StandardPlonk
  **/
 template <typename Builder, typename T> bigfield<Builder, T> bigfield<Builder, T>::sqr() const
 {
@@ -2560,7 +2559,7 @@ void bigfield<Builder, T>::unsafe_evaluate_multiple_multiply_add(const std::vect
          * We store these values in an "accumulator" vector in order to efficiently add them into a sum.
          * i.e. limb_0 =- field_t::accumulate(limb_0_accumulator)
          * This costs us fewer gates than addition operations because we can add 2 values into a sum in a single
-         *TurboPlonk gate.
+         * custom gate.
          **/
 
         std::vector<field_t<Builder>> limb_0_accumulator;

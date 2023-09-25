@@ -1,9 +1,7 @@
 #pragma once
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
-#include "barretenberg/proof_system/circuit_builder/turbo_circuit_builder.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen_plookup.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
@@ -30,15 +28,11 @@ namespace acir_format {
 using Builder = proof_system::UltraCircuitBuilder;
 using Composer = plonk::UltraComposer;
 
-using Prover = std::conditional_t<
-    std::same_as<Composer, plonk::UltraComposer>,
-    plonk::UltraWithKeccakProver,
-    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboProver, plonk::Prover>>;
+using Prover =
+    std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraWithKeccakProver, plonk::Prover>;
 
-using Verifier = std::conditional_t<
-    std::same_as<Composer, plonk::UltraComposer>,
-    plonk::UltraWithKeccakVerifier,
-    std::conditional_t<std::same_as<Composer, plonk::TurboComposer>, plonk::TurboVerifier, plonk::Verifier>>;
+using Verifier =
+    std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraWithKeccakVerifier, plonk::Verifier>;
 
 using RecursiveProver = plonk::UltraProver;
 

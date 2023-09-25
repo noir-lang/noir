@@ -293,7 +293,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
      *
      * batch_lookup_table implements a lookup table for a vector of points.
      *
-     * For TurboPlonk, we subdivide `batch_lookup_table` into a set of 3-bit lookup tables,
+     * We subdivide `batch_lookup_table` into a set of 3-bit lookup tables,
      * (using 2-bit and 1-bit tables if points.size() is not a multiple of 8)
      *
      * We index the lookup table using a vector of NAF values for each point

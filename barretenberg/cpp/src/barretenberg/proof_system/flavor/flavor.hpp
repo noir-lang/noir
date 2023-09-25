@@ -266,7 +266,6 @@ template <typename BuilderType> class GoblinUltraRecursive_;
 // Forward declare plonk flavors
 namespace proof_system::plonk::flavor {
 class Standard;
-class Turbo;
 class Ultra;
 } // namespace proof_system::plonk::flavor
 
@@ -281,7 +280,7 @@ namespace proof_system {
 // clang-format off
 
 template <typename T>
-concept IsPlonkFlavor = IsAnyOf<T, plonk::flavor::Standard, plonk::flavor::Turbo, plonk::flavor::Ultra>;
+concept IsPlonkFlavor = IsAnyOf<T, plonk::flavor::Standard, plonk::flavor::Ultra>;
 
 template <typename T> 
 concept IsHonkFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
