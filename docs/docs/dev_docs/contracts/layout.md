@@ -2,7 +2,7 @@
 title: Structure
 ---
 
-A contract is a collection of persistent [state variables](./syntax/state_variables.md), and [functions](./syntax/functions) which may manipulate these variables. Functions and state variables within a contract's scope are said to belong to that contract. A contract can only access and modify its own state. If a contract wishes to access or modify another contract's state, it must make a call to an external function of the other contract. For anything to happen on the Aztec network, an external function of a contract needs to be called.
+A contract is a collection of persistent [state variables](./syntax/storage.md), and [functions](./syntax/functions) which may manipulate these variables. Functions and state variables within a contract's scope are said to belong to that contract. A contract can only access and modify its own state. If a contract wishes to access or modify another contract's state, it must make a call to an external function of the other contract. For anything to happen on the Aztec network, an external function of a contract needs to be called.
 
 # Contract
 

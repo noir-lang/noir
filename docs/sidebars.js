@@ -248,7 +248,6 @@ const sidebars = {
           },
           items: [
             "dev_docs/contracts/syntax/storage",
-            "dev_docs/contracts/syntax/state_variables",
             "dev_docs/contracts/syntax/events",
             "dev_docs/contracts/syntax/functions",
             "dev_docs/contracts/syntax/context",

@@ -9,7 +9,7 @@ On top of [Noir's stdlib](https://noir-lang.org/standard_library/array_methods),
 
 Aztec.nr contains abstractions which remove the need to understand the low-level Aztec protocol. Notably, it provides:
 
-- Public and private [state variable types](./state_variables.md)
+- Public and private [state variable types](./storage.md)
 - Some pre-designed notes
 - Functions for [emitting](./events.md) encrypted and unencrypted logs
 - [Oracle functions](./functions.md#oracle-functions) for accessing:

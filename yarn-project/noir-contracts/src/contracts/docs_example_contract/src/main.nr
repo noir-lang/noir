@@ -32,7 +32,9 @@ contract DocsExample {
         locked: PublicState<bool, BOOL_SERIALIZED_LEN>,
         queen: PublicState<Queen, QUEEN_SERIALIZED_LEN>,
         game_rules: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
+        // docs:start:storage-singleton-declaration
         legendary_card: Singleton<CardNote, CARD_NOTE_LEN>,
+        // docs:end:storage-singleton-declaration
         cards: Set<CardNote, CARD_NOTE_LEN>,
         profiles: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     }
@@ -59,7 +61,9 @@ contract DocsExample {
                 // highlight-next-line:state_vars-ImmutableSingleton
                 game_rules: ImmutableSingleton::new(context, 3, RulesNoteMethods),
                 // highlight-next-line:state_vars-Singleton
+                // docs:start:start_vars_singleton
                 legendary_card: Singleton::new(context, 4, CardNoteMethods),
+                // docs:end:start_vars_singleton
                 // highlight-next-line:state_vars-Set
                 cards: Set::new(context, 5, CardNoteMethods),
                 // highlight-next-line:state_vars-MapSingleton

@@ -1,40 +1,532 @@
-# Storage
+---
+title: Storage
+---
 
-In an Aztec.nr contract, storage is to be defined as a single struct. (This enables us to declare types composed of nested generics in Noir).
+In an Aztec.nr contract, storage is to be defined as a single struct, that contains both public and private state variables. 
 
+As their name indicates, public state variables can be read by anyone, while private state variables can only be read by their owner, or people whom the owner has shared the data with.
+
+As mentioned earlier in the foundational concepts ([state model](./../../../concepts/foundation/state_model.md) and [private/public execution](./../../../concepts/foundation/communication/public_private_calls.md)) private state follows a UTXO model. Where note pre-images are only known to those able to decrypt them.
+
+:::info
 The struct **must** be called `Storage` for the Aztec.nr library to properly handle it (will be fixed in the future to support more flexibility).
-An example of such a struct could be as follows:
+:::
 
-#include_code storage-struct-declaration /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+```rust
+struct Storage {
+  // public state variables
+  // private state variables
+}
+```
 
 :::info
 If your storage includes private state variables it must include a `compute_note_hash_and_nullifier` function to allow the RPC to process encrypted events, see [encrypted events](./events.md#processing-encrypted-events) for more.
 :::
 
-In the storage stuct, we set up a mixture of public and private state variables. The public state variables can be read by anyone, and functions manipulating them are executed by the sequencer, (see [functions](./functions.md#public-functions)). Private state variables are only readable by their owner, or people whom the owner has shared the data with. 
+Since Aztec.nr is written in Noir, which on its own is state-less, we need to specify how the storage struct should be initialized to read and write data correctly. This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. This `init` function should declare the storage struct with an actual instantiation defining how variables are accessed and manipulated. The function MUST be called `init` for the Aztec.nr library to properly handle it (will be fixed in the future to support more flexibility).
 
-As mentioned earlier in the foundational concepts ([state model](./../../../concepts/foundation/state_model.md) and [private/public execution](./../../../concepts/foundation/communication/public_private_calls.md)) private state follows a UTXO model. Where note pre-images are only known to those able to decrypt them.
+```rust
+impl Storage {
+  fn init(context: Context) -> Self {
+    Storage {
+      // (public state variables)::new()
+      // (private state variables)::new()
+    }
+  }
+}
+```
 
-It is currently required to specify the length of the types when declaring the storage struct. If your type is a struct, this will be the number of values in your struct ( with arrays flattened ).
+To use storage in functions, e.g., functions where you would read or write storage, you need to initialize the struct first, and then you can read and write afterwards. Below are snippets for initializing in private and public functions.
 
-Since Aztec.nr is a library written in Noir, we can use the types defined in Noir, so it can be useful to consult the [Noir documentation](https://noir-lang.org/language_concepts/data_types) for information on types.
-
-Currently, the sandbox also requires that you specify how this storage struct is "initialized". This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. 
-
-An example of such a function for the above storage struct would be:
-
-#include_code storage-declaration /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
-
-:::warning Using slot `0` is not supported!
-No storage values should be initialized at slot `0`. If you are using slot `0` for storage, you will not get an error when compiling, but the contract will not be updating the storage! This is a known issue that will be fixed in the future.
-:::
-
-In [State Variables](./state_variables.md) we will see in more detail what each of these types are, how they work and how to initialize them.
-
-To use storage in functions, e.g., functions where you would read or write storage, you need to initialize the struct first, and then you can read and write afterwards.
-
-#include_code storage-init /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+#include_code private_init_storage /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code public_init_storage /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
 :::info
 https://github.com/AztecProtocol/aztec-packages/pull/2406 is removing the need to explicitly initialize the storage in each function before reading or writing. This will be updated in the docs once the PR is merged.
 :::
+
+:::warning Using slot `0` is not supported!
+No storage values should be initialized at slot `0`. This is a known issue that will be fixed in the future.
+:::
+
+## Map
+
+A `map` is a state variable that "maps" a key to a value. In Aztec.nr, keys are `Field`s (or values that are convertible to Fields) and values can be any type - even other maps. The map is a struct defined as follows:
+
+#include_code map /yarn-project/aztec-nr/aztec/src/state_vars/map.nr rust
+
+It includes a [`Context`](./context.mdx) to be used when dabbling in the private domain, a `storage_slot` to specify where in storage the map is stored, and a `start_var_constructor` which tells the map how it should operate on the underlying type. This includes how to serialize and deserialize the type, as well as how commitments and nullifiers are computed for the type if it's private.
+
+### `new`
+
+When declaring the storage for a map, we use the `Map::new()` constructor. As seen below, this takes the `storage_slot` and the `start_var_constructor` along with the [`Context`](./context.mdx).
+
+#include_code new /yarn-project/aztec-nr/aztec/src/state_vars/map.nr rust
+
+We will see examples of map constructors for public and private variables in later sections.
+
+### `at`
+
+When dealing with a map, we can access the value at a given key using the `::at` method. This takes the key as an argument and returns the value at that key.
+
+#include_code at /yarn-project/aztec-nr/aztec/src/state_vars/map.nr rust
+
+This function behaves similarly for both private and public maps. An example could be if we have a map with `minters`, which is mapping addresses to a flag for whether they are allowed to mint tokens or not.
+
+#include_code read_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+Above, we are specifying that we want to get the storage in the Map `at` the `msg_sender()`, read the value stored and check that `msg_sender()` is indeed a minter. Doing a similar operation in Solidity code would look like:
+
+```solidity
+require(minters[msg.sender] == 1, "caller is not minter");
+```
+
+## Public State Variables
+
+As we have seen earlier we have two kinds of state, public and private. We'll start with a look at the public side of things, as this is what will be most familiar for blockchain developers.
+
+To define that a variable is public, it is wrapped in the `PublicState` struct, as defined below:
+
+#include_code public_state_struct /yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr rust
+
+The `PublicState` struct is generic over the variable type `T` and its serialized size `T_SERIALIZED_LEN`. 
+:::info
+Currently, the length of the types must be specified when declaring the storage struct but the intention is that this will be inferred in the future.
+:::
+
+The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out *where* in storage the variable is located. Notice that while we don't have the exact same [state model](./../../../concepts/foundation/state_model.md) as EVM chains it will look similar from the contract developers point of view.
+
+Beyond the struct, the `PublicState` also contains `serialization_methods`, which is a struct with methods that instruct the `PublicState` how to serialize and deserialize the variable.
+
+#include_code TypeSerializationInterface /yarn-project/aztec-nr/aztec/src/types/type_serialization.nr rust
+
+:::info
+The British haven't surrendered fully to US spelling, so serialization is currently inconsistent.
+:::
+
+The Aztec.nr library provides serialization methods for various common types. As an example, the Field serialization methods are defined as follows:
+
+#include_code field_serialization /yarn-project/aztec-nr/aztec/src/types/type_serialization/field_serialization.nr rust
+
+
+:::info
+An example using a larger struct can be found in the [lending example](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/lending_contract)'s use of an [`Asset`](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/lending_contract/src/asset.nr).
+:::
+
+### `new`
+When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](./context.mdx), which in this case is used to share interface with other structures.
+
+#include_code public_state_struct_new /yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr rust
+
+#### Single value example
+Say that we wish to add `admin` public state variable into our storage struct. In the struct we can add it as follows:
+
+#include_code storage_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+And then when initializing it in the `Storage::init` function we can do it as follows:
+
+#include_code storage_admin_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+In this case, specifying that we are dealing with a Field, and that it should be put at slot 1. This is just a single value, and would be similar to the following in solidity:
+```solidity
+address internal admin;
+```
+:::info
+We know its verbose, and are working on making it less so.
+:::
+
+#### Mapping example
+Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](./../../../concepts/foundation/communication/public_private_calls.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
+
+#include_code storage_minters /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+And then when initializing it in the `Storage::init` function we can do it as follows:
+
+#include_code storage_minters_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+In this case, specifying that we are dealing with a map of Fields, and that it should be put at slot 2.
+
+This would be similar to the following in solidity:
+```solidity
+mapping(address => uint256) internal minters;
+```
+
+### `read`
+
+Now we have an idea of how to define storage, but storage is not really useful before we start using it, so how can we access it? 
+
+Reading data from storage is straightforward. On the `PublicState` structs we have a `read` method to read the value at the location in storage and using the specified deserialization method to deserialize it. Here is the function definition in the `public_state.nr` source:
+
+#include_code public_state_struct_read /yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr rust
+
+#### Reading from our `admin` example
+
+For our `admin` example from earlier, this could be used as follows to check that the stored value matches the `msg_sender()`.
+
+#include_code read_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+
+#### Reading from out `minters` example
+
+As we saw in the Map earlier, a very similar operation can be done to perform a lookup in a map. 
+
+#include_code read_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+
+### `write`
+
+We figured out how to read values, but how do we write them? 
+
+Like reading, it is actually quite straight-forward. We have a `write` method on the `PublicState` struct that takes the value to write as an input and saves this in storage. It uses the serialization method defined earlier to serialize the value which inserts (possibly multiple) values into storage.
+
+#include_code public_state_struct_write /yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr rust
+
+#### Writing to our `admin` example
+
+#include_code write_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+#### Writing to our `minters` example
+
+#include_code write_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+## Private State Variables
+In contrast to public state, private state is persistent state that is **not** visible to the whole world. Depending on the logic of the smart contract, a private state variable's current value will only be known to one entity, or a closed group of entities.
+
+The value of a private state variable can either be shared via an [encrypted log](./events.md#encrypted-events), or offchain via web2, or completely offline: it's up to the app developer.
+
+Aztec private state follows a utxo-based model. That is, a private state's current value is represented as one or many [notes](#notes). Each note is stored as an individual leaf in a utxo-based merkle tree: the [private state tree](./../../../concepts/foundation/state_model.md).
+
+To greatly simplify the experience of writing private state, Aztec.nr provides three different types of private state variable:
+
+- [Singleton<NoteType\>](#singletonnotetype)
+- [ImmutableSingleton<NoteType\>](#immutablesingletonnotetype)
+- [Set<NoteType\>](#setnotetype)
+
+These three structs abstract-away many of Aztec's protocol complexities, by providing intuitive methods to modify notes in the utxo tree in a privacy-preserving way.
+
+:::info
+Note that an app can also choose to emit data via unencrypted log, or to define a note whose data is easy to figure out, then the information is technically not private and could be visible to anyone.
+:::
+
+### Notes 
+Unlike public state variables, which can be arbitrary types, private state variables operate on `NoteType`.
+
+Notes are the fundamental elements in the private world.
+
+A note should conform to the following interface:
+
+#include_code NoteInterface /yarn-project/aztec-nr/aztec/src/note/note_interface.nr rust
+
+The interplay between a private state variable and its notes can be confusing. Here's a summary to aid intuition:
+
+- A private state variable (of type `Singleton`, `ImmutableSingleton` or `Set`) may be declared in storage.
+- Every note contains (as a 'header') the contract address and storage slot of the state variable to which it "belongs". A note is said to "belong" to a private state if the storage slot of the private state matches the storage slot contained in the note's header.
+  - The header provides information that helps the user interpret the note's data. Without it the user would have to figure out where it belongs by brute-forcing the address and contract space.
+  - Management of this 'header' is abstracted-away from developers who use the `ImmutableSingleton`, `Singleton` and `Set` types.
+- A private state variable is colloquially said to "point" to one or many notes (depending on the type), if those note(s) all "belong" to that private state, and those note(s) haven't-yet been nullified.
+- An `ImmutableSingleton` will point to _one_ note over the lifetime of the contract. ("One", hence "Singleton"). This note is a struct of information that is persisted forever.
+- A `Singleton` may point to _one_ note at a time. ("One", hence "Singleton"). But since it's not "immutable", the note that it points to may be [replaced](#replace) by functions of the contract, over time. The "current value" of a `Singleton` is interpreted as the one note which has not-yet been nullified. The act of 'replacing' a Singleton's note is how a `Singleton` state may be modified by functions.
+  - `Singleton` is a useful type when declaring a private state which may only ever be modified by those who are privy to the current value of that state.
+- A `Set` may point to _multiple_ notes at a time. The "current value" of a private state variable of type `Set` is some 'accumulation' of all not-yet nullified notes which "belong" to the `Set`.
+  - The term "some accumulation" is intentionally vague. The interpretation of the "current value" of a `Set` must be expressed by the smart contract developer. A common use case for a `Set` is to represent the sum of a collection of values (in which case 'accumulation' is 'summation').
+    - Think of a ZCash balance (or even a Bitcoin balance). The "current value" of a user's ZCash balance is the sum of all unspent (not-yet nullified) notes belonging to that user.
+  - To modify the "current value" of a `Set` state variable, is to [`insert`](#insert) new notes into the `Set`, or [`remove`](#remove) notes from that set.
+  - Interestingly, if a developer requires a private state to be modifiable by users who _aren't_ privy to the value of that state, a `Set` is a very useful type. The `insert` method allows new notes to be added to the `Set` without knowing any of the other notes in the set! (Like posting an envelope into a post box, you don't know what else is in there!).
+
+
+
+
+## `Singleton<NoteType>`
+
+Singleton is a private state variable that is unique in a way. When a Singleton is initialized, a note is created to represent its value. And the way to update the value is to destroy the current note, and create a new one with the updated value.
+
+Like for public state, we define the struct to have context, a storage slot and `note_interface` specifying how the note should be constructed and manipulated.
+
+#include_code struct /yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr rust
+
+An example of singleton usage in the account contracts is keeping track of public keys. The `Singleton` is added to the `Storage` struct as follows:
+
+#include_code storage-singleton-declaration /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+
+### `new`
+
+#include_code new /yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr rust
+
+As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at storage slot 1 and with the `NoteInterface` for `CardNote`.
+
+#include_code start_vars_singleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+
+### `initialize`
+
+As mention, the singleton is initialized to create the first note and value. Here is the source code for the initialize function:
+
+#include_code initialize /yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr rust
+
+When this function is called, a nullifier of the storage slot is created, preventing this Singleton from being initialized again.
+
+Unlike public states, which have a default initial value of `0` (or many zeros, in the case of a struct, array or map), a private state (of type `Singleton`, `ImmutableSingleton` or `Set`) does not have a default initial value. The `initialize` method (or `insert`, in the case of a `Set`) must be called.
+
+:::info
+Extend on what happens if you try to use non-initialized state.
+:::
+
+### `replace`
+
+To update the value of a `Singleton`, we can use the `replace` method. The method takes a new note as input, and replaces the current note with the new one. It emits a nullifier for the old value, and inserts the new note into the data tree.
+
+#include_code replace /yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr rust
+
+An example of this is seen in a example card game, where we create a new note (a `CardNote`) containing some new data, and replace the current note with it:
+
+#include_code state_vars-SingletonReplace /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
+
+If two people are trying to modify the Singleton at the same time, only one will succeed as we don't allow duplicate nullifiers! Developers should put in place appropriate access controls to avoid race conditions (unless a race is intended!).
+
+### `get_note`
+
+This function allows us to get the note of a Singleton, essentially reading the value.
+
+#include_code get_note /yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr rust
+
+However, it's possible that at the time this function is called, the system hasn't synched to the block where the latest note was created. Or a malicious user might feed an old state to this function, tricking the proving system into thinking that the value hasn't changed. To avoid an attack around it, this function will destroy the current note, and replace it with a duplicated note that has the same fields. Because the nullifier of the latest note will be emitted, if two people are trying to use this function against the same note, only one will succeed (no duplicate nullifiers allowed).
+
+#include_code state_vars-SingletonGet /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
+
+## `ImmutableSingleton<NoteType>`
+
+ImmutableSingleton represents a unique private state variable that, as the name suggests, is immutable. Once initialized, its value cannot be altered.
+
+#include_code struct  /yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr rust
+
+### `new`
+
+#include_code new /yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr rust
+
+As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at storage slot 1 and with the `NoteInterface` for `PublicKeyNote`.
+
+#include_code storage_init /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+
+### `initialize`
+
+#include_code initialize /yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr rust
+
+Set the value of an ImmutableSingleton by calling the `initialize` method:
+
+#include_code initialize /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+
+Once initialized, an ImmutableSingleton's value remains unchangeable. This method can only be called once.
+
+### `get_note`
+
+Similar to the `Singleton`, we can use the `get_note` method to read the value of an ImmutableSingleton.
+
+#include_code get_note  /yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr rust
+
+Use this method to retrieve the value of an initialized ImmutableSingleton. 
+
+#include_code get_note /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+
+Unlike a [`singleton`](#get_note-1), the `get_note` function for an ImmutableSingleton doesn't destroy the current note in the background. This means that multiple accounts can concurrently call this function to read the value.
+
+This function will throw if the ImmutableSingleton hasn't been initialized.
+
+## `Set<NoteType>`
+
+Set is used for managing a collection of notes. All notes in a set are of the same `NoteType`. But whether these notes all belong to one entity, or are accessible and editable by different entities, is totally up to the developer. Due to our state model, the set is a collection of notes inserted into the data-tree, but notes are never removed from the tree itself, they are only nullified.
+
+#include_code struct  /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](./functions.md#public---private)).
+
+#include_code storage_pending_shields /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+### `new`
+
+The `new` method tells the contract how to operate on the underlying storage.
+
+#include_code new /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+Building on before, we can initialize the set as follows:
+
+#include_code storage_pending_shields_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+### `insert`
+
+Allows us to modify the storage by inserting a note into the set.
+
+#include_code insert /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+A commitment from the note will be generated, and inserted into data-tree, allowing us to later use in contract interactions. Recall that the content of the note should be shared with the owner to allow them to use it, as mentioned this can be done via an [encrypted log](./events.md#encrypted-events), or offchain via web2, or completely offline.
+
+#include_code insert /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+
+### `insert_from_public`
+
+While we don't support private functions to directly alter public storage, the opposite direction is possible. The `insert_from_public` allow public function to insert notes into private storage. This is very useful when we want to support private function calls that must have been initiated in public, such as shielding or the like.
+
+#include_code insert_from_public /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+The usage is rather straight-forward and very similar to using the `insert` method with the difference that this one is called in public functions.
+
+#include_code insert_from_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+### `assert_contains_and_remove`
+
+This function is used to check existence of a note and then remove it without having read the note ahead of time. This can be useful for cases where the user is providing all the information needed, such as cases where the note was never emitted to the network and thereby available to the wallet.
+
+#include_code assert_contains_and_remove /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+<!---
+@LHerskind
+I don't see why this one is actually needed and could not be deprecated down the line. 
+Allow insertions into the rpc database and this one can be removed.
+-->
+
+### `assert_contains_and_remove_publicly_created`
+
+Like above, this is used to ensure that the message exists in the data tree and then consume it. However, it differs slightly since there is currently a difference between notes that have been inserted from public and private execution. This means that you currently must use this function to consume and nullify a note that was created in a public function. This will be fixed in the future. 
+
+#include_code assert_contains_and_remove_publicly_created /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+While this might look intimidating, the use of the function is rather easy, and is used in the following way:
+
+#include_code assert_contains_and_remove_publicly_created /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+
+The reason we are not reading this note ahead of time is that no [encrypted log](./events.md#encrypted-events) was emitted for this note, since it was created in public thereby making the encrypted log useless (everyone saw the content ahead of time).
+
+### `remove`
+
+Will remove a note from the set if it previously has been read from storage, e.g. you have fetched it through a `get_notes` call. This is useful when you want to remove a note that you have previously read from storage and do not have to read it again. If you recall from earlier, we are emitting a nullifier when reading values to make sure that they are up to date. 
+
+#include_code remove /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+An example of how to use this operation is visible in the `easy_private_state`:
+
+#include_code remove /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+
+### `get_notes`
+
+This function returns the notes the account has access to:
+
+#include_code get_notes /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+Our kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/constants_gen.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number. 
+
+Because of this limit, we should always consider using the second argument `NoteGetterOptions` to limit the number of notes we need to read and constrain in our programs. This is quite important as every extra call increases the time used to prove the program and we don't want to spend more time than necessary.
+
+An example of such options is using the [filter_notes_min_sum](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/value-note/src/filter.nr) to get "enough" notes to cover a given value. Essentially, this function will return just enough notes to cover the amount specified such that we don't need to read all our notes. For users with a lot of notes, this becomes increasingly important. 
+
+#include_code get_notes /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+
+### `view_notes`
+Functionally similar to [`get_notes`](#get_notes), but executed unconstrained and can be used by the wallet to fetch notes for use by front-ends etc.
+
+#include_code view_notes /yarn-project/aztec-nr/aztec/src/state_vars/set.nr rust
+
+#include_code view_notes /yarn-project/aztec-nr/value-note/src/balance_utils.nr rust
+
+There's also a limit on the maximum number of notes that can be returned in one go. To find the current limit, refer to [this file](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/constants_gen.nr) and look for `MAX_NOTES_PER_PAGE`.
+
+The key distinction is that this method is unconstrained. It does not perform a check to verify if the notes actually exist, which is something the [`get_notes`](#get_notes) method does under the hood. Therefore, it should only be used in an unconstrained contract function.
+
+This function requires a `NoteViewerOptions`:
+
+#include_code NoteViewerOptions /yarn-project/aztec-nr/aztec/src/note/note_viewer_options.nr rust
+
+The `NoteViewerOptions` is essentially similar to the [`NoteGetterOptions`](#notegetteroptions), except that it doesn't take a custom filter.
+
+### NoteGetterOptions
+
+`NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](./functions.md#oracle-functions). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
+
+#include_code NoteGetterOptions /yarn-project/aztec-nr/aztec/src/note/note_getter_options.nr rust
+
+#### `selects: BoundedVec<Option<Select>, N>`
+
+`selects` is a collection of filtering criteria, specified by `Select { field_index: u8, value: Field }` structs. It instructs the data oracle to find notes whose (`field_index`)th field matches the provided `value`.
+
+#### `sorts: BoundedVec<Option<Sort>, N>`
+
+`sorts` is a set of sorting instructions defined by `Sort { field_index: u8, order: u2 }` structs. This directs the data oracle to sort the matching notes based on the value of the specified field index and in the indicated order. The value of order is **1** for _DESCENDING_ and **2** for _ASCENDING_.
+
+#### `limit: u32`
+
+When the `limit` is set to a non-zero value, the data oracle will return a maximum of `limit` notes.
+
+#### `offset: u32`
+
+This setting enables us to skip the first `offset` notes. It's particularly useful for pagination.
+
+#### `filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL]`
+
+Developers have the option to provide a custom filter. This allows specific logic to be applied to notes that meet the criteria outlined above. The filter takes the notes returned from the oracle and `filter_args` as its parameters.
+
+#### `filter_args: FILTER_ARGS`
+
+`filter_args` provides a means to furnish additional data or context to the custom filter.
+
+#### Methods
+
+Several methods are available on `NoteGetterOptions` to construct the options in a more readable manner:
+
+#### `fn new() -> NoteGetterOptions<Note, N, Field>`
+
+This function initializes a `NoteGetterOptions` that simply returns the maximum number of notes allowed in a call.
+
+#### `fn with_filter(filter, filter_args) -> NoteGetterOptions<Note, N, FILTER_ARGS>`
+
+This function initializes a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_read_requests_per_call-filter_args---optionnote-max_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
+
+#### `.select`
+
+This method adds a [`Select`](#selects-boundedvecoptionselect-n) criterion to the options.
+
+#### `.sort`
+
+This method adds a [`Sort`](#sorts-boundedvecoptionsort-n) criterion to the options.
+
+#### `.set_limit`
+
+This method lets you set a limit for the maximum number of notes to be retrieved.
+
+#### `.set_offset`
+
+This method sets the offset value, which determines where to start retrieving notes.
+
+#### Examples
+
+The following code snippet creates an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
+
+#include_code state_vars-NoteGetterOptionsSelectSortOffset /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+
+The first value of `.select` and `.sort` is the index of a field in a note type. For the note type `CardNote` that has the following fields:
+
+#include_code state_vars-CardNote /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/types/card_note.nr rust
+
+The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
+
+In the example, `.select(2, account_address)` matches the 2nd field of `CardNote`, which is `owner`, and returns the cards whose `owner` field equals `account_address`.
+
+`.sort(0, SortOrder.DESC)` sorts the 0th field of `CardNote`, which is `points`, in descending order.
+
+There can be as many conditions as the number of fields a note type has. The following example finds cards whose fields match the three given values:
+
+#include_code state_vars-NoteGetterOptionsMultiSelects /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+
+While `selects` lets us find notes with specific values, `filter` lets us find notes in a more dynamic way. The function below picks the cards whose points are at least `min_points`:
+
+#include_code state_vars-OptionFilter /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+
+We can use it as a filter to further reduce the number of the final notes:
+
+#include_code state_vars-NoteGetterOptionsFilter /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+
+One thing to remember is, `filter` will be applied on the notes after they are picked from the database. Therefore, it's possible that the actual notes we end up getting are fewer than the limit.
+
+The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any value "smaller" than that:
+
+#include_code state_vars-NoteGetterOptionsPickOne /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+
+The process of applying the options to get the final notes is not constrained. It's necessary to always check the returned notes even when some conditions have been specified in the options.
+
+#include_code state_vars-check_return_notes /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust

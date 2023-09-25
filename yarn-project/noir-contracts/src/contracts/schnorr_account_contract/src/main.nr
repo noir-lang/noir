@@ -18,13 +18,17 @@ contract SchnorrAccount {
     use crate::public_key_note::{PublicKeyNote, PublicKeyNoteMethods, PUBLIC_KEY_NOTE_LEN};
 
     struct Storage {
+        // docs:start:storage
         signing_public_key: ImmutableSingleton<PublicKeyNote, PUBLIC_KEY_NOTE_LEN>,
+        // docs:end:storage
     }
 
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
+                // docs:start:storage_init
                 signing_public_key: ImmutableSingleton::new(context, 1, PublicKeyNoteMethods),
+                // docs:end:storage_init
             }
         }
     }
@@ -40,8 +44,10 @@ contract SchnorrAccount {
         let storage = Storage::init(Context::private(&mut context));
         
         let this = context.this_address();
+        // docs:start:initialize
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
         storage.signing_public_key.initialize(&mut pub_key_note);
+        // docs:end:initialize
         
         emit_encrypted_log(
             &mut context,
@@ -81,8 +87,9 @@ contract SchnorrAccount {
         // docs:start:entrypoint
         // Load public key from storage
         let storage = Storage::init(Context::private(context));
+        // docs:start:get_note
         let public_key = storage.signing_public_key.get_note();
-
+        // docs:end:get_note
         // Load auth witness
         let witness: [Field; 64] = get_auth_witness(message_hash);
         let mut signature: [u8; 64] = [0; 64];

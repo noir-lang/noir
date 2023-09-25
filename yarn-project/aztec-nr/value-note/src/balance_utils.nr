@@ -11,9 +11,10 @@ unconstrained fn get_balance(set: Set<ValueNote, VALUE_NOTE_LEN>) -> Field {
 
 unconstrained fn get_balance_with_offset(set: Set<ValueNote, VALUE_NOTE_LEN>, offset: u32) -> Field {
     let mut balance = 0;
-
+    // docs:start:view_notes
     let options = NoteViewerOptions::new().set_offset(offset);
     let opt_notes = set.view_notes(options);
+    // docs:end:view_notes
     let len = opt_notes.len();
     for i in 0..len {
         if opt_notes[i].is_some() {

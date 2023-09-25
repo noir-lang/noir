@@ -43,11 +43,20 @@ contract Token {
 
     // docs:start:storage_struct
     struct Storage {
+
+        // docs:start:storage_admin
         admin: PublicState<Field, FIELD_SERIALIZED_LEN>,
+        // docs:end:storage_admin
+        // docs:start:storage_minters
         minters: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        // docs:end:storage_minters
+        // docs:start:storage_balances
         balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+        // docs:end:storage_balances
         total_supply: PublicState<Field, FIELD_SERIALIZED_LEN>,
+        // docs:start:storage_pending_shields
         pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
+        // docs:end:storage_pending_shields
         public_balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
     // docs:end:storage_struct
@@ -56,11 +65,14 @@ contract Token {
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
+                // docs:start:storage_admin_init
                 admin: PublicState::new(
                     context,
                     1,
                     FieldSerializationMethods,
                 ),
+                // docs:end:storage_admin_init
+                // docs:start:storage_minters_init
                 minters: Map::new(
                     context,
                     2,
@@ -72,6 +84,7 @@ contract Token {
                         )
                     },
                 ),
+                // docs:end:storage_minters_init
                 balances: Map::new(
                     context,
                     3,
@@ -84,7 +97,9 @@ contract Token {
                     4,
                     FieldSerializationMethods,
                 ),
+                // docs:start:storage_pending_shields_init
                 pending_shields: Set::new(context, 5, TransparentNoteMethods),
+                // docs:end:storage_pending_shields_init
                 public_balances: Map::new(
                     context,
                     6,
@@ -115,9 +130,13 @@ contract Token {
     fn set_admin(
         new_admin: AztecAddress,
     ) {
+        // docs:start:public_init_storage
         let storage = Storage::init(Context::public(&mut context));
+        // docs:end:public_init_storage
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
+        // docs:start:write_admin
         storage.admin.write(new_admin.address);
+        // docs:end:write_admin
     }
     // docs:end:set_admin
 
@@ -128,8 +147,12 @@ contract Token {
         approve: bool,
     ) {
         let storage = Storage::init(Context::public(&mut context));
+        // docs:start:read_admin
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
+        // docs:end:read_admin
+        // docs:start:write_minter
         storage.minters.at(minter.address).write(approve as Field);
+        // docs:end:write_minter
     }
     // docs:end:set_minter
 
@@ -140,7 +163,9 @@ contract Token {
         amount: Field,
     ) -> Field {
         let storage = Storage::init(Context::public(&mut context));
+        // docs:start:read_minter
         assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
+        // docs:end:read_minter
         let amount = SafeU120::new(amount);
         let new_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(amount);
         let supply = SafeU120::new(storage.total_supply.read()).add(amount);
@@ -164,7 +189,9 @@ contract Token {
         let supply = SafeU120::new(storage.total_supply.read()).add(SafeU120::new(amount));
 
         storage.total_supply.write(supply.value as Field);
+        // docs:start:insert_from_public
         pending_shields.insert_from_public(&mut note);
+        // docs:end:insert_from_public
         1
     }
     // docs:end:mint_private
@@ -264,12 +291,16 @@ contract Token {
         amount: Field,
         secret: Field,
     ) -> Field {
+        // docs:start:private_init_storage
         let storage = Storage::init(Context::private(&mut context));
+        // docs:end:private_init_storage
         let pending_shields = storage.pending_shields;
         let balance = storage.balances.at(to.address);
         let mut public_note = TransparentNote::new_from_secret(amount, secret);
         
+        // docs:start:assert_contains_and_remove_publicly_created
         pending_shields.assert_contains_and_remove_publicly_created(&mut public_note);
+        // docs:end:assert_contains_and_remove_publicly_created
         increment(balance, amount, to.address);
 
         1
