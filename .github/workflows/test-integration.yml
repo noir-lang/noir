@@ -220,14 +220,14 @@ jobs:
         working-directory: tooling/nargo_cli/tests/execution_success/1_mul
         run: nargo codegen-verifier
 
-      - name: Run codegen-verifier for double_verify_proof
-        working-directory: tooling/nargo_cli/tests/execution_success/double_verify_proof
+      - name: Run codegen-verifier for main
+        working-directory: compiler/integration-tests/test/circuits/main
         run: nargo codegen-verifier
 
       - name: Copy compiled contracts
         run: |
           cp tooling/nargo_cli/tests/execution_success/1_mul/contract/1_mul/plonk_vk.sol foundry-project/src/1_mul.sol
-          cp tooling/nargo_cli/tests/execution_success/double_verify_proof/contract/double_verify_proof/plonk_vk.sol foundry-project/src/double_verify_proof.sol
+          cp compiler/integration-tests/test/circuits/main/contract/main/plonk_vk.sol foundry-project/src/main.sol
 
       - name: Forge build
         working-directory: foundry-project
@@ -241,16 +241,16 @@ jobs:
           address=$(echo "$mul_result" | grep "Deployed to:" | awk '{print $3}')
           echo "MUL_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
 
-          dv_result=$(forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/double_verify_proof.sol:UltraVerifier)
+          dv_result=$(forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/main.sol:UltraVerifier)
           echo "$dv_result"
           address=$(echo "$dv_result" | grep "Deployed to:" | awk '{print $3}')
-          echo "DV_CONTRACT_ADDRESS=$address" >> $GITHUB_ENV
+          echo "MAIN_ADDRESS=$address" >> $GITHUB_ENV
 
       - name: Replace addresses in the file
         working-directory: compiler/integration-tests/test
         run: |
           sed -i 's|MUL_CONTRACT_ADDRESS = ""|MUL_CONTRACT_ADDRESS = "'"$MUL_CONTRACT_ADDRESS"'"|g' environment.js
-          sed -i 's|DV_CONTRACT_ADDRESS = ""|DV_CONTRACT_ADDRESS = "'"$DV_CONTRACT_ADDRESS"'"|g' environment.js
+          sed -i 's|MAIN_ADDRESS = ""|MAIN_ADDRESS = "'"$MAIN_ADDRESS"'"|g' environment.js
 
       - name: Setup `integration-tests`
         run: |

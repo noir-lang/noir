@@ -1,5 +1,5 @@
 import { expect } from "@esm-bundle/chai";
-import { TEST_LOG_LEVEL, MUL_CONTRACT_ADDRESS } from "../../environment.js";
+import { TEST_LOG_LEVEL, MUL_CONTRACT_ADDRESS, MAIN_ADDRESS } from "../../environment.js";
 import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
@@ -46,12 +46,12 @@ const test_cases = [
     address: MUL_CONTRACT_ADDRESS,
     publicInputsLength: 0,
   },
-  // {
-  //   case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
-  //   compiled: "foundry-project/out/double_verify.sol/UltraVerifier.json",
-  //   address: DV_CONTRACT_ADDRESS,
-  //   publicInputsLength: 16 * 32,
-  // },
+  {
+    case: "compiler/integration-tests/test/circuits/main",
+    compiled: "foundry-project/out/main.sol/UltraVerifier.json",
+    address: MAIN_ADDRESS,
+    publicInputsLength: 16 * 32,
+  },
 ];
 
 const numberOfThreads = navigator.hardwareConcurrency || 1;
