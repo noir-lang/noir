@@ -1,14 +1,20 @@
 import { expect } from "@esm-bundle/chai";
+import { TEST_LOG_LEVEL } from "../../environment.js";
+import { Logger } from "tslog";
 import { initializeResolver } from "@noir-lang/source-resolver";
 import newCompiler, {
   compile,
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-ignore
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 import { acvm, abi } from "@noir-lang/noir_js";
 import { decompressSync as gunzip } from "fflate";
 
 import * as TOML from "smol-toml";
+
+const logger = new Logger({ name: "test", minLevel: TEST_LOG_LEVEL });
 
 const { default: initACVM, executeCircuit, compressWitness } = acvm;
 const { default: newABICoder, abiEncode } = abi;
@@ -19,7 +25,7 @@ await newCompiler();
 await newABICoder();
 await initACVM();
 
-compilerLogLevel("DEBUG");
+compilerLogLevel("INFO");
 
 async function getFile(url: URL): Promise<string> {
   const response = await fetch(url);
@@ -48,6 +54,9 @@ suite.timeout(60 * 20e3); //20mins
 
 test_cases.forEach((testInfo) => {
   const test_name = testInfo.case.split("/").pop();
+  const caseLogger = logger.getSubLogger({
+    prefix: [test_name],
+  });
   const mochaTest = new Mocha.Test(
     `${test_name} (Compile, Execute, Prove, Verify)`,
     async () => {
@@ -69,7 +78,7 @@ test_cases.forEach((testInfo) => {
       expect(noir_source).to.be.a.string;
 
       initializeResolver((id: string) => {
-        console.log("Resolving:", id);
+        caseLogger.debug("source-resolver: resolving:", id);
         return noir_source;
       });
 

@@ -36,20 +36,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:^0.6.7":
-  version: 0.6.7
-  resolution: "@aztec/bb.js@npm:0.6.7"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: 9067e9c4c5e51de173261bb5feebe6c4f6fc2be0381e2b30301fd5ed6794c5a20f5242427b7701384bc6285cd65e04e2fa914010923d1671cf59c8674b6545eb
-  languageName: node
-  linkType: hard
-
 "@babel/code-frame@npm:^7.12.11, @babel/code-frame@npm:^7.21.4":
   version: 7.22.13
   resolution: "@babel/code-frame@npm:7.22.13"
@@ -469,6 +455,7 @@ __metadata:
     mocha: ^10.2.0
     prettier: 3.0.3
     ts-node: ^10.9.1
+    tslog: ^4.9.2
     typescript: ^5.0.4
   languageName: unknown
   linkType: soft
@@ -4437,7 +4424,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": ^0.6.7
+    "@aztec/bb.js": 0.7.2
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@noir-lang/source-resolver": "workspace:*"
@@ -4446,6 +4433,7 @@ __metadata:
     "@web/test-runner-webdriver": ^0.7.0
     fflate: ^0.8.0
     smol-toml: ^1.1.2
+    tslog: ^4.9.2
   languageName: unknown
   linkType: soft
 
@@ -7301,6 +7289,13 @@ __metadata:
   version: 2.6.2
   resolution: "tslib@npm:2.6.2"
   checksum: 329ea56123005922f39642318e3d1f0f8265d1e7fcb92c633e0809521da75eeaca28d2cf96d7248229deb40e5c19adf408259f4b9640afd20d13aecc1430f3ad
+  languageName: node
+  linkType: hard
+
+"tslog@npm:^4.9.2":
+  version: 4.9.2
+  resolution: "tslog@npm:4.9.2"
+  checksum: 702e45647a68b127d63c5eb63a0f322af8d01f17b689127d32238d6ca2ef76889648a00b88c040430e3126acedef070022b20ebd81823879ba3766cf5188c868
   languageName: node
   linkType: hard
 

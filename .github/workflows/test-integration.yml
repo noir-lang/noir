@@ -7,7 +7,6 @@ on:
       - ./compiler/integration-tests/**
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
-
 jobs:
   wasm-packages-build-test:
     runs-on: ubuntu-latest
@@ -17,12 +16,6 @@ jobs:
     steps:
       - name: Checkout noir sources
         uses: actions/checkout@v4
-
-      - name: Checkout acvm sources
-        uses: actions/checkout@v3 # v3 is needed here otherwise this fails in local execution
-        with:
-          repository: noir-lang/acvm
-          path: acvm
 
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
@@ -35,22 +28,6 @@ jobs:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
-      - name: Restore nix store cache
-        uses: actions/cache/restore@v3
-        id: cache
-        with:
-          path: ${{ env.CACHED_PATH }}
-          key: ${{ runner.os }}-flake-wasm-${{ hashFiles('*.lock') }}
-
-      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
-      - name: Copy cache into nix store
-        if: steps.cache.outputs.cache-hit == 'true'
-        # We don't check the signature because we're the one that created the cache
-        run: |
-          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
-            path=$(head -n 1 "$narinfo" | awk '{print $2}')
-            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
-          done
 
       - name: Build noir_wasm package
         run: |
