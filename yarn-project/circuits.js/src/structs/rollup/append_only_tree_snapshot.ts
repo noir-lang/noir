@@ -2,7 +2,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { serializeToBuffer } from '../../utils/serialize.js';
-import { UInt32 } from '../shared.js';
+import { STRING_ENCODING, UInt32 } from '../shared.js';
 
 /**
  * Snapshot of an append only tree.
@@ -31,9 +31,17 @@ export class AppendOnlyTreeSnapshot {
     return serializeToBuffer(this.root, this.nextAvailableLeafIndex);
   }
 
+  toString(): string {
+    return this.toBuffer().toString(STRING_ENCODING);
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader): AppendOnlyTreeSnapshot {
     const reader = BufferReader.asReader(buffer);
     return new AppendOnlyTreeSnapshot(reader.readFr(), reader.readNumber());
+  }
+
+  static fromString(str: string): AppendOnlyTreeSnapshot {
+    return AppendOnlyTreeSnapshot.fromBuffer(Buffer.from(str, STRING_ENCODING));
   }
 
   static empty() {

@@ -40,11 +40,29 @@ export class GlobalVariables {
     return new GlobalVariables(reader.readFr(), reader.readFr(), reader.readFr(), reader.readFr());
   }
 
+  static fromJSON(obj: any): GlobalVariables {
+    return new GlobalVariables(
+      Fr.fromString(obj.chainId),
+      Fr.fromString(obj.version),
+      Fr.fromString(obj.blockNumber),
+      Fr.fromString(obj.timestamp),
+    );
+  }
+
   static getFields(fields: FieldsOf<GlobalVariables>) {
     return [fields.chainId, fields.version, fields.blockNumber, fields.timestamp] as const;
   }
 
   toBuffer() {
     return serializeToBuffer(...GlobalVariables.getFields(this));
+  }
+
+  toJSON() {
+    return {
+      chainId: this.chainId.toString(),
+      version: this.version.toString(),
+      blockNumber: this.blockNumber.toString(),
+      timestamp: this.timestamp.toString(),
+    };
   }
 }

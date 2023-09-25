@@ -1,3 +1,4 @@
+import { STRING_ENCODING } from '@aztec/circuits.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
@@ -44,6 +45,14 @@ export class PublicDataWrite {
   }
 
   /**
+   * Serialises the operation to a string.
+   * @returns A string representation of the operation.
+   */
+  toString(): string {
+    return this.toBuffer().toString(STRING_ENCODING);
+  }
+
+  /**
    * Checks if the public data write operation is empty.
    * @returns True if the public data write operation is empty, false otherwise.
    */
@@ -59,6 +68,15 @@ export class PublicDataWrite {
   static fromBuffer(buffer: Buffer | BufferReader): PublicDataWrite {
     const reader = BufferReader.asReader(buffer);
     return new PublicDataWrite(reader.readFr(), reader.readFr());
+  }
+
+  /**
+   * Creates a new public data write operation from the given string.
+   * @param str - The serialised string
+   * @returns A new public data write operation instance.
+   */
+  static fromString(str: string): PublicDataWrite {
+    return PublicDataWrite.fromBuffer(Buffer.from(str, STRING_ENCODING));
   }
 
   /**

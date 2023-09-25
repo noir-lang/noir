@@ -44,3 +44,8 @@ export enum RollupTypes {
   Merge = 1,
   Root = 2,
 }
+
+/**
+ * String encoding of serialised buffer data
+ */
+export const STRING_ENCODING: BufferEncoding = 'hex';

@@ -7,6 +7,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  STRING_ENCODING,
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeGlobalVariables } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
@@ -18,11 +19,6 @@ import times from 'lodash.times';
 
 import { ContractData, L2Tx, LogType, PublicDataWrite, TxL2Logs } from './index.js';
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
-
-/**
- * String encoding of serialised L2 block data.
- */
-const STRING_ENCODING: BufferEncoding = 'hex';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -402,6 +398,37 @@ export class L2Block {
   }
 
   /**
+   * Encodes the block as a JSON object.
+   * @returns The L2 block encoded as a JSON object.
+   */
+  toJSON() {
+    return {
+      globalVariables: this.globalVariables.toJSON(),
+      startPrivateDataTreeSnapshot: this.startPrivateDataTreeSnapshot.toString(),
+      startNullifierTreeSnapshot: this.startNullifierTreeSnapshot.toString(),
+      startContractTreeSnapshot: this.startContractTreeSnapshot.toString(),
+      startPublicDataTreeRoot: this.startPublicDataTreeRoot.toString(),
+      startL1ToL2MessagesTreeSnapshot: this.startL1ToL2MessagesTreeSnapshot.toString(),
+      startHistoricBlocksTreeSnapshot: this.startHistoricBlocksTreeSnapshot.toString(),
+      endPrivateDataTreeSnapshot: this.endPrivateDataTreeSnapshot.toString(),
+      endNullifierTreeSnapshot: this.endNullifierTreeSnapshot.toString(),
+      endContractTreeSnapshot: this.endContractTreeSnapshot.toString(),
+      endPublicDataTreeRoot: this.endPublicDataTreeRoot.toString(),
+      endL1ToL2MessagesTreeSnapshot: this.endL1ToL2MessagesTreeSnapshot.toString(),
+      endHistoricBlocksTreeSnapshot: this.endHistoricBlocksTreeSnapshot.toString(),
+      newCommitments: this.newCommitments.map(c => c.toString()),
+      newNullifiers: this.newNullifiers.map(n => n.toString()),
+      newPublicDataWrites: this.newPublicDataWrites.map(p => p.toString()),
+      newL2ToL1Msgs: this.newL2ToL1Msgs.map(m => m.toString()),
+      newContracts: this.newContracts.map(c => c.toString()),
+      newContractData: this.newContractData.map(c => c.toString()),
+      newL1ToL2Messages: this.newL1ToL2Messages.map(m => m.toString()),
+      newEncryptedLogs: this.newEncryptedLogs?.toJSON() ?? null,
+      newUnencryptedLogs: this.newUnencryptedLogs?.toJSON() ?? null,
+    };
+  }
+
+  /**
    * Decode the L2 block data from a buffer.
    * @param encoded - The encoded L2 block data.
    * @returns The decoded L2 block data.
@@ -467,6 +494,58 @@ export class L2Block {
    */
   static fromString(str: string): L2Block {
     return L2Block.decode(Buffer.from(str, STRING_ENCODING));
+  }
+
+  static fromJSON(_obj: any): L2Block {
+    const globalVariables = GlobalVariables.fromJSON(_obj.globalVariables);
+    const number = Number(globalVariables.blockNumber.value);
+    const startPrivateDataTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startPrivateDataTreeSnapshot);
+    const startNullifierTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startNullifierTreeSnapshot);
+    const startContractTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startContractTreeSnapshot);
+    const startPublicDataTreeRoot = Fr.fromString(_obj.startPublicDataTreeRoot);
+    const startL1ToL2MessagesTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startL1ToL2MessagesTreeSnapshot);
+    const startHistoricBlocksTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startHistoricBlocksTreeSnapshot);
+    const endPrivateDataTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endPrivateDataTreeSnapshot);
+    const endNullifierTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endNullifierTreeSnapshot);
+    const endContractTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endContractTreeSnapshot);
+    const endPublicDataTreeRoot = Fr.fromString(_obj.endPublicDataTreeRoot);
+    const endL1ToL2MessagesTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endL1ToL2MessagesTreeSnapshot);
+    const endHistoricBlocksTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endHistoricBlocksTreeSnapshot);
+    const newCommitments = _obj.newCommitments.map((c: string) => Fr.fromString(c));
+    const newNullifiers = _obj.newNullifiers.map((n: string) => Fr.fromString(n));
+    const newPublicDataWrites = _obj.newPublicDataWrites.map((p: any) => PublicDataWrite.fromString(p));
+    const newL2ToL1Msgs = _obj.newL2ToL1Msgs.map((m: string) => Fr.fromString(m));
+    const newContracts = _obj.newContracts.map((c: string) => Fr.fromString(c));
+    const newContractData = _obj.newContractData.map((c: any) => ContractData.fromString(c));
+    const newL1ToL2Messages = _obj.newL1ToL2Messages.map((m: string) => Fr.fromString(m));
+    const newEncryptedLogs = _obj.newEncryptedLogs ? L2BlockL2Logs.fromJSON(_obj.newEncryptedLogs) : undefined;
+    const newUnencryptedLogs = _obj.newUnencryptedLogs ? L2BlockL2Logs.fromJSON(_obj.newUnencryptedLogs) : undefined;
+
+    return L2Block.fromFields({
+      number,
+      globalVariables,
+      startPrivateDataTreeSnapshot,
+      startNullifierTreeSnapshot,
+      startContractTreeSnapshot,
+      startPublicDataTreeRoot,
+      startL1ToL2MessagesTreeSnapshot,
+      startHistoricBlocksTreeSnapshot,
+      endPrivateDataTreeSnapshot,
+      endNullifierTreeSnapshot,
+      endContractTreeSnapshot,
+      endPublicDataTreeRoot,
+      endL1ToL2MessagesTreeSnapshot,
+      endHistoricBlocksTreeSnapshot,
+      newCommitments,
+      newNullifiers,
+      newPublicDataWrites,
+      newL2ToL1Msgs,
+      newContracts,
+      newContractData,
+      newL1ToL2Messages,
+      newEncryptedLogs,
+      newUnencryptedLogs,
+    });
   }
 
   /**

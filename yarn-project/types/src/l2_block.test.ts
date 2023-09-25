@@ -19,6 +19,14 @@ describe('L2Block', () => {
     expect(recovered).toEqual(block);
   });
 
+  it('can serialise an L2 block to JSON and back', () => {
+    const block = L2Block.random(42);
+    const serialised = block.toJSON();
+    const recovered = L2Block.fromJSON(serialised);
+
+    expect(recovered).toEqual(block);
+  });
+
   // TS equivalent of `testComputeKernelLogsIterationWithoutLogs` in `Decoder.t.sol`
   it('correctly computes kernel logs hash when there are no logs', () => {
     // The following 2 values are copied from `testComputeKernelLogsIterationWithoutLogs` in `Decoder.t.sol`
