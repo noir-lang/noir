@@ -95,6 +95,7 @@ test_cases.forEach((testInfo) => {
 
       const { abi } = JSON.parse(compiled_contract);
       const { deployedTo } = JSON.parse(deploy_information);
+      console.log({ deployedTo, deploy_information })
 
       const contract = new ethers.Contract(deployedTo, abi, wallet);
 
