@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;

@@ -10,7 +10,7 @@ use crate::{
         def_map::ScopeResolveError,
     },
     node_interner::{FunctionModifiers, TraitId},
-    parser::{UnorderParsedModule, SubModule},
+    parser::{SubModule, UnorderParsedModule},
     token::Attributes,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
