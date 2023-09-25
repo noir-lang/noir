@@ -326,6 +326,13 @@ fn simplify_slice_pop_back(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
 ) -> SimplifyResult {
+    let element_types = match element_type.clone() {
+        Type::Slice(element_types) | Type::Array(element_types, _) => element_types,
+        _ => {
+            unreachable!("ICE: Expected slice or array, but got {element_type}");
+        }
+    };
+
     let element_count = element_type.element_size();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
@@ -346,7 +353,7 @@ fn simplify_slice_pop_back(
             .insert_instruction_and_results(
                 get_last_elem_instr,
                 block,
-                Some(vec![element_type.clone()]),
+                Some(element_types.to_vec()),
                 CallStack::new(),
             )
             .first();

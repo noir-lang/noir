@@ -1017,7 +1017,7 @@ impl Context {
                     found: array_typ.to_string(),
                     call_stack: self.acir_context.get_call_stack(),
                 }
-                .into())
+                .into());
             }
         }
         // We do not have to initialize the last elem size value as that is the maximum array size
