@@ -1017,6 +1017,10 @@ impl Type {
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
     pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
+        if type_bindings.is_empty() {
+            return self.clone();
+        }
+
         let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
             TypeBinding::Bound(binding) => binding.substitute(type_bindings),
             TypeBinding::Unbound(id) => match type_bindings.get(id) {

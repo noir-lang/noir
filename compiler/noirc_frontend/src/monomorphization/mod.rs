@@ -805,7 +805,7 @@ impl<'interner> Monomorphizer<'interner> {
         let trait_impl = self
             .interner
             .get_trait_implementation(&TraitImplKey {
-                typ: self_type.substitute(&HashMap::new()),
+                typ: self_type.follow_bindings(),
                 trait_id: method.trait_id,
             })
             .expect("ICE: missing trait impl - should be caught during type checking");
@@ -826,7 +826,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name: the_trait.methods[method.method_index].name.0.contents.clone(),
-            typ: Self::convert_type(&function_type),
+            typ: self.convert_type(&function_type),
         })
     }
 

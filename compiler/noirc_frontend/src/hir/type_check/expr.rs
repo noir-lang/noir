@@ -175,13 +175,13 @@ impl<'interner> TypeChecker<'interner> {
                         }
 
                         let (function_id, function_call) = method_call.into_function_call(
-                            method_ref.clone(),
+                            method_ref,
                             location,
                             self.interner,
                         );
 
                         let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, &method_ref, args, span);
+                        let ret = self.check_method_call(&function_id, method_ref, args, span);
 
                         self.interner.replace_expr(expr_id, function_call);
                         ret
@@ -292,7 +292,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(_) => unreachable!(),
+            HirExpression::TraitMethodReference(_) => unreachable!("unexpected TraitMethodReference - they should be added after initial type checking"),
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
@@ -484,17 +484,17 @@ impl<'interner> TypeChecker<'interner> {
     fn check_method_call(
         &mut self,
         function_ident_id: &ExprId,
-        method_ref: &HirMethodReference,
+        method_ref: HirMethodReference,
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
         let (fntyp, param_len) = match method_ref {
             HirMethodReference::FuncId(func_id) => {
-                if func_id == &FuncId::dummy_id() {
+                if func_id == FuncId::dummy_id() {
                     return Type::Error;
                 }
 
-                let func_meta = self.interner.function_meta(func_id);
+                let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
 
                 (func_meta.typ, param_len)
@@ -853,7 +853,9 @@ impl<'interner> TypeChecker<'interner> {
                 }
             }
             Type::NamedGeneric(_, _) => {
-                let func_meta = self.interner.function_meta(&self.current_function.unwrap());
+                let func_meta = self.interner.function_meta(
+                    &self.current_function.expect("unexpected method outside a function"),
+                );
 
                 for constraint in func_meta.trait_constraints {
                     if let Some(trait_id) = constraint.trait_id {

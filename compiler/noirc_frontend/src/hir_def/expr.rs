@@ -151,7 +151,7 @@ pub struct HirMethodCallExpression {
     pub location: Location,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum HirMethodReference {
     /// A method can be defined in a regular `impl` block, in which case
     /// it's syntax sugar for a normal function call, and can be
