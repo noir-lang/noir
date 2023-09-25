@@ -78,7 +78,7 @@ export const keccak256_test_cases: [Uint8Array, Uint8Array][] = [
 
 export const ecdsa_secp256k1_test_cases: [
   [Uint8Array, Uint8Array, Uint8Array, Uint8Array],
-  boolean,
+  boolean
 ][] = [
   [
     [
@@ -129,7 +129,7 @@ export const ecdsa_secp256k1_test_cases: [
 
 export const ecdsa_secp256r1_test_cases: [
   [Uint8Array, Uint8Array, Uint8Array, Uint8Array],
-  boolean,
+  boolean
 ][] = [
   [
     [
