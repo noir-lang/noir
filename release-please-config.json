@@ -33,6 +33,11 @@
         },
         {
           "type": "json",
+          "path": "tooling/noir_js/package.json",
+          "jsonpath": "$.dependencies.@noir-lang/noirc_abi"
+        },
+        {
+          "type": "json",
           "path": "compiler/source-resolver/package.json",
           "jsonpath": "$.version"
         }

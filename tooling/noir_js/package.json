@@ -9,7 +9,7 @@
   "type": "module",
   "dependencies": {
     "@noir-lang/acvm_js": "0.27.0",
-    "@noir-lang/noirc_abi": "workspace:*",
+    "@noir-lang/noirc_abi": "0.13.0",
     "fflate": "^0.8.0"
   },
   "files": [
