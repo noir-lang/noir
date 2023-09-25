@@ -8,7 +8,6 @@ use crate::{
             self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
             HirMethodReference, HirPrefixExpression,
         },
-        traits::TraitFunction,
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},

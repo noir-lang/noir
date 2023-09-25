@@ -672,7 +672,7 @@ impl<'a> Resolver<'a> {
     ) -> Vec<TraitConstraint> {
         vecmap(where_clause, |constraint| TraitConstraint {
             typ: self.resolve_type(constraint.typ.clone()),
-            trait_id: constraint.trait_bound.trait_id.unwrap_or(TraitId::dummy_id()),
+            trait_id: constraint.trait_bound.trait_id.unwrap_or_else(TraitId::dummy_id),
         })
     }
 
