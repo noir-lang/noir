@@ -165,6 +165,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'Optional deployment salt as a hex string for generating the deployment address.',
       getSaltFromHexString,
     )
+    // `options.wait` is default true. Passing `--no-wait` will set it to false.
+    // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
+    .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
     .action(async (abiPath, options: any) => {
       const contractAbi = await getContractAbi(abiPath, log);
       const constructorAbi = contractAbi.functions.find(({ name }) => name === 'constructor');
@@ -181,9 +184,14 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const args = encodeArgs(options.args, constructorAbi!.parameters);
       debugLogger(`Encoded arguments: ${args.join(', ')}`);
       const tx = deployer.deploy(...args).send({ contractAddressSalt: options.salt });
-      debugLogger(`Deploy tx sent with hash ${await tx.getTxHash()}`);
-      const deployed = await tx.wait();
-      log(`\nContract deployed at ${deployed.contractAddress!.toString()}\n`);
+      const txHash = await tx.getTxHash();
+      debugLogger(`Deploy tx sent with hash ${txHash}`);
+      if (options.wait) {
+        const deployed = await tx.wait();
+        log(`\nContract deployed at ${deployed.contractAddress!.toString()}\n`);
+      } else {
+        log(`\nDeployment transaction hash: ${txHash}\n`);
+      }
     });
 
   program
@@ -365,7 +373,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.')
     .requiredOption('-k, --private-key <string>', "The sender's private key.", PRIVATE_KEY)
     .requiredOption('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST)
-
+    .option('--no-wait', 'Print transaction hash without waiting for it to be mined')
     .action(async (functionName, options) => {
       const { contractAddress, functionArgs, contractAbi } = await prepTx(
         options.contractAbi,
@@ -381,13 +389,19 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const wallet = await getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt).getWallet();
       const contract = await Contract.at(contractAddress, contractAbi, wallet);
       const tx = contract.methods[functionName](...functionArgs).send();
-      await tx.wait();
-      log('\nTransaction has been mined');
-      const receipt = await tx.getReceipt();
       log(`Transaction hash: ${(await tx.getTxHash()).toString()}`);
-      log(`Status: ${receipt.status}\n`);
-      log(`Block number: ${receipt.blockNumber}`);
-      log(`Block hash: ${receipt.blockHash?.toString('hex')}`);
+      if (options.wait) {
+        await tx.wait();
+
+        log('Transaction has been mined');
+
+        const receipt = await tx.getReceipt();
+        log(`Status: ${receipt.status}\n`);
+        log(`Block number: ${receipt.blockNumber}`);
+        log(`Block hash: ${receipt.blockHash?.toString('hex')}`);
+      } else {
+        log('\nTransaction pending. Check status with get-tx-receipt');
+      }
     });
 
   program
