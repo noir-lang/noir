@@ -48,7 +48,7 @@ pub struct HirAssignStatement {
 #[derive(Debug, Clone)]
 pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<String>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
@@ -77,6 +77,15 @@ impl HirPattern {
                 Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
             }
             other => panic!("Tried to iterate over the fields of '{other:?}', which has none"),
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            HirPattern::Identifier(ident) => ident.location.span,
+            HirPattern::Mutable(_, span)
+            | HirPattern::Tuple(_, span)
+            | HirPattern::Struct(_, _, span) => *span,
         }
     }
 }

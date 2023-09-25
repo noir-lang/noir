@@ -27,16 +27,16 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
-    #[error("the default type of a for-loop range will be changing from a Field to a u64")]
-    ForLoopDefaultTypeChanging,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
     #[error(
-        "Multiple primary attributes found. Only one primary attribute is allowed per function."
+        "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
-    MultiplePrimaryAttributesFound,
+    MultipleFunctionAttributesFound,
+    #[error("A function attribute cannot be placed on a struct")]
+    NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
 }
@@ -124,19 +124,14 @@ impl From<ParserError> for Diagnostic {
         match &error.reason {
             Some(reason) => {
                 match reason {
-                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
+                    ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
-                        error.span,
-                    ),
-                    ParserErrorReason::ForLoopDefaultTypeChanging => Diagnostic::simple_warning(
-                        "The default type for the incrementor in a for-loop will be changed.".into(),
-                        "The default type in a for-loop will be changing from Field to u64".into(),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

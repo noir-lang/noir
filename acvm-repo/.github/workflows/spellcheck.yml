@@ -1,0 +1,13 @@
+name: Spellcheck
+
+on: [push]
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  spellcheck:
+    name: Spellcheck
+    uses: noir-lang/.github/.github/workflows/spellcheck.yml@main

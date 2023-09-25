@@ -21,6 +21,12 @@ pub enum LexerErrorKind {
     LogicalAnd { span: Span },
     #[error("Unterminated block comment")]
     UnterminatedBlockComment { span: Span },
+    #[error("Unterminated string literal")]
+    UnterminatedStringLiteral { span: Span },
+    #[error(
+        "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
+    )]
+    InvalidEscape { escaped: char, span: Span },
 }
 
 impl LexerErrorKind {
@@ -33,6 +39,8 @@ impl LexerErrorKind {
             LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
+            LexerErrorKind::UnterminatedStringLiteral { span } => *span,
+            LexerErrorKind::InvalidEscape { span, .. } => *span,
         }
     }
 
@@ -46,30 +54,30 @@ impl LexerErrorKind {
                 let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
 
                 (
-                    "an unexpected character was found".to_string(),
-                    format!(" expected {expected} , but got {found}"),
+                    "An unexpected character was found".to_string(),
+                    format!("Expected {expected}, but found {found}"),
                     *span,
                 )
             },
             LexerErrorKind::NotADoubleChar { span, found } => (
-                format!("tried to parse {found} as double char"),
+                format!("Tried to parse {found} as double char"),
                 format!(
                     " {found:?} is not a double char, this is an internal error"
                 ),
                 *span,
             ),
             LexerErrorKind::InvalidIntegerLiteral { span, found } => (
-                "invalid integer literal".to_string(),
+                "Invalid integer literal".to_string(),
                 format!(" {found} is not an integer"),
                 *span,
             ),
             LexerErrorKind::MalformedFuncAttribute { span, found } => (
-                "malformed function attribute".to_string(),
+                "Malformed function attribute".to_string(),
                 format!(" {found} is not a valid attribute"),
                 *span,
             ),
             LexerErrorKind::TooManyBits { span, max, got } => (
-                "integer literal too large".to_string(),
+                "Integer literal too large".to_string(),
                 format!(
                     "The maximum number of bits needed to represent a field is {max}, This integer type needs {got} bits"
                 ),
@@ -80,7 +88,11 @@ impl LexerErrorKind {
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
                 *span,
             ),
-            LexerErrorKind::UnterminatedBlockComment { span } => ("unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
+            LexerErrorKind::UnterminatedBlockComment { span } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
+            LexerErrorKind::UnterminatedStringLiteral { span } =>
+                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
+            LexerErrorKind::InvalidEscape { escaped, span } =>
+                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
         }
     }
 }

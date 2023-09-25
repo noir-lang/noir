@@ -1,6 +1,8 @@
+use crate::token::Attribute;
+
 use super::{
     errors::LexerErrorKind,
-    token::{Attribute, IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -318,12 +320,34 @@ impl<'a> Lexer<'a> {
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
         let start = self.position;
+        let mut string = String::new();
 
-        let str_literal = self.eat_while(None, |ch| ch != '"');
+        while let Some(next) = self.next_char() {
+            let char = match next {
+                '"' => break,
+                '\\' => match self.next_char() {
+                    Some('r') => '\r',
+                    Some('n') => '\n',
+                    Some('t') => '\t',
+                    Some('0') => '\0',
+                    Some('"') => '"',
+                    Some('\\') => '\\',
+                    Some(escaped) => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                    }
+                    None => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                    }
+                },
+                other => other,
+            };
 
-        let str_literal_token = Token::Str(str_literal);
+            string.push(char);
+        }
 
-        self.next_char(); // Advance past the closing quote
+        let str_literal_token = Token::Str(string);
 
         let end = self.position;
         Ok(str_literal_token.into_span(start, end))
@@ -411,7 +435,7 @@ impl<'a> Iterator for Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{Attribute, PrimaryAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -499,9 +523,11 @@ mod tests {
         let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
         let expected = vec![
-            Token::Attribute(Attribute::Primary(PrimaryAttribute::Foreign("sha256".to_string()))),
-            Token::Attribute(Attribute::Primary(PrimaryAttribute::Foreign("blake2s".to_string()))),
-            Token::Attribute(Attribute::Primary(PrimaryAttribute::Builtin("sum".to_string()))),
+            Token::Attribute(Attribute::Function(FunctionAttribute::Foreign("sha256".to_string()))),
+            Token::Attribute(Attribute::Function(FunctionAttribute::Foreign(
+                "blake2s".to_string(),
+            ))),
+            Token::Attribute(Attribute::Function(FunctionAttribute::Builtin("sum".to_string()))),
         ];
 
         let mut lexer = Lexer::new(input);
@@ -533,7 +559,7 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(TestScope::None)))
+            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
         );
     }
 
@@ -557,7 +583,7 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(
+            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
                 TestScope::ShouldFailWith { reason: None }
             )))
         );
@@ -571,7 +597,7 @@ mod tests {
         let token = lexer.next().unwrap().unwrap();
         assert_eq!(
             token.token(),
-            &Token::Attribute(Attribute::Primary(PrimaryAttribute::Test(
+            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
                 TestScope::ShouldFailWith { reason: Some("hello".to_owned()) }
             )))
         );

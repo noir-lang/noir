@@ -266,7 +266,7 @@ impl Context {
                     } else {
                         dbg!(values.len());
                         panic!("HAVE SLICE SSA BLOCK PARAM THIS SHOULD NEVER HAPPEN");
-                        values.len()
+                        // values.len()
                     };
                     self.initialize_array(block_id, len, Some(value.clone()))?;
                 }
@@ -1215,7 +1215,6 @@ impl Context {
                         }
                     }
                     _ => {
-
                         // dbg!(&dfg[array_id]);
                         match array_acir_value {
                             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, type_len, element_type_sizes }) => {
