@@ -259,7 +259,7 @@ impl UnresolvedTypeExpression {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
@@ -277,7 +277,7 @@ impl std::fmt::Display for Visibility {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// Represents whether the return value should compromise of unique witness indices such that no
 /// index occurs within the program's abi more than once.
 ///

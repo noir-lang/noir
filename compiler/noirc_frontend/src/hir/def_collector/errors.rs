@@ -24,7 +24,7 @@ pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
-    UnresolvedModuleDecl { mod_name: Ident },
+    UnresolvedModuleDecl { mod_name: Ident, expected_path: String },
     #[error("path resolution error")]
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
@@ -76,7 +76,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
         match error {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
                 let primary_message = format!(
-                    "duplicate definitions of {} with name {} found",
+                    "Duplicate definitions of {} with name {} found",
                     &typ, &first_def.0.contents
                 );
                 {
@@ -84,19 +84,19 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     let second_span = second_def.0.span();
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("first {} found here", &typ),
+                        format!("First {} found here", &typ),
                         first_span,
                     );
-                    diag.add_secondary(format!("second {} found here", &typ), second_span);
+                    diag.add_secondary(format!("Second {} found here", &typ), second_span);
                     diag
                 }
             }
-            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name } => {
+            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path } => {
                 let span = mod_name.0.span();
                 let mod_name = &mod_name.0.contents;
 
                 Diagnostic::simple_error(
-                    format!("could not resolve module `{mod_name}` "),
+                    format!("No module `{mod_name}` at path `{expected_path}`"),
                     String::new(),
                     span,
                 )

@@ -1,0 +1,54 @@
+name: Publish acvm_js
+
+on:
+  workflow_dispatch:
+    inputs:
+      acvm-ref:
+        description: The acvm reference to checkout
+        required: true
+
+jobs:
+  publish-acvm-js-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.acvm-ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          registry-url: "https://registry.npmjs.org"
+          node-version: 18.15
+
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-23.05
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - name: Build acvm-js
+        working-directory: acvm-repo
+        run: |
+          nix build .#
+
+      - name: Discover Build Output Path
+        working-directory: acvm-repo
+        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result)" >> $GITHUB_ENV
+
+      - name: Copy Build Output to Temporary Directory
+        working-directory: acvm-repo
+        run: |
+          mkdir temp_publish_dir
+          cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
+
+      - name: Publish to NPM
+        working-directory: ./acvm-repo/temp_publish_dir
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

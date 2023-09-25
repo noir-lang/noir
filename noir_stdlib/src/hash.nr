@@ -1,23 +1,23 @@
 mod poseidon;
 
 #[foreign(sha256)]
-fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
+pub fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 
 #[foreign(blake2s)]
-fn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}
+pub fn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}
 
-fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
+pub fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
     pedersen_with_separator(input, 0)
 }
 
 #[foreign(pedersen)]
-fn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
+pub fn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
 
 #[foreign(hash_to_field_128_security)]
-fn hash_to_field<N>(_input : [Field; N]) -> Field {}
+pub fn hash_to_field<N>(_input : [Field; N]) -> Field {}
 
 #[foreign(keccak256)]
-fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}
+pub fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}
 
 // mimc-p/p implementation
 // constants are (publicly generated) random numbers, for instance using keccak as a ROM.
@@ -39,7 +39,7 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
 global MIMC_BN254_ROUNDS = 91;
 
 //mimc implementation with hardcoded parameters for BN254 curve.
-fn mimc_bn254<N>(array: [Field; N]) -> Field {
+pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;
     //generated from seed "mimc" using keccak256 

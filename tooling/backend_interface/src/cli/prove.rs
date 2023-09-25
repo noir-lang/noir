@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use crate::BackendError;
 
+use super::string_from_stderr;
+
 /// ProveCommand will call the barretenberg binary
 /// to create a proof, given the witness and the bytecode.
 ///
@@ -39,7 +41,7 @@ impl ProveCommand {
         if output.status.success() {
             Ok(output.stdout)
         } else {
-            Err(BackendError::CommandFailed(output.stderr))
+            Err(BackendError::CommandFailed(string_from_stderr(&output.stderr)))
         }
     }
 }

@@ -346,11 +346,6 @@ impl FunctionBuilder {
     pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
         self.current_function.dfg.get_intrinsic_from_value(value)
     }
-
-    /// Removes the given instruction from the current block or panics otherwise.
-    pub(crate) fn remove_instruction_from_current_block(&mut self, instruction: InstructionId) {
-        self.current_function.dfg[self.current_block].remove_instruction(instruction);
-    }
 }
 
 impl std::ops::Index<ValueId> for FunctionBuilder {

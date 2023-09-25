@@ -202,7 +202,7 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars, len| {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
-                    if (len - 1) < index_value.to_u128() as usize {
+                    if len <= index_value.to_u128() as usize {
                         let zero = FieldElement::zero();
                         self.dfg.make_constant(zero, Type::field())
                     } else {

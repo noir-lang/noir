@@ -19,6 +19,6 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./compiler/source-resolver
-        run: npm publish
+        run: yarn npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
