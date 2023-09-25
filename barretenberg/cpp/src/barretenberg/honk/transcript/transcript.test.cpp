@@ -187,6 +187,7 @@ TEST_F(UltraTranscriptTests, VerifierManifestConsistency)
 
 TEST_F(UltraTranscriptTests, FoldingManifestTest)
 {
+    using Flavor = flavor::Ultra;
     auto builder_one = proof_system::UltraCircuitBuilder();
     auto a = 2;
     auto b = 3;
@@ -206,7 +207,7 @@ TEST_F(UltraTranscriptTests, FoldingManifestTest)
     auto instance_one = composer.create_instance(builder_one);
     auto instance_two = composer.create_instance(builder_two);
 
-    std::vector<std::shared_ptr<ProverInstance>> insts;
+    std::vector<std::shared_ptr<ProverInstance_<Flavor>>> insts;
     insts.emplace_back(instance_one);
     insts.emplace_back(instance_two);
     auto prover = composer.create_folding_prover(insts);

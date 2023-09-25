@@ -2,21 +2,22 @@
 #include "barretenberg/honk/flavor/goblin_ultra.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
-#include "barretenberg/honk/instance/prover_instance.hpp"
+#include "barretenberg/honk/instance/instances.hpp"
 #include "barretenberg/honk/proof_system/folding_result.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 namespace proof_system::honk {
-template <class Flavor> class ProtoGalaxyProver_ {
+template <class ProverInstances> class ProtoGalaxyProver_ {
   public:
+    using Flavor = typename ProverInstances::Flavor;
     using FF = typename Flavor::FF;
-    using Instance = ProverInstance_<Flavor>;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
 
-    std::vector<std::shared_ptr<Instance>> instances;
+    ProverInstances instances;
 
     ProverTranscript<FF> transcript;
 
-    explicit ProtoGalaxyProver_(std::vector<std::shared_ptr<Instance>>);
+    ProtoGalaxyProver_(ProverInstances insts)
+        : instances(insts){};
     ~ProtoGalaxyProver_() = default;
 
     void prepare_for_folding();
@@ -24,7 +25,7 @@ template <class Flavor> class ProtoGalaxyProver_ {
     ProverFoldingResult<Flavor> fold_instances();
 };
 
-extern template class ProtoGalaxyProver_<honk::flavor::Ultra>;
-extern template class ProtoGalaxyProver_<honk::flavor::UltraGrumpkin>;
-extern template class ProtoGalaxyProver_<honk::flavor::GoblinUltra>;
+extern template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::Ultra, 2>>;
+extern template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::UltraGrumpkin, 2>>;
+extern template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::GoblinUltra, 2>>;
 } // namespace proof_system::honk

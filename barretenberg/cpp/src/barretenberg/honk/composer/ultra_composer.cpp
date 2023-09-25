@@ -35,35 +35,7 @@ UltraVerifier_<Flavor> UltraComposer_<Flavor>::create_verifier(std::shared_ptr<I
     return output_state;
 }
 
-template <UltraFlavor Flavor>
-ProtoGalaxyProver_<Flavor> UltraComposer_<Flavor>::create_folding_prover(
-    std::vector<std::shared_ptr<Instance>> instances)
-{
-    uint32_t idx = 0;
-    for (const auto& inst : instances) {
-        inst->index = idx;
-        idx++;
-    }
-    ProtoGalaxyProver_<Flavor> output_state(instances);
-
-    return output_state;
-}
-
-template <UltraFlavor Flavor>
-ProtoGalaxyVerifier_<Flavor> UltraComposer_<Flavor>::create_folding_verifier(
-    std::vector<std::shared_ptr<Instance>> instances)
-{
-    std::vector<std::shared_ptr<VerificationKey>> vks;
-    for (const auto& inst : instances) {
-        vks.emplace_back(inst->compute_verification_key());
-    }
-    ProtoGalaxyVerifier_<Flavor> output_state(vks);
-
-    return output_state;
-}
-
 template class UltraComposer_<honk::flavor::Ultra>;
 template class UltraComposer_<honk::flavor::UltraGrumpkin>;
 template class UltraComposer_<honk::flavor::GoblinUltra>;
-
 } // namespace proof_system::honk

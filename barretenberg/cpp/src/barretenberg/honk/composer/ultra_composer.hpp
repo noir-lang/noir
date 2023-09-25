@@ -24,9 +24,12 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Instance = ProverInstance_<Flavor>;
 
+    static constexpr size_t NUM_FOLDING = 2;
+    using ProverInstances = ProverInstances_<Flavor, NUM_FOLDING>;
+    using VerifierInstances = VerifierInstances_<Flavor, NUM_FOLDING>;
+
     // offset due to placing zero wires at the start of execution trace
     static constexpr size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
-
     static constexpr std::string_view NAME_STRING = "UltraHonk";
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
@@ -69,8 +72,24 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     UltraProver_<Flavor> create_prover(std::shared_ptr<Instance>);
     UltraVerifier_<Flavor> create_verifier(std::shared_ptr<Instance>);
 
-    ProtoGalaxyProver_<Flavor> create_folding_prover(std::vector<std::shared_ptr<Instance>>);
-    ProtoGalaxyVerifier_<Flavor> create_folding_verifier(std::vector<std::shared_ptr<Instance>>);
+    ProtoGalaxyProver_<ProverInstances> create_folding_prover(std::vector<std::shared_ptr<Instance>> instances)
+    {
+        ProverInstances insts(instances);
+        ProtoGalaxyProver_<ProverInstances> output_state(insts);
+
+        return output_state;
+    };
+    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier(std::vector<std::shared_ptr<Instance>> instances)
+    {
+        std::vector<std::shared_ptr<VerificationKey>> vks;
+        for (const auto& inst : instances) {
+            vks.emplace_back(inst->compute_verification_key());
+        }
+        VerifierInstances insts(vks);
+        ProtoGalaxyVerifier_<VerifierInstances> output_state(insts);
+
+        return output_state;
+    };
 };
 extern template class UltraComposer_<honk::flavor::Ultra>;
 // TODO: the UltraGrumpkin flavor still works on BN254 because plookup needs to be templated to be able to construct

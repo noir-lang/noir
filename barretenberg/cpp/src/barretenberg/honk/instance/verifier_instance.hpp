@@ -15,6 +15,5 @@ template <class Flavor> class VerifierInstance_ {
     size_t circuit_size;
     RelationParameters<FF> relation_parameters;
     FoldingParameters folding_params;
-    size_t index;
 };
 } // namespace proof_system::honk

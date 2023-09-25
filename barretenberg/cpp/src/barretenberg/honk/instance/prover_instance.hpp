@@ -44,8 +44,6 @@ template <class Flavor> class ProverInstance_ {
     proof_system::RelationParameters<FF> relation_parameters;
     std::vector<uint32_t> recursive_proof_public_input_indices;
     FoldingParameters folding_params;
-    // Used by the prover for domain separation in the transcript
-    uint32_t index;
 
     ProverInstance_(Circuit& circuit)
     {
@@ -100,7 +98,5 @@ template <class Flavor> class ProverInstance_ {
 extern template class ProverInstance_<honk::flavor::Ultra>;
 extern template class ProverInstance_<honk::flavor::UltraGrumpkin>;
 extern template class ProverInstance_<honk::flavor::GoblinUltra>;
-
-using ProverInstance = ProverInstance_<honk::flavor::Ultra>;
 
 } // namespace proof_system::honk
