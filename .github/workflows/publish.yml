@@ -95,6 +95,24 @@ jobs:
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
+
   build-linux:
     runs-on: ubuntu-22.04
     env:
@@ -162,3 +180,21 @@ jobs:
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}

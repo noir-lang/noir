@@ -19,7 +19,7 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     assert(y == 5); // Change to y != 5 to see how the later print statements are not called
     std::println(array);
 
-    bad_message = "helld world";
+    bad_message = "hell\0\"world";
     std::println(bad_message);
     assert(message != bad_message);
 

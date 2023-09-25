@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{Ident, UnresolvedGenerics, UnresolvedType};
+use crate::{token::SecondaryAttribute, Ident, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
@@ -8,6 +8,7 @@ use noirc_errors::Span;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
+    pub attributes: Vec<SecondaryAttribute>,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<(Ident, UnresolvedType)>,
     pub span: Span,
@@ -16,11 +17,12 @@ pub struct NoirStruct {
 impl NoirStruct {
     pub fn new(
         name: Ident,
+        attributes: Vec<SecondaryAttribute>,
         generics: Vec<Ident>,
         fields: Vec<(Ident, UnresolvedType)>,
         span: Span,
     ) -> NoirStruct {
-        NoirStruct { name, generics, fields, span }
+        NoirStruct { name, attributes, generics, fields, span }
     }
 }
 

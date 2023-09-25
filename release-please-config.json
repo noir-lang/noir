@@ -10,6 +10,9 @@
       "release-type": "simple",
       "component": "noir",
       "include-component-in-tag": false,
+      "exclude-paths": [
+        "acvm-repo"
+      ],
       "extra-files": [
         "Cargo.toml",
         "flake.nix",
@@ -36,5 +39,7 @@
       ]
     }
   },
-  "plugins": ["sentence-case"]
+  "plugins": [
+    "sentence-case"
+  ]
 }

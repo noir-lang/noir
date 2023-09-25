@@ -1,8 +1,9 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind, TraitConstraint,
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
@@ -369,11 +370,14 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
+    /// True if this function was defined with the 'pub' keyword
+    pub is_public: bool,
+
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,
     pub span: Span,
-    pub where_clause: Vec<TraitConstraint>,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
     pub return_distinctness: Distinctness,
@@ -639,7 +643,7 @@ impl FunctionDefinition {
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         body: &BlockExpression,
-        where_clause: &[TraitConstraint],
+        where_clause: &[UnresolvedTraitConstraint],
         return_type: &FunctionReturnType,
     ) -> FunctionDefinition {
         let p = parameters
@@ -654,6 +658,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
+            is_public: false,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),
@@ -694,10 +699,12 @@ impl Display for FunctionDefinition {
 }
 
 impl FunctionReturnType {
-    pub fn get_type(&self) -> &UnresolvedTypeData {
+    pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
-            FunctionReturnType::Default(_span) => &UnresolvedTypeData::Unit,
-            FunctionReturnType::Ty(typ) => &typ.typ,
+            FunctionReturnType::Default(span) => {
+                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
+            }
+            FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }
     }
 }

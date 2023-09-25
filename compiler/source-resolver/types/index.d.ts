@@ -1,2 +1,4 @@
-export declare let read_file: (source_id: any) => string;
-export declare function initializeResolver(resolver: (source_id: String) => string): void;
+export declare const read_file: (source_id: string) => string;
+export declare function initializeResolver(
+  resolver: (source_id: string) => string,
+): void;

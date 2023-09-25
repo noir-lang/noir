@@ -5,10 +5,10 @@ export const noirSourcePath = "../../noir-script/src/main.nr";
 export const nargoArtifactPath =
   "../../noir-script/target/noir_wasm_testing.json";
 
-export async function compileNoirSource(noir_source: string): Promise<any> {
+export async function compileNoirSource(noir_source: string): Promise<unknown> {
   console.log("Compiling Noir source...");
 
-  initializeResolver((id: String) => {
+  initializeResolver((id: string) => {
     console.log(`Resolving source ${id}`);
 
     const source = noir_source;

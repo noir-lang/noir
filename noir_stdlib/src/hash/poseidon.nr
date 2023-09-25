@@ -11,7 +11,7 @@ struct PoseidonConfig<M,N> {
     mds: [Field; N] // MDS Matrix in row-major order
 }
 
-fn config<M,N>(
+pub fn config<M,N>(
     t: Field,
     rf: u8,
     rp: u8,
