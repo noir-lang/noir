@@ -36,26 +36,26 @@ namespace stdlib {
  * normalizes rem (i.e., constrains it to width-many bits), then rem is shown to be the desired remainder.
  */
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator+(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator+(const uint& other) const
 {
     ASSERT(context == other.context || (context != nullptr && other.context == nullptr) ||
            (context == nullptr && other.context != nullptr));
-    Composer* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
     if (is_constant() && other.is_constant()) {
-        return uint<Composer, Native>(context, (additive_constant + other.additive_constant) & MASK);
+        return uint<Builder, Native>(context, (additive_constant + other.additive_constant) & MASK);
     }
 
     if (is_constant() && !other.is_constant()) {
-        uint<Composer, Native> result(other);
+        uint<Builder, Native> result(other);
         result.additive_constant = (additive_constant + other.additive_constant) & MASK;
         result.witness_status = WitnessStatus::NOT_NORMALIZED;
         return result;
     }
 
     if (!is_constant() && other.is_constant()) {
-        uint<Composer, Native> result(*this);
+        uint<Builder, Native> result(*this);
         result.additive_constant = (additive_constant + other.additive_constant) & MASK;
         result.witness_status = WitnessStatus::NOT_NORMALIZED;
         return result;
@@ -80,7 +80,7 @@ uint<Composer, Native> uint<Composer, Native>::operator+(const uint& other) cons
      * is {0, 1, 2}.
      **/
 
-    const add_quad_<typename Composer::FF> gate{
+    const add_quad_<typename Builder::FF> gate{
         .a = witness_index,
         .b = other.witness_index,
         .c = ctx->add_variable(remainder),
@@ -94,7 +94,7 @@ uint<Composer, Native> uint<Composer, Native>::operator+(const uint& other) cons
 
     ctx->create_balanced_add_gate(gate);
 
-    uint<Composer, Native> result(ctx);
+    uint<Builder, Native> result(ctx);
     result.witness_index = gate.c;
     result.witness_status = WitnessStatus::WEAK_NORMALIZED;
 
@@ -126,17 +126,17 @@ uint<Composer, Native> uint<Composer, Native>::operator+(const uint& other) cons
  * and returns rem. These constraints do not show that rem is actually the desired remainder, but if the prover also
  * normalizes rem (i.e., constrains it to width-many bits), then rem is shown to be the desired remainder.
  */
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator-(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator-(const uint& other) const
 {
     // Assert contexts are equal unless one is null (e.g., from witness or uint without context)
     ASSERT(context == other.context || (context != nullptr && other.context == nullptr) ||
            (context == nullptr && other.context != nullptr));
     // If context is null, replace by other context.
-    Composer* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
     if (is_constant() && other.is_constant()) {
-        return uint<Composer, Native>(context, (additive_constant - other.additive_constant) & MASK);
+        return uint<Builder, Native>(context, (additive_constant - other.additive_constant) & MASK);
     }
 
     if (!is_constant() && witness_status == WitnessStatus::NOT_NORMALIZED) {
@@ -161,7 +161,7 @@ uint<Composer, Native> uint<Composer, Native>::operator-(const uint& other) cons
     //   witness - other_witness - remainder - 2**width . overflow + (2**width + constant_term) == 0
     // and
     //   overflow in {0, 1, 2}
-    const add_quad_<typename Composer::FF> gate{
+    const add_quad_<typename Builder::FF> gate{
         .a = lhs_idx,
         .b = rhs_idx,
         .c = ctx->add_variable(remainder),
@@ -175,7 +175,7 @@ uint<Composer, Native> uint<Composer, Native>::operator-(const uint& other) cons
 
     ctx->create_balanced_add_gate(gate);
 
-    uint<Composer, Native> result(ctx);
+    uint<Builder, Native> result(ctx);
     result.witness_index = gate.c;
     result.witness_status =
         (is_constant() || other.is_constant()) ? WitnessStatus::NOT_NORMALIZED : WitnessStatus::WEAK_NORMALIZED;
@@ -187,17 +187,17 @@ uint<Composer, Native> uint<Composer, Native>::operator-(const uint& other) cons
  * @brief Multiply two uint_ct's, trucating overflowing bits.
  */
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator*(const uint& other) const
 {
     // Assert contexts are equal unless one us null (e.g., from witness or uint without context)
     ASSERT(context == other.context || (context != nullptr && other.context == nullptr) ||
            (context == nullptr && other.context != nullptr));
 
-    Composer* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
     if (is_constant() && other.is_constant()) {
-        return uint<Composer, Native>(context, (additive_constant * other.additive_constant) & MASK);
+        return uint<Builder, Native>(context, (additive_constant * other.additive_constant) & MASK);
     }
 
     if (is_constant() && !other.is_constant()) {
@@ -232,7 +232,7 @@ uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) cons
      *      ab + a const_b + b const_a - r - (2**width) overflow + (const_a const_b % 2**width) == 0
      */
 
-    const mul_quad_<typename Composer::FF> gate{
+    const mul_quad_<typename Builder::FF> gate{
         .a = witness_index, // a
         .b = rhs_idx,       // b
         .c = ctx->add_variable(remainder),
@@ -248,7 +248,7 @@ uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) cons
     ctx->create_big_mul_gate(gate);
     constrain_accumulators(context, gate.d, width + 2, "arithmetic: uint mul overflow too large.");
 
-    uint<Composer, Native> result(ctx);
+    uint<Builder, Native> result(ctx);
 
     // Manually normalize the result. We do this here, and not for operator+, because
     // it is much easier to overflow the 252-bit modulus using multiplications. It is
@@ -260,14 +260,14 @@ uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) cons
     return result;
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator/(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator/(const uint& other) const
 {
     return divmod(other).first;
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator%(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator%(const uint& other) const
 {
     return divmod(other).second;
 }
@@ -286,15 +286,15 @@ uint<Composer, Native> uint<Composer, Native>::operator%(const uint& other) cons
  * to 64, we can use range constraints to impose non-negativity. Range constraining r, we have 0 <= r. Since b is range
  * constrained, range constraining b - r - 1 gives r < b.
  **/
-template <typename Composer, typename Native>
-std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>::divmod(const uint& other) const
+template <typename Builder, typename Native>
+std::pair<uint<Builder, Native>, uint<Builder, Native>> uint<Builder, Native>::divmod(const uint& other) const
 {
 
     // Assert contexts are equal unless one us null (e.g., from witness or uint without context)
     ASSERT(context == other.context || (context != nullptr && other.context == nullptr) ||
            (context == nullptr && other.context != nullptr));
 
-    Composer* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
     // we need to guarantee that these values are 32 bits
     if (!is_constant() && witness_status != WitnessStatus::OK) {
@@ -310,22 +310,22 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
         // TODO: find some way of enabling the above assert that does not break
         //       stdlib_uint.test_divide_by_zero_fails.
         // impose failing constraint.
-        field_t<Composer> one = field_t<Composer>::from_witness_index(context, 1);
-        field_t<Composer> zero = field_t<Composer>::from_witness_index(context, 0);
+        field_t<Builder> one = field_t<Builder>::from_witness_index(context, 1);
+        field_t<Builder> zero = field_t<Builder>::from_witness_index(context, 0);
         one / zero;
     } else if (!other.is_constant()) {
-        const bool_t<Composer> is_divisor_zero = field_t<Composer>(other).is_zero();
-        field_t<Composer>(is_divisor_zero).assert_equal(0); // here 0 is a circuit constant
+        const bool_t<Builder> is_divisor_zero = field_t<Builder>(other).is_zero();
+        field_t<Builder>(is_divisor_zero).assert_equal(0); // here 0 is a circuit constant
     }
 
     // handle case of two constants and case of identical witness indices
     if (is_constant() && other.is_constant()) {
-        const uint<Composer, Native> remainder(ctx, additive_constant % other.additive_constant);
-        const uint<Composer, Native> quotient(ctx, additive_constant / other.additive_constant);
+        const uint<Builder, Native> remainder(ctx, additive_constant % other.additive_constant);
+        const uint<Builder, Native> quotient(ctx, additive_constant / other.additive_constant);
         return std::make_pair(quotient, remainder);
     } else if (witness_index == other.witness_index) {
-        const uint<Composer, Native> remainder(context, 0);
-        const uint<Composer, Native> quotient(context, 1);
+        const uint<Builder, Native> remainder(context, 0);
+        const uint<Builder, Native> quotient(context, 1);
         return std::make_pair(quotient, remainder);
     }
 
@@ -360,13 +360,13 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
     const uint32_t delta_idx = ctx->add_variable(delta);
 
     // constraint: b - r - delta + const_b - 1 == 0
-    const add_triple_<typename Composer::FF> delta_gate{ .a = divisor_idx,
-                                                         .b = remainder_idx,
-                                                         .c = delta_idx,
-                                                         .a_scaling = fr::one(),
-                                                         .b_scaling = fr::neg_one(),
-                                                         .c_scaling = fr::neg_one(),
-                                                         .const_scaling = other.additive_constant + fr::neg_one() };
+    const add_triple_<typename Builder::FF> delta_gate{ .a = divisor_idx,
+                                                        .b = remainder_idx,
+                                                        .c = delta_idx,
+                                                        .a_scaling = fr::one(),
+                                                        .b_scaling = fr::neg_one(),
+                                                        .c_scaling = fr::neg_one(),
+                                                        .const_scaling = other.additive_constant + fr::neg_one() };
 
     ctx->create_add_gate(delta_gate);
 
@@ -375,14 +375,14 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
 
     // normalize witness quotient and remainder
     // minimal bit range for quotient: from 0 (in case a = b-1) to width (when b = 1).
-    uint<Composer, Native> quotient(ctx);
+    uint<Builder, Native> quotient(ctx);
     quotient.accumulators = ctx->decompose_into_base4_accumulators(
         quotient_idx, width, "arithmetic: divmod quotient range constraint fails.");
     quotient.witness_index = quotient.accumulators[(width >> 1) - 1];
     quotient.witness_status = WitnessStatus::OK;
 
     // constrain remainder to lie in [0, 2^width-1]
-    uint<Composer, Native> remainder(ctx);
+    uint<Builder, Native> remainder(ctx);
     remainder.accumulators = ctx->decompose_into_base4_accumulators(
         remainder_idx, width, "arithmetic: divmod remaidner range constraint fails.");
     remainder.witness_index = remainder.accumulators[(width >> 1) - 1];

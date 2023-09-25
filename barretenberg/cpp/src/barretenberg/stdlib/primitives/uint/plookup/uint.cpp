@@ -6,16 +6,16 @@ using namespace barretenberg;
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer, typename Native>
-std::vector<uint32_t> uint_plookup<Composer, Native>::constrain_accumulators(Composer* context,
-                                                                             const uint32_t witness_index) const
+template <typename Builder, typename Native>
+std::vector<uint32_t> uint_plookup<Builder, Native>::constrain_accumulators(Builder* context,
+                                                                            const uint32_t witness_index) const
 {
     const auto res = context->decompose_into_default_range(witness_index, width, bits_per_limb);
     return res;
 }
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(const witness_t<Composer>& witness)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(const witness_t<Builder>& witness)
     : context(witness.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
@@ -23,8 +23,8 @@ uint_plookup<Composer, Native>::uint_plookup(const witness_t<Composer>& witness)
     , witness_index(witness.witness_index)
 {}
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(const field_t<Composer>& value)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(const field_t<Builder>& value)
     : context(value.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
@@ -34,23 +34,23 @@ uint_plookup<Composer, Native>::uint_plookup(const field_t<Composer>& value)
     if (value.witness_index == IS_CONSTANT) {
         additive_constant = value.additive_constant;
     } else {
-        field_t<Composer> norm = value.normalize();
+        field_t<Builder> norm = value.normalize();
         accumulators = constrain_accumulators(context, norm.get_witness_index());
         witness_index = norm.get_witness_index();
     }
 }
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(Composer* composer, const uint256_t& value)
-    : context(composer)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(Builder* builder, const uint256_t& value)
+    : context(builder)
     , additive_constant(value)
     , witness_status(WitnessStatus::OK)
     , accumulators()
     , witness_index(IS_CONSTANT)
 {}
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(const uint256_t& value)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(const uint256_t& value)
     : context(nullptr)
     , additive_constant(value)
     , witness_status(WitnessStatus::OK)
@@ -58,16 +58,16 @@ uint_plookup<Composer, Native>::uint_plookup(const uint256_t& value)
     , witness_index(IS_CONSTANT)
 {}
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(const byte_array<Composer>& other)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(const byte_array<Builder>& other)
     : context(other.get_context())
     , additive_constant(0)
     , witness_status(WitnessStatus::WEAK_NORMALIZED)
     , accumulators()
     , witness_index(IS_CONSTANT)
 {
-    field_t<Composer> accumulator(context, fr::zero());
-    field_t<Composer> scaling_factor(context, fr::one());
+    field_t<Builder> accumulator(context, fr::zero());
+    field_t<Builder> scaling_factor(context, fr::one());
     const auto bytes = other.bytes();
 
     // TODO JUMP IN STEPS OF TWO
@@ -83,25 +83,25 @@ uint_plookup<Composer, Native>::uint_plookup(const byte_array<Composer>& other)
     }
 }
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(Composer* parent_context, const std::array<bool_t<Composer>, width>& wires)
-    : uint_plookup<Composer, Native>(parent_context, std::vector<bool_t<Composer>>(wires.begin(), wires.end()))
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(Builder* parent_context, const std::array<bool_t<Builder>, width>& wires)
+    : uint_plookup<Builder, Native>(parent_context, std::vector<bool_t<Builder>>(wires.begin(), wires.end()))
 {}
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(Composer* parent_context, const std::vector<bool_t<Composer>>& wires)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(Builder* parent_context, const std::vector<bool_t<Builder>>& wires)
     : context(parent_context)
     , additive_constant(0)
     , witness_status(WitnessStatus::WEAK_NORMALIZED)
     , accumulators()
     , witness_index(IS_CONSTANT)
 {
-    field_t<Composer> accumulator(context, fr::zero());
-    field_t<Composer> scaling_factor(context, fr::one());
+    field_t<Builder> accumulator(context, fr::zero());
+    field_t<Builder> scaling_factor(context, fr::one());
 
     // TODO JUMP IN STEPS OF TWO
     for (size_t i = 0; i < wires.size(); ++i) {
-        accumulator = accumulator + scaling_factor * field_t<Composer>(wires[i]);
+        accumulator = accumulator + scaling_factor * field_t<Builder>(wires[i]);
         scaling_factor = scaling_factor + scaling_factor;
     }
     accumulator = accumulator.normalize();
@@ -112,8 +112,8 @@ uint_plookup<Composer, Native>::uint_plookup(Composer* parent_context, const std
     }
 }
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(const uint_plookup& other)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(const uint_plookup& other)
     : context(other.context)
     , additive_constant(other.additive_constant)
     , witness_status(other.witness_status)
@@ -121,8 +121,8 @@ uint_plookup<Composer, Native>::uint_plookup(const uint_plookup& other)
     , witness_index(other.witness_index)
 {}
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>::uint_plookup(uint_plookup&& other)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>::uint_plookup(uint_plookup&& other)
     : context(other.context)
     , additive_constant(other.additive_constant)
     , witness_status(other.witness_status)
@@ -130,8 +130,8 @@ uint_plookup<Composer, Native>::uint_plookup(uint_plookup&& other)
     , witness_index(other.witness_index)
 {}
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>& uint_plookup<Composer, Native>::operator=(const uint_plookup& other)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>& uint_plookup<Builder, Native>::operator=(const uint_plookup& other)
 {
     context = other.context;
     additive_constant = other.additive_constant;
@@ -141,8 +141,8 @@ uint_plookup<Composer, Native>& uint_plookup<Composer, Native>::operator=(const 
     return *this;
 }
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native>& uint_plookup<Composer, Native>::operator=(uint_plookup&& other)
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native>& uint_plookup<Builder, Native>::operator=(uint_plookup&& other)
 {
     context = other.context;
     additive_constant = other.additive_constant;
@@ -166,8 +166,8 @@ template <typename Context, typename Native> uint_plookup<Context, Native>::oper
     return byte_array<Context>(static_cast<field_t<Context>>(*this), width / 8);
 }
 
-template <typename Composer, typename Native>
-uint_plookup<Composer, Native> uint_plookup<Composer, Native>::normalize() const
+template <typename Builder, typename Native>
+uint_plookup<Builder, Native> uint_plookup<Builder, Native>::normalize() const
 {
     if (!context || is_constant()) {
         return *this;
@@ -180,7 +180,7 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::normalize() const
     return *this;
 }
 
-template <typename Composer, typename Native> uint256_t uint_plookup<Composer, Native>::get_value() const
+template <typename Builder, typename Native> uint256_t uint_plookup<Builder, Native>::get_value() const
 {
     if (!context || is_constant()) {
         return additive_constant;
@@ -188,7 +188,7 @@ template <typename Composer, typename Native> uint256_t uint_plookup<Composer, N
     return (uint256_t(context->get_variable(witness_index))) & MASK;
 }
 
-template <typename Composer, typename Native> uint256_t uint_plookup<Composer, Native>::get_unbounded_value() const
+template <typename Builder, typename Native> uint256_t uint_plookup<Builder, Native>::get_unbounded_value() const
 {
     if (!context || is_constant()) {
         return additive_constant;
@@ -196,11 +196,11 @@ template <typename Composer, typename Native> uint256_t uint_plookup<Composer, N
     return (uint256_t(context->get_variable(witness_index)));
 }
 
-template <typename Composer, typename Native>
-bool_t<Composer> uint_plookup<Composer, Native>::at(const size_t bit_index) const
+template <typename Builder, typename Native>
+bool_t<Builder> uint_plookup<Builder, Native>::at(const size_t bit_index) const
 {
     if (is_constant()) {
-        return bool_t<Composer>(context, get_value().get_bit(bit_index));
+        return bool_t<Builder>(context, get_value().get_bit(bit_index));
     }
     if (witness_status != WitnessStatus::OK) {
         normalize();
@@ -236,7 +236,7 @@ bool_t<Composer> uint_plookup<Composer, Native>::at(const size_t bit_index) cons
     if (slice_bit_position + 1 != bits_per_limb) {
         context->create_new_range_constraint(slice_hi_idx, (1ULL << (bits_per_limb - (slice_bit_position + 1))) - 1);
     }
-    bool_t<Composer> result = witness_t<Composer>(context, bit_value);
+    bool_t<Builder> result = witness_t<Builder>(context, bit_value);
     return result;
 }
 

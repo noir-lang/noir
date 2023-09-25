@@ -7,12 +7,12 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename ComposerContext> class pedersen_plookup_commitment {
+template <typename CircuitBuilder> class pedersen_plookup_commitment {
   private:
-    typedef stdlib::field_t<ComposerContext> field_t;
-    typedef stdlib::point<ComposerContext> point;
-    typedef stdlib::packed_byte_array<ComposerContext> packed_byte_array;
-    typedef stdlib::bool_t<ComposerContext> bool_t;
+    typedef stdlib::field_t<CircuitBuilder> field_t;
+    typedef stdlib::point<CircuitBuilder> point;
+    typedef stdlib::packed_byte_array<CircuitBuilder> packed_byte_array;
+    typedef stdlib::bool_t<CircuitBuilder> bool_t;
 
   public:
     static point commit(const std::vector<field_t>& inputs, const size_t hash_index = 0);

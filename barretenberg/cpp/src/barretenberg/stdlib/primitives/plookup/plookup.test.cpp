@@ -16,21 +16,21 @@ using namespace proof_system::plonk;
 using namespace plookup;
 
 // Defining ultra-specific types for local testing.
-using Composer = proof_system::UltraCircuitBuilder;
-using field_ct = stdlib::field_t<Composer>;
-using witness_ct = stdlib::witness_t<Composer>;
-using plookup_read = proof_system::plonk::stdlib::plookup_read<Composer>;
+using Builder = proof_system::UltraCircuitBuilder;
+using field_ct = stdlib::field_t<Builder>;
+using witness_ct = stdlib::witness_t<Builder>;
+using plookup_read = proof_system::plonk::stdlib::plookup_read<Builder>;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
 TEST(stdlib_plookup, pedersen_lookup_left)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     barretenberg::fr input_value = fr::random_element();
-    field_ct input_hi = witness_ct(&composer, uint256_t(input_value).slice(126, 256));
-    field_ct input_lo = witness_ct(&composer, uint256_t(input_value).slice(0, 126));
+    field_ct input_hi = witness_ct(&builder, uint256_t(input_value).slice(126, 256));
+    field_ct input_lo = witness_ct(&builder, uint256_t(input_value).slice(0, 126));
 
     const auto lookup_hi = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_HI, input_hi);
     const auto lookup_lo = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_LO, input_lo);
@@ -95,18 +95,18 @@ TEST(stdlib_plookup, pedersen_lookup_left)
         EXPECT_EQ(lookup_hi[ColumnIdx::C3][i].get_value(), expected_y[i + num_lookups_lo]);
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, pedersen_lookup_right)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     barretenberg::fr input_value = fr::random_element();
-    field_ct input_hi = witness_ct(&composer, uint256_t(input_value).slice(126, 256));
-    field_ct input_lo = witness_ct(&composer, uint256_t(input_value).slice(0, 126));
+    field_ct input_hi = witness_ct(&builder, uint256_t(input_value).slice(126, 256));
+    field_ct input_lo = witness_ct(&builder, uint256_t(input_value).slice(0, 126));
 
     const auto lookup_hi = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_HI, input_hi);
     const auto lookup_lo = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_LO, input_lo);
@@ -171,22 +171,22 @@ TEST(stdlib_plookup, pedersen_lookup_right)
         EXPECT_EQ(lookup_hi[ColumnIdx::C3][i].get_value(), expected_y[i + num_lookups_lo]);
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, uint32_xor)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     const size_t num_lookups = (32 + 5) / 6;
 
     uint256_t left_value = (engine.get_random_uint256() & 0xffffffffULL);
     uint256_t right_value = (engine.get_random_uint256() & 0xffffffffULL);
 
-    field_ct left = witness_ct(&composer, barretenberg::fr(left_value));
-    field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
+    field_ct left = witness_ct(&builder, barretenberg::fr(left_value));
+    field_ct right = witness_ct(&builder, barretenberg::fr(right_value));
 
     const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::UINT32_XOR, left, right, true);
 
@@ -215,22 +215,22 @@ TEST(stdlib_plookup, uint32_xor)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, blake2s_xor_rotate_16)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     const size_t num_lookups = 6;
 
     uint256_t left_value = (engine.get_random_uint256() & 0xffffffffULL);
     uint256_t right_value = (engine.get_random_uint256() & 0xffffffffULL);
 
-    field_ct left = witness_ct(&composer, barretenberg::fr(left_value));
-    field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
+    field_ct left = witness_ct(&builder, barretenberg::fr(left_value));
+    field_ct right = witness_ct(&builder, barretenberg::fr(right_value));
 
     const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::BLAKE_XOR_ROTATE_16, left, right, true);
 
@@ -286,22 +286,22 @@ TEST(stdlib_plookup, blake2s_xor_rotate_16)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 16);
     EXPECT_EQ(barretenberg::fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, blake2s_xor_rotate_8)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     const size_t num_lookups = 6;
 
     uint256_t left_value = (engine.get_random_uint256() & 0xffffffffULL);
     uint256_t right_value = (engine.get_random_uint256() & 0xffffffffULL);
 
-    field_ct left = witness_ct(&composer, barretenberg::fr(left_value));
-    field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
+    field_ct left = witness_ct(&builder, barretenberg::fr(left_value));
+    field_ct right = witness_ct(&builder, barretenberg::fr(right_value));
 
     const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::BLAKE_XOR_ROTATE_8, left, right, true);
 
@@ -346,22 +346,22 @@ TEST(stdlib_plookup, blake2s_xor_rotate_8)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 8);
     EXPECT_EQ(barretenberg::fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, blake2s_xor_rotate_7)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     const size_t num_lookups = 6;
 
     uint256_t left_value = (engine.get_random_uint256() & 0xffffffffULL);
     uint256_t right_value = (engine.get_random_uint256() & 0xffffffffULL);
 
-    field_ct left = witness_ct(&composer, barretenberg::fr(left_value));
-    field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
+    field_ct left = witness_ct(&builder, barretenberg::fr(left_value));
+    field_ct right = witness_ct(&builder, barretenberg::fr(right_value));
 
     const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::BLAKE_XOR_ROTATE_7, left, right, true);
 
@@ -406,22 +406,22 @@ TEST(stdlib_plookup, blake2s_xor_rotate_7)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 7);
     EXPECT_EQ(barretenberg::fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, blake2s_xor)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     const size_t num_lookups = 6;
 
     uint256_t left_value = (engine.get_random_uint256() & 0xffffffffULL);
     uint256_t right_value = (engine.get_random_uint256() & 0xffffffffULL);
 
-    field_ct left = witness_ct(&composer, barretenberg::fr(left_value));
-    field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
+    field_ct left = witness_ct(&builder, barretenberg::fr(left_value));
+    field_ct right = witness_ct(&builder, barretenberg::fr(right_value));
 
     const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::BLAKE_XOR, left, right, true);
 
@@ -469,22 +469,22 @@ TEST(stdlib_plookup, blake2s_xor)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, uint32_and)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     const size_t num_lookups = (32 + 5) / 6;
 
     uint256_t left_value = (engine.get_random_uint256() & 0xffffffffULL);
     uint256_t right_value = (engine.get_random_uint256() & 0xffffffffULL);
 
-    field_ct left = witness_ct(&composer, barretenberg::fr(left_value));
-    field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
+    field_ct left = witness_ct(&builder, barretenberg::fr(left_value));
+    field_ct right = witness_ct(&builder, barretenberg::fr(right_value));
 
     const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::UINT32_AND, left, right, true);
     const auto left_slices = numeric::slice_input(left_value, 1 << 6, num_lookups);
@@ -511,15 +511,15 @@ TEST(stdlib_plookup, uint32_and)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
 
     EXPECT_EQ(result, true);
 }
 
 TEST(stdlib_plookup, secp256k1_generator)
 {
-    using curve = stdlib::secp256k1<Composer>;
-    Composer composer = Composer();
+    using curve = stdlib::secp256k1<Builder>;
+    Builder builder = Builder();
 
     uint256_t input_value = (engine.get_random_uint256() >> 128);
 
@@ -541,7 +541,7 @@ TEST(stdlib_plookup, secp256k1_generator)
 
     std::vector<field_ct> circuit_naf_values;
     for (size_t i = 0; i < naf_values.size(); ++i) {
-        circuit_naf_values.emplace_back(witness_ct(&composer, naf_values[i]));
+        circuit_naf_values.emplace_back(witness_ct(&builder, naf_values[i]));
     }
 
     std::vector<field_ct> accumulators;
@@ -554,7 +554,7 @@ TEST(stdlib_plookup, secp256k1_generator)
     EXPECT_EQ(accumulator_field.get_value(), barretenberg::fr(input_value) + barretenberg::fr(skew));
 
     for (size_t i = 0; i < 256; ++i) {
-        field_ct index(witness_ct(&composer, barretenberg::fr(i)));
+        field_ct index(witness_ct(&builder, barretenberg::fr(i)));
         const auto xlo = plookup_read::read_pair_from_table(MultiTableId::SECP256K1_XLO, index);
         const auto xhi = plookup_read::read_pair_from_table(MultiTableId::SECP256K1_XHI, index);
         const auto ylo = plookup_read::read_pair_from_table(MultiTableId::SECP256K1_YLO, index);
@@ -600,14 +600,14 @@ TEST(stdlib_plookup, secp256k1_generator)
     }
 
     if (skew) {
-        accumulator = accumulator - curve::g1_ct::one(&composer);
+        accumulator = accumulator - curve::g1_ct::one(&builder);
     }
 
     curve::g1::affine_element result = accumulator.get_value();
     curve::g1::affine_element expected(curve::g1::one * input_value);
     EXPECT_EQ(result, expected);
 
-    bool proof_result = composer.check_circuit();
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 

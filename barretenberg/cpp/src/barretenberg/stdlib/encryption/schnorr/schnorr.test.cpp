@@ -12,28 +12,28 @@ using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::schnorr;
 
-using Composer = proof_system::UltraCircuitBuilder;
-using bool_ct = bool_t<Composer>;
-using byte_array_ct = byte_array<Composer>;
-using field_ct = field_t<Composer>;
-using point_ct = point<Composer>;
-using witness_ct = witness_t<Composer>;
+using Builder = proof_system::UltraCircuitBuilder;
+using bool_ct = bool_t<Builder>;
+using byte_array_ct = byte_array<Builder>;
+using field_ct = field_t<Builder>;
+using point_ct = point<Builder>;
+using witness_ct = witness_t<Builder>;
 
 auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     grumpkin::fr scalar = scalar_mont.from_montgomery_form();
 
     uint256_t scalar_low{ scalar.data[0], scalar.data[1], 0ULL, 0ULL };
     uint256_t scalar_high{ scalar.data[2], scalar.data[3], 0ULL, 0ULL };
 
-    field_ct input_lo = witness_ct(&composer, scalar_low);
-    field_ct input_hi = witness_ct(&composer, scalar_high);
+    field_ct input_lo = witness_ct(&builder, scalar_low);
+    field_ct input_hi = witness_ct(&builder, scalar_high);
 
     grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
     expected = expected.normalize();
-    point_ct point_input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
-                          witness_ct(&composer, grumpkin::g1::affine_one.y) };
+    point_ct point_input{ witness_ct(&builder, grumpkin::g1::affine_one.x),
+                          witness_ct(&builder, grumpkin::g1::affine_one.y) };
 
     point_ct output = variable_base_mul(point_input, input_lo, input_hi);
 
@@ -42,13 +42,13 @@ auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
         EXPECT_EQ(output.y.get_value(), expected.y);
     };
 
-    info("composer gates = ", composer.get_num_gates());
+    info("num gates = ", builder.get_num_gates());
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, expect_verify);
 };
 
-typedef wnaf_record<Composer> wnaf_record_ct;
+typedef wnaf_record<Builder> wnaf_record_ct;
 
 /**
  * @brief Helper function to compare wnaf_records, useful since == on bool_ct's returns a bool_ct.
@@ -68,7 +68,7 @@ bool compare_records(wnaf_record_ct a, wnaf_record_ct b)
 
 TEST(stdlib_schnorr, convert_field_into_wnaf_special)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     // the wnaf_record ((b_1, ... b_128), skew) corresponding to the 129-bit  non-negative value
     // is, 2^128 + 2^127 w_1 + ... + 2 w_127 + w_128 - skew, where w_i = 1 if b_i is true, else -1..
@@ -131,17 +131,17 @@ TEST(stdlib_schnorr, convert_field_into_wnaf_special)
     // integers less than 2^128 are converted correctly
     for (size_t i = 0; i != num_special_values; ++i) {
         field_ct elt = special_field_elts[i];
-        wnaf_record_ct record = convert_field_into_wnaf(&composer, elt);
+        wnaf_record_ct record = convert_field_into_wnaf(&builder, elt);
         wnaf_record_ct expected_record = expected_wnaf_records[i];
         bool records_equal = compare_records(record, expected_record);
         ASSERT_TRUE(records_equal);
-        ASSERT_FALSE(composer.failed());
+        ASSERT_FALSE(builder.failed());
     }
 }
 
 TEST(stdlib_schnorr, convert_field_into_wnaf)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     grumpkin::fq scalar_mont = grumpkin::fq::random_element();
     grumpkin::fq scalar = scalar_mont.from_montgomery_form();
@@ -153,12 +153,12 @@ TEST(stdlib_schnorr, convert_field_into_wnaf)
 
     scalar = scalar.to_montgomery_form();
 
-    field_ct input(&composer, scalar);
-    convert_field_into_wnaf(&composer, input);
+    field_ct input(&builder, scalar);
+    convert_field_into_wnaf(&builder, input);
 
-    info("composer gates = ", composer.get_num_gates());
+    info("num gates = ", builder.get_num_gates());
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -187,7 +187,7 @@ TEST(stdlib_schnorr, verify_signature)
 
     std::vector<size_t> test_lengths({ 0, 1, 32, 33 });
     for (size_t i : test_lengths) {
-        Composer composer = Composer();
+        Builder builder = Builder();
         auto message_string = longer_string.substr(0, i);
 
         crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account;
@@ -202,13 +202,13 @@ TEST(stdlib_schnorr, verify_signature)
             message_string, account.public_key, signature);
         EXPECT_EQ(first_result, true);
 
-        point_ct pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
-        signature_bits sig = convert_signature(&composer, signature);
-        byte_array_ct message(&composer, message_string);
+        point_ct pub_key{ witness_ct(&builder, account.public_key.x), witness_ct(&builder, account.public_key.y) };
+        signature_bits sig = convert_signature(&builder, signature);
+        byte_array_ct message(&builder, message_string);
         verify_signature(message, pub_key, sig);
 
-        info("composer gates = ", composer.get_num_gates());
-        bool result = composer.check_circuit();
+        info("num gates = ", builder.get_num_gates());
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 }
@@ -219,7 +219,7 @@ TEST(stdlib_schnorr, verify_signature)
  */
 TEST(stdlib_schnorr, verify_signature_failure)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
     std::string message_string = "This is a test string of length 34";
 
     // create key pair 1
@@ -243,14 +243,14 @@ TEST(stdlib_schnorr, verify_signature_failure)
     EXPECT_EQ(native_result, false);
 
     // check stdlib verification with account 2 public key fails
-    point_ct pub_key2_ct{ witness_ct(&composer, account2.public_key.x), witness_ct(&composer, account2.public_key.y) };
-    signature_bits sig = convert_signature(&composer, signature);
-    byte_array_ct message(&composer, message_string);
+    point_ct pub_key2_ct{ witness_ct(&builder, account2.public_key.x), witness_ct(&builder, account2.public_key.y) };
+    signature_bits sig = convert_signature(&builder, signature);
+    byte_array_ct message(&builder, message_string);
     verify_signature(message, pub_key2_ct, sig);
 
-    info("composer gates = ", composer.get_num_gates());
+    info("num gates = ", builder.get_num_gates());
 
-    bool verification_result = composer.check_circuit();
+    bool verification_result = builder.check_circuit();
     EXPECT_EQ(verification_result, false);
 }
 
@@ -262,7 +262,7 @@ TEST(stdlib_schnorr, signature_verification_result)
 {
     std::string longer_string = "This is a test string of length 34";
 
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account;
     account.private_key = grumpkin::fr::random_element();
@@ -276,15 +276,15 @@ TEST(stdlib_schnorr, signature_verification_result)
         longer_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
-    point_ct pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
-    signature_bits sig = convert_signature(&composer, signature);
-    byte_array_ct message(&composer, longer_string);
+    point_ct pub_key{ witness_ct(&builder, account.public_key.x), witness_ct(&builder, account.public_key.y) };
+    signature_bits sig = convert_signature(&builder, signature);
+    byte_array_ct message(&builder, longer_string);
     bool_ct signature_result = signature_verification_result(message, pub_key, sig);
     EXPECT_EQ(signature_result.witness_bool, true);
 
-    info("composer gates = ", composer.get_num_gates());
+    info("num gates = ", builder.get_num_gates());
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -294,7 +294,7 @@ TEST(stdlib_schnorr, signature_verification_result)
  */
 TEST(stdlib_schnorr, signature_verification_result_failure)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
     std::string message_string = "This is a test string of length 34";
 
     // create key pair 1
@@ -318,15 +318,15 @@ TEST(stdlib_schnorr, signature_verification_result_failure)
     EXPECT_EQ(native_result, false);
 
     // check stdlib verification with account 2 public key fails
-    point_ct pub_key2_ct{ witness_ct(&composer, account2.public_key.x), witness_ct(&composer, account2.public_key.y) };
-    signature_bits sig = convert_signature(&composer, signature);
-    byte_array_ct message(&composer, message_string);
+    point_ct pub_key2_ct{ witness_ct(&builder, account2.public_key.x), witness_ct(&builder, account2.public_key.y) };
+    signature_bits sig = convert_signature(&builder, signature);
+    byte_array_ct message(&builder, message_string);
     bool_ct signature_result = signature_verification_result(message, pub_key2_ct, sig);
     EXPECT_EQ(signature_result.witness_bool, false);
 
-    info("composer gates = ", composer.get_num_gates());
+    info("num gates = ", builder.get_num_gates());
 
-    bool verification_result = composer.check_circuit();
+    bool verification_result = builder.check_circuit();
     EXPECT_EQ(verification_result, true);
 }
 

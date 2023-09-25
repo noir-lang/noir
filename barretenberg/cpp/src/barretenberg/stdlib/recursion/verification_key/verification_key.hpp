@@ -34,16 +34,16 @@ namespace recursion {
  * @details When calling `pedersen::compress` on the final buffer, we can skip the range checks normally performed in
  * the compress method, because we know the sums of the scalar slices cannot exceed the field modulus. This requires
  * `bits_per_element < modulus bits`
- * @tparam Composer
+ * @tparam Builder
  * @tparam bits_per_element
  */
-template <class Composer, size_t bits_per_element = 248> struct PedersenPreimageBuilder {
-    using field_pt = field_t<Composer>;
-    using witness_pt = witness_t<Composer>;
+template <class Builder, size_t bits_per_element = 248> struct PedersenPreimageBuilder {
+    using field_pt = field_t<Builder>;
+    using witness_pt = witness_t<Builder>;
 
-    Composer* context;
+    Builder* context;
 
-    PedersenPreimageBuilder(Composer* ctx = nullptr)
+    PedersenPreimageBuilder(Builder* ctx = nullptr)
         : context(ctx){};
 
     field_pt compress(const size_t hash_index)
@@ -58,11 +58,11 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
             }
             preimage_data.push_back(field_pt::accumulate(work_element));
         }
-        if constexpr (HasPlookup<Composer>) {
-            return pedersen_plookup_commitment<Composer>::compress_with_relaxed_range_constraints(preimage_data,
-                                                                                                  hash_index);
+        if constexpr (HasPlookup<Builder>) {
+            return pedersen_plookup_commitment<Builder>::compress_with_relaxed_range_constraints(preimage_data,
+                                                                                                 hash_index);
         } else {
-            return pedersen_commitment<Composer>::compress(preimage_data, hash_index);
+            return pedersen_commitment<Builder>::compress(preimage_data, hash_index);
         }
     }
 
@@ -145,7 +145,7 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
             field_pt borrow = field_pt::from_witness(context, need_borrow);
 
             // directly call `create_new_range_constraint` to avoid creating an arithmetic gate
-            if constexpr (HasPlookup<Composer>) {
+            if constexpr (HasPlookup<Builder>) {
                 context->create_new_range_constraint(borrow.get_witness_index(), 1, "borrow");
             } else {
                 context->create_range_constraint(borrow.get_witness_index(), 1, "borrow");
@@ -177,8 +177,8 @@ template <class Composer, size_t bits_per_element = 248> struct PedersenPreimage
     };
 };
 
-template <typename Composer> struct evaluation_domain {
-    static evaluation_domain from_field_elements(const std::vector<field_t<Composer>>& fields)
+template <typename Builder> struct evaluation_domain {
+    static evaluation_domain from_field_elements(const std::vector<field_t<Builder>>& fields)
     {
         evaluation_domain domain;
         domain.root = fields[0];
@@ -192,47 +192,47 @@ template <typename Composer> struct evaluation_domain {
         return domain;
     }
 
-    static evaluation_domain from_witness(Composer* ctx, const barretenberg::evaluation_domain& input)
+    static evaluation_domain from_witness(Builder* ctx, const barretenberg::evaluation_domain& input)
     {
         evaluation_domain domain;
-        domain.root = witness_t<Composer>(ctx, input.root);
+        domain.root = witness_t<Builder>(ctx, input.root);
         domain.root_inverse = domain.root.invert();
-        domain.domain = witness_t<Composer>(ctx, input.domain);
+        domain.domain = witness_t<Builder>(ctx, input.domain);
         domain.domain_inverse = domain.domain.invert();
-        domain.generator = witness_t<Composer>(ctx, input.generator);
+        domain.generator = witness_t<Builder>(ctx, input.generator);
         domain.generator_inverse = domain.generator.invert();
         domain.size = domain.domain;
         return domain;
     }
 
-    static evaluation_domain from_constants(Composer* ctx, const barretenberg::evaluation_domain& input)
+    static evaluation_domain from_constants(Builder* ctx, const barretenberg::evaluation_domain& input)
     {
         evaluation_domain domain;
-        domain.root = field_t<Composer>(ctx, input.root);
-        domain.root_inverse = field_t<Composer>(ctx, input.root_inverse);
-        domain.domain = field_t<Composer>(ctx, input.domain);
-        domain.domain_inverse = field_t<Composer>(ctx, input.domain_inverse);
-        domain.generator = field_t<Composer>(ctx, input.generator);
-        domain.generator_inverse = field_t<Composer>(ctx, input.generator_inverse);
+        domain.root = field_t<Builder>(ctx, input.root);
+        domain.root_inverse = field_t<Builder>(ctx, input.root_inverse);
+        domain.domain = field_t<Builder>(ctx, input.domain);
+        domain.domain_inverse = field_t<Builder>(ctx, input.domain_inverse);
+        domain.generator = field_t<Builder>(ctx, input.generator);
+        domain.generator_inverse = field_t<Builder>(ctx, input.generator_inverse);
         domain.size = domain.domain;
         return domain;
     }
 
-    field_t<Composer> root;
-    field_t<Composer> root_inverse;
-    field_t<Composer> domain;
-    field_t<Composer> domain_inverse;
-    field_t<Composer> generator;
-    field_t<Composer> generator_inverse;
-    uint32<Composer> size;
+    field_t<Builder> root;
+    field_t<Builder> root_inverse;
+    field_t<Builder> domain;
+    field_t<Builder> domain_inverse;
+    field_t<Builder> generator;
+    field_t<Builder> generator_inverse;
+    uint32<Builder> size;
 };
 
 template <typename Curve> struct verification_key {
-    using Composer = typename Curve::Composer;
+    using Builder = typename Curve::Builder;
 
     static std::shared_ptr<verification_key> from_field_elements(
-        Composer* ctx,
-        const std::vector<field_t<Composer>>& fields,
+        Builder* ctx,
+        const std::vector<field_t<Builder>>& fields,
         bool inner_proof_contains_recursive_proof = false,
         std::array<uint32_t, 16> recursive_proof_public_input_indices = {})
     {
@@ -240,8 +240,8 @@ template <typename Curve> struct verification_key {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
 
-        key->polynomial_manifest = PolynomialManifest(Composer::CIRCUIT_TYPE);
-        key->domain = evaluation_domain<Composer>::from_field_elements({ fields[0], fields[1], fields[2] });
+        key->polynomial_manifest = PolynomialManifest(Builder::CIRCUIT_TYPE);
+        key->domain = evaluation_domain<Builder>::from_field_elements({ fields[0], fields[1], fields[2] });
 
         key->n = fields[3];
         key->num_public_inputs = fields[4];
@@ -278,7 +278,7 @@ template <typename Curve> struct verification_key {
      * as circuit variables. This allows the recursive verifier to accept arbitrary verification keys, where the circuit
      * being verified is not fixed as part of the recursive circuit.
      */
-    static std::shared_ptr<verification_key> from_witness(Composer* ctx,
+    static std::shared_ptr<verification_key> from_witness(Builder* ctx,
                                                           const std::shared_ptr<plonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
@@ -288,9 +288,9 @@ template <typename Curve> struct verification_key {
         key->polynomial_manifest = input_key->polynomial_manifest;
 
         // Circuit types:
-        key->n = witness_t<Composer>(ctx, barretenberg::fr(input_key->circuit_size));
-        key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
-        key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
+        key->n = witness_t<Builder>(ctx, barretenberg::fr(input_key->circuit_size));
+        key->num_public_inputs = witness_t<Builder>(ctx, input_key->num_public_inputs);
+        key->domain = evaluation_domain<Builder>::from_witness(ctx, input_key->domain);
         key->contains_recursive_proof = input_key->contains_recursive_proof;
         key->recursive_proof_public_input_indices = input_key->recursive_proof_public_input_indices;
         for (const auto& [tag, value] : input_key->commitments) {
@@ -307,17 +307,17 @@ template <typename Curve> struct verification_key {
         return key;
     }
 
-    static std::shared_ptr<verification_key> from_constants(Composer* ctx,
+    static std::shared_ptr<verification_key> from_constants(Builder* ctx,
                                                             const std::shared_ptr<plonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
-        key->n = field_t<Composer>(ctx, input_key->circuit_size);
-        key->num_public_inputs = field_t<Composer>(ctx, input_key->num_public_inputs);
+        key->n = field_t<Builder>(ctx, input_key->circuit_size);
+        key->num_public_inputs = field_t<Builder>(ctx, input_key->num_public_inputs);
         key->contains_recursive_proof = input_key->contains_recursive_proof;
         key->recursive_proof_public_input_indices = input_key->recursive_proof_public_input_indices;
 
-        key->domain = evaluation_domain<Composer>::from_constants(ctx, input_key->domain);
+        key->domain = evaluation_domain<Builder>::from_constants(ctx, input_key->domain);
 
         for (const auto& [tag, value] : input_key->commitments) {
             key->commitments.insert({ tag, typename Curve::Group(value) });
@@ -334,14 +334,14 @@ template <typename Curve> struct verification_key {
         const auto circuit_key_compressed = compress();
         bool found = false;
         // if we're using Plookup, use a ROM table to index the keys
-        if constexpr (HasPlookup<Composer>) {
-            field_t<Composer> key_index(witness_t<Composer>(context, 0));
-            std::vector<field_t<Composer>> compressed_keys;
+        if constexpr (HasPlookup<Builder>) {
+            field_t<Builder> key_index(witness_t<Builder>(context, 0));
+            std::vector<field_t<Builder>> compressed_keys;
             for (size_t i = 0; i < keys_in_set.size(); ++i) {
                 barretenberg::fr compressed = compress_native(keys_in_set[i]);
                 compressed_keys.emplace_back(compressed);
                 if (compressed == circuit_key_compressed.get_value()) {
-                    key_index = witness_t<Composer>(context, i);
+                    key_index = witness_t<Builder>(context, i);
                     found = true;
                 }
             }
@@ -349,12 +349,12 @@ template <typename Curve> struct verification_key {
                 context->failure(
                     "verification_key::validate_key_is_in_set failed - input key is not in the provided set!");
             }
-            rom_table<Composer> key_table(compressed_keys);
+            rom_table<Builder> key_table(compressed_keys);
 
             const auto output_key = key_table[key_index];
             output_key.assert_equal(circuit_key_compressed);
         } else {
-            bool_t<Composer> is_valid(false);
+            bool_t<Builder> is_valid(false);
             for (const auto& key : keys_in_set) {
                 barretenberg::fr compressed = compress_native(key);
                 is_valid = is_valid || (circuit_key_compressed == compressed);
@@ -365,12 +365,12 @@ template <typename Curve> struct verification_key {
     }
 
   public:
-    field_t<Composer> compress(size_t const hash_index = 0)
+    field_t<Builder> compress(size_t const hash_index = 0)
     {
-        PedersenPreimageBuilder<Composer> preimage_buffer(context);
+        PedersenPreimageBuilder<Builder> preimage_buffer(context);
 
-        field_t<Composer> circuit_type =
-            witness_t<Composer>::create_constant_witness(context, static_cast<uint32_t>(Composer::CIRCUIT_TYPE));
+        field_t<Builder> circuit_type =
+            witness_t<Builder>::create_constant_witness(context, static_cast<uint32_t>(Builder::CIRCUIT_TYPE));
         domain.generator.create_range_constraint(16, "domain.generator");
         domain.domain.create_range_constraint(32, "domain.generator");
         num_public_inputs.create_range_constraint(32, "num_public_inputs");
@@ -393,7 +393,7 @@ template <typename Curve> struct verification_key {
             preimage_buffer.add_element_with_existing_range_constraint(x.binary_basis_limbs[0].element, limb_bits);
         }
         preimage_buffer.add_element(domain.root);
-        field_t<Composer> compressed_key = preimage_buffer.compress(hash_index);
+        field_t<Builder> compressed_key = preimage_buffer.compress(hash_index);
         return compressed_key;
     }
 
@@ -402,7 +402,7 @@ template <typename Curve> struct verification_key {
     {
         std::vector<uint8_t> preimage_data;
 
-        preimage_data.push_back(static_cast<uint8_t>(Composer::CIRCUIT_TYPE));
+        preimage_data.push_back(static_cast<uint8_t>(Builder::CIRCUIT_TYPE));
 
         const uint256_t domain = key->domain.domain;
         const uint256_t generator = key->domain.generator;
@@ -423,7 +423,7 @@ template <typename Curve> struct verification_key {
         write(preimage_data, key->domain.root);
 
         barretenberg::fr compressed_key;
-        if constexpr (HasPlookup<Composer>) {
+        if constexpr (HasPlookup<Builder>) {
             compressed_key = from_buffer<barretenberg::fr>(
                 crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index));
         } else {
@@ -434,11 +434,11 @@ template <typename Curve> struct verification_key {
 
   public:
     // Circuit Types:
-    field_t<Composer> n;
-    field_t<Composer> num_public_inputs;
-    field_t<Composer> z_pow_n;
+    field_t<Builder> n;
+    field_t<Builder> num_public_inputs;
+    field_t<Builder> z_pow_n;
 
-    evaluation_domain<Composer> domain;
+    evaluation_domain<Builder> domain;
 
     std::map<std::string, typename Curve::Group> commitments;
 
@@ -451,7 +451,7 @@ template <typename Curve> struct verification_key {
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
     size_t program_width = 4;
-    Composer* context;
+    Builder* context;
 };
 
 } // namespace recursion

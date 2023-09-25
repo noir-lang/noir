@@ -45,31 +45,31 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
     using affine_element = typename g1::affine_element;
     using element = typename g1::element;
 
-    using Composer = typename Curve::Composer;
+    using Builder = typename Curve::Builder;
 
-    static constexpr auto EXPECT_CIRCUIT_CORRECTNESS = [](Composer& composer, bool expected_result = true) {
-        info("composer gates = ", composer.get_num_gates());
-        EXPECT_EQ(composer.check_circuit(), expected_result);
+    static constexpr auto EXPECT_CIRCUIT_CORRECTNESS = [](Builder& builder, bool expected_result = true) {
+        info("num gates = ", builder.get_num_gates());
+        EXPECT_EQ(builder.check_circuit(), expected_result);
     };
 
   public:
     static void test_add()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 10;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
             affine_element input_b(element::random_element());
 
-            element_ct a = element_ct::from_witness(&composer, input_a);
-            element_ct b = element_ct::from_witness(&composer, input_b);
+            element_ct a = element_ct::from_witness(&builder, input_a);
+            element_ct b = element_ct::from_witness(&builder, input_b);
 
-            uint64_t before = composer.get_num_gates();
+            uint64_t before = builder.get_num_gates();
             element_ct c = a + b;
-            uint64_t after = composer.get_num_gates();
+            uint64_t after = builder.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per add = " << after - before << std::endl;
-                benchmark_info(Composer::NAME_STRING, "Biggroup", "ADD", "Gate Count", after - before);
+                benchmark_info(Builder::NAME_STRING, "Biggroup", "ADD", "Gate Count", after - before);
             }
 
             affine_element c_expected(element(input_a) + element(input_b));
@@ -84,19 +84,19 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_sub()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 10;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
             affine_element input_b(element::random_element());
 
-            element_ct a = element_ct::from_witness(&composer, input_a);
-            element_ct b = element_ct::from_witness(&composer, input_b);
+            element_ct a = element_ct::from_witness(&builder, input_a);
+            element_ct b = element_ct::from_witness(&builder, input_b);
 
             element_ct c = a - b;
 
@@ -112,17 +112,17 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_dbl()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 10;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
 
-            element_ct a = element_ct::from_witness(&composer, input_a);
+            element_ct a = element_ct::from_witness(&builder, input_a);
 
             element_ct c = a.dbl();
 
@@ -138,19 +138,19 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_montgomery_ladder()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
             affine_element input_b(element::random_element());
 
-            element_ct a = element_ct::from_witness(&composer, input_a);
-            element_ct b = element_ct::from_witness(&composer, input_b);
+            element_ct a = element_ct::from_witness(&builder, input_a);
+            element_ct b = element_ct::from_witness(&builder, input_b);
 
             element_ct c = a.montgomery_ladder(b);
 
@@ -166,12 +166,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_mul()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input(element::random_element());
@@ -179,12 +179,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if (uint256_t(scalar).get_bit(0)) {
                 scalar -= fr(1); // make sure to add skew
             }
-            element_ct P = element_ct::from_witness(&composer, input);
-            scalar_ct x = scalar_ct::from_witness(&composer, scalar);
+            element_ct P = element_ct::from_witness(&builder, input);
+            scalar_ct x = scalar_ct::from_witness(&builder, scalar);
 
-            std::cerr << "gates before mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "gates before mul " << builder.get_num_gates() << std::endl;
             element_ct c = P * x;
-            std::cerr << "composer aftr mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "builder aftr mul " << builder.get_num_gates() << std::endl;
             affine_element c_expected(element(input) * scalar);
 
             fq c_x_result(c.x.get_value().lo);
@@ -194,12 +194,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_twin_mul()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
@@ -212,10 +212,10 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // skew bit is 0
             }
-            element_ct P_a = element_ct::from_witness(&composer, input_a);
-            scalar_ct x_a = scalar_ct::from_witness(&composer, scalar_a);
-            element_ct P_b = element_ct::from_witness(&composer, input_b);
-            scalar_ct x_b = scalar_ct::from_witness(&composer, scalar_b);
+            element_ct P_a = element_ct::from_witness(&builder, input_a);
+            scalar_ct x_a = scalar_ct::from_witness(&builder, scalar_a);
+            element_ct P_b = element_ct::from_witness(&builder, input_b);
+            scalar_ct x_b = scalar_ct::from_witness(&builder, scalar_b);
 
             element_ct c = element_ct::batch_mul({ P_a, P_b }, { x_a, x_b });
             element input_c = (element(input_a) * scalar_a);
@@ -227,12 +227,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_x_result, expected.x);
             EXPECT_EQ(c_y_result, expected.y);
         }
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_triple_mul()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
@@ -247,12 +247,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // skew bit is 0
             }
-            element_ct P_a = element_ct::from_witness(&composer, input_a);
-            scalar_ct x_a = scalar_ct::from_witness(&composer, scalar_a);
-            element_ct P_b = element_ct::from_witness(&composer, input_b);
-            scalar_ct x_b = scalar_ct::from_witness(&composer, scalar_b);
-            element_ct P_c = element_ct::from_witness(&composer, input_c);
-            scalar_ct x_c = scalar_ct::from_witness(&composer, scalar_c);
+            element_ct P_a = element_ct::from_witness(&builder, input_a);
+            scalar_ct x_a = scalar_ct::from_witness(&builder, scalar_a);
+            element_ct P_b = element_ct::from_witness(&builder, input_b);
+            scalar_ct x_b = scalar_ct::from_witness(&builder, scalar_b);
+            element_ct P_c = element_ct::from_witness(&builder, input_c);
+            scalar_ct x_c = scalar_ct::from_witness(&builder, scalar_c);
 
             element_ct c = element_ct::batch_mul({ P_a, P_b, P_c }, { x_a, x_b, x_c });
             element input_e = (element(input_a) * scalar_a);
@@ -267,12 +267,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_quad_mul()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
@@ -289,14 +289,14 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // skew bit is 0
             }
-            element_ct P_a = element_ct::from_witness(&composer, input_a);
-            scalar_ct x_a = scalar_ct::from_witness(&composer, scalar_a);
-            element_ct P_b = element_ct::from_witness(&composer, input_b);
-            scalar_ct x_b = scalar_ct::from_witness(&composer, scalar_b);
-            element_ct P_c = element_ct::from_witness(&composer, input_c);
-            scalar_ct x_c = scalar_ct::from_witness(&composer, scalar_c);
-            element_ct P_d = element_ct::from_witness(&composer, input_d);
-            scalar_ct x_d = scalar_ct::from_witness(&composer, scalar_d);
+            element_ct P_a = element_ct::from_witness(&builder, input_a);
+            scalar_ct x_a = scalar_ct::from_witness(&builder, scalar_a);
+            element_ct P_b = element_ct::from_witness(&builder, input_b);
+            scalar_ct x_b = scalar_ct::from_witness(&builder, scalar_b);
+            element_ct P_c = element_ct::from_witness(&builder, input_c);
+            scalar_ct x_c = scalar_ct::from_witness(&builder, scalar_c);
+            element_ct P_d = element_ct::from_witness(&builder, input_d);
+            scalar_ct x_d = scalar_ct::from_witness(&builder, scalar_d);
 
             element_ct c = element_ct::batch_mul({ P_a, P_b, P_c, P_d }, { x_a, x_b, x_c, x_d });
             element input_e = (element(input_a) * scalar_a);
@@ -312,20 +312,20 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_one()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             fr scalar_a(fr::random_element());
             if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // skew bit is 1
             }
-            element_ct P_a = element_ct::one(&composer);
-            scalar_ct x_a = scalar_ct::from_witness(&composer, scalar_a);
+            element_ct P_a = element_ct::one(&builder);
+            scalar_ct x_a = scalar_ct::from_witness(&builder, scalar_a);
             element_ct c = P_a * x_a;
             affine_element expected(g1::one * scalar_a);
             fq c_x_result(c.x.get_value().lo);
@@ -335,13 +335,13 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_batch_mul()
     {
         const size_t num_points = 5;
-        Composer composer;
+        Builder builder;
         std::vector<affine_element> points;
         std::vector<fr> scalars;
         for (size_t i = 0; i < num_points; ++i) {
@@ -352,8 +352,8 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         std::vector<element_ct> circuit_points;
         std::vector<scalar_ct> circuit_scalars;
         for (size_t i = 0; i < num_points; ++i) {
-            circuit_points.push_back(element_ct::from_witness(&composer, points[i]));
-            circuit_scalars.push_back(scalar_ct::from_witness(&composer, scalars[i]));
+            circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+            circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
         }
 
         element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
@@ -371,21 +371,21 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(result_x, expected_point.x);
         EXPECT_EQ(result_y, expected_point.y);
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_chain_add()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 10;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input_a(element::random_element());
             affine_element input_b(element::random_element());
             affine_element input_c(element::random_element());
 
-            element_ct a = element_ct::from_witness(&composer, input_a);
-            element_ct b = element_ct::from_witness(&composer, input_b);
-            element_ct c = element_ct::from_witness(&composer, input_c);
+            element_ct a = element_ct::from_witness(&builder, input_a);
+            element_ct b = element_ct::from_witness(&builder, input_b);
+            element_ct c = element_ct::from_witness(&builder, input_c);
 
             auto acc = element_ct::chain_add_start(a, b);
             auto acc_out = element_ct::chain_add(c, acc);
@@ -406,23 +406,23 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(lambda_result, lambda);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_multiple_montgomery_ladder()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 10;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element acc_small(element::random_element());
-            element_ct acc_big = element_ct::from_witness(&composer, acc_small);
+            element_ct acc_big = element_ct::from_witness(&builder, acc_small);
 
             std::vector<typename element_ct::chain_add_accumulator> to_add;
             for (size_t j = 0; j < i; ++j) {
                 affine_element add_1_small_0(element::random_element());
-                element_ct add_1_big_0 = element_ct::from_witness(&composer, add_1_small_0);
+                element_ct add_1_big_0 = element_ct::from_witness(&builder, add_1_small_0);
                 affine_element add_2_small_0(element::random_element());
-                element_ct add_2_big_0 = element_ct::from_witness(&composer, add_2_small_0);
+                element_ct add_2_big_0 = element_ct::from_witness(&builder, add_2_small_0);
                 typename element_ct::chain_add_accumulator add_1 =
                     element_ct::chain_add_start(add_1_big_0, add_2_big_0);
                 to_add.emplace_back(add_1);
@@ -430,16 +430,16 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             acc_big.multiple_montgomery_ladder(to_add);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_compute_naf()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions(32);
         for (size_t i = 0; i < num_repetitions; i++) {
             fr scalar_val = fr::random_element();
-            scalar_ct scalar = scalar_ct::from_witness(&composer, scalar_val);
+            scalar_ct scalar = scalar_ct::from_witness(&builder, scalar_val);
             auto naf = element_ct::compute_naf(scalar);
             // scalar = -naf[254] + \sum_{i=0}^{253}(1-2*naf[i]) 2^{253-i}
             fr reconstructed_val(0);
@@ -449,23 +449,23 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             reconstructed_val -= fr(naf[254].witness_bool);
             EXPECT_EQ(scalar_val, reconstructed_val);
         }
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_compute_wnaf()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         fr scalar_val = fr::random_element();
-        scalar_ct scalar = scalar_ct::from_witness(&composer, scalar_val);
+        scalar_ct scalar = scalar_ct::from_witness(&builder, scalar_val);
         element_ct::compute_wnaf(scalar);
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_wnaf_batch_mul()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input(element::random_element());
@@ -473,12 +473,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if ((uint256_t(scalar).get_bit(0) & 1) == 1) {
                 scalar -= fr(1); // make sure to add skew
             }
-            element_ct P = element_ct::from_witness(&composer, input);
-            scalar_ct x = scalar_ct::from_witness(&composer, scalar);
+            element_ct P = element_ct::from_witness(&builder, input);
+            scalar_ct x = scalar_ct::from_witness(&builder, scalar);
 
-            std::cerr << "gates before mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "gates before mul " << builder.get_num_gates() << std::endl;
             element_ct c = element_ct::wnaf_batch_mul({ P }, { x });
-            std::cerr << "composer aftr mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "builder aftr mul " << builder.get_num_gates() << std::endl;
             affine_element c_expected(element(input) * scalar);
 
             fq c_x_result(c.x.get_value().lo);
@@ -488,13 +488,13 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_batch_mul_short_scalars()
     {
         const size_t num_points = 11;
-        Composer composer;
+        Builder builder;
         std::vector<affine_element> points;
         std::vector<fr> scalars;
         for (size_t i = 0; i < num_points; ++i) {
@@ -507,8 +507,8 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         std::vector<element_ct> circuit_points;
         std::vector<scalar_ct> circuit_scalars;
         for (size_t i = 0; i < num_points; ++i) {
-            circuit_points.push_back(element_ct::from_witness(&composer, points[i]));
-            circuit_scalars.push_back(scalar_ct::from_witness(&composer, scalars[i]));
+            circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+            circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
         }
 
         element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars, 128);
@@ -526,12 +526,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(result_x, expected_point.x);
         EXPECT_EQ(result_y, expected_point.y);
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_wnaf_batch_mul_128_bit()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             affine_element input(element::random_element());
@@ -542,13 +542,13 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if ((uint256_t(scalar).get_bit(0) & 1) == 1) {
                 scalar -= fr(1); // make sure to add skew
             }
-            element_ct P = element_ct::from_witness(&composer, input);
-            scalar_ct x = scalar_ct::from_witness(&composer, scalar);
+            element_ct P = element_ct::from_witness(&builder, input);
+            scalar_ct x = scalar_ct::from_witness(&builder, scalar);
 
-            std::cerr << "gates before mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "gates before mul " << builder.get_num_gates() << std::endl;
             // Note: need >136 bits to complete this when working over bigfield
             element_ct c = element_ct::template wnaf_batch_mul<128>({ P }, { x });
-            std::cerr << "composer aftr mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "builder aftr mul " << builder.get_num_gates() << std::endl;
             affine_element c_expected(element(input) * scalar);
 
             fq c_x_result(c.x.get_value().lo);
@@ -558,12 +558,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_wnaf_batch_4()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             const auto get_128_bit_scalar = []() {
@@ -578,23 +578,23 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             affine_element input3(element::random_element());
             affine_element input4(element::random_element());
 
-            element_ct P1 = element_ct::from_witness(&composer, input1);
-            element_ct P2 = element_ct::from_witness(&composer, input2);
-            element_ct P3 = element_ct::from_witness(&composer, input3);
-            element_ct P4 = element_ct::from_witness(&composer, input4);
+            element_ct P1 = element_ct::from_witness(&builder, input1);
+            element_ct P2 = element_ct::from_witness(&builder, input2);
+            element_ct P3 = element_ct::from_witness(&builder, input3);
+            element_ct P4 = element_ct::from_witness(&builder, input4);
 
             fr scalar1 = get_128_bit_scalar();
             fr scalar2 = get_128_bit_scalar();
             fr scalar3 = get_128_bit_scalar();
             fr scalar4 = get_128_bit_scalar();
-            scalar_ct x1 = scalar_ct::from_witness(&composer, scalar1);
-            scalar_ct x2 = scalar_ct::from_witness(&composer, scalar2);
-            scalar_ct x3 = scalar_ct::from_witness(&composer, scalar3);
-            scalar_ct x4 = scalar_ct::from_witness(&composer, scalar4);
+            scalar_ct x1 = scalar_ct::from_witness(&builder, scalar1);
+            scalar_ct x2 = scalar_ct::from_witness(&builder, scalar2);
+            scalar_ct x3 = scalar_ct::from_witness(&builder, scalar3);
+            scalar_ct x4 = scalar_ct::from_witness(&builder, scalar4);
 
-            std::cerr << "gates before mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "gates before mul " << builder.get_num_gates() << std::endl;
             element_ct c = element_ct::batch_mul({ P1, P2, P3, P4 }, { x1, x2, x3, x4 }, 128);
-            std::cerr << "composer aftr mul " << composer.get_num_gates() << std::endl;
+            std::cerr << "builder aftr mul " << builder.get_num_gates() << std::endl;
 
             element out = input1 * scalar1;
             out += (input2 * scalar2);
@@ -609,14 +609,14 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(c_y_result, c_expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_bn254_endo_batch_mul()
     {
         const size_t num_big_points = 2;
         const size_t num_small_points = 1;
-        Composer composer;
+        Builder builder;
         std::vector<affine_element> big_points;
         std::vector<fr> big_scalars;
         std::vector<affine_element> small_points;
@@ -639,12 +639,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         std::vector<element_ct> small_circuit_points;
         std::vector<scalar_ct> small_circuit_scalars;
         for (size_t i = 0; i < num_big_points; ++i) {
-            big_circuit_points.push_back(element_ct::from_witness(&composer, big_points[i]));
-            big_circuit_scalars.push_back(scalar_ct::from_witness(&composer, big_scalars[i]));
+            big_circuit_points.push_back(element_ct::from_witness(&builder, big_points[i]));
+            big_circuit_scalars.push_back(scalar_ct::from_witness(&builder, big_scalars[i]));
         }
         for (size_t i = 0; i < num_small_points; ++i) {
-            small_circuit_points.push_back(element_ct::from_witness(&composer, small_points[i]));
-            small_circuit_scalars.push_back(scalar_ct::from_witness(&composer, small_scalars[i]));
+            small_circuit_points.push_back(element_ct::from_witness(&builder, small_points[i]));
+            small_circuit_scalars.push_back(scalar_ct::from_witness(&builder, small_scalars[i]));
         }
 
         element_ct result_point = element_ct::bn254_endo_batch_mul(
@@ -666,12 +666,12 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(result_x, expected_point.x);
         EXPECT_EQ(result_y, expected_point.y);
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_mixed_mul_bn254_endo()
     {
-        Composer composer;
+        Builder builder;
         size_t num_repetitions = 1;
 
         const auto get_small_scalar = []() {
@@ -699,27 +699,27 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             for (size_t i = 0; i < 25; ++i) {
                 small_points_w[i] = affine_element(element::random_element());
                 small_scalars_w[i] = get_small_scalar();
-                small_points[i] = element_ct::from_witness(&composer, small_points_w[i]);
-                small_scalars[i] = scalar_ct::from_witness(&composer, small_scalars_w[i]);
+                small_points[i] = element_ct::from_witness(&builder, small_points_w[i]);
+                small_scalars[i] = scalar_ct::from_witness(&builder, small_scalars_w[i]);
             }
             for (size_t i = 0; i < 5; ++i) {
                 big_points_w[i] = affine_element(element::random_element());
                 big_scalars_w[i] = fr::random_element();
-                big_points[i] = element_ct::from_witness(&composer, big_points_w[i]);
-                big_scalars[i] = scalar_ct::from_witness(&composer, big_scalars_w[i]);
+                big_points[i] = element_ct::from_witness(&builder, big_points_w[i]);
+                big_scalars[i] = scalar_ct::from_witness(&builder, big_scalars_w[i]);
             }
             for (size_t i = 0; i < 11; ++i) {
                 double_points_w[i] = affine_element(element::random_element());
                 double_scalars_w[i] = get_small_scalar();
-                double_points[i] = element_ct::from_witness(&composer, double_points_w[i]);
-                double_scalars[i] = scalar_ct::from_witness(&composer, double_scalars_w[i]);
+                double_points[i] = element_ct::from_witness(&builder, double_points_w[i]);
+                double_scalars[i] = scalar_ct::from_witness(&builder, double_scalars_w[i]);
             }
 
             fr omega = get_small_scalar();
 
             const auto double_opening_result = element_ct::batch_mul(double_points, double_scalars, 128);
             small_points.push_back(double_opening_result);
-            small_scalars.push_back(scalar_ct::from_witness(&composer, omega));
+            small_scalars.push_back(scalar_ct::from_witness(&builder, omega));
 
             auto opening_result =
                 element_ct::bn254_endo_batch_mul(big_points, big_scalars, small_points, small_scalars, 128);
@@ -748,50 +748,50 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(result_y, expected.y);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     };
 
     static void test_wnaf_secp256k1()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             fr scalar_a(fr::random_element());
             if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // skew bit is 1
             }
-            scalar_ct x_a = scalar_ct::from_witness(&composer, scalar_a);
+            scalar_ct x_a = scalar_ct::from_witness(&builder, scalar_a);
             element_ct::template compute_secp256k1_endo_wnaf<4, 0, 3>(x_a);
             element_ct::template compute_secp256k1_endo_wnaf<4, 1, 2>(x_a);
             element_ct::template compute_secp256k1_endo_wnaf<4, 2, 1>(x_a);
             element_ct::template compute_secp256k1_endo_wnaf<4, 3, 0>(x_a);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_wnaf_8bit_secp256k1()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             fr scalar_a(fr::random_element());
             if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // skew bit is 1
             }
-            scalar_ct x_a = scalar_ct::from_witness(&composer, scalar_a);
+            scalar_ct x_a = scalar_ct::from_witness(&builder, scalar_a);
             element_ct::template compute_secp256k1_endo_wnaf<8, 0, 3>(x_a);
             element_ct::template compute_secp256k1_endo_wnaf<8, 1, 2>(x_a);
             element_ct::template compute_secp256k1_endo_wnaf<8, 2, 1>(x_a);
             element_ct::template compute_secp256k1_endo_wnaf<8, 3, 0>(x_a);
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
     static void test_ecdsa_mul_secp256k1()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             fr scalar_a(fr::random_element());
@@ -800,9 +800,9 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // skew bit is 1
             }
-            element_ct P_a = element_ct::from_witness(&composer, g1::one * scalar_c);
-            scalar_ct u1 = scalar_ct::from_witness(&composer, scalar_a);
-            scalar_ct u2 = scalar_ct::from_witness(&composer, scalar_b);
+            element_ct P_a = element_ct::from_witness(&builder, g1::one * scalar_c);
+            scalar_ct u1 = scalar_ct::from_witness(&builder, scalar_a);
+            scalar_ct u2 = scalar_ct::from_witness(&builder, scalar_b);
 
             fr alo;
             fr ahi;
@@ -819,7 +819,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(output.y.get_value().lo, uint256_t(expected.y));
         }
 
-        EXPECT_CIRCUIT_CORRECTNESS(composer);
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 };
 
@@ -896,7 +896,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, compute_naf)
 /* These tests only work for Ultra Circuit Constructor */
 HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
 {
-    if constexpr (HasPlookup<typename TypeParam::Curve::Composer>) {
+    if constexpr (HasPlookup<typename TypeParam::Curve::Builder>) {
         TestFixture::test_compute_wnaf();
     } else {
         GTEST_SKIP();
@@ -907,7 +907,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, wnaf_batch_mul)
    case where Fr is a bigfield. */
 HEAVY_TYPED_TEST(stdlib_biggroup, compute_wnaf)
 {
-    if constexpr (!HasPlookup<typename TypeParam::Curve::Composer> && TypeParam::use_bigfield) {
+    if constexpr (!HasPlookup<typename TypeParam::Curve::Builder> && TypeParam::use_bigfield) {
         GTEST_SKIP();
     } else {
         TestFixture::test_compute_wnaf();

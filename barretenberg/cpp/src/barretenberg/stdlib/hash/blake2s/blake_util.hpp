@@ -35,12 +35,12 @@ constexpr uint8_t MSG_SCHEDULE_BLAKE2[10][16] = {
  * Additionally, it checks if the overflow of the addition is a maximum of 3 bits.
  * This is to ascertain that the additions of two 32-bit scalars in blake2s and blake3s do not exceed 35 bits.
  */
-template <typename Composer> field_t<Composer> add_normalize(const field_t<Composer>& a, const field_t<Composer>& b)
+template <typename Builder> field_t<Builder> add_normalize(const field_t<Builder>& a, const field_t<Builder>& b)
 {
-    typedef field_t<Composer> field_pt;
-    typedef witness_t<Composer> witness_pt;
+    typedef field_t<Builder> field_pt;
+    typedef witness_t<Builder> witness_pt;
 
-    Composer* ctx = a.get_context() ? a.get_context() : b.get_context();
+    Builder* ctx = a.get_context() ? a.get_context() : b.get_context();
 
     uint256_t sum = a.get_value() + b.get_value();
 
@@ -72,14 +72,14 @@ template <typename Composer> field_t<Composer> add_normalize(const field_t<Compo
  *         - addition messages x and y
  *
  **/
-template <typename Composer>
-void g(uint32<Composer> state[BLAKE3_STATE_SIZE],
+template <typename Builder>
+void g(uint32<Builder> state[BLAKE3_STATE_SIZE],
        size_t a,
        size_t b,
        size_t c,
        size_t d,
-       uint32<Composer> x,
-       uint32<Composer> y)
+       uint32<Builder> x,
+       uint32<Builder> y)
 {
     state[a] = state[a] + state[b] + x;
     state[d] = (state[d] ^ state[a]).ror(16);
@@ -138,25 +138,24 @@ void g(uint32<Composer> state[BLAKE3_STATE_SIZE],
  *
  *
  **/
-template <typename Composer>
-void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
+template <typename Builder>
+void g_lookup(field_t<Builder> state[BLAKE3_STATE_SIZE],
               size_t a,
               size_t b,
               size_t c,
               size_t d,
-              field_t<Composer> x,
-              field_t<Composer> y,
+              field_t<Builder> x,
+              field_t<Builder> y,
               const bool last_update = false)
 {
-    typedef field_t<Composer> field_pt;
+    typedef field_t<Builder> field_pt;
 
     // For simplicity, state[a] is written as `a' in comments.
     // a = a + b + x
     state[a] = state[a].add_two(state[b], x);
 
     // d = (d ^ a).ror(16)
-    const auto lookup_1 =
-        plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR_ROTATE_16, state[d], state[a], true);
+    const auto lookup_1 = plookup_read<Builder>::get_lookup_accumulators(BLAKE_XOR_ROTATE_16, state[d], state[a], true);
     field_pt scaling_factor_1 = (1 << (32 - 16));
     state[d] = lookup_1[ColumnIdx::C3][0] * scaling_factor_1;
 
@@ -164,7 +163,7 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     state[c] = state[c] + state[d];
 
     // b = (b ^ c).ror(12)
-    const auto lookup_2 = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR, state[b], state[c], true);
+    const auto lookup_2 = plookup_read<Builder>::get_lookup_accumulators(BLAKE_XOR, state[b], state[c], true);
     field_pt lookup_output = lookup_2[ColumnIdx::C3][2];
     field_pt t2_term = field_pt(1 << 12) * lookup_2[ColumnIdx::C3][2];
     lookup_output += (lookup_2[ColumnIdx::C3][0] - t2_term) * field_pt(1 << 20);
@@ -178,7 +177,7 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     }
 
     // d = (d ^ a).ror(8)
-    const auto lookup_3 = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR_ROTATE_8, state[d], state[a], true);
+    const auto lookup_3 = plookup_read<Builder>::get_lookup_accumulators(BLAKE_XOR_ROTATE_8, state[d], state[a], true);
     field_pt scaling_factor_3 = (1 << (32 - 8));
     state[d] = lookup_3[ColumnIdx::C3][0] * scaling_factor_3;
 
@@ -190,7 +189,7 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     }
 
     // b = (b ^ c).ror(7)
-    const auto lookup_4 = plookup_read<Composer>::get_lookup_accumulators(BLAKE_XOR_ROTATE_7, state[b], state[c], true);
+    const auto lookup_4 = plookup_read<Builder>::get_lookup_accumulators(BLAKE_XOR_ROTATE_7, state[b], state[c], true);
     field_pt scaling_factor_4 = (1 << (32 - 7));
     state[b] = lookup_4[ColumnIdx::C3][0] * scaling_factor_4;
 }
@@ -202,9 +201,9 @@ void g_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
  *         - round numbe
  *         - which_blake to choose Blake2 or Blake3 (false -> Blake2)
  */
-template <typename Composer>
-void round_fn(uint32<Composer> state[BLAKE3_STATE_SIZE],
-              uint32<Composer> msg[BLAKE3_STATE_SIZE],
+template <typename Builder>
+void round_fn(uint32<Builder> state[BLAKE3_STATE_SIZE],
+              uint32<Builder> msg[BLAKE3_STATE_SIZE],
               size_t round,
               const bool which_blake = false)
 {
@@ -212,16 +211,16 @@ void round_fn(uint32<Composer> state[BLAKE3_STATE_SIZE],
     const uint8_t* schedule = which_blake ? MSG_SCHEDULE_BLAKE3[round] : MSG_SCHEDULE_BLAKE2[round];
 
     // Mix the columns.
-    g<Composer>(state, 0, 4, 8, 12, msg[schedule[0]], msg[schedule[1]]);
-    g<Composer>(state, 1, 5, 9, 13, msg[schedule[2]], msg[schedule[3]]);
-    g<Composer>(state, 2, 6, 10, 14, msg[schedule[4]], msg[schedule[5]]);
-    g<Composer>(state, 3, 7, 11, 15, msg[schedule[6]], msg[schedule[7]]);
+    g<Builder>(state, 0, 4, 8, 12, msg[schedule[0]], msg[schedule[1]]);
+    g<Builder>(state, 1, 5, 9, 13, msg[schedule[2]], msg[schedule[3]]);
+    g<Builder>(state, 2, 6, 10, 14, msg[schedule[4]], msg[schedule[5]]);
+    g<Builder>(state, 3, 7, 11, 15, msg[schedule[6]], msg[schedule[7]]);
 
     // Mix the rows.
-    g<Composer>(state, 0, 5, 10, 15, msg[schedule[8]], msg[schedule[9]]);
-    g<Composer>(state, 1, 6, 11, 12, msg[schedule[10]], msg[schedule[11]]);
-    g<Composer>(state, 2, 7, 8, 13, msg[schedule[12]], msg[schedule[13]]);
-    g<Composer>(state, 3, 4, 9, 14, msg[schedule[14]], msg[schedule[15]]);
+    g<Builder>(state, 0, 5, 10, 15, msg[schedule[8]], msg[schedule[9]]);
+    g<Builder>(state, 1, 6, 11, 12, msg[schedule[10]], msg[schedule[11]]);
+    g<Builder>(state, 2, 7, 8, 13, msg[schedule[12]], msg[schedule[13]]);
+    g<Builder>(state, 3, 4, 9, 14, msg[schedule[14]], msg[schedule[15]]);
 }
 
 /*
@@ -231,9 +230,9 @@ void round_fn(uint32<Composer> state[BLAKE3_STATE_SIZE],
  *         - round numbe
  *         - which_blake to choose Blake2 or Blake3 (false -> Blake2)
  */
-template <typename Composer>
-void round_fn_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
-                     field_t<Composer> msg[BLAKE3_STATE_SIZE],
+template <typename Builder>
+void round_fn_lookup(field_t<Builder> state[BLAKE3_STATE_SIZE],
+                     field_t<Builder> msg[BLAKE3_STATE_SIZE],
                      size_t round,
                      const bool which_blake = false)
 {
@@ -241,16 +240,16 @@ void round_fn_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
     const uint8_t* schedule = which_blake ? MSG_SCHEDULE_BLAKE3[round] : MSG_SCHEDULE_BLAKE2[round];
 
     // Mix the columns.
-    g_lookup<Composer>(state, 0, 4, 8, 12, msg[schedule[0]], msg[schedule[1]]);
-    g_lookup<Composer>(state, 1, 5, 9, 13, msg[schedule[2]], msg[schedule[3]]);
-    g_lookup<Composer>(state, 2, 6, 10, 14, msg[schedule[4]], msg[schedule[5]]);
-    g_lookup<Composer>(state, 3, 7, 11, 15, msg[schedule[6]], msg[schedule[7]]);
+    g_lookup<Builder>(state, 0, 4, 8, 12, msg[schedule[0]], msg[schedule[1]]);
+    g_lookup<Builder>(state, 1, 5, 9, 13, msg[schedule[2]], msg[schedule[3]]);
+    g_lookup<Builder>(state, 2, 6, 10, 14, msg[schedule[4]], msg[schedule[5]]);
+    g_lookup<Builder>(state, 3, 7, 11, 15, msg[schedule[6]], msg[schedule[7]]);
 
     // Mix the rows.
-    g_lookup<Composer>(state, 0, 5, 10, 15, msg[schedule[8]], msg[schedule[9]], true);
-    g_lookup<Composer>(state, 1, 6, 11, 12, msg[schedule[10]], msg[schedule[11]], true);
-    g_lookup<Composer>(state, 2, 7, 8, 13, msg[schedule[12]], msg[schedule[13]], true);
-    g_lookup<Composer>(state, 3, 4, 9, 14, msg[schedule[14]], msg[schedule[15]], true);
+    g_lookup<Builder>(state, 0, 5, 10, 15, msg[schedule[8]], msg[schedule[9]], true);
+    g_lookup<Builder>(state, 1, 6, 11, 12, msg[schedule[10]], msg[schedule[11]], true);
+    g_lookup<Builder>(state, 2, 7, 8, 13, msg[schedule[12]], msg[schedule[13]], true);
+    g_lookup<Builder>(state, 3, 4, 9, 14, msg[schedule[14]], msg[schedule[15]], true);
 }
 
 } // namespace blake_util

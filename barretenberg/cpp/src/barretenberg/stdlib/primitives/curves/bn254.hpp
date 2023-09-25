@@ -30,7 +30,6 @@ template <typename CircuitBuilder> struct bn254 {
 
     // Additional types with no analog in the native description of the curve
     using Builder = CircuitBuilder;
-    using Composer = CircuitBuilder;
     using witness_ct = witness_t<CircuitBuilder>;
     using public_witness_ct = public_witness_t<CircuitBuilder>;
     using byte_array_ct = byte_array<CircuitBuilder>;

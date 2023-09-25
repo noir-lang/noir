@@ -522,8 +522,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::multiple_montgomery_ladder(
             y_4.mul_right.emplace_back(previous_y.is_negative ? previous_x - x_4 : x_4 - previous_x);
             // append terms in previous_y to y_4. We want to make sure the terms above are added into the start of y_4.
             // This is to ensure they are cached correctly when
-            // `composer::evaluate_partial_non_native_field_multiplication` is called.
-            // (the 1st mul_left, mul_right elements will trigger composer::evaluate_non_native_field_multiplication
+            // `builder::evaluate_partial_non_native_field_multiplication` is called.
+            // (the 1st mul_left, mul_right elements will trigger builder::evaluate_non_native_field_multiplication
             //  when Fq::mult_madd is called - this term cannot be cached so we want to make sure it is unique)
             std::copy(previous_y.mul_left.begin(), previous_y.mul_left.end(), std::back_inserter(y_4.mul_left));
             std::copy(previous_y.mul_right.begin(), previous_y.mul_right.end(), std::back_inserter(y_4.mul_right));

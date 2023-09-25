@@ -1,6 +1,6 @@
 /**
- * @brief Contains all the headers required to adequately compile the types defined in composers_fwd.hpp and instantiate
- * templates.
+ * @brief Contains all the headers required to adequately compile the types defined in circuit_builders_fwd.hpp and
+ * instantiate templates.
  */
 #pragma once
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"

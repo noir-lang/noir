@@ -7,7 +7,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 /**
- * @brief Construct a new Dynamic Array< Composer>:: Dynamic Array object
+ * @brief Construct a new Dynamic Array< Builder>:: Dynamic Array object
  *
  * @details Dynamic arrays require a maximum size when created, that cannot be exceeded.
  *          Read and write operations cost 3.25 UltraPlonk gates.
@@ -15,17 +15,17 @@ namespace stdlib {
  *          If the dynamic array also requires a unique range constraint table due to its length (e.g. not a power of
  * 2), this will add an additional (maximum_size / 6) gates.
  *
- * @tparam Composer
- * @param composer
+ * @tparam Builder
+ * @param builder
  * @param maximum_size The maximum size of the array
  */
-template <typename Composer>
-DynamicArray<Composer>::DynamicArray(Composer* composer, const size_t maximum_size)
-    : _context(composer)
+template <typename Builder>
+DynamicArray<Builder>::DynamicArray(Builder* builder, const size_t maximum_size)
+    : _context(builder)
     , _max_size(maximum_size)
     , _length(0)
 {
-    static_assert(HasPlookup<Composer>);
+    static_assert(HasPlookup<Builder>);
     ASSERT(_context != nullptr);
     _inner_table = ram_table(_context, maximum_size);
     // Initialize the ram table with all zeroes
@@ -35,13 +35,13 @@ DynamicArray<Composer>::DynamicArray(Composer* composer, const size_t maximum_si
 }
 
 /**
- * @brief Construct a new Dynamic Array< Composer>:: Dynamic Array object
+ * @brief Construct a new Dynamic Array< Builder>:: Dynamic Array object
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
  */
-template <typename Composer>
-DynamicArray<Composer>::DynamicArray(const DynamicArray& other)
+template <typename Builder>
+DynamicArray<Builder>::DynamicArray(const DynamicArray& other)
     : _context(other._context)
     , _max_size(other._max_size)
     , _length(other._length)
@@ -49,13 +49,13 @@ DynamicArray<Composer>::DynamicArray(const DynamicArray& other)
 {}
 
 /**
- * @brief Construct a new Dynamic Array< Composer>:: Dynamic Array object
+ * @brief Construct a new Dynamic Array< Builder>:: Dynamic Array object
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
  */
-template <typename Composer>
-DynamicArray<Composer>::DynamicArray(DynamicArray&& other)
+template <typename Builder>
+DynamicArray<Builder>::DynamicArray(DynamicArray&& other)
     : _context(other._context)
     , _max_size(other._max_size)
     , _length(other._length)
@@ -65,11 +65,11 @@ DynamicArray<Composer>::DynamicArray(DynamicArray&& other)
 /**
  * @brief Assignment Operator
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return DynamicArray<Composer>&
+ * @return DynamicArray<Builder>&
  */
-template <typename Composer> DynamicArray<Composer>& DynamicArray<Composer>::operator=(const DynamicArray& other)
+template <typename Builder> DynamicArray<Builder>& DynamicArray<Builder>::operator=(const DynamicArray& other)
 {
     _context = other._context;
     _max_size = other._max_size;
@@ -81,11 +81,11 @@ template <typename Composer> DynamicArray<Composer>& DynamicArray<Composer>::ope
 /**
  * @brief Move Assignment Operator
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return DynamicArray<Composer>&
+ * @return DynamicArray<Builder>&
  */
-template <typename Composer> DynamicArray<Composer>& DynamicArray<Composer>::operator=(DynamicArray&& other)
+template <typename Builder> DynamicArray<Builder>& DynamicArray<Builder>::operator=(DynamicArray&& other)
 {
     _context = other._context;
     _max_size = other._max_size;
@@ -97,11 +97,10 @@ template <typename Composer> DynamicArray<Composer>& DynamicArray<Composer>::ope
 /**
  * @brief Resize array. Current method v. inefficient!
  *
- * @tparam Composer
+ * @tparam Builder
  * @param new_length
  */
-template <typename Composer>
-void DynamicArray<Composer>::resize(const field_pt& new_length, const field_pt default_value)
+template <typename Builder> void DynamicArray<Builder>::resize(const field_pt& new_length, const field_pt default_value)
 {
     // 1: assert new_length < max_size
     field_pt max_bounds_check = (field_pt(_max_size) - new_length - 1);
@@ -163,11 +162,11 @@ void DynamicArray<Composer>::resize(const field_pt& new_length, const field_pt d
 /**
  * @brief Read a field element from the dynamic array at an index value
  *
- * @tparam Composer
+ * @tparam Builder
  * @param index
- * @return field_t<Composer>
+ * @return field_t<Builder>
  */
-template <typename Composer> field_t<Composer> DynamicArray<Composer>::read(const field_pt& index) const
+template <typename Builder> field_t<Builder> DynamicArray<Builder>::read(const field_pt& index) const
 {
     const field_pt index_delta = (_length - index - 1);
 
@@ -187,11 +186,11 @@ template <typename Composer> field_t<Composer> DynamicArray<Composer>::read(cons
 /**
  * @brief Write a field element into the dynamic array at an index value
  *
- * @tparam Composer
+ * @tparam Builder
  * @param index
  * @param value
  */
-template <typename Composer> void DynamicArray<Composer>::write(const field_pt& index, const field_pt& value)
+template <typename Builder> void DynamicArray<Builder>::write(const field_pt& index, const field_pt& value)
 {
     const field_pt index_delta = (_length - index - 1);
 
@@ -211,10 +210,10 @@ template <typename Composer> void DynamicArray<Composer>::write(const field_pt& 
 /**
  * @brief Push a field element onto the dynamic array
  *
- * @tparam Composer
+ * @tparam Builder
  * @param value
  */
-template <typename Composer> void DynamicArray<Composer>::push(const field_pt& value)
+template <typename Builder> void DynamicArray<Builder>::push(const field_pt& value)
 {
     if (native_size() >= _max_size) {
         _context->failure("DynamicArray::push array is already at its maximum size");
@@ -227,9 +226,9 @@ template <typename Composer> void DynamicArray<Composer>::push(const field_pt& v
 /**
  * @brief Pop a field element off of the dynamic array
  *
- * @tparam Composer
+ * @tparam Builder
  */
-template <typename Composer> void DynamicArray<Composer>::pop()
+template <typename Builder> void DynamicArray<Builder>::pop()
 {
     if (native_size() == 0) {
         _context->failure("DynamicArray::pop array is already empty");
@@ -242,12 +241,12 @@ template <typename Composer> void DynamicArray<Composer>::pop()
 /**
  * @brief Conditionally push a field element onto the dynamic array
  *
- * @tparam Composer
+ * @tparam Builder
  * @param predicate
  * @param value
  */
-template <typename Composer>
-void DynamicArray<Composer>::conditional_push(const bool_pt& predicate, const field_pt& value)
+template <typename Builder>
+void DynamicArray<Builder>::conditional_push(const bool_pt& predicate, const field_pt& value)
 {
     if (native_size() >= _max_size) {
         _context->failure("DynamicArray::push array is already at its maximum size");
@@ -260,10 +259,10 @@ void DynamicArray<Composer>::conditional_push(const bool_pt& predicate, const fi
 /**
  * @brief Conditionallhy pop a field element off of the dynamic array
  *
- * @tparam Composer
+ * @tparam Builder
  * @param predicate
  */
-template <typename Composer> void DynamicArray<Composer>::conditional_pop(const bool_pt& predicate)
+template <typename Builder> void DynamicArray<Builder>::conditional_pop(const bool_pt& predicate)
 {
     if (native_size() == 0) {
         _context->failure("DynamicArray::pop array is already empty");

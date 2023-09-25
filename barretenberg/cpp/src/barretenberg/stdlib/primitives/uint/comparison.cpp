@@ -6,7 +6,7 @@ using namespace barretenberg;
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer, typename Native>
+template <typename Builder, typename Native>
 /**
  * @brief Determine whether this > other.
  *
@@ -14,19 +14,19 @@ template <typename Composer, typename Native>
  * as satisfying either a > b or a <= b.
  *
  */
-bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
+bool_t<Builder> uint<Builder, Native>::operator>(const uint& other) const
 {
-    Composer* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
-    field_t<Composer> a(*this);
-    field_t<Composer> b(other);
+    field_t<Builder> a(*this);
+    field_t<Builder> b(other);
     bool result_witness = uint256_t(a.get_value()) > uint256_t(b.get_value());
 
     if (is_constant() && other.is_constant()) {
-        return bool_t<Composer>(ctx, result_witness);
+        return bool_t<Builder>(ctx, result_witness);
     }
 
-    const bool_t<Composer> result = witness_t<Composer>(ctx, result_witness);
+    const bool_t<Builder> result = witness_t<Builder>(ctx, result_witness);
 
     /**
      * The field_t operator on uints normalizes its input, so a and be have
@@ -54,7 +54,7 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
     const auto diff = a - b;
     // diff.result - result + diff.result - diff = diff.(2.result - 1) - result
     const auto comparison_check =
-        diff.madd(field_t<Composer>(result) * 2 - field_t<Composer>(1), -field_t<Composer>(result));
+        diff.madd(field_t<Builder>(result) * 2 - field_t<Builder>(1), -field_t<Builder>(result));
 
     ctx->decompose_into_base4_accumulators(
         comparison_check.witness_index, width, "comparison: uint comparison range constraint fails.");
@@ -62,44 +62,39 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
     return result;
 }
 
-template <typename Composer, typename Native>
-bool_t<Composer> uint<Composer, Native>::operator<(const uint& other) const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::operator<(const uint& other) const
 {
     return other > *this;
 }
 
-template <typename Composer, typename Native>
-bool_t<Composer> uint<Composer, Native>::operator>=(const uint& other) const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::operator>=(const uint& other) const
 {
     return (!(other > *this)).normalize();
 }
 
-template <typename Composer, typename Native>
-bool_t<Composer> uint<Composer, Native>::operator<=(const uint& other) const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::operator<=(const uint& other) const
 {
     return (!(*this > other)).normalize();
 }
 
-template <typename Composer, typename Native>
-bool_t<Composer> uint<Composer, Native>::operator==(const uint& other) const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::operator==(const uint& other) const
 {
     // casting to a field type will ensure that lhs / rhs are both normalized
-    const field_t<Composer> lhs = static_cast<field_t<Composer>>(*this);
-    const field_t<Composer> rhs = static_cast<field_t<Composer>>(other);
+    const field_t<Builder> lhs = static_cast<field_t<Builder>>(*this);
+    const field_t<Builder> rhs = static_cast<field_t<Builder>>(other);
 
     return (lhs == rhs).normalize();
 }
 
-template <typename Composer, typename Native>
-bool_t<Composer> uint<Composer, Native>::operator!=(const uint& other) const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::operator!=(const uint& other) const
 {
     return (!(*this == other)).normalize();
 }
 
-template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Native>::operator!() const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::operator!() const
 {
     // return true if this is zero, otherwise return false.
-    return (field_t<Composer>(*this).is_zero()).normalize();
+    return (field_t<Builder>(*this).is_zero()).normalize();
 }
 
 INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint8_t);

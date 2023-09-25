@@ -7,16 +7,16 @@ using namespace proof_system;
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename ComposerContext>
-bool_t<ComposerContext>::bool_t(const bool value)
+template <typename Builder>
+bool_t<Builder>::bool_t(const bool value)
     : context(nullptr)
     , witness_bool(value)
     , witness_inverted(false)
     , witness_index(IS_CONSTANT)
 {}
 
-template <typename ComposerContext>
-bool_t<ComposerContext>::bool_t(ComposerContext* parent_context)
+template <typename Builder>
+bool_t<Builder>::bool_t(Builder* parent_context)
     : context(parent_context)
 {
     witness_bool = false;
@@ -24,8 +24,8 @@ bool_t<ComposerContext>::bool_t(ComposerContext* parent_context)
     witness_index = IS_CONSTANT;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext>::bool_t(const witness_t<ComposerContext>& value)
+template <typename Builder>
+bool_t<Builder>::bool_t(const witness_t<Builder>& value)
     : context(value.context)
 {
     ASSERT((value.witness == barretenberg::fr::zero()) || (value.witness == barretenberg::fr::one()));
@@ -35,8 +35,8 @@ bool_t<ComposerContext>::bool_t(const witness_t<ComposerContext>& value)
     witness_inverted = false;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext>::bool_t(ComposerContext* parent_context, const bool value)
+template <typename Builder>
+bool_t<Builder>::bool_t(Builder* parent_context, const bool value)
     : context(parent_context)
 {
     context = parent_context;
@@ -45,8 +45,8 @@ bool_t<ComposerContext>::bool_t(ComposerContext* parent_context, const bool valu
     witness_inverted = false;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext>::bool_t(const bool_t<ComposerContext>& other)
+template <typename Builder>
+bool_t<Builder>::bool_t(const bool_t<Builder>& other)
     : context(other.context)
 {
     witness_index = other.witness_index;
@@ -54,8 +54,8 @@ bool_t<ComposerContext>::bool_t(const bool_t<ComposerContext>& other)
     witness_inverted = other.witness_inverted;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext>::bool_t(bool_t<ComposerContext>&& other)
+template <typename Builder>
+bool_t<Builder>::bool_t(bool_t<Builder>&& other)
     : context(other.context)
 {
     witness_index = other.witness_index;
@@ -63,7 +63,7 @@ bool_t<ComposerContext>::bool_t(bool_t<ComposerContext>&& other)
     witness_inverted = other.witness_inverted;
 }
 
-template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerContext>::operator=(const bool other)
+template <typename Builder> bool_t<Builder>& bool_t<Builder>::operator=(const bool other)
 {
     context = nullptr;
     witness_index = IS_CONSTANT;
@@ -72,7 +72,7 @@ template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerCont
     return *this;
 }
 
-template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerContext>::operator=(const bool_t& other)
+template <typename Builder> bool_t<Builder>& bool_t<Builder>::operator=(const bool_t& other)
 {
     context = other.context;
     witness_index = other.witness_index;
@@ -81,7 +81,7 @@ template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerCont
     return *this;
 }
 
-template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerContext>::operator=(bool_t&& other)
+template <typename Builder> bool_t<Builder>& bool_t<Builder>::operator=(bool_t&& other)
 {
     context = other.context;
     witness_index = other.witness_index;
@@ -90,8 +90,7 @@ template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerCont
     return *this;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext>& bool_t<ComposerContext>::operator=(const witness_t<ComposerContext>& other)
+template <typename Builder> bool_t<Builder>& bool_t<Builder>::operator=(const witness_t<Builder>& other)
 {
     ASSERT((other.witness == barretenberg::fr::one()) || (other.witness == barretenberg::fr::zero()));
     context = other.context;
@@ -102,10 +101,9 @@ bool_t<ComposerContext>& bool_t<ComposerContext>::operator=(const witness_t<Comp
     return *this;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator&(const bool_t& other) const
 {
-    bool_t<ComposerContext> result(context == nullptr ? other.context : context);
+    bool_t<Builder> result(context == nullptr ? other.context : context);
     bool left = witness_inverted ^ witness_bool;
     bool right = other.witness_inverted ^ other.witness_bool;
 
@@ -162,7 +160,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
         });
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         if (other.witness_bool ^ other.witness_inverted) {
-            result = bool_t<ComposerContext>(*this);
+            result = bool_t<Builder>(*this);
         } else {
             result.witness_bool = false;
             result.witness_inverted = false;
@@ -170,7 +168,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
         }
     } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         if (witness_bool ^ witness_inverted) {
-            result = bool_t<ComposerContext>(other);
+            result = bool_t<Builder>(other);
         } else {
             result.witness_bool = false;
             result.witness_inverted = false;
@@ -184,10 +182,9 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
     return result;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator|(const bool_t& other) const
 {
-    bool_t<ComposerContext> result(context == nullptr ? other.context : context);
+    bool_t<Builder> result(context == nullptr ? other.context : context);
 
     ASSERT(result.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
@@ -248,7 +245,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
             result.witness_bool = true;
             result.witness_inverted = false;
         } else {
-            result = bool_t<ComposerContext>(*this);
+            result = bool_t<Builder>(*this);
         }
     } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         if (witness_bool ^ witness_inverted) {
@@ -256,7 +253,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
             result.witness_bool = true;
             result.witness_inverted = false;
         } else {
-            result = bool_t<ComposerContext>(other);
+            result = bool_t<Builder>(other);
         }
     } else {
         result.witness_inverted = false;
@@ -265,10 +262,9 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
     return result;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator^(const bool_t& other) const
 {
-    bool_t<ComposerContext> result(context == nullptr ? other.context : context);
+    bool_t<Builder> result(context == nullptr ? other.context : context);
 
     ASSERT(result.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
@@ -308,15 +304,15 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // witness ^ 1 = !witness
         if (other.witness_bool ^ other.witness_inverted) {
-            result = !bool_t<ComposerContext>(*this);
+            result = !bool_t<Builder>(*this);
         } else {
-            result = bool_t<ComposerContext>(*this);
+            result = bool_t<Builder>(*this);
         }
     } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         if (witness_bool ^ witness_inverted) {
-            result = !bool_t<ComposerContext>(other);
+            result = !bool_t<Builder>(other);
         } else {
-            result = bool_t<ComposerContext>(other);
+            result = bool_t<Builder>(other);
         }
     } else {
         result.witness_inverted = false;
@@ -325,19 +321,18 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
     return result;
 }
 
-template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::operator!() const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator!() const
 {
-    bool_t<ComposerContext> result(*this);
+    bool_t<Builder> result(*this);
     result.witness_inverted = !result.witness_inverted;
     return result;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator==(const bool_t& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator==(const bool_t& other) const
 {
     ASSERT(context || other.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
     if ((other.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
-        bool_t<ComposerContext> result(context == nullptr ? other.context : context);
+        bool_t<Builder> result(context == nullptr ? other.context : context);
         result.witness_bool = (witness_bool ^ witness_inverted) == (other.witness_bool ^ other.witness_inverted);
         result.witness_index = IS_CONSTANT;
         return result;
@@ -354,7 +349,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator==(const bool_t& other)
             return !(other);
         }
     } else {
-        bool_t<ComposerContext> result(context == nullptr ? other.context : context);
+        bool_t<Builder> result(context == nullptr ? other.context : context);
         result.witness_bool = (witness_bool ^ witness_inverted) == (other.witness_bool ^ other.witness_inverted);
         barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
         result.witness_index = context->add_variable(value);
@@ -387,29 +382,25 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator==(const bool_t& other)
     }
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator!=(const bool_t<ComposerContext>& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator!=(const bool_t<Builder>& other) const
 {
     return operator^(other);
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator&&(const bool_t<ComposerContext>& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator&&(const bool_t<Builder>& other) const
 {
     return operator&(other);
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::operator||(const bool_t<ComposerContext>& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::operator||(const bool_t<Builder>& other) const
 {
     return operator|(other);
 }
 
-template <typename ComposerContext>
-void bool_t<ComposerContext>::assert_equal(const bool_t& rhs, std::string const& msg) const
+template <typename Builder> void bool_t<Builder>::assert_equal(const bool_t& rhs, std::string const& msg) const
 {
     const bool_t lhs = *this;
-    ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
+    Builder* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
 
     if (lhs.is_constant() && rhs.is_constant()) {
         ASSERT(lhs.get_value() == rhs.get_value());
@@ -434,16 +425,15 @@ void bool_t<ComposerContext>::assert_equal(const bool_t& rhs, std::string const&
 }
 
 // if predicate == true then return lhs, else return rhs
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::conditional_assign(const bool_t<ComposerContext>& predicate,
-                                                                    const bool_t& lhs,
-                                                                    const bool_t& rhs)
+template <typename Builder>
+bool_t<Builder> bool_t<Builder>::conditional_assign(const bool_t<Builder>& predicate,
+                                                    const bool_t& lhs,
+                                                    const bool_t& rhs)
 {
     return (predicate && lhs) || (!predicate && rhs);
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::implies(const bool_t<ComposerContext>& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::implies(const bool_t<Builder>& other) const
 {
     return (!(*this) || other); // P => Q is equiv. to !P || Q (not(P) or Q).
 }
@@ -454,8 +444,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::implies(const bool_t<ComposerCo
  * <=>  !P || (Q && R)           [by distributivity of propositional logic]
  * <=>  P => (Q && R)            [a.k.a. distribution of implication over conjunction]
  */
-template <typename ComposerContext>
-void bool_t<ComposerContext>::must_imply(const bool_t& other, std::string const& msg) const
+template <typename Builder> void bool_t<Builder>::must_imply(const bool_t& other, std::string const& msg) const
 {
     (this->implies(other)).assert_equal(true, msg);
 }
@@ -471,25 +460,25 @@ void bool_t<ComposerContext>::must_imply(const bool_t& other, std::string const&
  * <=>  !P || (Q && R)           [by distributivity of propositional logic]
  * <=>  P => (Q && R)            [a.k.a. distribution of implication over conjunction]
  */
-template <typename ComposerContext>
-void bool_t<ComposerContext>::must_imply(const std::vector<std::pair<bool_t, std::string>>& conds) const
+template <typename Builder>
+void bool_t<Builder>::must_imply(const std::vector<std::pair<bool_t, std::string>>& conds) const
 {
-    // Extract the composer
+    // Extract the builder
     const bool_t this_bool = *this;
-    ComposerContext* ctx = this_bool.get_context();
-    bool composer_found = (ctx != nullptr);
+    Builder* ctx = this_bool.get_context();
+    bool builder_found = (ctx != nullptr);
     for (size_t i = 0; i < conds.size(); i++) {
-        if (!composer_found) {
+        if (!builder_found) {
             ctx = conds[i].first.get_context();
-            composer_found = (ctx != nullptr);
+            builder_found = (ctx != nullptr);
         }
     }
 
-    // If no composer is found, all of the bool_t's must be constants.
+    // If no builder is found, all of the bool_t's must be constants.
     // In that case, we enforce a static assertion to check must_imply condition holds.
     // If all of your inputs do this function are constants and they don't obey a condition,
     // this function will panic at those static assertions.
-    if (!composer_found) {
+    if (!builder_found) {
         bool is_const = this_bool.is_constant();
         bool result = !this_bool.get_value();
         bool acc = true;
@@ -526,13 +515,12 @@ void bool_t<ComposerContext>::must_imply(const std::vector<std::pair<bool_t, std
 
 // A "double-implication" (<=>),
 // a.k.a "iff", a.k.a. "biconditional"
-template <typename ComposerContext>
-bool_t<ComposerContext> bool_t<ComposerContext>::implies_both_ways(const bool_t<ComposerContext>& other) const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::implies_both_ways(const bool_t<Builder>& other) const
 {
     return (!(*this) ^ other); // P <=> Q is equiv. to !(P ^ Q) (not(P xor Q)).
 }
 
-template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::normalize() const
+template <typename Builder> bool_t<Builder> bool_t<Builder>::normalize() const
 {
     if (is_constant() || !witness_inverted) {
         return *this;

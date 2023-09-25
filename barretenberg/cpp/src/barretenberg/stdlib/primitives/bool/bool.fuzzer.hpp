@@ -25,10 +25,10 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing ByteArray fuzzing instructions, execution, etc
  *
  */
-template <typename Composer> class BoolFuzzBase {
+template <typename Builder> class BoolFuzzBase {
   private:
-    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
-    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
+    typedef proof_system::plonk::stdlib::bool_t<Builder> bool_t;
+    typedef proof_system::plonk::stdlib::witness_t<Builder> witness_t;
 
   public:
     /**
@@ -388,9 +388,9 @@ template <typename Composer> class BoolFuzzBase {
         }
 
         /* Explicit re-instantiation using the various bit_array constructors */
-        ExecutionHandler set(Composer* composer)
+        ExecutionHandler set(Builder* builder)
         {
-            (void)composer;
+            (void)builder;
             switch (VarianceRNG.next() % 2) {
             case 0:
                 return ExecutionHandler(this->reference_value, bool_t(this->reference_value));
@@ -404,49 +404,49 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the constant instruction (push constant bool_t to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT(Composer* composer,
+        static inline size_t execute_CONSTANT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
-            stack.push_back(bool_t(composer, instruction.arguments.element));
+            (void)builder;
+            stack.push_back(bool_t(builder, instruction.arguments.element));
             return 0;
         }
         /**
          * @brief Execute the witness instruction (push witness bool_t to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_WITNESS(Composer* composer,
+        static inline size_t execute_WITNESS(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
 
             stack.push_back(
-                ExecutionHandler(instruction.arguments.element, witness_t(composer, instruction.arguments.element)));
+                ExecutionHandler(instruction.arguments.element, witness_t(builder, instruction.arguments.element)));
             return 0;
         }
         /**
          * @brief Execute the and operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_AND(Composer* composer,
+        static inline size_t execute_AND(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -467,16 +467,16 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the or operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_OR(Composer* composer,
+        static inline size_t execute_OR(Builder* builder,
                                         std::vector<ExecutionHandler>& stack,
                                         Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -497,16 +497,16 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the xor operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_XOR(Composer* composer,
+        static inline size_t execute_XOR(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -527,16 +527,16 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the NOT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_NOT(Composer* composer,
+        static inline size_t execute_NOT(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -556,16 +556,16 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the SELECT_IF_EQ instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SELECT_IF_EQ(Composer* composer,
+        static inline size_t execute_SELECT_IF_EQ(Builder* builder,
                                                   std::vector<ExecutionHandler>& stack,
                                                   Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -587,16 +587,16 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the ASSERT_EQUAL  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_EQUAL(Composer* composer,
+        static inline size_t execute_ASSERT_EQUAL(Builder* builder,
                                                   std::vector<ExecutionHandler>& stack,
                                                   Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -609,23 +609,23 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the SET instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SET(Composer* composer,
+        static inline size_t execute_SET(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
             size_t first_index = instruction.arguments.twoArgs.in % stack.size();
             size_t output_index = instruction.arguments.twoArgs.out;
             ExecutionHandler result;
-            result = stack[first_index].set(composer);
+            result = stack[first_index].set(builder);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -637,16 +637,16 @@ template <typename Composer> class BoolFuzzBase {
         /**
          * @brief Execute the RANDOMSEED instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_RANDOMSEED(Composer* composer,
+        static inline size_t execute_RANDOMSEED(Builder* builder,
                                                 std::vector<ExecutionHandler>& stack,
                                                 Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             (void)stack;
 
             VarianceRNG.reseed(instruction.arguments.randomseed);
@@ -658,15 +658,15 @@ template <typename Composer> class BoolFuzzBase {
     /**
      * @brief Check that the resulting values are equal to expected
      *
-     * @tparam Composer
-     * @param composer
+     * @tparam Builder
+     * @param builder
      * @param stack
      * @return true
      * @return false
      */
-    inline static bool postProcess(Composer* composer, std::vector<BoolFuzzBase::ExecutionHandler>& stack)
+    inline static bool postProcess(Builder* builder, std::vector<BoolFuzzBase::ExecutionHandler>& stack)
     {
-        (void)composer;
+        (void)builder;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
             if (element.b.get_value() != element.reference_value) {
@@ -838,7 +838,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<BoolFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
+    RunWithBuilders<BoolFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

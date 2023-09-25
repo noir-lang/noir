@@ -8,35 +8,34 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace ecdsa {
 
-template <typename Composer> struct signature {
-    stdlib::byte_array<Composer> r;
-    stdlib::byte_array<Composer> s;
-    stdlib::uint8<Composer> v;
+template <typename Builder> struct signature {
+    stdlib::byte_array<Builder> r;
+    stdlib::byte_array<Builder> s;
+    stdlib::uint8<Builder> v;
 };
 
-template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
-bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
-                                  const G1& public_key,
-                                  const signature<Composer>& sig);
+template <typename Builder, typename Curve, typename Fq, typename Fr, typename G1>
+bool_t<Builder> verify_signature(const stdlib::byte_array<Builder>& message,
+                                 const G1& public_key,
+                                 const signature<Builder>& sig);
 
-template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
-bool_t<Composer> verify_signature_noassert(const stdlib::byte_array<Composer>& message,
-                                           const G1& public_key,
-                                           const signature<Composer>& sig);
-template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
-bool_t<Composer> verify_signature_prehashed_message_noassert(const stdlib::byte_array<Composer>& hashed_message,
-                                                             const G1& public_key,
-                                                             const signature<Composer>& sig);
+template <typename Builder, typename Curve, typename Fq, typename Fr, typename G1>
+bool_t<Builder> verify_signature_noassert(const stdlib::byte_array<Builder>& message,
+                                          const G1& public_key,
+                                          const signature<Builder>& sig);
+template <typename Builder, typename Curve, typename Fq, typename Fr, typename G1>
+bool_t<Builder> verify_signature_prehashed_message_noassert(const stdlib::byte_array<Builder>& hashed_message,
+                                                            const G1& public_key,
+                                                            const signature<Builder>& sig);
 
-template <typename Composer>
-static signature<Composer> from_witness(Composer* ctx, const crypto::ecdsa::signature& input)
+template <typename Builder> static signature<Builder> from_witness(Builder* ctx, const crypto::ecdsa::signature& input)
 {
     std::vector<uint8_t> r_vec(std::begin(input.r), std::end(input.r));
     std::vector<uint8_t> s_vec(std::begin(input.s), std::end(input.s));
-    stdlib::byte_array<Composer> r(ctx, r_vec);
-    stdlib::byte_array<Composer> s(ctx, s_vec);
-    stdlib::uint8<Composer> v(ctx, input.v);
-    signature<Composer> out;
+    stdlib::byte_array<Builder> r(ctx, r_vec);
+    stdlib::byte_array<Builder> s(ctx, s_vec);
+    stdlib::uint8<Builder> v(ctx, input.v);
+    signature<Builder> out;
     out.r = r;
     out.s = s;
     out.v = v;

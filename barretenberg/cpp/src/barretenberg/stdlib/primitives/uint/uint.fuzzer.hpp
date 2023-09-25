@@ -30,15 +30,15 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing Uint fuzzing instructions, execution, etc
  *
  */
-template <typename Composer> class UintFuzzBase {
+template <typename Builder> class UintFuzzBase {
   private:
-    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
-    typedef proof_system::plonk::stdlib::uint<Composer, uint8_t> uint_8_t;
-    typedef proof_system::plonk::stdlib::uint<Composer, uint16_t> uint_16_t;
-    typedef proof_system::plonk::stdlib::uint<Composer, uint32_t> uint_32_t;
-    typedef proof_system::plonk::stdlib::uint<Composer, uint64_t> uint_64_t;
-    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
-    typedef proof_system::plonk::stdlib::byte_array<Composer> byte_array_t;
+    typedef proof_system::plonk::stdlib::bool_t<Builder> bool_t;
+    typedef proof_system::plonk::stdlib::uint<Builder, uint8_t> uint_8_t;
+    typedef proof_system::plonk::stdlib::uint<Builder, uint16_t> uint_16_t;
+    typedef proof_system::plonk::stdlib::uint<Builder, uint32_t> uint_32_t;
+    typedef proof_system::plonk::stdlib::uint<Builder, uint64_t> uint_64_t;
+    typedef proof_system::plonk::stdlib::field_t<Builder> field_t;
+    typedef proof_system::plonk::stdlib::byte_array<Builder> byte_array_t;
 
     template <class From, class To> static To from_to(const From& in, const std::optional<size_t> size = std::nullopt)
     {
@@ -387,9 +387,9 @@ template <typename Composer> class UintFuzzBase {
 
             return ret;
         }
-        template <class T> static T get_bit(Composer* composer, const T& v, const size_t bit)
+        template <class T> static T get_bit(Builder* builder, const T& v, const size_t bit)
         {
-            return T(composer, std::vector<bool_t>{ at<>(v, bit) });
+            return T(builder, std::vector<bool_t>{ at<>(v, bit) });
         }
         template <class T> static std::vector<bool_t> to_bit_vector(const T& v)
         {
@@ -457,11 +457,11 @@ template <typename Composer> class UintFuzzBase {
                 , v32(v32)
                 , v64(v64)
             {}
-            Uint(Composer* composer, const uint64_t v)
-                : v8(composer, static_cast<uint8_t>(v & 0xFF))
-                , v16(composer, static_cast<uint16_t>(v & 0xFFFF))
-                , v32(composer, static_cast<uint32_t>(v & 0xFFFFFFFF))
-                , v64(composer, v)
+            Uint(Builder* builder, const uint64_t v)
+                : v8(builder, static_cast<uint8_t>(v & 0xFF))
+                , v16(builder, static_cast<uint16_t>(v & 0xFFFF))
+                , v32(builder, static_cast<uint32_t>(v & 0xFFFFFFFF))
+                , v64(builder, v)
             {}
         };
         class Reference {
@@ -761,16 +761,16 @@ template <typename Composer> class UintFuzzBase {
                 abort();
             }
         }
-        ExecutionHandler get_bit(Composer* composer, const size_t bit) const
+        ExecutionHandler get_bit(Builder* builder, const size_t bit) const
         {
             return ExecutionHandler(Reference(this->get_bit<uint8_t>(this->ref.v8, bit),
                                               this->get_bit<uint16_t>(this->ref.v16, bit),
                                               this->get_bit<uint32_t>(this->ref.v32, bit),
                                               this->get_bit<uint64_t>(this->ref.v64, bit)),
-                                    Uint(this->get_bit<uint_8_t>(composer, this->uint.v8, bit),
-                                         this->get_bit<uint_16_t>(composer, this->uint.v16, bit),
-                                         this->get_bit<uint_32_t>(composer, this->uint.v32, bit),
-                                         this->get_bit<uint_64_t>(composer, this->uint.v64, bit)));
+                                    Uint(this->get_bit<uint_8_t>(builder, this->uint.v8, bit),
+                                         this->get_bit<uint_16_t>(builder, this->uint.v16, bit),
+                                         this->get_bit<uint_32_t>(builder, this->uint.v32, bit),
+                                         this->get_bit<uint_64_t>(builder, this->uint.v64, bit)));
         }
         ExecutionHandler shl(const size_t bits) const
         {
@@ -860,7 +860,7 @@ template <typename Composer> class UintFuzzBase {
                                     Uint(~this->uint.v8, ~this->uint.v16, ~this->uint.v32, ~this->uint.v64));
         }
         /* Explicit re-instantiation using the various constructors */
-        ExecutionHandler set(Composer* composer) const
+        ExecutionHandler set(Builder* builder) const
         {
             switch (VarianceRNG.next() % 7) {
             case 0:
@@ -871,10 +871,10 @@ template <typename Composer> class UintFuzzBase {
                                              uint_64_t(this->uint.v64)));
             case 1:
                 return ExecutionHandler(this->ref,
-                                        Uint(uint_8_t(composer, get_value<>(this->uint.v8)),
-                                             uint_16_t(composer, get_value<>(this->uint.v16)),
-                                             uint_32_t(composer, get_value<>(this->uint.v32)),
-                                             uint_64_t(composer, get_value<>(this->uint.v64))));
+                                        Uint(uint_8_t(builder, get_value<>(this->uint.v8)),
+                                             uint_16_t(builder, get_value<>(this->uint.v16)),
+                                             uint_32_t(builder, get_value<>(this->uint.v32)),
+                                             uint_64_t(builder, get_value<>(this->uint.v64))));
             case 2:
                 return ExecutionHandler(this->ref,
                                         Uint(uint_8_t(this->to_field_t(this->uint.v8)),
@@ -889,22 +889,22 @@ template <typename Composer> class UintFuzzBase {
                                              uint_64_t(this->to_byte_array(this->uint.v64))));
             case 4:
                 return ExecutionHandler(this->ref,
-                                        Uint(uint_8_t(composer, this->to_bit_vector(this->uint.v8)),
-                                             uint_16_t(composer, this->to_bit_vector(this->uint.v16)),
-                                             uint_32_t(composer, this->to_bit_vector(this->uint.v32)),
-                                             uint_64_t(composer, this->to_bit_vector(this->uint.v64))));
+                                        Uint(uint_8_t(builder, this->to_bit_vector(this->uint.v8)),
+                                             uint_16_t(builder, this->to_bit_vector(this->uint.v16)),
+                                             uint_32_t(builder, this->to_bit_vector(this->uint.v32)),
+                                             uint_64_t(builder, this->to_bit_vector(this->uint.v64))));
             case 5:
                 return ExecutionHandler(this->ref,
-                                        Uint(uint_8_t(composer, this->to_bit_array(this->uint.v8)),
-                                             uint_16_t(composer, this->to_bit_array(this->uint.v16)),
-                                             uint_32_t(composer, this->to_bit_array(this->uint.v32)),
-                                             uint_64_t(composer, this->to_bit_array(this->uint.v64))));
+                                        Uint(uint_8_t(builder, this->to_bit_array(this->uint.v8)),
+                                             uint_16_t(builder, this->to_bit_array(this->uint.v16)),
+                                             uint_32_t(builder, this->to_bit_array(this->uint.v32)),
+                                             uint_64_t(builder, this->to_bit_array(this->uint.v64))));
             case 6:
                 return ExecutionHandler(this->ref,
-                                        Uint(uint_8_t(composer, this->ref.v8),
-                                             uint_16_t(composer, this->ref.v16),
-                                             uint_32_t(composer, this->ref.v32),
-                                             uint_64_t(composer, this->ref.v64)));
+                                        Uint(uint_8_t(builder, this->ref.v8),
+                                             uint_16_t(builder, this->ref.v16),
+                                             uint_32_t(builder, this->ref.v32),
+                                             uint_64_t(builder, this->ref.v64)));
             default:
                 abort();
             }
@@ -912,31 +912,31 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the constant instruction (push constant safeuint to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT(Composer* composer,
+        static inline size_t execute_CONSTANT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            stack.push_back(Uint(composer, instruction.arguments.element));
+            stack.push_back(Uint(builder, instruction.arguments.element));
             return 0;
         }
         /**
          * @brief Execute the addition operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ADD(Composer* composer,
+        static inline size_t execute_ADD(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -957,16 +957,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the subtraction operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SUBTRACT(Composer* composer,
+        static inline size_t execute_SUBTRACT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -987,16 +987,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the multiply instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_MULTIPLY(Composer* composer,
+        static inline size_t execute_MULTIPLY(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1017,16 +1017,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the division operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_DIVIDE(Composer* composer,
+        static inline size_t execute_DIVIDE(Builder* builder,
                                             std::vector<ExecutionHandler>& stack,
                                             Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1047,16 +1047,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the modulo operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_MODULO(Composer* composer,
+        static inline size_t execute_MODULO(Builder* builder,
                                             std::vector<ExecutionHandler>& stack,
                                             Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1077,16 +1077,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the and operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_AND(Composer* composer,
+        static inline size_t execute_AND(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1107,16 +1107,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the or operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_OR(Composer* composer,
+        static inline size_t execute_OR(Builder* builder,
                                         std::vector<ExecutionHandler>& stack,
                                         Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1137,16 +1137,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the xor operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_XOR(Composer* composer,
+        static inline size_t execute_XOR(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1167,12 +1167,12 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the GET_BIT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_GET_BIT(Composer* composer,
+        static inline size_t execute_GET_BIT(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
@@ -1183,7 +1183,7 @@ template <typename Composer> class UintFuzzBase {
             size_t output_index = instruction.arguments.bitArgs.out;
             const uint64_t bit = instruction.arguments.bitArgs.bit;
             ExecutionHandler result;
-            result = stack[first_index].get_bit(composer, bit);
+            result = stack[first_index].get_bit(builder, bit);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -1195,16 +1195,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the left-shift operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SHL(Composer* composer,
+        static inline size_t execute_SHL(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1224,16 +1224,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the right-shift operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SHR(Composer* composer,
+        static inline size_t execute_SHR(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1253,16 +1253,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the left-rotate operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ROL(Composer* composer,
+        static inline size_t execute_ROL(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1282,16 +1282,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the right-rotate operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ROR(Composer* composer,
+        static inline size_t execute_ROR(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1311,16 +1311,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the NOT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_NOT(Composer* composer,
+        static inline size_t execute_NOT(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1340,12 +1340,12 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the SET instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SET(Composer* composer,
+        static inline size_t execute_SET(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
@@ -1356,7 +1356,7 @@ template <typename Composer> class UintFuzzBase {
             size_t output_index = instruction.arguments.twoArgs.out;
 
             ExecutionHandler result;
-            result = stack[first_index].set(composer);
+            result = stack[first_index].set(builder);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -1368,16 +1368,16 @@ template <typename Composer> class UintFuzzBase {
         /**
          * @brief Execute the RANDOMSEED instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_RANDOMSEED(Composer* composer,
+        static inline size_t execute_RANDOMSEED(Builder* builder,
                                                 std::vector<ExecutionHandler>& stack,
                                                 Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             (void)stack;
 
             VarianceRNG.reseed(instruction.arguments.randomseed);
@@ -1389,15 +1389,15 @@ template <typename Composer> class UintFuzzBase {
     /**
      * @brief Check that the resulting values are equal to expected
      *
-     * @tparam Composer
-     * @param composer
+     * @tparam Builder
+     * @param builder
      * @param stack
      * @return true
      * @return false
      */
-    inline static bool postProcess(Composer* composer, std::vector<UintFuzzBase::ExecutionHandler>& stack)
+    inline static bool postProcess(Builder* builder, std::vector<UintFuzzBase::ExecutionHandler>& stack)
     {
-        (void)composer;
+        (void)builder;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
             if (element.uint.v8.get_value() != element.ref.v8) {
@@ -1584,7 +1584,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<UintFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
+    RunWithBuilders<UintFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

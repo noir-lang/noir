@@ -9,8 +9,8 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer> class plookup_read {
-    typedef field_t<Composer> field_pt;
+template <typename Builder> class plookup_read {
+    typedef field_t<Builder> field_pt;
 
   public:
     static std::pair<field_pt, field_pt> read_pair_from_table(const plookup::MultiTableId id, const field_pt& key);

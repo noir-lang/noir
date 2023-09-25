@@ -8,12 +8,12 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
-template <typename ComposerContext> class pedersen_hash {
+template <typename Builder> class pedersen_hash {
 
   private:
-    typedef stdlib::field_t<ComposerContext> field_t;
-    typedef stdlib::point<ComposerContext> point;
-    typedef stdlib::bool_t<ComposerContext> bool_t;
+    typedef stdlib::field_t<Builder> field_t;
+    typedef stdlib::point<Builder> point;
+    typedef stdlib::bool_t<Builder> bool_t;
 
   private:
     static point add_points(const point& first, const point& second);
@@ -23,7 +23,7 @@ template <typename ComposerContext> class pedersen_hash {
                                       const bool validate_input_is_in_field = true);
 
   public:
-    static void validate_wnaf_is_in_field(ComposerContext* ctx, const std::vector<uint32_t>& accumulator);
+    static void validate_wnaf_is_in_field(Builder* ctx, const std::vector<uint32_t>& accumulator);
 
     static point accumulate(const std::vector<point>& to_accumulate);
 

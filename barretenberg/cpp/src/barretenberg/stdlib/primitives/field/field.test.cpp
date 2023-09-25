@@ -21,16 +21,16 @@ template <class T> void ignore_unused(T&) {} // use to ignore unused variables i
 using namespace barretenberg;
 using namespace proof_system::plonk;
 
-template <typename Composer> class stdlib_field : public testing::Test {
-    typedef stdlib::bool_t<Composer> bool_ct;
-    typedef stdlib::field_t<Composer> field_ct;
-    typedef stdlib::witness_t<Composer> witness_ct;
-    typedef stdlib::public_witness_t<Composer> public_witness_ct;
+template <typename Builder> class stdlib_field : public testing::Test {
+    typedef stdlib::bool_t<Builder> bool_ct;
+    typedef stdlib::field_t<Builder> field_ct;
+    typedef stdlib::witness_t<Builder> witness_ct;
+    typedef stdlib::public_witness_t<Builder> public_witness_ct;
 
-    static void fibbonaci(Composer& composer)
+    static void fibbonaci(Builder& builder)
     {
-        field_ct a(witness_ct(&composer, fr::one()));
-        field_ct b(witness_ct(&composer, fr::one()));
+        field_ct a(witness_ct(&builder, fr::one()));
+        field_ct b(witness_ct(&builder, fr::one()));
 
         field_ct c = a + b;
 
@@ -40,16 +40,16 @@ template <typename Composer> class stdlib_field : public testing::Test {
             c = a + b;
         }
     }
-    static uint64_t fidget(Composer& composer)
+    static uint64_t fidget(Builder& builder)
     {
-        field_ct a(public_witness_ct(&composer, fr::one())); // a is a legit wire value in our circuit
-        field_ct b(&composer,
+        field_ct a(public_witness_ct(&builder, fr::one())); // a is a legit wire value in our circuit
+        field_ct b(&builder,
                    (fr::one())); // b is just a constant, and should not turn up as a wire value in our circuit
 
         // this shouldn't create a constraint - we just need to scale the addition/multiplication gates that `a` is
         // involved in c should point to the same wire value as a
         field_ct c = a + b;
-        field_ct d(&composer, fr::coset_generator(0)); // like b, d is just a constant and not a wire value
+        field_ct d(&builder, fr::coset_generator(0)); // like b, d is just a constant and not a wire value
 
         // by this point, we shouldn't have added any constraints in our circuit
         for (size_t i = 0; i < 17; ++i) {
@@ -72,12 +72,12 @@ template <typename Composer> class stdlib_field : public testing::Test {
         return cc;
     }
 
-    static void generate_test_plonk_circuit(Composer& composer, size_t num_gates)
+    static void generate_test_plonk_circuit(Builder& builder, size_t num_gates)
     {
-        field_ct a(public_witness_ct(&composer, barretenberg::fr::random_element()));
-        field_ct b(public_witness_ct(&composer, barretenberg::fr::random_element()));
+        field_ct a(public_witness_ct(&builder, barretenberg::fr::random_element()));
+        field_ct b(public_witness_ct(&builder, barretenberg::fr::random_element()));
 
-        field_ct c(&composer);
+        field_ct c(&builder);
         for (size_t i = 0; i < (num_gates / 4) - 4; ++i) {
             c = a + b;
             c = a * c;
@@ -90,11 +90,11 @@ template <typename Composer> class stdlib_field : public testing::Test {
     static void create_range_constraint()
     {
         auto run_test = [&](fr elt, size_t num_bits, bool expect_verified) {
-            Composer composer = Composer();
-            field_ct a(witness_ct(&composer, elt));
+            Builder builder = Builder();
+            field_ct a(witness_ct(&builder, elt));
             a.create_range_constraint(num_bits, "field_tests: range_constraint on a fails");
 
-            bool verified = composer.check_circuit();
+            bool verified = builder.check_circuit();
             EXPECT_EQ(verified, expect_verified);
             if (verified != expect_verified) {
                 info("Range constraint malfunction on ", elt, " with num_bits ", num_bits);
@@ -121,9 +121,9 @@ template <typename Composer> class stdlib_field : public testing::Test {
     static void test_assert_equal()
     {
         auto run_test = [](bool constrain, bool true_when_y_val_zero = true) {
-            Composer composer = Composer();
-            field_ct x = witness_ct(&composer, 1);
-            field_ct y = witness_ct(&composer, 0);
+            Builder builder = Builder();
+            field_ct x = witness_ct(&builder, 1);
+            field_ct y = witness_ct(&builder, 0);
 
             // With no constraints, the proof verification will pass even though
             // we assert x and y are equal.
@@ -139,24 +139,24 @@ template <typename Composer> class stdlib_field : public testing::Test {
                 if (true_when_y_val_zero) {
                     // constraint: 0*x + 1*y + 0*0 + 0 == 0
 
-                    composer.create_add_gate({ .a = x.witness_index,
-                                               .b = y.witness_index,
-                                               .c = composer.zero_idx,
-                                               .a_scaling = 0,
-                                               .b_scaling = 1,
-                                               .c_scaling = 0,
-                                               .const_scaling = 0 });
+                    builder.create_add_gate({ .a = x.witness_index,
+                                              .b = y.witness_index,
+                                              .c = builder.zero_idx,
+                                              .a_scaling = 0,
+                                              .b_scaling = 1,
+                                              .c_scaling = 0,
+                                              .const_scaling = 0 });
                     expected_result = false;
                 } else {
                     // constraint: 0*x + 1*y + 0*0 - 1 == 0
 
-                    composer.create_add_gate({ .a = x.witness_index,
-                                               .b = y.witness_index,
-                                               .c = composer.zero_idx,
-                                               .a_scaling = 0,
-                                               .b_scaling = 1,
-                                               .c_scaling = 0,
-                                               .const_scaling = -1 });
+                    builder.create_add_gate({ .a = x.witness_index,
+                                              .b = y.witness_index,
+                                              .c = builder.zero_idx,
+                                              .a_scaling = 0,
+                                              .b_scaling = 1,
+                                              .c_scaling = 0,
+                                              .const_scaling = -1 });
                     expected_result = true;
                 }
             }
@@ -167,7 +167,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             EXPECT_EQ(x.get_value(), 1);
             EXPECT_EQ(y.get_value(), 1);
 
-            bool result = composer.check_circuit();
+            bool result = builder.check_circuit();
 
             EXPECT_EQ(result, expected_result);
         };
@@ -179,30 +179,30 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
     static void test_add_mul_with_constants()
     {
-        Composer composer = Composer();
-        auto gates_before = composer.get_num_gates();
-        uint64_t expected = fidget(composer);
-        auto gates_after = composer.get_num_gates();
-        EXPECT_EQ(composer.get_variable(composer.w_o[gates_after - 1]), fr(expected));
+        Builder builder = Builder();
+        auto gates_before = builder.get_num_gates();
+        uint64_t expected = fidget(builder);
+        auto gates_after = builder.get_num_gates();
+        EXPECT_EQ(builder.get_variable(builder.w_o[gates_after - 1]), fr(expected));
         info("Number of gates added", gates_after - gates_before);
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_div()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a = witness_ct(&composer, barretenberg::fr::random_element());
+        field_ct a = witness_ct(&builder, barretenberg::fr::random_element());
         a *= barretenberg::fr::random_element();
         a += barretenberg::fr::random_element();
 
-        field_ct b = witness_ct(&composer, barretenberg::fr::random_element());
+        field_ct b = witness_ct(&builder, barretenberg::fr::random_element());
         b *= barretenberg::fr::random_element();
         b += barretenberg::fr::random_element();
 
         // numerator constant
-        field_ct out = field_ct(&composer, b.get_value()) / a;
+        field_ct out = field_ct(&builder, b.get_value()) / a;
         EXPECT_EQ(out.get_value(), b.get_value() / a.get_value());
 
         out = b / a;
@@ -217,60 +217,60 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(out.get_value(), 0);
         EXPECT_EQ(out.is_constant(), true);
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_postfix_increment()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a = witness_ct(&composer, 10);
+        field_ct a = witness_ct(&builder, 10);
 
         field_ct b = a++;
 
         EXPECT_EQ(b.get_value(), 10);
         EXPECT_EQ(a.get_value(), 11);
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_prefix_increment()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a = witness_ct(&composer, 10);
+        field_ct a = witness_ct(&builder, 10);
 
         field_ct b = ++a;
 
         EXPECT_EQ(b.get_value(), 11);
         EXPECT_EQ(a.get_value(), 11);
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_field_fibbonaci()
     {
-        Composer composer = Composer();
-        auto gates_before = composer.get_num_gates();
-        fibbonaci(composer);
-        auto gates_after = composer.get_num_gates();
-        EXPECT_EQ(composer.get_variable(composer.w_l[composer.get_num_gates() - 1]), fr(4181));
+        Builder builder = Builder();
+        auto gates_before = builder.get_num_gates();
+        fibbonaci(builder);
+        auto gates_after = builder.get_num_gates();
+        EXPECT_EQ(builder.get_variable(builder.w_l[builder.get_num_gates() - 1]), fr(4181));
         EXPECT_EQ(gates_after - gates_before, 18UL);
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_field_pythagorean()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a(witness_ct(&composer, 3));
-        field_ct b(witness_ct(&composer, 4));
-        field_ct c(witness_ct(&composer, 5));
+        field_ct a(witness_ct(&builder, 3));
+        field_ct b(witness_ct(&builder, 4));
+        field_ct c(witness_ct(&builder, 5));
 
         field_ct a_sqr = a * a;
         field_ct b_sqr = b * b;
@@ -278,123 +278,123 @@ template <typename Composer> class stdlib_field : public testing::Test {
         c_sqr.set_public();
         field_ct sum_sqrs = a_sqr + b_sqr;
 
-        // composer.assert_equal(sum_sqrs.witness_index, c_sqr.witness_index, "triple is not pythagorean");
+        // builder.assert_equal(sum_sqrs.witness_index, c_sqr.witness_index, "triple is not pythagorean");
         c_sqr.assert_equal(sum_sqrs);
 
-        bool verified = composer.check_circuit();
+        bool verified = builder.check_circuit();
 
-        for (size_t i = 0; i < composer.variables.size(); i++) {
-            info(i, composer.variables[i]);
+        for (size_t i = 0; i < builder.variables.size(); i++) {
+            info(i, builder.variables[i]);
         }
         ASSERT_TRUE(verified);
     }
 
     static void test_equality()
     {
-        Composer composer = Composer();
-        auto gates_before = composer.get_num_gates();
-        field_ct a(witness_ct(&composer, 4));
-        field_ct b(witness_ct(&composer, 4));
+        Builder builder = Builder();
+        auto gates_before = builder.get_num_gates();
+        field_ct a(witness_ct(&builder, 4));
+        field_ct b(witness_ct(&builder, 4));
         bool_ct r = a == b;
 
-        auto gates_after = composer.get_num_gates();
+        auto gates_after = builder.get_num_gates();
         EXPECT_EQ(r.get_value(), true);
 
-        fr x = composer.get_variable(r.witness_index);
+        fr x = builder.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
-        if constexpr (std::same_as<Composer, StandardCircuitBuilder>) {
+        if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
         } else {
             EXPECT_EQ(gates_after - gates_before, 4UL);
         }
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_equality_false()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        auto gates_before = composer.get_num_gates();
-        field_ct a(witness_ct(&composer, 4));
-        field_ct b(witness_ct(&composer, 3));
+        auto gates_before = builder.get_num_gates();
+        field_ct a(witness_ct(&builder, 4));
+        field_ct b(witness_ct(&builder, 3));
         bool_ct r = a == b;
 
         EXPECT_EQ(r.get_value(), false);
 
-        auto gates_after = composer.get_num_gates();
+        auto gates_after = builder.get_num_gates();
 
-        fr x = composer.get_variable(r.witness_index);
+        fr x = builder.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(0));
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
-        if constexpr (std::same_as<Composer, StandardCircuitBuilder>) {
+        if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 6UL);
         } else {
             EXPECT_EQ(gates_after - gates_before, 4UL);
         }
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_equality_with_constants()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        auto gates_before = composer.get_num_gates();
-        field_ct a(witness_ct(&composer, 4));
+        auto gates_before = builder.get_num_gates();
+        field_ct a(witness_ct(&builder, 4));
         field_ct b = 3;
         field_ct c = 7;
         bool_ct r = a * c == b * c + c && b + 1 == a;
 
         EXPECT_EQ(r.get_value(), true);
 
-        auto gates_after = composer.get_num_gates();
+        auto gates_after = builder.get_num_gates();
 
-        fr x = composer.get_variable(r.witness_index);
+        fr x = builder.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
         // This logic requires on madd in field, which creates a big mul gate.
         // This gate is implemented in standard by create 2 actual gates, while in turbo and ultra there are 2
-        if constexpr (std::same_as<Composer, StandardCircuitBuilder>) {
+        if constexpr (std::same_as<Builder, StandardCircuitBuilder>) {
             EXPECT_EQ(gates_after - gates_before, 11UL);
         } else {
             EXPECT_EQ(gates_after - gates_before, 7UL);
         }
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_larger_circuit()
     {
         size_t n = 16384;
-        Composer composer;
+        Builder builder;
 
-        generate_test_plonk_circuit(composer, n);
+        generate_test_plonk_circuit(builder, n);
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void is_zero()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         // yuck
-        field_ct a = (public_witness_ct(&composer, fr::random_element()));
-        field_ct b = (public_witness_ct(&composer, fr::neg_one()));
-        field_ct c_1(&composer,
+        field_ct a = (public_witness_ct(&builder, fr::random_element()));
+        field_ct b = (public_witness_ct(&builder, fr::neg_one()));
+        field_ct c_1(&builder,
                      uint256_t(0x1122334455667788, 0x8877665544332211, 0xaabbccddeeff9933, 0x1122112211221122));
-        field_ct c_2(&composer,
+        field_ct c_2(&builder,
                      uint256_t(0xaabbccddeeff9933, 0x8877665544332211, 0x1122334455667788, 0x1122112211221122));
-        field_ct c_3(&composer, barretenberg::fr::one());
+        field_ct c_3(&builder, barretenberg::fr::one());
 
         field_ct c_4 = c_1 + c_2;
         a = a * c_4 + c_4; // add some constant terms in to validate our normalization check works
@@ -402,13 +402,13 @@ template <typename Composer> class stdlib_field : public testing::Test {
         b = (b - c_1 - c_2) / c_4;
         b = b + c_3;
 
-        field_ct d(&composer, fr::zero());
-        field_ct e(&composer, fr::one());
+        field_ct d(&builder, fr::zero());
+        field_ct e(&builder, fr::one());
 
-        const size_t old_n = composer.get_num_gates();
+        const size_t old_n = builder.get_num_gates();
         bool_ct d_zero = d.is_zero();
         bool_ct e_zero = e.is_zero();
-        const size_t new_n = composer.get_num_gates();
+        const size_t new_n = builder.get_num_gates();
         EXPECT_EQ(old_n, new_n);
 
         bool_ct a_zero = a.is_zero();
@@ -419,23 +419,23 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(d_zero.get_value(), true);
         EXPECT_EQ(e_zero.get_value(), false);
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void madd()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a(witness_ct(&composer, fr::random_element()));
-        field_ct b(witness_ct(&composer, fr::random_element()));
-        field_ct c(witness_ct(&composer, fr::random_element()));
-        field_ct ma(&composer, fr::random_element());
-        field_ct ca(&composer, fr::random_element());
-        field_ct mb(&composer, fr::random_element());
-        field_ct cb(&composer, fr::random_element());
-        field_ct mc(&composer, fr::random_element());
-        field_ct cc(&composer, fr::random_element());
+        field_ct a(witness_ct(&builder, fr::random_element()));
+        field_ct b(witness_ct(&builder, fr::random_element()));
+        field_ct c(witness_ct(&builder, fr::random_element()));
+        field_ct ma(&builder, fr::random_element());
+        field_ct ca(&builder, fr::random_element());
+        field_ct mb(&builder, fr::random_element());
+        field_ct cb(&builder, fr::random_element());
+        field_ct mc(&builder, fr::random_element());
+        field_ct cc(&builder, fr::random_element());
 
         // test madd when all operands are witnesses
         field_ct d = a * ma + ca;
@@ -468,22 +468,22 @@ template <typename Composer> class stdlib_field : public testing::Test {
         n = n.normalize();
         EXPECT_EQ(m.get_value(), n.get_value());
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void two_bit_table()
     {
-        Composer composer = Composer();
-        field_ct a(witness_ct(&composer, fr::random_element()));
-        field_ct b(witness_ct(&composer, fr::random_element()));
-        field_ct c(witness_ct(&composer, fr::random_element()));
-        field_ct d(witness_ct(&composer, fr::random_element()));
+        Builder builder = Builder();
+        field_ct a(witness_ct(&builder, fr::random_element()));
+        field_ct b(witness_ct(&builder, fr::random_element()));
+        field_ct c(witness_ct(&builder, fr::random_element()));
+        field_ct d(witness_ct(&builder, fr::random_element()));
 
         std::array<field_ct, 4> table = field_ct::preprocess_two_bit_table(a, b, c, d);
 
-        bool_ct zero(witness_ct(&composer, false));
-        bool_ct one(witness_ct(&composer, true));
+        bool_ct zero(witness_ct(&builder, false));
+        bool_ct one(witness_ct(&builder, true));
 
         field_ct result_a = field_ct::select_from_two_bit_table(table, zero, zero).normalize();
         field_ct result_b = field_ct::select_from_two_bit_table(table, zero, one).normalize();
@@ -495,58 +495,58 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(result_c.get_value(), c.get_value());
         EXPECT_EQ(result_d.get_value(), d.get_value());
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_slice()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         // 0b11110110101001011
         //         ^      ^
         //        msb    lsb
         //        10      3
         // hi=0x111101, lo=0x011, slice=0x10101001
         //
-        field_ct a(witness_ct(&composer, fr(126283)));
+        field_ct a(witness_ct(&builder, fr(126283)));
         auto slice_data = a.slice(10, 3);
 
         EXPECT_EQ(slice_data[0].get_value(), fr(3));
         EXPECT_EQ(slice_data[1].get_value(), fr(169));
         EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_slice_equal_msb_lsb()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
         // 0b11110110101001011
         //             ^
         //         msb = lsb
         //             6
         // hi=0b1111011010, lo=0b001011, slice=0b1
         //
-        field_ct a(witness_ct(&composer, fr(126283)));
+        field_ct a(witness_ct(&builder, fr(126283)));
         auto slice_data = a.slice(6, 6);
 
         EXPECT_EQ(slice_data[0].get_value(), fr(11));
         EXPECT_EQ(slice_data[1].get_value(), fr(1));
         EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_slice_random()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         uint8_t lsb = 106;
         uint8_t msb = 189;
         fr a_ = fr(uint256_t(fr::random_element()) && ((uint256_t(1) << 252) - 1));
-        field_ct a(witness_ct(&composer, a_));
+        field_ct a(witness_ct(&builder, a_));
         auto slice = a.slice(msb, lsb);
 
         const uint256_t expected0 = uint256_t(a_) & ((uint256_t(1) << uint64_t(lsb)) - 1);
@@ -558,26 +558,26 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice[1].get_value(), fr(expected1));
         EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void three_bit_table()
     {
-        Composer composer = Composer();
-        field_ct a(witness_ct(&composer, fr::random_element()));
-        field_ct b(witness_ct(&composer, fr::random_element()));
-        field_ct c(witness_ct(&composer, fr::random_element()));
-        field_ct d(witness_ct(&composer, fr::random_element()));
-        field_ct e(witness_ct(&composer, fr::random_element()));
-        field_ct f(witness_ct(&composer, fr::random_element()));
-        field_ct g(witness_ct(&composer, fr::random_element()));
-        field_ct h(witness_ct(&composer, fr::random_element()));
+        Builder builder = Builder();
+        field_ct a(witness_ct(&builder, fr::random_element()));
+        field_ct b(witness_ct(&builder, fr::random_element()));
+        field_ct c(witness_ct(&builder, fr::random_element()));
+        field_ct d(witness_ct(&builder, fr::random_element()));
+        field_ct e(witness_ct(&builder, fr::random_element()));
+        field_ct f(witness_ct(&builder, fr::random_element()));
+        field_ct g(witness_ct(&builder, fr::random_element()));
+        field_ct h(witness_ct(&builder, fr::random_element()));
 
         std::array<field_ct, 8> table = field_ct::preprocess_three_bit_table(a, b, c, d, e, f, g, h);
 
-        bool_ct zero(witness_ct(&composer, false));
-        bool_ct one(witness_ct(&composer, true));
+        bool_ct zero(witness_ct(&builder, false));
+        bool_ct one(witness_ct(&builder, true));
 
         field_ct result_a = field_ct::select_from_three_bit_table(table, zero, zero, zero).normalize();
         field_ct result_b = field_ct::select_from_three_bit_table(table, zero, zero, one).normalize();
@@ -597,7 +597,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(result_g.get_value(), g.get_value());
         EXPECT_EQ(result_h.get_value(), h.get_value());
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
@@ -610,11 +610,11 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
     static void decompose_into_bits()
     {
-        using witness_supplier_type = std::function<witness_ct(Composer * ctx, uint64_t, uint256_t)>;
+        using witness_supplier_type = std::function<witness_ct(Builder * ctx, uint64_t, uint256_t)>;
 
         // check that constraints are satisfied for a variety of inputs
         auto run_success_test = [&]() {
-            Composer composer = Composer();
+            Builder builder = Builder();
 
             constexpr uint256_t modulus_minus_one = fr::modulus - 1;
             const fr p_lo = modulus_minus_one.slice(0, 130);
@@ -628,7 +628,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             };
 
             for (auto a_expected : test_elements) {
-                field_ct a = witness_ct(&composer, a_expected);
+                field_ct a = witness_ct(&builder, a_expected);
                 std::vector<bool_ct> c = a.decompose_into_bits(256);
                 fr bit_sum = 0;
                 for (size_t i = 0; i < c.size(); i++) {
@@ -638,20 +638,20 @@ template <typename Composer> class stdlib_field : public testing::Test {
                 EXPECT_EQ(bit_sum, a_expected);
             };
 
-            bool verified = composer.check_circuit();
+            bool verified = builder.check_circuit();
             ASSERT_TRUE(verified);
         };
 
         // Now try to supply unintended witness values and test for failure.
         // Fr::modulus is equivalent to zero in Fr, but this should be forbidden by a range constraint.
-        witness_supplier_type supply_modulus_bits = [](Composer* ctx, uint64_t j, uint256_t val_256) {
+        witness_supplier_type supply_modulus_bits = [](Builder* ctx, uint64_t j, uint256_t val_256) {
             ignore_unused(val_256);
             // use this to get `sum` to be fr::modulus.
             return witness_ct(ctx, fr::modulus.get_bit(j));
         };
 
         // design a bit vector that will pass all range constraints, but it fails the copy constraint.
-        witness_supplier_type supply_half_modulus_bits = [](Composer* ctx, uint64_t j, uint256_t val_256) {
+        witness_supplier_type supply_half_modulus_bits = [](Builder* ctx, uint64_t j, uint256_t val_256) {
             // use this to fit y_hi into 128 bits
             if (j > 127) {
                 return witness_ct(ctx, val_256.get_bit(j));
@@ -660,13 +660,13 @@ template <typename Composer> class stdlib_field : public testing::Test {
         };
 
         auto run_failure_test = [&](witness_supplier_type witness_supplier) {
-            Composer composer = Composer();
+            Builder builder = Builder();
 
             fr a_expected = 0;
-            field_ct a = witness_ct(&composer, a_expected);
+            field_ct a = witness_ct(&builder, a_expected);
             std::vector<bool_ct> c = a.decompose_into_bits(256, witness_supplier);
 
-            bool verified = composer.check_circuit();
+            bool verified = builder.check_circuit();
             ASSERT_FALSE(verified);
         };
 
@@ -677,181 +677,181 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
     static void test_assert_is_in_set()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a(witness_ct(&composer, fr(1)));
-        field_ct b(witness_ct(&composer, fr(2)));
-        field_ct c(witness_ct(&composer, fr(3)));
-        field_ct d(witness_ct(&composer, fr(4)));
-        field_ct e(witness_ct(&composer, fr(5)));
+        field_ct a(witness_ct(&builder, fr(1)));
+        field_ct b(witness_ct(&builder, fr(2)));
+        field_ct c(witness_ct(&builder, fr(3)));
+        field_ct d(witness_ct(&builder, fr(4)));
+        field_ct e(witness_ct(&builder, fr(5)));
         std::vector<field_ct> set = { a, b, c, d, e };
 
         a.assert_is_in_set(set);
-        info("composer gates = ", composer.get_num_gates());
+        info("num gates = ", builder.get_num_gates());
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_assert_is_in_set_fails()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        field_ct a(witness_ct(&composer, fr(1)));
-        field_ct b(witness_ct(&composer, fr(2)));
-        field_ct c(witness_ct(&composer, fr(3)));
-        field_ct d(witness_ct(&composer, fr(4)));
-        field_ct e(witness_ct(&composer, fr(5)));
+        field_ct a(witness_ct(&builder, fr(1)));
+        field_ct b(witness_ct(&builder, fr(2)));
+        field_ct c(witness_ct(&builder, fr(3)));
+        field_ct d(witness_ct(&builder, fr(4)));
+        field_ct e(witness_ct(&builder, fr(5)));
         std::vector<field_ct> set = { a, b, c, d, e };
 
-        field_ct f(witness_ct(&composer, fr(6)));
+        field_ct f(witness_ct(&builder, fr(6)));
         f.assert_is_in_set(set);
 
-        info("composer gates = ", composer.get_num_gates());
-        bool result = composer.check_circuit();
+        info("num gates = ", builder.get_num_gates());
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, false);
     }
 
     static void test_pow()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
-        field_ct base = witness_ct(&composer, base_val);
-        field_ct exponent = witness_ct(&composer, exponent_val);
+        field_ct base = witness_ct(&builder, base_val);
+        field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
         barretenberg::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
-        info("composer gates = ", composer.get_num_gates());
-        bool check_result = composer.check_circuit();
+        info("num gates = ", builder.get_num_gates());
+        bool check_result = builder.check_circuit();
         EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_zero()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = 0;
 
-        field_ct base = witness_ct(&composer, base_val);
-        field_ct exponent = witness_ct(&composer, exponent_val);
+        field_ct base = witness_ct(&builder, base_val);
+        field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
 
         EXPECT_EQ(result.get_value(), barretenberg::fr(1));
 
-        info("composer gates = ", composer.get_num_gates());
-        bool check_result = composer.check_circuit();
+        info("num gates = ", builder.get_num_gates());
+        bool check_result = builder.check_circuit();
         EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_one()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = 1;
 
-        field_ct base = witness_ct(&composer, base_val);
-        field_ct exponent = witness_ct(&composer, exponent_val);
+        field_ct base = witness_ct(&builder, base_val);
+        field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
 
         EXPECT_EQ(result.get_value(), base_val);
-        info("composer gates = ", composer.get_num_gates());
+        info("num gates = ", builder.get_num_gates());
 
-        bool check_result = composer.check_circuit();
+        bool check_result = builder.check_circuit();
         EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_both_constant()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
-        const size_t num_gates_start = composer.num_gates;
+        const size_t num_gates_start = builder.num_gates;
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
-        field_ct base(&composer, base_val);
-        field_ct exponent(&composer, exponent_val);
+        field_ct base(&builder, base_val);
+        field_ct exponent(&builder, exponent_val);
         field_ct result = base.pow(exponent);
         barretenberg::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
-        const size_t num_gates_end = composer.num_gates;
+        const size_t num_gates_end = builder.num_gates;
         EXPECT_EQ(num_gates_start, num_gates_end);
     }
 
     static void test_pow_base_constant()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
-        field_ct base(&composer, base_val);
-        field_ct exponent = witness_ct(&composer, exponent_val);
+        field_ct base(&builder, base_val);
+        field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
         barretenberg::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
-        info("composer gates = ", composer.get_num_gates());
-        bool check_result = composer.check_circuit();
+        info("num gates = ", builder.get_num_gates());
+        bool check_result = builder.check_circuit();
         EXPECT_EQ(check_result, true);
     }
 
     static void test_pow_exponent_constant()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
-        field_ct base = witness_ct(&composer, base_val);
-        field_ct exponent(&composer, exponent_val);
+        field_ct base = witness_ct(&builder, base_val);
+        field_ct exponent(&builder, exponent_val);
         field_ct result = base.pow(exponent);
         barretenberg::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
-        info("composer gates = ", composer.get_num_gates());
+        info("num gates = ", builder.get_num_gates());
 
-        bool check_result = composer.check_circuit();
+        bool check_result = builder.check_circuit();
         EXPECT_EQ(check_result, true);
     };
 
     static void test_pow_exponent_out_of_range()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint64_t exponent_val = engine.get_random_uint32();
         exponent_val += (uint64_t(1) << 32);
 
-        field_ct base = witness_ct(&composer, base_val);
-        field_ct exponent = witness_ct(&composer, exponent_val);
+        field_ct base = witness_ct(&builder, base_val);
+        field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
         barretenberg::fr expected = base_val.pow(exponent_val);
 
         EXPECT_NE(result.get_value(), expected);
-        EXPECT_EQ(composer.failed(), true);
-        EXPECT_EQ(composer.err(), "field_t::pow exponent accumulator incorrect");
+        EXPECT_EQ(builder.failed(), true);
+        EXPECT_EQ(builder.err(), "field_t::pow exponent accumulator incorrect");
     };
 
     static void test_copy_as_new_witness()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         barretenberg::fr value(engine.get_random_uint256());
-        field_ct value_ct = witness_ct(&composer, value);
+        field_ct value_ct = witness_ct(&builder, value);
 
-        field_ct first_copy = witness_ct(&composer, value_ct.get_value());
-        field_ct second_copy = field_ct::copy_as_new_witness(composer, value_ct);
+        field_ct first_copy = witness_ct(&builder, value_ct.get_value());
+        field_ct second_copy = field_ct::copy_as_new_witness(builder, value_ct);
 
         EXPECT_EQ(value_ct.get_value(), value);
         EXPECT_EQ(first_copy.get_value(), value);
@@ -859,15 +859,15 @@ template <typename Composer> class stdlib_field : public testing::Test {
         EXPECT_EQ(value_ct.get_witness_index() + 1, first_copy.get_witness_index());
         EXPECT_EQ(value_ct.get_witness_index() + 2, second_copy.get_witness_index());
 
-        info("composer gates = ", composer.get_num_gates());
+        info("num gates = ", builder.get_num_gates());
 
-        bool result = composer.check_circuit();
+        bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
     }
 
     static void test_ranged_less_than()
     {
-        Composer composer = Composer();
+        Builder builder = Builder();
 
         for (size_t i = 0; i < 10; ++i) {
             int a_val = static_cast<int>(engine.get_random_uint8());
@@ -896,8 +896,8 @@ template <typename Composer> class stdlib_field : public testing::Test {
             if (b_val > 255) {
                 b_val = 0;
             }
-            field_ct a = witness_ct(&composer, static_cast<uint64_t>(a_val));
-            field_ct b = witness_ct(&composer, static_cast<uint64_t>(b_val));
+            field_ct a = witness_ct(&builder, static_cast<uint64_t>(a_val));
+            field_ct b = witness_ct(&builder, static_cast<uint64_t>(b_val));
             a.create_range_constraint(8);
             b.create_range_constraint(8);
             bool_ct result = a.template ranged_less_than<8>(b);
@@ -905,7 +905,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
             EXPECT_EQ(result.get_value(), expected);
         }
-        bool check_result = composer.check_circuit();
+        bool check_result = builder.check_circuit();
         EXPECT_EQ(check_result, true);
     }
 };

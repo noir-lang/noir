@@ -10,12 +10,12 @@ namespace stdlib {
 
 constexpr uint64_t WNAF_MASK = crypto::generators::WNAF_MASK;
 
-template <typename ComposerContext> class pedersen_commitment {
+template <typename CircuitBuilder> class pedersen_commitment {
   private:
-    typedef stdlib::field_t<ComposerContext> field_t;
-    typedef stdlib::point<ComposerContext> point;
-    typedef stdlib::byte_array<ComposerContext> byte_array;
-    typedef stdlib::bool_t<ComposerContext> bool_t;
+    typedef stdlib::field_t<CircuitBuilder> field_t;
+    typedef stdlib::point<CircuitBuilder> point;
+    typedef stdlib::byte_array<CircuitBuilder> byte_array;
+    typedef stdlib::bool_t<CircuitBuilder> bool_t;
 
   public:
     static point commit(const std::vector<field_t>& inputs, const size_t hash_index = 0);

@@ -10,10 +10,10 @@ namespace proof_system::test_stdlib_merkle_tree {
 using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 
-using Composer = proof_system::UltraCircuitBuilder;
+using Builder = proof_system::UltraCircuitBuilder;
 
-using field_ct = field_t<Composer>;
-using witness_ct = witness_t<Composer>;
+using field_ct = field_t<Builder>;
+using witness_ct = witness_t<Builder>;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 auto& random_engine = numeric::random::get_engine();

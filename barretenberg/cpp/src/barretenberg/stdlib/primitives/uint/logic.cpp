@@ -7,25 +7,25 @@ using namespace proof_system;
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator&(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator&(const uint& other) const
 {
     return logic_operator(other, LogicOp::AND);
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator^(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator^(const uint& other) const
 {
     return logic_operator(other, LogicOp::XOR);
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator|(const uint& other) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator|(const uint& other) const
 {
     return (*this + other) - (*this & other);
 }
 
-template <typename Composer, typename Native> uint<Composer, Native> uint<Composer, Native>::operator~() const
+template <typename Builder, typename Native> uint<Builder, Native> uint<Builder, Native>::operator~() const
 {
     if (!is_constant() && witness_status != WitnessStatus::NOT_NORMALIZED) {
         weak_normalize();
@@ -38,8 +38,8 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
  *
  * @details Note that the result is only weakly normalized.
  */
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator>>(const size_t shift) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator>>(const size_t shift) const
 {
     if (shift >= width) {
         return uint(context, 0);
@@ -134,7 +134,7 @@ uint<Composer, Native> uint<Composer, Native>::operator>>(const size_t shift) co
     const uint32_t left_index = shift == width - 1 ? context->zero_idx : accumulators[static_cast<size_t>(idx - 1)];
 
     // Constraint: -6.(self >> shift) + 12.a[idx-1] + 6.high bit of (a[idx] - 4.a[idx-1]) = 0.
-    const add_quad_<typename Composer::FF> gate{
+    const add_quad_<typename Builder::FF> gate{
         .a = context->zero_idx,
         .b = context->add_variable(output),
         .c = right_index,
@@ -155,8 +155,8 @@ uint<Composer, Native> uint<Composer, Native>::operator>>(const size_t shift) co
     return result;
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::operator<<(const size_t shift) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::operator<<(const size_t shift) const
 {
     if (shift >= width) {
         return uint(context, 0);
@@ -199,13 +199,13 @@ uint<Composer, Native> uint<Composer, Native>::operator<<(const size_t shift) co
         const uint256_t output = (get_value() << shift) & MASK; // (value * 2**shift) % 2**32
 
         // constraint: A.2**shift - A_{x-1}.2**width + (value * 2**shift) % 2**32 == 0
-        const add_triple_<typename Composer::FF> gate{ .a = base_idx,
-                                                       .b = right_idx,
-                                                       .c = context->add_variable(output),
-                                                       .a_scaling = base_shift_factor,
-                                                       .b_scaling = -fr(right_shift_factor),
-                                                       .c_scaling = fr::neg_one(),
-                                                       .const_scaling = fr::zero() };
+        const add_triple_<typename Builder::FF> gate{ .a = base_idx,
+                                                      .b = right_idx,
+                                                      .c = context->add_variable(output),
+                                                      .a_scaling = base_shift_factor,
+                                                      .b_scaling = -fr(right_shift_factor),
+                                                      .c_scaling = fr::neg_one(),
+                                                      .const_scaling = fr::zero() };
 
         context->create_add_gate(gate);
 
@@ -272,15 +272,15 @@ uint<Composer, Native> uint<Composer, Native>::operator<<(const size_t shift) co
      *                       + 6 * high bit of A_x - 4 A_{x-1}                                   ,
      * where A = witness and shift = s = 2x + 1 and A_{-1} = 0.
      */
-    const add_quad_<typename Composer::FF> gate{ .a = context->add_variable(output),
-                                                 .b = base_index,
-                                                 .c = left_index,
-                                                 .d = right_index,
-                                                 .a_scaling = -q_1,
-                                                 .b_scaling = q_2,
-                                                 .c_scaling = fr::zero(),
-                                                 .d_scaling = -q_3,
-                                                 .const_scaling = fr::zero() };
+    const add_quad_<typename Builder::FF> gate{ .a = context->add_variable(output),
+                                                .b = base_index,
+                                                .c = left_index,
+                                                .d = right_index,
+                                                .a_scaling = -q_1,
+                                                .b_scaling = q_2,
+                                                .c_scaling = fr::zero(),
+                                                .d_scaling = -q_3,
+                                                .const_scaling = fr::zero() };
 
     context->create_big_add_gate_with_bit_extraction(gate);
 
@@ -291,8 +291,8 @@ uint<Composer, Native> uint<Composer, Native>::operator<<(const size_t shift) co
     return result;
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::ror(const size_t target_rotation) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::ror(const size_t target_rotation) const
 {
     // reduce rotation modulo width (width is always assumed a power of 2)
     const size_t rotation = target_rotation & (width - 1);
@@ -344,13 +344,13 @@ uint<Composer, Native> uint<Composer, Native>::ror(const size_t target_rotation)
         const fr base_shift_factor = t1;
 
         // constraint: 4^{w-x} A + (1 - 4^w) A_pivot - out == 0
-        const add_triple_<typename Composer::FF> gate{ .a = base_idx,
-                                                       .b = left_idx,
-                                                       .c = context->add_variable(output),
-                                                       .a_scaling = base_shift_factor,
-                                                       .b_scaling = left_shift_factor,
-                                                       .c_scaling = fr::neg_one(),
-                                                       .const_scaling = fr::zero() };
+        const add_triple_<typename Builder::FF> gate{ .a = base_idx,
+                                                      .b = left_idx,
+                                                      .c = context->add_variable(output),
+                                                      .a_scaling = base_shift_factor,
+                                                      .b_scaling = left_shift_factor,
+                                                      .c_scaling = fr::neg_one(),
+                                                      .const_scaling = fr::zero() };
 
         context->create_add_gate(gate);
 
@@ -413,15 +413,15 @@ uint<Composer, Native> uint<Composer, Native>::ror(const size_t target_rotation)
      *   -out + (2 * 4^{w-x}) A + (2 - 2 * 4^{w}) A_{w-x-1} + (1 - 4^w) a_{x-1, 1} == 0.
      *
      */
-    const add_quad_<typename Composer::FF> gate{ .a = context->add_variable(output),
-                                                 .b = base_idx,
-                                                 .c = next_pivot_idx,
-                                                 .d = pivot_idx,
-                                                 .a_scaling = q_1,
-                                                 .b_scaling = q_2,
-                                                 .c_scaling = fr::zero(),
-                                                 .d_scaling = q_3,
-                                                 .const_scaling = fr::zero() };
+    const add_quad_<typename Builder::FF> gate{ .a = context->add_variable(output),
+                                                .b = base_idx,
+                                                .c = next_pivot_idx,
+                                                .d = pivot_idx,
+                                                .a_scaling = q_1,
+                                                .b_scaling = q_2,
+                                                .c_scaling = fr::zero(),
+                                                .d_scaling = q_3,
+                                                .const_scaling = fr::zero() };
 
     context->create_big_add_gate_with_bit_extraction(gate);
 
@@ -432,8 +432,8 @@ uint<Composer, Native> uint<Composer, Native>::ror(const size_t target_rotation)
     return result;
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::rol(const size_t target_rotation) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::rol(const size_t target_rotation) const
 {
     // Rotating right by r in [0, w - 1] is the same as rotating left by w - r
     // In general, set r = target_rotation mod width = target_rotation & (width - 1),
@@ -444,10 +444,10 @@ uint<Composer, Native> uint<Composer, Native>::rol(const size_t target_rotation)
 /**
  * @brief Implement AND and XOR.
  */
-template <typename Composer, typename Native>
-uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other, const LogicOp op_type) const
+template <typename Builder, typename Native>
+uint<Builder, Native> uint<Builder, Native>::logic_operator(const uint& other, const LogicOp op_type) const
 {
-    Composer* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
     // we need to ensure that we can decompose our integers into (width / 2) quads
     // we don't need to completely normalize, however, as our quaternary decomposition will do that by default
@@ -477,13 +477,13 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
 
     if (is_constant() && other.is_constant()) {
         // returns a constant uint.
-        return uint<Composer, Native>(ctx, out);
+        return uint<Builder, Native>(ctx, out);
     }
 
     const uint32_t lhs_idx = is_constant() ? ctx->add_variable(lhs) : witness_index;
     const uint32_t rhs_idx = other.is_constant() ? ctx->add_variable(rhs) : other.witness_index;
 
-    accumulator_triple_<typename Composer::FF> logic_accumulators;
+    accumulator_triple_<typename Builder::FF> logic_accumulators;
 
     switch (op_type) {
     case AND: {
@@ -499,7 +499,7 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
     }
 
     if (is_constant()) {
-        field_t<Composer>::from_witness_index(ctx, lhs_idx)
+        field_t<Builder>::from_witness_index(ctx, lhs_idx)
             .assert_equal(additive_constant, "uint logic operator assert equal fail");
     } else {
         accumulators = logic_accumulators.left;
@@ -508,7 +508,7 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
     }
 
     if (other.is_constant()) {
-        field_t<Composer>::from_witness_index(ctx, rhs_idx)
+        field_t<Builder>::from_witness_index(ctx, rhs_idx)
             .assert_equal(other.additive_constant, "uint logic operator assert equal fail");
     } else {
         other.accumulators = logic_accumulators.right;
@@ -516,7 +516,7 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         witness_status = WitnessStatus::OK;
     }
 
-    uint<Composer, Native> result(ctx);
+    uint<Builder, Native> result(ctx);
     result.accumulators = logic_accumulators.out;
     result.witness_index = result.accumulators[num_accumulators() - 1];
     result.witness_status = WitnessStatus::OK;

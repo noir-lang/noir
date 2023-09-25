@@ -7,21 +7,21 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer> class packed_byte_array {
+template <typename Builder> class packed_byte_array {
   private:
-    typedef field_t<Composer> field_pt;
-    typedef witness_t<Composer> witness_pt;
-    typedef bool_t<Composer> bool_pt;
-    typedef byte_array<Composer> byte_array_pt;
+    typedef field_t<Builder> field_pt;
+    typedef witness_t<Builder> witness_pt;
+    typedef bool_t<Builder> bool_pt;
+    typedef byte_array<Builder> byte_array_pt;
 
   public:
-    packed_byte_array(Composer* parent_context, size_t const num_bytes = 0);
+    packed_byte_array(Builder* parent_context, size_t const num_bytes = 0);
 
     // THIS CTOR ASSUMES INPUT ELEMENTS HAVE ALREADY BEEN REDUCED TO <16 BYTES PER ELEMENT
     // Use ::from_field_element_vector for raw vectors of unreduced prime field elements
     packed_byte_array(const std::vector<field_pt>& input, const size_t bytes_per_input = BYTES_PER_ELEMENT);
-    packed_byte_array(Composer* parent_context, const std::vector<uint8_t>& input);
-    packed_byte_array(Composer* parent_context, const std::string& input);
+    packed_byte_array(Builder* parent_context, const std::vector<uint8_t>& input);
+    packed_byte_array(Builder* parent_context, const std::string& input);
     packed_byte_array(const byte_array_pt& input);
 
     packed_byte_array(const packed_byte_array& other);
@@ -41,18 +41,18 @@ template <typename Composer> class packed_byte_array {
 
     size_t size() const { return num_bytes; }
 
-    Composer* get_context() const { return context; }
+    Builder* get_context() const { return context; }
 
     std::string get_value() const;
 
   private:
     static constexpr uint64_t BYTES_PER_ELEMENT = 16;
-    Composer* context;
+    Builder* context;
     size_t num_bytes;
     std::vector<field_pt> limbs;
 };
 
-template <typename Composer> inline std::ostream& operator<<(std::ostream& os, packed_byte_array<Composer> const& arr)
+template <typename Builder> inline std::ostream& operator<<(std::ostream& os, packed_byte_array<Builder> const& arr)
 {
     std::ios_base::fmtflags f(os.flags());
     os << "[" << std::hex << std::setfill('0');

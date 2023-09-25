@@ -10,18 +10,18 @@ namespace stdlib {
 /**
  * @brief  In the case of TurboPLONK, range constrain the given witness.
  */
-template <typename Composer, typename Native>
-std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* context,
-                                                                     const uint32_t witness_index,
-                                                                     const size_t num_bits,
-                                                                     std::string const& msg) const
+template <typename Builder, typename Native>
+std::vector<uint32_t> uint<Builder, Native>::constrain_accumulators(Builder* context,
+                                                                    const uint32_t witness_index,
+                                                                    const size_t num_bits,
+                                                                    std::string const& msg) const
 {
-    if constexpr (HasPlookup<Composer>) {
+    if constexpr (HasPlookup<Builder>) {
         // TODO: manage higher bit ranges
-        const auto sequence = plookup_read<Composer>::get_lookup_accumulators(
+        const auto sequence = plookup_read<Builder>::get_lookup_accumulators(
             plookup::MultiTableId::UINT32_XOR,
-            field_t<Composer>::from_witness_index(context, witness_index),
-            field_t<Composer>::from_witness_index(context, context->zero_idx),
+            field_t<Builder>::from_witness_index(context, witness_index),
+            field_t<Builder>::from_witness_index(context, context->zero_idx),
             true);
 
         std::vector<uint32_t> out(num_accumulators());
@@ -33,8 +33,8 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
     return context->decompose_into_base4_accumulators(witness_index, num_bits, msg);
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(const witness_t<Composer>& witness)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(const witness_t<Builder>& witness)
     : context(witness.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
@@ -43,8 +43,8 @@ uint<Composer, Native>::uint(const witness_t<Composer>& witness)
     , witness_index(accumulators[num_accumulators() - 1])
 {}
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(const field_t<Composer>& value)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(const field_t<Builder>& value)
     : context(value.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
@@ -54,24 +54,24 @@ uint<Composer, Native>::uint(const field_t<Composer>& value)
     if (value.witness_index == IS_CONSTANT) {
         additive_constant = value.additive_constant;
     } else {
-        field_t<Composer> norm = value.normalize();
+        field_t<Builder> norm = value.normalize();
         accumulators = constrain_accumulators(
             context, norm.witness_index, width, "uint: range constraint fails in constructor of uint from field_t");
         witness_index = accumulators[num_accumulators() - 1];
     }
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(Composer* composer, const uint256_t& value)
-    : context(composer)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(Builder* builder, const uint256_t& value)
+    : context(builder)
     , additive_constant(value)
     , witness_status(WitnessStatus::OK)
     , accumulators()
     , witness_index(IS_CONSTANT)
 {}
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(const uint256_t& value)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(const uint256_t& value)
     : context(nullptr)
     , additive_constant(value)
     , witness_status(WitnessStatus::OK)
@@ -79,8 +79,8 @@ uint<Composer, Native>::uint(const uint256_t& value)
     , witness_index(IS_CONSTANT)
 {}
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(const byte_array<Composer>& other)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(const byte_array<Builder>& other)
     : context(other.get_context())
     , additive_constant(0)
     , witness_status(WitnessStatus::WEAK_NORMALIZED)
@@ -88,8 +88,8 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
     , witness_index(IS_CONSTANT)
 {
     ASSERT(other.bytes().size() <= sizeof(Native));
-    field_t<Composer> accumulator(context, fr::zero());
-    field_t<Composer> scaling_factor(context, fr::one());
+    field_t<Builder> accumulator(context, fr::zero());
+    field_t<Builder> scaling_factor(context, fr::one());
     const auto bytes = other.bytes();
     for (size_t i = 0; i < bytes.size(); ++i) {
         accumulator = accumulator + scaling_factor * bytes[bytes.size() - 1 - i];
@@ -103,23 +103,23 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
     }
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(Composer* parent_context, const std::array<bool_t<Composer>, width>& wires)
-    : uint<Composer, Native>(parent_context, std::vector<bool_t<Composer>>(wires.begin(), wires.end()))
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(Builder* parent_context, const std::array<bool_t<Builder>, width>& wires)
+    : uint<Builder, Native>(parent_context, std::vector<bool_t<Builder>>(wires.begin(), wires.end()))
 {}
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(Composer* parent_context, const std::vector<bool_t<Composer>>& wires)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(Builder* parent_context, const std::vector<bool_t<Builder>>& wires)
     : context(parent_context)
     , additive_constant(0)
     , witness_status(WitnessStatus::WEAK_NORMALIZED)
     , accumulators()
     , witness_index(IS_CONSTANT)
 {
-    field_t<Composer> accumulator(context, fr::zero());
-    field_t<Composer> scaling_factor(context, fr::one());
+    field_t<Builder> accumulator(context, fr::zero());
+    field_t<Builder> scaling_factor(context, fr::one());
     for (size_t i = 0; i < wires.size(); ++i) {
-        accumulator = accumulator + scaling_factor * field_t<Composer>(wires[i]);
+        accumulator = accumulator + scaling_factor * field_t<Builder>(wires[i]);
         scaling_factor = scaling_factor + scaling_factor;
     }
     accumulator = accumulator.normalize();
@@ -130,8 +130,8 @@ uint<Composer, Native>::uint(Composer* parent_context, const std::vector<bool_t<
     }
 }
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(const uint& other)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(const uint& other)
     : context(other.context)
     , additive_constant(other.additive_constant)
     , witness_status(other.witness_status)
@@ -139,8 +139,8 @@ uint<Composer, Native>::uint(const uint& other)
     , witness_index(other.witness_index)
 {}
 
-template <typename Composer, typename Native>
-uint<Composer, Native>::uint(uint&& other)
+template <typename Builder, typename Native>
+uint<Builder, Native>::uint(uint&& other)
     : context(other.context)
     , additive_constant(other.additive_constant)
     , witness_status(other.witness_status)
@@ -148,8 +148,7 @@ uint<Composer, Native>::uint(uint&& other)
     , witness_index(other.witness_index)
 {}
 
-template <typename Composer, typename Native>
-uint<Composer, Native>& uint<Composer, Native>::operator=(const uint& other)
+template <typename Builder, typename Native> uint<Builder, Native>& uint<Builder, Native>::operator=(const uint& other)
 {
     context = other.context;
     additive_constant = other.additive_constant;
@@ -159,7 +158,7 @@ uint<Composer, Native>& uint<Composer, Native>::operator=(const uint& other)
     return *this;
 }
 
-template <typename Composer, typename Native> uint<Composer, Native>& uint<Composer, Native>::operator=(uint&& other)
+template <typename Builder, typename Native> uint<Builder, Native>& uint<Builder, Native>::operator=(uint&& other)
 {
     context = other.context;
     additive_constant = other.additive_constant;
@@ -189,7 +188,7 @@ template <typename Context, typename Native> uint<Context, Native>::operator byt
  * @details This function also updates the witness and zeroes out the additive constant.
  * It does not add any range constraints.
  */
-template <typename Composer, typename Native> uint<Composer, Native> uint<Composer, Native>::weak_normalize() const
+template <typename Builder, typename Native> uint<Builder, Native> uint<Builder, Native>::weak_normalize() const
 {
     if (!context || is_constant()) {
         return *this;
@@ -215,15 +214,15 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
         const uint256_t value = get_unbounded_value();
         const uint256_t overflow = value >> width;
         const uint256_t remainder = value & MASK;
-        const add_quad_<typename Composer::FF> gate{ .a = witness_index,
-                                                     .b = context->zero_idx,
-                                                     .c = context->add_variable(remainder),
-                                                     .d = context->add_variable(overflow),
-                                                     .a_scaling = fr::one(),
-                                                     .b_scaling = fr::zero(),
-                                                     .c_scaling = fr::neg_one(),
-                                                     .d_scaling = -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
-                                                     .const_scaling = (additive_constant & MASK) };
+        const add_quad_<typename Builder::FF> gate{ .a = witness_index,
+                                                    .b = context->zero_idx,
+                                                    .c = context->add_variable(remainder),
+                                                    .d = context->add_variable(overflow),
+                                                    .a_scaling = fr::one(),
+                                                    .b_scaling = fr::zero(),
+                                                    .c_scaling = fr::neg_one(),
+                                                    .d_scaling = -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
+                                                    .const_scaling = (additive_constant & MASK) };
 
         context->create_balanced_add_gate(gate);
 
@@ -237,7 +236,7 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
 /**
  * @brief For non-constants, weakly normalize and constrain the updated witness to width-many bits.
  */
-template <typename Composer, typename Native> uint<Composer, Native> uint<Composer, Native>::normalize() const
+template <typename Builder, typename Native> uint<Builder, Native> uint<Builder, Native>::normalize() const
 {
     if (!context || is_constant()) {
         return *this;
@@ -253,7 +252,7 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
     if (witness_status == WitnessStatus::NOT_NORMALIZED) {
         weak_normalize();
         /**
-         * constrain_accumulators will do more for PlookupComposer, but in TurboPLONK it just imposes
+         * constrain_accumulators will do more for PlookupBuilder, but in TurboPLONK it just imposes
          * the range constraint that the witness can be expressed in width-many bits.
          *
          * The Turbo-only strategy for imposing a range constraint on a w is develop a base-4 expansion
@@ -269,7 +268,7 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
     return *this;
 }
 
-template <typename Composer, typename Native> uint256_t uint<Composer, Native>::get_value() const
+template <typename Builder, typename Native> uint256_t uint<Builder, Native>::get_value() const
 {
     if (!context || is_constant()) {
         return additive_constant;
@@ -277,7 +276,7 @@ template <typename Composer, typename Native> uint256_t uint<Composer, Native>::
     return (uint256_t(context->get_variable(witness_index)) + additive_constant) & MASK;
 }
 
-template <typename Composer, typename Native> uint256_t uint<Composer, Native>::get_unbounded_value() const
+template <typename Builder, typename Native> uint256_t uint<Builder, Native>::get_unbounded_value() const
 {
     if (!context || is_constant()) {
         return additive_constant;
@@ -291,10 +290,10 @@ template <typename Composer, typename Native> uint256_t uint<Composer, Native>::
  * between the case where that bit is the low bit of a quad or a high bit of a quad.
  *
  **/
-template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Native>::at(const size_t bit_index) const
+template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Native>::at(const size_t bit_index) const
 {
     if (is_constant()) {
-        return bool_t<Composer>(context, get_value().get_bit(bit_index));
+        return bool_t<Builder>(context, get_value().get_bit(bit_index));
     }
 
     if (witness_status != WitnessStatus::OK) {
@@ -317,18 +316,18 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     uint256_t quad =
         uint256_t(context->get_variable(right_idx)) - uint256_t(context->get_variable(left_idx)) * uint256_t(4);
 
-    if constexpr (HasPlookup<Composer>) {
+    if constexpr (HasPlookup<Builder>) {
         uint256_t lo_bit = quad & 1;
         uint256_t hi_bit = (quad & 2) >> 1;
         // difference in quads = 0, 1, 2, 3 = delta
         // (delta - lo_bit) / 2 \in [0, 1]
         // lo_bit \in [0, 1]
-        add_quad_<typename Composer::FF> gate{
+        add_quad_<typename Builder::FF> gate{
             context->add_variable(lo_bit), context->add_variable(hi_bit), right_idx, left_idx, 1, 2, -1, 4, 0,
         };
         context->create_new_range_constraint(gate.a, 1);
         context->create_new_range_constraint(gate.b, 1);
-        bool_t<Composer> result;
+        bool_t<Builder> result;
 
         if ((bit_index & 1UL) == 0UL) {
             result.witness_index = gate.a;
@@ -352,22 +351,22 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     if ((bit_index & 1UL) == 0UL) {
         // we want a low bit
         uint256_t lo_bit = quad & 1;
-        add_quad_<typename Composer::FF> gate{ .a = context->add_variable(lo_bit),
-                                               .b = context->zero_idx,
-                                               .c = right_idx,
-                                               .d = left_idx,
-                                               .a_scaling = fr(3),
-                                               .b_scaling = fr::zero(),
-                                               .c_scaling = -fr(3),
-                                               .d_scaling = fr(12),
-                                               .const_scaling = fr::zero() };
+        add_quad_<typename Builder::FF> gate{ .a = context->add_variable(lo_bit),
+                                              .b = context->zero_idx,
+                                              .c = right_idx,
+                                              .d = left_idx,
+                                              .a_scaling = fr(3),
+                                              .b_scaling = fr::zero(),
+                                              .c_scaling = -fr(3),
+                                              .d_scaling = fr(12),
+                                              .const_scaling = fr::zero() };
         /** constraint:
          *    3 lo_bit + 0 * 0 - 3 a_pivot + 12 a_{pivot - 1} + 0 + 6 high bit of (A_pivot - 4 A_{pivot - 1}) == 0
          *  i.e.,
          *    lo_bit + 2 high bit of (A_pivot - 4 A_{pivot - 1}) = A_pivot - 4 A_{pivot - 1} == 0
          */
         context->create_big_add_gate_with_bit_extraction(gate);
-        bool_t<Composer> result(context);
+        bool_t<Builder> result(context);
         result.witness_index = gate.a;
         result.witness_bool = (lo_bit == 1) ? true : false;
         return result;
@@ -376,15 +375,15 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     // if 'index' is odd, we want a high bit
     uint256_t hi_bit = quad >> 1;
 
-    add_quad_<typename Composer::FF> gate{ .a = context->zero_idx,
-                                           .b = context->add_variable(hi_bit),
-                                           .c = right_idx,
-                                           .d = left_idx,
-                                           .a_scaling = fr::zero(),
-                                           .b_scaling = -fr(6),
-                                           .c_scaling = fr::zero(),
-                                           .d_scaling = fr::zero(),
-                                           .const_scaling = fr::zero() };
+    add_quad_<typename Builder::FF> gate{ .a = context->zero_idx,
+                                          .b = context->add_variable(hi_bit),
+                                          .c = right_idx,
+                                          .d = left_idx,
+                                          .a_scaling = fr::zero(),
+                                          .b_scaling = -fr(6),
+                                          .c_scaling = fr::zero(),
+                                          .d_scaling = fr::zero(),
+                                          .const_scaling = fr::zero() };
 
     /**
      * constraint:
@@ -393,7 +392,7 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
      * bit extraction gate is trusted to correctly extract 6 * (high bit c - 4d).
      */
     context->create_big_add_gate_with_bit_extraction(gate);
-    bool_t<Composer> result(context);
+    bool_t<Builder> result(context);
     result.witness_index = gate.b;
     result.witness_bool = (hi_bit == 1) ? true : false;
     return result;

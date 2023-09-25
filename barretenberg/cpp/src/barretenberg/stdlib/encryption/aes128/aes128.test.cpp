@@ -32,17 +32,17 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         return converted;
     };
 
-    auto composer = proof_system::UltraCircuitBuilder();
+    auto builder = proof_system::UltraCircuitBuilder();
 
     std::vector<field_pt> in_field{
-        witness_pt(&composer, fr(convert_bytes(in))),
-        witness_pt(&composer, fr(convert_bytes(in + 16))),
-        witness_pt(&composer, fr(convert_bytes(in + 32))),
-        witness_pt(&composer, fr(convert_bytes(in + 48))),
+        witness_pt(&builder, fr(convert_bytes(in))),
+        witness_pt(&builder, fr(convert_bytes(in + 16))),
+        witness_pt(&builder, fr(convert_bytes(in + 32))),
+        witness_pt(&builder, fr(convert_bytes(in + 48))),
     };
 
-    field_pt key_field(witness_pt(&composer, fr(convert_bytes(key))));
-    field_pt iv_field(witness_pt(&composer, fr(convert_bytes(iv))));
+    field_pt key_field(witness_pt(&builder, fr(convert_bytes(key))));
+    field_pt iv_field(witness_pt(&builder, fr(convert_bytes(iv))));
 
     std::vector<fr> expected{
         convert_bytes(out), convert_bytes(out + 16), convert_bytes(out + 32), convert_bytes(out + 48)
@@ -54,8 +54,8 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         EXPECT_EQ(result[i].get_value(), expected[i]);
     }
 
-    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    std::cout << "num gates = " << builder.get_num_gates() << std::endl;
 
-    bool proof_result = composer.check_circuit();
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }

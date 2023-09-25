@@ -6,15 +6,15 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 /**
- * @brief Construct a new ram table<Composer>::ram table object. It's dynamic memory!
+ * @brief Construct a new ram table<Builder>::ram table object. It's dynamic memory!
  *
- * @tparam Composer
+ * @tparam Builder
  * @param table_entries vector of field elements that will initialize the RAM table
  */
-template <typename Composer> ram_table<Composer>::ram_table(Composer* composer, const size_t table_size)
+template <typename Builder> ram_table<Builder>::ram_table(Builder* builder, const size_t table_size)
 {
-    static_assert(HasPlookup<Composer>);
-    _context = composer;
+    static_assert(HasPlookup<Builder>);
+    _context = builder;
     _length = table_size;
     _index_initialized.resize(table_size);
     for (size_t i = 0; i < _index_initialized.size(); ++i) {
@@ -22,21 +22,21 @@ template <typename Composer> ram_table<Composer>::ram_table(Composer* composer, 
     }
 
     // do not initialize the table yet. The input entries might all be constant,
-    // if this is the case we might not have a valid pointer to a Composer
+    // if this is the case we might not have a valid pointer to a Builder
     // We get around this, by initializing the table when `read` or `write` operator is called
     // with a non-const field element.
 }
 
 /**
- * @brief Construct a new ram table<Composer>::ram table object. It's dynamic memory!
+ * @brief Construct a new ram table<Builder>::ram table object. It's dynamic memory!
  *
- * @tparam Composer
+ * @tparam Builder
  * @param table_entries vector of field elements that will initialize the RAM table
  */
-template <typename Composer> ram_table<Composer>::ram_table(const std::vector<field_pt>& table_entries)
+template <typename Builder> ram_table<Builder>::ram_table(const std::vector<field_pt>& table_entries)
 {
-    static_assert(HasPlookup<Composer>);
-    // get the composer _context
+    static_assert(HasPlookup<Builder>);
+    // get the builder _context
     for (const auto& entry : table_entries) {
         if (entry.get_context() != nullptr) {
             _context = entry.get_context();
@@ -50,23 +50,23 @@ template <typename Composer> ram_table<Composer>::ram_table(const std::vector<fi
         _index_initialized[i] = false;
     }
     // do not initialize the table yet. The input entries might all be constant,
-    // if this is the case we might not have a valid pointer to a Composer
+    // if this is the case we might not have a valid pointer to a Builder
     // We get around this, by initializing the table when `read` or `write` operator is called
     // with a non-const field element.
 }
 
 /**
- * @brief internal method, is used to call Composer methods that will generate RAM table.
+ * @brief internal method, is used to call Builder methods that will generate RAM table.
  *
- * @details initialize the table once we perform a read. This ensures we always have a pointer to a Composer.
- * (if both the table entries and the index are constant, we don't need a composer as we
+ * @details initialize the table once we perform a read. This ensures we always have a pointer to a Builder.
+ * (if both the table entries and the index are constant, we don't need a builder as we
  * can directly extract the desired value fram `_raw_entries`)
  *
- * @tparam Composer
+ * @tparam Builder
  */
-template <typename Composer> void ram_table<Composer>::initialize_table() const
+template <typename Builder> void ram_table<Builder>::initialize_table() const
 {
-    if (_ram_table_generated_in_composer) {
+    if (_ram_table_generated_in_builder) {
         return;
     }
     ASSERT(_context != nullptr);
@@ -89,39 +89,39 @@ template <typename Composer> void ram_table<Composer>::initialize_table() const
         }
     }
 
-    _ram_table_generated_in_composer = true;
+    _ram_table_generated_in_builder = true;
 }
 
 /**
- * @brief Construct a new ram table<Composer>::ram table object
+ * @brief Construct a new ram table<Builder>::ram table object
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
  */
-template <typename Composer>
-ram_table<Composer>::ram_table(const ram_table& other)
+template <typename Builder>
+ram_table<Builder>::ram_table(const ram_table& other)
     : _raw_entries(other._raw_entries)
     , _index_initialized(other._index_initialized)
     , _length(other._length)
     , _ram_id(other._ram_id)
-    , _ram_table_generated_in_composer(other._ram_table_generated_in_composer)
+    , _ram_table_generated_in_builder(other._ram_table_generated_in_builder)
     , _all_entries_written_to_with_constant_index(other._all_entries_written_to_with_constant_index)
     , _context(other._context)
 {}
 
 /**
- * @brief Construct a new ram table<Composer>::ram table object
+ * @brief Construct a new ram table<Builder>::ram table object
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
  */
-template <typename Composer>
-ram_table<Composer>::ram_table(ram_table&& other)
+template <typename Builder>
+ram_table<Builder>::ram_table(ram_table&& other)
     : _raw_entries(other._raw_entries)
     , _index_initialized(other._index_initialized)
     , _length(other._length)
     , _ram_id(other._ram_id)
-    , _ram_table_generated_in_composer(other._ram_table_generated_in_composer)
+    , _ram_table_generated_in_builder(other._ram_table_generated_in_builder)
     , _all_entries_written_to_with_constant_index(other._all_entries_written_to_with_constant_index)
     , _context(other._context)
 {}
@@ -129,17 +129,17 @@ ram_table<Composer>::ram_table(ram_table&& other)
 /**
  * @brief Copy assignment operator
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return ram_table<Composer>&
+ * @return ram_table<Builder>&
  */
-template <typename Composer> ram_table<Composer>& ram_table<Composer>::operator=(const ram_table& other)
+template <typename Builder> ram_table<Builder>& ram_table<Builder>::operator=(const ram_table& other)
 {
     _raw_entries = other._raw_entries;
     _length = other._length;
     _ram_id = other._ram_id;
     _index_initialized = other._index_initialized;
-    _ram_table_generated_in_composer = other._ram_table_generated_in_composer;
+    _ram_table_generated_in_builder = other._ram_table_generated_in_builder;
     _all_entries_written_to_with_constant_index = other._all_entries_written_to_with_constant_index;
 
     _context = other._context;
@@ -149,17 +149,17 @@ template <typename Composer> ram_table<Composer>& ram_table<Composer>::operator=
 /**
  * @brief Move assignment operator
  *
- * @tparam Composer
+ * @tparam Builder
  * @param other
- * @return ram_table<Composer>&
+ * @return ram_table<Builder>&
  */
-template <typename Composer> ram_table<Composer>& ram_table<Composer>::operator=(ram_table&& other)
+template <typename Builder> ram_table<Builder>& ram_table<Builder>::operator=(ram_table&& other)
 {
     _raw_entries = other._raw_entries;
     _length = other._length;
     _ram_id = other._ram_id;
     _index_initialized = other._index_initialized;
-    _ram_table_generated_in_composer = other._ram_table_generated_in_composer;
+    _ram_table_generated_in_builder = other._ram_table_generated_in_builder;
     _all_entries_written_to_with_constant_index = other._all_entries_written_to_with_constant_index;
     _context = other._context;
     return *this;
@@ -168,11 +168,11 @@ template <typename Composer> ram_table<Composer>& ram_table<Composer>::operator=
 /**
  * @brief Read a field element from the RAM table at an index value
  *
- * @tparam Composer
+ * @tparam Builder
  * @param index
- * @return field_t<Composer>
+ * @return field_t<Builder>
  */
-template <typename Composer> field_t<Composer> ram_table<Composer>::read(const field_pt& index) const
+template <typename Builder> field_t<Builder> ram_table<Builder>::read(const field_pt& index) const
 {
     if (_context == nullptr) {
         _context = index.get_context();
@@ -205,11 +205,11 @@ template <typename Composer> field_t<Composer> ram_table<Composer>::read(const f
 /**
  * @brief Write a field element from the RAM table at an index value
  *
- * @tparam Composer
+ * @tparam Builder
  * @param index
  * @param value
  */
-template <typename Composer> void ram_table<Composer>::write(const field_pt& index, const field_pt& value)
+template <typename Builder> void ram_table<Builder>::write(const field_pt& index, const field_pt& value)
 {
     if (_context == nullptr) {
         _context = index.get_context();

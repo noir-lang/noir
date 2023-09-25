@@ -10,13 +10,13 @@ using namespace barretenberg;
 using namespace proof_system::plonk;
 
 namespace test_stdlib_ecdsa {
-using Composer = proof_system::UltraCircuitBuilder;
-using curve = stdlib::secp256k1<Composer>;
-using curveR1 = stdlib::secp256r1<Composer>;
+using Builder = proof_system::UltraCircuitBuilder;
+using curve = stdlib::secp256k1<Builder>;
+using curveR1 = stdlib::secp256r1<Builder>;
 
 TEST(stdlib_ecdsa, verify_signature)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     // whaaablaghaaglerijgeriij
     std::string message_string = "Instructions unclear, ask again later.";
@@ -32,34 +32,33 @@ TEST(stdlib_ecdsa, verify_signature)
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
-    curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&composer, account.public_key);
+    curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
     std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
     std::vector<uint8_t> ss(signature.s.begin(), signature.s.end());
     uint8_t vv = signature.v;
 
-    stdlib::ecdsa::signature<Composer> sig{ curve::byte_array_ct(&composer, rr),
-                                            curve::byte_array_ct(&composer, ss),
-                                            stdlib::uint8<Composer>(&composer, vv) };
+    stdlib::ecdsa::signature<Builder> sig{ curve::byte_array_ct(&builder, rr),
+                                           curve::byte_array_ct(&builder, ss),
+                                           stdlib::uint8<Builder>(&builder, vv) };
 
-    curve::byte_array_ct message(&composer, message_string);
+    curve::byte_array_ct message(&builder, message_string);
 
     curve::bool_ct signature_result =
-        stdlib::ecdsa::verify_signature<Composer, curve, curve::fq_ct, curve::bigfr_ct, curve::g1_bigfr_ct>(
+        stdlib::ecdsa::verify_signature<Builder, curve, curve::fq_ct, curve::bigfr_ct, curve::g1_bigfr_ct>(
             message, public_key, sig);
 
     EXPECT_EQ(signature_result.get_value(), true);
 
-    std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(
-        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
-    bool proof_result = composer.check_circuit();
+    std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
+    benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 
 TEST(stdlib_ecdsa, verify_r1_signature)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     std::string message_string = "Instructions unclear, ask again later.";
 
@@ -75,34 +74,33 @@ TEST(stdlib_ecdsa, verify_r1_signature)
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
-    curveR1::g1_bigfr_ct public_key = curveR1::g1_bigfr_ct::from_witness(&composer, account.public_key);
+    curveR1::g1_bigfr_ct public_key = curveR1::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
     std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
     std::vector<uint8_t> ss(signature.s.begin(), signature.s.end());
     uint8_t vv = signature.v;
 
-    stdlib::ecdsa::signature<Composer> sig{ curveR1::byte_array_ct(&composer, rr),
-                                            curveR1::byte_array_ct(&composer, ss),
-                                            stdlib::uint8<Composer>(&composer, vv) };
+    stdlib::ecdsa::signature<Builder> sig{ curveR1::byte_array_ct(&builder, rr),
+                                           curveR1::byte_array_ct(&builder, ss),
+                                           stdlib::uint8<Builder>(&builder, vv) };
 
-    curveR1::byte_array_ct message(&composer, message_string);
+    curveR1::byte_array_ct message(&builder, message_string);
 
     curveR1::bool_ct signature_result =
-        stdlib::ecdsa::verify_signature<Composer, curveR1, curveR1::fq_ct, curveR1::bigfr_ct, curveR1::g1_bigfr_ct>(
+        stdlib::ecdsa::verify_signature<Builder, curveR1, curveR1::fq_ct, curveR1::bigfr_ct, curveR1::g1_bigfr_ct>(
             message, public_key, sig);
 
     EXPECT_EQ(signature_result.get_value(), true);
 
-    std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(
-        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
-    bool proof_result = composer.check_circuit();
+    std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
+    benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 
 TEST(stdlib_ecdsa, verify_signature_noassert_succeed)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     // whaaablaghaaglerijgeriij
     std::string message_string = "Instructions unclear, ask again later.";
@@ -118,36 +116,35 @@ TEST(stdlib_ecdsa, verify_signature_noassert_succeed)
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
-    curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&composer, account.public_key);
+    curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
     std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
     std::vector<uint8_t> ss(signature.s.begin(), signature.s.end());
     uint8_t vv = signature.v;
 
-    stdlib::ecdsa::signature<Composer> sig{
-        curve::byte_array_ct(&composer, rr),
-        curve::byte_array_ct(&composer, ss),
-        stdlib::uint8<Composer>(&composer, vv),
+    stdlib::ecdsa::signature<Builder> sig{
+        curve::byte_array_ct(&builder, rr),
+        curve::byte_array_ct(&builder, ss),
+        stdlib::uint8<Builder>(&builder, vv),
     };
 
-    curve::byte_array_ct message(&composer, message_string);
+    curve::byte_array_ct message(&builder, message_string);
 
     curve::bool_ct signature_result =
-        stdlib::ecdsa::verify_signature_noassert<Composer, curve, curve::fq_ct, curve::bigfr_ct, curve::g1_bigfr_ct>(
+        stdlib::ecdsa::verify_signature_noassert<Builder, curve, curve::fq_ct, curve::bigfr_ct, curve::g1_bigfr_ct>(
             message, public_key, sig);
 
     EXPECT_EQ(signature_result.get_value(), true);
 
-    std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(
-        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
-    bool proof_result = composer.check_circuit();
+    std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
+    benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 
 TEST(stdlib_ecdsa, verify_signature_noassert_fail)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
 
     // whaaablaghaaglerijgeriij
     std::string message_string = "Instructions unclear, ask again later.";
@@ -166,27 +163,24 @@ TEST(stdlib_ecdsa, verify_signature_noassert_fail)
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, false);
 
-    curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&composer, account.public_key);
+    curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
     std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
     std::vector<uint8_t> ss(signature.s.begin(), signature.s.end());
 
-    stdlib::ecdsa::signature<Composer> sig{ curve::byte_array_ct(&composer, rr),
-                                            curve::byte_array_ct(&composer, ss),
-                                            27 };
+    stdlib::ecdsa::signature<Builder> sig{ curve::byte_array_ct(&builder, rr), curve::byte_array_ct(&builder, ss), 27 };
 
-    curve::byte_array_ct message(&composer, message_string);
+    curve::byte_array_ct message(&builder, message_string);
 
     curve::bool_ct signature_result =
-        stdlib::ecdsa::verify_signature_noassert<Composer, curve, curve::fq_ct, curve::bigfr_ct, curve::g1_bigfr_ct>(
+        stdlib::ecdsa::verify_signature_noassert<Builder, curve, curve::fq_ct, curve::bigfr_ct, curve::g1_bigfr_ct>(
             message, public_key, sig);
 
     EXPECT_EQ(signature_result.get_value(), false);
 
-    std::cerr << "composer gates = " << composer.get_num_gates() << std::endl;
-    benchmark_info(
-        Composer::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", composer.get_num_gates());
-    bool proof_result = composer.check_circuit();
+    std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
+    benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
+    bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
 } // namespace test_stdlib_ecdsa

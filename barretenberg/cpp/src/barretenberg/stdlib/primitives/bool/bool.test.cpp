@@ -4,9 +4,9 @@
 #include <gtest/gtest.h>
 
 #define STDLIB_TYPE_ALIASES                                                                                            \
-    using Composer = TypeParam;                                                                                        \
-    using witness_ct = stdlib::witness_t<Composer>;                                                                    \
-    using bool_ct = stdlib::bool_t<Composer>;
+    using Builder = TypeParam;                                                                                         \
+    using witness_ct = stdlib::witness_t<Builder>;                                                                     \
+    using bool_ct = stdlib::bool_t<Builder>;
 
 namespace test_stdlib_bool {
 using namespace barretenberg;
@@ -16,7 +16,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-template <class Composer> class BoolTest : public ::testing::Test {};
+template <class Builder> class BoolTest : public ::testing::Test {};
 
 using CircuitTypes = ::testing::
     Types<proof_system::StandardCircuitBuilder, proof_system::TurboCircuitBuilder, proof_system::UltraCircuitBuilder>;
@@ -26,12 +26,12 @@ TYPED_TEST(BoolTest, TestBasicOperations)
 {
 
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
-    auto gates_before = composer.get_num_gates();
+    auto gates_before = builder.get_num_gates();
 
-    bool_ct a = witness_ct(&composer, barretenberg::fr::one());
-    bool_ct b = witness_ct(&composer, barretenberg::fr::zero());
+    bool_ct a = witness_ct(&builder, barretenberg::fr::one());
+    bool_ct b = witness_ct(&builder, barretenberg::fr::zero());
     a = a ^ b; // a = 1
     EXPECT_EQ(a.get_value(), 1);
     b = !b; // b = 1 (witness 0)
@@ -47,17 +47,17 @@ TYPED_TEST(BoolTest, TestBasicOperations)
     d = (!f) & a; // d = 1
     EXPECT_EQ(d.get_value(), 1);
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 
-    auto gates_after = composer.get_num_gates();
+    auto gates_after = builder.get_num_gates();
     EXPECT_EQ(gates_after - gates_before, 6UL);
 }
 
 TYPED_TEST(BoolTest, Xor)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
@@ -66,169 +66,169 @@ TYPED_TEST(BoolTest, Xor)
         for (size_t i = 0; i < 4; ++i) {
             bool a_val = (bool)(i % 2);
             bool b_val = (bool)(i > 1 ? true : false);
-            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
-            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&builder, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&builder, b_val));
             bool_ct c = a ^ b;
             EXPECT_EQ(c.get_value(), a.get_value() ^ b.get_value());
         }
     }
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, XorConstants)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t i = 0; i < 32; ++i) {
-        bool_ct a = witness_ct(&composer, (bool)(i % 2));
-        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&builder, (bool)(i % 2));
+        bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
         a ^ b;
     }
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_ct a = witness_ct(&composer, (bool)(i % 2));
-            bool_ct b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&builder, (bool)(i % 2));
+            bool_ct b(&builder, (bool)(i % 3 == 1));
             a ^ b;
         } else {
-            bool_ct a(&composer, (bool)(i % 2));
-            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&builder, (bool)(i % 2));
+            bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
             a ^ b;
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, XorTwinConstants)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     bool_ct c;
     for (size_t i = 0; i < 32; ++i) {
-        bool_ct a(&composer, (i % 1) == 0);
-        bool_ct b(&composer, (i % 1) == 1);
+        bool_ct a(&builder, (i % 1) == 0);
+        bool_ct b(&builder, (i % 1) == 1);
         c = c ^ a ^ b;
     }
-    c = c ^ bool_ct(witness_ct(&composer, true));
+    c = c ^ bool_ct(witness_ct(&builder, true));
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_ct a = witness_ct(&composer, (bool)(i % 2));
-            bool_ct b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&builder, (bool)(i % 2));
+            bool_ct b(&builder, (bool)(i % 3 == 1));
             c = c ^ a ^ b;
         } else {
-            bool_ct a(&composer, (bool)(i % 2));
-            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&builder, (bool)(i % 2));
+            bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
             c = c ^ a ^ b;
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, LogicalAnd)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
-    bool_ct a = witness_ct(&composer, 1);
-    bool_ct b = witness_ct(&composer, 1);
+    bool_ct a = witness_ct(&builder, 1);
+    bool_ct b = witness_ct(&builder, 1);
     (!a) && (!b);
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, And)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t i = 0; i < 32; ++i) {
-        bool_ct a = witness_ct(&composer, (bool)(i % 1));
-        bool_ct b = witness_ct(&composer, (bool)(i % 2 == 1));
+        bool_ct a = witness_ct(&builder, (bool)(i % 1));
+        bool_ct b = witness_ct(&builder, (bool)(i % 2 == 1));
         a& b;
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, AndConstants)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t i = 0; i < 32; ++i) {
-        bool_ct a = witness_ct(&composer, (bool)(i % 2));
-        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&builder, (bool)(i % 2));
+        bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
         a& b;
     }
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_ct a = witness_ct(&composer, (bool)(i % 2));
-            bool_ct b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&builder, (bool)(i % 2));
+            bool_ct b(&builder, (bool)(i % 3 == 1));
             a& b;
         } else {
-            bool_ct a(&composer, (bool)(i % 2));
-            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&builder, (bool)(i % 2));
+            bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
             a& b;
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, or)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t i = 0; i < 32; ++i) {
-        bool_ct a = witness_ct(&composer, (bool)(i % 2));
-        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&builder, (bool)(i % 2));
+        bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
         a | b;
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, OrConstants)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t i = 0; i < 32; ++i) {
-        bool_ct a = witness_ct(&composer, (bool)(i % 2));
-        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&builder, (bool)(i % 2));
+        bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
         a | b;
     }
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_ct a = witness_ct(&composer, (bool)(i % 2));
-            bool_ct b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&builder, (bool)(i % 2));
+            bool_ct b(&builder, (bool)(i % 3 == 1));
             a | b;
         } else {
-            bool_ct a(&composer, (bool)(i % 2));
-            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&builder, (bool)(i % 2));
+            bool_ct b = witness_ct(&builder, (bool)(i % 3 == 1));
             a | b;
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, Eq)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     bool a_alt[32];
     bool b_alt[32];
@@ -253,13 +253,13 @@ TYPED_TEST(BoolTest, Eq)
     bool_ct d[32];
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            a[i] = witness_ct(&composer, (bool)(i % 2));
-            b[i] = witness_ct(&composer, (bool)(0));
+            a[i] = witness_ct(&builder, (bool)(i % 2));
+            b[i] = witness_ct(&builder, (bool)(0));
             c[i] = a[i] ^ b[i];
             d[i] = a[i] == c[i];
         } else {
-            a[i] = witness_ct(&composer, (bool)(1));
-            b[i] = witness_ct(&composer, (bool)(0));
+            a[i] = witness_ct(&builder, (bool)(1));
+            b[i] = witness_ct(&builder, (bool)(0));
             c[i] = a[i] & b[i];
             d[i] = a[i] == c[i];
         }
@@ -271,14 +271,14 @@ TYPED_TEST(BoolTest, Eq)
         EXPECT_EQ(d[i].get_value(), d_alt[i]);
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, Implies)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
@@ -287,21 +287,21 @@ TYPED_TEST(BoolTest, Implies)
         for (size_t i = 0; i < 4; ++i) {
             bool a_val = (bool)(i % 2);
             bool b_val = (bool)(i > 1 ? true : false);
-            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
-            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&builder, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&builder, b_val));
             bool_ct c = a.implies(b);
             EXPECT_EQ(c.get_value(), !a.get_value() || b.get_value());
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, ImpliesBothWays)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
@@ -310,21 +310,21 @@ TYPED_TEST(BoolTest, ImpliesBothWays)
         for (size_t i = 0; i < 4; ++i) {
             bool a_val = (bool)(i % 2);
             bool b_val = (bool)(i > 1 ? true : false);
-            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
-            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&builder, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&builder, b_val));
             bool_ct c = a.implies_both_ways(b);
             EXPECT_EQ(c.get_value(), !(a.get_value() ^ b.get_value()));
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, MustImply)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
@@ -337,20 +337,20 @@ TYPED_TEST(BoolTest, MustImply)
             bool six = (bool)(i % 6);
             bool a_val = (two && three);
             bool b_val = six;
-            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
-            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&builder, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&builder, b_val));
             a.must_imply(b);
         }
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, MustImplyFails)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t j = 0; j < 3; ++j) { // ignore the case when both lhs and rhs are constants
         bool lhs_constant = (bool)(j % 2);
@@ -361,19 +361,19 @@ TYPED_TEST(BoolTest, MustImplyFails)
         const size_t i = 8;
         bool a_val = (bool)(i % 2 == 0);
         bool b_val = (bool)(i % 6 == 0);
-        bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
-        bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+        bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&builder, a_val));
+        bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&builder, b_val));
         a.must_imply(b, "div by 2 does not imply div by 8");
 
-        EXPECT_EQ(composer.failed(), true);
-        EXPECT_EQ(composer.err(), "div by 2 does not imply div by 8");
+        EXPECT_EQ(builder.failed(), true);
+        EXPECT_EQ(builder.err(), "div by 2 does not imply div by 8");
     }
 }
 
 TYPED_TEST(BoolTest, MustImplyMultiple)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     /**
      * Define g(x) = 2x + 12
@@ -394,8 +394,8 @@ TYPED_TEST(BoolTest, MustImplyMultiple)
             bool four = (bool)(x % 4 == 0);
             bool six = (bool)(x % 6 == 0);
 
-            bool_ct a = lhs_constant ? bool_ct(four) : (witness_ct(&composer, four));
-            bool_ct b = rhs_constant ? bool_ct(six) : (witness_ct(&composer, six));
+            bool_ct a = lhs_constant ? bool_ct(four) : (witness_ct(&builder, four));
+            bool_ct b = rhs_constant ? bool_ct(six) : (witness_ct(&builder, six));
 
             auto g_x = g(x);
             conditions.push_back(std::make_pair(g_x > 0, "g(x) > 0"));
@@ -405,10 +405,10 @@ TYPED_TEST(BoolTest, MustImplyMultiple)
 
             (a && b).must_imply(conditions);
 
-            if (composer.failed()) {
-                EXPECT_EQ(composer.err(), "multi implication fail: g(x) is a multiple of 6");
+            if (builder.failed()) {
+                EXPECT_EQ(builder.err(), "multi implication fail: g(x) is a multiple of 6");
             } else {
-                bool result = composer.check_circuit();
+                bool result = builder.check_circuit();
                 EXPECT_EQ(result, true);
             }
         }
@@ -418,7 +418,7 @@ TYPED_TEST(BoolTest, MustImplyMultiple)
 TYPED_TEST(BoolTest, MustImplyMultipleFails)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     /**
      * Given x = 15:
@@ -432,24 +432,24 @@ TYPED_TEST(BoolTest, MustImplyMultipleFails)
 
         size_t x = 15;
         bool main = (bool)(x > 10);
-        bool_ct main_ct = is_constant ? bool_ct(main) : (witness_ct(&composer, main));
+        bool_ct main_ct = is_constant ? bool_ct(main) : (witness_ct(&builder, main));
 
         std::vector<std::pair<bool_ct, std::string>> conditions;
-        conditions.push_back(std::make_pair(witness_ct(&composer, x > 8), "x > 8"));
-        conditions.push_back(std::make_pair(witness_ct(&composer, x > 5), "x > 5"));
-        conditions.push_back(std::make_pair(witness_ct(&composer, x > 18), "x > 18"));
+        conditions.push_back(std::make_pair(witness_ct(&builder, x > 8), "x > 8"));
+        conditions.push_back(std::make_pair(witness_ct(&builder, x > 5), "x > 5"));
+        conditions.push_back(std::make_pair(witness_ct(&builder, x > 18), "x > 18"));
 
         main_ct.must_imply(conditions);
 
-        EXPECT_EQ(composer.failed(), true);
-        EXPECT_EQ(composer.err(), "multi implication fail: x > 18");
+        EXPECT_EQ(builder.failed(), true);
+        EXPECT_EQ(builder.err(), "multi implication fail: x > 18");
     }
 }
 
 TYPED_TEST(BoolTest, ConditionalAssign)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
@@ -461,40 +461,40 @@ TYPED_TEST(BoolTest, ConditionalAssign)
         bool condition = (val % 2 == 0);
         bool right = x < val;
         bool left = x > val;
-        bool_ct l_ct = lhs_constant ? bool_ct(left) : (witness_ct(&composer, left));
-        bool_ct r_ct = rhs_constant ? bool_ct(right) : (witness_ct(&composer, right));
-        bool_ct cond = (witness_ct(&composer, condition));
+        bool_ct l_ct = lhs_constant ? bool_ct(left) : (witness_ct(&builder, left));
+        bool_ct r_ct = rhs_constant ? bool_ct(right) : (witness_ct(&builder, right));
+        bool_ct cond = (witness_ct(&builder, condition));
 
         auto result = bool_ct::conditional_assign(cond, l_ct, r_ct);
 
         EXPECT_EQ(result.get_value(), condition ? left : right);
     }
-    info("composer gates = ", composer.get_num_gates());
-    bool result = composer.check_circuit();
+    info("num gates = ", builder.get_num_gates());
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, TestSimpleProof)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
-    bool_ct a(&composer);
-    bool_ct b(&composer);
-    a = witness_ct(&composer, barretenberg::fr::one());
-    b = witness_ct(&composer, barretenberg::fr::zero());
-    // bool_ct c(&composer);
+    bool_ct a(&builder);
+    bool_ct b(&builder);
+    a = witness_ct(&builder, barretenberg::fr::one());
+    b = witness_ct(&builder, barretenberg::fr::zero());
+    // bool_ct c(&builder);
     a = a ^ b;            // a = 1
     b = !b;               // b = 1 (witness 0)
     bool_ct c = (a == b); // c = 1
-    bool_ct d(&composer); // d = ?
+    bool_ct d(&builder);  // d = ?
     d = false;            // d = 0
     bool_ct e = a | d;    // e = 1 = a
     bool_ct f = e ^ b;    // f = 0
     d = (!f) & a;         // d = 1
     for (size_t i = 0; i < 64; ++i) {
-        a = witness_ct(&composer, (bool)(i % 2));
-        b = witness_ct(&composer, (bool)(i % 3 == 1));
+        a = witness_ct(&builder, (bool)(i % 2));
+        b = witness_ct(&builder, (bool)(i % 3 == 1));
         c = a ^ b;
         a = b ^ c;
         c = a;
@@ -502,17 +502,17 @@ TYPED_TEST(BoolTest, TestSimpleProof)
         f = b;
     }
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 
 TYPED_TEST(BoolTest, Normalize)
 {
     STDLIB_TYPE_ALIASES
-    auto composer = Composer();
+    auto builder = Builder();
 
-    auto generate_constraints = [&composer](bool value, bool is_constant, bool is_inverted) {
-        bool_ct a = is_constant ? bool_ct(&composer, value) : witness_ct(&composer, value);
+    auto generate_constraints = [&builder](bool value, bool is_constant, bool is_inverted) {
+        bool_ct a = is_constant ? bool_ct(&builder, value) : witness_ct(&builder, value);
         bool_ct b = is_inverted ? !a : a;
         bool_ct c = b.normalize();
         EXPECT_EQ(c.get_value(), value ^ is_inverted);
@@ -527,7 +527,7 @@ TYPED_TEST(BoolTest, Normalize)
     generate_constraints(true, true, false);
     generate_constraints(true, true, true);
 
-    bool result = composer.check_circuit();
+    bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
 } // namespace test_stdlib_bool

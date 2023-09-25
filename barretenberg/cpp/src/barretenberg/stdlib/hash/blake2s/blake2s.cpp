@@ -22,13 +22,13 @@ enum blake2s_constant {
     BLAKE2S_PERSONALBYTES = 8
 };
 
-template <typename Composer> struct blake2s_state {
-    uint32<Composer> h[8];
-    uint32<Composer> t[2];
-    uint32<Composer> f[2];
+template <typename Builder> struct blake2s_state {
+    uint32<Builder> h[8];
+    uint32<Builder> t[2];
+    uint32<Builder> f[2];
 };
 
-template <typename Composer> void blake2s_increment_counter(blake2s_state<Composer>& S, const uint32_t inc)
+template <typename Builder> void blake2s_increment_counter(blake2s_state<Builder>& S, const uint32_t inc)
 {
     S.t[0] = S.t[0] + inc;
     const bool to_inc = S.t[0].get_value() < inc;
@@ -39,13 +39,13 @@ template <typename Composer> void blake2s_increment_counter(blake2s_state<Compos
     ASSERT(S.t[1].is_constant());
 }
 
-template <typename Composer> void blake2s_compress(blake2s_state<Composer>& S, byte_array<Composer> const& in)
+template <typename Builder> void blake2s_compress(blake2s_state<Builder>& S, byte_array<Builder> const& in)
 {
-    uint32<Composer> m[16];
-    uint32<Composer> v[16];
+    uint32<Builder> m[16];
+    uint32<Builder> v[16];
 
     for (size_t i = 0; i < 16; ++i) {
-        m[i] = uint32<Composer>(in.slice(i * 4, 4).reverse());
+        m[i] = uint32<Builder>(in.slice(i * 4, 4).reverse());
     }
 
     for (size_t i = 0; i < 8; ++i) {
@@ -61,16 +61,16 @@ template <typename Composer> void blake2s_compress(blake2s_state<Composer>& S, b
     v[14] = S.f[0] ^ blake2s_IV[6];
     v[15] = S.f[1] ^ blake2s_IV[7];
 
-    blake_util::round_fn<Composer>(v, m, 0);
-    blake_util::round_fn<Composer>(v, m, 1);
-    blake_util::round_fn<Composer>(v, m, 2);
-    blake_util::round_fn<Composer>(v, m, 3);
-    blake_util::round_fn<Composer>(v, m, 4);
-    blake_util::round_fn<Composer>(v, m, 5);
-    blake_util::round_fn<Composer>(v, m, 6);
-    blake_util::round_fn<Composer>(v, m, 7);
-    blake_util::round_fn<Composer>(v, m, 8);
-    blake_util::round_fn<Composer>(v, m, 9);
+    blake_util::round_fn<Builder>(v, m, 0);
+    blake_util::round_fn<Builder>(v, m, 1);
+    blake_util::round_fn<Builder>(v, m, 2);
+    blake_util::round_fn<Builder>(v, m, 3);
+    blake_util::round_fn<Builder>(v, m, 4);
+    blake_util::round_fn<Builder>(v, m, 5);
+    blake_util::round_fn<Builder>(v, m, 6);
+    blake_util::round_fn<Builder>(v, m, 7);
+    blake_util::round_fn<Builder>(v, m, 8);
+    blake_util::round_fn<Builder>(v, m, 9);
 
     // ROUND(0);
     // ROUND(1);
@@ -91,7 +91,7 @@ template <typename Composer> void blake2s_compress(blake2s_state<Composer>& S, b
 #undef G
 #undef ROUND
 
-template <typename Composer> void blake2s(blake2s_state<Composer>& S, byte_array<Composer> const& in)
+template <typename Builder> void blake2s(blake2s_state<Builder>& S, byte_array<Builder> const& in)
 {
     size_t offset = 0;
     size_t size = in.size();
@@ -106,21 +106,21 @@ template <typename Composer> void blake2s(blake2s_state<Composer>& S, byte_array
     // Set last block.
     S.f[0] = (uint32_t)-1;
 
-    byte_array<Composer> final(in.get_context());
-    final.write(in.slice(offset)).write(byte_array<Composer>(in.get_context(), BLAKE2S_BLOCKBYTES - size));
+    byte_array<Builder> final(in.get_context());
+    final.write(in.slice(offset)).write(byte_array<Builder>(in.get_context(), BLAKE2S_BLOCKBYTES - size));
     blake2s_increment_counter(S, (uint32_t)size);
     blake2s_compress(S, final);
 }
 
 } // namespace
 
-template <typename Composer> byte_array<Composer> blake2s(const byte_array<Composer>& input)
+template <typename Builder> byte_array<Builder> blake2s(const byte_array<Builder>& input)
 {
-    if constexpr (HasPlookup<Composer>) {
-        return blake2s_plookup::blake2s<Composer>(input);
+    if constexpr (HasPlookup<Builder>) {
+        return blake2s_plookup::blake2s<Builder>(input);
     }
 
-    blake2s_state<Composer> S;
+    blake2s_state<Builder> S;
 
     for (size_t i = 0; i < 8; i++) {
         S.h[i] = initial_H[i];
@@ -128,9 +128,9 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
 
     blake2s(S, input);
 
-    byte_array<Composer> result(input.get_context());
+    byte_array<Builder> result(input.get_context());
     for (auto h : S.h) {
-        byte_array<Composer> v = static_cast<byte_array<Composer>>(h);
+        byte_array<Builder> v = static_cast<byte_array<Builder>>(h);
         result.write(v.reverse());
     }
     return result;

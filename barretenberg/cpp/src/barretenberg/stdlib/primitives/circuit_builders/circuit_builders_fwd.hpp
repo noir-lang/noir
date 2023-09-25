@@ -1,5 +1,5 @@
 /**
- * @brief Defines particular composer and circuit builder types expected to be used for proof or circuit
+ * @brief Defines particular circuit builder types expected to be used for circuit
 construction in stdlib and contains macros for explicit instantiation.
  *
  * @details This file is designed to be included in header files to instruct the compiler that these classes exist and

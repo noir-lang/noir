@@ -12,8 +12,8 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
   public:
     typedef typename Curve::ScalarField fr_ct;
     typedef typename Curve::GroupNative::affine_element g1;
-    typedef typename Curve::Composer Composer;
-    typedef proof_system::plonk::stdlib::recursion::Transcript<Composer> Transcript_pt;
+    typedef typename Curve::Builder Builder;
+    typedef proof_system::plonk::stdlib::recursion::Transcript<Builder> Transcript_pt;
     typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
     typedef proof_system::plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
@@ -90,8 +90,8 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
   public:
     typedef typename Curve::ScalarField fr_ct;
     typedef typename Curve::GroupNative::affine_element g1;
-    typedef typename Curve::Composer Composer;
-    typedef proof_system::plonk::stdlib::recursion::Transcript<Composer> Transcript_pt;
+    typedef typename Curve::Builder Builder;
+    typedef proof_system::plonk::stdlib::recursion::Transcript<Builder> Transcript_pt;
     typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
     typedef proof_system::plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
@@ -112,8 +112,8 @@ template <typename Curve> class recursive_turbo_verifier_settings : public plonk
   public:
     typedef typename Curve::ScalarField fr_ct;
     typedef typename Curve::GroupNative::affine_element g1;
-    typedef typename Curve::Composer Composer;
-    typedef Transcript<Composer> Transcript_pt;
+    typedef typename Curve::Builder Builder;
+    typedef Transcript<Builder> Transcript_pt;
     typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
 
     typedef proof_system::plonk::turbo_settings base_settings;

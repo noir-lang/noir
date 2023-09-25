@@ -119,13 +119,13 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing Bigfield fuzzing instructions, execution, etc
  *
  */
-template <typename Composer> class BigFieldBase {
+template <typename Builder> class BigFieldBase {
   private:
-    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
-    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
-    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
-    typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
-    typedef proof_system::plonk::stdlib::bigfield<Composer, barretenberg::Bn254FqParams> bigfield_t;
+    typedef proof_system::plonk::stdlib::bool_t<Builder> bool_t;
+    typedef proof_system::plonk::stdlib::field_t<Builder> field_t;
+    typedef proof_system::plonk::stdlib::witness_t<Builder> witness_t;
+    typedef proof_system::plonk::stdlib::public_witness_t<Builder> public_witness_t;
+    typedef proof_system::plonk::stdlib::bigfield<Builder, barretenberg::Bn254FqParams> bigfield_t;
 
   public:
     /**
@@ -799,7 +799,7 @@ template <typename Composer> class BigFieldBase {
      */
     class ExecutionHandler {
       private:
-        static bool_t construct_predicate(Composer* composer, const bool predicate)
+        static bool_t construct_predicate(Builder* builder, const bool predicate)
         {
             /* The context field of a predicate can be nullptr;
              * in that case, the function that handles the predicate
@@ -807,7 +807,7 @@ template <typename Composer> class BigFieldBase {
              */
             const bool predicate_has_ctx = static_cast<bool>(VarianceRNG.next() % 2);
 
-            return bool_t(predicate_has_ctx ? composer : nullptr, predicate);
+            return bool_t(predicate_has_ctx ? builder : nullptr, predicate);
         }
         bigfield_t bf() const
         {
@@ -1027,20 +1027,19 @@ template <typename Composer> class BigFieldBase {
             }
         }
 
-        ExecutionHandler conditional_negate(Composer* composer, const bool predicate)
+        ExecutionHandler conditional_negate(Builder* builder, const bool predicate)
         {
             return ExecutionHandler(predicate ? -(this->base) : this->base,
-                                    this->bf().conditional_negate(construct_predicate(composer, predicate)));
+                                    this->bf().conditional_negate(construct_predicate(builder, predicate)));
         }
 
-        ExecutionHandler conditional_select(Composer* composer, ExecutionHandler& other, const bool predicate)
+        ExecutionHandler conditional_select(Builder* builder, ExecutionHandler& other, const bool predicate)
         {
-            return ExecutionHandler(
-                predicate ? other.base : this->base,
-                this->bf().conditional_select(other.bf(), construct_predicate(composer, predicate)));
+            return ExecutionHandler(predicate ? other.base : this->base,
+                                    this->bf().conditional_select(other.bf(), construct_predicate(builder, predicate)));
         }
         /* Explicit re-instantiation using the various bigfield_t constructors */
-        ExecutionHandler set(Composer* composer)
+        ExecutionHandler set(Builder* builder)
         {
             /* Invariant check */
             if (this->bigfield.get_value() > this->bigfield.get_maximum_value()) {
@@ -1054,7 +1053,7 @@ template <typename Composer> class BigFieldBase {
                 return ExecutionHandler(this->base, bigfield_t(this->bigfield));
             case 1:
                 /* Construct via uint256_t */
-                return ExecutionHandler(this->base, bigfield_t(composer, bf_u256()));
+                return ExecutionHandler(this->base, bigfield_t(builder, bf_u256()));
             case 2:
                 /* Construct via byte_array */
                 /*
@@ -1066,8 +1065,8 @@ template <typename Composer> class BigFieldBase {
                 const uint256_t u256 = bf_u256();
                 const uint256_t u256_lo = u256.slice(0, bigfield_t::NUM_LIMB_BITS * 2);
                 const uint256_t u256_hi = u256.slice(bigfield_t::NUM_LIMB_BITS * 2, bigfield_t::NUM_LIMB_BITS * 4);
-                const field_t field_lo(composer, u256_lo);
-                const field_t field_hi(composer, u256_hi);
+                const field_t field_lo(builder, u256_lo);
+                const field_t field_hi(builder, u256_hi);
 
                 /* Construct via two field_t's */
                 return ExecutionHandler(this->base, bigfield_t(field_lo, field_hi));
@@ -1075,7 +1074,7 @@ template <typename Composer> class BigFieldBase {
             case 4: {
                 /* Invoke assignment operator */
 
-                bigfield_t bf_new(composer);
+                bigfield_t bf_new(builder);
                 bf_new = bf();
 
                 return ExecutionHandler(this->base, bigfield_t(bf_new));
@@ -1094,18 +1093,18 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the constant instruction (push constant safeuint to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT(Composer* composer,
+        static inline size_t execute_CONSTANT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             stack.push_back(ExecutionHandler(instruction.arguments.element.value,
-                                             bigfield_t(composer, instruction.arguments.element.value)));
+                                             bigfield_t(builder, instruction.arguments.element.value)));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed constant value " << instruction.arguments.element.value << " to position "
                       << stack.size() - 1 << std::endl;
@@ -1116,12 +1115,12 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the witness instruction (push witness safeuit to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_WITNESS(Composer* composer,
+        static inline size_t execute_WITNESS(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
@@ -1129,9 +1128,9 @@ template <typename Composer> class BigFieldBase {
             // THis is strange
             stack.push_back(
                 ExecutionHandler(instruction.arguments.element.value,
-                                 bigfield_t::from_witness(composer, fq(instruction.arguments.element.value))));
+                                 bigfield_t::from_witness(builder, fq(instruction.arguments.element.value))));
             // stack.push_back(
-            //    bigfield_t::create_from_u512_as_witness(composer,
+            //    bigfield_t::create_from_u512_as_witness(builder,
             //    uint256_t(instruction.arguments.element.value)));
 
 #ifdef SHOW_INFORMATION
@@ -1145,18 +1144,18 @@ template <typename Composer> class BigFieldBase {
          * @brief Execute the constant_witness instruction (push a safeuint witness equal to the constant to the
          * stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT_WITNESS(Composer* composer,
+        static inline size_t execute_CONSTANT_WITNESS(Builder* builder,
                                                       std::vector<ExecutionHandler>& stack,
                                                       Instruction& instruction)
         {
             stack.push_back(ExecutionHandler(
                 instruction.arguments.element.value,
-                bigfield_t::create_from_u512_as_witness(composer, uint256_t(instruction.arguments.element.value))));
+                bigfield_t::create_from_u512_as_witness(builder, uint256_t(instruction.arguments.element.value))));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed constant witness value " << instruction.arguments.element.value << " to position "
                       << stack.size() - 1 << std::endl;
@@ -1166,17 +1165,17 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the multiply instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_MULTIPLY(Composer* composer,
+        static inline size_t execute_MULTIPLY(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
 
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1202,16 +1201,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the addition operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ADD(Composer* composer,
+        static inline size_t execute_ADD(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1238,16 +1237,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the SQR  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SQR(Composer* composer,
+        static inline size_t execute_SQR(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1273,16 +1272,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the ASSERT_EQUAL  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_EQUAL(Composer* composer,
+        static inline size_t execute_ASSERT_EQUAL(Builder* builder,
                                                   std::vector<ExecutionHandler>& stack,
                                                   Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1301,16 +1300,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the ASSERT_NOT_EQUAL  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_NOT_EQUAL(Composer* composer,
+        static inline size_t execute_ASSERT_NOT_EQUAL(Builder* builder,
                                                       std::vector<ExecutionHandler>& stack,
                                                       Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1333,16 +1332,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the subtraction operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SUBTRACT(Composer* composer,
+        static inline size_t execute_SUBTRACT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1368,16 +1367,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the division operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_DIVIDE(Composer* composer,
+        static inline size_t execute_DIVIDE(Builder* builder,
                                             std::vector<ExecutionHandler>& stack,
                                             Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1410,17 +1409,17 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the MADD instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_MADD(Composer* composer,
+        static inline size_t execute_MADD(Builder* builder,
                                           std::vector<ExecutionHandler>& stack,
                                           Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1446,17 +1445,17 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the MULT_MADD instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_MULT_MADD(Composer* composer,
+        static inline size_t execute_MULT_MADD(Builder* builder,
                                                std::vector<ExecutionHandler>& stack,
                                                Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1519,17 +1518,17 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the MSUB_DIV instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_MSUB_DIV(Composer* composer,
+        static inline size_t execute_MSUB_DIV(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1602,17 +1601,17 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the SQR_ADD instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_SQR_ADD(Composer* composer,
+        static inline size_t execute_SQR_ADD(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1663,16 +1662,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the COND_NEGATE instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_COND_NEGATE(Composer* composer,
+        static inline size_t execute_COND_NEGATE(Builder* builder,
                                                  std::vector<ExecutionHandler>& stack,
                                                  Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1680,7 +1679,7 @@ template <typename Composer> class BigFieldBase {
             size_t output_index = instruction.arguments.threeArgs.out % stack.size();
             bool predicate = instruction.arguments.threeArgs.in2 % 2;
             ExecutionHandler result;
-            result = stack[first_index].conditional_negate(composer, predicate);
+            result = stack[first_index].conditional_negate(builder, predicate);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1696,16 +1695,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the COND_SELECT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_COND_SELECT(Composer* composer,
+        static inline size_t execute_COND_SELECT(Builder* builder,
                                                  std::vector<ExecutionHandler>& stack,
                                                  Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1715,7 +1714,7 @@ template <typename Composer> class BigFieldBase {
             bool predicate = instruction.arguments.fourArgs.in3 % 2;
 
             ExecutionHandler result;
-            result = stack[first_index].conditional_select(composer, stack[second_index], predicate);
+            result = stack[first_index].conditional_select(builder, stack[second_index], predicate);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1730,23 +1729,23 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the SET instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SET(Composer* composer,
+        static inline size_t execute_SET(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
             size_t first_index = instruction.arguments.twoArgs.in % stack.size();
             size_t output_index = instruction.arguments.twoArgs.out;
             ExecutionHandler result;
-            result = stack[first_index].set(composer);
+            result = stack[first_index].set(builder);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -1758,16 +1757,16 @@ template <typename Composer> class BigFieldBase {
         /**
          * @brief Execute the RANDOMSEED instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_RANDOMSEED(Composer* composer,
+        static inline size_t execute_RANDOMSEED(Builder* builder,
                                                 std::vector<ExecutionHandler>& stack,
                                                 Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             (void)stack;
 
             VarianceRNG.reseed(instruction.arguments.randomseed);
@@ -1782,15 +1781,15 @@ template <typename Composer> class BigFieldBase {
     /**
      * @brief Check that the resulting values are equal to expected
      *
-     * @tparam Composer
-     * @param composer
+     * @tparam Builder
+     * @param builder
      * @param stack
      * @return true
      * @return false
      */
-    inline static bool postProcess(Composer* composer, std::vector<BigFieldBase::ExecutionHandler>& stack)
+    inline static bool postProcess(Builder* builder, std::vector<BigFieldBase::ExecutionHandler>& stack)
     {
-        (void)composer;
+        (void)builder;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
             if (fq((element.bigfield.get_value() % uint512_t(fq::modulus)).lo) != element.base) {
@@ -1968,7 +1967,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<BigFieldBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
+    RunWithBuilders<BigFieldBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

@@ -9,16 +9,16 @@ using namespace proof_system;
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(ComposerContext* parent_context)
+template <typename Builder>
+field_t<Builder>::field_t(Builder* parent_context)
     : context(parent_context)
     , additive_constant(barretenberg::fr::zero())
     , multiplicative_constant(barretenberg::fr::one())
     , witness_index(IS_CONSTANT)
 {}
 
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(const witness_t<ComposerContext>& value)
+template <typename Builder>
+field_t<Builder>::field_t(const witness_t<Builder>& value)
     : context(value.context)
 {
     additive_constant = 0;
@@ -26,8 +26,8 @@ field_t<ComposerContext>::field_t(const witness_t<ComposerContext>& value)
     witness_index = value.witness_index;
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barretenberg::fr& value)
+template <typename Builder>
+field_t<Builder>::field_t(Builder* parent_context, const barretenberg::fr& value)
     : context(parent_context)
 {
     additive_constant = value;
@@ -35,7 +35,7 @@ field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barrete
     witness_index = IS_CONSTANT;
 }
 
-template <typename ComposerContext> field_t<ComposerContext>::field_t(const bool_t<ComposerContext>& other)
+template <typename Builder> field_t<Builder>::field_t(const bool_t<Builder>& other)
 {
     context = (other.context == nullptr) ? nullptr : other.context;
     if (other.witness_index == IS_CONSTANT) {
@@ -50,19 +50,18 @@ template <typename ComposerContext> field_t<ComposerContext>::field_t(const bool
     }
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::from_witness_index(ComposerContext* ctx,
-                                                                      const uint32_t witness_index)
+template <typename Builder>
+field_t<Builder> field_t<Builder>::from_witness_index(Builder* ctx, const uint32_t witness_index)
 {
-    field_t<ComposerContext> result(ctx);
+    field_t<Builder> result(ctx);
     result.witness_index = witness_index;
     return result;
 }
 
-template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<ComposerContext>() const
+template <typename Builder> field_t<Builder>::operator bool_t<Builder>() const
 {
     if (witness_index == IS_CONSTANT) {
-        bool_t<ComposerContext> result(context);
+        bool_t<Builder> result(context);
         result.witness_bool = (additive_constant == barretenberg::fr::one());
         result.witness_inverted = false;
         result.witness_index = IS_CONSTANT;
@@ -78,7 +77,7 @@ template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<Co
 
     barretenberg::fr witness = context->get_variable(witness_index);
     ASSERT((witness == barretenberg::fr::zero()) || (witness == barretenberg::fr::one()));
-    bool_t<ComposerContext> result(context);
+    bool_t<Builder> result(context);
     result.witness_bool = (witness == barretenberg::fr::one());
     result.witness_inverted = inverted_check;
     result.witness_index = witness_index;
@@ -86,11 +85,10 @@ template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<Co
     return result;
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::operator+(const field_t& other) const
+template <typename Builder> field_t<Builder> field_t<Builder>::operator+(const field_t& other) const
 {
-    ComposerContext* ctx = (context == nullptr) ? other.context : context;
-    field_t<ComposerContext> result(ctx);
+    Builder* ctx = (context == nullptr) ? other.context : context;
+    field_t<Builder> result(ctx);
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     if (witness_index == other.witness_index) {
@@ -132,20 +130,18 @@ field_t<ComposerContext> field_t<ComposerContext>::operator+(const field_t& othe
     return result;
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::operator-(const field_t& other) const
+template <typename Builder> field_t<Builder> field_t<Builder>::operator-(const field_t& other) const
 {
-    field_t<ComposerContext> rhs(other);
+    field_t<Builder> rhs(other);
     rhs.additive_constant.self_neg();
     rhs.multiplicative_constant.self_neg();
     return operator+(rhs);
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& other) const
+template <typename Builder> field_t<Builder> field_t<Builder>::operator*(const field_t& other) const
 {
-    ComposerContext* ctx = (context == nullptr) ? other.context : context;
-    field_t<ComposerContext> result(ctx);
+    Builder* ctx = (context == nullptr) ? other.context : context;
+    field_t<Builder> result(ctx);
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     if (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT) {
@@ -246,17 +242,15 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
 
 // Since in divide_no_zero_check, we check a/b=c by the constraint a=b*c, if a=b=0, we can set c to *any value*
 // and it will pass the constraint. Hence, when not having prior knowledge of b not being zero it is essential to check.
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& other) const
+template <typename Builder> field_t<Builder> field_t<Builder>::operator/(const field_t& other) const
 {
     other.assert_is_not_zero("field_t::operator/ divisor is 0");
     return divide_no_zero_check(other);
 }
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::divide_no_zero_check(const field_t& other) const
+template <typename Builder> field_t<Builder> field_t<Builder>::divide_no_zero_check(const field_t& other) const
 {
-    ComposerContext* ctx = (context == nullptr) ? other.context : context;
-    field_t<ComposerContext> result(ctx);
+    Builder* ctx = (context == nullptr) ? other.context : context;
+    field_t<Builder> result(ctx);
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     barretenberg::fr additive_multiplier = barretenberg::fr::one();
@@ -349,26 +343,24 @@ field_t<ComposerContext> field_t<ComposerContext>::divide_no_zero_check(const fi
  *
  * @returns this ** (exponent)
  */
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::pow(const field_t& exponent) const
+template <typename Builder> field_t<Builder> field_t<Builder>::pow(const field_t& exponent) const
 {
     auto* ctx = get_context() ? get_context() : exponent.get_context();
 
     bool exponent_constant = exponent.is_constant();
 
     uint256_t exponent_value = exponent.get_value();
-    std::vector<bool_t<ComposerContext>> exponent_bits(32);
+    std::vector<bool_t<Builder>> exponent_bits(32);
     for (size_t i = 0; i < exponent_bits.size(); ++i) {
         uint256_t value_bit = exponent_value & 1;
-        bool_t<ComposerContext> bit;
-        bit = exponent_constant ? bool_t<ComposerContext>(ctx, value_bit.data[0])
-                                : witness_t<ComposerContext>(ctx, value_bit.data[0]);
+        bool_t<Builder> bit;
+        bit = exponent_constant ? bool_t<Builder>(ctx, value_bit.data[0]) : witness_t<Builder>(ctx, value_bit.data[0]);
         exponent_bits[31 - i] = (bit);
         exponent_value >>= 1;
     }
 
     if (!exponent_constant) {
-        field_t<ComposerContext> exponent_accumulator(ctx, 0);
+        field_t<Builder> exponent_accumulator(ctx, 0);
         for (const auto& bit : exponent_bits) {
             exponent_accumulator += exponent_accumulator;
             exponent_accumulator += bit;
@@ -389,11 +381,9 @@ field_t<ComposerContext> field_t<ComposerContext>::pow(const field_t& exponent) 
 /**
  * @returns `this * to_mul + to_add`
  */
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, const field_t& to_add) const
+template <typename Builder> field_t<Builder> field_t<Builder>::madd(const field_t& to_mul, const field_t& to_add) const
 {
-    ComposerContext* ctx =
-        (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
+    Builder* ctx = (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
     if ((to_mul.witness_index == IS_CONSTANT) && (to_add.witness_index == IS_CONSTANT) &&
         (witness_index == IS_CONSTANT)) {
@@ -433,7 +423,7 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
 
     barretenberg::fr out = a * b * q_m + a * q_1 + b * q_2 + c * q_3 + q_c;
 
-    field_t<ComposerContext> result(ctx);
+    field_t<Builder> result(ctx);
     result.witness_index = ctx->add_variable(out);
     ctx->create_big_mul_gate({
         .a = witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
@@ -450,10 +440,9 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     return result;
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a, const field_t& add_b) const
+template <typename Builder> field_t<Builder> field_t<Builder>::add_two(const field_t& add_a, const field_t& add_b) const
 {
-    ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
+    Builder* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
     if ((add_a.witness_index == IS_CONSTANT) && (add_b.witness_index == IS_CONSTANT) &&
         (witness_index == IS_CONSTANT)) {
@@ -472,7 +461,7 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
 
     barretenberg::fr out = a * q_1 + b * q_2 + c * q_3 + q_c;
 
-    field_t<ComposerContext> result(ctx);
+    field_t<Builder> result(ctx);
     result.witness_index = ctx->add_variable(out);
 
     ctx->create_big_mul_gate({
@@ -490,7 +479,7 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     return result;
 }
 
-template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerContext>::normalize() const
+template <typename Builder> field_t<Builder> field_t<Builder>::normalize() const
 {
     if (witness_index == IS_CONSTANT ||
         ((multiplicative_constant == barretenberg::fr::one()) && (additive_constant == barretenberg::fr::zero()))) {
@@ -501,7 +490,7 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     // Normalised result = result.v * 1 + 0;         // where result.v = this.v * this.mul + this.add
     // We need a new gate to enforce that the `result` was correctly calculated from `this`.
 
-    field_t<ComposerContext> result(context);
+    field_t<Builder> result(context);
     barretenberg::fr value = context->get_variable(witness_index);
     barretenberg::fr out;
     out = value * multiplicative_constant;
@@ -526,7 +515,7 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     return result;
 }
 
-template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero(std::string const& msg) const
+template <typename Builder> void field_t<Builder>::assert_is_zero(std::string const& msg) const
 {
     if (get_value() != barretenberg::fr(0)) {
         context->failure(msg);
@@ -542,7 +531,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
     // this.v * 0 * [ 0 ] + this.v * [this.mul] + 0 * [ 0 ] + 0 * [ 0 ] + [this.add] == 0
     // this.v * 0 * [q_m] + this.v * [   q_l  ] + 0 * [q_r] + 0 * [q_o] + [   q_c  ] == 0
 
-    ComposerContext* ctx = context;
+    Builder* ctx = context;
 
     context->create_poly_gate({
         .a = witness_index,
@@ -556,7 +545,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
     });
 }
 
-template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero(std::string const& msg) const
+template <typename Builder> void field_t<Builder>::assert_is_not_zero(std::string const& msg) const
 {
     if (get_value() == barretenberg::fr(0)) {
         context->failure(msg);
@@ -568,14 +557,14 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not
         return;
     }
 
-    ComposerContext* ctx = context;
+    Builder* ctx = context;
     if (get_value() == 0 && ctx) {
         ctx->failure(msg);
     }
 
     barretenberg::fr inverse_value = (get_value() == 0) ? 0 : get_value().invert();
 
-    field_t<ComposerContext> inverse(witness_t<ComposerContext>(ctx, inverse_value));
+    field_t<Builder> inverse(witness_t<Builder>(ctx, inverse_value));
 
     // Aim of new gate: `this` has an inverse (hence is not zero).
     // I.e.:
@@ -596,7 +585,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not
     });
 }
 
-template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero() const
+template <typename Builder> bool_t<Builder> field_t<Builder>::is_zero() const
 {
     if (witness_index == IS_CONSTANT) {
         return bool_t(context, (get_value() == barretenberg::fr::zero()));
@@ -656,7 +645,7 @@ template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerCont
     return is_zero;
 }
 
-template <typename ComposerContext> barretenberg::fr field_t<ComposerContext>::get_value() const
+template <typename Builder> barretenberg::fr field_t<Builder>::get_value() const
 {
     if (witness_index != IS_CONSTANT) {
         ASSERT(context != nullptr);
@@ -667,10 +656,9 @@ template <typename ComposerContext> barretenberg::fr field_t<ComposerContext>::g
     }
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& other) const
+template <typename Builder> bool_t<Builder> field_t<Builder>::operator==(const field_t& other) const
 {
-    ComposerContext* ctx = (context == nullptr) ? other.context : context;
+    Builder* ctx = (context == nullptr) ? other.context : context;
 
     if (is_constant() && other.is_constant()) {
         return (get_value() == other.get_value());
@@ -697,31 +685,30 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     return result;
 }
 
-template <typename ComposerContext>
-bool_t<ComposerContext> field_t<ComposerContext>::operator!=(const field_t& other) const
+template <typename Builder> bool_t<Builder> field_t<Builder>::operator!=(const field_t& other) const
 {
     return !operator==(other);
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::conditional_negate(const bool_t<ComposerContext>& predicate) const
+template <typename Builder>
+field_t<Builder> field_t<Builder>::conditional_negate(const bool_t<Builder>& predicate) const
 {
-    field_t<ComposerContext> predicate_field(predicate);
-    field_t<ComposerContext> multiplicand = -(predicate_field + predicate_field);
+    field_t<Builder> predicate_field(predicate);
+    field_t<Builder> multiplicand = -(predicate_field + predicate_field);
     return multiplicand.madd(*this, *this);
 }
 
 // if predicate == true then return lhs, else return rhs
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::conditional_assign(const bool_t<ComposerContext>& predicate,
-                                                                      const field_t& lhs,
-                                                                      const field_t& rhs)
+template <typename Builder>
+field_t<Builder> field_t<Builder>::conditional_assign(const bool_t<Builder>& predicate,
+                                                      const field_t& lhs,
+                                                      const field_t& rhs)
 {
     return (lhs - rhs).madd(predicate, rhs);
 }
 
-template <typename ComposerContext>
-void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, std::string const& msg) const
+template <typename Builder>
+void field_t<Builder>::create_range_constraint(const size_t num_bits, std::string const& msg) const
 {
     if (num_bits == 0) {
         assert_is_zero("0-bit range_constraint on non-zero field_t.");
@@ -729,7 +716,7 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
         if (is_constant()) {
             ASSERT(uint256_t(get_value()).get_msb() < num_bits);
         } else {
-            if constexpr (HasPlookup<ComposerContext>) {
+            if constexpr (HasPlookup<Builder>) {
                 context->decompose_into_default_range(normalize().get_witness_index(),
                                                       num_bits,
                                                       proof_system::UltraCircuitBuilder::DEFAULT_PLOOKUP_RANGE_BITNUM,
@@ -748,11 +735,10 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
  * succeeds or fails. This can lead to confusion when debugging. If you want to log the inputs, do so before
  * calling this method.
  */
-template <typename ComposerContext>
-void field_t<ComposerContext>::assert_equal(const field_t& rhs, std::string const& msg) const
+template <typename Builder> void field_t<Builder>::assert_equal(const field_t& rhs, std::string const& msg) const
 {
     const field_t lhs = *this;
-    ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
+    Builder* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
 
     if (lhs.is_constant() && rhs.is_constant()) {
         ASSERT(lhs.get_value() == rhs.get_value());
@@ -769,16 +755,15 @@ void field_t<ComposerContext>::assert_equal(const field_t& rhs, std::string cons
     }
 }
 
-template <typename ComposerContext>
-void field_t<ComposerContext>::assert_not_equal(const field_t& rhs, std::string const& msg) const
+template <typename Builder> void field_t<Builder>::assert_not_equal(const field_t& rhs, std::string const& msg) const
 {
     const field_t lhs = *this;
     const field_t diff = lhs - rhs;
     diff.assert_is_not_zero(msg);
 }
 
-template <typename ComposerContext>
-void field_t<ComposerContext>::assert_is_in_set(const std::vector<field_t>& set, std::string const& msg) const
+template <typename Builder>
+void field_t<Builder>::assert_is_in_set(const std::vector<field_t>& set, std::string const& msg) const
 {
     const field_t input = *this;
     field_t product = (input - set[0]);
@@ -788,11 +773,11 @@ void field_t<ComposerContext>::assert_is_in_set(const std::vector<field_t>& set,
     product.assert_is_zero(msg);
 }
 
-template <typename ComposerContext>
-std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two_bit_table(const field_t& T0,
-                                                                                           const field_t& T1,
-                                                                                           const field_t& T2,
-                                                                                           const field_t& T3)
+template <typename Builder>
+std::array<field_t<Builder>, 4> field_t<Builder>::preprocess_two_bit_table(const field_t& T0,
+                                                                           const field_t& T1,
+                                                                           const field_t& T2,
+                                                                           const field_t& T3)
 {
     // (1 - t0)(1 - t1).T0 + t0(1 - t1).T1 + (1 - t0)t1.T2 + t0.t1.T3
 
@@ -810,15 +795,15 @@ std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two
 
 // Given T, stores the coefficients of the multilinear polynomial in t0,t1,t2, that on input a binary string b of
 // length 3, equals T_b
-template <typename ComposerContext>
-std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_three_bit_table(const field_t& T0,
-                                                                                             const field_t& T1,
-                                                                                             const field_t& T2,
-                                                                                             const field_t& T3,
-                                                                                             const field_t& T4,
-                                                                                             const field_t& T5,
-                                                                                             const field_t& T6,
-                                                                                             const field_t& T7)
+template <typename Builder>
+std::array<field_t<Builder>, 8> field_t<Builder>::preprocess_three_bit_table(const field_t& T0,
+                                                                             const field_t& T1,
+                                                                             const field_t& T2,
+                                                                             const field_t& T3,
+                                                                             const field_t& T4,
+                                                                             const field_t& T5,
+                                                                             const field_t& T6,
+                                                                             const field_t& T7)
 {
     std::array<field_t, 8> table;
     table[0] = T0;                                    // const coeff
@@ -832,10 +817,10 @@ std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_thr
     return table;
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::select_from_two_bit_table(const std::array<field_t, 4>& table,
-                                                                             const bool_t<ComposerContext>& t1,
-                                                                             const bool_t<ComposerContext>& t0)
+template <typename Builder>
+field_t<Builder> field_t<Builder>::select_from_two_bit_table(const std::array<field_t, 4>& table,
+                                                             const bool_t<Builder>& t1,
+                                                             const bool_t<Builder>& t0)
 {
     field_t R0 = static_cast<field_t>(t1).madd(table[3], table[1]);
     field_t R1 = R0.madd(static_cast<field_t>(t0), table[0]);
@@ -849,11 +834,11 @@ field_t<ComposerContext> field_t<ComposerContext>::select_from_two_bit_table(con
 // X:= ((t0*a012+a12)*t1+a2)*t2+a_const  - 3 gates
 // Y:= (t0*a01+a1)*t1+X - 2 gates
 // Z:= (t2*a02 + a0)*t0 + Y - 2 gates
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::select_from_three_bit_table(const std::array<field_t, 8>& table,
-                                                                               const bool_t<ComposerContext>& t2,
-                                                                               const bool_t<ComposerContext>& t1,
-                                                                               const bool_t<ComposerContext>& t0)
+template <typename Builder>
+field_t<Builder> field_t<Builder>::select_from_three_bit_table(const std::array<field_t, 8>& table,
+                                                               const bool_t<Builder>& t2,
+                                                               const bool_t<Builder>& t1,
+                                                               const bool_t<Builder>& t0)
 {
     field_t R0 = static_cast<field_t>(t0).madd(table[7], table[6]);
     field_t R1 = static_cast<field_t>(t1).madd(R0, table[3]);
@@ -865,15 +850,12 @@ field_t<ComposerContext> field_t<ComposerContext>::select_from_three_bit_table(c
     return R6;
 }
 
-template <typename ComposerContext>
-void field_t<ComposerContext>::evaluate_linear_identity(const field_t& a,
-                                                        const field_t& b,
-                                                        const field_t& c,
-                                                        const field_t& d)
+template <typename Builder>
+void field_t<Builder>::evaluate_linear_identity(const field_t& a, const field_t& b, const field_t& c, const field_t& d)
 {
-    ComposerContext* ctx = a.context == nullptr
-                               ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
-                               : a.context;
+    Builder* ctx = a.context == nullptr
+                       ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
+                       : a.context;
 
     if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT && c.witness_index == IS_CONSTANT &&
         d.witness_index == IS_CONSTANT) {
@@ -900,15 +882,15 @@ void field_t<ComposerContext>::evaluate_linear_identity(const field_t& a,
     });
 }
 
-template <typename ComposerContext>
-void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
-                                                            const field_t& b,
-                                                            const field_t& c,
-                                                            const field_t& d)
+template <typename Builder>
+void field_t<Builder>::evaluate_polynomial_identity(const field_t& a,
+                                                    const field_t& b,
+                                                    const field_t& c,
+                                                    const field_t& d)
 {
-    ComposerContext* ctx = a.context == nullptr
-                               ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
-                               : a.context;
+    Builder* ctx = a.context == nullptr
+                       ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
+                       : a.context;
 
     if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT && c.witness_index == IS_CONSTANT &&
         d.witness_index == IS_CONSTANT) {
@@ -940,17 +922,16 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
 /**
  * Compute sum of inputs
  */
-template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<field_t>& input)
+template <typename Builder> field_t<Builder> field_t<Builder>::accumulate(const std::vector<field_t>& input)
 {
     if (input.size() == 0) {
-        return field_t<ComposerContext>(nullptr, 0);
+        return field_t<Builder>(nullptr, 0);
     }
     if (input.size() == 1) {
         return input[0]; //.normalize();
     }
     /**
-     * If we are using UltraPlonkComposer, we can accumulate 3 values into a sum per gate.
+     * If we are using UltraCircuitBuilder, we can accumulate 3 values into a sum per gate.
      * We track a decumulating sum of values in the 4th wire of every row.
      * i.e. the 4th wire of the first row is the total output value
      *
@@ -971,8 +952,8 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
      *
      * If num elements is not a multiple of 3, the final gate will be padded with zero_idx wires
      **/
-    if constexpr (HasPlookup<ComposerContext>) {
-        ComposerContext* ctx = nullptr;
+    if constexpr (HasPlookup<Builder>) {
+        Builder* ctx = nullptr;
         std::vector<field_t> accumulator;
         field_t constant_term = 0;
 
@@ -1001,7 +982,7 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
         // Step 3: pad accumulator to be a multiple of 3
         const size_t num_padding_wires = (num_elements % 3) == 0 ? 0 : 3 - (num_elements % 3);
         for (size_t i = 0; i < num_padding_wires; ++i) {
-            accumulator.emplace_back(field_t<ComposerContext>::from_witness_index(ctx, ctx->zero_idx));
+            accumulator.emplace_back(field_t<Builder>::from_witness_index(ctx, ctx->zero_idx));
         }
         num_elements = accumulator.size();
         const size_t num_gates = (num_elements / 3);
@@ -1026,10 +1007,10 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
                 ((i == num_gates - 1) ? false : true));
             barretenberg::fr new_total = accumulating_total.get_value() - accumulator[3 * i].get_value() -
                                          accumulator[3 * i + 1].get_value() - accumulator[3 * i + 2].get_value();
-            accumulating_total = witness_t<ComposerContext>(ctx, new_total);
+            accumulating_total = witness_t<Builder>(ctx, new_total);
         }
         return total.normalize();
-    } else if constexpr (std::same_as<ComposerContext, TurboCircuitBuilder>) {
+    } else if constexpr (std::same_as<Builder, TurboCircuitBuilder>) {
 
         field_t total(0);
         bool odd_number = (input.size() & 0x01UL) == 0x01ULL;
@@ -1042,20 +1023,20 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
         }
         return total.normalize();
     }
-    field_t<ComposerContext> total;
+    field_t<Builder> total;
     for (const auto& item : input) {
         total += item;
     }
     return total;
 }
 
-template <typename ComposerContext>
-std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const uint8_t msb, const uint8_t lsb) const
+template <typename Builder>
+std::array<field_t<Builder>, 3> field_t<Builder>::slice(const uint8_t msb, const uint8_t lsb) const
 {
     ASSERT(msb >= lsb);
     ASSERT(msb < grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH);
     const field_t lhs = *this;
-    ComposerContext* ctx = lhs.get_context();
+    Builder* ctx = lhs.get_context();
 
     const uint256_t value = uint256_t(get_value());
     const auto msb_plus_one = uint32_t(msb) + 1;
@@ -1106,24 +1087,23 @@ std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const ui
  * Here `b` is the boolean "a carry is necessary". Each of the resulting values can be checked for underflow by imposing
  * a small range constraint, since the negative of a small value in `Fr` is a large value in `Fr`.
  */
-template <typename ComposerContext>
-std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bits(
-    const size_t num_bits,
-    const std::function<witness_t<ComposerContext>(ComposerContext*, uint64_t, uint256_t)> get_bit) const
+template <typename Builder>
+std::vector<bool_t<Builder>> field_t<Builder>::decompose_into_bits(
+    const size_t num_bits, const std::function<witness_t<Builder>(Builder*, uint64_t, uint256_t)> get_bit) const
 {
     ASSERT(num_bits <= 256);
-    std::vector<bool_t<ComposerContext>> result(num_bits);
+    std::vector<bool_t<Builder>> result(num_bits);
 
     const uint256_t val_u256 = static_cast<uint256_t>(get_value());
-    field_t<ComposerContext> sum(context, 0);
-    field_t<ComposerContext> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
+    field_t<Builder> sum(context, 0);
+    field_t<Builder> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
     // TODO: Guido will make a PR that will fix an error here; hard-coded 127 is incorrect when 128 < num_bits < 256.
     // Extract bit vector and show that it has the same value as `this`.
     for (size_t i = 0; i < num_bits; ++i) {
-        bool_t<ComposerContext> bit = get_bit(context, num_bits - 1 - i, val_u256);
+        bool_t<Builder> bit = get_bit(context, num_bits - 1 - i, val_u256);
         result[num_bits - 1 - i] = bit;
         barretenberg::fr scaling_factor_value = fr(2).pow(static_cast<uint64_t>(num_bits - 1 - i));
-        field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
+        field_t<Builder> scaling_factor(context, scaling_factor_value);
 
         sum = sum + (scaling_factor * bit);
         if (i == 127)
@@ -1143,7 +1123,7 @@ std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bi
         const fr shift = fr(uint256_t(1) << 128);
         // We always borrow from 2**128*p_hi. We handle whether this was necessary later.
         // y_lo = (2**128 + p_lo) - sum_lo
-        field_t<ComposerContext> y_lo = (-sum) + (p_lo + shift);
+        field_t<Builder> y_lo = (-sum) + (p_lo + shift);
         y_lo += shifted_high_limb;
         y_lo.normalize();
 
@@ -1155,10 +1135,10 @@ std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bi
         context->assert_equal(
             zeros.witness_index, context->zero_idx, "field_t: bit decomposition_fails: high limb non-zero");
         // y_borrow is the boolean "a carry was necessary"
-        field_t<ComposerContext> y_borrow = -(y_lo_hi - 1);
+        field_t<Builder> y_borrow = -(y_lo_hi - 1);
         // If a carry was necessary, subtract that carry from p_hi
         // y_hi = (p_hi - y_borrow) - sum_hi
-        field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
+        field_t<Builder> y_hi = -(shifted_high_limb / shift) + (p_hi);
         y_hi -= y_borrow;
         // As before, except that now the range constraint is explicit, this shows that y_hi is non-negative.
         y_hi.create_range_constraint(128, "field_t: bit decomposition fails: y_hi is too large.");

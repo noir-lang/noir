@@ -10,17 +10,17 @@ namespace proof_system::stdlib_merkle_tree_hash_test {
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 
-using Composer = proof_system::UltraCircuitBuilder;
+using Builder = proof_system::UltraCircuitBuilder;
 
-using field_ct = field_t<Composer>;
-using witness_ct = witness_t<Composer>;
+using field_ct = field_t<Builder>;
+using witness_ct = witness_t<Builder>;
 
 TEST(stdlib_merkle_tree_hash, compress_native_vs_circuit)
 {
     fr x = uint256_t(0x5ec473eb273a8011, 0x50160109385471ca, 0x2f3095267e02607d, 0x02586f4a39e69b86);
-    Composer composer = Composer();
-    witness_ct y = witness_ct(&composer, x);
-    field_ct z = pedersen_hash<Composer>::hash_multiple({ y, y });
+    Builder builder = Builder();
+    witness_ct y = witness_ct(&builder, x);
+    field_ct z = pedersen_hash<Builder>::hash_multiple({ y, y });
     auto zz = merkle_tree::hash_pair_native(x, x);
 
     EXPECT_EQ(z.get_value(), zz);
@@ -28,17 +28,17 @@ TEST(stdlib_merkle_tree_hash, compress_native_vs_circuit)
 
 TEST(stdlib_merkle_tree_hash, compute_tree_root_native_vs_circuit)
 {
-    Composer composer = Composer();
+    Builder builder = Builder();
     std::vector<fr> inputs;
     std::vector<field_ct> inputs_ct;
     for (size_t i = 0; i < 16; i++) {
         auto input = fr::random_element();
-        auto input_ct = witness_ct(&composer, input);
+        auto input_ct = witness_ct(&builder, input);
         inputs.push_back(input);
         inputs_ct.push_back(input_ct);
     }
 
-    field_ct z = merkle_tree::compute_tree_root<Composer>(inputs_ct);
+    field_ct z = merkle_tree::compute_tree_root<Builder>(inputs_ct);
     auto zz = merkle_tree::compute_tree_root_native(inputs);
 
     EXPECT_EQ(z.get_value(), zz);

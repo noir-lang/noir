@@ -118,12 +118,12 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing Field fuzzing instructions, execution, etc
  *
  */
-template <typename Composer> class FieldBase {
+template <typename Builder> class FieldBase {
   private:
-    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
-    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
-    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
-    typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
+    typedef proof_system::plonk::stdlib::bool_t<Builder> bool_t;
+    typedef proof_system::plonk::stdlib::field_t<Builder> field_t;
+    typedef proof_system::plonk::stdlib::witness_t<Builder> witness_t;
+    typedef proof_system::plonk::stdlib::public_witness_t<Builder> public_witness_t;
 
   public:
     /**
@@ -732,7 +732,7 @@ template <typename Composer> class FieldBase {
             const auto& ref = new_field;
             return ExecutionHandler(this->base, ref);
         }
-        static bool_t construct_predicate(Composer* composer, const bool predicate)
+        static bool_t construct_predicate(Builder* builder, const bool predicate)
         {
             /* The context field of a predicate can be nullptr;
              * in that case, the function that handles the predicate
@@ -740,7 +740,7 @@ template <typename Composer> class FieldBase {
              */
             const bool predicate_has_ctx = static_cast<bool>(VarianceRNG.next() % 2);
 
-            return bool_t(predicate_has_ctx ? composer : nullptr, predicate);
+            return bool_t(predicate_has_ctx ? builder : nullptr, predicate);
         }
         field_t f() const
         {
@@ -949,35 +949,35 @@ template <typename Composer> class FieldBase {
             this->f().assert_is_not_zero();
         }
 
-        ExecutionHandler conditional_negate(Composer* composer, const bool predicate)
+        ExecutionHandler conditional_negate(Builder* builder, const bool predicate)
         {
             return ExecutionHandler(predicate ? -(this->base) : this->base,
-                                    this->f().conditional_negate(construct_predicate(composer, predicate)));
+                                    this->f().conditional_negate(construct_predicate(builder, predicate)));
         }
 
-        ExecutionHandler conditional_select(Composer* composer, ExecutionHandler& other, const bool predicate)
+        ExecutionHandler conditional_select(Builder* builder, ExecutionHandler& other, const bool predicate)
         {
             return ExecutionHandler(
                 predicate ? other.base : this->base,
-                field_t(composer).conditional_assign(construct_predicate(composer, predicate), other.f(), this->f()));
+                field_t(builder).conditional_assign(construct_predicate(builder, predicate), other.f(), this->f()));
         }
 
-        ExecutionHandler select_if_zero(Composer* composer, ExecutionHandler& other1, ExecutionHandler& other2)
+        ExecutionHandler select_if_zero(Builder* builder, ExecutionHandler& other1, ExecutionHandler& other2)
         {
             return ExecutionHandler(other2.base.is_zero() ? other1.base : this->base,
-                                    field_t(composer).conditional_assign(other2.f().is_zero(), other1.f(), this->f()));
+                                    field_t(builder).conditional_assign(other2.f().is_zero(), other1.f(), this->f()));
         }
 
-        ExecutionHandler select_if_eq(Composer* composer, ExecutionHandler& other1, ExecutionHandler& other2)
+        ExecutionHandler select_if_eq(Builder* builder, ExecutionHandler& other1, ExecutionHandler& other2)
         {
             return ExecutionHandler(
                 other1.base == other2.base ? other1.base : this->base,
-                field_t(composer).conditional_assign(other1.f() == other2.f(), other1.f(), this->f()));
+                field_t(builder).conditional_assign(other1.f() == other2.f(), other1.f(), this->f()));
         }
         /* Explicit re-instantiation using the various constructors */
-        ExecutionHandler set(Composer* composer)
+        ExecutionHandler set(Builder* builder)
         {
-            (void)composer;
+            (void)builder;
 
             switch (VarianceRNG.next() % 9) {
             case 0:
@@ -1017,8 +1017,8 @@ template <typename Composer> class FieldBase {
                  *
                  * TEST(stdlib_field, test_construct_via_bool_t)
                  * {
-                 *     proof_system::StandardCircuitBuilder composer =
-                 * proof_system::proof_system::StandardCircuitBuilder(); field_t a(witness_t(&composer,
+                 *     proof_system::StandardCircuitBuilder builder =
+                 * proof_system::proof_system::StandardCircuitBuilder(); field_t a(witness_t(&builder,
                  * fr(uint256_t{0xf396b678452ebf15, 0x82ae10893982638b, 0xdf185a29c65fbf80, 0x1d18b2de99e48308})));
                  * field_t b = a - a; field_t c(static_cast<bool_t>(b)); std::cout << c.get_value() << std::endl;
                  * }
@@ -1070,12 +1070,12 @@ template <typename Composer> class FieldBase {
                 case 0: {
                     const barretenberg::fr field_from_bits =
                         std::accumulate(frs.begin(), frs.end(), barretenberg::fr(0));
-                    return ExecutionHandler(this->base, field_t(composer, field_from_bits));
+                    return ExecutionHandler(this->base, field_t(builder, field_from_bits));
                 }
                 case 1: {
                     std::vector<field_t> fields;
                     for (const auto& fr : frs) {
-                        fields.push_back(field_t(composer, fr));
+                        fields.push_back(field_t(builder, fr));
                     }
                     /* This is a good opportunity to test
                      * field_t::accumulate with many elements
@@ -1102,18 +1102,18 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the constant instruction (push constant safeuint to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT(Composer* composer,
+        static inline size_t execute_CONSTANT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             stack.push_back(
-                ExecutionHandler(instruction.arguments.element, field_t(composer, instruction.arguments.element)));
+                ExecutionHandler(instruction.arguments.element, field_t(builder, instruction.arguments.element)));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed constant value " << instruction.arguments.element << " to position "
                       << stack.size() - 1 << std::endl;
@@ -1124,19 +1124,19 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the witness instruction (push witness safeuit to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_WITNESS(Composer* composer,
+        static inline size_t execute_WITNESS(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
 
             // THis is strange
             stack.push_back(
-                ExecutionHandler(instruction.arguments.element, witness_t(composer, instruction.arguments.element)));
+                ExecutionHandler(instruction.arguments.element, witness_t(builder, instruction.arguments.element)));
 
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed witness value " << instruction.arguments.element << " to position " << stack.size() - 1
@@ -1149,17 +1149,17 @@ template <typename Composer> class FieldBase {
          * @brief Execute the constant_witness instruction (push a safeuint witness equal to the constant to the
          * stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT_WITNESS(Composer* composer,
+        static inline size_t execute_CONSTANT_WITNESS(Builder* builder,
                                                       std::vector<ExecutionHandler>& stack,
                                                       Instruction& instruction)
         {
-            auto v = field_t(witness_t(composer, instruction.arguments.element));
-            v.convert_constant_to_fixed_witness(composer);
+            auto v = field_t(witness_t(builder, instruction.arguments.element));
+            v.convert_constant_to_fixed_witness(builder);
             stack.push_back(ExecutionHandler(instruction.arguments.element, std::move(v)));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed constant witness value " << instruction.arguments.element << " to position "
@@ -1170,17 +1170,17 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the multiply instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_MULTIPLY(Composer* composer,
+        static inline size_t execute_MULTIPLY(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
 
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1206,16 +1206,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the addition operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ADD(Composer* composer,
+        static inline size_t execute_ADD(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1242,16 +1242,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the SQR  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SQR(Composer* composer,
+        static inline size_t execute_SQR(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1277,16 +1277,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the ASSERT_EQUAL  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_EQUAL(Composer* composer,
+        static inline size_t execute_ASSERT_EQUAL(Builder* builder,
                                                   std::vector<ExecutionHandler>& stack,
                                                   Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1305,16 +1305,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the ASSERT_NOT_EQUAL  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_NOT_EQUAL(Composer* composer,
+        static inline size_t execute_ASSERT_NOT_EQUAL(Builder* builder,
                                                       std::vector<ExecutionHandler>& stack,
                                                       Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1333,16 +1333,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the ASSERT_ZERO  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_ZERO(Composer* composer,
+        static inline size_t execute_ASSERT_ZERO(Builder* builder,
                                                  std::vector<ExecutionHandler>& stack,
                                                  Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1364,16 +1364,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the ASSERT_NOT_ZERO  instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ASSERT_NOT_ZERO(Composer* composer,
+        static inline size_t execute_ASSERT_NOT_ZERO(Builder* builder,
                                                      std::vector<ExecutionHandler>& stack,
                                                      Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1394,16 +1394,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the subtraction operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SUBTRACT(Composer* composer,
+        static inline size_t execute_SUBTRACT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1429,16 +1429,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the division operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_DIVIDE(Composer* composer,
+        static inline size_t execute_DIVIDE(Builder* builder,
                                             std::vector<ExecutionHandler>& stack,
                                             Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1471,17 +1471,17 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the ADD_TWO instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_ADD_TWO(Composer* composer,
+        static inline size_t execute_ADD_TWO(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1507,17 +1507,17 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the MADD instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_MADD(Composer* composer,
+        static inline size_t execute_MADD(Builder* builder,
                                           std::vector<ExecutionHandler>& stack,
                                           Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1544,17 +1544,17 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the slice instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_SLICE(Composer* composer,
+        static inline size_t execute_SLICE(Builder* builder,
                                            std::vector<ExecutionHandler>& stack,
                                            Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1595,16 +1595,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the RANDOMSEED instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_RANDOMSEED(Composer* composer,
+        static inline size_t execute_RANDOMSEED(Builder* builder,
                                                 std::vector<ExecutionHandler>& stack,
                                                 Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             (void)stack;
 
             VarianceRNG.reseed(instruction.arguments.randomseed);
@@ -1613,16 +1613,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the COND_NEGATE instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_COND_NEGATE(Composer* composer,
+        static inline size_t execute_COND_NEGATE(Builder* builder,
                                                  std::vector<ExecutionHandler>& stack,
                                                  Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1631,7 +1631,7 @@ template <typename Composer> class FieldBase {
             bool predicate = instruction.arguments.threeArgs.in2 % 2;
 
             ExecutionHandler result;
-            result = stack[first_index].conditional_negate(composer, predicate);
+            result = stack[first_index].conditional_negate(builder, predicate);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1647,16 +1647,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the COND_SELECT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_COND_SELECT(Composer* composer,
+        static inline size_t execute_COND_SELECT(Builder* builder,
                                                  std::vector<ExecutionHandler>& stack,
                                                  Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1666,7 +1666,7 @@ template <typename Composer> class FieldBase {
             bool predicate = instruction.arguments.fourArgs.in3 % 2;
 
             ExecutionHandler result;
-            result = stack[first_index].conditional_select(composer, stack[second_index], predicate);
+            result = stack[first_index].conditional_select(builder, stack[second_index], predicate);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1681,16 +1681,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the SELECT_IF_ZERO instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SELECT_IF_ZERO(Composer* composer,
+        static inline size_t execute_SELECT_IF_ZERO(Builder* builder,
                                                     std::vector<ExecutionHandler>& stack,
                                                     Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1700,7 +1700,7 @@ template <typename Composer> class FieldBase {
             size_t output_index = instruction.arguments.fourArgs.out % stack.size();
 
             ExecutionHandler result;
-            result = stack[first_index].select_if_zero(composer, stack[second_index], stack[third_index]);
+            result = stack[first_index].select_if_zero(builder, stack[second_index], stack[third_index]);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1715,16 +1715,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the SELECT_IF_EQ instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SELECT_IF_EQ(Composer* composer,
+        static inline size_t execute_SELECT_IF_EQ(Builder* builder,
                                                   std::vector<ExecutionHandler>& stack,
                                                   Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1734,7 +1734,7 @@ template <typename Composer> class FieldBase {
             size_t output_index = instruction.arguments.fourArgs.out % stack.size();
 
             ExecutionHandler result;
-            result = stack[first_index].select_if_eq(composer, stack[second_index], stack[third_index]);
+            result = stack[first_index].select_if_eq(builder, stack[second_index], stack[third_index]);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1749,16 +1749,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the SET instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SET(Composer* composer,
+        static inline size_t execute_SET(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1768,7 +1768,7 @@ template <typename Composer> class FieldBase {
             PRINT_SINGLE_ARG_INSTRUCTION(first_index, stack, "Instantiating", "")
 
             ExecutionHandler result;
-            result = stack[first_index].set(composer);
+            result = stack[first_index].set(builder);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 PRINT_RESULT("", "pushed to ", stack.size(), result)
@@ -1782,16 +1782,16 @@ template <typename Composer> class FieldBase {
         /**
          * @brief Execute the INVERT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_INVERT(Composer* composer,
+        static inline size_t execute_INVERT(Builder* builder,
                                             std::vector<ExecutionHandler>& stack,
                                             Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1821,15 +1821,15 @@ template <typename Composer> class FieldBase {
     /**
      * @brief Check that the resulting values are equal to expected
      *
-     * @tparam Composer
-     * @param composer
+     * @tparam Builder
+     * @param builder
      * @param stack
      * @return true
      * @return false
      */
-    inline static bool postProcess(Composer* composer, std::vector<FieldBase::ExecutionHandler>& stack)
+    inline static bool postProcess(Builder* builder, std::vector<FieldBase::ExecutionHandler>& stack)
     {
-        (void)composer;
+        (void)builder;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
             if (barretenberg::fr((uint256_t(element.field.get_value()) % barretenberg::fr::modulus)) != element.base) {
@@ -2007,7 +2007,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<FieldBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
+    RunWithBuilders<FieldBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

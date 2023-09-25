@@ -7,16 +7,16 @@ namespace stdlib {
 /**
  * @brief A dynamic array of field elements
  *
- * @tparam Composer (must support plookup)
+ * @tparam Builder (must support plookup)
  */
-template <typename Composer> class DynamicArray {
+template <typename Builder> class DynamicArray {
   private:
-    typedef field_t<Composer> field_pt;
-    typedef bool_t<Composer> bool_pt;
-    typedef witness_t<Composer> witness_pt;
+    typedef field_t<Builder> field_pt;
+    typedef bool_t<Builder> bool_pt;
+    typedef witness_t<Builder> witness_pt;
 
   public:
-    DynamicArray(Composer* composer, const size_t maximum_size);
+    DynamicArray(Builder* builder, const size_t maximum_size);
 
     DynamicArray(const DynamicArray& other);
     DynamicArray(DynamicArray&& other);
@@ -39,13 +39,13 @@ template <typename Composer> class DynamicArray {
     size_t native_size() const { return static_cast<size_t>(static_cast<uint256_t>(_length.get_value())); }
     size_t max_size() const { return _max_size; }
 
-    Composer* get_context() const { return _context; }
+    Builder* get_context() const { return _context; }
 
   private:
-    Composer* _context = nullptr;
+    Builder* _context = nullptr;
     size_t _max_size;
     field_pt _length = 0;
-    mutable ram_table<Composer> _inner_table;
+    mutable ram_table<Builder> _inner_table;
 };
 
 EXTERN_STDLIB_ULTRA_TYPE(DynamicArray);

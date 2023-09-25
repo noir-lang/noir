@@ -5,7 +5,7 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer> byte_array<Composer> blake3s(const byte_array<Composer>& input);
+template <typename Builder> byte_array<Builder> blake3s(const byte_array<Builder>& input);
 #define BLAKE3S(circuit_type) byte_array<circuit_type> blake3s(const byte_array<circuit_type>& input);
 
 EXTERN_STDLIB_METHOD(BLAKE3S)

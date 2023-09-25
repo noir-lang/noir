@@ -25,7 +25,7 @@ constexpr size_t NUM_PROOFS = 3;
  * @brief Main function generating a circuit with num_iterations sequential sha256 hashes, where the output of a
  * previous iteration is fed into the next one
  *
- * @param composer
+ * @param builder
  * @param num_iterations
  */
 void generate_test_sha256_plonk_circuit(Builder& builder, size_t num_iterations)
@@ -107,7 +107,7 @@ BENCHMARK(verify_sha256_proof_bench)->DenseRange(0, 2)->Setup(generate_sha256_ve
 /**
  * @brief Main function for generating Blake 3 circuits
  *
- * @param composer
+ * @param builder
  * @param num_iterations
  */
 void generate_test_blake3s_plonk_circuit(Builder& builder, size_t num_iterations)

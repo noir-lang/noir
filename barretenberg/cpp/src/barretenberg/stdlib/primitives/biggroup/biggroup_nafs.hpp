@@ -500,7 +500,7 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
     for (size_t i = 0; i < num_rounds - 1; ++i) {
         bool next_entry = scalar_multiplier.get_bit(i + 1);
         // if the next entry is false, we need to flip the sign of the current entry. i.e. make negative
-        // This is a VERY hacky workaround to ensure that UltraPlonkComposer will apply a basic
+        // This is a VERY hacky workaround to ensure that UltraPlonkBuilder will apply a basic
         // range constraint per bool, and not a full 1-bit range gate
         if (next_entry == false) {
             bool_t<C> bit(ctx, true);

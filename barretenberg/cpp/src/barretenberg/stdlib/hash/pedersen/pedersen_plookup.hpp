@@ -7,12 +7,12 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename ComposerContext> class pedersen_plookup_hash {
+template <typename Builder> class pedersen_plookup_hash {
   private:
-    typedef stdlib::field_t<ComposerContext> field_t;
-    typedef stdlib::point<ComposerContext> point;
-    typedef stdlib::packed_byte_array<ComposerContext> packed_byte_array;
-    typedef stdlib::bool_t<ComposerContext> bool_t;
+    typedef stdlib::field_t<Builder> field_t;
+    typedef stdlib::point<Builder> point;
+    typedef stdlib::packed_byte_array<Builder> packed_byte_array;
+    typedef stdlib::bool_t<Builder> bool_t;
 
     enum AddType {
         LAMBDA,

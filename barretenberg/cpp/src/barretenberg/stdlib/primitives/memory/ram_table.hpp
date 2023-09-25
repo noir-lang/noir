@@ -6,14 +6,14 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 // A runtime-defined read-only memory table. Table entries must be initialized in the constructor.
-// N.B. Only works with the UltraPlonkComposer at the moment!
-template <typename Composer> class ram_table {
+// N.B. Only works with the UltraPlonkBuilder at the moment!
+template <typename Builder> class ram_table {
   private:
-    typedef field_t<Composer> field_pt;
+    typedef field_t<Builder> field_pt;
 
   public:
     ram_table() {}
-    ram_table(Composer* composer, const size_t table_size);
+    ram_table(Builder* builder, const size_t table_size);
     ram_table(const std::vector<field_pt>& table_entries);
     ram_table(const ram_table& other);
     ram_table(ram_table&& other);
@@ -29,7 +29,7 @@ template <typename Composer> class ram_table {
 
     size_t size() const { return _length; }
 
-    Composer* get_context() const { return _context; }
+    Builder* get_context() const { return _context; }
 
     bool check_indices_initialized() const
     {
@@ -51,10 +51,10 @@ template <typename Composer> class ram_table {
     std::vector<field_pt> _raw_entries;
     mutable std::vector<bool> _index_initialized;
     size_t _length = 0;
-    mutable size_t _ram_id = 0; // Composer identifier for this ROM table
-    mutable bool _ram_table_generated_in_composer = false;
+    mutable size_t _ram_id = 0; // Builder identifier for this ROM table
+    mutable bool _ram_table_generated_in_builder = false;
     mutable bool _all_entries_written_to_with_constant_index = false;
-    mutable Composer* _context = nullptr;
+    mutable Builder* _context = nullptr;
 };
 
 EXTERN_STDLIB_ULTRA_TYPE(ram_table);

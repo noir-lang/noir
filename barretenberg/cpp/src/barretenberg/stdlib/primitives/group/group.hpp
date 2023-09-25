@@ -13,38 +13,38 @@ namespace stdlib {
 using namespace barretenberg;
 using namespace crypto::generators;
 
-template <typename ComposerContext> class group {
+template <typename Builder> class group {
   public:
-    template <size_t num_bits> static auto fixed_base_scalar_mul_g1(const field_t<ComposerContext>& in);
-    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& lo, const field_t<ComposerContext>& hi);
+    template <size_t num_bits> static auto fixed_base_scalar_mul_g1(const field_t<Builder>& in);
+    static auto fixed_base_scalar_mul(const field_t<Builder>& lo, const field_t<Builder>& hi);
 
     template <size_t num_bits>
-    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index);
+    static auto fixed_base_scalar_mul(const field_t<Builder>& in, const size_t generator_index);
 
   private:
     template <size_t num_bits>
-    static auto fixed_base_scalar_mul_internal(const field_t<ComposerContext>& in,
+    static auto fixed_base_scalar_mul_internal(const field_t<Builder>& in,
                                                grumpkin::g1::affine_element const& generator,
                                                fixed_base_ladder const* ladder);
 };
 
-template <typename ComposerContext>
+template <typename Builder>
 template <size_t num_bits>
-auto group<ComposerContext>::fixed_base_scalar_mul_g1(const field_t<ComposerContext>& in)
+auto group<Builder>::fixed_base_scalar_mul_g1(const field_t<Builder>& in)
 {
     const auto ladder = get_g1_ladder(num_bits);
     auto generator = grumpkin::g1::one;
-    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder);
+    return group<Builder>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder);
 }
 
-template <typename ComposerContext>
+template <typename Builder>
 template <size_t num_bits>
-auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index)
+auto group<Builder>::fixed_base_scalar_mul(const field_t<Builder>& in, const size_t generator_index)
 {
     // we assume for fixed_base_scalar_mul we're interested in the gen at subindex 0
     generator_index_t index = { generator_index, 0 };
     auto gen_data = get_generator_data(index);
-    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(
+    return group<Builder>::fixed_base_scalar_mul_internal<num_bits>(
         in, gen_data.generator, gen_data.get_ladder(num_bits));
 }
 
@@ -57,9 +57,8 @@ auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext
  *
  * maximum value is (2^257 + 2^129). Further range constraints are required for more precision
  **/
-template <typename ComposerContext>
-auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& lo,
-                                                   const field_t<ComposerContext>& hi)
+template <typename Builder>
+auto group<Builder>::fixed_base_scalar_mul(const field_t<Builder>& lo, const field_t<Builder>& hi)
 {
     // This method does not work if lo or hi are 0. We don't apply the extra constraints to handle this edge case
     // (merely rule it out), because we can assume the scalar multipliers for schnorr are uniformly randomly distributed
@@ -77,14 +76,14 @@ auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext
     const auto lambda = (high.y - low.y) / x_delta;
     const auto x_3 = lambda.madd(lambda, -(high.x + low.x));
     const auto y_3 = lambda.madd((low.x - x_3), -low.y);
-    return point<ComposerContext>{ x_3, y_3 };
+    return point<Builder>{ x_3, y_3 };
 }
 
-template <typename ComposerContext>
+template <typename Builder>
 template <size_t num_bits>
-auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<ComposerContext>& in,
-                                                            grumpkin::g1::affine_element const& generator,
-                                                            fixed_base_ladder const* ladder)
+auto group<Builder>::fixed_base_scalar_mul_internal(const field_t<Builder>& in,
+                                                    grumpkin::g1::affine_element const& generator,
+                                                    fixed_base_ladder const* ladder)
 {
     auto scalar = in.normalize();
     scalar.assert_is_not_zero("input scalar to fixed_base_scalar_mul_internal cannot be 0");
@@ -153,16 +152,16 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    fixed_group_init_quad_<typename ComposerContext::FF> init_quad{ origin_points[0].x,
-                                                                    (origin_points[0].x - origin_points[1].x),
-                                                                    origin_points[0].y,
-                                                                    (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad_<typename Builder::FF> init_quad{ origin_points[0].x,
+                                                            (origin_points[0].x - origin_points[1].x),
+                                                            origin_points[0].y,
+                                                            (origin_points[0].y - origin_points[1].y) };
 
     fr x_alpha = accumulator_offset;
     std::vector<uint32_t> accumulator_witnesses;
-    pedersen_gates<ComposerContext> pedersen_gates(ctx);
+    pedersen_gates<Builder> pedersen_gates(ctx);
     for (size_t i = 0; i < num_quads; ++i) {
-        fixed_group_add_quad_<typename ComposerContext::FF> round_quad;
+        fixed_group_add_quad_<typename Builder::FF> round_quad;
         round_quad.d = ctx->add_variable(accumulator_transcript[i]);
         round_quad.a = ctx->add_variable(multiplication_transcript[i].x);
         round_quad.b = ctx->add_variable(multiplication_transcript[i].y);
@@ -193,20 +192,20 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
         accumulator_witnesses.push_back(round_quad.d);
     }
 
-    add_quad_<typename ComposerContext::FF> add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
-                                                      ctx->add_variable(multiplication_transcript[num_quads].y),
-                                                      ctx->add_variable(x_alpha),
-                                                      ctx->add_variable(accumulator_transcript[num_quads]),
-                                                      fr::zero(),
-                                                      fr::zero(),
-                                                      fr::zero(),
-                                                      fr::zero(),
-                                                      fr::zero() };
+    add_quad_<typename Builder::FF> add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
+                                              ctx->add_variable(multiplication_transcript[num_quads].y),
+                                              ctx->add_variable(x_alpha),
+                                              ctx->add_variable(accumulator_transcript[num_quads]),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero() };
     ctx->create_big_add_gate(add_quad);
     accumulator_witnesses.push_back(add_quad.d);
 
     if (num_bits >= 254) {
-        plonk::stdlib::pedersen_hash<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses);
+        plonk::stdlib::pedersen_hash<Builder>::validate_wnaf_is_in_field(ctx, accumulator_witnesses);
     }
     aligned_free(multiplication_transcript);
     aligned_free(accumulator_transcript);
@@ -214,7 +213,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     auto constructed_scalar = field_t(ctx);
     constructed_scalar.witness_index = add_quad.d;
 
-    point<ComposerContext> result;
+    point<Builder> result;
     result.x = field_t(ctx);
     result.x.witness_index = add_quad.a;
     result.y = field_t(ctx);

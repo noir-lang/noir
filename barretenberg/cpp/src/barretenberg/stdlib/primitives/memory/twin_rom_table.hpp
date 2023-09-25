@@ -7,10 +7,10 @@ namespace stdlib {
 
 // A runtime-defined read-only memory table. Table entries must be initialized in the constructor.
 // Each entry contains a pair of values
-// N.B. Only works with the UltraPlonkComposer at the moment!
-template <typename Composer> class twin_rom_table {
+// N.B. Only works with the UltraPlonkBuilder at the moment!
+template <typename Builder> class twin_rom_table {
   private:
-    typedef field_t<Composer> field_pt;
+    typedef field_t<Builder> field_pt;
     typedef std::array<field_pt, 2> field_pair_pt;
 
   public:
@@ -32,15 +32,15 @@ template <typename Composer> class twin_rom_table {
 
     size_t size() const { return length; }
 
-    Composer* get_context() const { return context; }
+    Builder* get_context() const { return context; }
 
   private:
     std::vector<field_pair_pt> raw_entries;
     mutable std::vector<field_pair_pt> entries;
     size_t length = 0;
-    mutable size_t rom_id = 0; // Composer identifier for this ROM table
+    mutable size_t rom_id = 0; // Builder identifier for this ROM table
     mutable bool initialized = false;
-    mutable Composer* context = nullptr;
+    mutable Builder* context = nullptr;
 };
 
 EXTERN_STDLIB_ULTRA_TYPE(twin_rom_table);

@@ -108,13 +108,13 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing SafeUint fuzzing instructions, execution, etc
  *
  */
-template <typename Composer> class SafeUintFuzzBase {
+template <typename Builder> class SafeUintFuzzBase {
   private:
-    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
-    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
-    typedef proof_system::plonk::stdlib::safe_uint_t<Composer> suint_t;
-    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
-    typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
+    typedef proof_system::plonk::stdlib::bool_t<Builder> bool_t;
+    typedef proof_system::plonk::stdlib::field_t<Builder> field_t;
+    typedef proof_system::plonk::stdlib::safe_uint_t<Builder> suint_t;
+    typedef proof_system::plonk::stdlib::witness_t<Builder> witness_t;
+    typedef proof_system::plonk::stdlib::public_witness_t<Builder> public_witness_t;
 
   public:
     /**
@@ -704,16 +704,16 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the constant instruction (push constant safeuint to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT(Composer* composer,
+        static inline size_t execute_CONSTANT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             stack.push_back(suint_t(instruction.arguments.element.value));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed constant value " << instruction.arguments.element.value << " to position "
@@ -725,12 +725,12 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the witness instruction (push witness safeuit to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_WITNESS(Composer* composer,
+        static inline size_t execute_WITNESS(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
@@ -745,7 +745,7 @@ template <typename Composer> class SafeUintFuzzBase {
                 circuit_should_fail = true;
             }
 
-            stack.push_back(suint_t(witness_t(composer, instruction.arguments.element.value),
+            stack.push_back(suint_t(witness_t(builder, instruction.arguments.element.value),
                                     instruction.arguments.element.bit_range));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed witness value " << instruction.arguments.element.value << " < 2^" << (size_t)bit_range
@@ -757,16 +757,16 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the constant_witness instruction (push a safeuint witness equal to the constant to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT_WITNESS(Composer* composer,
+        static inline size_t execute_CONSTANT_WITNESS(Builder* builder,
                                                       std::vector<ExecutionHandler>& stack,
                                                       Instruction& instruction)
         {
-            stack.push_back(suint_t::create_constant_witness(composer, instruction.arguments.element.value));
+            stack.push_back(suint_t::create_constant_witness(builder, instruction.arguments.element.value));
 #ifdef SHOW_INFORMATION
             std::cout << "Pushed constant witness value " << instruction.arguments.element.value << " to position "
                       << stack.size() - 1 << std::endl;
@@ -776,17 +776,17 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the multiply instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_MULTIPLY(Composer* composer,
+        static inline size_t execute_MULTIPLY(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
 
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -828,16 +828,16 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the addition operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_ADD(Composer* composer,
+        static inline size_t execute_ADD(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -872,16 +872,16 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the subtraction operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SUBTRACT(Composer* composer,
+        static inline size_t execute_SUBTRACT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -939,16 +939,16 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the division operator instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_DIVIDE(Composer* composer,
+        static inline size_t execute_DIVIDE(Builder* builder,
                                             std::vector<ExecutionHandler>& stack,
                                             Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1002,17 +1002,17 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the ADD_TWO instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_ADD_TWO(Composer* composer,
+        static inline size_t execute_ADD_TWO(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1053,17 +1053,17 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the MADD instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_MADD(Composer* composer,
+        static inline size_t execute_MADD(Builder* builder,
                                           std::vector<ExecutionHandler>& stack,
                                           Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1106,17 +1106,17 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the SUBTRACT_WITH_CONSTRAINT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
             */
-        static inline size_t execute_SUBTRACT_WITH_CONSTRAINT(Composer* composer,
+        static inline size_t execute_SUBTRACT_WITH_CONSTRAINT(Builder* builder,
                                                               std::vector<ExecutionHandler>& stack,
                                                               Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1161,17 +1161,17 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the DIVIDE_WITH_CONSTRAINTS instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was
  encountered
             */
-        static inline size_t execute_DIVIDE_WITH_CONSTRAINTS(Composer* composer,
+        static inline size_t execute_DIVIDE_WITH_CONSTRAINTS(Builder* builder,
                                                              std::vector<ExecutionHandler>& stack,
                                                              Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1228,17 +1228,17 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the slice instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
         size_t
          */
-        static inline size_t execute_SLICE(Composer* composer,
+        static inline size_t execute_SLICE(Builder* builder,
                                            std::vector<ExecutionHandler>& stack,
                                            Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -1278,16 +1278,16 @@ template <typename Composer> class SafeUintFuzzBase {
         /**
          * @brief Execute the RANDOMSEED instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_RANDOMSEED(Composer* composer,
+        static inline size_t execute_RANDOMSEED(Builder* builder,
                                                 std::vector<ExecutionHandler>& stack,
                                                 Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             (void)stack;
 
             VarianceRNG.reseed(instruction.arguments.randomseed);
@@ -1457,7 +1457,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<SafeUintFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
+    RunWithBuilders<SafeUintFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

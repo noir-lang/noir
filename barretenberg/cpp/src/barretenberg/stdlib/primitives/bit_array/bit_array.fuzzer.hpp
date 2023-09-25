@@ -28,12 +28,12 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing ByteArray fuzzing instructions, execution, etc
  *
  */
-template <typename Composer> class BitArrayFuzzBase {
+template <typename Builder> class BitArrayFuzzBase {
   private:
-    typedef proof_system::plonk::stdlib::bit_array<Composer> bit_array_t;
-    typedef proof_system::plonk::stdlib::byte_array<Composer> byte_array_t;
+    typedef proof_system::plonk::stdlib::bit_array<Builder> bit_array_t;
+    typedef proof_system::plonk::stdlib::byte_array<Builder> byte_array_t;
     template <size_t NumBytes, size_t NumWords>
-    static std::vector<uint8_t> to_vector(std::array<proof_system::plonk::stdlib::uint32<Composer>, NumWords>& a32)
+    static std::vector<uint8_t> to_vector(std::array<proof_system::plonk::stdlib::uint32<Builder>, NumWords>& a32)
     {
         /* Convert array of uint32_t to vector of uint8_t */
         std::vector<uint8_t> v(NumBytes);
@@ -60,7 +60,7 @@ template <typename Composer> class BitArrayFuzzBase {
              */
             return static_cast<byte_array_t>(bit_array).get_value();
         } else if (bit_array.size() - offset == NumBits) {
-            std::array<proof_system::plonk::stdlib::uint32<Composer>, NumWords> a32;
+            std::array<proof_system::plonk::stdlib::uint32<Builder>, NumWords> a32;
             bit_array.template populate_uint32_array<NumWords>(offset, a32);
             return to_vector<NumBytes, NumWords>(a32);
         } else {
@@ -92,7 +92,7 @@ template <typename Composer> class BitArrayFuzzBase {
              */
             return static_cast<byte_array_t>(bit_array).get_value();
         } else if (bit_array.size() == NumBits) {
-            std::array<proof_system::plonk::stdlib::uint32<Composer>, NumWords> a32;
+            std::array<proof_system::plonk::stdlib::uint32<Builder>, NumWords> a32;
 
             /* Switch between two different methods to retrieve the uint32 array */
             if (cast_or_populate) {
@@ -445,7 +445,7 @@ template <typename Composer> class BitArrayFuzzBase {
                 if (bit_array.size() == MAX_ARRAY_SIZE / 32) {
                     std::array<uint32_t, MAX_ARRAY_SIZE> a32;
                     const auto a32_ =
-                        static_cast<std::array<proof_system::plonk::stdlib::uint32<Composer>, MAX_ARRAY_SIZE>>(
+                        static_cast<std::array<proof_system::plonk::stdlib::uint32<Builder>, MAX_ARRAY_SIZE>>(
                             bit_array);
                     for (size_t i = 0; i < a32_.size(); i++) {
                         a32[i] = static_cast<uint32_t>(a32_[i].get_value());
@@ -482,7 +482,7 @@ template <typename Composer> class BitArrayFuzzBase {
             , bit_array(s)
         {}
 
-        ExecutionHandler get_bit(Composer* composer, const size_t bit) const
+        ExecutionHandler get_bit(Builder* builder, const size_t bit) const
         {
             if (bit >= this->reference_value.size() * 8) {
                 return ExecutionHandler(this->reference_value, this->bit_array);
@@ -490,7 +490,7 @@ template <typename Composer> class BitArrayFuzzBase {
                 const bool is_set_ref = get_bit(this->reference_value, bit);
                 const bool is_set_ba = this->bit_array[bit].get_value();
 
-                return ExecutionHandler(bool_to_vector(is_set_ref), bit_array_t(composer, bool_to_vector(is_set_ba)));
+                return ExecutionHandler(bool_to_vector(is_set_ref), bit_array_t(builder, bool_to_vector(is_set_ba)));
             }
         }
         /* Modifies the buffer at hand, so does not produce a return value */
@@ -502,7 +502,7 @@ template <typename Composer> class BitArrayFuzzBase {
             }
         }
         /* output = input[offset:] (where offset denotes bits) */
-        ExecutionHandler slice(Composer* composer, const size_t offset)
+        ExecutionHandler slice(Builder* builder, const size_t offset)
         {
             static_assert(MAX_ARRAY_SIZE % 4 == 0);
             const auto v_ba = vector_via_populate_uint32_array<MAX_ARRAY_SIZE / 4>(this->bit_array, offset);
@@ -522,11 +522,11 @@ template <typename Composer> class BitArrayFuzzBase {
                 }
             }
 
-            return ExecutionHandler(v_ref, bit_array_t(composer, v_ba));
+            return ExecutionHandler(v_ref, bit_array_t(builder, v_ba));
         }
 
         /* Explicit re-instantiation using the various bit_array constructors */
-        ExecutionHandler set(Composer* composer)
+        ExecutionHandler set(Builder* builder)
         {
             const uint8_t which = VarianceRNG.next() % 6;
 
@@ -538,11 +538,11 @@ template <typename Composer> class BitArrayFuzzBase {
                 return ExecutionHandler(ref, bit_array_t(this->bit_array));
             case 1:
                 /* Construct via std::string */
-                return ExecutionHandler(ref, bit_array_t(composer, this->bit_array.get_witness_as_string()));
+                return ExecutionHandler(ref, bit_array_t(builder, this->bit_array.get_witness_as_string()));
             case 2:
                 /* Construct via std::vector<uint8_t> */
                 return ExecutionHandler(ref,
-                                        bit_array_t(composer, static_cast<byte_array_t>(this->bit_array).get_value()));
+                                        bit_array_t(builder, static_cast<byte_array_t>(this->bit_array).get_value()));
             case 3:
                 /* Construct via byte_array */
                 return ExecutionHandler(ref, bit_array_t(static_cast<byte_array_t>(this->bit_array)));
@@ -553,10 +553,10 @@ template <typename Composer> class BitArrayFuzzBase {
                     const auto v = this->bit_array.to_uint32_vector();
 
                     if (v.size() == 1 && static_cast<bool>(VarianceRNG.next() % 2)) {
-                        /* Construct via uint32<ComposerContext> */
+                        /* Construct via uint32<Builder> */
                         return ExecutionHandler(ref, bit_array_t(v[0]));
                     } else {
-                        /* Construct via std::vector<uint32<ComposerContext>> */
+                        /* Construct via std::vector<uint32<Builder>> */
                         return ExecutionHandler(ref, bit_array_t(v));
                     }
                 }
@@ -571,7 +571,7 @@ template <typename Composer> class BitArrayFuzzBase {
                 for (size_t i = 0; i < gibberish_size; i++) {
                     gibberish[i] = static_cast<uint8_t>(VarianceRNG.next() % 0xFF);
                 }
-                auto ba = bit_array_t(composer, gibberish);
+                auto ba = bit_array_t(builder, gibberish);
 
                 /* Construct via assignment */
                 ba = this->bit_array;
@@ -586,32 +586,32 @@ template <typename Composer> class BitArrayFuzzBase {
         /**
          * @brief Execute the constant instruction (push constant safeuint to the stack)
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return 0 if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_CONSTANT(Composer* composer,
+        static inline size_t execute_CONSTANT(Builder* builder,
                                               std::vector<ExecutionHandler>& stack,
                                               Instruction& instruction)
         {
-            (void)composer;
-            stack.push_back(bit_array_t(composer, instruction.arguments.element.as_string()));
+            (void)builder;
+            stack.push_back(bit_array_t(builder, instruction.arguments.element.as_string()));
             return 0;
         }
         /**
          * @brief Execute the GET_BIT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_GET_BIT(Composer* composer,
+        static inline size_t execute_GET_BIT(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -619,7 +619,7 @@ template <typename Composer> class BitArrayFuzzBase {
             size_t output_index = instruction.arguments.getBitArgs.out;
             const uint32_t bit = instruction.arguments.getBitArgs.bit;
             ExecutionHandler result;
-            result = stack[first_index].get_bit(composer, bit);
+            result = stack[first_index].get_bit(builder, bit);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -631,16 +631,16 @@ template <typename Composer> class BitArrayFuzzBase {
         /**
          * @brief Execute the SET_BIT instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SET_BIT(Composer* composer,
+        static inline size_t execute_SET_BIT(Builder* builder,
                                              std::vector<ExecutionHandler>& stack,
                                              Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -653,16 +653,16 @@ template <typename Composer> class BitArrayFuzzBase {
         /**
          * @brief Execute the SLICE instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SLICE(Composer* composer,
+        static inline size_t execute_SLICE(Builder* builder,
                                            std::vector<ExecutionHandler>& stack,
                                            Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
@@ -670,7 +670,7 @@ template <typename Composer> class BitArrayFuzzBase {
             size_t output_index = instruction.arguments.sliceArgs.out;
             const uint16_t offset = instruction.arguments.sliceArgs.offset;
             ExecutionHandler result;
-            result = stack[first_index].slice(composer, offset);
+            result = stack[first_index].slice(builder, offset);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -682,23 +682,23 @@ template <typename Composer> class BitArrayFuzzBase {
         /**
          * @brief Execute the SET instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_SET(Composer* composer,
+        static inline size_t execute_SET(Builder* builder,
                                          std::vector<ExecutionHandler>& stack,
                                          Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             if (stack.size() == 0) {
                 return 1;
             }
             size_t first_index = instruction.arguments.twoArgs.in % stack.size();
             size_t output_index = instruction.arguments.twoArgs.out;
             ExecutionHandler result;
-            result = stack[first_index].set(composer);
+            result = stack[first_index].set(builder);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -710,16 +710,16 @@ template <typename Composer> class BitArrayFuzzBase {
         /**
          * @brief Execute the RANDOMSEED instruction
          *
-         * @param composer
+         * @param builder
          * @param stack
          * @param instruction
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
-        static inline size_t execute_RANDOMSEED(Composer* composer,
+        static inline size_t execute_RANDOMSEED(Builder* builder,
                                                 std::vector<ExecutionHandler>& stack,
                                                 Instruction& instruction)
         {
-            (void)composer;
+            (void)builder;
             (void)stack;
 
             VarianceRNG.reseed(instruction.arguments.randomseed);
@@ -731,15 +731,15 @@ template <typename Composer> class BitArrayFuzzBase {
     /**
      * @brief Check that the resulting values are equal to expected
      *
-     * @tparam Composer
-     * @param composer
+     * @tparam Builder
+     * @param builder
      * @param stack
      * @return true
      * @return false
      */
-    inline static bool postProcess(Composer* composer, std::vector<BitArrayFuzzBase::ExecutionHandler>& stack)
+    inline static bool postProcess(Builder* builder, std::vector<BitArrayFuzzBase::ExecutionHandler>& stack)
     {
-        (void)composer;
+        (void)builder;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
             const auto other = from_to<std::string, std::vector<uint8_t>>(element.bit_array.get_witness_as_string());
@@ -920,7 +920,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
  */
 extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
 {
-    RunWithComposers<BitArrayFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
+    RunWithBuilders<BitArrayFuzzBase, FuzzerCircuitTypes>(Data, Size, VarianceRNG);
     return 0;
 }
 

@@ -53,7 +53,6 @@ void preprocess_witnesses_bench(State& state) noexcept
         composers[idx] = (void*)new Composer();
         provers[idx] = ((Composer*)composers[idx])->create_prover(*(Builder*)builders[idx]);
         std::cout << "prover subgroup size = " << provers[idx].key->small_domain.size << std::endl;
-        // printf("num bytes = %" PRIx64 ", num gates = %zu\n", state.range(0), composers[idx].get_num_gates());
     }
 }
 BENCHMARK(preprocess_witnesses_bench)->DenseRange(START_BYTES, MAX_BYTES, BYTES_PER_CHUNK);

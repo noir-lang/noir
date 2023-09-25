@@ -9,10 +9,10 @@
 
 namespace proof_system::plonk::stdlib {
 
-template <typename Composer> class logic {
+template <typename Builder> class logic {
   public:
-    using field_pt = field_t<Composer>;
-    using witness_pt = witness_t<Composer>;
+    using field_pt = field_t<Builder>;
+    using witness_pt = witness_t<Builder>;
 
   public:
     static field_pt create_logic_constraint(

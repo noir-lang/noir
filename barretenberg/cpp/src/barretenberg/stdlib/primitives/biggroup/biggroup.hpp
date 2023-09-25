@@ -16,13 +16,13 @@ namespace proof_system::plonk {
 namespace stdlib {
 
 // ( ͡° ͜ʖ ͡°)
-template <class Composer, class Fq, class Fr, class NativeGroup> class element {
+template <class Builder, class Fq, class Fr, class NativeGroup> class element {
   public:
     struct secp256k1_wnaf {
-        std::vector<field_t<Composer>> wnaf;
-        field_t<Composer> positive_skew;
-        field_t<Composer> negative_skew;
-        field_t<Composer> least_significant_wnaf_fragment;
+        std::vector<field_t<Builder>> wnaf;
+        field_t<Builder> positive_skew;
+        field_t<Builder> negative_skew;
+        field_t<Builder> least_significant_wnaf_fragment;
         bool has_wnaf_fragment = false;
     };
     struct secp256k1_wnaf_pair {
@@ -37,7 +37,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     element(const element& other);
     element(element&& other);
 
-    static element from_witness(Composer* ctx, const typename NativeGroup::affine_element& input)
+    static element from_witness(Builder* ctx, const typename NativeGroup::affine_element& input)
     {
         Fq x = Fq::from_witness(ctx, input.x);
         Fq y = Fq::from_witness(ctx, input.y);
@@ -59,7 +59,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         }
     }
 
-    static element one(Composer* ctx)
+    static element one(Builder* ctx)
     {
         uint256_t x = uint256_t(NativeGroup::one.x);
         uint256_t y = uint256_t(NativeGroup::one.y);
@@ -71,9 +71,9 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     element& operator=(const element& other);
     element& operator=(element&& other);
 
-    byte_array<Composer> to_byte_array() const
+    byte_array<Builder> to_byte_array() const
     {
-        byte_array<Composer> result(get_context());
+        byte_array<Builder> result(get_context());
         result.write(y.to_byte_array());
         result.write(x.to_byte_array());
         return result;
@@ -101,7 +101,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
 
     element operator*(const Fr& other) const;
 
-    element conditional_negate(const bool_t<Composer>& predicate) const
+    element conditional_negate(const bool_t<Builder>& predicate) const
     {
         element result(*this);
         result.y = result.y.conditional_negate(predicate);
@@ -213,15 +213,15 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, secp256k1::g1>::value>>
     static element secp256k1_ecdsa_mul(const element& pubkey, const Fr& u1, const Fr& u2);
 
-    static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar, const size_t max_num_bits = 0);
+    static std::vector<bool_t<Builder>> compute_naf(const Fr& scalar, const size_t max_num_bits = 0);
 
     template <size_t max_num_bits = 0, size_t WNAF_SIZE = 4>
-    static std::vector<field_t<Composer>> compute_wnaf(const Fr& scalar);
+    static std::vector<field_t<Builder>> compute_wnaf(const Fr& scalar);
 
     template <size_t wnaf_size, size_t staggered_lo_offset = 0, size_t staggered_hi_offset = 0>
     static secp256k1_wnaf_pair compute_secp256k1_endo_wnaf(const Fr& scalar);
 
-    Composer* get_context() const
+    Builder* get_context() const
     {
         if (x.context != nullptr) {
             return x.context;
@@ -232,7 +232,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         return nullptr;
     }
 
-    Composer* get_context(const element& other) const
+    Builder* get_context(const element& other) const
     {
         if (x.context != nullptr) {
             return x.context;
@@ -253,32 +253,32 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     Fq y;
 
   private:
-    template <size_t num_elements, typename = typename std::enable_if<HasPlookup<Composer>>>
-    static std::array<twin_rom_table<Composer>, 5> create_group_element_rom_tables(
+    template <size_t num_elements, typename = typename std::enable_if<HasPlookup<Builder>>>
+    static std::array<twin_rom_table<Builder>, 5> create_group_element_rom_tables(
         const std::array<element, num_elements>& elements, std::array<uint256_t, 8>& limb_max);
 
-    template <size_t num_elements, typename = typename std::enable_if<HasPlookup<Composer>>>
-    static element read_group_element_rom_tables(const std::array<twin_rom_table<Composer>, 5>& tables,
-                                                 const field_t<Composer>& index,
+    template <size_t num_elements, typename = typename std::enable_if<HasPlookup<Builder>>>
+    static element read_group_element_rom_tables(const std::array<twin_rom_table<Builder>, 5>& tables,
+                                                 const field_t<Builder>& index,
                                                  const std::array<uint256_t, 8>& limb_max);
 
     static std::pair<element, element> compute_offset_generators(const size_t num_rounds);
 
-    template <typename = typename std::enable_if<HasPlookup<Composer>>> struct four_bit_table_plookup {
+    template <typename = typename std::enable_if<HasPlookup<Builder>>> struct four_bit_table_plookup {
         four_bit_table_plookup(){};
         four_bit_table_plookup(const element& input);
 
         four_bit_table_plookup(const four_bit_table_plookup& other) = default;
         four_bit_table_plookup& operator=(const four_bit_table_plookup& other) = default;
 
-        element operator[](const field_t<Composer>& index) const;
+        element operator[](const field_t<Builder>& index) const;
         element operator[](const size_t idx) const { return element_table[idx]; }
         std::array<element, 16> element_table;
-        std::array<twin_rom_table<Composer>, 5> coordinates;
+        std::array<twin_rom_table<Builder>, 5> coordinates;
         std::array<uint256_t, 8> limb_max; // tracks the maximum limb size represented in each element_table entry
     };
 
-    template <typename = typename std::enable_if<HasPlookup<Composer>>> struct eight_bit_fixed_base_table {
+    template <typename = typename std::enable_if<HasPlookup<Builder>>> struct eight_bit_fixed_base_table {
         enum CurveType { BN254, SECP256K1, SECP256R1 };
         eight_bit_fixed_base_table(const CurveType input_curve_type, bool use_endo)
             : curve_type(input_curve_type)
@@ -287,7 +287,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         eight_bit_fixed_base_table(const eight_bit_fixed_base_table& other) = default;
         eight_bit_fixed_base_table& operator=(const eight_bit_fixed_base_table& other) = default;
 
-        element operator[](const field_t<Composer>& index) const;
+        element operator[](const field_t<Builder>& index) const;
 
         element operator[](const size_t idx) const;
 
@@ -295,7 +295,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         bool use_endomorphism;
     };
 
-    template <typename = typename std::enable_if<HasPlookup<Composer>>>
+    template <typename = typename std::enable_if<HasPlookup<Builder>>>
     static std::pair<four_bit_table_plookup<>, four_bit_table_plookup<>> create_endo_pair_four_bit_table_plookup(
         const element& input)
     {
@@ -351,19 +351,19 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         lookup_table_base(const lookup_table_base& other) = default;
         lookup_table_base& operator=(const lookup_table_base& other) = default;
 
-        element get(const std::array<bool_t<Composer>, length>& bits) const;
+        element get(const std::array<bool_t<Builder>, length>& bits) const;
 
         element operator[](const size_t idx) const { return element_table[idx]; }
 
-        std::array<field_t<Composer>, table_size> x_b0_table;
-        std::array<field_t<Composer>, table_size> x_b1_table;
-        std::array<field_t<Composer>, table_size> x_b2_table;
-        std::array<field_t<Composer>, table_size> x_b3_table;
+        std::array<field_t<Builder>, table_size> x_b0_table;
+        std::array<field_t<Builder>, table_size> x_b1_table;
+        std::array<field_t<Builder>, table_size> x_b2_table;
+        std::array<field_t<Builder>, table_size> x_b3_table;
 
-        std::array<field_t<Composer>, table_size> y_b0_table;
-        std::array<field_t<Composer>, table_size> y_b1_table;
-        std::array<field_t<Composer>, table_size> y_b2_table;
-        std::array<field_t<Composer>, table_size> y_b3_table;
+        std::array<field_t<Builder>, table_size> y_b0_table;
+        std::array<field_t<Builder>, table_size> y_b1_table;
+        std::array<field_t<Builder>, table_size> y_b2_table;
+        std::array<field_t<Builder>, table_size> y_b3_table;
         element twin0;
         element twin1;
         std::array<element, table_size> element_table;
@@ -374,30 +374,30 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
      *
      * Uses ROM tables to efficiently access lookup table
      **/
-    template <size_t length, typename = typename std::enable_if<HasPlookup<Composer>>> struct lookup_table_plookup {
+    template <size_t length, typename = typename std::enable_if<HasPlookup<Builder>>> struct lookup_table_plookup {
         static constexpr size_t table_size = (1ULL << (length));
         lookup_table_plookup() {}
         lookup_table_plookup(const std::array<element, length>& inputs);
         lookup_table_plookup(const lookup_table_plookup& other) = default;
         lookup_table_plookup& operator=(const lookup_table_plookup& other) = default;
 
-        element get(const std::array<bool_t<Composer>, length>& bits) const;
+        element get(const std::array<bool_t<Builder>, length>& bits) const;
 
         element operator[](const size_t idx) const { return element_table[idx]; }
 
         std::array<element, table_size> element_table;
-        std::array<twin_rom_table<Composer>, 5> coordinates;
+        std::array<twin_rom_table<Builder>, 5> coordinates;
         std::array<uint256_t, 8> limb_max;
     };
 
     using twin_lookup_table =
-        typename std::conditional<HasPlookup<Composer>, lookup_table_plookup<2, void>, lookup_table_base<2>>::type;
+        typename std::conditional<HasPlookup<Builder>, lookup_table_plookup<2, void>, lookup_table_base<2>>::type;
 
     using triple_lookup_table =
-        typename std::conditional<HasPlookup<Composer>, lookup_table_plookup<3, void>, lookup_table_base<3>>::type;
+        typename std::conditional<HasPlookup<Builder>, lookup_table_plookup<3, void>, lookup_table_base<3>>::type;
 
     using quad_lookup_table =
-        typename std::conditional<HasPlookup<Composer>, lookup_table_plookup<4, void>, lookup_table_base<4>>::type;
+        typename std::conditional<HasPlookup<Builder>, lookup_table_plookup<4, void>, lookup_table_base<4>>::type;
 
     /**
      * Creates a pair of 4-bit lookup tables, the former corresponding to 4 input points,
@@ -410,7 +410,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         quad_lookup_table endo_table;
         uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
         Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
-        if constexpr (HasPlookup<Composer>) {
+        if constexpr (HasPlookup<Builder>) {
             for (size_t i = 0; i < 8; ++i) {
                 endo_table.element_table[i + 8].x = base_table[7 - i].x * beta;
                 endo_table.element_table[i + 8].y = base_table[7 - i].y;
@@ -435,7 +435,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
      * Creates a pair of 5-bit lookup tables, the former corresponding to 5 input points,
      * the latter corresponding to the endomorphism equivalent of the 5 input points (e.g. x -> \beta * x, y -> -y)
      **/
-    template <typename X = typename std::enable_if<HasPlookup<Composer>>>
+    template <typename X = typename std::enable_if<HasPlookup<Builder>>>
     static std::pair<lookup_table_plookup<5, X>, lookup_table_plookup<5, X>> create_endo_pair_five_lookup_table(
         const std::array<element, 5>& inputs)
     {
@@ -443,7 +443,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
         lookup_table_plookup<5> endo_table;
         uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
         Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
-        if constexpr (HasPlookup<Composer>) {
+        if constexpr (HasPlookup<Builder>) {
             for (size_t i = 0; i < 16; ++i) {
                 endo_table.element_table[i + 16].x = base_table[15 - i].x * beta;
                 endo_table.element_table[i + 16].y = base_table[15 - i].y;
@@ -462,7 +462,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
      *
      * UltraPlonk version
      **/
-    template <typename X = typename std::enable_if<HasPlookup<Composer>>> struct batch_lookup_table_plookup {
+    template <typename X = typename std::enable_if<HasPlookup<Builder>>> struct batch_lookup_table_plookup {
         batch_lookup_table_plookup(const std::vector<element>& points)
         {
             num_points = points.size();
@@ -592,7 +592,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             return chain_add_accumulator(add_accumulator[0]);
         }
 
-        element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Composer>>& naf_entries) const
+        element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Builder>>& naf_entries) const
         {
             std::vector<element> round_accumulator;
             for (size_t j = 0; j < num_sixes; ++j) {
@@ -644,7 +644,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             return (accumulator);
         }
 
-        element get(std::vector<bool_t<Composer>>& naf_entries) const
+        element get(std::vector<bool_t<Builder>>& naf_entries) const
         {
             std::vector<element> round_accumulator;
             for (size_t j = 0; j < num_sixes; ++j) {
@@ -797,21 +797,21 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             return chain_add_accumulator(add_accumulator[0]);
         }
 
-        element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Composer>>& naf_entries) const
+        element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Builder>>& naf_entries) const
         {
             std::vector<element> round_accumulator;
             for (size_t j = 0; j < num_quads; ++j) {
-                round_accumulator.push_back(quad_tables[j].get(std::array<bool_t<Composer>, 4>{
+                round_accumulator.push_back(quad_tables[j].get(std::array<bool_t<Builder>, 4>{
                     naf_entries[4 * j], naf_entries[4 * j + 1], naf_entries[4 * j + 2], naf_entries[4 * j + 3] }));
             }
 
             if (has_triple) {
-                round_accumulator.push_back(triple_tables[0].get(std::array<bool_t<Composer>, 3>{
+                round_accumulator.push_back(triple_tables[0].get(std::array<bool_t<Builder>, 3>{
                     naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1], naf_entries[num_quads * 4 + 2] }));
             }
             if (has_twin) {
                 round_accumulator.push_back(twin_tables[0].get(
-                    std::array<bool_t<Composer>, 2>{ naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1] }));
+                    std::array<bool_t<Builder>, 2>{ naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1] }));
             }
             if (has_singleton) {
                 round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1]));
@@ -834,7 +834,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             return (accumulator);
         }
 
-        element get(std::vector<bool_t<Composer>>& naf_entries) const
+        element get(std::vector<bool_t<Builder>>& naf_entries) const
         {
             std::vector<element> round_accumulator;
             for (size_t j = 0; j < num_quads; ++j) {
@@ -843,7 +843,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
             }
 
             if (has_triple) {
-                round_accumulator.push_back(triple_tables[0].get(std::array<bool_t<Composer>, 3>{
+                round_accumulator.push_back(triple_tables[0].get(std::array<bool_t<Builder>, 3>{
                     naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1], naf_entries[num_quads * 4 + 2] }));
             }
             if (has_twin) {
@@ -882,7 +882,7 @@ template <class Composer, class Fq, class Fr, class NativeGroup> class element {
     };
 
     using batch_lookup_table =
-        typename std::conditional<HasPlookup<Composer>, batch_lookup_table_plookup<>, batch_lookup_table_base>::type;
+        typename std::conditional<HasPlookup<Builder>, batch_lookup_table_plookup<>, batch_lookup_table_base>::type;
 };
 
 template <typename C, typename Fq, typename Fr, typename G>

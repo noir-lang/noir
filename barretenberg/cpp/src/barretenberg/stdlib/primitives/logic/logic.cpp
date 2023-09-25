@@ -11,19 +11,19 @@ namespace proof_system::plonk::stdlib {
 /**
  * @brief A logical AND or XOR over a variable number of bits.
  *
- * @details Defaults to basic Composer method if not using plookup-compatible composer. If the left and right operands
+ * @details Defaults to basic Builder method if not using plookup-compatible builder. If the left and right operands
  * are larger than num_bit, the result will be truncated to num_bits. However, the two operands could be
  * range-constrained to num_bits before the call, which would remove the need to range constrain inside this function.
  *
- * @tparam Composer
+ * @tparam Builder
  * @param a
  * @param b
  * @param num_bits
  * @param is_xor_gate
- * @return field_t<Composer>
+ * @return field_t<Builder>
  */
-template <typename Composer>
-field_t<Composer> logic<Composer>::create_logic_constraint(
+template <typename Builder>
+field_t<Builder> logic<Builder>::create_logic_constraint(
     field_pt& a,
     field_pt& b,
     size_t num_bits,
@@ -38,22 +38,22 @@ field_t<Composer> logic<Composer>::create_logic_constraint(
         uint256_t a_native(a.get_value());
         uint256_t b_native(b.get_value());
         uint256_t c_native = is_xor_gate ? (a_native ^ b_native) : (a_native & b_native);
-        return field_t<Composer>(c_native);
+        return field_t<Builder>(c_native);
     }
     if (a.is_constant() && !b.is_constant()) {
-        Composer* ctx = b.get_context();
+        Builder* ctx = b.get_context();
         uint256_t a_native(a.get_value());
         field_pt a_witness = field_pt::from_witness_index(ctx, ctx->put_constant_variable(a_native));
         return create_logic_constraint(a_witness, b, num_bits, is_xor_gate, get_chunk);
     }
     if (!a.is_constant() && b.is_constant()) {
-        Composer* ctx = a.get_context();
+        Builder* ctx = a.get_context();
         uint256_t b_native(b.get_value());
         field_pt b_witness = field_pt::from_witness_index(ctx, ctx->put_constant_variable(b_native));
         return create_logic_constraint(a, b_witness, num_bits, is_xor_gate, get_chunk);
     }
-    if constexpr (HasPlookup<Composer>) {
-        Composer* ctx = a.get_context();
+    if constexpr (HasPlookup<Builder>) {
+        Builder* ctx = a.get_context();
 
         const size_t num_chunks = (num_bits / 32) + ((num_bits % 32 == 0) ? 0 : 1);
         auto left((uint256_t)a.get_value());
@@ -71,11 +71,11 @@ field_t<Composer> logic<Composer>::create_logic_constraint(
             field_pt b_chunk = witness_pt(ctx, right_chunk);
             field_pt result_chunk = 0;
             if (is_xor_gate) {
-                result_chunk = stdlib::plookup_read<Composer>::read_from_2_to_1_table(
+                result_chunk = stdlib::plookup_read<Builder>::read_from_2_to_1_table(
                     plookup::MultiTableId::UINT32_XOR, a_chunk, b_chunk);
 
             } else {
-                result_chunk = stdlib::plookup_read<Composer>::read_from_2_to_1_table(
+                result_chunk = stdlib::plookup_read<Builder>::read_from_2_to_1_table(
                     plookup::MultiTableId::UINT32_AND, a_chunk, b_chunk);
             }
 
@@ -102,15 +102,15 @@ field_t<Composer> logic<Composer>::create_logic_constraint(
 
         return res;
     } else {
-        // If the composer doesn't have lookups we call the expensive logic constraint gate
+        // If the builder doesn't have lookups we call the expensive logic constraint gate
         // which creates constraints for each bit. We only create constraints up to num_bits.
-        Composer* ctx = a.get_context();
+        Builder* ctx = a.get_context();
         field_pt a_slice = a.slice(static_cast<uint8_t>(num_bits - 1), 0)[1];
         field_pt b_slice = b.slice(static_cast<uint8_t>(num_bits - 1), 0)[1];
         auto accumulator_triple = ctx->create_logic_constraint(
             a_slice.normalize().get_witness_index(), b_slice.normalize().get_witness_index(), num_bits, is_xor_gate);
         auto out_idx = accumulator_triple.out[accumulator_triple.out.size() - 1];
-        return field_t<Composer>::from_witness_index(ctx, out_idx);
+        return field_t<Builder>::from_witness_index(ctx, out_idx);
     }
 }
 INSTANTIATE_STDLIB_TYPE(logic);

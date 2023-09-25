@@ -8,24 +8,24 @@
 namespace proof_system::plonk {
 namespace stdlib {
 
-template <typename Composer, typename Native> class uint_plookup {
+template <typename Builder, typename Native> class uint_plookup {
   public:
-    using FF = typename Composer::FF;
+    using FF = typename Builder::FF;
     static constexpr size_t width = sizeof(Native) * 8;
 
-    uint_plookup(const witness_t<Composer>& other);
-    uint_plookup(const field_t<Composer>& other);
+    uint_plookup(const witness_t<Builder>& other);
+    uint_plookup(const field_t<Builder>& other);
     uint_plookup(const uint256_t& value = 0);
-    uint_plookup(Composer* composer, const uint256_t& value = 0);
-    uint_plookup(const byte_array<Composer>& other);
-    uint_plookup(Composer* parent_context, const std::vector<bool_t<Composer>>& wires);
-    uint_plookup(Composer* parent_context, const std::array<bool_t<Composer>, width>& wires);
+    uint_plookup(Builder* builder, const uint256_t& value = 0);
+    uint_plookup(const byte_array<Builder>& other);
+    uint_plookup(Builder* parent_context, const std::vector<bool_t<Builder>>& wires);
+    uint_plookup(Builder* parent_context, const std::array<bool_t<Builder>, width>& wires);
 
     uint_plookup(const Native v)
         : uint_plookup(static_cast<uint256_t>(v))
     {}
 
-    std::vector<uint32_t> constrain_accumulators(Composer* ctx, const uint32_t witness_index) const;
+    std::vector<uint32_t> constrain_accumulators(Builder* ctx, const uint32_t witness_index) const;
 
     static constexpr size_t bits_per_limb = 12;
     static constexpr size_t num_accumulators() { return (width + bits_per_limb - 1) / bits_per_limb; }
@@ -36,8 +36,8 @@ template <typename Composer, typename Native> class uint_plookup {
     uint_plookup& operator=(const uint_plookup& other);
     uint_plookup& operator=(uint_plookup&& other);
 
-    explicit operator byte_array<Composer>() const;
-    explicit operator field_t<Composer>() const;
+    explicit operator byte_array<Builder>() const;
+    explicit operator field_t<Builder>() const;
 
     uint_plookup operator+(const uint_plookup& other) const;
     uint_plookup operator-(const uint_plookup& other) const;
@@ -64,13 +64,13 @@ template <typename Composer, typename Native> class uint_plookup {
         return rol(static_cast<size_t>(target_rotation.data[0]));
     }
 
-    bool_t<Composer> operator>(const uint_plookup& other) const;
-    bool_t<Composer> operator<(const uint_plookup& other) const;
-    bool_t<Composer> operator>=(const uint_plookup& other) const;
-    bool_t<Composer> operator<=(const uint_plookup& other) const;
-    bool_t<Composer> operator==(const uint_plookup& other) const;
-    bool_t<Composer> operator!=(const uint_plookup& other) const;
-    bool_t<Composer> operator!() const;
+    bool_t<Builder> operator>(const uint_plookup& other) const;
+    bool_t<Builder> operator<(const uint_plookup& other) const;
+    bool_t<Builder> operator>=(const uint_plookup& other) const;
+    bool_t<Builder> operator<=(const uint_plookup& other) const;
+    bool_t<Builder> operator==(const uint_plookup& other) const;
+    bool_t<Builder> operator!=(const uint_plookup& other) const;
+    bool_t<Builder> operator!() const;
 
     uint_plookup operator+=(const uint_plookup& other)
     {
@@ -130,9 +130,9 @@ template <typename Composer, typename Native> class uint_plookup {
     uint256_t get_value() const;
 
     bool is_constant() const { return witness_index == IS_CONSTANT; }
-    Composer* get_context() const { return context; }
+    Builder* get_context() const { return context; }
 
-    bool_t<Composer> at(const size_t bit_index) const;
+    bool_t<Builder> at(const size_t bit_index) const;
 
     size_t get_width() const { return width; }
 
@@ -144,7 +144,7 @@ template <typename Composer, typename Native> class uint_plookup {
     uint256_t get_unbounded_value() const;
 
   protected:
-    Composer* context;
+    Builder* context;
 
     enum WitnessStatus { OK, NOT_NORMALIZED, WEAK_NORMALIZED };
 
