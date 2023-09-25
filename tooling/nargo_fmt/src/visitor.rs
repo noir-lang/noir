@@ -136,8 +136,7 @@ impl<'a> FmtVisitor<'a> {
 
     fn format_expr(&self, Expression { kind, span }: Expression) -> String {
         match kind {
-            // TODO: literals can contain comments
-            ExpressionKind::Literal(literal) => literal.to_string(),
+            ExpressionKind::Literal(_literal) => slice!(self, span.start(), span.end()).to_string(),
             ExpressionKind::Block(block) => {
                 let mut visitor = FmtVisitor::new(self.source);
 
@@ -149,28 +148,33 @@ impl<'a> FmtVisitor<'a> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
-            ExpressionKind::Call(call) => {
-                let callee = self.format_expr(*call.func);
-                let args = call
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.format_expr(arg))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+            ExpressionKind::Call(_call) => {
+                // FIXME:
+                // let callee = self.format_expr(*call.func);
+                // let args = call
+                //     .arguments
+                //     .into_iter()
+                //     .map(|arg| self.format_expr(arg))
+                //     .collect::<Vec<_>>()
+                //     .join(", ");
 
-                format!("{callee}({args})")
+                // format!("{callee}({args})")
+
+                slice!(self, span.start(), span.end()).to_string()
             }
-            ExpressionKind::Infix(infix) => {
-                let lhs = self.format_expr(infix.lhs);
-                let op = infix.operator.contents;
-                let rhs = self.format_expr(infix.rhs);
+            ExpressionKind::Infix(_infix) => {
+                // let lhs = self.format_expr(infix.lhs);
+                // let op = infix.operator.contents;
+                // let rhs = self.format_expr(infix.rhs);
 
-                format!("{lhs} {op} {rhs}")
+                // format!("{lhs} {op} {rhs}")
+
+                slice!(self, span.start(), span.end()).to_string()
             }
             ExpressionKind::Variable(_) => slice!(self, span.start(), span.end()).to_string(),
             ExpressionKind::Error => unreachable!(),
             // TODO:
-            expr => expr.to_string(),
+            _expr => slice!(self, span.start(), span.end()).to_string(),
         }
     }
 
