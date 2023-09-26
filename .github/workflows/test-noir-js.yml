@@ -17,27 +17,27 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: wasm32-unknown-unknown
+
       - name: Install jq
         run: sudo apt-get install jq
 
-      - name: Install cargo and wasm-bindgen
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source $HOME/.cargo/env
-          cargo install -f wasm-bindgen-cli --version 0.2.86
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
 
       - name: Install toml2json
-        run: |
-          source $HOME/.cargo/env
-          cargo install toml2json
+        uses: taiki-e/install-action@v2
+        with:
+          tool: toml2json@1.3.1
 
       - name: Install wasm-opt
         run: |
           npm i wasm-opt -g
-
-      - name: Install wasm32-unknown-unknwown target
-        run: |
-          rustup target add wasm32-unknown-unknown
 
       - name: Build acvm_js
         run: yarn workspace @noir-lang/acvm_js build
