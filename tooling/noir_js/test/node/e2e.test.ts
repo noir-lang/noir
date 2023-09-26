@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { generateWitness, witnessMapToUint8Array } from '../../src/index.js';
+import { generateWitness } from '../../src/index.js';
 import { Backend } from '../backend/barretenberg.js';
 
 it('end-to-end proof creation and verification (outer)', async () => {
@@ -9,14 +9,13 @@ it('end-to-end proof creation and verification (outer)', async () => {
     x: '2',
     y: '3',
   };
-  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+  const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
   // bb.js part
   //
   // Proof creation
   const prover = new Backend(assert_lt_json.bytecode);
   await prover.init();
-  const serializedWitness = witnessMapToUint8Array(solvedWitness);
   const proof = await prover.generateOuterProof(serializedWitness);
 
   // Proof verification
@@ -30,14 +29,13 @@ it('end-to-end proof creation and verification (inner)', async () => {
     x: '2',
     y: '3',
   };
-  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+  const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
   // bb.js part
   //
   // Proof creation
   const prover = new Backend(assert_lt_json.bytecode);
   await prover.init();
-  const serializedWitness = witnessMapToUint8Array(solvedWitness);
   const proof = await prover.generateInnerProof(serializedWitness);
 
   // Proof verification
@@ -63,13 +61,12 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
     x: '2',
     y: '3',
   };
-  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+  const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
   // bb.js part
   const prover = new Backend(assert_lt_json.bytecode);
   await prover.init();
 
-  const serializedWitness = witnessMapToUint8Array(solvedWitness);
   const proof = await prover.generateOuterProof(serializedWitness);
 
   try {
@@ -98,7 +95,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
     x: '2',
     y: '3',
   };
-  const solvedWitness = await generateWitness(assert_lt_json, inputs);
+  const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
   // bb.js part
   //
@@ -106,7 +103,6 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   //
   const prover = new Backend(assert_lt_json.bytecode);
   await prover.init();
-  const serializedWitness = witnessMapToUint8Array(solvedWitness);
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
   const proofOuter = await prover.generateOuterProof(serializedWitness);
