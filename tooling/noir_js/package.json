@@ -6,7 +6,6 @@
   "version": "0.13.0",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
-  "type": "module",
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
@@ -17,17 +16,20 @@
     "package.json"
   ],
   "source": "src/index.ts",
-  "main": "lib/index.cjs",
-  "module": "lib/index.js",
+  "main": "lib/cjs/index.js",
+  "module": "lib/mjs/index.js",
   "exports": {
-    "require": "./lib/index.cjs",
-    "default": "./lib/index.js",
-    "types": "./lib/index.d.ts"
+    "require": "./lib/cjs/index.js",
+    "default": "./lib/mjs/index.js",
+    "types": "./lib/types/index.d.ts"
   },
-  "types": "lib/index.d.ts",
+  "types": "lib/types/index.d.ts",
   "scripts": {
-    "dev": "tsc-multi --watch",
-    "build": "tsc-multi",
+    "dev": "tsc --watch",
+    "build": "yarn run build:tsc:cjs && yarn run build:tsc:mjs && yarn run build:types && ./fixup.sh",
+    "build:tsc:cjs": "tsc -p tsconfig.cjs.json",
+    "build:tsc:mjs": "tsc -p tsconfig.mjs.json",
+    "build:types": "tsc -p tsconfig.types.json",
     "test": "yarn test:node:esm && yarn test:node:cjs",
     "test:node:esm": "mocha --timeout 25000 --exit --config ./.mocharc.json",
     "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
@@ -47,7 +49,6 @@
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
     "ts-node": "^10.9.1",
-    "tsc-multi": "^1.1.0",
     "typescript": "^5.2.2"
   }
 }
