@@ -70,7 +70,10 @@ jobs:
         run: |
           chmod +x ./rebuild.sh
           ./rebuild.sh
-
+      
+      - name: Discard changes in nargo directory
+        run: git restore --source=HEAD --staged --worktree -- nargo/
+    
       - name: Create or Update PR
         uses: peter-evans/create-pull-request@v3
         with:
