@@ -6,9 +6,6 @@
 # action failing due to upstream changes, a manual resolution
 # PR with ./scripts/git_subrepo.sh pull will be needed.
 name: Mirror Repositories
-
-concurrency:
-  group: mirror-repositories
 on:
   schedule:
     # Run the workflow every night at 2:00 AM UTC.
@@ -38,6 +35,8 @@ jobs:
 
   mirror-to-build-system-repo:
     runs-on: ubuntu-latest
+    # Force sequential.
+    needs: mirror-to-docs-repo
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -59,6 +58,8 @@ jobs:
 
   mirror-to-barretenberg-repo:
     runs-on: ubuntu-latest
+    # Force sequential.
+    needs: mirror-to-build-system-repo
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -80,6 +81,8 @@ jobs:
 
   mirror-to-aztec-nr-repo:
     runs-on: ubuntu-latest
+    # Force sequential.
+    needs: mirror-to-barretenberg-repo
     steps:
       - name: Checkout
         uses: actions/checkout@v3
