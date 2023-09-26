@@ -1,19 +1,16 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AccountWallet, AztecAddress } from '@aztec/aztec.js';
 import { Fr, FunctionSelector } from '@aztec/circuits.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { TxStatus } from '@aztec/types';
 
 import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, hashPayload, setup } from './fixtures/utils.js';
 
 describe('e2e_cross_chain_messaging', () => {
-  let aztecNode: AztecNodeService;
-  let aztecRpcServer: AztecRPC;
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
 
   let user1Wallet: AccountWallet;
   let user2Wallet: AccountWallet;
@@ -28,16 +25,18 @@ describe('e2e_cross_chain_messaging', () => {
   beforeEach(async () => {
     const {
       aztecNode,
-      aztecRpcServer: aztecRpcServer_,
+      aztecRpcServer,
       deployL1ContractsValues,
       accounts,
       wallets,
       logger: logger_,
       cheatCodes,
+      teardown: teardown_,
     } = await setup(2);
+
     crossChainTestHarness = await CrossChainTestHarness.new(
       aztecNode,
-      aztecRpcServer_,
+      aztecRpcServer,
       deployL1ContractsValues,
       accounts,
       wallets[0],
@@ -50,18 +49,15 @@ describe('e2e_cross_chain_messaging', () => {
     ethAccount = crossChainTestHarness.ethAccount;
     ownerAddress = crossChainTestHarness.ownerAddress;
     outbox = crossChainTestHarness.outbox;
-    aztecRpcServer = crossChainTestHarness.aztecRpcServer;
     user1Wallet = wallets[0];
     user2Wallet = wallets[1];
     logger = logger_;
+    teardown = teardown_;
     logger('Successfully deployed contracts and initialized portal');
   }, 100_000);
 
   afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
+    await teardown();
     await crossChainTestHarness?.stop();
   });
 

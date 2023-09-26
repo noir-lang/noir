@@ -1,5 +1,3 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Contract, ContractDeployer, Fr, Wallet, isContractDeployed } from '@aztec/aztec.js';
 import { CompleteAddress, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -9,22 +7,17 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_deploy_contract', () => {
-  let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
   let wallet: Wallet;
+  let teardown: () => Promise<void>;
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, accounts, logger, wallet } = await setup());
+    ({ teardown, aztecRpcServer, accounts, logger, wallet } = await setup());
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   /**
    * Milestone 1.1.

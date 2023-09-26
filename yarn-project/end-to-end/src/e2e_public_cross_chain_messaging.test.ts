@@ -1,19 +1,16 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AccountWallet, AztecAddress } from '@aztec/aztec.js';
 import { Fr, FunctionSelector } from '@aztec/circuits.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { TxStatus } from '@aztec/types';
 
 import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, hashPayload, setup } from './fixtures/utils.js';
 
 describe('e2e_public_cross_chain_messaging', () => {
-  let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
 
   let ownerWallet: AccountWallet;
   let user2Wallet: AccountWallet;
@@ -33,6 +30,7 @@ describe('e2e_public_cross_chain_messaging', () => {
       accounts,
       wallets,
       logger: logger_,
+      teardown: teardown_,
       cheatCodes,
     } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
@@ -49,8 +47,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     ownerEthAddress = crossChainTestHarness.ethAccount;
     ownerAddress = crossChainTestHarness.ownerAddress;
     outbox = crossChainTestHarness.outbox;
-    aztecRpcServer = crossChainTestHarness.aztecRpcServer;
-    aztecNode = aztecNode_;
+    teardown = teardown_;
     ownerWallet = wallets[0];
     user2Wallet = wallets[1];
 
@@ -59,10 +56,7 @@ describe('e2e_public_cross_chain_messaging', () => {
   }, 100_000);
 
   afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
+    await teardown();
     await crossChainTestHarness?.stop();
   });
 

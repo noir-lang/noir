@@ -1,4 +1,3 @@
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import {
   AccountManager,
   AuthWitnessProvider,
@@ -48,12 +47,7 @@ describe('guides/writing_an_account_contract', () => {
     context = await setup(0);
   }, 60_000);
 
-  afterEach(async () => {
-    await context.aztecNode?.stop();
-    if (context.aztecRpcServer instanceof AztecRPCServer) {
-      await context.aztecRpcServer.stop();
-    }
-  });
+  afterEach(() => context.teardown());
 
   it('works', async () => {
     const { aztecRpcServer: rpc, logger } = context;

@@ -1,6 +1,4 @@
 // Test suite for testing proper ordering of side effects
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { Wallet } from '@aztec/aztec.js';
 import { Fr, FunctionSelector } from '@aztec/circuits.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
@@ -12,9 +10,9 @@ import { setup } from './fixtures/utils.js';
 
 // See https://github.com/AztecProtocol/aztec-packages/issues/1601
 describe('e2e_ordering', () => {
-  let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
+  let teardown: () => Promise<void>;
 
   const expectLogsFromLastBlockToBe = async (logMessages: bigint[]) => {
     const l2BlockNum = await aztecRpcServer.getBlockNumber();
@@ -26,15 +24,10 @@ describe('e2e_ordering', () => {
   };
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, wallet } = await setup());
+    ({ teardown, aztecRpcServer, wallet } = await setup());
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   describe('with parent and child contract', () => {
     let parent: ParentContract;

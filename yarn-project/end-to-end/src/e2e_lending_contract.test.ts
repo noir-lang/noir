@@ -1,11 +1,9 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AccountWallet, CheatCodes, Fr, SentTx, computeMessageSecretHash } from '@aztec/aztec.js';
 import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
@@ -14,11 +12,10 @@ import { LendingAccount, LendingSimulator, TokenSimulator } from './simulators/i
 
 describe('e2e_lending_contract', () => {
   jest.setTimeout(100_000);
-  let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let wallet: AccountWallet;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
 
   let cc: CheatCodes;
   const TIME_JUMP = 100;
@@ -81,7 +78,7 @@ describe('e2e_lending_contract', () => {
   };
 
   beforeAll(async () => {
-    ({ aztecNode, aztecRpcServer, logger, cheatCodes: cc, wallet, accounts } = await setup(1));
+    ({ teardown, logger, cheatCodes: cc, wallet, accounts } = await setup(1));
     ({ lendingContract, priceFeedContract, collateralAsset, stableCoin } = await deployContracts());
 
     lendingAccount = new LendingAccount(accounts[0].address, new Fr(42));
@@ -98,12 +95,7 @@ describe('e2e_lending_contract', () => {
     );
   }, 200_000);
 
-  afterAll(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterAll(() => teardown());
 
   afterEach(async () => {
     await lendingSim.check();

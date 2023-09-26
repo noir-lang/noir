@@ -1,35 +1,28 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { CompleteAddress, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_private_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let logger: DebugLogger;
   let owner: AztecAddress;
   let receiver: AztecAddress;
-
+  let teardown: () => Promise<void>;
   let contract: PrivateTokenContract;
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    ({ teardown, aztecNode, accounts, wallet, logger } = await setup(2));
     owner = accounts[0].address;
     receiver = accounts[1].address;
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
     const balance = await contract.methods.getBalance(owner).view({ from: owner });

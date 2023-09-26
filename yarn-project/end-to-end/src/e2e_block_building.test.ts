@@ -1,5 +1,3 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { BatchCall, ContractDeployer, Fr, Wallet, isContractDeployed } from '@aztec/aztec.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
@@ -13,24 +11,19 @@ import times from 'lodash.times';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_block_building', () => {
-  let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let logger: DebugLogger;
   let wallet: Wallet;
+  let teardown: () => Promise<void>;
 
   describe('multi-txs block', () => {
     const abi = TestContractAbi;
 
     beforeAll(async () => {
-      ({ aztecNode, aztecRpcServer, logger, wallet } = await setup(1));
+      ({ teardown, aztecRpcServer, logger, wallet } = await setup(1));
     }, 100_000);
 
-    afterAll(async () => {
-      await aztecNode?.stop();
-      if (aztecRpcServer instanceof AztecRPCServer) {
-        await aztecRpcServer?.stop();
-      }
-    });
+    afterAll(() => teardown());
 
     it('assembles a block with multiple txs', async () => {
       // Assemble N contract deployment txs
@@ -63,18 +56,14 @@ describe('e2e_block_building', () => {
   // Regressions for https://github.com/AztecProtocol/aztec-packages/issues/2502
   describe('double-spends on the same block', () => {
     let contract: TestContract;
+    let teardown: () => Promise<void>;
 
     beforeAll(async () => {
-      ({ aztecNode, aztecRpcServer, logger, wallet } = await setup(1));
+      ({ teardown, aztecRpcServer, logger, wallet } = await setup(1));
       contract = await TestContract.deploy(wallet).send().deployed();
     }, 100_000);
 
-    afterAll(async () => {
-      await aztecNode?.stop();
-      if (aztecRpcServer instanceof AztecRPCServer) {
-        await aztecRpcServer?.stop();
-      }
-    });
+    afterAll(() => teardown());
 
     it('drops tx with private nullifier already emitted on the same block', async () => {
       const nullifier = Fr.random();

@@ -1,33 +1,26 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PendingCommitmentsContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { CompleteAddress, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_pending_commitments_contract', () => {
   let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let logger: DebugLogger;
   let owner: AztecAddress;
-
+  let teardown: () => Promise<void>;
   let contract: PendingCommitmentsContract;
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    ({ teardown, aztecNode, accounts, wallet, logger } = await setup(2));
     owner = accounts[0].address;
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   const expectCommitmentsSquashedExcept = async (exceptFirstFew: number) => {
     const blockNum = await aztecNode!.getBlockNumber();

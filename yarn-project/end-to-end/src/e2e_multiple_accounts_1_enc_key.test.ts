@@ -1,5 +1,4 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet, computeMessageSecretHash, generatePublicKey, getSchnorrAccount } from '@aztec/aztec.js';
 import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -14,6 +13,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   const wallets: Wallet[] = [];
   const accounts: AztecAddress[] = [];
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
 
   let tokenAddress: AztecAddress;
 
@@ -21,7 +21,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   const numAccounts = 3;
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, logger } = await setup(0));
+    ({ teardown, aztecNode, aztecRpcServer, logger } = await setup(0));
 
     const encryptionPrivateKey = GrumpkinScalar.random();
 
@@ -58,12 +58,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     );
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   const expectBalance = async (userIndex: number, expectedBalance: bigint) => {
     const wallet = wallets[userIndex];

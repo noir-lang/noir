@@ -1,5 +1,4 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, CheatCodes, Fr, Wallet } from '@aztec/aztec.js';
 import { DeployL1Contracts, deployL1Contract } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -38,6 +37,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
   let cheatCodes: CheatCodes;
+  let teardown: () => Promise<void>;
 
   let ethAccount: EthAddress;
   let owner: AztecAddress;
@@ -53,10 +53,8 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
 
   beforeEach(async () => {
     let deployL1ContractsValues: DeployL1Contracts;
-    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger, wallet, cheatCodes } = await setup(
-      2,
-      dumpedState,
-    ));
+    ({ teardown, aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger, wallet, cheatCodes } =
+      await setup(2, dumpedState));
 
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
@@ -121,10 +119,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
   }, 100_000);
 
   afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
+    await teardown();
     await wethCrossChainHarness.stop();
     await daiCrossChainHarness.stop();
   });

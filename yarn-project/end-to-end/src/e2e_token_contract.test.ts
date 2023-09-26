@@ -1,11 +1,9 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AccountWallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { CircuitsWasm, CompleteAddress, Fr, FunctionSelector, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
@@ -25,8 +23,7 @@ const TIMEOUT = 60_000;
 describe('e2e_token_contract', () => {
   jest.setTimeout(TIMEOUT);
 
-  let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
+  let teardown: () => Promise<void>;
   let wallets: AccountWallet[];
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
@@ -36,7 +33,7 @@ describe('e2e_token_contract', () => {
   let tokenSim: TokenSimulator;
 
   beforeAll(async () => {
-    ({ aztecNode, aztecRpcServer, logger, wallets, accounts } = await setup(3));
+    ({ teardown, logger, wallets, accounts } = await setup(3));
 
     asset = await TokenContract.deploy(wallets[0]).send().deployed();
     logger(`Token deployed to ${asset.address}`);
@@ -59,12 +56,7 @@ describe('e2e_token_contract', () => {
     });
   }, 100_000);
 
-  afterAll(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterAll(() => teardown());
 
   afterEach(async () => {
     await tokenSim.check();

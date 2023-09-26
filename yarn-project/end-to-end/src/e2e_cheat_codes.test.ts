@@ -1,5 +1,4 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer, EthAddress } from '@aztec/aztec-rpc';
+import { EthAddress } from '@aztec/aztec-rpc';
 import { CheatCodes, Wallet } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts/types';
@@ -10,10 +9,10 @@ import { Account, Chain, HttpTransport, PublicClient, WalletClient, getAddress, 
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_cheat_codes', () => {
-  let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let cc: CheatCodes;
+  let teardown: () => Promise<void>;
 
   let walletClient: WalletClient<HttpTransport, Chain, Account>;
   let publicClient: PublicClient<HttpTransport, Chain>;
@@ -21,19 +20,14 @@ describe('e2e_cheat_codes', () => {
 
   beforeAll(async () => {
     let deployL1ContractsValues;
-    ({ aztecNode, aztecRpcServer, wallet, cheatCodes: cc, deployL1ContractsValues } = await setup());
+    ({ teardown, aztecRpcServer, wallet, cheatCodes: cc, deployL1ContractsValues } = await setup());
 
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
     rollupAddress = deployL1ContractsValues.rollupAddress;
   }, 100_000);
 
-  afterAll(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterAll(() => teardown());
 
   describe('L1 only', () => {
     describe('mine', () => {

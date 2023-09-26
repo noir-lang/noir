@@ -11,7 +11,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -28,21 +28,14 @@ interface NodeContext {
 }
 
 describe('e2e_p2p_network', () => {
-  let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let config: AztecNodeConfig;
   let logger: DebugLogger;
-
+  let teardown: () => Promise<void>;
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, config, logger } = await setup(0));
+    ({ teardown, config, logger } = await setup(0));
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   it('should rollup txs from all peers', async () => {
     // create the bootstrap node for the network

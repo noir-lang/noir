@@ -1,6 +1,4 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecRPC, CompleteAddress, TxHash, Wallet } from '@aztec/aztec.js';
+import { CompleteAddress, TxHash, Wallet } from '@aztec/aztec.js';
 import { Fr, MAX_NEW_COMMITMENTS_PER_CALL } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
@@ -23,16 +21,15 @@ describe('private airdrop', () => {
   const initialSupply = 1000n;
   const claimsStorageSlot = new Fr(2n);
 
-  let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let wallets: Wallet[];
   let contracts: PrivateTokenAirdropContract[];
   let accounts: CompleteAddress[];
   let claims: Claim[];
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, accounts, wallets, logger } = await setup(numberOfAccounts));
+    ({ teardown, accounts, wallets, logger } = await setup(numberOfAccounts));
 
     logger(`Deploying zk token contract...`);
     const owner = accounts[0].address;
@@ -45,12 +42,7 @@ describe('private airdrop', () => {
     }
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  }, 30_000);
+  afterEach(() => teardown());
 
   const expectBalance = async (accountIndex: number, expectedBalance: bigint) => {
     const account = accounts[accountIndex].address;

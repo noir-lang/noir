@@ -1,5 +1,3 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContract } from '@aztec/noir-contracts/types';
@@ -10,11 +8,11 @@ import times from 'lodash.times';
 import { expectUnencryptedLogsFromLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_public_token_contract', () => {
-  let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let logger: DebugLogger;
   let recipient: AztecAddress;
+  let teardown: () => Promise<void>;
 
   let contract: PublicTokenContract;
 
@@ -28,16 +26,11 @@ describe('e2e_public_token_contract', () => {
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup());
+    ({ teardown, aztecRpcServer, accounts, wallet, logger } = await setup());
     recipient = accounts[0].address;
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   it('should deploy a public token contract', async () => {
     const { txReceipt } = await deployContract();

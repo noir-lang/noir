@@ -1,9 +1,8 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Contract, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { MultiTransferContract, PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress } from '@aztec/types';
+import { CompleteAddress } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
@@ -16,9 +15,10 @@ describe('multi-transfer payments', () => {
   const numberOfAccounts = 12;
 
   let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
+
   let ownerAddress: AztecAddress;
   let recipients: AztecAddress[];
   let initialBalance: bigint;
@@ -28,7 +28,7 @@ describe('multi-transfer payments', () => {
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ aztecNode, aztecRpcServer, accounts, logger, wallet } = await setup(numberOfAccounts + 1)); // 1st being the `owner`
+    ({ teardown, aztecNode, accounts, logger, wallet } = await setup(numberOfAccounts + 1)); // 1st being the `owner`
     ownerAddress = accounts[0].address;
     recipients = accounts.slice(1).map(a => a.address);
 
@@ -40,12 +40,7 @@ describe('multi-transfer payments', () => {
     await deployMultiTransferContract();
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  }, 30_000);
+  afterEach(() => teardown(), 30_000);
 
   const deployZkTokenContract = async (initialBalance: bigint, owner: AztecAddress) => {
     logger(`Deploying zk token contract...`);

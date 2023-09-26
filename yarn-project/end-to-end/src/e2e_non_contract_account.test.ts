@@ -1,5 +1,4 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, SignerlessWallet, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PokeableTokenContract } from '@aztec/noir-contracts/types';
@@ -14,6 +13,7 @@ describe('e2e_non_contract_account', () => {
   let sender: AztecAddress;
   let recipient: AztecAddress;
   let pokerWallet: Wallet;
+  let teardown: () => Promise<void>;
 
   let logger: DebugLogger;
 
@@ -23,7 +23,7 @@ describe('e2e_non_contract_account', () => {
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    ({ teardown, aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
     sender = accounts[0].address;
     recipient = accounts[1].address;
     pokerWallet = new SignerlessWallet(aztecRpcServer);
@@ -37,12 +37,7 @@ describe('e2e_non_contract_account', () => {
     contract = await PokeableTokenContract.at(receipt.contractAddress!, wallet);
   }, 100_000);
 
-  afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
-  });
+  afterEach(() => teardown());
 
   const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
     const balance = await contract.methods.getBalance(owner).view({ from: owner });

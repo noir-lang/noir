@@ -1,6 +1,4 @@
-import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, AztecRPC } from '@aztec/aztec.js';
+import { AztecAddress } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 
@@ -8,9 +6,8 @@ import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, setup } from './fixtures/utils.js';
 
 describe('e2e_public_to_private_messaging', () => {
-  let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
   let logger: DebugLogger;
+  let teardown: () => Promise<void>;
 
   let ethAccount: EthAddress;
 
@@ -29,6 +26,7 @@ describe('e2e_public_to_private_messaging', () => {
       wallet,
       logger: logger_,
       cheatCodes,
+      teardown: teardown_,
     } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
       aztecNode_,
@@ -43,18 +41,14 @@ describe('e2e_public_to_private_messaging', () => {
     ethAccount = crossChainTestHarness.ethAccount;
     ownerAddress = crossChainTestHarness.ownerAddress;
     underlyingERC20 = crossChainTestHarness.underlyingERC20;
-    aztecRpcServer = crossChainTestHarness.aztecRpcServer;
-    aztecNode = aztecNode_;
 
+    teardown = teardown_;
     logger = logger_;
     logger('Successfully deployed contracts and initialized portal');
   }, 100_000);
 
   afterEach(async () => {
-    await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) {
-      await aztecRpcServer?.stop();
-    }
+    await teardown();
     await crossChainTestHarness?.stop();
   });
 

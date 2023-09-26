@@ -1,4 +1,3 @@
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import {
   AccountContract,
   AccountManager,
@@ -45,12 +44,7 @@ function itShouldBehaveLikeAnAccountContract(
       child = await ChildContract.deploy(wallet).send().deployed();
     }, 60_000);
 
-    afterEach(async () => {
-      await context.aztecNode?.stop();
-      if (context.aztecRpcServer instanceof AztecRPCServer) {
-        await context.aztecRpcServer.stop();
-      }
-    });
+    afterEach(() => context.teardown());
 
     it('calls a private function', async () => {
       const { logger } = context;
