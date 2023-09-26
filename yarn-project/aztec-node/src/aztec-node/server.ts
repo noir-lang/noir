@@ -322,6 +322,16 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
+   * Find the index of the given nullifier.
+   * @param nullifier - The nullifier to search for.
+   * @returns The index of the given leaf in the nullifier tree or undefined if not found.
+   */
+  public async findNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {
+    const committedDb = await this.#getWorldState();
+    return committedDb.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+  }
+
+  /**
    * Gets the storage value at the given contract slot.
    * @param contract - Address of the contract to query.
    * @param slot - Slot to query.

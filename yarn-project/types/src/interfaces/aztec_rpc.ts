@@ -7,6 +7,7 @@ import {
   L2BlockL2Logs,
   L2Tx,
   NotePreimage,
+  PublicKey,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -168,6 +169,22 @@ export interface AztecRPC {
    * @throws If the contract is not deployed.
    */
   getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<Buffer | undefined>;
+
+  /**
+   * Adds a note to the database. Throw if the note hash of the note doesn't exist in the tree.
+   * @param contract - The contract address of the note.
+   * @param storageSlot - The storage slot of the note.
+   * @param preimage - The note preimage.
+   * @param nonce - The nonce of the note.
+   * @param account - The public key of the account the note is associated with.
+   */
+  addNote(
+    contract: AztecAddress,
+    storageSlot: Fr,
+    preimage: NotePreimage,
+    nonce: Fr,
+    account: PublicKey,
+  ): Promise<void>;
 
   /**
    * Finds the nonce(s) for a note in a tx with given preimage at a specified contract address and storage slot.

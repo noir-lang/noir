@@ -18,7 +18,7 @@ import {
   PartialAddress,
   PublicCallRequest,
 } from '@aztec/circuits.js';
-import { computeCommitmentNonce } from '@aztec/circuits.js/abis';
+import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -41,6 +41,7 @@ import {
   LogType,
   NodeInfo,
   NotePreimage,
+  PublicKey,
   SimulationError,
   Tx,
   TxExecutionRequest,
@@ -196,6 +197,44 @@ export class AztecRPCServer implements AztecRPC {
     const { publicKey: ownerPublicKey } = ownerCompleteAddress;
     const ownerNotes = notes.filter(n => n.publicKey.equals(ownerPublicKey));
     return ownerNotes.map(n => n.notePreimage);
+  }
+
+  public async addNote(
+    contractAddress: AztecAddress,
+    storageSlot: Fr,
+    preimage: NotePreimage,
+    nonce: Fr,
+    account: PublicKey,
+  ) {
+    const { innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =
+      await this.simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, preimage.items);
+
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+    // This can always be `uniqueSiloedNoteHash` once notes added from public also include nonces.
+    const noteHashToLookUp = nonce.isZero() ? siloedNoteHash : uniqueSiloedNoteHash;
+    const index = await this.node.findCommitmentIndex(noteHashToLookUp.toBuffer());
+    if (index === undefined) {
+      throw new Error('Note does not exist.');
+    }
+
+    const wasm = await CircuitsWasm.get();
+    const siloedNullifier = siloNullifier(wasm, contractAddress, innerNullifier!);
+    const nullifierIndex = await this.node.findNullifierIndex(siloedNullifier);
+    if (nullifierIndex !== undefined) {
+      throw new Error('The note has been destroyed.');
+    }
+
+    // TODO - Should not modify the db while syncing.
+    await this.db.addNoteSpendingInfo({
+      contractAddress,
+      storageSlot,
+      notePreimage: preimage,
+      nonce,
+      innerNoteHash,
+      siloedNullifier,
+      index,
+      publicKey: account,
+    });
   }
 
   public async getNoteNonces(
