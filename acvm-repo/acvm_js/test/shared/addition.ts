@@ -1,4 +1,4 @@
-import { WitnessMap } from "../../../result/";
+import { WitnessMap } from "@noir-lang/acvm_js";
 
 // See `addition_circuit` integration test in `acir/tests/test_program_serialization.rs`.
 export const bytecode = Uint8Array.from([
