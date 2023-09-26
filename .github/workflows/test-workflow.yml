@@ -17,10 +17,8 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.67.0
+      - name: Install jq
+        run: sudo apt-get install jq
 
       - name: Install cargo and wasm-bindgen
         run: |
