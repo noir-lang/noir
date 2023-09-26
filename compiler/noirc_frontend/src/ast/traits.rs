@@ -61,7 +61,6 @@ pub struct NoirTraitImpl {
     pub trait_generics: Vec<UnresolvedType>,
 
     pub object_type: UnresolvedType,
-    pub object_type_span: Span,
 
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 

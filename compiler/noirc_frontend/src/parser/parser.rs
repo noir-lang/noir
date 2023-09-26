@@ -559,14 +559,14 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then(path())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(parse_type())
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|args, span, emit| {
             let ((other_args, where_clause), items) = args;
-            let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
+            let (((impl_generics, trait_name), trait_generics), object_type) =
                 other_args;
 
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
@@ -575,7 +575,6 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 trait_name,
                 trait_generics,
                 object_type,
-                object_type_span,
                 items,
                 where_clause,
             })

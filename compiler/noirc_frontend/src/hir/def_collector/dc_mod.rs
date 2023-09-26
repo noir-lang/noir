@@ -166,9 +166,7 @@ impl<'a> ModCollector<'a> {
                 trait_path: trait_name,
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
-                object_type_span: trait_impl.object_type_span,
-                the_trait: None,                           // will be filled later
-                methods_using_default_impl_in_trait: None, // will be filled later
+                the_trait: None, // will be filled later
             };
 
             self.def_collector.collected_traits_impls.push(unresolved_trait_impl);

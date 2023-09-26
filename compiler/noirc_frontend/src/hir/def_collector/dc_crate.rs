@@ -4,7 +4,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::{get_path_crate, PathResolutionError};
-use crate::hir::resolution::path_resolver::{resolve_path, PathResolver};
+use crate::hir::resolution::path_resolver::PathResolver;
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
@@ -90,9 +90,7 @@ pub struct UnresolvedTraitImpl {
     pub the_trait: Option<TraitId>,
     pub trait_path: Path,
     pub methods: UnresolvedFunctions,
-    pub methods_using_default_impl_in_trait: Option<UnresolvedFunctions>,
     pub object_type: UnresolvedType,
-    pub object_type_span: Span,
 }
 
 #[derive(Clone)]
@@ -425,7 +423,7 @@ fn collect_trait_impls(
                         let error = DefCollectorErrorKind::TraitMissingMethod {
                             trait_name: the_trait.name.clone(),
                             method_name: method.name.clone(),
-                            trait_impl_span: trait_impl.object_type_span,
+                            trait_impl_span: trait_impl.object_type.span.expect("type must have a span"),
                         };
                         errors.push(error.into_file_diagnostic(trait_impl.file_id));
                     }
@@ -506,7 +504,7 @@ fn check_trait_impl_crate_coherence(
     };
 
     if Some(current_crate) != trait_crate && Some(current_crate) != object_crate {
-        let error = DefCollectorErrorKind::TraitImplOrphaned { span: trait_impl.object_type_span };
+        let error = DefCollectorErrorKind::TraitImplOrphaned { span: trait_impl.object_type.span.expect("object type must have a span") };
         errors.push(error.into_file_diagnostic(trait_impl.file_id));
     }
 }
