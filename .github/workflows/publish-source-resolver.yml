@@ -1,11 +1,11 @@
-name: Release and Publish Source Resolver
+name: Publish Source Resolver
 
 on:
   workflow_dispatch:
 
 jobs:
   release-source-resolver:
-    name: Release and Publish Source Resolver
+    name: Publish Source Resolver
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
