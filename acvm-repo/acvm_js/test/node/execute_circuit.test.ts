@@ -6,7 +6,7 @@ import {
   WasmBlackBoxFunctionSolver,
   WitnessMap,
   ForeignCallHandler,
-} from "../../../result/";
+} from "@noir-lang/acvm_js";
 
 it("successfully executes circuit and extracts return value", async () => {
   const { bytecode, initialWitnessMap, resultWitness, expectedResult } =
