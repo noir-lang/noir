@@ -37,6 +37,7 @@ import {
   KeyStore,
   L2Block,
   L2BlockL2Logs,
+  L2Tx,
   LogType,
   NodeInfo,
   NotePreimage,
@@ -300,6 +301,10 @@ export class AztecRPCServer implements AztecRPC {
     }
 
     return new TxReceipt(txHash, TxStatus.DROPPED, 'Tx dropped by P2P node.');
+  }
+
+  public async getTx(txHash: TxHash): Promise<L2Tx | undefined> {
+    return await this.node.getTx(txHash);
   }
 
   async getBlockNumber(): Promise<number> {

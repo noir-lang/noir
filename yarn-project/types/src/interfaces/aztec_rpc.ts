@@ -5,6 +5,7 @@ import {
   ContractData,
   ExtendedContractData,
   L2BlockL2Logs,
+  L2Tx,
   NotePreimage,
   Tx,
   TxExecutionRequest,
@@ -137,6 +138,13 @@ export interface AztecRPC {
    * @returns A receipt of the transaction.
    */
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
+
+  /**
+   * Fetches a transaction by its hash.
+   * @param txHash - The transaction hash
+   * @returns A transaction object or undefined if the transaction hasn't been mined yet
+   */
+  getTx(txHash: TxHash): Promise<L2Tx | undefined>;
 
   /**
    * Retrieves the private storage data at a specified contract address and storage slot. Returns only data
