@@ -75,8 +75,6 @@ jobs:
         id: check_changes
         run: |
           git diff --quiet tooling/nargo_cli/tests/acir_artifacts/ || echo "::set-output name=changes::true"
-        outputs:
-          changes: ${{ steps.check_changes.outputs.changes }}
           
       - name: Create or Update PR
         if: steps.check_changes.outputs.changes == 'true'
