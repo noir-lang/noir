@@ -16,13 +16,21 @@
     "lib",
     "package.json"
   ],
-  "main": "lib/index.js",
+  "source": "src/index.ts",
+  "main": "lib/index.cjs",
+  "module": "lib/index.js",
+  "exports": {
+    "require": "./lib/index.cjs",
+    "default": "./lib/index.js",
+    "types": "./lib/index.d.ts"
+  },
   "types": "lib/index.d.ts",
   "scripts": {
-    "dev": "tsc --watch",
-    "build": "tsc",
-    "test": "yarn test:node",
-    "test:node": "mocha --timeout 25000",
+    "dev": "tsc-multi --watch",
+    "build": "tsc-multi",
+    "test": "yarn test:node:esm && yarn test:node:cjs",
+    "test:node:esm": "mocha --timeout 25000 --exit --config ./.mocharc.json",
+    "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
@@ -39,6 +47,7 @@
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
     "ts-node": "^10.9.1",
+    "tsc-multi": "^1.1.0",
     "typescript": "^5.2.2"
   }
 }

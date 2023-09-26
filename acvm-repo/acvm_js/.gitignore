@@ -1,14 +1,10 @@
 /target
-.DS_Store
-examples/**/target/
-examples/9
-.vscode
 node_modules
-pkg/
-lib/
+
+# Build outputs
 result
-.direnv
-**/outputs
+nodejs
+web
 
 # Yarn
 .pnp.*

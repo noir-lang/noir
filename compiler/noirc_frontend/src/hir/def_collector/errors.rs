@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DuplicateType {
     Function,
     Module,
@@ -20,7 +20,7 @@ pub enum DuplicateType {
     TraitImplementation,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
@@ -50,6 +50,13 @@ pub enum DefCollectorErrorKind {
     TraitNotFound { trait_path: Path },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    #[error("Module is already part of the crate")]
+    ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
+    #[error("Module was originally declared here")]
+    ModuleOrignallyDefined { mod_name: Ident, span: Span },
+    #[cfg(feature = "aztec")]
+    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
+    AztecNotFound {},
     #[error(
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
@@ -171,6 +178,20 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     span,
                 )
             }
+            DefCollectorErrorKind::ModuleAlreadyPartOfCrate { mod_name, span } => {
+                let message = format!("Module '{mod_name}' is already part of the crate");
+                let secondary = String::new();
+                Diagnostic::simple_error(message, secondary, span)
+            }
+            DefCollectorErrorKind::ModuleOrignallyDefined { mod_name, span } => {
+                let message = format!("Note: {mod_name} was originally declared here");
+                let secondary = String::new();
+                Diagnostic::simple_error(message, secondary, span)
+            }
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
             DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
                 "Orphaned trait implementation".into(),
                 "Either the type or the trait must be from the same crate as the trait implementation".into(),

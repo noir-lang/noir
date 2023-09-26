@@ -46,7 +46,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span, Spanned};
+use noirc_errors::{Span, Spanned};
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -54,14 +54,10 @@ use noirc_errors::{CustomDiagnostic, Span, Spanned};
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
-pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
-    let (tokens, lexing_errors) = Lexer::lex(source_program);
-    let mut errors = vecmap(lexing_errors, Into::into);
-
+pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
+    let (tokens, _lexing_errors) = Lexer::lex(source_program);
     let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
-    errors.extend(parsing_errors.into_iter().map(Into::into));
-
-    (module.unwrap(), errors)
+    (module.unwrap(), parsing_errors)
 }
 
 /// program: module EOF

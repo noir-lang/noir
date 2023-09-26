@@ -1,5 +1,8 @@
 import { expect } from "@esm-bundle/chai";
-import initACVM, { compressWitness, decompressWitness } from "../../../result/";
+import initACVM, {
+  compressWitness,
+  decompressWitness,
+} from "@noir-lang/acvm_js";
 import {
   expectedCompressedWitnessMap,
   expectedWitnessMap,

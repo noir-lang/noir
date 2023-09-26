@@ -19,4 +19,4 @@
 //! These passes are performed sequentially (along with type checking afterward) in dc_crate.
 pub mod dc_crate;
 pub mod dc_mod;
-mod errors;
+pub mod errors;

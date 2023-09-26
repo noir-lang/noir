@@ -1575,6 +1575,7 @@ mod test {
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::resolution::resolver::StmtId;
 
+    use super::{PathResolver, Resolver};
     use crate::graph::CrateId;
     use crate::hir_def::expr::HirExpression;
     use crate::hir_def::stmt::HirStatement;
@@ -1584,8 +1585,7 @@ mod test {
         hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
         parse_program, Path,
     };
-
-    use super::{PathResolver, Resolver};
+    use noirc_errors::CustomDiagnostic;
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
@@ -1594,7 +1594,10 @@ mod test {
     ) -> (ParsedModule, NodeInterner, BTreeMap<CrateId, CrateDefMap>, FileId, TestPathResolver)
     {
         let (program, errors) = parse_program(src);
-        if errors.iter().any(|e| e.is_error()) {
+        if errors.iter().any(|e| {
+            let diagnostic: CustomDiagnostic = e.clone().into();
+            diagnostic.is_error()
+        }) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
         }
 
