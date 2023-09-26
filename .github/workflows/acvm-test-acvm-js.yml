@@ -55,8 +55,8 @@ jobs:
       
       - name: Move build artifacts
         run: |
-          mv ./result/nodejs ./acvm-repo/acvm_js/nodejs
-          mv ./result/web ./acvm-repo/acvm_js/web
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
 
       - name: Set up test environment
         uses: ./.github/actions/setup
@@ -81,8 +81,8 @@ jobs:
       
       - name: Move build artifacts
         run: |
-          mv ./result/nodejs ./acvm-repo/acvm_js/nodejs
-          mv ./result/web ./acvm-repo/acvm_js/web
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
 
       - name: Set up test environment
         uses: ./.github/actions/setup
