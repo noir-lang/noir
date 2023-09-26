@@ -190,11 +190,16 @@ test_cases.forEach((testInfo) => {
           if (testInfo.numPublicInputs === 0) {
             result = await contract.verify(proof, []);
           } else {
-            const publicInputs = Array.from({ length: testInfo.numPublicInputs }, (_, i) => {
-              const offset = i * FIELD_ELEMENT_BYTES;
-              return proof.slice(offset, offset + FIELD_ELEMENT_BYTES)
-            });
-            const slicedProof = proof.slice(testInfo.numPublicInputs * FIELD_ELEMENT_BYTES);
+            const publicInputs = Array.from(
+              { length: testInfo.numPublicInputs },
+              (_, i) => {
+                const offset = i * FIELD_ELEMENT_BYTES;
+                return proof.slice(offset, offset + FIELD_ELEMENT_BYTES);
+              },
+            );
+            const slicedProof = proof.slice(
+              testInfo.numPublicInputs * FIELD_ELEMENT_BYTES,
+            );
             result = await contract.verify(slicedProof, publicInputs);
           }
 
