@@ -87,13 +87,12 @@ function useLastRelease() {
 function readFile(filePath, tag) {
   if (tag && tag !== "master") {
     try {
-      const tag = getLatestTag();
       const root = path.resolve(__dirname, "../../../");
       const relPath = path.relative(root, filePath);
       return childProcess.execSync(`git show ${tag}:${relPath}`).toString();
     } catch (err) {
       console.error(
-        `Error reading file ${filePath} from latest version. Falling back to current content.`
+        `Error reading file ${filePath} from version ${tag}. Falling back to current content.`
       );
     }
   }
@@ -101,13 +100,15 @@ function readFile(filePath, tag) {
 }
 
 /** Extracts a code snippet, trying with the last release if applicable, and falling back to current content. */
-function extractCodeSnippet(filePath, identifier) {
+function extractCodeSnippet(filePath, identifier, requesterFile) {
   if (useLastRelease()) {
     try {
       return doExtractCodeSnippet(filePath, identifier, false);
     } catch (err) {
       console.error(
-        `Error extracting code snippet ${identifier} for ${filePath}: ${err}. Falling back to current content.`
+        `Error extracting code snippet ${identifier} from ${path.basename(
+          filePath
+        )} requested by ${requesterFile}: ${err}. Falling back to current content.`
       );
     }
   }
@@ -286,7 +287,11 @@ async function preprocessIncludeCode(markdownContent, filePath, rootDir) {
       const absCodeFilePath = path.join(rootDir, codeFilePath);
 
       // Extract the code snippet between the specified comments
-      const extracted = extractCodeSnippet(absCodeFilePath, identifier);
+      const extracted = extractCodeSnippet(
+        absCodeFilePath,
+        identifier,
+        filePath
+      );
       const [codeSnippet, startLine, endLine, tag] = extracted;
 
       const relativeCodeFilePath = path.resolve(rootDir, codeFilePath);
@@ -297,9 +302,13 @@ async function preprocessIncludeCode(markdownContent, filePath, rootDir) {
 
       const title = noTitle ? "" : `title="${identifier}"`;
       const lineNumbers = noLineNumbers ? "" : "showLineNumbers";
+      const warn =
+        useLastRelease() && (!tag || tag === "master")
+          ? `<br/>This example references unreleased code. Code from released packages may be different. Use with care.`
+          : "";
       const source = noSourceLink
         ? ""
-        : `\n> [<sup><sub>Source code: ${urlText}</sub></sup>](${url})`;
+        : `\n> <sup><sub><a href="${url}" target="_blank" rel="noopener noreferrer">Source code: ${urlText}</a>${warn}</sub></sup>`;
       const replacement =
         language === "raw"
           ? codeSnippet
