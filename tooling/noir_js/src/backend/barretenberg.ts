@@ -16,7 +16,7 @@ export class BarretenbergBackend implements Backend {
   acirComposer = {} as Ptr;
   acirUncompressedBytecode: Uint8Array;
 
-  private constructor(acirCircuit: any) {
+  private constructor(acirCircuit: { bytecode: string }) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
