@@ -131,7 +131,7 @@ jobs:
           ref: master
           inputs: '{ "acvm-ref": "${{ needs.release-please.outputs.tag-name }}" }'
 
-  dispatch-publish-acvm-js:
+  publish-acvm-js:
     name: Dispatch to publish-acvm-js workflow
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
