@@ -38,6 +38,7 @@ async function getFile(url: URL): Promise<string> {
 }
 
 const CIRCUIT_SIZE = 2 ** 19;
+const FIELD_ELEMENT_BYTES = 32;
 
 const test_cases = [
   {
@@ -50,7 +51,7 @@ const test_cases = [
     case: "compiler/integration-tests/test/circuits/main",
     compiled: "foundry-project/out/main.sol/UltraVerifier.json",
     deployInformation: "foundry-project/main_output.json",
-    publicInputsLength: 32,
+    numPublicInputs: 1,
   },
 ];
 
@@ -186,13 +187,14 @@ test_cases.forEach((testInfo) => {
 
         try {
           let result;
-          if (testInfo.publicInputsLength === 0) {
+          if (testInfo.numPublicInputs === 0) {
             result = await contract.verify(proof, []);
           } else {
-            const publicInputs = Array.from({ length: testInfo.publicInputsLength / 32 }, (_, i) =>
-              proof.slice(i, i + 1)
-            );
-            const slicedProof = proof.slice(testInfo.publicInputsLength);
+            const publicInputs = Array.from({ length: testInfo.numPublicInputs }, (_, i) => {
+              const offset = i * FIELD_ELEMENT_BYTES;
+              return proof.slice(offset, offset + FIELD_ELEMENT_BYTES)
+            });
+            const slicedProof = proof.slice(testInfo.numPublicInputs * FIELD_ELEMENT_BYTES);
             result = await contract.verify(slicedProof, publicInputs);
           }
 
