@@ -18,4 +18,4 @@ chmod +x $BIN_PATH
 export PATH=$FOUNDRY_BIN_DIR:$PATH
 
 # Use version.
-foundryup
+foundryup --version nightly-ac4e264fdb60aedc202d3ebebb37ef7edf8dcd69
