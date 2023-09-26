@@ -11,11 +11,15 @@ export COMPOSE_FILE=${1:-docker-compose.yml}
 
 ecr_login
 
-for REPO in aztec-sandbox yarn-project; do
+REPO=aztec-sandbox
+echo "pulling docker image for $REPO $(calculate_image_uri $REPO)-x86_64"
+retry docker pull $(calculate_image_uri $REPO)-x86_64
+retry docker tag $(calculate_image_uri $REPO)-x86_64 aztecprotocol/$REPO:latest
+
+REPO=yarn-project
 echo "pulling docker image for $REPO $(calculate_image_uri $REPO)"
-  retry docker pull $(calculate_image_uri $REPO)
-  retry docker tag $(calculate_image_uri $REPO) aztecprotocol/$REPO:latest
-done
+retry docker pull $(calculate_image_uri $REPO)
+retry docker tag $(calculate_image_uri $REPO) aztecprotocol/$REPO:latest
 
 docker-compose rm -f
 docker-compose -f $COMPOSE_FILE up --exit-code-from boxes-blank
