@@ -24,7 +24,7 @@ jobs:
       
       - uses: Swatinem/rust-cache@v2
         with:
-          key: wasm32-unknown-unknown
+          key: wasm32-unknown-unknown-noir-js
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
