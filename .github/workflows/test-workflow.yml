@@ -1,4 +1,4 @@
-name: Test Source Resolver
+name: Test Workflow
 
 on:
   push:
@@ -16,6 +16,17 @@ jobs:
 
       - name: Install
         run: yarn --immutable
+
+      - name: Install cargo and wasm-bindgen
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          cargo install -f wasm-bindgen-cli --version 0.2.86
+
+      - name: Install toml2json
+        run: |
+          source $HOME/.cargo/env
+          cargo install toml2json
 
       - name: Build
         run: yarn build
