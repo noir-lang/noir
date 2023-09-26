@@ -70,11 +70,14 @@ jobs:
         run: |
           chmod +x ./rebuild.sh
           ./rebuild.sh
-      
-      - name: Discard changes in nargo directory
-        run: git restore --source=HEAD --staged --worktree -- nargo/
-    
+
+      - name: Check for changes in acir_artifacts directory
+        id: check_changes
+        run: |
+          git diff --quiet tooling/nargo_cli/tests/acir_artifacts/ || echo "::set-output name=changes::true"
+          
       - name: Create or Update PR
+        if: steps.check_changes.outputs.changes == 'true'
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.NOIR_REPO_TOKEN }}
