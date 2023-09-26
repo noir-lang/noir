@@ -576,7 +576,7 @@ fn check_trait_impl_crate_coherence(
     trait_impl: &UnresolvedTraitImpl,
     current_crate: CrateId,
     current_def_map: &CrateDefMap,
-) -> Vec<(CompilationError, FileId)>  {
+) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let trait_crate = get_path_crate(current_crate, current_def_map, &trait_impl.trait_path);
 
