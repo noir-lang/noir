@@ -1,0 +1,21 @@
+#!/bin/bash
+# This script is used to run an e2e type test in CI (see .circleci/config.yml).
+# It pulls images and runs docker-compose, which has the test as the entrypoint.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+# Run in script path.
+cd `dirname $0`
+
+export COMPOSE_FILE=${1:-docker-compose.yml}
+
+ecr_login
+
+for REPO in aztec-sandbox yarn-project; do
+echo "pulling docker image for $REPO $(calculate_image_uri $REPO)"
+  retry docker pull $(calculate_image_uri $REPO)
+  retry docker tag $(calculate_image_uri $REPO) aztecprotocol/$REPO:latest
+done
+
+docker-compose rm -f
+docker-compose -f $COMPOSE_FILE up --exit-code-from boxes-private-token

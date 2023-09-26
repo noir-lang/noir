@@ -18,17 +18,7 @@ In addition to the usual javascript dependencies, this project requires `nargo` 
 
 The former are installed within `yarn install:noir` which executes
 
-```bash
-curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-
-noirup -v aztec
-```
-
-This sandbox requires [Docker](https://www.docker.com/) to be installed _and running_ locally. In the event the image needs updating, you can run `yarn install:sandbox` which executes
-
-```bash
-docker pull aztecprotocol/aztec-sandbox:latest
-```
+This sandbox requires [Docker](https://www.docker.com/) to be installed _and running_ locally. In the event the image needs updating, you can run `yarn install:sandbox`.
 
 ## Getting started
 
@@ -62,26 +52,15 @@ This folder should have the following directory structure:
               | A simple end2end test deploying and testing the PrivateToken on a local sandbox
               | using the front end helper methods in app/scripts/
               | The test requires the sandbox and anvil to be running (yarn start:sandbox).
+              | You can run it via `yarn test:integration`.
               |- privatetoken.test.ts
 ```
 
 Most relevant to you is likely `src/contracts/main.nr` (and the build config `src/contracts/Nargo.toml`). This contains the example PrivateToken logic that the frontend interacts with and is a good place to start writing Noir.
 
-The `src/artifacts` folder can be re-generated from the command line with `yarn compile` which is an alias for
+The `src/artifacts` folder can be re-generated from the command line with `yarn compile`.
 
-```bash
-aztec-cli compile src/contracts --outdir ../artifacts --typescript ../artifacts
-```
-
-This will generate a [Contract ABI](https://www.alchemy.com/overviews/what-is-an-abi-of-a-smart-contract-examples-and-usage) and TypeScript class for the Aztec smart contract in `src/contracts/main.nr`, which the frontend uses to generate the UI.
-
-Note: the `compile` command seems to generate a Typescript file which needs a single change -
-
-```
-import PrivateTokenContractAbiJson from 'PrivateToken.json' assert { type: 'json' };
-// need to update the relative import to
-import PrivateTokenContractAbiJson from './PrivateToken.json' assert { type: 'json' };
-```
+This will generate a [Contract ABI](src/artifacts/test_contract.json) and TypeScript class for the Aztec smart contract in `src/contracts/main.nr`, which the frontend uses to generate the UI.
 
 After compiling, you can re-deploy the upated noir smart contract from the web UI. The function interaction forms are generated from parsing the ContractABI, so they should update automatically after you recompile.
 

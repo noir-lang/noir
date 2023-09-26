@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dest/index.js",
   "scripts": {
-    "build": "yarn clean && webpack",
+    "build": "yarn clean && tsc -b && webpack",
     "install:noir": "curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash noirup -v aztec",
     "install:sandbox": "docker pull aztecprotocol/aztec-sandbox:latest",
     "clean": "rm -rf ./dest .tsbuildinfo",
@@ -15,8 +15,7 @@
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src",
     "compile": "aztec-cli compile src/contracts --outdir ../artifacts --typescript ../artifacts",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
-    "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test\" \"anvil\""
+    "test:integration": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",

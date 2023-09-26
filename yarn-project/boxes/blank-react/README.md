@@ -12,7 +12,7 @@ yarn install:sandbox
 
 This sandbox requires [Docker](https://www.docker.com/) to be installed _and running_ locally. In the event the image needs updating, you can run `yarn install:sandbox` (see [sandbox docs](https://aztec-docs-dev.netlify.app/dev_docs/getting_started/sandbox) for more information.)
 
-In addition to the usual javascript dependencies, this project requires `nargo` (package manager) and `noir` (Aztec ZK smart contract language) in addition to `@aztec/aztec-cli`. The former are installed within `yarn install:noir`
+In addition to the usual javascript dependencies, this project requires `nargo` (package manager) and `noir` (Aztec ZK smart contract language) in addition to `@aztec/aztec-cli`. The former two are installed by `yarn install:noir`.
 
 ## Getting started
 
@@ -44,7 +44,8 @@ This folder should have the following directory structure:
               |— blank.ts
        |— tests
               | A simple end2end test deploying and testing the Blank contract deploys on a local sandbox
-              | The test requires the sandbox and anvil to be running (yarn start:sandbox).
+              | The test requires the sandbox and anvil to be running (`yarn start:sandbox`).
+              | You can run the tests with `yarn test:integration`
               |- blank.contract.test.ts
 ```
 

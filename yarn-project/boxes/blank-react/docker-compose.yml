@@ -1,0 +1,34 @@
+version: '3'
+services:
+  ethereum:
+    image: ghcr.io/foundry-rs/foundry:v1.0.0
+    command: '"anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337"'
+    ports:
+      - '${SANDBOX_ANVIL_PORT:-8545}:8545'
+
+  aztec:
+    image: 'aztecprotocol/aztec-sandbox:${SANDBOX_VERSION:-latest}'
+    ports:
+      - '${SANDBOX_RPC_PORT:-8080}:8080'
+    environment:
+      DEBUG: # Loaded from the user shell if explicitly set
+      HOST_WORKDIR: '${PWD}' # Loaded from the user shell to show log files absolute path in host
+      ETHEREUM_HOST: http://ethereum:8545
+      CHAIN_ID: 31337
+      ARCHIVER_POLLING_INTERVAL_MS: 50
+      P2P_BLOCK_CHECK_INTERVAL_MS: 50
+      SEQ_TX_POLLING_INTERVAL_MS: 50
+      WS_BLOCK_CHECK_INTERVAL_MS: 50
+      RPC_SERVER_BLOCK_POLLING_INTERVAL_MS: 50
+      ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
+    volumes:
+      - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw
+
+  boxes-blank-react:
+    image: aztecprotocol/yarn-project:latest
+    entrypoint: sh
+    command: -c "cd boxes/blank-react && yarn test:integration"
+    environment:
+      ETHEREUM_HOST: http://ethereum:8545
+      CHAIN_ID: 31337
+      SANDBOX_URL: http://aztec:8080

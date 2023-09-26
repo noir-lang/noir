@@ -465,6 +465,39 @@ jobs:
           name: "Create ECR manifest"
           command: create_ecr_manifest aztec-sandbox-base aztec-sandbox x86_64,arm64
 
+  boxes-blank-react:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test via adhoc script"
+          command: ./yarn-project/boxes/blank-react/run_tests
+
+  boxes-blank:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test via adhoc script"
+          command: ./yarn-project/boxes/blank/run_tests
+
+  boxes-private-token:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test via adhoc script"
+          command: ./yarn-project/boxes/private-token/run_tests
+
   canary:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1129,6 +1162,21 @@ workflows:
           requires:
             - aztec-sandbox-x86_64
             - aztec-sandbox-arm64
+          <<: *defaults
+
+      - boxes-blank-react:
+          requires:
+            - aztec-sandbox-x86_64
+          <<: *defaults
+
+      - boxes-blank:
+          requires:
+            - aztec-sandbox-x86_64
+          <<: *defaults
+
+      - boxes-private-token:
+          requires:
+            - aztec-sandbox-x86_64
           <<: *defaults
 
       - e2e-join:
