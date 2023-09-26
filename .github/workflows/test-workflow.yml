@@ -14,8 +14,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install
-        run: yarn --immutable
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Install cargo and wasm-bindgen
         run: |
@@ -26,7 +26,7 @@ jobs:
       - name: Install toml2json
         run: |
           source $HOME/.cargo/env
-          cargo install toml2json
+          cargo install toml2json --locked
 
       - name: Build
         run: yarn build
