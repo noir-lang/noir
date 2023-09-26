@@ -450,7 +450,6 @@ impl<'a> Lexer<'a> {
         }
 
         let end = start + (doc_comment.len() as u32);
-        dbg!(&doc_comment);
 
         if depth == 0 {
             Ok(SpannedToken::new(
