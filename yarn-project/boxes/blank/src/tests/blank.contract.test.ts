@@ -29,8 +29,7 @@ async function deployZKContract(owner: CompleteAddress, wallet: Wallet, rpcClien
   const contractAddress = await deployContract(owner, BlankContract.abi, [], Fr.random(), rpcClient);
 
   logger(`L2 contract deployed at ${contractAddress}`);
-  const contract = await BlankContract.at(contractAddress, wallet);
-  return contract;
+  return BlankContract.at(contractAddress, wallet);
 }
 
 describe('ZK Contract Tests', () => {

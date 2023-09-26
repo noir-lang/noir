@@ -9,14 +9,12 @@ import {
   createAztecRpcClient,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { FunctionAbi } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { PrivateTokenContract } from '../artifacts/PrivateToken.js';
+import { PrivateTokenContract } from '../artifacts/private_token.js';
 import { rpcClient } from '../config.js';
 import { callContractFunction, deployContract, getWallet, viewContractFunction } from '../scripts/index.js';
-import { convertArgs } from '../scripts/util.js';
 
-const logger = createDebugLogger('aztec:http-rpc-client');
+const logger = createDebugLogger('aztec:private-token-box-sandbox-test');
 
 const INITIAL_BALANCE = 444n;
 const TRANSFER_AMOUNT = 44n;
@@ -31,33 +29,18 @@ const setupSandbox = async () => {
   return aztecRpc;
 };
 
-const getFunctionAbi = (contractAbi: any, functionName: string) => {
-  const functionAbi = contractAbi.functions.find((f: FunctionAbi) => f.name === functionName);
-  if (!functionAbi) throw new Error(`Function ${functionName} not found in abi`);
-  return functionAbi;
-};
-
 async function deployZKContract(owner: CompleteAddress, wallet: Wallet, rpcClient: AztecRPC) {
   logger('Deploying PrivateToken contract...');
-  const constructorArgs = {
-    // eslint-disable-next-line camelcase
-    initial_supply: INITIAL_BALANCE,
-    owner: owner.address,
-  };
-  const constructorAbi = getFunctionAbi(PrivateTokenContract.abi, 'constructor');
-  const typedArgs = convertArgs(constructorAbi, constructorArgs);
+  const typedArgs = [new Fr(INITIAL_BALANCE), owner.address.toField()];
 
   const contractAddress = await deployContract(owner, PrivateTokenContract.abi, typedArgs, Fr.random(), rpcClient);
 
   logger(`L2 contract deployed at ${contractAddress}`);
-  const contract = await PrivateTokenContract.at(contractAddress, wallet);
-  return contract;
+  return PrivateTokenContract.at(contractAddress, wallet);
 }
 
 async function getBalance(contractAddress: AztecAddress, privateTokenContract: Contract, owner: CompleteAddress) {
-  const getBalanceAbi = getFunctionAbi(PrivateTokenContract.abi, 'getBalance');
-  const viewArgs = { owner: owner.address };
-  const typedArgs = convertArgs(getBalanceAbi, viewArgs);
+  const typedArgs = [owner.address.toField()];
 
   return await viewContractFunction(
     contractAddress,
@@ -76,9 +59,7 @@ async function mint(
   to: CompleteAddress,
   amount: bigint,
 ) {
-  const getBalanceAbi = getFunctionAbi(PrivateTokenContract.abi, 'mint');
-  const mintArgs = { amount, owner: to.address };
-  const typedArgs = convertArgs(getBalanceAbi, mintArgs);
+  const typedArgs = [new Fr(amount), to.address.toField()];
 
   return await callContractFunction(contractAddress, privateTokenContract.abi, 'mint', typedArgs, rpcClient, from);
 }
@@ -90,9 +71,7 @@ async function transfer(
   to: CompleteAddress,
   amount: bigint,
 ) {
-  const getBalanceAbi = getFunctionAbi(PrivateTokenContract.abi, 'transfer');
-  const transferArgs = { amount, recipient: to.address };
-  const typedArgs = convertArgs(getBalanceAbi, transferArgs);
+  const typedArgs = [new Fr(amount), to.address.toField()];
 
   return await callContractFunction(contractAddress, privateTokenContract.abi, 'transfer', typedArgs, rpcClient, from);
 }

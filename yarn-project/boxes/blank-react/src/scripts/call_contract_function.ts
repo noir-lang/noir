@@ -17,9 +17,8 @@ export async function callContractFunction(
   // TODO: switch to the generated typescript class?
   const contract = await Contract.at(address, abi, selectedWallet);
 
-  const returnVal = contract.methods[functionName](...typedArgs)
+  return contract.methods[functionName](...typedArgs)
     .send()
     .wait();
 
-  return await returnVal;
 }

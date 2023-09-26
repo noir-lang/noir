@@ -15,8 +15,7 @@ export function convertArgs(functionAbi: FunctionAbi, args: any): Fr[] {
     }
   });
 
-  const typedArgs = encodeArguments(functionAbi, untypedArgs);
-  return typedArgs;
+  return encodeArguments(functionAbi, untypedArgs);
 }
 
 /**

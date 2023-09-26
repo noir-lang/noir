@@ -14,6 +14,5 @@ export async function viewContractFunction(
   const selectedWallet = await getWallet(wallet, rpc);
   const contract = await Contract.at(address, abi, selectedWallet);
 
-  const viewResult = await contract.methods[functionName](...typedArgs).view({ from: wallet.address });
-  return viewResult;
+  return await contract.methods[functionName](...typedArgs).view({ from: wallet.address });
 }

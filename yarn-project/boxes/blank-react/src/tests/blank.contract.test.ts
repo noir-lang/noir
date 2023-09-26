@@ -22,6 +22,7 @@ const setupSandbox = async () => {
   const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
   const aztecRpc = createAztecRpcClient(SANDBOX_URL);
   await waitForSandbox(aztecRpc);
+
   return aztecRpc;
 };
 
@@ -30,8 +31,7 @@ async function deployZKContract(owner: CompleteAddress, wallet: Wallet, rpcClien
   const contractAddress = await deployContract(owner, BlankContract.abi, [], Fr.random(), rpcClient);
 
   logger(`L2 contract deployed at ${contractAddress}`);
-  const contract = await BlankContract.at(contractAddress, wallet);
-  return contract;
+  return BlankContract.at(contractAddress, wallet);
 }
 
 describe('ZK Contract Tests', () => {

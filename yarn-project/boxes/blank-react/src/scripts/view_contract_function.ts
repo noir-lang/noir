@@ -1,6 +1,6 @@
+import { getWallet } from './util.js';
 import { AztecAddress, AztecRPC, CompleteAddress, Contract } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { getWallet } from './util.js';
 
 export async function viewContractFunction(
   address: AztecAddress,
@@ -14,7 +14,5 @@ export async function viewContractFunction(
   const selectedWallet = await getWallet(wallet, rpc);
   const contract = await Contract.at(address, abi, selectedWallet);
 
-  // TODO: see if we can remove the {from: wallet.address}?
-  const viewResult = await contract.methods[functionName](...typedArgs).view({ from: wallet.address });
-  return viewResult;
+  return await contract.methods[functionName](...typedArgs).view({ from: wallet.address });
 }

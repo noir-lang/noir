@@ -12,7 +12,6 @@ Dependencies can be installed from the root of the package:
 yarn
 yarn install:noir
 yarn install:sandbox
-yarn build
 ```
 
 In addition to the usual javascript dependencies, this project requires `nargo` (package manager) and `noir` (a Domain Specific Language for SNARK proving systems) in addition to `@aztec/aztec-cli`.
@@ -33,7 +32,7 @@ docker pull aztecprotocol/aztec-sandbox:latest
 
 ## Getting started
 
-After `yarn build` has run,`yarn start:sandbox` in one terminal will launch a local instance of the Aztec sandbox via Docker Compose and `yarn start:dev` will launch a frontend app for deploying and interacting with the PrivateToken contract.
+After `yarn` has run,`yarn start:sandbox` in one terminal will launch a local instance of the Aztec sandbox via Docker Compose and `yarn start:dev` will launch a frontend app for deploying and interacting with the PrivateToken contract.
 
 At this point, [http://localhost:5173](http://localhost:5173) should provide a minimal smart contract frontend.
 

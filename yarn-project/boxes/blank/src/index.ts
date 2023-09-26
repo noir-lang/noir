@@ -21,9 +21,9 @@ export const FILTERED_FUNCTION_NAMES = [];
 
 export const DEFAULT_PUBLIC_ADDRESS: string = '0x25048e8c1b7dea68053d597ac2d920637c99523651edfb123d0632da785970d0';
 
-// interaction with the button
-
 let contractAddress: string = '';
+
+// interaction with the buttons
 document.getElementById('deploy')?.addEventListener('click', async () => {
   console.log('Deploying Contract');
   const [wallet, ..._rest] = await getSandboxAccountsWallets(rpcClient);
@@ -55,7 +55,7 @@ document.getElementById('interact')?.addEventListener('click', async () => {
     wallet.getCompleteAddress(),
   );
 
-  console.log('Interaction transaction succeeded', call);
+  console.log('transaction outcome:', call);
 });
 
 export const getFunctionAbi = (contractAbi: any, functionName: string) => {
@@ -132,6 +132,5 @@ export function convertArgs(functionAbi: FunctionAbi, args: any): Fr[] {
     }
   });
 
-  const typedArgs = encodeArguments(functionAbi, untypedArgs);
-  return typedArgs;
+  return encodeArguments(functionAbi, untypedArgs);
 }
