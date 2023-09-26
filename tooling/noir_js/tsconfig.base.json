@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "emitDeclarationOnly": false,
+        "noImplicitAny": false,
+        "allowSyntheticDefaultImports": true,
+        "baseUrl": "src",
+        "esModuleInterop": true,
+        "inlineSourceMap": false,
+        "lib": ["esnext"],
+        "listEmittedFiles": false,
+        "listFiles": false,
+        "moduleResolution": "node",
+        "noFallthroughCasesInSwitch": true,
+        "pretty": true,
+        "resolveJsonModule": true,
+        "rootDir": "src",
+        "skipLibCheck": true,
+        "strict": true,
+        "traceResolution": false,
+        "types": ["node"]
+    },
+    "compileOnSave": false,
+    "exclude": ["node_modules", "lib"],
+    "include": ["src/**/*.ts"]
+}
