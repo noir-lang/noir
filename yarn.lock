@@ -420,19 +420,32 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/acvm_js@npm:0.27.0":
-  version: 0.27.0
-  resolution: "@noir-lang/acvm_js@npm:0.27.0"
-  checksum: ec122e347f92ff2ec08c6d462e09e81a85c3b0243f70f9af14569b47c566fa08908f8bab558740a09aa3c57f9b25230332ea37168528553a877f0bd2d541cc1e
-  languageName: node
-  linkType: hard
+"@noir-lang/acvm_js@workspace:*, @noir-lang/acvm_js@workspace:acvm-repo/acvm_js":
+  version: 0.0.0-use.local
+  resolution: "@noir-lang/acvm_js@workspace:acvm-repo/acvm_js"
+  dependencies:
+    "@esm-bundle/chai": ^4.3.4-fix.0
+    "@typescript-eslint/eslint-plugin": ^5.59.5
+    "@typescript-eslint/parser": ^5.59.5
+    "@web/dev-server-esbuild": ^0.3.6
+    "@web/test-runner": ^0.15.3
+    "@web/test-runner-playwright": ^0.10.0
+    chai: ^4.3.7
+    eslint: ^8.40.0
+    eslint-plugin-prettier: ^5.0.0
+    mocha: ^10.2.0
+    prettier: 3.0.3
+    ts-node: ^10.9.1
+    typescript: ^5.0.4
+  languageName: unknown
+  linkType: soft
 
 "@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
   dependencies:
     "@aztec/bb.js": 0.7.2
-    "@noir-lang/acvm_js": 0.27.0
+    "@noir-lang/acvm_js": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
     "@types/chai": ^4
     "@types/mocha": ^10.0.1
@@ -445,6 +458,7 @@ __metadata:
     mocha: ^10.2.0
     prettier: 3.0.3
     ts-node: ^10.9.1
+    tsc-multi: ^1.1.0
     typescript: ^5.2.2
   languageName: unknown
   linkType: soft
@@ -3608,7 +3622,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.0":
+"fast-glob@npm:^3.2.12, fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.0":
   version: 3.3.1
   resolution: "fast-glob@npm:3.3.1"
   dependencies:
@@ -3969,6 +3983,13 @@ __metadata:
   version: 7.0.0
   resolution: "get-port@npm:7.0.0"
   checksum: e9087f62d086bbb70f20c0a208e7cac552679c1426e29e0607eb1b8907a5cc4509337d5971b7f635385cd2a773a14cd21b7d9c3254a2eb5ebeaf5f8fde19fb07
+  languageName: node
+  linkType: hard
+
+"get-stdin@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "get-stdin@npm:8.0.0"
+  checksum: 40128b6cd25781ddbd233344f1a1e4006d4284906191ed0a7d55ec2c1a3e44d650f280b2c9eeab79c03ac3037da80257476c0e4e5af38ddfb902d6ff06282d77
   languageName: node
   linkType: hard
 
@@ -5882,6 +5903,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"p-all@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "p-all@npm:3.0.0"
+  dependencies:
+    p-map: ^4.0.0
+  checksum: 267a620c2330b14246b92008f4be8758debe74e1454c8fb5808544f51fd038ac4597dbeeaa1542f237794e613cd42e4f1a58c01e5a0a6a6b21340fef616257df
+  languageName: node
+  linkType: hard
+
 "p-cancelable@npm:^3.0.0":
   version: 3.0.0
   resolution: "p-cancelable@npm:3.0.0"
@@ -7018,6 +7048,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"string-to-stream@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "string-to-stream@npm:3.0.1"
+  dependencies:
+    readable-stream: ^3.4.0
+  checksum: e8ac7f7497f8f101196e39dd529e98bb97165c532cc4cae5003083a420db62f46ffd67ddff7112b45f9f8d0f9ff1cc6cda9b06362236d43fa6b1685e8b0d446e
+  languageName: node
+  linkType: hard
+
 "string-width-cjs@npm:string-width@^4.2.0, string-width@npm:^1.0.2 || 2 || 3 || 4, string-width@npm:^4.1.0, string-width@npm:^4.2.0, string-width@npm:^4.2.3":
   version: 4.2.3
   resolution: "string-width@npm:4.2.3"
@@ -7094,6 +7133,13 @@ __metadata:
   version: 3.1.1
   resolution: "strip-json-comments@npm:3.1.1"
   checksum: 492f73e27268f9b1c122733f28ecb0e7e8d8a531a6662efbd08e22cccb3f9475e90a1b82cab06a392f6afae6d2de636f977e231296400d0ec5304ba70f166443
+  languageName: node
+  linkType: hard
+
+"superstruct@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "superstruct@npm:1.0.3"
+  checksum: 761790bb111e6e21ddd608299c252f3be35df543263a7ebbc004e840d01fcf8046794c274bcb351bdf3eae4600f79d317d085cdbb19ca05803a4361840cc9bb1
   languageName: node
   linkType: hard
 
@@ -7340,6 +7386,28 @@ __metadata:
     ts-node-transpile-only: dist/bin-transpile.js
     ts-script: dist/bin-script-deprecated.js
   checksum: 090adff1302ab20bd3486e6b4799e90f97726ed39e02b39e566f8ab674fd5bd5f727f43615debbfc580d33c6d9d1c6b1b3ce7d8e3cca3e20530a145ffa232c35
+  languageName: node
+  linkType: hard
+
+"tsc-multi@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "tsc-multi@npm:1.1.0"
+  dependencies:
+    debug: ^4.3.4
+    fast-glob: ^3.2.12
+    get-stdin: ^8.0.0
+    p-all: ^3.0.0
+    picocolors: ^1.0.0
+    signal-exit: ^3.0.7
+    string-to-stream: ^3.0.1
+    superstruct: ^1.0.3
+    tslib: ^2.5.0
+    yargs: ^17.7.1
+  peerDependencies:
+    typescript: ">=4.3.0"
+  bin:
+    tsc-multi: bin/tsc-multi.js
+  checksum: a82c0358611ac15667aa148ade33b6ad64cc0a94299fb9afc01e3e6224a994dff8812960a43643f25e4c0dac8419707027c3096d0e60bff3522591c06d5f4eeb
   languageName: node
   linkType: hard
 
@@ -8027,7 +8095,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yargs@npm:^17.7.2":
+"yargs@npm:^17.7.1, yargs@npm:^17.7.2":
   version: 17.7.2
   resolution: "yargs@npm:17.7.2"
   dependencies:

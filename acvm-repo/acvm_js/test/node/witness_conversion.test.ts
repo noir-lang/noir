@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { compressWitness, decompressWitness } from "../../../result/";
+import { compressWitness, decompressWitness } from "@noir-lang/acvm_js";
 import {
   expectedCompressedWitnessMap,
   expectedWitnessMap,

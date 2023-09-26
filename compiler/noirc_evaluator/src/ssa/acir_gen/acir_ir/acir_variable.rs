@@ -65,20 +65,6 @@ impl AcirType {
     pub(crate) fn unsigned(bit_size: u32) -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
-
-    /// Returns a boolean type
-    fn boolean() -> Self {
-        AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
-    }
-
-    /// True if type is signed
-    pub(crate) fn is_signed(&self) -> bool {
-        let numeric_type = match self {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => return false,
-        };
-        matches!(numeric_type, NumericType::Signed { .. })
-    }
 }
 
 impl From<SsaType> for AcirType {
@@ -299,13 +285,12 @@ impl AcirContext {
 
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
-        let field_type = AcirType::NumericType(NumericType::NativeField);
 
         let results = self.brillig(
             predicate,
             inverse_code,
-            vec![AcirValue::Var(var, field_type.clone())],
-            vec![field_type],
+            vec![AcirValue::Var(var, AcirType::field())],
+            vec![AcirType::field()],
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -315,17 +300,6 @@ impl AcirContext {
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
         Ok(inverted_var)
-    }
-
-    // Constrains `var` to be equal to the constant value `1`
-    pub(crate) fn assert_eq_one(
-        &mut self,
-        var: AcirVar,
-        assert_message: Option<String>,
-    ) -> Result<(), RuntimeError> {
-        let one = self.add_constant(FieldElement::one());
-        self.assert_eq_var(var, one, assert_message)?;
-        Ok(())
     }
 
     // Constrains `var` to be equal to predicate if the predicate is true
@@ -557,31 +531,6 @@ impl AcirContext {
         self.sub_var(max, x)
     }
 
-    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
-    ///
-    /// We convert left shifts to multiplications, so this is equivalent to
-    /// `lhs * 2^rhs`.
-    ///
-    /// We currently require `rhs` to be a constant
-    /// however this can be extended, see #1478.
-    pub(crate) fn shift_left_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        _typ: AcirType,
-    ) -> Result<AcirVar, RuntimeError> {
-        let rhs_data = &self.vars[&rhs];
-
-        // Compute 2^{rhs}
-        let two_pow_rhs = match rhs_data.as_constant() {
-            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
-            None => unimplemented!("rhs must be a constant when doing a right shift"),
-        };
-        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.mul_var(lhs, two_pow_rhs_var)
-    }
-
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
     fn euclidean_division_var(
         &mut self,
@@ -633,35 +582,6 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
         Ok(remainder)
-    }
-
-    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
-    ///
-    /// We convert right shifts to divisions, so this is equivalent to
-    /// `lhs / 2^rhs`.
-    ///
-    /// We currently require `rhs` to be a constant
-    /// however this can be extended, see #1478.
-    ///
-    /// This code is doing a field division instead of an integer division,
-    /// see #1479 about how this is expected to change.
-    pub(crate) fn shift_right_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        typ: AcirType,
-        predicate: AcirVar,
-    ) -> Result<AcirVar, RuntimeError> {
-        let rhs_data = &self.vars[&rhs];
-
-        // Compute 2^{rhs}
-        let two_pow_rhs = match rhs_data.as_constant() {
-            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
-            None => unimplemented!("rhs must be a constant when doing a right shift"),
-        };
-        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.div_var(lhs, two_pow_rhs_var, typ, predicate)
     }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
@@ -897,17 +817,6 @@ impl AcirContext {
         self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
     }
 
-    /// Flatten the given Vector of AcirValues into a single vector of only variables.
-    /// Each AcirValue::Array in the vector is recursively flattened, so each element
-    /// will flattened into the resulting Vec. E.g. flatten_values([1, [2, 3]) == [1, 2, 3].
-    fn flatten_values(values: Vec<AcirValue>) -> Vec<AcirVar> {
-        let mut acir_vars = Vec::with_capacity(values.len());
-        for value in values {
-            Self::flatten_value(&mut acir_vars, value);
-        }
-        acir_vars
-    }
-
     /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
     pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
         match value {
@@ -1007,17 +916,10 @@ impl AcirContext {
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index = AcirValue::Var(
-                        self.add_constant(FieldElement::from(i as u128)),
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
-                    let index_var = index.into_var()?;
+                    let index_var = self.add_constant(FieldElement::from(i as u128));
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(
-                        value_read_var,
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
 
                     self.brillig_array_input(var_expressions, value_read)?;
                 }

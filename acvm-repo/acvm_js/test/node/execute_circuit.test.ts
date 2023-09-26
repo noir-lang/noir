@@ -6,7 +6,7 @@ import {
   WasmBlackBoxFunctionSolver,
   WitnessMap,
   ForeignCallHandler,
-} from "../../../result/";
+} from "@noir-lang/acvm_js";
 
 it("successfully executes circuit and extracts return value", async () => {
   const { bytecode, initialWitnessMap, resultWitness, expectedResult } =
@@ -17,7 +17,7 @@ it("successfully executes circuit and extracts return value", async () => {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   // Solved witness should be consistent with initial witness
@@ -43,7 +43,7 @@ it("successfully processes simple brillig foreign call opcodes", async () => {
   let observedInputs: string[][] = [];
   const foreignCallHandler: ForeignCallHandler = async (
     name: string,
-    inputs: string[][]
+    inputs: string[][],
   ) => {
     // Throwing inside the oracle callback causes a timeout so we log the observed values
     // and defer the check against expected values until after the execution is complete.
@@ -56,7 +56,7 @@ it("successfully processes simple brillig foreign call opcodes", async () => {
   const solved_witness: WitnessMap = await executeCircuit(
     bytecode,
     initialWitnessMap,
-    foreignCallHandler
+    foreignCallHandler,
   );
 
   // Check that expected values were passed to oracle callback.
@@ -82,7 +82,7 @@ it("successfully processes complex brillig foreign call opcodes", async () => {
   let observedInputs: string[][] = [];
   const foreignCallHandler: ForeignCallHandler = async (
     name: string,
-    inputs: string[][]
+    inputs: string[][],
   ) => {
     // Throwing inside the oracle callback causes a timeout so we log the observed values
     // and defer the check against expected values until after the execution is complete.
@@ -95,7 +95,7 @@ it("successfully processes complex brillig foreign call opcodes", async () => {
   const solved_witness: WitnessMap = await executeCircuit(
     bytecode,
     initialWitnessMap,
-    foreignCallHandler
+    foreignCallHandler,
   );
 
   // Check that expected values were passed to oracle callback.
@@ -118,7 +118,7 @@ it("successfully executes a Pedersen opcode", async function () {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
@@ -134,7 +134,7 @@ it("successfully executes a FixedBaseScalarMul opcode", async () => {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
@@ -150,7 +150,7 @@ it("successfully executes a SchnorrVerify opcode", async () => {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
@@ -166,7 +166,7 @@ it("successfully executes a MemoryOp opcode", async () => {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
@@ -190,7 +190,7 @@ it("successfully executes two circuits with same backend", async function () {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   const solvedWitness1 = await executeCircuitWithBlackBoxSolver(
@@ -199,7 +199,7 @@ it("successfully executes two circuits with same backend", async function () {
     initialWitnessMap,
     () => {
       throw Error("unexpected oracle");
-    }
+    },
   );
 
   expect(solvedWitness0).to.be.deep.eq(expectedWitnessMap);
@@ -225,7 +225,7 @@ it("successfully executes 500 circuits with same backend", async function () {
       initialWitnessMap,
       () => {
         throw Error("unexpected oracle");
-      }
+      },
     );
 
     expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);

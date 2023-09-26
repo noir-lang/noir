@@ -62,8 +62,8 @@ jobs:
 
       - name: Set up Git user (Github Action)
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.name kevaundray
+          git config --local user.email kevtheappdev@gmail.com
 
       - name: Run rebuild script
         working-directory: tooling/nargo_cli/tests
@@ -71,10 +71,16 @@ jobs:
           chmod +x ./rebuild.sh
           ./rebuild.sh
 
+      - name: Check for changes in acir_artifacts directory
+        id: check_changes
+        run: |
+          git diff --quiet tooling/nargo_cli/tests/acir_artifacts/ || echo "::set-output name=changes::true"
+          
       - name: Create or Update PR
+        if: steps.check_changes.outputs.changes == 'true'
         uses: peter-evans/create-pull-request@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
           commit-message: "chore: update acir artifacts"
           title: "chore: Update ACIR artifacts"
           body: "Automatic PR to update acir artifacts"
