@@ -1,3 +1,4 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
 import { Backend } from './backend/backend_interface.js';
 import { generateWitness } from './witness_generation.js';
 
