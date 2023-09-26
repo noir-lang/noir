@@ -17,14 +17,16 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.67.0
+
       - name: Install cargo and wasm-bindgen
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source $HOME/.cargo/env
-          rustup toolchain install 1.67.0
-          rustup default 1.67.0
-          rustc --version
-          cargo install -f wasm-bindgen-cli --version 0.2.86
+          # cargo install -f wasm-bindgen-cli --version 0.2.86
 
       - name: Install toml2json
         run: |
