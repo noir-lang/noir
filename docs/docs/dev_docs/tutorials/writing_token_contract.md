@@ -1,6 +1,6 @@
-# Writing a Standard token contract in Aztec.nr
+# Writing a token contract in Aztec.nr
 
-In this tutorial we will go through writing a standard L2 native token contract
+In this tutorial we will go through writing an L2 native token contract
 for the Aztec Network, using the Aztec.nr contract libraries. It is recommended that you go through the [the introduction to contracts](../contracts/main.md) and [setup instructions](../contracts/setup.md) section before this tutorial to gain some familiarity with writing Aztec smart contracts.
 
 This tutorial is intended to help you get familiar with the Aztec.nr library, Aztec contract syntax and some of the underlying structure of the Aztec network.
@@ -502,6 +502,6 @@ https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/end-to-
 
 ### Token Bridge Contract
 
-The [token bridge tutorial](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/token-bridge-standard) is a great follow up to this one.
+The [token bridge tutorial](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/token-bridge) is a great follow up to this one.
 
 It builds on the Token contract described here and goes into more detail about Aztec contract composability and Ethereum (L1) and Aztec (L2) cross-chain messaging.

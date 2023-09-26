@@ -25,15 +25,16 @@ To write an Aztec.nr contract, you need to write Noir, which requires a build to
 <InstallNargoInstructions />
 
 :::info
-For those coming from vanilla Noir, the nargo version used for aztec.nr is tracked seaprately to nargo for vanilla noir, so be sure to use the nargo version shown above 
+For those coming from vanilla Noir, the nargo version used for aztec.nr is tracked seaprately to nargo for vanilla noir, so be sure to use the nargo version shown above
 :::
+
 ## Install Noir tooling
 
 There are a number of tools to make writing Aztec.nr contracts more pleasant. See [here](https://github.com/noir-lang/awesome-noir#get-coding).
 
 ## Tutorials
 
-See the [Standard Token Contract tutorial](../tutorials/writing_token_contract.md) for more info on getting set up to write contracts.
+See the [Token Contract tutorial](../tutorials/writing_token_contract.md) for more info on getting set up to write contracts.
 
 ## Learn more
 

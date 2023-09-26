@@ -95,7 +95,7 @@ As noted earlier, the portal contract should check that the sender is as expecte
 - Initialize l1 with l2 address for access control.
 
 
-## Standards
+## Considerations
 
 ### Structure of messages
 The application developer should consider creating messages that follow a function call structure e.g., using a function signature and arguments. This will make it easier to prevent producing messages that could be misinterpreted by the recipient. 
@@ -177,7 +177,7 @@ The order of execution can be constrained in the contract. Since all of the mess
 Note, that crossing the L1/L2 chasm is asynchronous, so there could be a situation where the user has burned their assets on L2 but the swap fails on L1! This could be due to major price movements or the like. In such a case, the user could be stuck with funds on L1 that they cannot get back to L2 unless the portal contract implements a way to properly handle such errors.
 
 :::caution
-Designated callers are enforced at the contract level for contracts that are not the rollup itself, and should not be trusted to implement the standard correctly. The user should always be aware that it is possible for the developer to implement something that looks like designated caller without providing the abilities to the user.
+Designated callers are enforced at the contract level for contracts that are not the rollup itself, and should not be trusted to implement the contract correctly. The user should always be aware that it is possible for the developer to implement something that looks like designated caller without providing the abilities to the user.
 :::
 
 ## Examples of portals
