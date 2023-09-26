@@ -21,7 +21,7 @@ export class BarretenbergBackend implements Backend {
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
-  static async initialize(acirCircuit: any): Promise<BarretenbergBackend> {
+  static async initialize(acirCircuit: { bytecode: string }): Promise<BarretenbergBackend> {
     const backend = new BarretenbergBackend(acirCircuit);
     await backend.init();
     return backend;
