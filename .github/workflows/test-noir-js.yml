@@ -54,4 +54,6 @@ jobs:
         run: yarn workspace @noir-lang/noirc_abi build
 
       - name: Run noir_js tests
-        run: yarn workspace @noir-lang/noir_js test
+        run: |
+          yarn workspace @noir-lang/noir_js build
+          yarn workspace @noir-lang/noir_js test
