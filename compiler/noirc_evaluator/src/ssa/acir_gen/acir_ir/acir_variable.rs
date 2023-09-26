@@ -61,18 +61,9 @@ impl AcirType {
         AcirType::NumericType(NumericType::NativeField)
     }
 
-    /// Returns a boolean type
-    fn boolean() -> Self {
-        AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
-    }
-
-    /// True if type is signed
-    pub(crate) fn is_signed(&self) -> bool {
-        let numeric_type = match self {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => return false,
-        };
-        matches!(numeric_type, NumericType::Signed { .. })
+    /// Returns an unsigned type of the specified bit size
+    pub(crate) fn unsigned(bit_size: u32) -> Self {
+        AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
 }
 
@@ -90,7 +81,7 @@ impl<'a> From<&'a SsaType> for AcirType {
                 let elements = elements.iter().map(|e| e.into()).collect();
                 AcirType::Array(elements, *size)
             }
-            _ => unreachable!("The type {value}  cannot be represented in ACIR"),
+            _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
     }
 }
@@ -310,17 +301,6 @@ impl AcirContext {
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
         Ok(inverted_var)
-    }
-
-    // Constrains `var` to be equal to the constant value `1`
-    pub(crate) fn assert_eq_one(
-        &mut self,
-        var: AcirVar,
-        assert_message: Option<String>,
-    ) -> Result<(), RuntimeError> {
-        let one = self.add_constant(FieldElement::one());
-        self.assert_eq_var(var, one, assert_message)?;
-        Ok(())
     }
 
     // Constrains `var` to be equal to predicate if the predicate is true
@@ -552,31 +532,6 @@ impl AcirContext {
         self.sub_var(max, x)
     }
 
-    /// Returns an `AcirVar` that is constrained to be `lhs << rhs`.
-    ///
-    /// We convert left shifts to multiplications, so this is equivalent to
-    /// `lhs * 2^rhs`.
-    ///
-    /// We currently require `rhs` to be a constant
-    /// however this can be extended, see #1478.
-    pub(crate) fn shift_left_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        _typ: AcirType,
-    ) -> Result<AcirVar, RuntimeError> {
-        let rhs_data = &self.vars[&rhs];
-
-        // Compute 2^{rhs}
-        let two_pow_rhs = match rhs_data.as_constant() {
-            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
-            None => unimplemented!("rhs must be a constant when doing a right shift"),
-        };
-        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.mul_var(lhs, two_pow_rhs_var)
-    }
-
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
     fn euclidean_division_var(
         &mut self,
@@ -628,35 +583,6 @@ impl AcirContext {
     ) -> Result<AcirVar, RuntimeError> {
         let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
         Ok(remainder)
-    }
-
-    /// Returns an `AcirVar` that is constrained to be `lhs >> rhs`.
-    ///
-    /// We convert right shifts to divisions, so this is equivalent to
-    /// `lhs / 2^rhs`.
-    ///
-    /// We currently require `rhs` to be a constant
-    /// however this can be extended, see #1478.
-    ///
-    /// This code is doing a field division instead of an integer division,
-    /// see #1479 about how this is expected to change.
-    pub(crate) fn shift_right_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        typ: AcirType,
-        predicate: AcirVar,
-    ) -> Result<AcirVar, RuntimeError> {
-        let rhs_data = &self.vars[&rhs];
-
-        // Compute 2^{rhs}
-        let two_pow_rhs = match rhs_data.as_constant() {
-            Some(exponent) => FieldElement::from(2_i128).pow(&exponent),
-            None => unimplemented!("rhs must be a constant when doing a right shift"),
-        };
-        let two_pow_rhs_var = self.add_constant(two_pow_rhs);
-
-        self.div_var(lhs, two_pow_rhs_var, typ, predicate)
     }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
@@ -890,17 +816,6 @@ impl AcirContext {
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let two_var = self.add_constant(FieldElement::from(2_u128));
         self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
-    }
-
-    /// Flatten the given Vector of AcirValues into a single vector of only variables.
-    /// Each AcirValue::Array in the vector is recursively flattened, so each element
-    /// will flattened into the resulting Vec. E.g. flatten_values([1, [2, 3]) == [1, 2, 3].
-    fn flatten_values(values: Vec<AcirValue>) -> Vec<AcirVar> {
-        let mut acir_vars = Vec::with_capacity(values.len());
-        for value in values {
-            Self::flatten_value(&mut acir_vars, value);
-        }
-        acir_vars
     }
 
     /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
@@ -1203,35 +1118,44 @@ impl AcirContext {
         &mut self,
         block_id: BlockId,
         len: usize,
-        optional_values: Option<&[AcirValue]>,
+        optional_value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        // If the optional values are supplied, then we fill the initialized
-        // array with those values. If not, then we fill it with zeros.
-        let mut nested = false;
-        let initialized_values = match optional_values {
+        let initialized_values = match optional_value {
             None => {
                 let zero = self.add_constant(FieldElement::zero());
                 let zero_witness = self.var_to_witness(zero)?;
                 vec![zero_witness; len]
             }
-            Some(optional_values) => {
+            Some(optional_value) => {
                 let mut values = Vec::new();
-                for value in optional_values {
-                    if let Ok(some_value) = value.clone().into_var() {
-                        values.push(self.var_to_witness(some_value)?);
-                    } else {
-                        nested = true;
-                        break;
-                    }
-                }
+                self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }
         };
-        // we do not initialize nested arrays. This means that non-const indexes are not supported for nested arrays
-        if !nested {
-            self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
-        }
 
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
+
+        Ok(())
+    }
+
+    fn initialize_array_inner(
+        &mut self,
+        witnesses: &mut Vec<Witness>,
+        input: AcirValue,
+    ) -> Result<(), InternalError> {
+        match input {
+            AcirValue::Var(var, _) => {
+                witnesses.push(self.var_to_witness(var)?);
+            }
+            AcirValue::Array(values) => {
+                for value in values {
+                    self.initialize_array_inner(witnesses, value)?;
+                }
+            }
+            AcirValue::DynamicArray(_) => {
+                unreachable!("Dynamic array should already be initialized");
+            }
+        }
         Ok(())
     }
 }

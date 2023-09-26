@@ -14,9 +14,11 @@ use std::collections::BTreeMap;
 use gloo_utils::format::JsValueSerdeExt;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
+mod errors;
 mod js_witness_map;
 mod temp;
 
+use errors::JsAbiError;
 use js_witness_map::JsWitnessMap;
 use temp::{input_value_from_json_type, JsonTypes};
 
@@ -25,7 +27,7 @@ pub fn abi_encode(
     abi: JsValue,
     inputs: JsValue,
     return_value: JsValue,
-) -> Result<JsWitnessMap, JsValue> {
+) -> Result<JsWitnessMap, JsAbiError> {
     console_error_panic_hook::set_once();
     let abi: Abi = JsValueSerdeExt::into_serde(&abi).map_err(|err| err.to_string())?;
     let inputs: BTreeMap<String, JsonTypes> =
@@ -36,14 +38,11 @@ pub fn abi_encode(
     } else {
         let toml_return_value =
             JsValueSerdeExt::into_serde(&return_value).expect("could not decode return value");
-        Some(
-            input_value_from_json_type(
-                toml_return_value,
-                abi.return_type.as_ref().unwrap(),
-                MAIN_RETURN_NAME,
-            )
-            .map_err(|err| err.to_string())?,
-        )
+        Some(input_value_from_json_type(
+            toml_return_value,
+            abi.return_type.as_ref().unwrap(),
+            MAIN_RETURN_NAME,
+        )?)
     };
 
     let abi_map = abi.to_btree_map();
@@ -55,32 +54,30 @@ pub fn abi_encode(
                 .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
             input_value_from_json_type(value.clone(), &abi_type, &arg_name)
                 .map(|input_value| (arg_name, input_value))
-        })
-        .map_err(|err| err.to_string())?;
+        })?;
 
-    let witness_map = abi.encode(&parsed_inputs, return_value).map_err(|err| err.to_string())?;
+    let witness_map = abi.encode(&parsed_inputs, return_value)?;
 
     Ok(witness_map.into())
 }
 
 #[wasm_bindgen(js_name = abiDecode)]
-pub fn abi_decode(abi: JsValue, witness_map: JsWitnessMap) -> Result<JsValue, JsValue> {
+pub fn abi_decode(abi: JsValue, witness_map: JsWitnessMap) -> Result<JsValue, JsAbiError> {
     console_error_panic_hook::set_once();
     let abi: Abi = JsValueSerdeExt::into_serde(&abi).map_err(|err| err.to_string())?;
 
     let witness_map = WitnessMap::from(witness_map);
 
-    let (inputs, return_value) = abi.decode(&witness_map).map_err(|err| err.to_string())?;
+    let (inputs, return_value) = abi.decode(&witness_map)?;
 
     let abi_types = abi.to_btree_map();
     let inputs_map: BTreeMap<String, JsonTypes> = try_btree_map(inputs, |(key, value)| {
         JsonTypes::try_from_input_value(&value, &abi_types[&key]).map(|value| (key, value))
-    })
-    .map_err(|err| err.to_string())?;
-    let return_value = return_value.map(|value| {
-        JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap())
-            .expect("could not decode return value")
-    });
+    })?;
+
+    let return_value = return_value
+        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap()))
+        .transpose()?;
 
     #[derive(Serialize)]
     struct InputsAndReturn {

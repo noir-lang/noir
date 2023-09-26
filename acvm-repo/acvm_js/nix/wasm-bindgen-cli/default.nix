@@ -12,7 +12,7 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "wasm-bindgen-cli";
-  version = "0.2.87";
+  version = "0.2.86";
 
   src = fetchCrate {
     inherit pname version;

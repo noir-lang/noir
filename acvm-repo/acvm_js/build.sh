@@ -38,7 +38,7 @@ rm -rf $self_path/result >/dev/null 2>&1
 if [ -v out ]; then
   echo "Will install package to $out (defined outside installPhase.sh script)"
 else
-  out="$self_path/outputs/out"
+  export out="$self_path/outputs/out"
   echo "Will install package to $out"
 fi
 

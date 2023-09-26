@@ -46,6 +46,6 @@ jobs:
       - name: Publish to npm
         working-directory: ./temp_publish_dir
         run: |
-          npm publish --tag latest
+          yarn npm publish --tag latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
