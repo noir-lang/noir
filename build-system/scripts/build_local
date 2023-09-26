@@ -29,7 +29,7 @@ fi
 if [ -n "$ONLY_TARGET" ]; then
   DEPS=("$TARGET_PROJECT")
 else
-  DEPS=($(query_manifest dependencies $TARGET_PROJECT))
+  DEPS=($(query_manifest allDependencies $TARGET_PROJECT))
 fi
 declare -a PROJECTS
 for DEP in ${DEPS[@]}; do

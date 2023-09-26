@@ -75,16 +75,6 @@ circuits-x86_64-linux-clang-assert:
   dependencies:
     - barretenberg-x86_64-linux-clang
 
-docs:
-  buildDir: .
-  dockerfile: docs/Dockerfile
-  rebuildPatterns:
-    - ^docs/
-    - ^.*.cpp$
-    - ^.*.ts$
-    - ^.release-please-manifest.json$
-    - ^.*/noir-version.json$
-
 l1-contracts:
   buildDir: l1-contracts
 
@@ -165,5 +155,17 @@ canary:
 end-to-end:
   buildDir: yarn-project
   projectDir: yarn-project/end-to-end
+  dependencies:
+    - yarn-project
+
+docs:
+  buildDir: .
+  dockerfile: docs/Dockerfile
+  rebuildPatterns:
+    - ^docs/
+    - ^.*.cpp$
+    - ^.*.ts$
+    - ^.release-please-manifest.json$
+    - ^.*/noir-version.json$
   dependencies:
     - yarn-project

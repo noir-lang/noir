@@ -58,9 +58,7 @@ function try_fetch_image() {
   return 0
 }
 
-ecr_login
-
-# Ensure ECR repository exists.
+# Login to ECR and ensure repository exists.
 retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
@@ -78,9 +76,9 @@ fi
 echo "Initializing submodules..."
 init_submodules $REPOSITORY
 
-echo "Checking for terraform..."
 # Validate any terraform if it exists.
 if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
+  echo "Checking terraform..."
   ensure_terraform
   export TF_IN_AUTOMATION=1
   pushd $ROOT_PATH/$PROJECT_DIR/terraform
@@ -95,18 +93,8 @@ if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
   popd
 fi
 
-# Pull latest parents that are not ours. We also do not want to pull images suffixed by _, this is how we scope intermediate build images.
-PARENTS=$(cat $DOCKERFILE | sed -n -e 's/^FROM \([^[:space:]]\+\).*/\1/p' | sed '/_$/d' | { grep -v $ECR_DEPLOY_URL || true; } | sort | uniq)
-for PARENT in $PARENTS; do
-  [ "$PARENT" == "scratch" ] && continue
-  fetch_image $PARENT
-done
-
-# For each parent that's ours, pull in the latest image.
-PARENTS=$(cat $DOCKERFILE | sed -n -e "s/^FROM $ECR_DEPLOY_URL\/\([^[:space:]]\+\).*/\1/p")
-for PARENT in $PARENTS; do
-  # Extract repository name (i.e. discard tag).
-  PARENT_REPO=${PARENT%:*}
+# For each dependency, pull in the latest image and give it correct tag.
+for PARENT_REPO in $(query_manifest dependencies $REPOSITORY); do
   PARENT_CONTENT_HASH=$(calculate_content_hash $PARENT_REPO)
   # There must be a parent image to continue.
   if [ -z "$PARENT_CONTENT_HASH" ]; then
@@ -117,49 +105,12 @@ for PARENT in $PARENTS; do
   echo "Pulling dependency $PARENT_REPO..."
   fetch_image $PARENT_IMAGE_URI
   # Tag it to look like an official release as that's what we use in Dockerfiles.
-  TAG=$ECR_DEPLOY_URL/$PARENT
+  TAG=$ECR_DEPLOY_URL/$PARENT_REPO
   retry docker tag $PARENT_IMAGE_URI $TAG
 done
 
-echo "Extracting commit tag version..."
 COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY false)
-
-# Pull, build and push each named stage to cache.
-STAGE_CACHE_FROM=""
-CACHE_FROM=""
-STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
-for STAGE in $STAGES; do
-  # Get the last build of this stage to leverage layer caching.
-  if [ -n "$CONTENT_HASH" ]; then
-    echo "Pulling stage: $STAGE"
-    STAGE_IMAGE_LAST_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
-    if try_fetch_image $STAGE_IMAGE_LAST_URI; then
-      STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
-    fi
-  fi
-
-  echo "Building stage: $STAGE"
-  STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH-$STAGE
-  # Build our dockerfile, add timing information
-  docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
-
-  # We don't want to have redo this stages work when building the final image. Use it as a layer cache.
-  CACHE_FROM="--cache-from $STAGE_IMAGE_COMMIT_URI $CACHE_FROM"
-
-  echo "Pushing stage: $STAGE"
-  retry docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
-  echo
-done
-
-# Pull previous image to use it as a layer cache if it exists, and if we have not manually ran.
-if [ -n "$COMMIT_HASH" ]; then
-  LAST_SUCCESSFUL_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
-  echo "Pulling previous build of $REPOSITORY..."
-  if try_fetch_image $LAST_SUCCESSFUL_URI ; then
-    CACHE_FROM="--cache-from $LAST_SUCCESSFUL_URI $CACHE_FROM"
-  fi
-  echo
-fi
+echo "Commit tag version: $COMMIT_TAG_VERSION"
 
 # Build the actual image and give it a commit tag.
 IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH
@@ -167,6 +118,6 @@ if [[ -n "$ARCH" ]]; then
   IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
 fi
 echo "Building image: $IMAGE_COMMIT_URI"
-docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
+docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
 echo "Pushing image: $IMAGE_COMMIT_URI"
 retry docker push $IMAGE_COMMIT_URI > /dev/null 2>&1

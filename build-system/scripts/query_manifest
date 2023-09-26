@@ -73,6 +73,9 @@ case "$CMD" in
     yq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $MANIFEST
     ;;
   dependencies)
+    yq -r ".\"$REPO\".dependencies // [] | .[]" $MANIFEST
+    ;;
+  allDependencies)
     # Get dependencies for a given repo. Inclusive of repo itself.
     # If a string, attempt to execute <projectDir>/<string> if exists to get dependencies, else error.
     # If an array, the array lists the dependencies (excluding self).
@@ -102,7 +105,7 @@ case "$CMD" in
     # If no rebuild patterns are given, the result is ["^<projectDir>/"].
     # If a projects rebuildPattern is a string, the rebuild patterns are in <projectDir>/<string>.
     # If an array, the array lists the rebuild patterns.
-    DEPS=($($0 dependencies $REPO))
+    DEPS=($($0 allDependencies $REPO))
     PATTERNS=()
     for DEP in "${DEPS[@]}"; do
       add_rebuild_patterns $DEP

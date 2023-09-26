@@ -1,0 +1,10 @@
+# The build context for docs is the root of the repository.
+# Be very specific about what we include.
+*
+
+!docs
+!l1-contracts/src
+!l1-contracts/test
+!barretenberg/cpp/src/barretenberg
+!circuits/cpp/src
+!.release-please-manifest.json
