@@ -27,11 +27,11 @@ const PORT = 3000;
 
 const { SANDBOX_URL } = process.env;
 
-// const conditionalDescribe = () => (SANDBOX_URL ? describe: describe.skip);
+const conditionalDescribe = () => (SANDBOX_URL ? describe : describe.skip);
 const privKey = AztecJs.GrumpkinScalar.random();
 
 export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugLogger) =>
-  describe.skip('e2e_aztec.js_browser', () => {
+  conditionalDescribe()('e2e_aztec.js_browser', () => {
     const initialBalance = 33n;
     const transferAmount = 3n;
 
@@ -56,15 +56,12 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
         executablePath: process.env.CHROME_BIN,
         headless: 'new',
         args: [
-          '--allow-file-access-from-files',
           '--no-sandbox',
           '--headless',
-          '--disable-web-security',
-          '--disable-features=IsolateOrigins',
-          '--disable-site-isolation-trials',
           '--disable-gpu',
           '--disable-dev-shm-usage',
-          '--disk-cache-dir=/dev/null',
+          '--disable-software-rasterizer',
+          '--remote-debugging-port=9222',
         ],
       });
       page = await browser.newPage();

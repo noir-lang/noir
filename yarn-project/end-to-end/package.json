@@ -56,7 +56,7 @@
     "lodash.times": "^4.3.2",
     "lodash.zip": "^4.2.0",
     "lodash.zipwith": "^4.2.0",
-    "puppeteer": "^20.9.0",
+    "puppeteer": "^21.3.4",
     "string-argv": "^0.3.2",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",

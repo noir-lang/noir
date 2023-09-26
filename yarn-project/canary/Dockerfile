@@ -32,6 +32,11 @@ ENV CHROME_BIN="/usr/bin/chromium-browser" PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="tru
 WORKDIR /usr/src/yarn-project/aztec.js
 RUN yarn build:web
 WORKDIR /usr/src/yarn-project/canary
+
+# Copy browser script
+RUN cp ../end-to-end/scripts/start_e2e_ci_browser.sh ./scripts/start_e2e_ci_browser.sh
+RUN chmod +x scripts/start_e2e_ci_browser.sh
+
 RUN cp ../aztec.js/dest/main.js src/web/
 RUN cp ../circuits.js/resources/aztec3-circuits.wasm src/web/
 ENTRYPOINT ["yarn", "test"]
