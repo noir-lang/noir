@@ -14,4 +14,4 @@ RUN yarn workspaces focus --production > /dev/null
 FROM node:18-alpine
 COPY --from=builder /usr/src/ /usr/src/
 WORKDIR /usr/src/yarn-project/ethereum
-ENTRYPOINT ["yarn", "start"]
+ENTRYPOINT ["yarn"]

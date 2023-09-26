@@ -41,13 +41,7 @@ export class ViemTxSender implements L1PublisherTxSender {
   private account: PrivateKeyAccount;
 
   constructor(config: TxSenderConfig) {
-    const {
-      rpcUrl,
-      apiKey,
-      publisherPrivateKey,
-      rollupContract: rollupContractAddress,
-      contractDeploymentEmitterContract: contractDeploymentEmitterContractAddress,
-    } = config;
+    const { rpcUrl, apiKey, publisherPrivateKey, l1Contracts } = config;
     const chain = createEthereumChain(rpcUrl, apiKey);
     this.account = privateKeyToAccount(publisherPrivateKey);
     const walletClient = createWalletClient({
@@ -62,13 +56,13 @@ export class ViemTxSender implements L1PublisherTxSender {
     });
 
     this.rollupContract = getContract({
-      address: getAddress(rollupContractAddress.toString()),
+      address: getAddress(l1Contracts.rollupAddress.toString()),
       abi: RollupAbi,
       publicClient: this.publicClient,
       walletClient,
     });
     this.contractDeploymentEmitterContract = getContract({
-      address: getAddress(contractDeploymentEmitterContractAddress.toString()),
+      address: getAddress(l1Contracts.contractDeploymentEmitterAddress.toString()),
       abi: ContractDeploymentEmitterAbi,
       publicClient: this.publicClient,
       walletClient,

@@ -109,7 +109,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
     await uniswapL2Contract.attach(uniswapPortalAddress);
 
     await uniswapPortal.write.initialize(
-      [deployL1ContractsValues!.registryAddress.toString(), uniswapL2Contract.address.toString()],
+      [deployL1ContractsValues!.l1ContractAddresses.registryAddress!.toString(), uniswapL2Contract.address.toString()],
       {} as any,
     );
 

@@ -120,6 +120,7 @@ __metadata:
   dependencies:
     "@aztec/archiver": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
@@ -134,10 +135,14 @@ __metadata:
     "@types/memdown": ^3.0.0
     "@types/node": ^18.7.23
     jest: ^29.5.0
+    koa: ^2.14.2
+    koa-router: ^12.0.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tslib: ^2.4.0
     typescript: ^5.0.4
+  bin:
+    aztec-node: ./dest/bin/index.js
   languageName: unknown
   linkType: soft
 
@@ -147,6 +152,7 @@ __metadata:
   dependencies:
     "@aztec/acir-simulator": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/key-store": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
@@ -160,6 +166,8 @@ __metadata:
     "@types/node": ^18.7.23
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
+    koa: ^2.14.2
+    koa-router: ^12.0.0
     lodash.omit: ^4.5.0
     lodash.partition: ^4.6.0
     lodash.times: ^4.3.2
@@ -169,6 +177,8 @@ __metadata:
     tslib: ^2.4.0
     typescript: ^5.0.4
     viem: ^1.2.5
+  bin:
+    aztec-rpc: ./dest/bin/index.js
   languageName: unknown
   linkType: soft
 
@@ -228,6 +238,7 @@ __metadata:
   resolution: "@aztec/aztec.js@workspace:aztec.js"
   dependencies:
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
@@ -339,10 +350,12 @@ __metadata:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/l1-artifacts": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@libp2p/peer-id-factory": ^3.0.4
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/lodash.startcase": ^4.4.7
@@ -428,7 +441,6 @@ __metadata:
   resolution: "@aztec/ethereum@workspace:ethereum"
   dependencies:
     "@aztec/foundation": "workspace:^"
-    "@aztec/l1-artifacts": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
@@ -477,7 +489,7 @@ __metadata:
     eslint-plugin-tsdoc: ^0.2.17
     hash.js: ^1.1.7
     jest: ^29.5.0
-    koa: ^2.14.1
+    koa: ^2.14.2
     koa-bodyparser: ^4.4.0
     koa-compress: ^5.1.0
     koa-router: ^12.0.0
@@ -730,6 +742,7 @@ __metadata:
   resolution: "@aztec/types@workspace:types"
   dependencies:
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
@@ -2678,6 +2691,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@libp2p/crypto@npm:^2.0.4":
+  version: 2.0.4
+  resolution: "@libp2p/crypto@npm:2.0.4"
+  dependencies:
+    "@libp2p/interface": ^0.1.2
+    "@noble/curves": ^1.1.0
+    "@noble/hashes": ^1.3.1
+    multiformats: ^12.0.1
+    node-forge: ^1.1.0
+    protons-runtime: ^5.0.0
+    uint8arraylist: ^2.4.3
+    uint8arrays: ^4.0.6
+  checksum: 1e0a0e8006e9ca7caaec16ce94d193063749fc7f62a7b3d0b4469915e2837c380987baa400a9f35ee13c23783f8317f8bc58b8ed647a5b4bf55635a2a909ae97
+  languageName: node
+  linkType: hard
+
 "@libp2p/interface-connection@npm:^5.0.0":
   version: 5.1.1
   resolution: "@libp2p/interface-connection@npm:5.1.1"
@@ -3001,6 +3030,21 @@ __metadata:
     uint8arraylist: ^2.4.3
     uint8arrays: ^4.0.6
   checksum: 093530837f0d73fc6cb40c168c10c4bc2f196783b089c1006b9958b5ad86b93963de9fccf18159ce60afad01896c549bee5e368283fba288d9abf2598c7a6ea5
+  languageName: node
+  linkType: hard
+
+"@libp2p/peer-id-factory@npm:^3.0.4":
+  version: 3.0.4
+  resolution: "@libp2p/peer-id-factory@npm:3.0.4"
+  dependencies:
+    "@libp2p/crypto": ^2.0.4
+    "@libp2p/interface": ^0.1.2
+    "@libp2p/peer-id": ^3.0.2
+    multiformats: ^12.0.1
+    protons-runtime: ^5.0.0
+    uint8arraylist: ^2.4.3
+    uint8arrays: ^4.0.6
+  checksum: 40c534029bfa8d9b98119ee2c0ce3c0c91bcf7280028e7ba8bfe4da2a90de53014791d75c8d1400877919f748918704276b6e3337c5128975842c0593464fda9
   languageName: node
   linkType: hard
 
@@ -13076,7 +13120,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"koa@npm:^2.14.1, koa@npm:^2.14.2":
+"koa@npm:^2.14.2":
   version: 2.14.2
   resolution: "koa@npm:2.14.2"
   dependencies:

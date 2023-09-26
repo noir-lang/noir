@@ -1,11 +1,28 @@
 #!/usr/bin/env -S node --no-warnings
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
-import { deployL1Contracts } from '@aztec/ethereum';
+import {
+  DeployL1Contracts,
+  L1ContractArtifactsForDeployment,
+  createEthereumChain,
+  deployL1Contracts,
+} from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
+import {
+  ContractDeploymentEmitterAbi,
+  ContractDeploymentEmitterBytecode,
+  InboxAbi,
+  InboxBytecode,
+  OutboxAbi,
+  OutboxBytecode,
+  RegistryAbi,
+  RegistryBytecode,
+  RollupAbi,
+  RollupBytecode,
+} from '@aztec/l1-artifacts';
 
-import { HDAccount, createPublicClient, http as httpViemTransport } from 'viem';
+import { createPublicClient, http as httpViemTransport } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
@@ -18,11 +35,12 @@ const localAnvil = foundry;
 /**
  * Helper function that waits for the Ethereum RPC server to respond before deploying L1 contracts.
  */
-async function waitThenDeploy(rpcUrl: string, hdAccount: HDAccount) {
+async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Promise<DeployL1Contracts>) {
+  const chain = createEthereumChain(config.rpcUrl, config.apiKey);
   // wait for ETH RPC to respond to a request.
   const publicClient = createPublicClient({
-    chain: foundry,
-    transport: httpViemTransport(rpcUrl),
+    chain: chain.chainInfo,
+    transport: httpViemTransport(chain.rpcUrl),
   });
   const chainID = await retryUntil(
     async () => {
@@ -30,7 +48,7 @@ async function waitThenDeploy(rpcUrl: string, hdAccount: HDAccount) {
       try {
         chainId = await publicClient.getChainId();
       } catch (err) {
-        logger.warn(`Failed to connect to Ethereum node at ${rpcUrl}. Retrying...`);
+        logger.warn(`Failed to connect to Ethereum node at ${chain.rpcUrl}. Retrying...`);
       }
       return chainId;
     },
@@ -40,12 +58,11 @@ async function waitThenDeploy(rpcUrl: string, hdAccount: HDAccount) {
   );
 
   if (!chainID) {
-    throw Error(`Ethereum node unresponsive at ${rpcUrl}.`);
+    throw Error(`Ethereum node unresponsive at ${chain.rpcUrl}.`);
   }
 
   // Deploy L1 contracts
-  const deployedL1Contracts = await deployL1Contracts(rpcUrl, hdAccount, localAnvil, logger);
-  return deployedL1Contracts;
+  return await deployFunction();
 }
 
 /** Sandbox settings. */
@@ -65,12 +82,38 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   const hdAccount = mnemonicToAccount(config.l1Mnemonic ?? MNEMONIC);
   const privKey = hdAccount.getHdKey().privateKey;
 
-  const l1Contracts = await waitThenDeploy(aztecNodeConfig.rpcUrl, hdAccount);
+  const l1Artifacts: L1ContractArtifactsForDeployment = {
+    contractDeploymentEmitter: {
+      contractAbi: ContractDeploymentEmitterAbi,
+      contractBytecode: ContractDeploymentEmitterBytecode,
+    },
+    registry: {
+      contractAbi: RegistryAbi,
+      contractBytecode: RegistryBytecode,
+    },
+    inbox: {
+      contractAbi: InboxAbi,
+      contractBytecode: InboxBytecode,
+    },
+    outbox: {
+      contractAbi: OutboxAbi,
+      contractBytecode: OutboxBytecode,
+    },
+    rollup: {
+      contractAbi: RollupAbi,
+      contractBytecode: RollupBytecode,
+    },
+  };
+
+  const l1Contracts = await waitThenDeploy(aztecNodeConfig, () =>
+    deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, logger, l1Artifacts),
+  );
   aztecNodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
-  aztecNodeConfig.rollupContract = l1Contracts.rollupAddress;
-  aztecNodeConfig.contractDeploymentEmitterContract = l1Contracts.contractDeploymentEmitterAddress;
-  aztecNodeConfig.inboxContract = l1Contracts.inboxAddress;
-  aztecNodeConfig.registryContract = l1Contracts.registryAddress;
+  aztecNodeConfig.l1Contracts.rollupAddress = l1Contracts.l1ContractAddresses.rollupAddress;
+  aztecNodeConfig.l1Contracts.contractDeploymentEmitterAddress =
+    l1Contracts.l1ContractAddresses.contractDeploymentEmitterAddress;
+  aztecNodeConfig.l1Contracts.inboxAddress = l1Contracts.l1ContractAddresses.inboxAddress;
+  aztecNodeConfig.l1Contracts.registryAddress = l1Contracts.l1ContractAddresses.registryAddress;
 
   const node = await AztecNodeService.createAndSync(aztecNodeConfig);
   const rpcServer = await createAztecRPCServer(node, rpcConfig);

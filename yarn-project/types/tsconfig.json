@@ -10,6 +10,9 @@
       "path": "../circuits.js"
     },
     {
+      "path": "../ethereum"
+    },
+    {
       "path": "../foundation"
     }
   ],

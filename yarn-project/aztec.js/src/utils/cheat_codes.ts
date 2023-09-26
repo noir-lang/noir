@@ -257,7 +257,7 @@ export class AztecCheatCodes {
    * @param to - The timestamp to set the next block to (must be greater than current time)
    */
   public async warp(to: number): Promise<void> {
-    const rollupContract = (await this.aztecRpc.getNodeInfo()).rollupAddress;
+    const rollupContract = (await this.aztecRpc.getNodeInfo()).l1ContractAddresses.rollupAddress;
     await this.eth.setNextBlockTimestamp(to);
     // also store this time on the rollup contract (slot 1 tracks `lastBlockTs`).
     // This is because when the sequencer executes public functions, it uses the timestamp stored in the rollup contract.

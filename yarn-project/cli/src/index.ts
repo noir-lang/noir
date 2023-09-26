@@ -16,9 +16,9 @@ import { fileURLToPath } from '@aztec/foundation/url';
 import { compileContract, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
 import { CompleteAddress, ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
 
+import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import startCase from 'lodash.startcase';
 import { dirname, resolve } from 'path';
 import { mnemonicToAccount } from 'viem/accounts';
 
@@ -75,20 +75,19 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'test test test test test test test test test test test junk',
     )
     .action(async options => {
-      const { rollupAddress, registryAddress, inboxAddress, outboxAddress, contractDeploymentEmitterAddress } =
-        await deployAztecContracts(
-          options.rpcUrl,
-          options.apiKey ?? '',
-          options.privateKey,
-          options.mnemonic,
-          debugLogger,
-        );
+      const { l1ContractAddresses } = await deployAztecContracts(
+        options.rpcUrl,
+        options.apiKey ?? '',
+        options.privateKey,
+        options.mnemonic,
+        debugLogger,
+      );
       log('\n');
-      log(`Rollup Address: ${rollupAddress.toString()}`);
-      log(`Registry Address: ${registryAddress.toString()}`);
-      log(`L1 -> L2 Inbox Address: ${inboxAddress.toString()}`);
-      log(`L2 -> L1 Outbox address: ${outboxAddress.toString()}`);
-      log(`Contract Deployment Emitter Address: ${contractDeploymentEmitterAddress.toString()}`);
+      log(`Rollup Address: ${l1ContractAddresses.rollupAddress.toString()}`);
+      log(`Registry Address: ${l1ContractAddresses.registryAddress.toString()}`);
+      log(`L1 -> L2 Inbox Address: ${l1ContractAddresses.inboxAddress.toString()}`);
+      log(`L2 -> L1 Outbox address: ${l1ContractAddresses.outboxAddress.toString()}`);
+      log(`Contract Deployment Emitter Address: ${l1ContractAddresses.contractDeploymentEmitterAddress.toString()}`);
       log('\n');
     });
 
@@ -116,6 +115,17 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         publicKey = await generatePublicKey(key);
       }
       log(`\nPrivate Key: ${privKey}\nPublic Key: ${publicKey.toString()}\n`);
+    });
+
+  program
+    .command('generate-p2p-private-key')
+    .summary('Generates a LibP2P peer private key.')
+    .description('Generates a private key that can be used for running a node on a LibP2P network.')
+    .action(async () => {
+      const peerId = await createSecp256k1PeerId();
+      const exportedPeerId = Buffer.from(peerId.privateKey!).toString('hex');
+      log(`Private key: ${exportedPeerId}`);
+      log(`Peer Id: ${peerId}`);
     });
 
   program
@@ -501,7 +511,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const info = await client.getNodeInfo();
       log(`\nNode Info:\n`);
-      Object.entries(info).map(([key, value]) => log(`${startCase(key)}: ${value}`));
+      log(`Sandbox Version: ${info.sandboxVersion}\n`);
+      log(`Compatible Nargo Version: ${info.compatibleNargoVersion}\n`);
+      log(`Chain Id: ${info.chainId}\n`);
+      log(`Protocol Version: ${info.protocolVersion}\n`);
+      log(`Rollup Address: ${info.l1ContractAddresses.rollupAddress.toString()}`);
     });
 
   program

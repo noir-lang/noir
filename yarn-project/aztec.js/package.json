@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
     "lodash.every": "^4.6.0",

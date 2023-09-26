@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --no-warnings
+import { startHttpRpcServer } from '@aztec/aztec-rpc';
 import { deployInitialSandboxAccounts } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
@@ -9,12 +10,26 @@ import { dirname, resolve } from 'path';
 
 import { setupFileDebugLog } from '../logging.js';
 import { createSandbox } from '../sandbox.js';
-import { startHttpRpcServer } from '../server.js';
 import { github, splash } from '../splash.js';
 
 const { SERVER_PORT = 8080 } = process.env;
 
 const logger = createDebugLogger('aztec:sandbox');
+
+/**
+ * Creates the sandbox from provided config and deploys any initial L1 and L2 contracts
+ */
+async function createAndInitialiseSandbox() {
+  const { l1Contracts, rpcServer, stop } = await createSandbox();
+  logger.info('Setting up test accounts...');
+  const accounts = await deployInitialSandboxAccounts(rpcServer);
+  return {
+    l1Contracts,
+    rpcServer,
+    stop,
+    accounts,
+  };
+}
 
 /**
  * Create and start a new Aztec RCP HTTP Server
@@ -26,10 +41,7 @@ async function main() {
 
   logger.info(`Setting up Aztec Sandbox v${version} (nargo ${NoirVersion.tag}), please stand by...`);
 
-  const { l1Contracts, rpcServer, stop } = await createSandbox();
-
-  logger.info('Setting up test accounts...');
-  const accounts = await deployInitialSandboxAccounts(rpcServer);
+  const { rpcServer, stop, accounts } = await createAndInitialiseSandbox();
 
   const shutdown = async () => {
     logger.info('Shutting down...');
@@ -40,7 +52,7 @@ async function main() {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 
-  startHttpRpcServer(rpcServer, l1Contracts, SERVER_PORT);
+  startHttpRpcServer(rpcServer, SERVER_PORT);
   logger.info(`Aztec Sandbox JSON-RPC Server listening on port ${SERVER_PORT}`);
   logger.info(`Debug logs will be written to ${logPath}`);
   const accountStrings = [`Initial Accounts:\n\n`];

@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "browserify-cipher": "^1.0.1",
     "lodash.clonedeep": "^4.5.0",

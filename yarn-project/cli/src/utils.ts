@@ -1,7 +1,19 @@
 import { AztecAddress, AztecRPC, Fr } from '@aztec/aztec.js';
-import { createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
+import { L1ContractArtifactsForDeployment, createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import {
+  ContractDeploymentEmitterAbi,
+  ContractDeploymentEmitterBytecode,
+  InboxAbi,
+  InboxBytecode,
+  OutboxAbi,
+  OutboxBytecode,
+  RegistryAbi,
+  RegistryBytecode,
+  RollupAbi,
+  RollupBytecode,
+} from '@aztec/l1-artifacts';
 
 import { InvalidArgumentError } from 'commander';
 import fs from 'fs';
@@ -47,7 +59,29 @@ export async function deployAztecContracts(
 ) {
   const account = !privateKey ? mnemonicToAccount(mnemonic!) : privateKeyToAccount(`0x${privateKey}`);
   const chain = createEthereumChain(rpcUrl, apiKey);
-  return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger);
+  const l1Artifacts: L1ContractArtifactsForDeployment = {
+    contractDeploymentEmitter: {
+      contractAbi: ContractDeploymentEmitterAbi,
+      contractBytecode: ContractDeploymentEmitterBytecode,
+    },
+    registry: {
+      contractAbi: RegistryAbi,
+      contractBytecode: RegistryBytecode,
+    },
+    inbox: {
+      contractAbi: InboxAbi,
+      contractBytecode: InboxBytecode,
+    },
+    outbox: {
+      contractAbi: OutboxAbi,
+      contractBytecode: OutboxBytecode,
+    },
+    rollup: {
+      contractAbi: RollupAbi,
+      contractBytecode: RollupBytecode,
+    },
+  };
+  return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger, l1Artifacts);
 }
 
 /**

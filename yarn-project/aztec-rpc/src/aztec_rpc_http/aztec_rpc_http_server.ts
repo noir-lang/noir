@@ -17,6 +17,7 @@ import {
   TxReceipt,
 } from '@aztec/types';
 
+import http from 'http';
 import { foundry } from 'viem/chains';
 
 import { EthAddress } from '../index.js';
@@ -51,4 +52,20 @@ export function getHttpRpcServer(aztecRpcServer: AztecRPC): JsonRpcServer {
     ['start', 'stop'],
   );
   return generatedRpcServer;
+}
+
+/**
+ * Creates an http server that forwards calls to the rpc server and starts it on the given port.
+ * @param aztecRpcServer - RPC server that answers queries to the created HTTP server.
+ * @param port - Port to listen in.
+ * @returns A running http server.
+ */
+export function startHttpRpcServer(aztecRpcServer: AztecRPC, port: string | number): http.Server {
+  const rpcServer = getHttpRpcServer(aztecRpcServer);
+
+  const app = rpcServer.getApp();
+  const httpServer = http.createServer(app.callback());
+  httpServer.listen(port);
+
+  return httpServer;
 }

@@ -1,4 +1,5 @@
-import { EthAddress, HistoricBlockData } from '@aztec/circuits.js';
+import { HistoricBlockData } from '@aztec/circuits.js';
+import { L1ContractAddresses } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -67,16 +68,10 @@ export interface AztecNode
   getChainId(): Promise<number>;
 
   /**
-   * Method to fetch the rollup contract address at the base-layer.
-   * @returns The rollup address.
+   * Method to fetch the currently deployed l1 contract addresses.
+   * @returns The deployed contract addresses.
    */
-  getRollupAddress(): Promise<EthAddress>;
-
-  /**
-   * Method to fetch the registry contract address at the base-layer.
-   * @returns The registry address.
-   */
-  getRegistryAddress(): Promise<EthAddress>;
+  getL1ContractAddresses(): Promise<L1ContractAddresses>;
 
   /**
    * Get the extended contract data for this contract.

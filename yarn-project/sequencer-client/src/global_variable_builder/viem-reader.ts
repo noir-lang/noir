@@ -23,7 +23,7 @@ export class ViemReader implements L1GlobalReader {
   private publicClient: PublicClient<HttpTransport, chains.Chain>;
 
   constructor(config: GlobalReaderConfig) {
-    const { rpcUrl, apiKey, rollupContract: rollupContractAddress } = config;
+    const { rpcUrl, apiKey, l1Contracts } = config;
 
     const chain = createEthereumChain(rpcUrl, apiKey);
 
@@ -33,7 +33,7 @@ export class ViemReader implements L1GlobalReader {
     });
 
     this.rollupContract = getContract({
-      address: getAddress(rollupContractAddress.toString()),
+      address: getAddress(l1Contracts.rollupAddress.toString()),
       abi: RollupAbi,
       publicClient: this.publicClient,
     });

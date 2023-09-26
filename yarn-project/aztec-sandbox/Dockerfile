@@ -13,7 +13,6 @@ RUN if [[ -n "${COMMIT_TAG}" ]]; then \
   fi
 
 WORKDIR /usr/src/yarn-project/aztec-sandbox
-RUN ls
 RUN if [[ -n "${COMMIT_TAG}" ]]; then \
   jq --arg v ${COMMIT_TAG} '.version = $v' package.json > _temp && mv _temp package.json; \
   fi

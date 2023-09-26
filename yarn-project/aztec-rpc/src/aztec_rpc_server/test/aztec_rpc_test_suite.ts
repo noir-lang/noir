@@ -135,7 +135,7 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
       const nodeInfo = await rpc.getNodeInfo();
       expect(typeof nodeInfo.protocolVersion).toEqual('number');
       expect(typeof nodeInfo.chainId).toEqual('number');
-      expect(nodeInfo.rollupAddress.toString()).toMatch(/0x[a-fA-F0-9]+/);
+      expect(nodeInfo.l1ContractAddresses.rollupAddress.toString()).toMatch(/0x[a-fA-F0-9]+/);
     });
 
     // Note: Not testing `isGlobalStateSynchronized`, `isAccountStateSynchronized` and `getSyncStatus` as these methods

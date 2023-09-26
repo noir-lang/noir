@@ -32,8 +32,6 @@ export class Sequencer {
   private minTxsPerBLock = 1;
   private lastPublishedBlock = 0;
   private state = SequencerState.STOPPED;
-  private chainId: Fr;
-  private version: Fr;
 
   constructor(
     private publisher: L1Publisher,
@@ -54,8 +52,6 @@ export class Sequencer {
     if (config.minTxsPerBlock) {
       this.minTxsPerBLock = config.minTxsPerBlock;
     }
-    this.chainId = new Fr(config.chainId);
-    this.version = new Fr(config.version);
   }
 
   /**

@@ -10,7 +10,7 @@ import { PeerId } from '@libp2p/interface-peer-id';
 import { IncomingStreamData } from '@libp2p/interface/stream-handler';
 import { DualKadDHT, kadDHT } from '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
-import { createEd25519PeerId, createFromProtobuf, exportToProtobuf } from '@libp2p/peer-id-factory';
+import { createFromJSON, createSecp256k1PeerId, exportToProtobuf } from '@libp2p/peer-id-factory';
 import { tcp } from '@libp2p/tcp';
 import { pipe } from 'it-pipe';
 import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
@@ -35,11 +35,19 @@ import {
 const INITIAL_PEER_REFRESH_INTERVAL = 20000;
 
 /**
- * Create a libp2p peer ID.
+ * Create a libp2p peer ID from the private key if provided, otherwise creates a new random ID.
+ * @param privateKey - Optional peer ID private key as hex string
  * @returns The peer ID.
  */
-export async function createLibP2PPeerId() {
-  return await createEd25519PeerId();
+export async function createLibP2PPeerId(privateKey?: string) {
+  if (!privateKey) {
+    return await createSecp256k1PeerId();
+  }
+  const base64 = Buffer.from(privateKey, 'hex').toString('base64');
+  return await createFromJSON({
+    id: '',
+    privKey: base64,
+  });
 }
 
 /**
@@ -141,10 +149,9 @@ export class LibP2PService implements P2PService {
       serverMode,
       minPeerCount,
       maxPeerCount,
+      peerIdPrivateKey,
     } = config;
-    const peerId = config.peerIdPrivateKey
-      ? await createFromProtobuf(Buffer.from(config.peerIdPrivateKey, 'hex'))
-      : await createLibP2PPeerId();
+    const peerId = await createLibP2PPeerId(peerIdPrivateKey);
 
     const opts: Libp2pOptions<ServiceMap> = {
       start: false,

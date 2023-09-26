@@ -36,7 +36,7 @@ export class CrossChainTestHarness {
     const [owner, receiver] = accounts;
 
     const outbox = getContract({
-      address: deployL1ContractsValues.outboxAddress.toString(),
+      address: deployL1ContractsValues.l1ContractAddresses.outboxAddress!.toString(),
       abi: OutboxAbi,
       publicClient,
     });
@@ -47,7 +47,7 @@ export class CrossChainTestHarness {
       wallet,
       walletClient,
       publicClient,
-      deployL1ContractsValues!.registryAddress,
+      deployL1ContractsValues!.l1ContractAddresses.registryAddress!,
       owner.address,
       underlyingERC20Address,
     );

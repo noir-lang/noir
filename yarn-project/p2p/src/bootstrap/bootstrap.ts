@@ -5,7 +5,6 @@ import { yamux } from '@chainsafe/libp2p-yamux';
 import type { ServiceMap } from '@libp2p/interface-libp2p';
 import { kadDHT } from '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
-import { createFromProtobuf } from '@libp2p/peer-id-factory';
 import { tcp } from '@libp2p/tcp';
 import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
 import { identifyService } from 'libp2p/identify';
@@ -29,9 +28,7 @@ export class BootstrapNode {
   public async start(config: P2PConfig) {
     const { peerIdPrivateKey, tcpListenIp, tcpListenPort, announceHostname, announcePort, minPeerCount, maxPeerCount } =
       config;
-    const peerId = peerIdPrivateKey
-      ? await createFromProtobuf(Buffer.from(peerIdPrivateKey, 'hex'))
-      : await createLibP2PPeerId();
+    const peerId = await createLibP2PPeerId(peerIdPrivateKey);
     this.logger(
       `Starting bootstrap node ${peerId} on ${tcpListenIp}:${tcpListenPort} announced at ${announceHostname}:${announcePort}`,
     );
@@ -41,7 +38,7 @@ export class BootstrapNode {
       peerId,
       addresses: {
         listen: [`/ip4/${tcpListenIp}/tcp/${tcpListenPort}`],
-        announce: [`/ip4/${announceHostname}/tcp/${announcePort ?? tcpListenPort}`],
+        announce: announceHostname ? [`/ip4/${announceHostname}/tcp/${announcePort ?? tcpListenPort}`] : [],
       },
       transports: [tcp()],
       streamMuxers: [yamux(), mplex()],

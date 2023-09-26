@@ -17,9 +17,8 @@ let aztecRpcServer: AztecRPC;
 const testSetup = async () => {
   const context = await e2eSetup(2);
   debug(`Environment set up`);
-  const { deployL1ContractsValues } = context;
   ({ aztecNode, aztecRpcServer } = context);
-  http = startHttpRpcServer(aztecRpcServer, deployL1ContractsValues, HTTP_PORT);
+  http = startHttpRpcServer(aztecRpcServer, HTTP_PORT);
   debug(`HTTP RPC server started in port ${HTTP_PORT}`);
   return aztecRpcServer;
 };

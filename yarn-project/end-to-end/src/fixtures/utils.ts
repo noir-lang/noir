@@ -1,10 +1,5 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import {
-  AztecRPCServer,
-  RpcServerConfig,
-  createAztecRPCServer,
-  getConfigEnvVars as getRpcConfigEnvVars,
-} from '@aztec/aztec-rpc';
+import { AztecRPCServer, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
   AccountWallet,
   AztecAddress,
@@ -15,16 +10,37 @@ import {
   Wallet,
   createAccounts,
   createAztecRpcClient as createJsonRpcClient,
-  getL1ContractAddresses,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
 import { CircuitsWasm, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
-import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
+import {
+  DeployL1Contracts,
+  L1ContractArtifactsForDeployment,
+  deployL1Contract,
+  deployL1Contracts,
+} from '@aztec/ethereum';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
-import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
+import {
+  ContractDeploymentEmitterAbi,
+  ContractDeploymentEmitterBytecode,
+  DecoderHelperAbi,
+  DecoderHelperBytecode,
+  InboxAbi,
+  InboxBytecode,
+  OutboxAbi,
+  OutboxBytecode,
+  PortalERC20Abi,
+  PortalERC20Bytecode,
+  RegistryAbi,
+  RegistryBytecode,
+  RollupAbi,
+  RollupBytecode,
+  TokenPortalAbi,
+  TokenPortalBytecode,
+} from '@aztec/l1-artifacts';
 import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
 
@@ -33,6 +49,7 @@ import {
   Chain,
   HDAccount,
   HttpTransport,
+  PrivateKeyAccount,
   PublicClient,
   WalletClient,
   createPublicClient,
@@ -71,50 +88,41 @@ const createAztecNode = async (
   return await AztecNodeService.createAndSync(nodeConfig);
 };
 
-const createRpcServer = async (
-  rpcConfig: RpcServerConfig,
-  aztecNode: AztecNodeService | undefined,
+export const setupL1Contracts = async (
+  l1RpcUrl: string,
+  account: HDAccount | PrivateKeyAccount,
   logger: DebugLogger,
-  useLogSuffix?: boolean | string,
-): Promise<AztecRPC> => {
-  if (SANDBOX_URL) {
-    logger(`Creating JSON RPC client to remote host ${SANDBOX_URL}`);
-    const jsonClient = createJsonRpcClient(SANDBOX_URL);
-    await waitForRPCServer(jsonClient, logger);
-    logger('JSON RPC client connected to RPC Server');
-    return jsonClient;
-  } else if (!aztecNode) {
-    throw new Error('Invalid aztec node when creating RPC server');
-  }
-  return createAztecRPCServer(aztecNode, rpcConfig, {}, useLogSuffix);
-};
-
-const setupL1Contracts = async (l1RpcUrl: string, account: HDAccount, logger: DebugLogger) => {
-  if (SANDBOX_URL) {
-    logger(`Retrieving contract addresses from ${SANDBOX_URL}`);
-    const l1Contracts = await getL1ContractAddresses(SANDBOX_URL);
-
-    const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
-      account,
-      chain: localAnvil,
-      transport: http(l1RpcUrl),
-    });
-    const publicClient = createPublicClient({
-      chain: localAnvil,
-      transport: http(l1RpcUrl),
-    });
-    return {
-      rollupAddress: l1Contracts.rollup,
-      registryAddress: l1Contracts.registry,
-      inboxAddress: l1Contracts.inbox,
-      outboxAddress: l1Contracts.outbox,
-      contractDeploymentEmitterAddress: l1Contracts.contractDeploymentEmitter,
-      decoderHelperAddress: l1Contracts.decoderHelper,
-      walletClient,
-      publicClient,
+  deployDecoderHelper = false,
+) => {
+  const l1Artifacts: L1ContractArtifactsForDeployment = {
+    contractDeploymentEmitter: {
+      contractAbi: ContractDeploymentEmitterAbi,
+      contractBytecode: ContractDeploymentEmitterBytecode,
+    },
+    registry: {
+      contractAbi: RegistryAbi,
+      contractBytecode: RegistryBytecode,
+    },
+    inbox: {
+      contractAbi: InboxAbi,
+      contractBytecode: InboxBytecode,
+    },
+    outbox: {
+      contractAbi: OutboxAbi,
+      contractBytecode: OutboxBytecode,
+    },
+    rollup: {
+      contractAbi: RollupAbi,
+      contractBytecode: RollupBytecode,
+    },
+  };
+  if (deployDecoderHelper) {
+    l1Artifacts.decoderHelper = {
+      contractAbi: DecoderHelperAbi,
+      contractBytecode: DecoderHelperBytecode,
     };
   }
-  return await deployL1Contracts(l1RpcUrl, account, localAnvil, logger);
+  return await deployL1Contracts(l1RpcUrl, account, localAnvil, logger, l1Artifacts);
 };
 
 /**
@@ -128,7 +136,7 @@ const setupL1Contracts = async (l1RpcUrl: string, account: HDAccount, logger: De
  */
 export async function setupAztecRPCServer(
   numberOfAccounts: number,
-  aztecNode: AztecNodeService | undefined,
+  aztecNode: AztecNodeService,
   logger = getLogger(),
   useLogSuffix = false,
 ): Promise<{
@@ -150,25 +158,63 @@ export async function setupAztecRPCServer(
   logger: DebugLogger;
 }> {
   const rpcConfig = getRpcConfigEnvVars();
-  const rpc = await createRpcServer(rpcConfig, aztecNode, logger, useLogSuffix);
+  const rpc = await createAztecRPCServer(aztecNode, rpcConfig, {}, useLogSuffix);
 
-  const createWallets = () => {
-    if (!SANDBOX_URL) {
-      logger('RPC server created, deploying new accounts...');
-      return createAccounts(rpc, numberOfAccounts);
-    } else {
-      logger('RPC server created, constructing wallets from initial sandbox accounts...');
-      return getSandboxAccountsWallets(rpc);
-    }
-  };
-
-  const wallets = await createWallets();
+  const wallets = await createAccounts(rpc, numberOfAccounts);
 
   return {
     aztecRpcServer: rpc!,
     accounts: await rpc!.getRegisteredAccounts(),
     wallets,
     logger,
+  };
+}
+
+/**
+ * Function to setup the test against a running sandbox.
+ * @param account - The account for use in create viem wallets.
+ * @param config - The aztec Node Configuration
+ * @param logger - The logger to be used
+ * @returns RPC Client, viwm wallets, contract addreses etc.
+ */
+async function setupWithSandbox(account: Account, config: AztecNodeConfig, logger: DebugLogger) {
+  // we are setting up against the sandbox, l1 contracts are already deployed
+  logger(`Creating JSON RPC client to remote host ${SANDBOX_URL}`);
+  const jsonClient = createJsonRpcClient(SANDBOX_URL);
+  await waitForRPCServer(jsonClient, logger);
+  logger('JSON RPC client connected to RPC Server');
+  logger(`Retrieving contract addresses from ${SANDBOX_URL}`);
+  const l1Contracts = (await jsonClient.getNodeInfo()).l1ContractAddresses;
+  logger('RPC server created, constructing wallets from initial sandbox accounts...');
+  const wallets = await getSandboxAccountsWallets(jsonClient);
+
+  const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
+    account,
+    chain: localAnvil,
+    transport: http(config.rpcUrl),
+  });
+  const publicClient = createPublicClient({
+    chain: localAnvil,
+    transport: http(config.rpcUrl),
+  });
+  const deployL1ContractsValues: DeployL1Contracts = {
+    l1ContractAddresses: l1Contracts,
+    walletClient,
+    publicClient,
+  };
+  const cheatCodes = await CheatCodes.create(config.rpcUrl, jsonClient!);
+  const teardown = () => Promise.resolve();
+  return {
+    aztecNode: undefined,
+    aztecRpcServer: jsonClient,
+    deployL1ContractsValues,
+    accounts: await jsonClient!.getRegisteredAccounts(),
+    config,
+    wallet: wallets[0],
+    wallets,
+    logger,
+    cheatCodes,
+    teardown,
   };
 }
 
@@ -231,19 +277,25 @@ export async function setup(
   const logger = getLogger();
   const hdAccount = mnemonicToAccount(MNEMONIC);
 
+  if (SANDBOX_URL) {
+    // we are setting up against the sandbox, l1 contracts are already deployed
+    return await setupWithSandbox(hdAccount, config, logger);
+  }
+
   const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);
   const privKeyRaw = hdAccount.getHdKey().privateKey;
   const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
 
   config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
-  config.rollupContract = deployL1ContractsValues.rollupAddress;
-  config.contractDeploymentEmitterContract = deployL1ContractsValues.contractDeploymentEmitterAddress;
-  config.inboxContract = deployL1ContractsValues.inboxAddress;
-  config.registryContract = deployL1ContractsValues.registryAddress;
+  config.l1Contracts.rollupAddress = deployL1ContractsValues.l1ContractAddresses.rollupAddress;
+  config.l1Contracts.registryAddress = deployL1ContractsValues.l1ContractAddresses.registryAddress;
+  config.l1Contracts.contractDeploymentEmitterAddress =
+    deployL1ContractsValues.l1ContractAddresses.contractDeploymentEmitterAddress;
+  config.l1Contracts.inboxAddress = deployL1ContractsValues.l1ContractAddresses.inboxAddress;
 
   const aztecNode = await createAztecNode(config, logger);
 
-  const { aztecRpcServer, accounts, wallets } = await setupAztecRPCServer(numberOfAccounts, aztecNode, logger);
+  const { aztecRpcServer, accounts, wallets } = await setupAztecRPCServer(numberOfAccounts, aztecNode!, logger);
 
   const cheatCodes = await CheatCodes.create(config.rpcUrl, aztecRpcServer!);
 

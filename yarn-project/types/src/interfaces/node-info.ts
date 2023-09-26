@@ -1,9 +1,9 @@
-import { EthAddress } from '@aztec/circuits.js';
+import { L1ContractAddresses } from '@aztec/ethereum';
 
 /**
  * Provides basic information about the running node.
  */
-export type NodeInfo = {
+export interface NodeInfo {
   /**
    * Version as tracked in the aztec-packages repository.
    */
@@ -21,11 +21,7 @@ export type NodeInfo = {
    */
   protocolVersion: number;
   /**
-   * The rollup contract address
+   * The deployed l1 contract addresses
    */
-  rollupAddress: EthAddress;
-  /**
-   * The registry contract address
-   */
-  registryAddress: EthAddress;
-};
+  l1ContractAddresses: L1ContractAddresses;
+}

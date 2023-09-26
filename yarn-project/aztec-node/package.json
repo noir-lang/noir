@@ -4,6 +4,7 @@
   "main": "dest/index.js",
   "type": "module",
   "exports": "./dest/index.js",
+  "bin": "./dest/bin/index.js",
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"
@@ -12,6 +13,7 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
+    "start": "node --no-warnings ./dest/bin",
     "build": "yarn clean && tsc -b",
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
@@ -33,6 +35,7 @@
   "dependencies": {
     "@aztec/archiver": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",
@@ -40,6 +43,8 @@
     "@aztec/sequencer-client": "workspace:^",
     "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
+    "koa": "^2.14.2",
+    "koa-router": "^12.0.0",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

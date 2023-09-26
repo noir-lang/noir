@@ -24,7 +24,7 @@ describe('e2e_cheat_codes', () => {
 
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
-    rollupAddress = deployL1ContractsValues.rollupAddress;
+    rollupAddress = deployL1ContractsValues.l1ContractAddresses.rollupAddress;
   }, 100_000);
 
   afterAll(() => teardown());

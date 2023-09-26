@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "exports": "./dest/index.js",
+  "bin": "./dest/bin/index.js",
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"
@@ -17,7 +18,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "start:http": "DEBUG='aztec:*' && node ./dest/aztec_rpc_http/aztec_rpc_http_server.js"
+    "start": "DEBUG='aztec:*' && node ./dest/bin/index.js"
   },
   "inherits": [
     "../package.common.json"
@@ -33,10 +34,13 @@
   "dependencies": {
     "@aztec/acir-simulator": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/key-store": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
     "@aztec/types": "workspace:^",
+    "koa": "^2.14.2",
+    "koa-router": "^12.0.0",
     "lodash.omit": "^4.5.0",
     "lodash.partition": "^4.6.0",
     "lodash.times": "^4.3.2",

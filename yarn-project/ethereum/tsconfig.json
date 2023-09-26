@@ -9,9 +9,6 @@
   "references": [
     {
       "path": "../foundation"
-    },
-    {
-      "path": "../l1-artifacts"
     }
   ]
 }
