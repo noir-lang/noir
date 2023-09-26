@@ -63,6 +63,7 @@ jobs:
       - name: Setup `integration-tests`
         run: |
           yarn workspace @noir-lang/source-resolver build
+          yarn workspace @noir-lang/acvm_js build
           yarn workspace @noir-lang/noir_js build
 
       - name: Run `integration-tests`
