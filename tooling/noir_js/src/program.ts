@@ -3,13 +3,7 @@ import { Backend } from './backend/backend_interface.js';
 import { generateWitness } from './witness_generation.js';
 
 export class Program {
-  circuit: any;
-  backend: Backend;
-
-  constructor(circuit: any, backend: Backend) {
-    this.circuit = circuit;
-    this.backend = backend;
-  }
+  constructor(private circuit: { bytecode: string, abi: any }, private backend: Backend) { }
 
   // Initial inputs to your program
   async generateFinalProof(inputs: any): Promise<Uint8Array> {
