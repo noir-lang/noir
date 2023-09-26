@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
 // TODO: This should be re-exported from @aztec/bb-js
@@ -14,7 +15,8 @@ export class BarretenbergBackend implements Backend {
   acirComposer = {} as Ptr;
   acirUncompressedBytecode: Uint8Array;
 
-  constructor(acirBytecodeBase64: string) {
+  constructor(acirCircuit: any) {
+    const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
