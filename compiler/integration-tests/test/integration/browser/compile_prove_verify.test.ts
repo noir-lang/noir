@@ -45,7 +45,7 @@ const test_cases = [
     case: "tooling/nargo_cli/tests/execution_success/1_mul",
     compiled: "foundry-project/out/1_mul.sol/UltraVerifier.json",
     deployInformation: "foundry-project/mul_output.json",
-    publicInputsLength: 0,
+    numPublicInputs: 0,
   },
   {
     case: "compiler/integration-tests/test/circuits/main",
