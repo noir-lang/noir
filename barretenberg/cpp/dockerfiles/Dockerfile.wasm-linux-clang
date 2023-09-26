@@ -4,8 +4,11 @@ WORKDIR /usr/src/barretenberg/cpp
 COPY ./scripts/install-wasi-sdk.sh ./scripts/install-wasi-sdk.sh
 RUN ./scripts/install-wasi-sdk.sh
 COPY . .
-RUN cmake --preset wasm && cmake --build --preset wasm
-RUN cmake --preset wasm-threads && cmake --build --preset wasm-threads
+# Building both wasm's in parallel reduces build from 120s to 80s.
+RUN (cmake --preset wasm && cmake --build --preset wasm) & \
+    (cmake --preset wasm-threads && cmake --build --preset wasm-threads) & \
+    wait
+
 
 FROM scratch
 WORKDIR /usr/src/barretenberg/cpp

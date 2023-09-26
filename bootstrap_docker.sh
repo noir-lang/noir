@@ -22,7 +22,6 @@
 set -e
 
 PROJECT_NAME=${1:-}
-COMMIT_HASH=$(git rev-parse HEAD)
 
 if [ -z "$PROJECT_NAME" ]; then
   echo "usage: $0 <project_name>"
@@ -31,7 +30,7 @@ fi
 
 cd "$(dirname "$0")"
 
-source ./build-system/scripts/setup_env $COMMIT_HASH '' mainframe_$USER > /dev/null
+source ./build-system/scripts/setup_env '' '' mainframe_$USER > /dev/null
 build_local $PROJECT_NAME
 
 if [ -z "$PROJECT_NAME" ]; then

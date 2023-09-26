@@ -70,7 +70,6 @@ export async function handleInteractClick(contractAddress: string) {
   );
 }
 
-
 export const getFunctionAbi = (contractAbi: any, functionName: string) => {
   const functionAbi = contractAbi.functions.find((f: FunctionAbi) => f.name === functionName);
   if (!functionAbi) throw new Error(`Function ${functionName} not found in abi`);

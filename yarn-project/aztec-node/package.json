@@ -45,6 +45,8 @@
     "@aztec/world-state": "workspace:^",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",
+    "levelup": "^5.1.1",
+    "memdown": "^6.1.1",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

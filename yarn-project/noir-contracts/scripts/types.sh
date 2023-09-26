@@ -22,29 +22,14 @@ ROOT=$(pwd)
 
 write_import() {
     CONTRACT_NAME=$1
-    
-    # Convert to PascalCase
-    if [ "$(uname)" = "Darwin" ]; then
-        # sed \U doesn't work on mac
-        NAME=$(echo $CONTRACT_NAME | perl -pe 's/(^|_)(\w)/\U$2/g')
-    else
-        NAME=`echo $CONTRACT_NAME | sed -r 's/(^|_)(.)/\U\2/g'`
-    fi
+    NAME=$(echo $CONTRACT_NAME | perl -pe 's/(^|_)(\w)/\U$2/g')
 
     echo "import ${NAME}Json from './${CONTRACT_NAME}_contract.json' assert { type: 'json' };"  >> "$artifacts_dir/index.ts";
 }
 
 write_export() {
     CONTRACT_NAME=$1
-
-    # Convert to PascalCase
-    if [ "$(uname)" = "Darwin" ]; then
-        # sed \U doesn't work on mac
-        NAME=$(echo $CONTRACT_NAME | perl -pe 's/(^|_)(\w)/\U$2/g')
-    else
-        NAME=`echo $CONTRACT_NAME | sed -r 's/(^|_)(.)/\U\2/g'`
-    fi
-
+    NAME=$(echo $CONTRACT_NAME | perl -pe 's/(^|_)(\w)/\U$2/g')
 
     # artifacts
     echo "export const ${NAME}ContractAbi = ${NAME}Json as ContractAbi;"  >> "$artifacts_dir/index.ts";

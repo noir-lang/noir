@@ -98,8 +98,6 @@ noir-contracts-build:
   rebuildPatterns:
     - ^yarn-project/noir-contracts/
     - ^yarn-project/aztec-nr/
-  # Prevent automatic querying of get_dependencies.sh script. Needed because this looks like a yarn project.
-  dependencies: []
 
 yarn-project-base:
   buildDir: yarn-project
@@ -113,6 +111,9 @@ yarn-project-base:
 
 yarn-project:
   buildDir: yarn-project
+  rebuildPatterns:
+    - ^yarn-project/.*\\.(ts|js|cjs|mjs|json|html)$
+    - ^yarn-project/Dockerfile
   dependencies:
     - yarn-project-base
     - noir-contracts-build

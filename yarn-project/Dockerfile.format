@@ -1,7 +1,0 @@
-# Formats all our typescript packages.
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project
-
-# Copy in the entire workspace.
-COPY . .
-
-RUN yarn formatting

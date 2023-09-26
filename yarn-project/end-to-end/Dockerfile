@@ -1,22 +1,15 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS builder
 
-# Copy in the whole of yarn-project.
-COPY . .
-
 # Build aztec.js web.
 WORKDIR /usr/src/yarn-project/aztec.js
-RUN yarn build
-RUN yarn cache clean
+RUN yarn build:web
 
-# Build end-to-end.
 WORKDIR /usr/src/yarn-project/end-to-end
-RUN yarn build && yarn formatting
-
-# Prune dev dependencies. See comment in base image.
-RUN yarn cache clean
-RUN yarn workspaces focus --production > /dev/null
+# Productionify. See comment in yarn-project-base/Dockerfile.
+RUN yarn cache clean && yarn workspaces focus --production
 
 # Create final, minimal size image.
+# TODO: Not very minimal as chromium adds about 500MB of bloat :/ Separate or install at test runtime?
 FROM node:18-alpine
 RUN apk update && apk add --no-cache \
   bash \

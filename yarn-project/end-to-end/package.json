@@ -40,6 +40,7 @@
     "@jest/globals": "^29.5.0",
     "@noble/curves": "^1.0.0",
     "@types/jest": "^29.5.0",
+    "@types/koa": "^2.13.9",
     "@types/koa-static": "^4.0.2",
     "@types/levelup": "^5.1.2",
     "@types/lodash.every": "^4.6.7",

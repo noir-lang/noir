@@ -1,0 +1,10 @@
+#!/bin/bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+REPOSITORY=$1
+CPUS=$2
+shift 2
+
+export TAG_POSTFIX=$JOB_NAME
+cond_spot_run_script $REPOSITORY $CPUS cond_run_container $REPOSITORY $@

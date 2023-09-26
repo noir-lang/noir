@@ -1,0 +1,36 @@
+# TODO/WARNING: ADOPT THIS WHEN WE HAVE DOCKER >= 24 IN NEXT UBUNTU LTS RELEASE.
+#
+# The aim here is to not have to maintain a list of projects in either the Dockerfile or this ignore file.
+# This context should only contain precisely what's needed.
+#
+# This took a fair bit of trial and error to get the right result. If you need to meddle, try:
+#  - Commenting out everything after the COPY . . in the dockerfile.
+#  - ONLY_TARGET=1 ../bootstrap_docker.sh yarn-project-base && docker run -ti --rm 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base:latest sh -c 'du -ha .'
+
+# Exclude everything to start.
+*
+
+# Unexclude package.json, tsconfig.json and yarn.lock files.
+!package.json
+!package.common.json
+!*/package.json
+!*/package.local.json
+!*/*/package.json
+!yarn.lock
+!tsconfig.json
+!*/tsconfig.json
+!*/*/tsconfig.json
+
+# Unexclude parts of yarn related config as this also affects how dependencies are installed.
+!.yarnrc.yml
+!.yarn/plugins
+!.yarn/releases
+
+# Unexclude scripts we use in the Dockerfile.
+!yarn-project-base/scripts
+!l1-artifacts/scripts
+
+# Re-exclude any node_modules stuff (matters when building locally when you have a node_modules).
+# Yes, we need to explicitly exclude what we unexcluded above. Just putting node_modules doesn't help here.
+node_modules/*/package.json
+node_modules/*/tsconfig.json

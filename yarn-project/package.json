@@ -1,6 +1,6 @@
 {
   "name": "@aztec/aztec3-packages",
-  "packageManager": "yarn@3.4.1",
+  "packageManager": "yarn@3.6.3",
   "private": true,
   "scripts": {
     "prepare": "node ./yarn-project-base/scripts/update_package_jsons.mjs && yarn workspaces foreach run prepare && workspaces-to-typescript-project-references --tsconfigPath tsconfig.json && prettier -w */tsconfig.json",

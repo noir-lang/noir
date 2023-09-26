@@ -20,5 +20,4 @@ export async function callContractFunction(
   return contract.methods[functionName](...typedArgs)
     .send()
     .wait();
-
 }

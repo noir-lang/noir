@@ -83,7 +83,7 @@ export async function deployL1Contract(
     abi,
     bytecode,
     args,
-  });
+  } as any);
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   const contractAddress = receipt.contractAddress;

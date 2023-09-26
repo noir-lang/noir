@@ -11,6 +11,7 @@ bootstrap.sh
 # Need to unexclude the dir and then exclude it's files.
 # TODO: These boxes might be better outside the workspace where they have their own dependencies
 # as they're meant to be consumers of the project, not a part of it.
+# NOTE: See comment at top of Dockerfile.dockerignore.v24!
 !boxes/private-token
 !boxes/blank
 !boxes/blank-react

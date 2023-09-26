@@ -30,6 +30,7 @@
     "@types/jest": "^29.5.0",
     "@types/koa-static": "^4.0.2",
     "@types/node": "^18.7.23",
+    "abitype": "^0.9.8",
     "jest": "^29.5.0",
     "koa": "^2.14.2",
     "koa-static": "^5.0.0",
