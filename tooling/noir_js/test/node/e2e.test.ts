@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { generateWitness } from '../../src/index.js';
-import { Backend } from '../backend/barretenberg.js';
+import { BarretenbergBackend as Backend } from '../backend/barretenberg.js';
 
 it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
