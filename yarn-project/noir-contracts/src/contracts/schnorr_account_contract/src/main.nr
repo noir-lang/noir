@@ -41,7 +41,7 @@ contract SchnorrAccount {
         signing_pub_key_x: pub Field,
         signing_pub_key_y: pub Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         
         let this = context.this_address();
         // docs:start:initialize

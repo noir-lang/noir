@@ -300,6 +300,14 @@ Each Aztec function has access to a [context](./context.mdx) object. This object
 As previously mentioned we use the kernel to pass information between circuits. This means that the return values of functions must also be passed to the kernel (where they can be later passed on to another function).
 We achieve this by pushing return values to the execution context, which we then pass to the kernel.
 
+**Making the contract's storage available**
+#include_code storage-example-context /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+
+When a [`Storage` struct](./storage.md) is declared within a contract, the `storage` keyword is made available. As shown in the macro expansion above, this calls the init function on the storage struct with the current function's context.
+
+Any state variables declared in the `Storage` struct can now be accessed as normal struct members.
+
+
 **Returning the function context to the kernel.**
 #include_code context-example-finish /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
 

@@ -36,14 +36,7 @@ impl Storage {
 }
 ```
 
-To use storage in functions, e.g., functions where you would read or write storage, you need to initialize the struct first, and then you can read and write afterwards. Below are snippets for initializing in private and public functions.
-
-#include_code private_init_storage /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
-#include_code public_init_storage /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
-
-:::info
-https://github.com/AztecProtocol/aztec-packages/pull/2406 is removing the need to explicitly initialize the storage in each function before reading or writing. This will be updated in the docs once the PR is merged.
-:::
+If you have defined a `Storage` struct following this naming scheme, then it will be made available to you through the reserved `storage` keyword within your contract functions.
 
 :::warning Using slot `0` is not supported!
 No storage values should be initialized at slot `0`. This is a known issue that will be fixed in the future.

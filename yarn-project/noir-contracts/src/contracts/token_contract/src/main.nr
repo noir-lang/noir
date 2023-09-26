@@ -130,9 +130,6 @@ contract Token {
     fn set_admin(
         new_admin: AztecAddress,
     ) {
-        // docs:start:public_init_storage
-        let storage = Storage::init(Context::public(&mut context));
-        // docs:end:public_init_storage
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
         // docs:start:write_admin
         storage.admin.write(new_admin.address);
@@ -146,7 +143,6 @@ contract Token {
         minter: AztecAddress,
         approve: bool,
     ) {
-        let storage = Storage::init(Context::public(&mut context));
         // docs:start:read_admin
         assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
         // docs:end:read_admin
@@ -162,7 +158,6 @@ contract Token {
         to: AztecAddress,
         amount: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
         // docs:start:read_minter
         assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
         // docs:end:read_minter
@@ -182,7 +177,6 @@ contract Token {
         amount: Field,
         secret_hash: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
         assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
         let pending_shields = storage.pending_shields;
         let mut note = TransparentNote::new(amount, secret_hash);
@@ -204,8 +198,6 @@ contract Token {
         secret_hash: Field,
         nonce: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
         if (from.address != context.msg_sender()) {
             // The redeem is only spendable once, so we need to ensure that you cannot insert multiple shields from the same message.
             let selector = compute_selector("shield((Field),Field,Field,Field)");
@@ -235,8 +227,6 @@ contract Token {
         amount: Field,
         nonce: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
         if (from.address != context.msg_sender()) {
             let selector = compute_selector("transfer_public((Field),(Field),Field,Field)");
             let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
@@ -263,8 +253,6 @@ contract Token {
         amount: Field,
         nonce: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
         if (from.address != context.msg_sender()) {
             let selector = compute_selector("burn_public((Field),Field,Field)");
             let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, nonce]);
@@ -291,9 +279,6 @@ contract Token {
         amount: Field,
         secret: Field,
     ) -> Field {
-        // docs:start:private_init_storage
-        let storage = Storage::init(Context::private(&mut context));
-        // docs:end:private_init_storage
         let pending_shields = storage.pending_shields;
         let balance = storage.balances.at(to.address);
         let mut public_note = TransparentNote::new_from_secret(amount, secret);
@@ -315,8 +300,6 @@ contract Token {
         amount: Field,
         nonce: Field,
     ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-
         if (from.address != context.msg_sender()) {
             let selector = compute_selector("unshield((Field),(Field),Field,Field)");
             let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
@@ -343,8 +326,6 @@ contract Token {
         amount: Field,
         nonce: Field,
     ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-
         if (from.address != context.msg_sender()) {
             let selector = compute_selector("transfer((Field),(Field),Field,Field)");
             let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
@@ -370,8 +351,6 @@ contract Token {
         amount: Field,
         nonce: Field,
     ) -> Field {
-        let storage = Storage::init(Context::private(&mut context));
-
         if (from.address != context.msg_sender()) {
             let selector = compute_selector("burn((Field),Field,Field)");
             let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, nonce]);
@@ -401,7 +380,6 @@ contract Token {
     fn _initialize(
         new_admin: AztecAddress,
     ) {
-        let storage = Storage::init(Context::public(&mut context));
         storage.admin.write(new_admin.address);
         storage.minters.at(new_admin.address).write(1);
     }
@@ -415,7 +393,6 @@ contract Token {
         to: AztecAddress,
         amount: Field,
     ) {
-        let storage = Storage::init(Context::public(&mut context));
         let new_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(SafeU120::new(amount));
         storage.public_balances.at(to.address).write(new_balance.value as Field);
     }
@@ -427,7 +404,6 @@ contract Token {
         amount: Field,
     ) {
         // Only to be called from burn.
-        let storage = Storage::init(Context::public(&mut context));
         let new_supply = SafeU120::new(storage.total_supply.read()).sub(SafeU120::new(amount));
         storage.total_supply.write(new_supply.value as Field);
     }
@@ -437,7 +413,6 @@ contract Token {
 
     // docs:start:admin
     unconstrained fn admin() -> Field {
-        let storage = Storage::init(Context::none());
         storage.admin.read()
     }
     // docs:end:admin
@@ -446,14 +421,12 @@ contract Token {
     unconstrained fn is_minter(
         minter: AztecAddress,
     ) -> bool {
-        let storage = Storage::init(Context::none());
         storage.minters.at(minter.address).read() as bool
     }
     // docs:end:is_minter
 
     // docs:start:total_supply
     unconstrained fn total_supply() -> Field {
-        let storage = Storage::init(Context::none());
         storage.total_supply.read()
     }
     // docs:end:total_supply
@@ -462,7 +435,6 @@ contract Token {
     unconstrained fn balance_of_private(
         owner: AztecAddress,
     ) -> Field {
-        let storage = Storage::init(Context::none());
         let owner_balance = storage.balances.at(owner.address);
 
         balance_utils::get_balance(owner_balance)
@@ -473,7 +445,6 @@ contract Token {
     unconstrained fn balance_of_public(
         owner: AztecAddress,
     ) -> Field {
-        let storage = Storage::init(Context::none());
         storage.public_balances.at(owner.address).read()
     }
     // docs:end:balance_of_public

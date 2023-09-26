@@ -45,7 +45,7 @@ contract EcdsaAccount {
         signing_pub_key_x: pub [u8;32],
         signing_pub_key_y: pub [u8;32],
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);

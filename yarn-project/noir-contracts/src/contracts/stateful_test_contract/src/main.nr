@@ -50,7 +50,7 @@ contract StatefulTest {
 
     #[aztec(private)]
     fn constructor(owner: Field, value: Field) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let loc = storage.notes.at(owner);
         increment(loc, value, owner);
     }
@@ -60,7 +60,7 @@ contract StatefulTest {
         owner: Field,
         value: Field, 
     )  {
-        let storage = Storage::init(Context::private(&mut context));
+        
         if (value != 0){
             let loc = storage.notes.at(owner);
             increment(loc, value, owner);
@@ -72,7 +72,7 @@ contract StatefulTest {
         recipient: Field,
         amount: Field, 
     )  {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let sender = context.msg_sender();
 
         let sender_notes = storage.notes.at(sender);
@@ -85,7 +85,7 @@ contract StatefulTest {
     unconstrained fn summed_values(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Context::none());
+        
         let owner_balance = storage.notes.at(owner);
 
         // Return the sum of all notes in the set.

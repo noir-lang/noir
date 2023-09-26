@@ -55,8 +55,6 @@ contract TokenBridge {
         msg_key: Field,
         secret: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
         let content_hash = get_mint_public_content_hash(to.address, amount, canceller.address);
         // Consume message and emit nullifier
         context.consume_l1_to_l2_message(msg_key, content_hash, secret);
@@ -78,8 +76,6 @@ contract TokenBridge {
         callerOnL1: EthereumAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field, // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
-
         // Send an L2 to L1 message
         let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
         context.message_portal(content);     
@@ -146,7 +142,6 @@ contract TokenBridge {
     // /// Unconstrained /// 
 
     unconstrained fn token() -> Field {
-        let storage = Storage::init(Context::none());
         storage.token.read()
     }
 
@@ -157,7 +152,6 @@ contract TokenBridge {
     // enforced by it being internal and only called from the constructor.
     #[aztec(public)]
     fn _initialize(token: AztecAddress) {
-        let storage = Storage::init(Context::public(&mut context));
         storage.token.write(token.address);
     }
 
@@ -166,13 +160,11 @@ contract TokenBridge {
     // meaning only user can `redeem_shield` at a later time with their secret.
     #[aztec(public)]
     internal fn _call_mint_on_token(amount: Field, secret_hash: Field){
-        let storage = Storage::init(Context::public(&mut context));
         Token::at(storage.token.read()).mint_private(context, amount, secret_hash);
     }
 
     #[aztec(public)]
     internal fn _assert_token_is_same(token: Field) {
-        let storage = Storage::init(Context::public(&mut context));
         assert(storage.token.read() == token, "Token address is not the same as seen in storage");
     }
 }

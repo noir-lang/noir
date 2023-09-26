@@ -82,7 +82,7 @@ contract NonNativeToken {
         initial_supply: Field,
         owner: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         let balance = storage.balances.at(owner);
         increment(balance, initial_supply, owner);
@@ -100,7 +100,7 @@ contract NonNativeToken {
         secret: Field,
         canceller: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         let content_hash = get_mint_content_hash(amount, owner, canceller);
 
@@ -123,7 +123,7 @@ contract NonNativeToken {
         recipient: Field, // ethereum address in the field
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         let sender_balance = storage.balances.at(sender);
         decrement(sender_balance, amount, sender);
@@ -144,7 +144,7 @@ contract NonNativeToken {
         secret: Field,
         canceller: Field,
     ) -> Field {
-        let storage = Storage::init(Context::public(&mut context));
+        
         let public_balances = storage.public_balances;
 
         let content_hash = get_mint_content_hash(amount, owner_address, canceller);
@@ -169,7 +169,7 @@ contract NonNativeToken {
         recipient: Field,
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) {
-        let storage = Storage::init(Context::public(&mut context));
+        
         let public_balances = storage.public_balances;
 
         let sender = context.msg_sender();
@@ -197,7 +197,7 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let sender = context.msg_sender();
 
         // Gets the set of sender's notes and picks 2 of those.
@@ -214,7 +214,7 @@ contract NonNativeToken {
         amount: Field,
         secretHash: Field,
     ) {
-        let storage = Storage::init(Context::public(&mut context));
+        
         let public_balances = storage.public_balances;
         let pending_shields = storage.pending_shields;
 
@@ -243,7 +243,7 @@ contract NonNativeToken {
         secret: Field,
         owner: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let pending_shields = storage.pending_shields;
 
         let mut public_note = TransparentNote::new_from_secret(amount, secret);
@@ -261,7 +261,7 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let owner = context.msg_sender();
 
         // Remove user balance
@@ -280,7 +280,7 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
     ) {
-        let storage = Storage::init(Context::public(&mut context));
+        
 
         let recipient_balance = storage.public_balances.at(recipient);
         let current_balance = recipient_balance.read();
@@ -291,7 +291,7 @@ contract NonNativeToken {
     unconstrained fn getBalance(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Context::none());
+        
         let owner_balance = storage.balances.at(owner);
 
         balance_utils::get_balance(owner_balance)
@@ -312,7 +312,7 @@ contract NonNativeToken {
     unconstrained fn publicBalanceOf(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Context::none());
+        
         storage.public_balances.at(owner).read()
     }
 }

@@ -51,7 +51,7 @@ contract PrivateTokenAirdrop {
         initial_supply: Field, 
         owner: Field
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
@@ -66,7 +66,7 @@ contract PrivateTokenAirdrop {
         amount: Field, 
         owner: Field
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
@@ -80,7 +80,7 @@ contract PrivateTokenAirdrop {
         amount: Field,
         owner: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let msg_sender = context.msg_sender();
         let this_address = context.this_address();
 
@@ -109,7 +109,7 @@ contract PrivateTokenAirdrop {
         amount: Field, 
         recipient: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         let sender = context.msg_sender();
         let sender_balance = storage.balances.at(sender);
@@ -139,7 +139,7 @@ contract PrivateTokenAirdrop {
         amounts: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
         secrets: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let sender = context.msg_sender();
 
         // Pick from the set of sender's notes to spend amount.
@@ -165,7 +165,7 @@ contract PrivateTokenAirdrop {
         owner: Field,
         nonce: Field,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         // Remove the claim note if it exists in the set.
         let mut note = ClaimNote::new(amount, secret);
@@ -186,7 +186,7 @@ contract PrivateTokenAirdrop {
         recipients: [Field; 3],
         spend_note_offset: u32,
     ) {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         // Gets the set of sender's notes and picks 4 of those based on the offset.
         // Spends the first of those 4 notes.
@@ -227,7 +227,7 @@ contract PrivateTokenAirdrop {
     unconstrained fn getBalance(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Context::none());
+        
 
         // Get the set of notes owned by the user.
         let owner_balance = storage.balances.at(owner);

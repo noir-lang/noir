@@ -40,7 +40,7 @@ contract PrivateToken {
         initial_supply: Field, 
         owner: Field
     )  {
-        let storage = Storage::init(Context::private(&mut context));
+        
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
         if (initial_supply != 0) {
@@ -55,7 +55,7 @@ contract PrivateToken {
         amount: Field, 
         owner: Field
     )  {
-        let storage = Storage::init(Context::private(&mut context));
+        
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
@@ -69,7 +69,7 @@ contract PrivateToken {
         amount: Field, 
         recipient: Field,
     )  {
-        let storage = Storage::init(Context::private(&mut context));
+        
         let sender = context.msg_sender();
 
         // Pick from the set of sender's notes to spend amount.
@@ -85,7 +85,7 @@ contract PrivateToken {
     unconstrained fn getBalance(
         owner: Field,
     ) -> Field {
-        let storage = Storage::init(Context::none());
+        
 
         // Get the set of notes owned by the user.
         let owner_balance = storage.balances.at(owner);
