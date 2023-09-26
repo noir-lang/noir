@@ -22,16 +22,16 @@ jobs:
         with:
           toolchain: 1.67.0
 
-      - name: Install cargo and wasm-bindgen
+      - name: Install cargo
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source $HOME/.cargo/env
-          # cargo install -f wasm-bindgen-cli --version 0.2.86
 
       - name: Install toml2json
         run: |
           source $HOME/.cargo/env
-          cargo install toml2json --locked
+          cargo install toml2json
+          cargo install wasm-bindgen
 
       - name: Build
         run: yarn build
