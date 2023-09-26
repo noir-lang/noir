@@ -21,6 +21,9 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source $HOME/.cargo/env
+          rustup toolchain install 1.67.0
+          rustup default 1.67.0
+          rustc --version
           cargo install -f wasm-bindgen-cli --version 0.2.86
 
       - name: Install toml2json
