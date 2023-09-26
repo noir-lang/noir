@@ -150,13 +150,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
-      # We need clang 14.0.3 or higher, as lower versions do not seem
-      # to be spec conformant. In particular std::span does not seem
-      # to follow the specifications.
-      # We need clang 15 because barretenberg uses concepts.
-      # clang 15 is the similar to Apple clang 14.
+      # We need clang 15+, as lower versions do not support our concept usage.
       - name: Select Xcode version
-        run: sudo xcode-select -switch /Applications/Xcode_14.3.1.app
+        run: sudo xcode-select -switch /Applications/Xcode_15*
 
       - name: Create Mac Build Environment
         run: brew install cmake ninja
