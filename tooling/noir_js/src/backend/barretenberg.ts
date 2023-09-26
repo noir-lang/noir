@@ -2,8 +2,6 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
-// TODO: This should be re-exported from @aztec/bb-js
-import { Ptr } from '@aztec/bb.js/dest/browser/types';
 import { acirToUint8Array } from '../../src/index.js';
 import { Backend } from './backend_interface.js';
 
@@ -13,7 +11,7 @@ export class BarretenbergBackend implements Backend {
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
   api = {} as Barretenberg;
-  acirComposer = {} as Ptr;
+  acirComposer = {} as any;
   acirUncompressedBytecode: Uint8Array;
 
   private constructor(acirCircuit: { bytecode: string }) {
