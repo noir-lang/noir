@@ -1,7 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { startHttpRpcServer } from '@aztec/aztec-sandbox';
 import { AztecRPC, createDebugLogger } from '@aztec/aztec.js';
+import { AztecRPCServer } from '@aztec/pxe';
 
 import { cliTestSuite } from './canary/cli.js';
 import { setup as e2eSetup } from './fixtures/utils.js';

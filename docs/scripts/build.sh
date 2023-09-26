@@ -32,7 +32,7 @@ if [ -n "$NETLIFY" ]; then
   (cd yarn-project && yarn)
 
   # Build the required projects for typedoc
-  build_package "aztec-rpc"
+  build_package "pxe"
   build_package "aztec.js" "yarn build:ts"
 
   # Back to docs site

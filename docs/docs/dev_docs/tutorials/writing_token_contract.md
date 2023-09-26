@@ -38,7 +38,7 @@ Node Info:
 Version: 1
 Chain Id: 31337
 Rollup Address: 0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
-Client: aztec-rpc@0.7.5
+Client: pxe@0.7.5
 Compatible Nargo Version: 0.11.1-aztec.0
 ```
 
@@ -466,7 +466,7 @@ A getter function for checking the token `total_supply`.
 
 #### `balance_of_private`
 
-A getter function for checking the private balance of the provided Aztec account. Note that the [Aztec RPC Server](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-rpc) must have access to the `owner`s decryption keys in order to decrypt their notes.
+A getter function for checking the private balance of the provided Aztec account. Note that the [Aztec RPC Server](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/pxe) must have access to the `owner`s decryption keys in order to decrypt their notes.
 
 #include_code balance_of_private /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 

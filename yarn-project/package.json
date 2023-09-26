@@ -19,7 +19,7 @@
     "acir-simulator",
     "archiver",
     "aztec-node",
-    "aztec-rpc",
+    "pxe",
     "aztec-sandbox",
     "aztec.js",
     "boxes/blank",

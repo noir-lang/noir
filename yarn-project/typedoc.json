@@ -5,7 +5,7 @@
     "acir-simulator",
     "archiver",
     "aztec-cli",
-    "aztec-rpc",
+    "pxe",
     "aztec-sandbox",
     "aztec.js",
     "key-store",

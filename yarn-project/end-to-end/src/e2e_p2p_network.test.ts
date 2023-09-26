@@ -1,16 +1,11 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import {
-  AztecRPCServer,
-  ConstantKeyPair,
-  createAztecRPCServer,
-  getConfigEnvVars as getRpcConfig,
-} from '@aztec/aztec-rpc';
 import { ContractDeployer, SentTx, isContractDeployed } from '@aztec/aztec.js';
 import { AztecAddress, CompleteAddress, Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId } from '@aztec/p2p';
+import { AztecRPCServer, ConstantKeyPair, createAztecRPCServer, getConfigEnvVars as getRpcConfig } from '@aztec/pxe';
 import { TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';

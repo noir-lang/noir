@@ -1,6 +1,5 @@
 #!/usr/bin/env -S node --no-warnings
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
   DeployL1Contracts,
   L1ContractArtifactsForDeployment,
@@ -21,6 +20,7 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
+import { createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/pxe';
 
 import { createPublicClient, http as httpViemTransport } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';

@@ -1,4 +1,4 @@
-import { getHttpRpcServer } from '@aztec/aztec-rpc';
+import { getHttpRpcServer } from '@aztec/pxe';
 import { AztecRPC } from '@aztec/types';
 
 import http from 'http';

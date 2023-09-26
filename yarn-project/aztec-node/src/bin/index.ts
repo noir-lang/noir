@@ -5,7 +5,7 @@ import http from 'http';
 import Koa from 'koa';
 import Router from 'koa-router';
 
-import { AztecNodeConfig, AztecNodeService, getConfigEnvVars, createAztecNodeRpcServer } from '../index.js';
+import { AztecNodeConfig, AztecNodeService, createAztecNodeRpcServer, getConfigEnvVars } from '../index.js';
 
 const { SERVER_PORT = 8081, API_PREFIX = '' } = process.env;
 

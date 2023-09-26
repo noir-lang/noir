@@ -64,7 +64,7 @@ deploy_package ethereum
 deploy_package noir-compiler
 deploy_package noir-contracts
 deploy_package cli
-deploy_package aztec-rpc
+deploy_package pxe
 deploy_package acir-simulator
 deploy_package archiver
 deploy_package merkle-tree

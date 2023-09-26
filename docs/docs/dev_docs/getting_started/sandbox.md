@@ -167,7 +167,7 @@ A successful run should show:
     rollupAddress: EthAddress {
       buffer: <Buffer cf 7e d3 ac ca 5a 46 7e 9e 70 4c 70 3e 8d 87 f6 34 fb 0f c9>
     },
-    client: 'aztec-rpc@0.1.0',
+    client: 'pxe@0.1.0',
     compatibleNargoVersion: '0.11.1-aztec.0'
   }
 ```
@@ -201,7 +201,7 @@ Now that we have our accounts loaded, let's move on to deploy our pre-compiled t
     rollupAddress: EthAddress {
       buffer: <Buffer cf 7e d3 ac ca 5a 46 7e 9e 70 4c 70 3e 8d 87 f6 34 fb 0f c9>
     },
-    client: 'aztec-rpc@0.1.0',
+    client: 'pxe@0.1.0',
     compatibleNargoVersion: '0.11.1-aztec.0'
   }
   token Creating accounts using schnorr signers... +3ms
@@ -243,7 +243,7 @@ Running now should yield output:
     rollupAddress: EthAddress {
       buffer: <Buffer cf 7e d3 ac ca 5a 46 7e 9e 70 4c 70 3e 8d 87 f6 34 fb 0f c9>
     },
-    client: 'aztec-rpc@0.1.0',
+    client: 'pxe@0.1.0',
     compatibleNargoVersion: '0.11.1-aztec.0'
   }
   token Creating accounts using schnorr signers... +3ms
@@ -285,7 +285,7 @@ Our output should now look like this:
     rollupAddress: EthAddress {
       buffer: <Buffer cf 7e d3 ac ca 5a 46 7e 9e 70 4c 70 3e 8d 87 f6 34 fb 0f c9>
     },
-    client: 'aztec-rpc@0.1.0',
+    client: 'pxe@0.1.0',
     compatibleNargoVersion: '0.11.1-aztec.0'
   }
   token Creating accounts using schnorr signers... +3ms
@@ -324,7 +324,7 @@ Our complete output should now be:
     rollupAddress: EthAddress {
       buffer: <Buffer cf 7e d3 ac ca 5a 46 7e 9e 70 4c 70 3e 8d 87 f6 34 fb 0f c9>
     },
-    client: 'aztec-rpc@0.1.0',
+    client: 'pxe@0.1.0',
     compatibleNargoVersion: '0.11.1-aztec.0'
   }
   token Creating accounts using schnorr signers... +3ms

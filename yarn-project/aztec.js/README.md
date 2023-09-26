@@ -1,6 +1,6 @@
 # Aztec.js
 
-Aztec.js is a library that provides APIs for managing accounts and interacting with contracts on the Aztec network. It communicates with the [Aztec RPC Server](https://docs.aztec.network/apis/aztec-rpc/interfaces/AztecRPC) through an `AztecRPCClient` implementation, allowing developers to easily register new accounts, deploy contracts, view functions, and send transactions.
+Aztec.js is a library that provides APIs for managing accounts and interacting with contracts on the Aztec network. It communicates with the [Aztec RPC Server](https://docs.aztec.network/apis/pxe/interfaces/AztecRPC) through an `AztecRPCClient` implementation, allowing developers to easily register new accounts, deploy contracts, view functions, and send transactions.
 
 ## Usage
 

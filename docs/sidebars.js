@@ -353,7 +353,7 @@ const sidebars = {
         {
           label: "Aztec RPC Server",
           type: "doc",
-          id: "apis/aztec-rpc/interfaces/AztecRPC",
+          id: "apis/pxe/interfaces/AztecRPC",
         },
         {
           label: "Aztec.js",

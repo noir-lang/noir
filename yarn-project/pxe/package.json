@@ -1,5 +1,5 @@
 {
-  "name": "@aztec/aztec-rpc",
+  "name": "@aztec/pxe",
   "version": "0.1.0",
   "type": "module",
   "exports": "./dest/index.js",

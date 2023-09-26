@@ -817,7 +817,7 @@ jobs:
           name: "Test"
           command: cond_run_script end-to-end ./scripts/run_tests_local e2e_card_game.test.ts
 
-  aztec-rpc-sandbox:
+  pxe-sandbox:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -1214,7 +1214,7 @@ workflows:
       - e2e-canary-test: *e2e_test
       - e2e-browser-sandbox: *e2e_test
       - e2e-card-game: *e2e_test
-      - aztec-rpc-sandbox: *e2e_test
+      - pxe-sandbox: *e2e_test
       - cli-docs-sandbox: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
       - guides-dapp-testing: *e2e_test
@@ -1251,7 +1251,7 @@ workflows:
             - e2e-browser-sandbox
             - e2e-canary-test
             - e2e-card-game
-            - aztec-rpc-sandbox
+            - pxe-sandbox
             - cli-docs-sandbox
             - guides-writing-an-account-contract
             - guides-dapp-testing

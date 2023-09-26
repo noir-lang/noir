@@ -11,7 +11,7 @@ All the packages that make up [Aztec](https://docs.aztec.network).
 
 - [Aztec.nr](./yarn-project/aztec-nr/): A [Noir](https://noir-lang.org) framework for smart contracts on Aztec.
 - [Aztec Sandbox](./yarn-project/aztec-sandbox/): A package for setting up a local dev net, including a local Ethereum network, deployed rollup contracts and Aztec execution environment.
-- [Aztec.js](./yarn-project/aztec.js/): A tool for interacting with the Aztec network. It communicates via the [Aztec RPC Server](./yarn-project/aztec-rpc/).
+- [Aztec.js](./yarn-project/aztec.js/): A tool for interacting with the Aztec network. It communicates via the [Aztec RPC Server](./yarn-project/pxe/).
 - [Aztec Boxes](./yarn-project/boxes/): A minimal framework for building full stack applications for Aztec (using React).
 - [Example contracts](./yarn-project/noir-contracts/): Example contracts for the Aztec network, written in Noir.
 - [End to end tests](./yarn-project/end-to-end/): Integration tests writted in Typescript--a good reference for how to use the packages for specific tasks.

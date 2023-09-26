@@ -10,9 +10,6 @@
       "path": "../aztec-node"
     },
     {
-      "path": "../aztec-rpc"
-    },
-    {
       "path": "../aztec.js"
     },
     {
@@ -32,6 +29,9 @@
     },
     {
       "path": "../noir-contracts"
+    },
+    {
+      "path": "../pxe"
     },
     {
       "path": "../types"

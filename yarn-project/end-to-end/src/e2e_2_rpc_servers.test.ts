@@ -1,10 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer, EthAddress, Fr } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, TokenContract } from '@aztec/noir-contracts/types';
+import { AztecRPCServer, EthAddress, Fr } from '@aztec/pxe';
 import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';

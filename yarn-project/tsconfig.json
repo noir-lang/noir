@@ -22,7 +22,7 @@
     { "path": "archiver/tsconfig.json" },
     { "path": "aztec.js/tsconfig.json" },
     { "path": "aztec-node/tsconfig.json" },
-    { "path": "aztec-rpc/tsconfig.json" },
+    { "path": "pxe/tsconfig.json" },
     { "path": "aztec-sandbox/tsconfig.json" },
     { "path": "canary/tsconfig.json" },
     { "path": "circuits.js/tsconfig.json" },

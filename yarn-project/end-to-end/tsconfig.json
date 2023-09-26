@@ -13,9 +13,6 @@
       "path": "../aztec-node"
     },
     {
-      "path": "../aztec-rpc"
-    },
-    {
       "path": "../aztec-sandbox"
     },
     {
@@ -41,6 +38,9 @@
     },
     {
       "path": "../p2p"
+    },
+    {
+      "path": "../pxe"
     },
     {
       "path": "../sequencer-client"

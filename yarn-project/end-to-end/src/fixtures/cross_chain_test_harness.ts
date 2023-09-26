@@ -1,5 +1,4 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { CheatCodes, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { AztecAddress, CompleteAddress, EthAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
@@ -8,6 +7,7 @@ import { sha256ToField } from '@aztec/foundation/crypto';
 import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
+import { AztecRPCServer } from '@aztec/pxe';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';

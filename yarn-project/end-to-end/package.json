@@ -24,7 +24,6 @@
   "dependencies": {
     "@aztec/archiver": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
-    "@aztec/aztec-rpc": "workspace:^",
     "@aztec/aztec-sandbox": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
@@ -34,6 +33,7 @@
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/p2p": "workspace:^",
+    "@aztec/pxe": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
     "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",

@@ -29,7 +29,6 @@
   ],
   "dependencies": {
     "@aztec/aztec-node": "workspace:^",
-    "@aztec/aztec-rpc": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
@@ -37,6 +36,7 @@
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
+    "@aztec/pxe": "workspace:^",
     "@aztec/types": "workspace:^",
     "abitype": "^0.8.11",
     "koa": "^2.14.2",

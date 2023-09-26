@@ -1,5 +1,5 @@
-import { aztecRpcTestSuite } from '@aztec/aztec-rpc';
 import { createAztecRpcClient, waitForSandbox } from '@aztec/aztec.js';
+import { aztecRpcTestSuite } from '@aztec/pxe';
 
 const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 
