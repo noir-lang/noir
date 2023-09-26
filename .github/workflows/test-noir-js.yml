@@ -21,6 +21,12 @@ jobs:
         uses: dtolnay/rust-toolchain@1.66.0
         with:
           targets: wasm32-unknown-unknown
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm32-unknown-unknown
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Install jq
         run: sudo apt-get install jq
