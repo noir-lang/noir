@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { generateWitness } from '../../src/index.js';
+import { Program } from '../../src/program.js';
 import { BarretenbergBackend as Backend } from '../../src/backend/barretenberg.js';
 
 it('end-to-end proof creation and verification (outer)', async () => {
@@ -20,6 +21,24 @@ it('end-to-end proof creation and verification (outer)', async () => {
 
   // Proof verification
   const isValid = await prover.verifyFinalProof(proof);
+  expect(isValid).to.be.true;
+});
+
+it('end-to-end proof creation and verification (outer) -- Program API', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '2',
+    y: '3',
+  };
+
+  const backend = new Backend(assert_lt_json.bytecode);
+  await backend.init();
+  const program = new Program(assert_lt_json, backend);
+
+  const proof = await program.generateFinalProof(inputs);
+
+  // Proof verification
+  const isValid = await program.verifyFinalProof(proof);
   expect(isValid).to.be.true;
 });
 
