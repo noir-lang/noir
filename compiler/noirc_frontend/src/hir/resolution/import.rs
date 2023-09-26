@@ -210,3 +210,18 @@ fn resolve_external_dep(
 
     resolve_path_to_ns(&dep_directive, dep_def_map, def_maps, allow_contracts)
 }
+
+pub fn get_path_crate(
+    current_crate: CrateId,
+    current_def_map: &CrateDefMap,
+    path: &Path,
+) -> Option<CrateId> {
+    match path.kind {
+        PathKind::Dep => {
+            let crate_name = &path.segments.first().unwrap();
+            current_def_map.extern_prelude.get(&crate_name.0.contents).map(|module| module.krate)
+        }
+        PathKind::Crate => Some(current_crate),
+        PathKind::Plain => Some(current_crate),
+    }
+}

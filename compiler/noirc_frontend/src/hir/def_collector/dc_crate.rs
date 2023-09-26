@@ -3,8 +3,8 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::import::PathResolutionError;
-use crate::hir::resolution::path_resolver::PathResolver;
+use crate::hir::resolution::import::{get_path_crate, PathResolutionError};
+use crate::hir::resolution::path_resolver::{resolve_path, PathResolver};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
@@ -365,39 +365,21 @@ fn collect_trait_impls(
         let module = ModuleId { local_id: module_id, krate: crate_id };
         let resolve_result = resolve_trait_by_path(def_maps, module, trait_impl.trait_path.clone());
 
-        let maybe_trait_id = match resolve_result {
+        trait_impl.the_trait = match resolve_result {
             Ok(trait_id) => Some(trait_id),
             Err(error) => {
                 errors.push(error.into_file_diagnostic(trait_impl.file_id));
                 None
             }
         };
-        trait_impl.the_trait = maybe_trait_id;
 
-        if let Some(trait_id) = maybe_trait_id {
+        if let Some(trait_id) = trait_impl.the_trait {
             let the_trait = interner.get_trait(trait_id);
             let the_trait = the_trait.borrow();
 
             // check whether the trait implementation is in the same crate as either the trait or the type
-            {
-                let file = def_maps[&crate_id].file_id(module_id);
-                let path_resolver = StandardPathResolver::new(module);
-                let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-                let typ = resolver.resolve_type(unresolved_type.clone());
-                let crate_of_object = if let Some(struct_type) = get_struct_type(&typ) {
-                    let struct_type = struct_type.borrow();
-                    struct_type.id.krate()
-                } else {
-                    CrateId::Dummy
-                };
-
-                if crate_id != the_trait.crate_id && crate_id != crate_of_object {
-                    let error = DefCollectorErrorKind::TraitImplOrphaned {
-                        span: trait_impl.object_type_span,
-                    };
-                    errors.push(error.into_file_diagnostic(trait_impl.file_id));
-                }
-            }
+            let current_def_map = def_maps.get_mut(&crate_id).unwrap();
+            check_trait_impl_crate_coherence(trait_impl, crate_id, current_def_map, errors);
 
             // set of function ids that have a corresponding method in the trait
             let mut func_ids_in_trait = HashSet::new();
@@ -518,6 +500,27 @@ fn collect_trait_impls(
                 errors.push(error.into_file_diagnostic(trait_impl.file_id));
             }
         }
+    }
+}
+
+fn check_trait_impl_crate_coherence(
+    trait_impl: &UnresolvedTraitImpl,
+    current_crate: CrateId,
+    current_def_map: &CrateDefMap,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    let trait_crate = get_path_crate(current_crate, current_def_map, &trait_impl.trait_path);
+
+    let object_crate = match &trait_impl.object_type.typ {
+        crate::UnresolvedTypeData::Named(path, _) => {
+            get_path_crate(current_crate, current_def_map, path)
+        }
+        _ => None,
+    };
+
+    if Some(current_crate) != trait_crate && Some(current_crate) != object_crate {
+        let error = DefCollectorErrorKind::TraitImplOrphaned { span: trait_impl.object_type_span };
+        errors.push(error.into_file_diagnostic(trait_impl.file_id));
     }
 }
 
