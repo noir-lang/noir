@@ -15,7 +15,7 @@ it('end-to-end proof creation and verification (outer)', async () => {
   // bb.js part
   //
   // Proof creation
-  const prover = new Backend(assert_lt_json.bytecode);
+  const prover = new Backend(assert_lt_json);
   await prover.init();
   const proof = await prover.generateFinalProof(serializedWitness);
 
@@ -31,7 +31,7 @@ it('end-to-end proof creation and verification (outer) -- Program API', async ()
     y: '3',
   };
 
-  const backend = new Backend(assert_lt_json.bytecode);
+  const backend = new Backend(assert_lt_json);
   await backend.init();
   const program = new Program(assert_lt_json, backend);
 
@@ -53,7 +53,7 @@ it('end-to-end proof creation and verification (inner)', async () => {
   // bb.js part
   //
   // Proof creation
-  const prover = new Backend(assert_lt_json.bytecode);
+  const prover = new Backend(assert_lt_json);
   await prover.init();
   const proof = await prover.generateIntermediateProof(serializedWitness);
 
@@ -83,13 +83,13 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
   // bb.js part
-  const prover = new Backend(assert_lt_json.bytecode);
+  const prover = new Backend(assert_lt_json);
   await prover.init();
 
   const proof = await prover.generateFinalProof(serializedWitness);
 
   try {
-    const verifier = new Backend(assert_lt_json.bytecode);
+    const verifier = new Backend(assert_lt_json);
     await verifier.init();
     await verifier.verifyFinalProof(proof);
     expect.fail(
@@ -120,7 +120,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   //
   // Proof creation
   //
-  const prover = new Backend(assert_lt_json.bytecode);
+  const prover = new Backend(assert_lt_json);
   await prover.init();
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
