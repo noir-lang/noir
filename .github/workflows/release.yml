@@ -59,7 +59,7 @@ jobs:
       - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: publish.yml
+          workflow: publish-nargo.yml
           repo: noir-lang/noir
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
