@@ -1,0 +1,49 @@
+name: Noir JS
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Install cargo and wasm-bindgen
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          cargo install -f wasm-bindgen-cli --version 0.2.86
+
+      - name: Install toml2json
+        run: |
+          source $HOME/.cargo/env
+          cargo install toml2json
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
+      - name: Install wasm32-unknown-unknwown target
+        run: |
+          rustup target add wasm32-unknown-unknown
+
+      - name: Build acvm_js
+        run: yarn workspace @noir-lang/acvm_js build
+
+      - name: Build noirc_abi
+        run: yarn workspace @noir-lang/noirc_abi build
+
+      - name: Run noir_js tests
+        run: yarn workspace @noir-lang/noir_js test
