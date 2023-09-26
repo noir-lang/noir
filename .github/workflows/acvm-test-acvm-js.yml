@@ -55,14 +55,9 @@ jobs:
 
       - name: Set up test environment
         uses: ./.github/actions/setup
-        with:
-          working-directory: ./acvm-repo/acvm_js
 
       - name: Run node tests
-        working-directory: ./acvm-repo/acvm_js
-        run: |
-          yarn
-          yarn test
+        run: yarn workspace @noir-lang/acvm_js test
 
   test-acvm_js-browser:
     needs: [build-acvm-js-package]
@@ -81,17 +76,12 @@ jobs:
 
       - name: Set up test environment
         uses: ./.github/actions/setup
-        with:
-          working-directory: ./acvm-repo/acvm_js
 
       - name: Install playwright deps
-        working-directory: ./acvm-repo/acvm_js
         run: |
           npx playwright install
           npx playwright install-deps
 
       - name: Run browser tests
         working-directory: ./acvm-repo/acvm_js
-        run: |
-          yarn
-          yarn test:browser
+        run: yarn workspace @noir-lang/acvm_js test:browser
