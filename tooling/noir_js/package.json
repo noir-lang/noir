@@ -28,7 +28,7 @@
   "scripts": {
     "dev": "tsc-multi --watch",
     "build": "tsc-multi",
-    "test": "yarn test:node",
+    "test": "yarn test:node:esm && yarn test:node:cjs",
     "test:node:esm": "mocha --timeout 25000 --config ./.mocharc.json",
     "test:node:cjs": "mocha --timeout 25000 --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
