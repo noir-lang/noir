@@ -566,8 +566,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .validate(|args, span, emit| {
             let ((other_args, where_clause), items) = args;
-            let (((impl_generics, trait_name), trait_generics), object_type) =
-                other_args;
+            let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
 
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(NoirTraitImpl {

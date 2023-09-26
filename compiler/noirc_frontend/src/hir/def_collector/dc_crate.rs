@@ -89,8 +89,16 @@ pub struct UnresolvedTraitImpl {
     pub module_id: LocalModuleId,
     pub the_trait: Option<TraitId>,
     pub trait_path: Path,
-    pub methods: UnresolvedFunctions,
     pub object_type: UnresolvedType,
+
+    /// List of methods in the impl block, in the order the user defined them. There can be missing methods,
+    /// duplicates, methods not corresponding to a trait method, etc.
+    pub defined_methods: UnresolvedFunctions,
+
+    /// The final list of methods in the impl block. They are in the same order as the methods in the trait,
+    /// e.g. final_methods[2] is the implementation of the_trait.methods[2]. If there is a missing method in
+    /// `defined_methods`, a default implementation will be added here in the correct slot.
+    pub methods: UnresolvedFunctions,
 }
 
 #[derive(Clone)]
@@ -382,19 +390,15 @@ fn collect_trait_impls(
             // set of function ids that have a corresponding method in the trait
             let mut func_ids_in_trait = HashSet::new();
 
-            let mut unresolved_functions =
-                UnresolvedFunctions { file_id: FileId::dummy(), functions: Vec::new() };
-
             for method in &the_trait.methods {
                 let overrides: Vec<_> = trait_impl
-                    .methods
+                    .defined_methods
                     .functions
                     .iter()
                     .filter(|(_, _, f)| f.name() == method.name.0.contents)
                     .collect();
 
                 if overrides.is_empty() {
-                    unresolved_functions.file_id = method.default_impl_file_id;
                     if let Some(default_impl) = &method.default_impl {
                         let method_name = default_impl.name();
                         let func_id = interner.push_empty_fn();
@@ -414,7 +418,7 @@ fn collect_trait_impls(
                             module,
                         );
                         func_ids_in_trait.insert(func_id);
-                        unresolved_functions.push_fn(
+                        trait_impl.methods.push_fn(
                             method.default_impl_module_id,
                             func_id,
                             *default_impl.clone(),
@@ -423,7 +427,10 @@ fn collect_trait_impls(
                         let error = DefCollectorErrorKind::TraitMissingMethod {
                             trait_name: the_trait.name.clone(),
                             method_name: method.name.clone(),
-                            trait_impl_span: trait_impl.object_type.span.expect("type must have a span"),
+                            trait_impl_span: trait_impl
+                                .object_type
+                                .span
+                                .expect("type must have a span"),
                         };
                         errors.push(error.into_file_diagnostic(trait_impl.file_id));
                     }
@@ -431,12 +438,23 @@ fn collect_trait_impls(
                     for (_, func_id, _) in &overrides {
                         func_ids_in_trait.insert(*func_id);
                     }
+
+                    if overrides.len() > 1 {
+                        let error = DefCollectorErrorKind::Duplicate {
+                            typ: DuplicateType::Function,
+                            first_def: overrides[0].2.name_ident().clone(),
+                            second_def: overrides[1].2.name_ident().clone(),
+                        };
+                        errors.push(error.into_file_diagnostic(trait_impl.file_id));
+                    }
+
+                    trait_impl.methods.functions.push(overrides[0].clone());
                 }
             }
 
             // Emit MethodNotInTrait error for methods in the impl block that
             // don't have a corresponding method signature defined in the trait
-            for (_, func_id, func) in &trait_impl.methods.functions {
+            for (_, func_id, func) in &trait_impl.defined_methods.functions {
                 if !func_ids_in_trait.contains(func_id) {
                     let error = DefCollectorErrorKind::MethodNotInTrait {
                         trait_name: the_trait.name.clone(),
@@ -445,9 +463,6 @@ fn collect_trait_impls(
                     errors.push(error.into_file_diagnostic(trait_impl.file_id));
                 }
             }
-
-            //trait_impl.methods_using_default_impl_in_trait = Some(unresolved_functions);
-            trait_impl.methods.functions.append(&mut unresolved_functions.functions);
         }
 
         for (_, func_id, ast) in &trait_impl.methods.functions {
@@ -504,7 +519,9 @@ fn check_trait_impl_crate_coherence(
     };
 
     if Some(current_crate) != trait_crate && Some(current_crate) != object_crate {
-        let error = DefCollectorErrorKind::TraitImplOrphaned { span: trait_impl.object_type.span.expect("object type must have a span") };
+        let error = DefCollectorErrorKind::TraitImplOrphaned {
+            span: trait_impl.object_type.span.expect("object type must have a span"),
+        };
         errors.push(error.into_file_diagnostic(trait_impl.file_id));
     }
 }
