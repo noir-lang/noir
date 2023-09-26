@@ -3,8 +3,9 @@ import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
 // TODO: This should be re-exported from @aztec/bb-js
 import { Ptr } from '@aztec/bb.js/dest/browser/types';
 import { acirToUint8Array } from '../../src/index.js';
+import { Backend } from './backend_interface.js';
 
-export class Backend {
+export class BarretenbergBackend implements Backend {
   // These type assertions are used so that we don't
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
@@ -16,7 +17,8 @@ export class Backend {
   constructor(acirBytecodeBase64: string) {
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
-  async init() {
+
+  async init(): Promise<void> {
     const numThreads = 4;
 
     const { api, composer } = await this.initBarretenberg(numThreads, this.acirUncompressedBytecode);
@@ -25,7 +27,7 @@ export class Backend {
     this.acirComposer = composer;
   }
 
-  async initBarretenberg(numThreads: number, acirUncompressedBytecode: Uint8Array) {
+  private async initBarretenberg(numThreads: number, acirUncompressedBytecode: Uint8Array) {
     const api = await Barretenberg.new(numThreads);
 
     const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(acirUncompressedBytecode);
@@ -42,7 +44,7 @@ export class Backend {
   //
   // The settings for this proof are the same as the settings for a "normal" proof
   // ie one that is not in the recursive setting.
-  async generateFinalProof(decompressedWitness: Uint8Array) {
+  async generateFinalProof(decompressedWitness: Uint8Array): Promise<Uint8Array> {
     const makeEasyToVerifyInCircuit = false;
     return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
   }
@@ -58,12 +60,12 @@ export class Backend {
   // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
   // generate the proof using components that will make the proof
   // easier to verify in a circuit.
-  async generateIntermediateProof(witness: Uint8Array) {
+  async generateIntermediateProof(witness: Uint8Array): Promise<Uint8Array> {
     const makeEasyToVerifyInCircuit = true;
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
 
-  async generateProof(decompressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean) {
+  async generateProof(decompressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<Uint8Array> {
     const proof = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
@@ -83,7 +85,14 @@ export class Backend {
   // method.
   //
   // The number of public inputs denotes how many public inputs are in the inner proof.
-  async generateIntermediateProofArtifacts(proof: Uint8Array, numOfPublicInputs = 0) {
+  async generateIntermediateProofArtifacts(
+    proof: Uint8Array,
+    numOfPublicInputs = 0,
+  ): Promise<{
+    proofAsFields: string[];
+    vkAsFields: string[];
+    vkHash: string;
+  }> {
     const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
@@ -100,23 +109,23 @@ export class Backend {
     };
   }
 
-  async verifyFinalProof(proof: Uint8Array) {
+  async verifyFinalProof(proof: Uint8Array): Promise<boolean> {
     const makeEasyToVerifyInCircuit = false;
     const verified = await this.verifyProof(proof, makeEasyToVerifyInCircuit);
     return verified;
   }
 
-  async verifyIntermediateProof(proof: Uint8Array) {
+  async verifyIntermediateProof(proof: Uint8Array): Promise<boolean> {
     const makeEasyToVerifyInCircuit = true;
     return this.verifyProof(proof, makeEasyToVerifyInCircuit);
   }
 
-  async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean) {
+  async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
     await this.api.acirInitVerificationKey(this.acirComposer);
     return await this.api.acirVerifyProof(this.acirComposer, proof, makeEasyToVerifyInCircuit);
   }
 
-  async destroy() {
+  async destroy(): Promise<void> {
     await this.api.destroy();
   }
 }
