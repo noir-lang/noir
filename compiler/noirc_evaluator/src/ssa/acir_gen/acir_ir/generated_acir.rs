@@ -544,11 +544,7 @@ impl GeneratedAcir {
         let r_witness = self.next_witness_index();
 
         let quotient_code = brillig_directive::directive_quotient(max_bit_size);
-        let inputs = vec![
-            BrilligInputs::Single(lhs),
-            BrilligInputs::Single(rhs),
-            BrilligInputs::Single(predicate.clone()),
-        ];
+        let inputs = vec![BrilligInputs::Single(lhs), BrilligInputs::Single(rhs)];
         let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
         self.brillig(Some(predicate), quotient_code, inputs, outputs);
 
