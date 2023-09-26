@@ -44,7 +44,7 @@ export class BarretenbergBackend implements Backend {
   //
   // The settings for this proof are the same as the settings for a "normal" proof
   // ie one that is not in the recursive setting.
-  async generateOuterProof(decompressedWitness: Uint8Array): Promise<Uint8Array> {
+  async generateFinalProof(decompressedWitness: Uint8Array): Promise<Uint8Array> {
     const makeEasyToVerifyInCircuit = false;
     return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
   }
@@ -60,7 +60,7 @@ export class BarretenbergBackend implements Backend {
   // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
   // generate the proof using components that will make the proof
   // easier to verify in a circuit.
-  async generateInnerProof(witness: Uint8Array): Promise<Uint8Array> {
+  async generateIntermediateProof(witness: Uint8Array): Promise<Uint8Array> {
     const makeEasyToVerifyInCircuit = true;
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
@@ -85,7 +85,7 @@ export class BarretenbergBackend implements Backend {
   // method.
   //
   // The number of public inputs denotes how many public inputs are in the inner proof.
-  async generateInnerProofArtifacts(
+  async generateIntermediateProofArtifacts(
     proof: Uint8Array,
     numOfPublicInputs = 0,
   ): Promise<{
@@ -109,13 +109,13 @@ export class BarretenbergBackend implements Backend {
     };
   }
 
-  async verifyOuterProof(proof: Uint8Array): Promise<boolean> {
+  async verifyFinalProof(proof: Uint8Array): Promise<boolean> {
     const makeEasyToVerifyInCircuit = false;
     const verified = await this.verifyProof(proof, makeEasyToVerifyInCircuit);
     return verified;
   }
 
-  async verifyInnerProof(proof: Uint8Array): Promise<boolean> {
+  async verifyIntermediateProof(proof: Uint8Array): Promise<boolean> {
     const makeEasyToVerifyInCircuit = true;
     return this.verifyProof(proof, makeEasyToVerifyInCircuit);
   }
