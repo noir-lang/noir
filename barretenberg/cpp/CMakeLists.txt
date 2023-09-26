@@ -9,6 +9,13 @@ project(
     VERSION 0.7.10 # x-release-please-version
     LANGUAGES CXX C
 )
+# Insert version into `bb` config file
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/barretenberg/bb/config.hpp.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/barretenberg/bb/config.hpp
+    @ONLY
+)
+
 
 option(DISABLE_ASM "Disable custom assembly" OFF)
 option(DISABLE_ADX "Disable ADX assembly variant" OFF)

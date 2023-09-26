@@ -1,3 +1,4 @@
+#include "config.hpp"
 #include "get_bytecode.hpp"
 #include "get_crs.hpp"
 #include "get_witness.hpp"
@@ -334,7 +335,10 @@ int main(int argc, char* argv[])
         bool recursive = flagPresent(args, "-r") || flagPresent(args, "--recursive");
 
         // Skip CRS initialization for any command which doesn't require the CRS.
-        if (command == "info") {
+        if (command == "--version") {
+            writeStringToStdout(BB_VERSION);
+            return 0;
+        } else if (command == "info") {
             std::string output_path = getOption(args, "-o", "info.json");
             acvmInfo(output_path);
             return 0;

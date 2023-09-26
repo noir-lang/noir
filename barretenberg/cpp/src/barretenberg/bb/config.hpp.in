@@ -1,0 +1,6 @@
+#ifndef INCLUDE_GUARD
+#define INCLUDE_GUARD
+
+#define BB_VERSION "@CMAKE_PROJECT_VERSION@"
+
+#endif // INCLUDE_GUARD
