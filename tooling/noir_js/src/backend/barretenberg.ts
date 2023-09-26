@@ -15,12 +15,18 @@ export class BarretenbergBackend implements Backend {
   acirComposer = {} as Ptr;
   acirUncompressedBytecode: Uint8Array;
 
-  constructor(acirCircuit: any) {
+  private constructor(acirCircuit: any) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
-  async init(): Promise<void> {
+  static async initialize(acirCircuit: any): Promise<BarretenbergBackend> {
+    const backend = new BarretenbergBackend(acirCircuit);
+    await backend.init();
+    return backend;
+  }
+
+  private async init(): Promise<void> {
     const numThreads = 4;
 
     const { api, composer } = await this.initBarretenberg(numThreads, this.acirUncompressedBytecode);
