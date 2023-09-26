@@ -394,6 +394,7 @@ fn collect_trait_impls(
                     .iter()
                     .filter(|(_, _, f)| f.name() == method.name.0.contents)
                     .collect();
+
                 if overrides.is_empty() {
                     unresolved_functions.file_id = method.default_impl_file_id;
                     if let Some(default_impl) = &method.default_impl {
@@ -433,20 +434,6 @@ fn collect_trait_impls(
                         func_ids_in_trait.insert(*func_id);
                     }
                 }
-            }
-
-            for (_, func_id, noir_function) in &unresolved_functions.functions {
-                let name = noir_function.name().to_owned();
-
-                let modifiers = FunctionModifiers {
-                    name: name.clone(),
-                    visibility: crate::Visibility::Public,
-                    attributes: Attributes::empty(),
-                    is_unconstrained: false,
-                    contract_function_type: None,
-                    is_internal: None,
-                };
-                interner.push_function_definition(name, *func_id, modifiers, module);
             }
 
             // Emit MethodNotInTrait error for methods in the impl block that
