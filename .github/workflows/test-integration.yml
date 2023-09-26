@@ -1,15 +1,12 @@
 name: test-integration
 
 on:
-  push:
-    branches:
-      - jb-test-solidity-verifier
-  # workflow_dispatch:
-  # pull_request:
-  #   paths:
-  #     - ./compiler/integration-tests/**
-  # schedule:
-  #   - cron: "0 2 * * *" # Run nightly at 2 AM UTC
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ./compiler/integration-tests/**
+  schedule:
+    - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
 jobs:
   build-nargo:
