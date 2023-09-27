@@ -117,13 +117,12 @@ TEST_F(native_private_kernel_init_tests, basic_contract_deployment)
     EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::NO_ERROR);
 }
 
-// TODO(suyash): Disabled until https://github.com/AztecProtocol/aztec-packages/issues/499 is resolved.
-TEST_F(native_private_kernel_init_tests, DISABLED_contract_deployment_call_stack_item_hash_mismatch_fails)
+TEST_F(native_private_kernel_init_tests, contract_deployment_call_stack_item_hash_mismatch_fails)
 {
     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
-    // Randomise the second item in the private call stack (i.e. hash of the private call item).
-    private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[1] = NT::fr::random_element();
+    // Randomise the first item in the private call stack (i.e. hash of the private call item).
+    private_inputs.private_call.call_stack_item.public_inputs.private_call_stack[0] = NT::fr::random_element();
 
     DummyBuilder builder =
         DummyBuilder("private_kernel_tests__contract_deployment_call_stack_item_hash_mismatch_fails");
