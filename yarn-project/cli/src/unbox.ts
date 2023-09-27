@@ -206,10 +206,10 @@ async function updatePackageJsonVersions(packageVersion: string, outputPath: str
   // similarly, make sure we spinup the sandbox with the same version.
   packageData.scripts['install:sandbox'] = packageData.scripts['install:sandbox'].replace(
     'latest',
-    `v${packageVersion}`,
+    `${packageVersion}`,
   );
 
-  packageData.scripts['start:sandbox'] = packageData.scripts['start:sandbox'].replace('latest', `v${packageVersion}`);
+  packageData.scripts['start:sandbox'] = packageData.scripts['start:sandbox'].replace('latest', `${packageVersion}`);
 
   // Convert back to a string and write back to the package.json file
   const updatedContent = JSON.stringify(packageData, null, 2);
