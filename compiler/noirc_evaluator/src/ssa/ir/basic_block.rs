@@ -145,13 +145,4 @@ impl BasicBlock {
             None => vec![].into_iter(),
         }
     }
-
-    /// Removes the given instruction from this block if present or panics otherwise.
-    pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
-        let index =
-            self.instructions.iter().position(|id| *id == instruction).unwrap_or_else(|| {
-                panic!("remove_instruction: No such instruction {instruction:?} in block")
-            });
-        self.instructions.remove(index);
-    }
 }
