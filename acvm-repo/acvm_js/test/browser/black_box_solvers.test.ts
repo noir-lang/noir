@@ -8,7 +8,7 @@ import initACVM, {
   keccak256,
   sha256,
   xor,
-} from "../../../result/";
+} from "@noir-lang/acvm_js";
 
 beforeEach(async () => {
   await initACVM();

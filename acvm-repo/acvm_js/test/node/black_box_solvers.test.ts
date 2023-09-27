@@ -7,7 +7,7 @@ import {
   keccak256,
   sha256,
   xor,
-} from "../../../result/";
+} from "@noir-lang/acvm_js";
 
 it("successfully calculates the bitwise AND of two fields", async () => {
   const { and_test_cases } = await import("../shared/black_box_solvers");
