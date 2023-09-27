@@ -47,7 +47,7 @@ These options are:
 - `API_KEY` -> `a, --api-key` for `deploy-l1-contracts`.
 - `ETHEREUM_RPC_HOST` -> `-u, --rpc-url` for `deploy-l1-contracts`.
 
-So if for example you are running your Private Execution Environment (PXE) remotely you can do:
+So if for example you are running your Private eXecution Environment (PXE) remotely you can do:
 
 ```shell
 export PXE_HOST=http://external.site/rpc:8080
@@ -352,7 +352,7 @@ Options:
 - `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
 - `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
 - `-ca, --contract-address <address>`: Address of the contract.
-- `-f, --from <string>`: Address of the caller. If empty, first account in the Private Execution Environment (PXE) will be used.
+- `-f, --from <string>`: Address of the caller. If empty, first account in the Private eXecution Environment (PXE) will be used.
 - `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command simulates the execution of a view function on a deployed contract without modifying the state. It requires the contract's ABI, address, function name, and optionally, function arguments. The command displays the result of the view function.

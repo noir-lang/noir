@@ -9,3 +9,5 @@
 - [Acir Simulator](../acir-simulator/)
 - [Key Store](../key-store/)
 - [Account State](./src/account_state/account_state.ts): It coordinates other components to synchronize and decrypt data, simulate transactions, and generate kernel proofs, for a specific account.
+
+![Pixie](./pixie.png)

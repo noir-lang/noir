@@ -1,6 +1,6 @@
 # aztec-sandbox
 
-Aztec Sandbox is a package that allows for a simple development environment on Aztec stack. It creates an Private Execution Environment (PXE) that listens for HTTP requests on `localhost:8080` by default. When started, it deploys all necessary L1 Aztec contracts and then starts listening for RPC requests.
+Aztec Sandbox is a package that allows for a simple development environment on Aztec stack. It creates an Private eXecution Environment (PXE) that listens for HTTP requests on `localhost:8080` by default. When started, it deploys all necessary L1 Aztec contracts and then starts listening for RPC requests.
 
 ## How to run:
 

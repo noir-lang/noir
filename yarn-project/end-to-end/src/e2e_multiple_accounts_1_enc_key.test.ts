@@ -97,7 +97,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   };
 
   /**
-   * Tests the ability of the Private Execution Environment (PXE) to handle multiple accounts under the same encryption key.
+   * Tests the ability of the Private eXecution Environment (PXE) to handle multiple accounts under the same encryption key.
    */
   it('spends notes from multiple account under the same encryption key', async () => {
     const transferAmount1 = 654n; // account 0 -> account 1

@@ -25,7 +25,7 @@ import { EthAddress } from '../index.js';
 export const localAnvil = foundry;
 
 /**
- * Wraps an instance of Private Execution Environment (PXE) implementation to a JSON RPC HTTP interface.
+ * Wraps an instance of Private eXecution Environment (PXE) implementation to a JSON RPC HTTP interface.
  * @returns A new instance of the HTTP server.
  */
 export function createPXERpcServer(pxeService: PXE): JsonRpcServer {

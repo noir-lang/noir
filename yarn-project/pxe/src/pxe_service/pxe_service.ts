@@ -63,7 +63,7 @@ import { getAcirSimulator } from '../simulator/index.js';
 import { Synchronizer } from '../synchronizer/index.js';
 
 /**
- * A Private Execution Environment (PXE) implementation.
+ * A Private eXecution Environment (PXE) implementation.
  */
 export class PXEService implements PXE {
   private synchronizer: Synchronizer;

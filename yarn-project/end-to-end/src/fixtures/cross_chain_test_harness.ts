@@ -90,7 +90,7 @@ export class CrossChainTestHarness {
   constructor(
     /** AztecNode. */
     public aztecNode: AztecNodeService | undefined,
-    /** Private Execution Environment (PXE). */
+    /** Private eXecution Environment (PXE). */
     public pxeService: PXE,
     /** CheatCodes. */
     public cc: CheatCodes,

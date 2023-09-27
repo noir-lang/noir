@@ -112,7 +112,7 @@ describe('e2e_p2p_network', () => {
     return await AztecNodeService.createAndSync(newConfig);
   };
 
-  // submits a set of transactions to the provided Private Execution Environment (PXE)
+  // submits a set of transactions to the provided Private eXecution Environment (PXE)
   const submitTxsTo = async (pxe: PXEService, account: AztecAddress, numTxs: number, publicKey: PublicKey) => {
     const txs: SentTx[] = [];
     for (let i = 0; i < numTxs; i++) {

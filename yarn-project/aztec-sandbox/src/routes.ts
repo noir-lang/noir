@@ -2,7 +2,7 @@ import Koa from 'koa';
 import Router from 'koa-router';
 
 /**
- * Creates a router for helper API endpoints of the Private Execution Environment (PXE).
+ * Creates a router for helper API endpoints of the Private eXecution Environment (PXE).
  * @param aztecNode - An instance of the aztec node.
  * @param config - The aztec node's configuration variables.
  */

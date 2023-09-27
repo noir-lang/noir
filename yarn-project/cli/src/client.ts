@@ -36,7 +36,7 @@ export async function createCompatibleClient(rpcUrl: string, logger: DebugLogger
 class VersionMismatchError extends Error {}
 
 /**
- * Checks that Private Execution Environment (PXE) version matches the expected one by this CLI. Throws if not.
+ * Checks that Private eXecution Environment (PXE) version matches the expected one by this CLI. Throws if not.
  * @param pxe - PXE client.
  * @param expectedVersionRange - Expected version by CLI.
  */

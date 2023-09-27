@@ -20,7 +20,7 @@ import { SyncStatus } from './sync-status.js';
 
 // docs:start:pxe-interface
 /**
- * Private Execution Environment (PXE) runs locally for each user, providing functionality for all the operations
+ * Private eXecution Environment (PXE) runs locally for each user, providing functionality for all the operations
  * needed to interact with the Aztec network, including account management, private data management,
  * transaction local simulation, and access to an Aztec node. This interface, as part of a Wallet,
  * is exposed to dapps for interacting with the network on behalf of the user.

@@ -203,7 +203,7 @@ describe('e2e_2_pxes', () => {
     expect(storedValue).toBe(newValueToSet);
   });
 
-  it('private state is "zero" when Private Execution Environment (PXE) does not have the account private key', async () => {
+  it('private state is "zero" when Private eXecution Environment (PXE) does not have the account private key', async () => {
     const userABalance = 100n;
     const userBBalance = 150n;
 
