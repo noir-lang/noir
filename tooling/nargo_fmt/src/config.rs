@@ -1,5 +1,6 @@
+#[allow(unreachable_pub)]
 #[readonly::make]
-pub struct Config {
+pub(crate) struct Config {
     /// Maximum width of each line.
     #[readonly]
     pub max_width: usize,

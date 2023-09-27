@@ -7,5 +7,4 @@ license.workspace = true
 
 [dependencies]
 noirc_frontend.workspace = true
-noirc_errors.workspace = true
 readonly = "0.2"

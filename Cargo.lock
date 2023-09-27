@@ -2305,7 +2305,6 @@ dependencies = [
 name = "nargo_fmt"
 version = "0.14.0"
 dependencies = [
- "noirc_errors",
  "noirc_frontend",
  "readonly",
 ]

@@ -1,4 +1,8 @@
-#![deny(unused_qualifications, clippy::use_self)]
+#![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![warn(unused_qualifications, clippy::use_self)]
 
 mod config;
 mod visitor;
@@ -53,7 +57,7 @@ mod tests {
                 Err(err) => unreachable!("{err}"),
             };
 
-            // TODO: better diff
+            // FIXME: better diff
             assert_eq!(fmt_text, target);
         }
     }

@@ -14,7 +14,7 @@ macro_rules! slice {
     };
 }
 
-pub struct FmtVisitor<'a> {
+pub(crate) struct FmtVisitor<'a> {
     config: Config,
     buffer: String,
     source: &'a str,
@@ -23,7 +23,7 @@ pub struct FmtVisitor<'a> {
 }
 
 impl<'a> FmtVisitor<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub(crate) fn new(source: &'a str) -> Self {
         Self {
             config: Config::default(),
             buffer: String::new(),
@@ -33,12 +33,12 @@ impl<'a> FmtVisitor<'a> {
         }
     }
 
-    pub fn at_start(&self) -> bool {
-        self.buffer.is_empty()
+    pub(crate) fn finish(self) -> String {
+        self.buffer
     }
 
-    pub fn finish(self) -> String {
-        self.buffer
+    fn at_start(&self) -> bool {
+        self.buffer.is_empty()
     }
 
     fn push_str(&mut self, s: &str) {
@@ -51,7 +51,7 @@ impl<'a> FmtVisitor<'a> {
         self.push_str(&s);
     }
 
-    pub fn visit_module(&mut self, module: ParsedModule) {
+    pub(crate) fn visit_module(&mut self, module: ParsedModule) {
         for item in module.items {
             match item.kind {
                 ItemKind::Function(func) => {
@@ -136,7 +136,6 @@ impl<'a> FmtVisitor<'a> {
 
     fn format_expr(&self, Expression { kind, span }: Expression) -> String {
         match kind {
-            ExpressionKind::Literal(_literal) => slice!(self, span.start(), span.end()).to_string(),
             ExpressionKind::Block(block) => {
                 let mut visitor = FmtVisitor::new(self.source);
 
@@ -148,31 +147,6 @@ impl<'a> FmtVisitor<'a> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
-            ExpressionKind::Call(_call) => {
-                // FIXME:
-                // let callee = self.format_expr(*call.func);
-                // let args = call
-                //     .arguments
-                //     .into_iter()
-                //     .map(|arg| self.format_expr(arg))
-                //     .collect::<Vec<_>>()
-                //     .join(", ");
-
-                // format!("{callee}({args})")
-
-                slice!(self, span.start(), span.end()).to_string()
-            }
-            ExpressionKind::Infix(_infix) => {
-                // let lhs = self.format_expr(infix.lhs);
-                // let op = infix.operator.contents;
-                // let rhs = self.format_expr(infix.rhs);
-
-                // format!("{lhs} {op} {rhs}")
-
-                slice!(self, span.start(), span.end()).to_string()
-            }
-            ExpressionKind::Variable(_) => slice!(self, span.start(), span.end()).to_string(),
-            ExpressionKind::Error => unreachable!(),
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
@@ -204,7 +178,7 @@ impl<'a> FmtVisitor<'a> {
 
         if start == end {
             if !self.at_start() {
-                process_last_slice(self, "", "")
+                process_last_slice(self, "", "");
             }
             return;
         }
@@ -216,7 +190,7 @@ impl<'a> FmtVisitor<'a> {
             self.push_str("\n");
             process_last_slice(self, "", slice);
         } else {
-            process_last_slice(self, slice, slice)
+            process_last_slice(self, slice, slice);
         }
     }
 
