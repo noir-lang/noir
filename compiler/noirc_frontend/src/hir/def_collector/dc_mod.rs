@@ -568,6 +568,7 @@ impl<'a> ModCollector<'a> {
         // Parse the AST for the module we just found and then recursively look for it's defs
         //let ast = parse_file(&context.file_manager, child_file_id, errors).into_unorder();
         let (ast, parsing_errors) = parse_file(&context.file_manager, child_file_id);
+        let ast = ast.into_unorder();
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), child_file_id)).collect::<Vec<_>>(),

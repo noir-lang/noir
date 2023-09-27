@@ -3,9 +3,10 @@
 mod config;
 mod visitor;
 
+use noirc_frontend::parser::ParserError;
 use visitor::FmtVisitor;
 
-pub fn format(source: &str) -> Result<String, Vec<noirc_errors::CustomDiagnostic>> {
+pub fn format(source: &str) -> Result<String, Vec<ParserError>> {
     let (module, errors) = noirc_frontend::parse_program(source);
 
     if !errors.is_empty() {
