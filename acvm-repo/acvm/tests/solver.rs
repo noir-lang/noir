@@ -90,7 +90,6 @@ fn inversion_brillig_oracle_equivalence() {
             BrilligOutputs::Simple(w_oracle),   // Output Register 1
             BrilligOutputs::Simple(w_equal_res), // Output Register 2
         ],
-
         bytecode: vec![
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -212,7 +211,6 @@ fn double_inversion_brillig_oracle() {
             BrilligOutputs::Simple(w_ij_oracle), // Output Register 3
             BrilligOutputs::Simple(w_equal_res), // Output Register 4
         ],
-
         bytecode: vec![
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
@@ -337,7 +335,6 @@ fn oracle_dependent_execution() {
             BrilligOutputs::Simple(w_y),     // Output Register 2 - from input
             BrilligOutputs::Simple(w_y_inv), // Output Register 3
         ],
-
         bytecode: vec![
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
