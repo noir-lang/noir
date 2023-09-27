@@ -115,20 +115,21 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
   });
 
   it("Should generate valid inner proof for correct input, then verify proof within a proof", async () => {
-    //@ts-ignore
-    const mainCircuit =
+    const { circuit: main_circuit, abi: main_abi } =
       await getCircuit(circuit_main_source);
     const main_inputs = TOML.parse(circuit_main_toml);
 
-    const main_compressedWitness = await generateWitness(
-      mainCircuit,
+    const main_witnessUint8Array = await generateWitness(
+      {
+        bytecode: main_circuit,
+        abi: main_abi
+      },
       main_inputs,
     );
-    const main_compressedByteCode = Uint8Array.from(atob(mainCircuit.circuit), (c) =>
+    const main_compressedByteCode = Uint8Array.from(atob(main_circuit), (c) =>
       c.charCodeAt(0),
     );
     const main_acirUint8Array = gunzip(main_compressedByteCode);
-    const main_witnessUint8Array = gunzip(main_compressedWitness);
 
     const optimizeMainProofForRecursion = true;
 
@@ -172,22 +173,24 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
 
     logger.debug("recursion_inputs", recursion_inputs);
 
-    const recursionCircuit = await getCircuit(
+    const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(
       circuit_recursion_source,
     );
 
-    const recursion_compressedWitness = await generateWitness(
-      recursionCircuit,
+    const recursion_witnessUint8Array = await generateWitness(
+      {
+        bytecode: recursion_circuit,
+        abi: recursion_abi
+      },
       recursion_inputs,
     );
 
     const recursion_compressedByteCode = Uint8Array.from(
-      atob(recursionCircuit.circuit),
+      atob(recursion_circuit),
       (c) => c.charCodeAt(0),
     );
 
     const recursion_acirUint8Array = gunzip(recursion_compressedByteCode);
-    const recursion_witnessUint8Array = gunzip(recursion_compressedWitness);
 
     const optimizeRecursionProofForRecursion = false;
 
