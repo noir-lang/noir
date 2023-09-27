@@ -28,13 +28,13 @@
     version relevant to Barretenberg.
 */
 #pragma once
-#include <stddef.h>
-#include <stdint.h>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 #include <vector>
 
 namespace blake3 {
-
-#define BLAKE3_VERSION_STRING "0.3.7"
 
 // internal flags
 enum blake3_flags {
@@ -56,41 +56,58 @@ enum blake3s_constant {
     BLAKE3_MAX_DEPTH = 54
 };
 
-static const uint32_t IV[8] = { 0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
-                                0x510E527FUL, 0x9B05688CUL, 0x1F83D9ABUL, 0x5BE0CD19UL };
+using key_array = std::array<uint32_t, BLAKE3_KEY_LEN>;
+using block_array = std::array<uint8_t, BLAKE3_BLOCK_LEN>;
+using state_array = std::array<uint32_t, 16>;
+using out_array = std::array<uint8_t, BLAKE3_OUT_LEN>;
 
-static const uint8_t MSG_SCHEDULE[7][16] = {
-    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, { 2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8 },
-    { 3, 4, 10, 12, 13, 2, 7, 14, 6, 5, 9, 0, 11, 15, 8, 1 }, { 10, 7, 12, 9, 14, 3, 13, 15, 4, 0, 11, 2, 5, 8, 1, 6 },
-    { 12, 13, 9, 11, 15, 10, 14, 8, 7, 2, 5, 3, 0, 1, 6, 4 }, { 9, 14, 11, 5, 8, 12, 15, 1, 13, 3, 0, 10, 2, 6, 4, 7 },
-    { 11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13 },
+static constexpr key_array IV = { 0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
+                                  0x510E527FUL, 0x9B05688CUL, 0x1F83D9ABUL, 0x5BE0CD19UL };
+
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_0 = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_1 = { 2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8 };
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_2 = { 3, 4, 10, 12, 13, 2, 7, 14, 6, 5, 9, 0, 11, 15, 8, 1 };
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_3 = { 10, 7, 12, 9, 14, 3, 13, 15, 4, 0, 11, 2, 5, 8, 1, 6 };
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_4 = { 12, 13, 9, 11, 15, 10, 14, 8, 7, 2, 5, 3, 0, 1, 6, 4 };
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_5 = { 9, 14, 11, 5, 8, 12, 15, 1, 13, 3, 0, 10, 2, 6, 4, 7 };
+static constexpr std::array<uint8_t, 16> MSG_SCHEDULE_6 = { 11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13 };
+static constexpr std::array<std::array<uint8_t, 16>, 7> MSG_SCHEDULE = {
+    MSG_SCHEDULE_0, MSG_SCHEDULE_1, MSG_SCHEDULE_2, MSG_SCHEDULE_3, MSG_SCHEDULE_4, MSG_SCHEDULE_5, MSG_SCHEDULE_6,
 };
 
 struct blake3_hasher {
-    uint32_t key[8];
-    uint32_t cv[8];
-    uint8_t buf[BLAKE3_BLOCK_LEN];
+    key_array key;
+    key_array cv;
+    block_array buf;
     uint8_t buf_len = 0;
     uint8_t blocks_compressed = 0;
     uint8_t flags = 0;
 };
 
-const char* blake3_version(void);
+inline const char* blake3_version()
+{
+    static const std::string version = "0.3.7";
+    return version.c_str();
+}
 
-void blake3_hasher_init(blake3_hasher* self);
-void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t input_len);
-void blake3_hasher_finalize(const blake3_hasher* self, uint8_t* out);
+constexpr void blake3_hasher_init(blake3_hasher* self);
+constexpr void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t input_len);
+constexpr void blake3_hasher_finalize(const blake3_hasher* self, uint8_t* out);
 
-void g(uint32_t* state, size_t a, size_t b, size_t c, size_t d, uint32_t x, uint32_t y);
-void round_fn(uint32_t state[16], const uint32_t* msg, size_t round);
+constexpr void g(state_array& state, size_t a, size_t b, size_t c, size_t d, uint32_t x, uint32_t y);
+constexpr void round_fn(state_array& state, const uint32_t* msg, size_t round);
 
-void compress_pre(
-    uint32_t state[16], const uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len, uint8_t flags);
+constexpr void compress_pre(
+    state_array& state, const key_array& cv, const uint8_t* block, uint8_t block_len, uint8_t flags);
 
-void blake3_compress_in_place(uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len, uint8_t flags);
+constexpr void blake3_compress_in_place(key_array& cv, const uint8_t* block, uint8_t block_len, uint8_t flags);
 
-void blake3_compress_xof(
-    const uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len, uint8_t flags, uint8_t out[64]);
+constexpr void blake3_compress_xof(
+    const key_array& cv, const uint8_t* block, uint8_t block_len, uint8_t flags, uint8_t* out);
 
-std::vector<uint8_t> blake3s(std::vector<uint8_t> const& input);
+constexpr std::array<uint8_t, BLAKE3_OUT_LEN> blake3s_constexpr(const uint8_t* input, size_t input_size);
+inline std::vector<uint8_t> blake3s(std::vector<uint8_t> const& input);
+
 } // namespace blake3
+
+#include "blake3-impl.hpp"

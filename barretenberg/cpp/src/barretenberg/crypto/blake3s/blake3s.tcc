@@ -1,3 +1,4 @@
+#pragma once
 /*
     BLAKE3 reference source code package - C implementations
 
@@ -28,13 +29,10 @@
     version relevant to Barretenberg.
 */
 
-#include <assert.h>
 #include <iostream>
-#include <stdbool.h>
-#include <string.h>
 #include <type_traits>
 
-#include "blake3-impl.hpp"
+#include "blake3s.hpp"
 
 namespace blake3 {
 
@@ -43,7 +41,7 @@ namespace blake3 {
  * constant parameters and fewer rounds.
  *
  */
-void g(uint32_t* state, size_t a, size_t b, size_t c, size_t d, uint32_t x, uint32_t y)
+constexpr void g(state_array& state, size_t a, size_t b, size_t c, size_t d, uint32_t x, uint32_t y)
 {
     state[a] = state[a] + state[b] + x;
     state[d] = rotr32(state[d] ^ state[a], 16);
@@ -55,10 +53,10 @@ void g(uint32_t* state, size_t a, size_t b, size_t c, size_t d, uint32_t x, uint
     state[b] = rotr32(state[b] ^ state[c], 7);
 }
 
-void round_fn(uint32_t state[16], const uint32_t* msg, size_t round)
+constexpr void round_fn(state_array& state, const uint32_t* msg, size_t round)
 {
     // Select the message schedule based on the round.
-    const uint8_t* schedule = MSG_SCHEDULE[round];
+    const auto schedule = MSG_SCHEDULE[round];
 
     // Mix the columns.
     g(state, 0, 4, 8, 12, msg[schedule[0]], msg[schedule[1]]);
@@ -73,26 +71,26 @@ void round_fn(uint32_t state[16], const uint32_t* msg, size_t round)
     g(state, 3, 4, 9, 14, msg[schedule[14]], msg[schedule[15]]);
 }
 
-void compress_pre(
-    uint32_t state[16], const uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len, uint8_t flags)
+constexpr void compress_pre(
+    state_array& state, const key_array& cv, const uint8_t* block, uint8_t block_len, uint8_t flags)
 {
-    uint32_t block_words[16];
-    block_words[0] = load32(block + 4 * 0);
-    block_words[1] = load32(block + 4 * 1);
-    block_words[2] = load32(block + 4 * 2);
-    block_words[3] = load32(block + 4 * 3);
-    block_words[4] = load32(block + 4 * 4);
-    block_words[5] = load32(block + 4 * 5);
-    block_words[6] = load32(block + 4 * 6);
-    block_words[7] = load32(block + 4 * 7);
-    block_words[8] = load32(block + 4 * 8);
-    block_words[9] = load32(block + 4 * 9);
-    block_words[10] = load32(block + 4 * 10);
-    block_words[11] = load32(block + 4 * 11);
-    block_words[12] = load32(block + 4 * 12);
-    block_words[13] = load32(block + 4 * 13);
-    block_words[14] = load32(block + 4 * 14);
-    block_words[15] = load32(block + 4 * 15);
+    std::array<uint32_t, 16> block_words;
+    block_words[0] = load32(&block[0]);
+    block_words[1] = load32(&block[4]);
+    block_words[2] = load32(&block[8]);
+    block_words[3] = load32(&block[12]);
+    block_words[4] = load32(&block[16]);
+    block_words[5] = load32(&block[20]);
+    block_words[6] = load32(&block[24]);
+    block_words[7] = load32(&block[28]);
+    block_words[8] = load32(&block[32]);
+    block_words[9] = load32(&block[36]);
+    block_words[10] = load32(&block[40]);
+    block_words[11] = load32(&block[44]);
+    block_words[12] = load32(&block[48]);
+    block_words[13] = load32(&block[52]);
+    block_words[14] = load32(&block[56]);
+    block_words[15] = load32(&block[60]);
 
     state[0] = cv[0];
     state[1] = cv[1];
@@ -108,8 +106,8 @@ void compress_pre(
     state[11] = IV[3];
     state[12] = 0;
     state[13] = 0;
-    state[14] = (uint32_t)block_len;
-    state[15] = (uint32_t)flags;
+    state[14] = static_cast<uint32_t>(block_len);
+    state[15] = static_cast<uint32_t>(flags);
 
     round_fn(state, &block_words[0], 0);
     round_fn(state, &block_words[0], 1);
@@ -120,9 +118,9 @@ void compress_pre(
     round_fn(state, &block_words[0], 6);
 }
 
-void blake3_compress_in_place(uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len, uint8_t flags)
+constexpr void blake3_compress_in_place(key_array& cv, const uint8_t* block, uint8_t block_len, uint8_t flags)
 {
-    uint32_t state[16];
+    state_array state;
     compress_pre(state, cv, block, block_len, flags);
     cv[0] = state[0] ^ state[8];
     cv[1] = state[1] ^ state[9];
@@ -134,55 +132,46 @@ void blake3_compress_in_place(uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_L
     cv[7] = state[7] ^ state[15];
 }
 
-void blake3_compress_xof(
-    const uint32_t cv[8], const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len, uint8_t flags, uint8_t out[64])
+constexpr void blake3_compress_xof(
+    const key_array& cv, const uint8_t* block, uint8_t block_len, uint8_t flags, uint8_t* out)
 {
-    uint32_t state[16];
+    state_array state;
     compress_pre(state, cv, block, block_len, flags);
 
-    store32(&out[0 * 4], state[0] ^ state[8]);
-    store32(&out[1 * 4], state[1] ^ state[9]);
-    store32(&out[2 * 4], state[2] ^ state[10]);
-    store32(&out[3 * 4], state[3] ^ state[11]);
-    store32(&out[4 * 4], state[4] ^ state[12]);
-    store32(&out[5 * 4], state[5] ^ state[13]);
-    store32(&out[6 * 4], state[6] ^ state[14]);
-    store32(&out[7 * 4], state[7] ^ state[15]);
-    store32(&out[8 * 4], state[8] ^ cv[0]);
-    store32(&out[9 * 4], state[9] ^ cv[1]);
-    store32(&out[10 * 4], state[10] ^ cv[2]);
-    store32(&out[11 * 4], state[11] ^ cv[3]);
-    store32(&out[12 * 4], state[12] ^ cv[4]);
-    store32(&out[13 * 4], state[13] ^ cv[5]);
-    store32(&out[14 * 4], state[14] ^ cv[6]);
-    store32(&out[15 * 4], state[15] ^ cv[7]);
+    store32(&out[0], state[0] ^ state[8]);
+    store32(&out[4], state[1] ^ state[9]);
+    store32(&out[8], state[2] ^ state[10]);
+    store32(&out[12], state[3] ^ state[11]);
+    store32(&out[16], state[4] ^ state[12]);
+    store32(&out[20], state[5] ^ state[13]);
+    store32(&out[24], state[6] ^ state[14]);
+    store32(&out[28], state[7] ^ state[15]);
+    store32(&out[32], state[8] ^ cv[0]);
+    store32(&out[36], state[9] ^ cv[1]);
+    store32(&out[40], state[10] ^ cv[2]);
+    store32(&out[44], state[11] ^ cv[3]);
+    store32(&out[48], state[12] ^ cv[4]);
+    store32(&out[52], state[13] ^ cv[5]);
+    store32(&out[56], state[14] ^ cv[6]);
+    store32(&out[60], state[15] ^ cv[7]);
 }
 
-const char* blake3_version(void)
-{
-    return BLAKE3_VERSION_STRING;
-}
-
-uint8_t maybe_start_flag(const blake3_hasher* self)
+constexpr uint8_t maybe_start_flag(const blake3_hasher* self)
 {
     if (self->blocks_compressed == 0) {
         return CHUNK_START;
-    } else {
-        return 0;
     }
+    return 0;
 }
 
-typedef struct output_t__ {
-    uint32_t input_cv[8];
-    uint8_t block[BLAKE3_BLOCK_LEN];
-    uint8_t block_len;
-    uint8_t flags;
-} output_t;
+struct output_t {
+    key_array input_cv = {};
+    block_array block = {};
+    uint8_t block_len = 0;
+    uint8_t flags = 0;
+};
 
-output_t make_output(const uint32_t input_cv[8],
-                     const uint8_t block[BLAKE3_BLOCK_LEN],
-                     uint8_t block_len,
-                     uint8_t flags)
+constexpr output_t make_output(const key_array& input_cv, const uint8_t* block, uint8_t block_len, uint8_t flags)
 {
     output_t ret;
     for (size_t i = 0; i < (BLAKE3_OUT_LEN >> 2); ++i) {
@@ -196,7 +185,7 @@ output_t make_output(const uint32_t input_cv[8],
     return ret;
 }
 
-void blake3_hasher_init(blake3_hasher* self)
+constexpr void blake3_hasher_init(blake3_hasher* self)
 {
     for (size_t i = 0; i < (BLAKE3_KEY_LEN >> 2); ++i) {
         self->key[i] = IV[i];
@@ -210,7 +199,7 @@ void blake3_hasher_init(blake3_hasher* self)
     self->flags = 0;
 }
 
-void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t input_len)
+constexpr void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t input_len)
 {
     if (input_len == 0) {
         return;
@@ -224,11 +213,11 @@ void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t inpu
         input_len -= BLAKE3_BLOCK_LEN;
     }
 
-    size_t take = BLAKE3_BLOCK_LEN - ((size_t)self->buf_len);
+    size_t take = BLAKE3_BLOCK_LEN - (static_cast<size_t>(self->buf_len));
     if (take > input_len) {
         take = input_len;
     }
-    uint8_t* dest = self->buf + ((size_t)self->buf_len);
+    uint8_t* dest = &self->buf[0] + (static_cast<size_t>(self->buf_len));
     for (size_t i = 0; i < take; i++) {
         dest[i] = input[i];
     }
@@ -237,26 +226,36 @@ void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t inpu
     input_len -= take;
 }
 
-void blake3_hasher_finalize(const blake3_hasher* self, uint8_t* out)
+constexpr void blake3_hasher_finalize(const blake3_hasher* self, uint8_t* out)
 {
     uint8_t block_flags = self->flags | maybe_start_flag(self) | CHUNK_END;
-    output_t output = make_output(self->cv, self->buf, self->buf_len, block_flags);
+    output_t output = make_output(self->cv, &self->buf[0], self->buf_len, block_flags);
 
-    uint8_t wide_buf[64];
-    blake3_compress_xof(output.input_cv, output.block, output.block_len, output.flags | ROOT, wide_buf);
+    block_array wide_buf;
+    blake3_compress_xof(output.input_cv, &output.block[0], output.block_len, output.flags | ROOT, &wide_buf[0]);
     for (size_t i = 0; i < BLAKE3_OUT_LEN; i++) {
         out[i] = wide_buf[i];
     }
-    return;
 }
 
 std::vector<uint8_t> blake3s(std::vector<uint8_t> const& input)
 {
     blake3_hasher hasher;
     blake3_hasher_init(&hasher);
-    blake3_hasher_update(&hasher, (const uint8_t*)input.data(), input.size());
+    blake3_hasher_update(&hasher, static_cast<const uint8_t*>(input.data()), input.size());
 
     std::vector<uint8_t> output(BLAKE3_OUT_LEN);
+    blake3_hasher_finalize(&hasher, &output[0]);
+    return output;
+}
+
+constexpr std::array<uint8_t, BLAKE3_OUT_LEN> blake3s_constexpr(const uint8_t* input, const size_t input_size)
+{
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, input, input_size);
+
+    std::array<uint8_t, BLAKE3_OUT_LEN> output;
     blake3_hasher_finalize(&hasher, &output[0]);
     return output;
 }
