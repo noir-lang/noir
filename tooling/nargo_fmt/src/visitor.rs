@@ -36,6 +36,12 @@ impl<'a> FmtVisitor<'a> {
         self.buffer
     }
 
+    fn with_indent(&mut self, f: impl FnOnce(&mut Self)) {
+        self.block_indent.block_indent(&self.config);
+        f(self);
+        self.block_indent.block_unindent(&self.config);
+    }
+
     fn at_start(&self) -> bool {
         self.buffer.is_empty()
     }
@@ -89,18 +95,20 @@ impl<'a> FmtVisitor<'a> {
         }
 
         self.last_position = block_span.start() + 1; // `{`
-        self.block_indent.block_indent(&self.config);
+
         self.push_str("{");
 
-        self.visit_stmts(block.0);
-
-        self.last_position = block_span.end();
-        self.block_indent.block_unindent(&self.config);
+        self.with_indent(|this| {
+            this.visit_stmts(block.0);
+        });
 
         self.push_str("\n");
+        self.last_position = block_span.end();
+
         if should_indent {
             self.push_str(&self.block_indent.to_string());
         }
+
         self.push_str("}");
     }
 
