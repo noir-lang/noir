@@ -1,6 +1,6 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
-    parser::{ItemKind, ParsedModule},
+    parser::{Item, ItemKind, ParsedModule},
     BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, StatementKind,
 };
 
@@ -51,22 +51,20 @@ impl<'a> FmtVisitor<'a> {
     }
 
     pub(crate) fn visit_module(&mut self, module: ParsedModule) {
-        for item in module.items {
-            match item.kind {
+        for Item { kind, span } in module.items {
+            match kind {
                 ItemKind::Function(func) => {
                     let (fn_before_block, force_brace_newline) =
-                        self.rewrite_fn_before_block(func.clone(), item.span.start());
+                        self.rewrite_fn_before_block(func.clone(), span.start());
 
-                    self.format_missing_indent(item.span.start(), false);
+                    self.format_missing_indent(span.start(), false);
 
                     self.push_str(&fn_before_block);
                     self.push_str(if force_brace_newline { "\n" } else { " " });
 
                     self.visit_block(func.def.body, func.def.span, false);
                 }
-                _ => {
-                    self.format_missing_indent(item.span.end(), false);
-                }
+                _ => self.format_missing(span.end()),
             }
         }
 
@@ -107,22 +105,18 @@ impl<'a> FmtVisitor<'a> {
     }
 
     fn visit_stmts(&mut self, stmts: Vec<Statement>) {
-        for stmt in stmts {
-            match dbg!(stmt.kind) {
+        for Statement { kind, span } in stmts {
+            match kind {
                 StatementKind::Expression(expr) => self.visit_expr(expr),
                 StatementKind::Semi(expr) => {
                     self.visit_expr(expr);
                     self.push_str(";");
                 }
                 StatementKind::Error => unreachable!(),
-                _ => {
-                    self.format_missing_inner(stmt.span.end(), |this, slice, _| {
-                        this.push_str(slice);
-                    });
-                }
+                _ => self.format_missing(span.end()),
             }
 
-            self.last_position = stmt.span.end();
+            self.last_position = span.end();
         }
     }
 
@@ -130,7 +124,6 @@ impl<'a> FmtVisitor<'a> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
-        dbg!(&rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
@@ -152,6 +145,10 @@ impl<'a> FmtVisitor<'a> {
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
+    }
+
+    fn format_missing(&mut self, end: u32) {
+        self.format_missing_inner(end, |this, slice, _| this.push_str(slice));
     }
 
     #[track_caller]
