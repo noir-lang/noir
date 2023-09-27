@@ -12,7 +12,7 @@
         "release-tests"
     ],
     "scripts": {
-        "build": "yarn workspaces foreach run build",
+        "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
         "test": "yarn workspaces foreach run test",
         "test:integration": "yarn workspace integration-tests test",
         "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
