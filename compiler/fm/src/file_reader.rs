@@ -56,6 +56,7 @@ cfg_if::cfg_if! {
         }
 
         fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            let path_str = path_to_file.to_str().unwrap();
             match read_file(path_str) {
                 Ok(buffer) => Ok(buffer),
                 Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
