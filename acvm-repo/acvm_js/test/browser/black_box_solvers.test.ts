@@ -41,7 +41,7 @@ it("successfully calculates the sha256 hash", async () => {
     const [preimage, expectedResult] = testCase;
     const hash = sha256(preimage);
     hash.forEach((value, index) =>
-      expect(value).to.be.eq(expectedResult.at(index))
+      expect(value).to.be.eq(expectedResult.at(index)),
     );
   }
 });
@@ -53,7 +53,7 @@ it("successfully calculates the blake2s256 hash", async () => {
     const [preimage, expectedResult] = testCase;
     const hash = blake2s256(preimage);
     hash.forEach((value, index) =>
-      expect(value).to.be.eq(expectedResult.at(index))
+      expect(value).to.be.eq(expectedResult.at(index)),
     );
   }
 });
@@ -65,7 +65,7 @@ it("successfully calculates the keccak256 hash", async () => {
     const [preimage, expectedResult] = testCase;
     const hash = keccak256(preimage);
     hash.forEach((value, index) =>
-      expect(value).to.be.eq(expectedResult.at(index))
+      expect(value).to.be.eq(expectedResult.at(index)),
     );
   }
 });
@@ -100,7 +100,7 @@ it("successfully verifies secp256k1 ECDSA signatures", async () => {
       hashed_msg,
       pubkey_x,
       pubkey_y,
-      signature
+      signature,
     );
     expect(result).to.be.eq(expectedResult);
   }
@@ -124,7 +124,7 @@ it("successfully verifies secp256r1 ECDSA signatures", async () => {
       hashed_msg,
       pubkey_x,
       pubkey_y,
-      signature
+      signature,
     );
     expect(result).to.be.eq(expectedResult);
   }
