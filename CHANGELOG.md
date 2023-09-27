@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.1](https://github.com/noir-lang/noir/compare/v0.14.0...v0.14.1) (2023-09-27)
+
+
+### Bug Fixes
+
+* Remove cast for field comparisons in brillig ([#2874](https://github.com/noir-lang/noir/issues/2874)) ([1fc1fdb](https://github.com/noir-lang/noir/commit/1fc1fdb4e15d2ce625ea79d458c5346fab418e49))
+* Remove duplication of code to load stdlib files ([#2868](https://github.com/noir-lang/noir/issues/2868)) ([b694aab](https://github.com/noir-lang/noir/commit/b694aab87c4665a3a89715c9d4096eeb3efb9944))
+
 ## [0.14.0](https://github.com/noir-lang/noir/compare/v0.13.0...v0.14.0) (2023-09-26)
 
 
