@@ -30,8 +30,8 @@ void compute_monomial_and_coset_selector_forms(plonk::proving_key* circuit_provi
         barretenberg::polynomial selector_poly_fft(selector_poly, circuit_proving_key->circuit_size * 4 + 4);
         selector_poly_fft.coset_fft(circuit_proving_key->large_domain);
 
-        // TODO(luke): For Standard, the lagrange polynomials can be removed from the store at this point but this
-        // is not the case for Ultra. Implement?
+        // Note: For Standard, the lagrange polynomials could be removed from the store at this point but this
+        // is not the case for Ultra.
         circuit_proving_key->polynomial_store.put(selector_properties[i].name, std::move(selector_poly));
         circuit_proving_key->polynomial_store.put(selector_properties[i].name + "_fft", std::move(selector_poly_fft));
     }

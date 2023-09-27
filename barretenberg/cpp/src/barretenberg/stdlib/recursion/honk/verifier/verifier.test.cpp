@@ -180,6 +180,38 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
             EXPECT_EQ(recursive_manifest[i], native_manifest[i]);
         }
     }
+
+    /**
+     * @brief Construct a verifier circuit for a proof whose data has been tampered with. Expect failure
+     * TODO(bberg #656): For now we get a "bad" proof by arbitrarily tampering with bits in a valid proof. It would be
+     * much nicer to explicitly change meaningful components, e.g. such that one of the multilinear evaluations is
+     * wrong. This is difficult now but should be straightforward if the proof is a struct.
+     */
+    static void test_recursive_verification_fails()
+    {
+        // Create an arbitrary inner circuit
+        InnerBuilder inner_circuit;
+        create_inner_circuit(inner_circuit);
+
+        // Generate a proof over the inner circuit
+        InnerComposer inner_composer;
+        auto instance = inner_composer.create_instance(inner_circuit);
+        auto inner_prover = inner_composer.create_prover(instance);
+        auto inner_proof = inner_prover.construct_proof();
+        const auto native_verification_key = instance->compute_verification_key();
+
+        // Arbitrarily tamper with the proof to be verified
+        inner_proof.proof_data[10] = 25;
+
+        // Create a recursive verification circuit for the proof of the inner circuit
+        OuterBuilder outer_circuit;
+        auto verification_key = std::make_shared<VerificationKey>(&outer_circuit, native_verification_key);
+        RecursiveVerifier verifier(&outer_circuit, verification_key);
+        verifier.verify_proof(inner_proof);
+
+        // We expect the circuit check to fail due to the bad proof
+        EXPECT_FALSE(outer_circuit.check_circuit());
+    }
 };
 
 // Run the recursive verifier tests with conventional Ultra builder and Goblin builder
@@ -200,6 +232,11 @@ HEAVY_TYPED_TEST(RecursiveVerifierTest, RecursiveVerificationKey)
 HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerification)
 {
     TestFixture::test_recursive_verification();
+};
+
+HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerificationFailure)
+{
+    TestFixture::test_recursive_verification_fails();
 };
 
 } // namespace proof_system::plonk::stdlib::recursion::honk

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <vector>
 namespace proof_system::honk::sumcheck {
 
@@ -12,34 +13,10 @@ template <typename Flavor> struct SumcheckOutput {
     using FF = typename Flavor::FF;
     using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
     // u = (u_0, ..., u_{d-1})
-    std::vector<FF> challenge_point;
+    std::vector<FF> challenge;
     // Evaluations in `u` of the polynomials used in Sumcheck
-    ClaimedEvaluations purported_evaluations;
-
-    SumcheckOutput()
-        : purported_evaluations(std::array<FF, Flavor::NUM_ALL_ENTITIES>()){};
-
-    SumcheckOutput(const std::vector<FF>& _challenge_point, const ClaimedEvaluations& _purported_evaluations)
-        : challenge_point(_challenge_point)
-        , purported_evaluations(_purported_evaluations){};
-
-    SumcheckOutput& operator=(SumcheckOutput&& other)
-    {
-        challenge_point = other.challenge_point;
-        purported_evaluations = other.purported_evaluations;
-        return *this;
-    };
-
-    SumcheckOutput(const SumcheckOutput& other)
-        : challenge_point(other.challenge_point)
-        , purported_evaluations(other.purported_evaluations){};
-
-    bool operator==(const SumcheckOutput& other) const
-    {
-        bool result{ false };
-        result = challenge_point == other.challenge_point;
-        result = purported_evaluations._data == other.purported_evaluations._data;
-        return result;
-    };
+    ClaimedEvaluations claimed_evaluations;
+    // Whether or not the claimed multilinear evaluations and final sumcheck evaluation have been confirmed
+    std::optional<bool> verified = false; // optional b/c this struct is shared by the Prover/Verifier
 };
 } // namespace proof_system::honk::sumcheck

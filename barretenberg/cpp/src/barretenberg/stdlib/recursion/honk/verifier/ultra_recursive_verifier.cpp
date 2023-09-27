@@ -98,10 +98,10 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     commitments.z_perm = transcript.template receive_from_prover<Commitment>(commitment_labels.z_perm);
     commitments.z_lookup = transcript.template receive_from_prover<Commitment>(commitment_labels.z_lookup);
 
-    // Execute Sumcheck Verifier
+    // Execute Sumcheck Verifier and extract multivariate opening point u = (u_0, ..., u_{d-1}) and purported
+    // multivariate evaluations at u
     auto sumcheck = Sumcheck(key->circuit_size);
-
-    std::optional sumcheck_output = sumcheck.verify(relation_parameters, transcript);
+    auto [multivariate_challenge, purported_evaluations, verified] = sumcheck.verify(relation_parameters, transcript);
 
     info("Sumcheck: num gates = ",
          builder->get_num_gates() - prev_num_gates,
@@ -109,12 +109,6 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
          builder->get_num_gates(),
          ")");
     prev_num_gates = builder->get_num_gates();
-
-    // If Sumcheck does not return an output, sumcheck verification has failed
-    ASSERT(sumcheck_output.has_value()); // TODO(luke): Appropriate way to handle this in circuit?
-
-    // Extract multivariate opening point u = (u_0, ..., u_{d-1}) and purported multivariate evaluations at u
-    auto [multivariate_challenge, purported_evaluations] = *sumcheck_output;
 
     // Compute powers of batching challenge rho
     FF rho = transcript.get_challenge("rho");
@@ -152,7 +146,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     }
     // TODO(luke): The powers_of_rho fctn does not set the context of rhos[0] = FF(1) so we do it explicitly here. Can
     // we do something silly like set it to rho.pow(0) in the fctn to make it work both native and stdlib?
-    scalars_unshifted[0] = FF::from_witness(builder, 1);
+    scalars_unshifted[0] = FF(builder, 1);
 
     // Batch the commitments to the unshifted and to-be-shifted polynomials using powers of rho
     auto batched_commitment_unshifted = GroupElement::batch_mul(commitments.get_unshifted(), scalars_unshifted);

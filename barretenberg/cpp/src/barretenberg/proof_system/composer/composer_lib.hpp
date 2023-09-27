@@ -25,7 +25,6 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
     // and (2) construct ecc op gate selector polynomial.
     // Note 1: All other selectors will be automatically and correctly initialized to 0 on this domain.
     // Note 2: If applicable, the ecc op gates are shifted down by 1 to account for a zero row.
-    // TODO(luke): Move this out of this function and directly into compute_proving_key?
     if constexpr (IsGoblinFlavor<Flavor>) {
         const size_t num_ecc_op_gates = circuit_constructor.num_ecc_op_gates;
         gate_offset += num_ecc_op_gates;

@@ -27,7 +27,6 @@ template <typename Curve> class work_queue {
     };
 
   private:
-    // TODO(luke): Consider handling all transcript interactions in the prover rather than embedding them in the queue.
     proof_system::honk::ProverTranscript<FF>& transcript;
     std::shared_ptr<CommitmentKey> commitment_key;
     std::vector<work_item> work_item_queue;

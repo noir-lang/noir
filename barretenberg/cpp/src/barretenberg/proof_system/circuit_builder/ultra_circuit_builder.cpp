@@ -58,7 +58,6 @@ template <typename FF> void UltraCircuitBuilder_<FF>::finalize_circuit()
 // TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
 // them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
 // polynomials is zero, which is required for them to be shiftable.
-// TODO(luke): Add ECC op gate to ensure op wires are non-zero?
 template <typename FF> void UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // First add a gate to simultaneously ensure first entries of all wires is zero and to add a non

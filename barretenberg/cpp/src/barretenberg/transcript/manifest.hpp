@@ -67,7 +67,6 @@ class Manifest {
         bool map_challenges;
     };
 
-    // TODO(luke): needed only in development; can be deleted when appropriate
     Manifest() = default;
     Manifest(std::vector<RoundManifest> _round_manifests)
         : round_manifests(_round_manifests)

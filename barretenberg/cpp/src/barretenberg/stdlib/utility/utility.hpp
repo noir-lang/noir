@@ -83,7 +83,6 @@ template <typename Builder> class StdlibTypesUtility {
 
     /**
      * @brief Construct field_t array from native Univariate type
-     * TODO(luke): do we need a stdlib Univariate or is Univariate<field_t> good enough?
      * @param native_element
      * @return Univariate<field_ct, LENGTH>
      */

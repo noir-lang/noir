@@ -114,14 +114,13 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    std::optional sumcheck_output = sumcheck.verify(relation_parameters, transcript);
+    auto [multivariate_challenge, purported_evaluations, sumcheck_verified] =
+        sumcheck.verify(relation_parameters, transcript);
 
-    // If Sumcheck does not return an output, sumcheck verification has failed
-    if (!sumcheck_output.has_value()) {
+    // If Sumcheck did not verify, return false
+    if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
         return false;
     }
-
-    auto [multivariate_challenge, purported_evaluations] = *sumcheck_output;
 
     // Execute Gemini/Shplonk verification:
 
@@ -218,7 +217,9 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, univariate_opening_claims, transcript);
 
     // Verify the Shplonk claim with KZG or IPA
-    return PCS::verify(pcs_verification_key, shplonk_claim, transcript);
+    auto verified = PCS::verify(pcs_verification_key, shplonk_claim, transcript);
+
+    return sumcheck_verified.value() && verified;
 }
 
 template class UltraVerifier_<honk::flavor::Ultra>;

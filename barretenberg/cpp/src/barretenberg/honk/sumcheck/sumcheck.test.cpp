@@ -107,11 +107,11 @@ TEST_F(SumcheckTests, PolynomialNormalization)
 
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
-    auto [multivariate_challenge, evaluations] = sumcheck.prove(full_polynomials, {});
+    auto output = sumcheck.prove(full_polynomials, {});
 
-    FF u_0 = multivariate_challenge[0];
-    FF u_1 = multivariate_challenge[1];
-    FF u_2 = multivariate_challenge[2];
+    FF u_0 = output.challenge[0];
+    FF u_1 = output.challenge[1];
+    FF u_2 = output.challenge[2];
 
     /* sumcheck.prove() terminates with sumcheck.multivariates.folded_polynoimals as an array such that
      * sumcheck.multivariates.folded_polynoimals[i][0] is the evaluatioin of the i'th multivariate at the vector of
@@ -162,9 +162,9 @@ TEST_F(SumcheckTests, Prover)
 
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
-    auto [multivariate_challenge, evaluations] = sumcheck.prove(full_polynomials, {});
-    FF u_0 = multivariate_challenge[0];
-    FF u_1 = multivariate_challenge[1];
+    auto output = sumcheck.prove(full_polynomials, {});
+    FF u_0 = output.challenge[0];
+    FF u_1 = output.challenge[1];
     std::vector<FF> expected_values;
     for (auto& polynomial : full_polynomials) {
         // using knowledge of inputs here to derive the evaluation
@@ -176,7 +176,7 @@ TEST_F(SumcheckTests, Prover)
     }
 
     for (size_t poly_idx = 0; poly_idx < NUM_POLYNOMIALS; poly_idx++) {
-        EXPECT_EQ(evaluations[poly_idx], expected_values[poly_idx]);
+        EXPECT_EQ(output.claimed_evaluations[poly_idx], expected_values[poly_idx]);
     }
 }
 
@@ -242,9 +242,11 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
 
         auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n);
 
-        std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
+        auto verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
 
-        EXPECT_EQ(verifier_output.has_value(), expect_verified);
+        auto verified = verifier_output.verified.value();
+
+        EXPECT_EQ(verified, expect_verified);
     };
 
     run_test(/* expect_verified=*/true);
@@ -395,9 +397,11 @@ TEST_F(SumcheckTests, RealCircuitUltra)
 
     auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
 
-    std::optional verifier_output = sumcheck_verifier.verify(instance->relation_parameters, verifier_transcript);
+    auto verifier_output = sumcheck_verifier.verify(instance->relation_parameters, verifier_transcript);
 
-    ASSERT_TRUE(verifier_output.has_value());
+    auto verified = verifier_output.verified.value();
+
+    ASSERT_TRUE(verified);
 }
 
 } // namespace test_sumcheck_round
