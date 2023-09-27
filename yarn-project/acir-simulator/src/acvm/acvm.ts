@@ -1,7 +1,4 @@
 import { FunctionDebugMetadata, OpcodeLocation } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { NoirCallStack, SourceCodeLocation } from '@aztec/types';
 
@@ -15,55 +12,25 @@ import {
 } from '@noir-lang/acvm_js';
 
 import { traverseCauseChain } from '../common/errors.js';
+import { ORACLE_NAMES } from './oracle/index.js';
 
 /**
  * The format for fields on the ACVM.
  */
 export type ACVMField = string;
+
 /**
  * The format for witnesses of the ACVM.
  */
 export type ACVMWitness = WitnessMap;
 
-export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES)}`;
-export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}01`;
-
-/**
- * The supported oracle names.
- */
-type ORACLE_NAMES =
-  | 'computeSelector'
-  | 'packArguments'
-  | 'getAuthWitness'
-  | 'getSecretKey'
-  | 'getNote'
-  | 'getNotes'
-  | 'checkNoteHashExists'
-  | 'getRandomField'
-  | 'notifyCreatedNote'
-  | 'notifyNullifiedNote'
-  | 'callPrivateFunction'
-  | 'callPublicFunction'
-  | 'enqueuePublicFunctionCall'
-  | 'storageRead'
-  | 'storageWrite'
-  | 'getL1ToL2Message'
-  | 'getPortalContractAddress'
-  | 'emitEncryptedLog'
-  | 'emitUnencryptedLog'
-  | 'getPublicKey'
-  | 'debugLog'
-  | 'debugLogWithPrefix';
-
-/**
- * A type that does not require all keys to be present.
- */
-type PartialRecord<K extends keyof any, T> = Partial<Record<K, T>>;
-
 /**
  * The callback interface for the ACIR.
  */
-export type ACIRCallback = PartialRecord<ORACLE_NAMES, (...args: ForeignCallInput[]) => Promise<ForeignCallOutput>>;
+type ACIRCallback = Record<
+  ORACLE_NAMES,
+  (...args: ForeignCallInput[]) => ForeignCallOutput | Promise<ForeignCallOutput>
+>;
 
 /**
  * The result of executing an ACIR.
@@ -192,62 +159,4 @@ export function extractCallStack(
   }
 
   return resolveOpcodeLocations(callStack, debug);
-}
-
-/**
- * Adapts the buffer to the field size.
- * @param originalBuf - The buffer to adapt.
- * @returns The adapted buffer.
- */
-function adaptBufferSize(originalBuf: Buffer) {
-  const buffer = Buffer.alloc(Fr.SIZE_IN_BYTES);
-  if (originalBuf.length > buffer.length) {
-    throw new Error('Buffer does not fit in field');
-  }
-  originalBuf.copy(buffer, buffer.length - originalBuf.length);
-  return buffer;
-}
-
-/**
- * Converts a value to an ACVM field.
- * @param value - The value to convert.
- * @returns The ACVM field.
- */
-export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number | bigint): ACVMField {
-  if (typeof value === 'boolean') {
-    return value ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
-  }
-
-  let buffer;
-
-  if (Buffer.isBuffer(value)) {
-    buffer = value;
-  } else if (typeof value === 'number') {
-    buffer = Buffer.alloc(Fr.SIZE_IN_BYTES);
-    buffer.writeUInt32BE(value, Fr.SIZE_IN_BYTES - 4);
-  } else if (typeof value === 'bigint') {
-    buffer = new Fr(value).toBuffer();
-  } else {
-    buffer = value.toBuffer();
-  }
-
-  return `0x${adaptBufferSize(buffer).toString('hex')}`;
-}
-
-/**
- * Converts an ACVM field to a Buffer.
- * @param field - The ACVM field to convert.
- * @returns The Buffer.
- */
-export function convertACVMFieldToBuffer(field: ACVMField): Buffer {
-  return Buffer.from(field.slice(2), 'hex');
-}
-
-/**
- * Converts an ACVM field to a Fr.
- * @param field - The ACVM field to convert.
- * @returns The Fr.
- */
-export function fromACVMField(field: ACVMField): Fr {
-  return Fr.fromBuffer(convertACVMFieldToBuffer(field));
 }

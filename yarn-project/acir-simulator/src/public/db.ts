@@ -2,7 +2,7 @@ import { EthAddress, FunctionSelector } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { MessageLoadOracleInputs } from '../index.js';
+import { MessageLoadOracleInputs } from '../acvm/index.js';
 
 /**
  * Database interface for providing access to public state.

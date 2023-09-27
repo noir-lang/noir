@@ -1,28 +1,35 @@
-import { CircuitsWasm, HistoricBlockData, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
+import {
+  CallContext,
+  CircuitsWasm,
+  ContractDeploymentData,
+  FunctionData,
+  FunctionSelector,
+  HistoricBlockData,
+  PublicCallRequest,
+  ReadRequestMembershipWitness,
+  TxContext,
+} from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AuthWitness } from '@aztec/types';
+import { AuthWitness, FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
 
-import {
-  ACVMField,
-  ONE_ACVM_FIELD,
-  ZERO_ACVM_FIELD,
-  fromACVMField,
-  toACVMField,
-  toAcvmL1ToL2MessageLoadOracleInputs,
-} from '../acvm/index.js';
+import { NoteData, toACVMWitness } from '../acvm/index.js';
+import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { DBOracle } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
-import { NewNoteData } from './execution_result.js';
+import { ExecutionResult, NewNoteData } from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
+import { executePrivateFunction } from './private_execution.js';
+import { ViewDataOracle } from './view_data_oracle.js';
 
 /**
  * The execution context for a client tx simulation.
  */
-export class ClientTxExecutionContext {
+export class ClientExecutionContext extends ViewDataOracle {
   /**
    * New notes created during this execution.
    * It's possible that a note in this list has been nullified (in the same or other executions) and doen't exist in the ExecutionNoteCache and the final proof data.
@@ -41,50 +48,63 @@ export class ClientTxExecutionContext {
    * They should act as references for the read requests output by an app circuit via public inputs.
    */
   private gotNotes: Map<bigint, bigint> = new Map();
-
-  /** Logger instance */
-  private logger = createDebugLogger('aztec:simulator:execution_context');
+  private encryptedLogs: Buffer[] = [];
+  private unencryptedLogs: Buffer[] = [];
+  private nestedExecutions: ExecutionResult[] = [];
+  private enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
 
   constructor(
-    /**  The database oracle. */
-    public db: DBOracle,
-    /** The tx context. */
-    public txContext: TxContext,
+    protected readonly contractAddress: AztecAddress,
+    private readonly argsHash: Fr,
+    private readonly txContext: TxContext,
+    private readonly callContext: CallContext,
     /** Data required to reconstruct the block hash, it contains historic roots. */
-    public historicBlockData: HistoricBlockData,
-    /** The cache of packed arguments */
-    public packedArgsCache: PackedArgsCache,
-    private noteCache: ExecutionNoteCache,
+    protected readonly historicBlockData: HistoricBlockData,
     /** List of transient auth witnesses to be used during this simulation */
-    private authWitnesses: AuthWitness[],
-    private log = createDebugLogger('aztec:simulator:client_execution_context'),
-  ) {}
-
-  /**
-   * Create context for nested executions.
-   * @returns ClientTxExecutionContext
-   */
-  public extend() {
-    return new ClientTxExecutionContext(
-      this.db,
-      this.txContext,
-      this.historicBlockData,
-      this.packedArgsCache,
-      this.noteCache,
-      this.authWitnesses,
-    );
+    protected readonly authWitnesses: AuthWitness[],
+    private readonly packedArgsCache: PackedArgsCache,
+    private readonly noteCache: ExecutionNoteCache,
+    private readonly sideEffectCounter: SideEffectCounter,
+    protected readonly db: DBOracle,
+    private readonly curve: Grumpkin,
+    protected log = createDebugLogger('aztec:simulator:client_execution_context'),
+  ) {
+    super(contractAddress, historicBlockData, authWitnesses, db, undefined, log);
   }
 
+  // We still need this function until we can get user-defined ordering of structs for fn arguments
+  // TODO When that is sorted out on noir side, we can use instead the utilities in serialize.ts
   /**
-   * Returns an auth witness for the given message hash. Checks on the list of transient witnesses
-   * for this transaction first, and falls back to the local database if not found.
-   * @param messageHash - Hash of the message to authenticate.
-   * @returns Authentication witness for the requested message hash.
+   * Writes the function inputs to the initial witness.
+   * @returns The initial witness.
    */
-  public getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined> {
-    return Promise.resolve(
-      this.authWitnesses.find(w => w.requestHash.equals(messageHash))?.witness ?? this.db.getAuthWitness(messageHash),
-    );
+  public getInitialWitness() {
+    const contractDeploymentData = this.txContext.contractDeploymentData;
+
+    const fields = [
+      this.callContext.msgSender,
+      this.callContext.storageContractAddress,
+      this.callContext.portalContractAddress,
+      this.callContext.isDelegateCall,
+      this.callContext.isStaticCall,
+      this.callContext.isContractDeployment,
+
+      ...this.historicBlockData.toArray(),
+
+      contractDeploymentData.deployerPublicKey.x,
+      contractDeploymentData.deployerPublicKey.y,
+      contractDeploymentData.constructorVkHash,
+      contractDeploymentData.functionTreeRoot,
+      contractDeploymentData.contractAddressSalt,
+      contractDeploymentData.portalContractAddress,
+
+      this.txContext.chainId,
+      this.txContext.version,
+
+      ...this.packedArgsCache.unpack(this.argsHash),
+    ];
+
+    return toACVMWitness(1, fields);
   }
 
   /**
@@ -116,18 +136,39 @@ export class ClientTxExecutionContext {
   }
 
   /**
-   * For getting secret key.
-   * @param contractAddress - The contract address.
-   * @param ownerX - The x coordinate of the owner's public key.
-   * @param ownerY - The y coordinate of the owner's public key.
-   * @returns The secret key of the owner as a pair of ACVM fields.
+   * Return the encrypted logs emitted during this execution.
    */
-  public async getSecretKey(contractAddress: AztecAddress, ownerX: ACVMField, ownerY: ACVMField) {
-    const secretKey = await this.db.getSecretKey(
-      contractAddress,
-      new Point(fromACVMField(ownerX), fromACVMField(ownerY)),
-    );
-    return [toACVMField(secretKey.low), toACVMField(secretKey.high)];
+  public getEncryptedLogs() {
+    return new FunctionL2Logs(this.encryptedLogs);
+  }
+
+  /**
+   * Return the encrypted logs emitted during this execution.
+   */
+  public getUnencryptedLogs() {
+    return new FunctionL2Logs(this.unencryptedLogs);
+  }
+
+  /**
+   * Return the nested execution results during this execution.
+   */
+  public getNestedExecutions() {
+    return this.nestedExecutions;
+  }
+
+  /**
+   * Return the enqueued public function calls during this execution.
+   */
+  public getEnqueuedPublicFunctionCalls() {
+    return this.enqueuedPublicFunctionCalls;
+  }
+
+  /**
+   * Pack the given arguments.
+   * @param args - Arguments to pack
+   */
+  public packArguments(args: Fr[]): Promise<Fr> {
+    return this.packedArgsCache.pack(args);
   }
 
   /**
@@ -157,40 +198,45 @@ export class ClientTxExecutionContext {
    * paddedZeros - zeros to ensure an array with length returnSize expected by Noir circuit
    */
   public async getNotes(
-    contractAddress: AztecAddress,
-    storageSlot: ACVMField,
+    storageSlot: Fr,
     numSelects: number,
-    selectBy: ACVMField[],
-    selectValues: ACVMField[],
-    sortBy: ACVMField[],
-    sortOrder: ACVMField[],
+    selectBy: number[],
+    selectValues: Fr[],
+    sortBy: number[],
+    sortOrder: number[],
     limit: number,
     offset: number,
-    returnSize: number,
-  ): Promise<ACVMField[]> {
-    const storageSlotField = fromACVMField(storageSlot);
-
+  ): Promise<NoteData[]> {
     // Nullified pending notes are already removed from the list.
-    const pendingNotes = this.noteCache.getNotes(contractAddress, storageSlotField);
+    const pendingNotes = this.noteCache.getNotes(this.contractAddress, storageSlot);
 
-    const pendingNullifiers = this.noteCache.getNullifiers(contractAddress);
-    const dbNotes = await this.db.getNotes(contractAddress, storageSlotField);
+    const pendingNullifiers = this.noteCache.getNullifiers(this.contractAddress);
+    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot);
     const dbNotesFiltered = dbNotes.filter(n => !pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
-    const notes = pickNotes([...dbNotesFiltered, ...pendingNotes], {
-      selects: selectBy
-        .slice(0, numSelects)
-        .map((fieldIndex, i) => ({ index: +fieldIndex, value: fromACVMField(selectValues[i]) })),
-      sorts: sortBy.map((fieldIndex, i) => ({ index: +fieldIndex, order: +sortOrder[i] })),
+    const notes = pickNotes<NoteData>([...dbNotesFiltered, ...pendingNotes], {
+      selects: selectBy.slice(0, numSelects).map((index, i) => ({ index, value: selectValues[i] })),
+      sorts: sortBy.map((index, i) => ({ index, order: sortOrder[i] })),
       limit,
       offset,
     });
 
-    this.logger(
-      `Returning ${notes.length} notes for ${contractAddress} at ${storageSlotField}: ${notes
+    this.log(
+      `Returning ${notes.length} notes for ${this.contractAddress} at ${storageSlot}: ${notes
         .map(n => `${n.nonce.toString()}:[${n.preimage.map(i => i.toString()).join(',')}]`)
         .join(', ')}`,
     );
+
+    // TODO: notice, that if we don't have a note in our DB, we don't know how big the preimage needs to be, and so we don't actually know how many dummy notes to return, or big to make those dummy notes, or where to position `is_some` booleans to inform the noir program that _all_ the notes should be dummies.
+    // By a happy coincidence, a `0` field is interpreted as `is_none`, and since in this case (of an empty db) we'll return all zeros (paddedZeros), the noir program will treat the returned data as all dummies, but this is luck. Perhaps a preimage size should be conveyed by the get_notes Aztec.nr oracle?
+    const preimageLength = notes?.[0]?.preimage.length ?? 0;
+    if (
+      !notes.every(({ preimage }) => {
+        return preimageLength === preimage.length;
+      })
+    ) {
+      throw new Error('Preimages for a particular note type should all be the same length');
+    }
 
     const wasm = await CircuitsWasm.get();
     notes.forEach(n => {
@@ -201,40 +247,40 @@ export class ClientTxExecutionContext {
       }
     });
 
-    // TODO: notice, that if we don't have a note in our DB, we don't know how big the preimage needs to be, and so we don't actually know how many dummy notes to return, or big to make those dummy notes, or where to position `is_some` booleans to inform the noir program that _all_ the notes should be dummies.
-    // By a happy coincidence, a `0` field is interpreted as `is_none`, and since in this case (of an empty db) we'll return all zeros (paddedZeros), the noir program will treat the returned data as all dummies, but this is luck. Perhaps a preimage size should be conveyed by the get_notes Aztec.nr oracle?
-    const preimageLength = notes?.[0]?.preimage.length ?? 0;
-    if (
-      !notes.every(({ preimage }) => {
-        return preimageLength === preimage.length;
-      })
-    )
-      throw new Error('Preimages for a particular note type should all be the same length');
+    return notes;
+  }
 
-    // Combine pending and db preimages into a single flattened array.
-    const isSome = new Fr(1); // Boolean. Indicates whether the Noir Option<Note>::is_some();
+  /**
+   * Fetches a path to prove existence of a commitment in the db, given its contract side commitment (before silo).
+   * @param nonce - The nonce of the note.
+   * @param innerNoteHash - The inner note hash of the note.
+   * @returns 1 if (persistent or transient) note hash exists, 0 otherwise. Value is in ACVMField form.
+   */
+  public async checkNoteHashExists(nonce: Fr, innerNoteHash: Fr): Promise<boolean> {
+    if (nonce.isZero()) {
+      // If nonce is 0, we are looking for a new note created in this transaction.
+      const exists = this.noteCache.checkNoteExists(this.contractAddress, innerNoteHash);
+      if (exists) {
+        return true;
+      }
+      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+      // Currently it can also be a note created from public if nonce is 0.
+      // If we can't find a matching new note, keep looking for the match from the notes created in previous transactions.
+    }
 
-    const realNotePreimages = notes.flatMap(({ nonce, preimage }) => [nonce, isSome, ...preimage]);
+    // If nonce is zero, SHOULD only be able to reach this point if note was publicly created
+    const wasm = await CircuitsWasm.get();
+    let noteHashToLookUp = siloCommitment(wasm, this.contractAddress, innerNoteHash);
+    if (!nonce.isZero()) {
+      noteHashToLookUp = computeUniqueCommitment(wasm, nonce, noteHashToLookUp);
+    }
 
-    const returnHeaderLength = 2; // is for the header values: `notes.length` and `contractAddress`.
-    const extraPreimageLength = 2; // is for the nonce and isSome fields.
-    const extendedPreimageLength = preimageLength + extraPreimageLength;
-    const numRealNotes = notes.length;
-    const numReturnNotes = Math.floor((returnSize - returnHeaderLength) / extendedPreimageLength);
-    const numDummyNotes = numReturnNotes - numRealNotes;
-
-    const dummyNotePreimage = Array(extendedPreimageLength).fill(Fr.ZERO);
-    const dummyNotePreimages = Array(numDummyNotes)
-      .fill(dummyNotePreimage)
-      .flatMap(note => note);
-
-    const paddedZeros = Array(
-      Math.max(0, returnSize - returnHeaderLength - realNotePreimages.length - dummyNotePreimages.length),
-    ).fill(Fr.ZERO);
-
-    return [notes.length, contractAddress, ...realNotePreimages, ...dummyNotePreimages, ...paddedZeros].map(v =>
-      toACVMField(v),
-    );
+    const index = await this.db.getCommitmentIndex(noteHashToLookUp);
+    const exists = index !== undefined;
+    if (exists) {
+      this.gotNotes.set(noteHashToLookUp.value, index);
+    }
+    return exists;
   }
 
   /**
@@ -246,84 +292,162 @@ export class ClientTxExecutionContext {
    * @param innerNoteHash - The inner note hash of the new note.
    * @returns
    */
-  public handleNewNote(
-    contractAddress: AztecAddress,
-    storageSlot: ACVMField,
-    preimage: ACVMField[],
-    innerNoteHash: ACVMField,
-  ) {
+  public notifyCreatedNote(storageSlot: Fr, preimage: Fr[], innerNoteHash: Fr) {
     this.noteCache.addNewNote({
-      contractAddress,
-      storageSlot: fromACVMField(storageSlot),
+      contractAddress: this.contractAddress,
+      storageSlot,
       nonce: Fr.ZERO, // Nonce cannot be known during private execution.
-      preimage: preimage.map(f => fromACVMField(f)),
+      preimage,
       siloedNullifier: undefined, // Siloed nullifier cannot be known for newly created note.
-      innerNoteHash: fromACVMField(innerNoteHash),
+      innerNoteHash,
     });
     this.newNotes.push({
-      storageSlot: fromACVMField(storageSlot),
-      preimage: preimage.map(f => fromACVMField(f)),
+      storageSlot,
+      preimage,
     });
   }
 
   /**
    * Adding a siloed nullifier into the current set of all pending nullifiers created
    * within the current transaction/execution.
-   * @param contractAddress - The contract address.
    * @param innerNullifier - The pending nullifier to add in the list (not yet siloed by contract address).
    * @param innerNoteHash - The inner note hash of the new note.
-   * @param contractAddress - The contract address
    */
-  public async handleNullifiedNote(contractAddress: AztecAddress, innerNullifier: ACVMField, innerNoteHash: ACVMField) {
-    await this.noteCache.nullifyNote(contractAddress, fromACVMField(innerNullifier), fromACVMField(innerNoteHash));
+  public async notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr) {
+    await this.noteCache.nullifyNote(this.contractAddress, innerNullifier, innerNoteHash);
   }
 
   /**
-   * Fetches the a message from the db, given its key.
-   * @param msgKey - A buffer representing the message key.
-   * @returns The l1 to l2 message data
+   * Encrypt a note and emit it as a log.
+   * @param contractAddress - The contract address of the note.
+   * @param storageSlot - The storage slot the note is at.
+   * @param publicKey - The public key of the account that can decrypt the log.
+   * @param preimage - The preimage of the note.
    */
-  public async getL1ToL2Message(msgKey: Fr): Promise<ACVMField[]> {
-    const messageInputs = await this.db.getL1ToL2Message(msgKey);
-    return toAcvmL1ToL2MessageLoadOracleInputs(messageInputs, this.historicBlockData.l1ToL2MessagesTreeRoot);
+  public emitEncryptedLog(contractAddress: AztecAddress, storageSlot: Fr, publicKey: Point, preimage: Fr[]) {
+    const notePreimage = new NotePreimage(preimage);
+    const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, storageSlot);
+    const encryptedNotePreimage = noteSpendingInfo.toEncryptedBuffer(publicKey, this.curve);
+    this.encryptedLogs.push(encryptedNotePreimage);
   }
 
   /**
-   * Fetches a path to prove existence of a commitment in the db, given its contract side commitment (before silo).
-   * @param contractAddress - The contract address.
-   * @param nonce - The nonce of the note.
-   * @param innerNoteHash - The inner note hash of the note.
-   * @returns 1 if (persistent or transient) note hash exists, 0 otherwise. Value is in ACVMField form.
+   * Emit an unencrypted log.
+   * @param log - The unencrypted log to be emitted.
    */
-  public async checkNoteHashExists(
-    contractAddress: AztecAddress,
-    nonce: ACVMField,
-    innerNoteHash: ACVMField,
-  ): Promise<ACVMField> {
-    const nonceField = fromACVMField(nonce);
-    const innerNoteHashField = fromACVMField(innerNoteHash);
-    if (nonceField.isZero()) {
-      // If nonce is 0, we are looking for a new note created in this transaction.
-      const exists = this.noteCache.checkNoteExists(contractAddress, innerNoteHashField);
-      if (exists) {
-        return ONE_ACVM_FIELD;
-      }
-      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-      // Currently it can also be a note created from public if nonce is 0.
-      // If we can't find a matching new note, keep looking for the match from the notes created in previous transactions.
-    }
+  public emitUnencryptedLog(log: Buffer) {
+    this.unencryptedLogs.push(log);
+    this.log(`Emitted unencrypted log: "${log.toString('ascii')}"`);
+  }
 
-    // If nonce is zero, SHOULD only be able to reach this point if note was publicly created
-    const wasm = await CircuitsWasm.get();
-    let noteHashToLookUp = siloCommitment(wasm, contractAddress, innerNoteHashField);
-    if (!nonceField.isZero()) {
-      noteHashToLookUp = computeUniqueCommitment(wasm, nonceField, noteHashToLookUp);
-    }
+  /**
+   * Calls a private function as a nested execution.
+   * @param targetContractAddress - The address of the contract to call.
+   * @param functionSelector - The function selector of the function to call.
+   * @param argsHash - The packed arguments to pass to the function.
+   * @returns The execution result.
+   */
+  async callPrivateFunction(targetContractAddress: AztecAddress, functionSelector: FunctionSelector, argsHash: Fr) {
+    this.log(
+      `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
+    );
 
-    const index = await this.db.getCommitmentIndex(noteHashToLookUp);
-    if (index !== undefined) {
-      this.gotNotes.set(noteHashToLookUp.value, index);
-    }
-    return index !== undefined ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
+    const targetAbi = await this.db.getFunctionABI(targetContractAddress, functionSelector);
+    const targetFunctionData = FunctionData.fromAbi(targetAbi);
+
+    const derivedTxContext = new TxContext(
+      false,
+      false,
+      false,
+      ContractDeploymentData.empty(),
+      this.txContext.chainId,
+      this.txContext.version,
+    );
+
+    const derivedCallContext = await this.deriveCallContext(targetContractAddress, false, false);
+
+    const context = new ClientExecutionContext(
+      targetContractAddress,
+      argsHash,
+      derivedTxContext,
+      derivedCallContext,
+      this.historicBlockData,
+      this.authWitnesses,
+      this.packedArgsCache,
+      this.noteCache,
+      this.sideEffectCounter,
+      this.db,
+      this.curve,
+    );
+
+    const childExecutionResult = await executePrivateFunction(
+      context,
+      targetAbi,
+      targetContractAddress,
+      targetFunctionData,
+    );
+
+    this.nestedExecutions.push(childExecutionResult);
+
+    return childExecutionResult.callStackItem;
+  }
+
+  /**
+   * Creates a PublicCallStackItem object representing the request to call a public function. No function
+   * is actually called, since that must happen on the sequencer side. All the fields related to the result
+   * of the execution are empty.
+   * @param targetContractAddress - The address of the contract to call.
+   * @param functionSelector - The function selector of the function to call.
+   * @param argsHash - The packed arguments to pass to the function.
+   * @returns The public call stack item with the request information.
+   */
+  public async enqueuePublicFunctionCall(
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    argsHash: Fr,
+  ): Promise<PublicCallRequest> {
+    const targetAbi = await this.db.getFunctionABI(targetContractAddress, functionSelector);
+    const derivedCallContext = await this.deriveCallContext(targetContractAddress, false, false);
+    const args = this.packedArgsCache.unpack(argsHash);
+    const sideEffectCounter = this.sideEffectCounter.count();
+    const enqueuedRequest = PublicCallRequest.from({
+      args,
+      callContext: derivedCallContext,
+      functionData: FunctionData.fromAbi(targetAbi),
+      contractAddress: targetContractAddress,
+      sideEffectCounter,
+    });
+
+    // TODO($846): if enqueued public calls are associated with global
+    // side-effect counter, that will leak info about how many other private
+    // side-effects occurred in the TX. Ultimately the private kernel should
+    // just output everything in the proper order without any counters.
+    this.log(
+      `Enqueued call to public function (with side-effect counter #${sideEffectCounter}) ${targetContractAddress}:${functionSelector}`,
+    );
+
+    this.enqueuedPublicFunctionCalls.push(enqueuedRequest);
+
+    return enqueuedRequest;
+  }
+
+  /**
+   * Derives the call context for a nested execution.
+   * @param parentContext - The parent call context.
+   * @param targetContractAddress - The address of the contract being called.
+   * @param isDelegateCall - Whether the call is a delegate call.
+   * @param isStaticCall - Whether the call is a static call.
+   * @returns The derived call context.
+   */
+  private async deriveCallContext(targetContractAddress: AztecAddress, isDelegateCall = false, isStaticCall = false) {
+    const portalContractAddress = await this.db.getPortalContractAddress(targetContractAddress);
+    return new CallContext(
+      this.contractAddress,
+      targetContractAddress,
+      portalContractAddress,
+      isDelegateCall,
+      isStaticCall,
+      false,
+    );
   }
 }

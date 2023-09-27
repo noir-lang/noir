@@ -7,10 +7,43 @@ import {
   PrivateCircuitPublicInputs,
   PublicCallRequest,
 } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { MessageLoadOracleInputs } from '../client/db_oracle.js';
-import { ACVMField, toACVMField } from './acvm.js';
+import { ACVMField } from './acvm.js';
+import { MessageLoadOracleInputs } from './oracle/index.js';
+
+/**
+ * Adapts the buffer to the field size.
+ * @param originalBuf - The buffer to adapt.
+ * @returns The adapted buffer.
+ */
+function adaptBufferSize(originalBuf: Buffer) {
+  const buffer = Buffer.alloc(Fr.SIZE_IN_BYTES);
+  if (originalBuf.length > buffer.length) {
+    throw new Error('Buffer does not fit in field');
+  }
+  originalBuf.copy(buffer, buffer.length - originalBuf.length);
+  return buffer;
+}
+
+/**
+ * Converts a value to an ACVM field.
+ * @param value - The value to convert.
+ * @returns The ACVM field.
+ */
+export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number | bigint): ACVMField {
+  let buffer;
+  if (Buffer.isBuffer(value)) {
+    buffer = value;
+  } else if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'bigint') {
+    buffer = new Fr(value).toBuffer();
+  } else {
+    buffer = value.toBuffer();
+  }
+  return `0x${adaptBufferSize(buffer).toString('hex')}`;
+}
 
 // Utilities to write TS classes to ACVM Field arrays
 // In the order that the ACVM expects them

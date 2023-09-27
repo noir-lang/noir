@@ -24,7 +24,25 @@ import { Tuple } from '@aztec/foundation/serialize';
 
 import { getReturnWitness } from '@noir-lang/acvm_js';
 
-import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
+import { ACVMField, ACVMWitness } from './acvm.js';
+
+/**
+ * Converts an ACVM field to a Buffer.
+ * @param field - The ACVM field to convert.
+ * @returns The Buffer.
+ */
+export function convertACVMFieldToBuffer(field: ACVMField): Buffer {
+  return Buffer.from(field.slice(2), 'hex');
+}
+
+/**
+ * Converts an ACVM field to a Fr.
+ * @param field - The ACVM field to convert.
+ * @returns The Fr.
+ */
+export function fromACVMField(field: ACVMField): Fr {
+  return Fr.fromBuffer(convertACVMFieldToBuffer(field));
+}
 
 // Utilities to read TS classes from ACVM Field arrays
 // In the order that the ACVM provides them

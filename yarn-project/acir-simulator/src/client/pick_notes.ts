@@ -96,7 +96,7 @@ const sortNotes = (a: Fr[], b: Fr[], sorts: Sort[], level = 0): number => {
 export function pickNotes<T extends BasicNoteData>(
   notes: T[],
   { selects = [], sorts = [], limit = 0, offset = 0 }: GetOptions,
-) {
+): T[] {
   return selectNotes(notes, selects)
     .sort((a, b) => sortNotes(a.preimage, b.preimage, sorts))
     .slice(offset, limit ? offset + limit : undefined);

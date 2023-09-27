@@ -1,7 +1,6 @@
 import { CompleteAddress, FunctionData, HistoricBlockData } from '@aztec/circuits.js';
 import { FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { StatefulTestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { FunctionCall } from '@aztec/types';
@@ -65,13 +64,7 @@ describe('Unconstrained Execution test suite', () => {
         args: encodeArguments(abi, [owner]),
       };
 
-      const result = await acirSimulator.runUnconstrained(
-        execRequest,
-        AztecAddress.random(),
-        abi,
-        AztecAddress.random(),
-        EthAddress.ZERO,
-      );
+      const result = await acirSimulator.runUnconstrained(execRequest, abi, AztecAddress.random());
 
       expect(result).toEqual(9n);
     }, 30_000);

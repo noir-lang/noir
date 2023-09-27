@@ -309,9 +309,10 @@ export class AztecRPCServer implements AztecRPC {
     return txHash;
   }
 
-  public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
+  public async viewTx(functionName: string, args: any[], to: AztecAddress, _from?: AztecAddress) {
+    // TODO - Should check if `from` has the permission to call the view function.
     const functionCall = await this.#getFunctionCall(functionName, args, to);
-    const executionResult = await this.#simulateUnconstrained(functionCall, from);
+    const executionResult = await this.#simulateUnconstrained(functionCall);
 
     // TODO - Return typed result based on the function abi.
     return executionResult;
@@ -450,22 +451,14 @@ export class AztecRPCServer implements AztecRPC {
    * Returns the simulation result containing the outputs of the unconstrained function.
    *
    * @param execRequest - The transaction request object containing the target contract and function data.
-   * @param from - The origin of the request.
    * @returns The simulation result containing the outputs of the unconstrained function.
    */
-  async #simulateUnconstrained(execRequest: FunctionCall, from?: AztecAddress) {
-    const { contractAddress, functionAbi, portalContract } = await this.#getSimulationParameters(execRequest);
+  async #simulateUnconstrained(execRequest: FunctionCall) {
+    const { contractAddress, functionAbi } = await this.#getSimulationParameters(execRequest);
 
     this.log('Executing unconstrained simulator...');
     try {
-      const result = await this.simulator.runUnconstrained(
-        execRequest,
-        from ?? AztecAddress.ZERO,
-        functionAbi,
-        contractAddress,
-        portalContract,
-        this.node,
-      );
+      const result = await this.simulator.runUnconstrained(execRequest, functionAbi, contractAddress, this.node);
       this.log('Unconstrained simulation completed!');
 
       return result;

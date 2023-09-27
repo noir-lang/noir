@@ -1,4 +1,4 @@
-import { CallContext, FunctionData, MAX_NOTE_FIELDS_LENGTH, TxContext } from '@aztec/circuits.js';
+import { CallContext, FunctionData, MAX_NOTE_FIELDS_LENGTH } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ArrayType, FunctionSelector, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -10,13 +10,15 @@ import { AztecNode, FunctionCall, TxExecutionRequest } from '@aztec/types';
 import { WasmBlackBoxFunctionSolver, createBlackBoxSolver } from '@noir-lang/acvm_js';
 
 import { createSimulationError } from '../common/errors.js';
+import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
-import { ClientTxExecutionContext } from './client_execution_context.js';
+import { ClientExecutionContext } from './client_execution_context.js';
 import { DBOracle, FunctionAbiWithDebugMetadata } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
 import { ExecutionResult } from './execution_result.js';
-import { PrivateFunctionExecution } from './private_execution.js';
-import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
+import { executePrivateFunction } from './private_execution.js';
+import { executeUnconstrainedFunction } from './unconstrained_execution.js';
+import { ViewDataOracle } from './view_data_oracle.js';
 
 /**
  * The ACIR simulator.
@@ -84,26 +86,28 @@ export class AcirSimulator {
       false,
       request.functionData.isConstructor,
     );
-
-    const execution = new PrivateFunctionExecution(
-      new ClientTxExecutionContext(
-        this.db,
-        request.txContext,
-        historicBlockData,
-        await PackedArgsCache.create(request.packedArguments),
-        new ExecutionNoteCache(),
-        request.authWitnesses,
-      ),
-      entryPointABI,
+    const context = new ClientExecutionContext(
       contractAddress,
-      request.functionData,
       request.argsHash,
+      request.txContext,
       callContext,
+      historicBlockData,
+      request.authWitnesses,
+      await PackedArgsCache.create(request.packedArguments),
+      new ExecutionNoteCache(),
+      new SideEffectCounter(),
+      this.db,
       curve,
     );
 
     try {
-      return await execution.run();
+      const executionResult = await executePrivateFunction(
+        context,
+        entryPointABI,
+        contractAddress,
+        request.functionData,
+      );
+      return executionResult;
     } catch (err) {
       throw createSimulationError(err instanceof Error ? err : new Error('Unknown error during private execution'));
     }
@@ -112,19 +116,14 @@ export class AcirSimulator {
   /**
    * Runs an unconstrained function.
    * @param request - The transaction request.
-   * @param origin - The sender of the request.
    * @param entryPointABI - The ABI of the entry point function.
    * @param contractAddress - The address of the contract.
-   * @param portalContractAddress - The address of the portal contract.
-   * @param historicBlockData - Block data containing historic roots.
    * @param aztecNode - The AztecNode instance.
    */
   public async runUnconstrained(
     request: FunctionCall,
-    origin: AztecAddress,
     entryPointABI: FunctionAbiWithDebugMetadata,
     contractAddress: AztecAddress,
-    portalContractAddress: EthAddress,
     aztecNode?: AztecNode,
   ) {
     if (entryPointABI.functionType !== FunctionType.UNCONSTRAINED) {
@@ -132,33 +131,16 @@ export class AcirSimulator {
     }
 
     const historicBlockData = await this.db.getHistoricBlockData();
-    const callContext = new CallContext(
-      origin,
-      contractAddress,
-      portalContractAddress,
-      false,
-      false,
-      request.functionData.isConstructor,
-    );
-
-    const execution = new UnconstrainedFunctionExecution(
-      new ClientTxExecutionContext(
-        this.db,
-        TxContext.empty(),
-        historicBlockData,
-        await PackedArgsCache.create([]),
-        new ExecutionNoteCache(),
-        [],
-      ),
-      entryPointABI,
-      contractAddress,
-      request.functionData,
-      request.args,
-      callContext,
-    );
+    const context = new ViewDataOracle(contractAddress, historicBlockData, [], this.db, aztecNode);
 
     try {
-      return await execution.run(aztecNode);
+      return await executeUnconstrainedFunction(
+        context,
+        entryPointABI,
+        contractAddress,
+        request.functionData,
+        request.args,
+      );
     } catch (err) {
       throw createSimulationError(err instanceof Error ? err : new Error('Unknown error during private execution'));
     }
@@ -209,10 +191,8 @@ export class AcirSimulator {
 
     const [innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier] = (await this.runUnconstrained(
       execRequest,
-      AztecAddress.ZERO,
       abi,
       AztecAddress.ZERO,
-      EthAddress.ZERO,
     )) as bigint[];
 
     return {

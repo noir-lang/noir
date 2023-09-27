@@ -3,7 +3,7 @@ import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { NoteData } from './db_oracle.js';
+import { NoteData } from '../acvm/index.js';
 
 /**
  * Data that's accessible by all the function calls in an execution.

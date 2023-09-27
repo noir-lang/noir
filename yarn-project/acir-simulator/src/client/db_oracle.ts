@@ -4,46 +4,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { CommitmentsDB } from '../index.js';
-
-/**
- * Information about a note needed during execution.
- */
-export interface NoteData {
-  /** The contract address of the note. */
-  contractAddress: AztecAddress;
-  /** The storage slot of the note. */
-  storageSlot: Fr;
-  /** The nonce of the note. */
-  nonce: Fr;
-  /** The preimage of the note */
-  preimage: Fr[];
-  /** The inner note hash of the note. */
-  innerNoteHash: Fr;
-  /** The corresponding nullifier of the note. Undefined for pending notes. */
-  siloedNullifier?: Fr;
-  /** The note's leaf index in the private data tree. Undefined for pending notes. */
-  index?: bigint;
-}
-
-/**
- * The format that Aztec.nr uses to get L1 to L2 Messages.
- */
-export interface MessageLoadOracleInputs {
-  /**
-   * An collapsed array of fields containing all of the l1 to l2 message components.
-   * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, content, secretHash, deadline, fee]
-   */
-  message: Fr[];
-  /**
-   * The path in the merkle tree to the message.
-   */
-  siblingPath: Fr[];
-  /**
-   * The index of the message commitment in the merkle tree.
-   */
-  index: bigint;
-}
+import { NoteData } from '../acvm/index.js';
+import { CommitmentsDB } from '../public/index.js';
 
 /**
  * A function ABI with optional debug metadata

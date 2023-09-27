@@ -1,6 +1,6 @@
 import { ForeignCallInput } from '@noir-lang/acvm_js';
 
-import { ACVMField } from '../acvm/index.js';
+import { ACVMField } from '../acvm.js';
 
 /**
  * Convert an array of ACVMFields to a string.
