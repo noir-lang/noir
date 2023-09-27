@@ -109,7 +109,6 @@
           rustToolchain
           wasm-bindgen-cli
           binaryen
-          toml2json
         ];
 
         buildInputs = [ ] ++ extraBuildInputs;
