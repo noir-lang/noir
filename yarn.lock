@@ -7356,28 +7356,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tsc-multi@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "tsc-multi@npm:1.1.0"
-  dependencies:
-    debug: ^4.3.4
-    fast-glob: ^3.2.12
-    get-stdin: ^8.0.0
-    p-all: ^3.0.0
-    picocolors: ^1.0.0
-    signal-exit: ^3.0.7
-    string-to-stream: ^3.0.1
-    superstruct: ^1.0.3
-    tslib: ^2.5.0
-    yargs: ^17.7.1
-  peerDependencies:
-    typescript: ">=4.3.0"
-  bin:
-    tsc-multi: bin/tsc-multi.js
-  checksum: a82c0358611ac15667aa148ade33b6ad64cc0a94299fb9afc01e3e6224a994dff8812960a43643f25e4c0dac8419707027c3096d0e60bff3522591c06d5f4eeb
-  languageName: node
-  linkType: hard
-
 "tslib@npm:2.4.0":
   version: 2.4.0
   resolution: "tslib@npm:2.4.0"
