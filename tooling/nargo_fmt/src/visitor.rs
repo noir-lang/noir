@@ -1,8 +1,7 @@
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{ItemKind, ParsedModule},
-    BlockExpression, Expression, ExpressionKind, FunctionReturnType, NoirFunction, Statement,
-    StatementKind, Visibility,
+    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, StatementKind,
 };
 
 use crate::config::Config;
@@ -56,7 +55,7 @@ impl<'a> FmtVisitor<'a> {
             match item.kind {
                 ItemKind::Function(func) => {
                     let (fn_before_block, force_brace_newline) =
-                        self.rewrite_fn_before_block(func.clone());
+                        self.rewrite_fn_before_block(func.clone(), item.span.start());
 
                     self.format_missing_indent(item.span.start(), false);
 
@@ -194,67 +193,10 @@ impl<'a> FmtVisitor<'a> {
         }
     }
 
-    fn rewrite_fn_before_block(&self, func: NoirFunction) -> (String, bool) {
-        let ident_end = func.name_ident().span().end();
-        let mut force_brace_newline = false;
-
-        let mut result = String::with_capacity(1024);
-
-        result.push_str("fn ");
-        result.push_str(func.name());
-
-        let slice = slice!(self, ident_end, func.span().end());
-
-        let (params_start, params_end) = if func.parameters().is_empty() {
-            let params_start = slice.find('(').unwrap() as u32;
-            let params_end = slice.find(')').unwrap() as u32 + 1;
-
-            (ident_end + params_start, ident_end + params_end)
-        } else {
-            let (pattern, ty, _y) = func.parameters().last().unwrap();
-            // FIXME:
-            (pattern.name_ident().span().start(), ty.span.unwrap().end())
-        };
-
-        if !func.def.generics.is_empty() {
-            todo!("emit generics")
-        }
-
-        result.push('(');
-        if func.parameters().is_empty() {
-            let slice = slice!(self, params_start + 1, params_end - 1);
-            if !slice.trim().is_empty() {
-                result.push_str(slice);
-            }
-        } else {
-            let parameters = func.parameters();
-
-            for (index, (pattern, ty, vis)) in parameters.iter().enumerate() {
-                result.push_str(&pattern.to_string());
-                result.push_str(": ");
-                if let Visibility::Public = vis {
-                    result.push_str("pub ");
-                }
-                let ty_span = ty.span.unwrap();
-                result.push_str(slice!(self, ty_span.start(), ty_span.end()));
-
-                if index < parameters.len() - 1 {
-                    result.push_str(", ");
-                }
-            }
-        }
-
-        result.push(')');
-
-        if let FunctionReturnType::Default(span) = func.def.return_type {
-            let slice = slice!(self, params_end + 1, span.end() - 1);
-            if !slice.trim().is_empty() {
-                result.push_str(slice.trim_end());
-                force_brace_newline = true;
-            }
-        }
-
-        (result, force_brace_newline)
+    fn rewrite_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
+        let slice = slice!(self, start, func.span().start());
+        let force_brace_newline = slice.contains("//");
+        (slice.trim_end().to_string(), force_brace_newline)
     }
 }
 

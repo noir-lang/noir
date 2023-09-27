@@ -1,5 +1,5 @@
 use dep::std;
 
-fn main() {
+fn main( ) {
     std::println("Hello world");
 }
