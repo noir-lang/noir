@@ -4,6 +4,6 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./lib/cjs",
-    "target": "es2020"
+    "target": "ESNext"
   }
 }
