@@ -5,7 +5,7 @@ use crate::{
 };
 use noirc_errors::Span;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitFunction {
     pub name: Ident,
     pub generics: Generics,
@@ -17,14 +17,14 @@ pub struct TraitFunction {
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstant {
     pub name: Ident,
     pub ty: Type,
     pub span: Span,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitType {
     pub name: Ident,
     pub ty: Type,
@@ -34,7 +34,7 @@ pub struct TraitType {
 /// Represents a trait in the type system. Each instance of this struct
 /// will be shared across all Type::Trait variants that represent
 /// the same trait.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Trait {
     /// A unique id representing this trait type. Used to check if two
     /// struct traits are equal.

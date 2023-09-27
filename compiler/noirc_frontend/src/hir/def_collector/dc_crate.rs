@@ -447,7 +447,6 @@ fn collect_trait_impls(
 
         if let Some(trait_id) = trait_impl.the_trait {
             let the_trait = interner.get_trait(trait_id);
-            let the_trait = the_trait.borrow();
 
             // check whether the trait implementation is in the same crate as either the trait or the type
             let current_def_map = def_maps.get_mut(&crate_id).unwrap();
@@ -773,10 +772,8 @@ fn resolve_trait_methods(
         } = item
         {
             let the_trait = interner.get_trait(trait_id);
-            let self_type = Type::TypeVariable(
-                the_trait.borrow().self_type_typevar.clone(),
-                TypeVariableKind::Normal,
-            );
+            let self_type =
+                Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal);
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.set_self_type(Some(self_type));
@@ -1028,8 +1025,7 @@ fn check_methods_signatures(
     trait_id: TraitId,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) {
-    let the_trait_shared = resolver.interner.get_trait(trait_id);
-    let the_trait = the_trait_shared.borrow();
+    let the_trait = resolver.interner.get_trait(trait_id);
 
     let self_type = resolver.get_self_type().expect("trait impl must have a Self type");
 

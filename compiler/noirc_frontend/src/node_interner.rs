@@ -87,7 +87,7 @@ pub struct NodeInterner {
     //
     // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
     // We'd just lookup their methods as needed through the NodeInterner.
-    traits: HashMap<TraitId, Shared<Trait>>,
+    traits: HashMap<TraitId, Trait>,
 
     // Trait implementation map
     // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
@@ -416,7 +416,7 @@ impl NodeInterner {
 
         self.traits.insert(
             type_id,
-            Shared::new(Trait::new(
+            Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.crate_id,
@@ -431,7 +431,7 @@ impl NodeInterner {
                 }),
                 self_type_typevar_id,
                 self_type_typevar,
-            )),
+            ),
         );
     }
 
@@ -483,8 +483,8 @@ impl NodeInterner {
     }
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let mut value = self.traits.get_mut(&trait_id).unwrap().borrow_mut();
-        f(&mut value);
+        let value = self.traits.get_mut(&trait_id).unwrap();
+        f(value);
     }
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
@@ -752,7 +752,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_trait(&self, id: TraitId) -> Shared<Trait> {
+    pub fn get_trait(&self, id: TraitId) -> Trait {
         self.traits[&id].clone()
     }
 
