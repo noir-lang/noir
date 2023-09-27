@@ -1,9 +1,6 @@
 name: test-integration
 
 on:
-  push:
-    branches:
-      - jb-integrate-noir-js-tests
   workflow_dispatch:
   pull_request:
     paths:
