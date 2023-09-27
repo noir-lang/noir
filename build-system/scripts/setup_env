@@ -92,19 +92,18 @@ echo export BRANCH=$BRANCH >> $BASH_ENV
 if [ -n "$COMMIT_HASH" ]; then
   # Our alpine build image has yq installed, ubuntu build instances download from github.
   if [ ! -f /etc/alpine-release ]; then
-    mkdir -p $BUILD_SYSTEM_PATH/bin
-    echo export PATH=$BUILD_SYSTEM_PATH/bin:\$PATH >> $BASH_ENV
-    YQ_PATH=$BUILD_SYSTEM_PATH/bin/yq
+    BIN_PATH=$BUILD_SYSTEM_PATH/bin
+    echo export PATH=$BIN_PATH:\$PATH >> $BASH_ENV
     ARCH=$(uname -m)
     if [ "$ARCH" == "x86_64" ]; then
-      curl -Ls https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_amd64 > $YQ_PATH
+      gunzip -c $BIN_PATH/yq_linux_amd64 > $BIN_PATH/yq
     elif [ "$ARCH" == "aarch64" ]; then
-      curl -Ls https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_arm64 > $YQ_PATH
+      gunzip -c $BIN_PATH/yq_linux_arm64 > $BIN_PATH/yq
     else
       echo "Unknown arch: $ARCH"
       exit 1
     fi
-    chmod +x $YQ_PATH
+    chmod +x $BIN_PATH/yq
   fi
 
   # Install and ensure correct permissions on build instance key.
