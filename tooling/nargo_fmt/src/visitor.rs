@@ -108,7 +108,7 @@ impl<'a> FmtVisitor<'a> {
 
     fn visit_stmts(&mut self, stmts: Vec<Statement>) {
         for stmt in stmts {
-            match stmt.kind {
+            match dbg!(stmt.kind) {
                 StatementKind::Expression(expr) => self.visit_expr(expr),
                 StatementKind::Semi(expr) => {
                     self.visit_expr(expr);
@@ -116,7 +116,9 @@ impl<'a> FmtVisitor<'a> {
                 }
                 StatementKind::Error => unreachable!(),
                 _ => {
-                    self.format_missing_indent(stmt.span.end(), false);
+                    self.format_missing_inner(stmt.span.end(), |this, slice, _| {
+                        this.push_str(slice);
+                    });
                 }
             }
 
@@ -128,6 +130,7 @@ impl<'a> FmtVisitor<'a> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
+        dbg!(&rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
