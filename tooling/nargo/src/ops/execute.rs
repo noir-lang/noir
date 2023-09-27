@@ -9,7 +9,7 @@ use super::foreign_calls::ForeignCall;
 
 pub fn execute_circuit<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
-    circuit: Circuit,
+    circuit: &Circuit,
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {

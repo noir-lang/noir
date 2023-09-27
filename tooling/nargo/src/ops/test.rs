@@ -26,7 +26,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
             // otherwise constraints involving these expressions will not error.
             let circuit_execution =
-                execute_circuit(blackbox_solver, program.circuit, WitnessMap::new(), show_output);
+                execute_circuit(blackbox_solver, &program.circuit, WitnessMap::new(), show_output);
             test_status_program_compile_pass(test_function, circuit_execution)
         }
         Err(diag) => test_status_program_compile_fail(diag, test_function),
