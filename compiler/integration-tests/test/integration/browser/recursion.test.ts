@@ -8,7 +8,7 @@ import newCompiler, {
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
 import { decompressSync as gunzip } from "fflate";
-import { acvm, abi } from "@noir-lang/noir_js";
+import { acvm, abi, generateWitness } from "@noir-lang/noir_js";
 
 // @ts-ignore
 import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
@@ -17,8 +17,8 @@ import * as TOML from "smol-toml";
 
 const logger = new Logger({ name: "test", minLevel: TEST_LOG_LEVEL });
 
-const { default: initACVM, executeCircuit, compressWitness } = acvm;
-const { default: newABICoder, abiEncode } = abi;
+const { default: initACVM } = acvm;
+const { default: newABICoder } = abi;
 
 await newCompiler();
 await newABICoder();
@@ -62,18 +62,6 @@ async function getCircuit(noirSource) {
   });
 
   return compile({});
-}
-
-async function generateWitness(acir, abi, inputs) {
-  const witnessMap: WitnessMap = abiEncode(abi, inputs, null);
-
-  const compressedByteCode = Uint8Array.from(atob(acir), (c) =>
-    c.charCodeAt(0),
-  );
-
-  return executeCircuit(compressedByteCode, witnessMap, () => {
-    throw Error("unexpected oracle");
-  });
 }
 
 async function generateProof(
@@ -132,15 +120,16 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       await getCircuit(circuit_main_source);
     const main_inputs = TOML.parse(circuit_main_toml);
 
-    const main_witness = await generateWitness(
-      main_circuit,
-      main_abi,
+    const main_compressedWitness = await generateWitness(
+      {
+        bytecode: main_circuit,
+        abi: main_abi
+      },
       main_inputs,
     );
     const main_compressedByteCode = Uint8Array.from(atob(main_circuit), (c) =>
       c.charCodeAt(0),
     );
-    const main_compressedWitness = compressWitness(main_witness);
     const main_acirUint8Array = gunzip(main_compressedByteCode);
     const main_witnessUint8Array = gunzip(main_compressedWitness);
 
@@ -190,9 +179,11 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       circuit_recursion_source,
     );
 
-    const recursion_witness = await generateWitness(
-      recursion_circuit,
-      recursion_abi,
+    const recursion_compressedWitness = await generateWitness(
+      {
+        bytecode: recursion_circuit,
+        abi: recursion_abi
+      },
       recursion_inputs,
     );
 
@@ -201,7 +192,6 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       (c) => c.charCodeAt(0),
     );
 
-    const recursion_compressedWitness = compressWitness(recursion_witness);
     const recursion_acirUint8Array = gunzip(recursion_compressedByteCode);
     const recursion_witnessUint8Array = gunzip(recursion_compressedWitness);
 

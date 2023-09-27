@@ -8,10 +8,12 @@ export async function generateWitness(compiledProgram, inputs): Promise<Uint8Arr
   // Throws on ABI encoding error
   const witnessMap = abiEncode(compiledProgram.abi, inputs, null);
 
+  const compressedByteCode = base64Decode(compiledProgram.bytecode);
+
   // Execute the circuit to generate the rest of the witnesses and serialize
   // them into a Uint8Array.
   try {
-    const solvedWitness = await executeCircuit(base64Decode(compiledProgram.bytecode), witnessMap, () => {
+    const solvedWitness = await executeCircuit(compressedByteCode, witnessMap, () => {
       throw Error('unexpected oracle during execution');
     });
     return witnessMapToUint8Array(solvedWitness);
