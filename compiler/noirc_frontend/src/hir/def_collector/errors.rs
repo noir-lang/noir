@@ -1,6 +1,5 @@
 use crate::hir::resolution::import::PathResolutionError;
 use crate::Ident;
-
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
 use noirc_errors::Span;
@@ -8,7 +7,7 @@ use thiserror::Error;
 
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum DuplicateType {
     Function,
     Module,
@@ -49,6 +48,13 @@ pub enum DefCollectorErrorKind {
     TraitNotFound { trait_ident: Ident },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    #[error("Module is already part of the crate")]
+    ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
+    #[error("Module was originally declared here")]
+    ModuleOrignallyDefined { mod_name: Ident, span: Span },
+    #[cfg(feature = "aztec")]
+    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
+    AztecNotFound {},
 }
 
 impl DefCollectorErrorKind {
@@ -167,6 +173,20 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     span,
                 )
             }
+            DefCollectorErrorKind::ModuleAlreadyPartOfCrate { mod_name, span } => {
+                let message = format!("Module '{mod_name}' is already part of the crate");
+                let secondary = String::new();
+                Diagnostic::simple_error(message, secondary, span)
+            }
+            DefCollectorErrorKind::ModuleOrignallyDefined { mod_name, span } => {
+                let message = format!("Note: {mod_name} was originally declared here");
+                let secondary = String::new();
+                Diagnostic::simple_error(message, secondary, span)
+            }
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
         }
     }
 }

@@ -51,7 +51,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: acvm-js
-          path: ./acvm-repo/result
+          path: ./result
+      
+      - name: Move build artifacts
+        run: |
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
 
       - name: Set up test environment
         uses: ./.github/actions/setup
@@ -72,7 +77,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: acvm-js
-          path: ./acvm-repo/result
+          path: ./result
+      
+      - name: Move build artifacts
+        run: |
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
 
       - name: Set up test environment
         uses: ./.github/actions/setup

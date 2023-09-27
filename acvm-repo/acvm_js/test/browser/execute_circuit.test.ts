@@ -7,7 +7,7 @@ import initACVM, {
   WitnessMap,
   initLogLevel,
   ForeignCallHandler,
-} from "../../../result/";
+} from "@noir-lang/acvm_js";
 
 beforeEach(async () => {
   await initACVM();

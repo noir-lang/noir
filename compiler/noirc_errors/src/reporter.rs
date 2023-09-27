@@ -99,7 +99,7 @@ impl std::fmt::Display for CustomDiagnostic {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomLabel {
-    message: String,
+    pub message: String,
     pub span: Span,
 }
 

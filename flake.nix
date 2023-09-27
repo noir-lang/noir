@@ -73,7 +73,7 @@
       # Configuration shared between builds
       config = {
         # x-release-please-start-version
-        version = "0.13.0";
+        version = "0.14.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
