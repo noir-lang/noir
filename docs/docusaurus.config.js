@@ -123,7 +123,7 @@ const config = {
       },
     ],
     [
-      "@spalladino/docusaurus-plugin-typedoc",
+      "docusaurus-plugin-typedoc",
       {
         id: "apis/pxe",
         entryPoints: ["../yarn-project/types/src/interfaces/aztec_rpc.ts"],
@@ -135,7 +135,7 @@ const config = {
       },
     ],
     [
-      "@spalladino/docusaurus-plugin-typedoc",
+      "docusaurus-plugin-typedoc",
       {
         id: "apis/aztec-js",
         entryPoints: [
