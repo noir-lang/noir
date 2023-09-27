@@ -55,7 +55,6 @@ macro_rules! impl_uint {
                         q_c: FieldElement::from(2_u128.pow(self.width)),
                     })],
                     outputs: vec![BrilligOutputs::Simple(new_witness)],
-
                     bytecode: vec![brillig::Opcode::Stop],
                     predicate: None,
                 });
@@ -229,7 +228,6 @@ macro_rules! impl_uint {
                         }),
                     ],
                     outputs: vec![BrilligOutputs::Simple(new_witness)],
-
                     bytecode: vec![brillig::Opcode::BinaryIntOp {
                         op: brillig::BinaryIntOp::Add,
                         bit_size: 127,
@@ -288,7 +286,6 @@ macro_rules! impl_uint {
                         }),
                     ],
                     outputs: vec![BrilligOutputs::Simple(new_witness)],
-
                     bytecode: vec![
                         brillig::Opcode::BinaryIntOp {
                             op: brillig::BinaryIntOp::Add,
