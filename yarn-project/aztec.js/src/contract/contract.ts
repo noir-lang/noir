@@ -10,7 +10,7 @@ import { ContractBase } from './contract_base.js';
  * The Contract class represents a contract and provides utility methods for interacting with it.
  * It enables the creation of ContractFunctionInteraction instances for each function in the contract's ABI,
  * allowing users to call or send transactions to these functions. Additionally, the Contract class can be used
- * to attach the contract instance to a deployed contract on-chain through the AztecRPCClient, which facilitates
+ * to attach the contract instance to a deployed contract on-chain through the PXE, which facilitates
  * interaction with Aztec's privacy protocol.
  */
 export class Contract extends ContractBase {

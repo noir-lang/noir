@@ -5,7 +5,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import { getContract, parseEther } from 'viem';
 
@@ -32,7 +32,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
   const DAI_ADDRESS: EthAddress = EthAddress.fromString('0x6B175474E89094C44Da98b954EedeAC495271d0F');
 
   let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let wallet: Wallet;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
@@ -53,8 +53,10 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
 
   beforeEach(async () => {
     let deployL1ContractsValues: DeployL1Contracts;
-    ({ teardown, aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger, wallet, cheatCodes } =
-      await setup(2, dumpedState));
+    ({ teardown, aztecNode, pxe, deployL1ContractsValues, accounts, logger, wallet, cheatCodes } = await setup(
+      2,
+      dumpedState,
+    ));
 
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
@@ -69,7 +71,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     daiCrossChainHarness = await CrossChainTestHarness.new(
       aztecNode,
-      aztecRpcServer,
+      pxe,
       deployL1ContractsValues,
       accounts,
       wallet,
@@ -82,7 +84,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
     logger('Deploying WETH Portal, initializing and deploying l2 contract...');
     wethCrossChainHarness = await CrossChainTestHarness.new(
       aztecNode,
-      aztecRpcServer,
+      pxe,
       deployL1ContractsValues,
       accounts,
       wallet,
@@ -101,7 +103,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
       publicClient,
     });
     // deploy l2 uniswap contract and attach to portal
-    const tx = UniswapContract.deploy(aztecRpcServer).send({ portalContract: uniswapPortalAddress });
+    const tx = UniswapContract.deploy(pxe).send({ portalContract: uniswapPortalAddress });
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toEqual(TxStatus.MINED);

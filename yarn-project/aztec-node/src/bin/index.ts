@@ -21,7 +21,7 @@ async function createAndDeployAztecNode() {
 }
 
 /**
- * Creates a router for helper API endpoints of the Aztec RPC Server.
+ * Creates a router for helper API endpoints of the Private Execution Environment (PXE).
  * @param apiPrefix - The prefix to use for all api requests
  * @returns - The router for handling status requests.
  */

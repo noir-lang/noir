@@ -15,7 +15,7 @@ export class SignerlessWallet extends BaseWallet {
     const [execution] = executions;
     const wasm = await CircuitsWasm.get();
     const packedArguments = await PackedArguments.fromArgs(execution.args, wasm);
-    const { chainId, protocolVersion } = await this.rpc.getNodeInfo();
+    const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
     const txContext = TxContext.empty(chainId, protocolVersion);
     return Promise.resolve(
       new TxExecutionRequest(

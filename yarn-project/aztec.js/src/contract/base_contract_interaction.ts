@@ -1,4 +1,4 @@
-import { AztecRPC, Tx, TxExecutionRequest } from '@aztec/types';
+import { PXE, Tx, TxExecutionRequest } from '@aztec/types';
 
 import { SentTx } from './sent_tx.js';
 
@@ -21,7 +21,7 @@ export abstract class BaseContractInteraction {
   protected tx?: Tx;
   protected txRequest?: TxExecutionRequest;
 
-  constructor(protected rpc: AztecRPC) {}
+  constructor(protected pxe: PXE) {}
 
   /**
    * Create a transaction execution request ready to be simulated.
@@ -37,7 +37,7 @@ export abstract class BaseContractInteraction {
    */
   public async simulate(options: SendMethodOptions = {}): Promise<Tx> {
     const txRequest = this.txRequest ?? (await this.create(options));
-    this.tx = await this.rpc.simulateTx(txRequest, !options.skipPublicSimulation);
+    this.tx = await this.pxe.simulateTx(txRequest, !options.skipPublicSimulation);
     return this.tx;
   }
 
@@ -53,9 +53,9 @@ export abstract class BaseContractInteraction {
   public send(options: SendMethodOptions = {}) {
     const promise = (async () => {
       const tx = this.tx ?? (await this.simulate(options));
-      return this.rpc.sendTx(tx);
+      return this.pxe.sendTx(tx);
     })();
 
-    return new SentTx(this.rpc, promise);
+    return new SentTx(this.pxe, promise);
   }
 }

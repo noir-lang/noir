@@ -74,7 +74,7 @@ More signing schemes are available in case you want to experiment with other typ
 
 Let's try creating a new account backed by our account contract, and interact with a simple token contract to test it works.
 
-To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Aztec RPC server, a [privacy private key](../../concepts/foundation/accounts/keys.md#privacy-keys), and an instance of our `AccountContract` class:
+To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Private Execution Environment (PXE), a [privacy private key](../../concepts/foundation/accounts/keys.md#privacy-keys), and an instance of our `AccountContract` class:
 
 #include_code account-contract-deploy yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 

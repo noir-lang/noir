@@ -1,5 +1,5 @@
 import { AztecAddress, Fr } from '@aztec/aztec.js';
-import { AztecRPC, CompleteAddress } from '@aztec/types';
+import { CompleteAddress, PXE } from '@aztec/types';
 
 import { InvalidArgumentError } from 'commander';
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -9,7 +9,7 @@ import { getSaltFromHexString, getTxSender, stripLeadingHex } from '../utils.js'
 import { mockContractAbi } from './mocks.js';
 
 describe('CLI Utils', () => {
-  let client: MockProxy<AztecRPC>;
+  let client: MockProxy<PXE>;
 
   // test values
   const addr1 = AztecAddress.random();
@@ -23,7 +23,7 @@ describe('CLI Utils', () => {
     subField2: 'true',
   };
   beforeEach(() => {
-    client = mock<AztecRPC>();
+    client = mock<PXE>();
   });
   it('Gets a txSender correctly or throw error', async () => {
     // returns a parsed Aztec Address
@@ -53,7 +53,7 @@ describe('CLI Utils', () => {
       (async () => {
         await getTxSender(client);
       })(),
-    ).rejects.toThrow('No accounts found in Aztec RPC instance.');
+    ).rejects.toThrow('No accounts found in PXE instance.');
   });
 
   it('Encodes args correctly', () => {

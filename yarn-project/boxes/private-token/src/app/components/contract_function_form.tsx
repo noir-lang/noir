@@ -1,12 +1,12 @@
+import { CONTRACT_ADDRESS_PARAM_NAMES, pxe } from '../../config.js';
+import { callContractFunction, deployContract, viewContractFunction } from '../../scripts/index.js';
+import { convertArgs } from '../../scripts/util.js';
+import styles from './contract_function_form.module.scss';
 import { Button, Loader } from '@aztec/aztec-ui';
 import { AztecAddress, CompleteAddress, Fr } from '@aztec/aztec.js';
 import { ContractAbi, FunctionAbi } from '@aztec/foundation/abi';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { CONTRACT_ADDRESS_PARAM_NAMES, rpcClient } from '../../config.js';
-import { callContractFunction, deployContract, viewContractFunction } from '../../scripts/index.js';
-import { convertArgs } from '../../scripts/util.js';
-import styles from './contract_function_form.module.scss';
 
 type NoirFunctionYupSchema = {
   // hack: add `any` at the end to get the array schema to typecheck
@@ -80,20 +80,13 @@ async function handleFunctionCall(
     // for now, dont let user change the salt.  requires some change to the form generation if we want to let user choose one
     // since everything is currently based on parsing the contractABI, and the salt parameter is not present there
     const salt = Fr.random();
-    return await deployContract(wallet, contractAbi, typedArgs, salt, rpcClient);
+    return await deployContract(wallet, contractAbi, typedArgs, salt, pxe);
   }
 
   if (functionAbi.functionType === 'unconstrained') {
-    return await viewContractFunction(contractAddress!, contractAbi, functionName, typedArgs, rpcClient, wallet);
+    return await viewContractFunction(contractAddress!, contractAbi, functionName, typedArgs, pxe, wallet);
   } else {
-    const txnReceipt = await callContractFunction(
-      contractAddress!,
-      contractAbi,
-      functionName,
-      typedArgs,
-      rpcClient,
-      wallet,
-    );
+    const txnReceipt = await callContractFunction(contractAddress!, contractAbi, functionName, typedArgs, pxe, wallet);
     return `Transaction ${txnReceipt.status} on block number ${txnReceipt.blockNumber}`;
   }
 }

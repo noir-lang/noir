@@ -4,14 +4,14 @@ import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { TestContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { PXE, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_block_building', () => {
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let logger: DebugLogger;
   let wallet: Wallet;
   let teardown: () => Promise<void>;
@@ -20,7 +20,7 @@ describe('e2e_block_building', () => {
     const abi = TestContractAbi;
 
     beforeAll(async () => {
-      ({ teardown, aztecRpcServer, logger, wallet } = await setup(1));
+      ({ teardown, pxe, logger, wallet } = await setup(1));
     }, 100_000);
 
     afterAll(() => teardown());
@@ -48,7 +48,7 @@ describe('e2e_block_building', () => {
       expect(receipts.map(r => r.blockNumber)).toEqual(times(TX_COUNT, () => receipts[0].blockNumber));
 
       // Assert all contracts got deployed
-      const areDeployed = await Promise.all(receipts.map(r => isContractDeployed(aztecRpcServer, r.contractAddress!)));
+      const areDeployed = await Promise.all(receipts.map(r => isContractDeployed(pxe, r.contractAddress!)));
       expect(areDeployed).toEqual(times(TX_COUNT, () => true));
     }, 60_000);
   });
@@ -59,7 +59,7 @@ describe('e2e_block_building', () => {
     let teardown: () => Promise<void>;
 
     beforeAll(async () => {
-      ({ teardown, aztecRpcServer, logger, wallet } = await setup(1));
+      ({ teardown, pxe, logger, wallet } = await setup(1));
       contract = await TestContract.deploy(wallet).send().deployed();
     }, 100_000);
 

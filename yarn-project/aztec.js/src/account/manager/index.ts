@@ -1,5 +1,5 @@
 import { Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { AztecRPC, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
+import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/types';
 
 import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../../index.js';
 import { AccountContract, Salt } from '../index.js';
@@ -8,7 +8,7 @@ import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
 
 /**
  * Manages a user account. Provides methods for calculating the account's address, deploying the account contract,
- * and creating and registering the user wallet in the RPC server.
+ * and creating and registering the user wallet in the PXE Service.
  */
 export class AccountManager {
   /** Deployment salt for the account contract. */
@@ -19,7 +19,7 @@ export class AccountManager {
   private deployMethod?: DeployMethod;
 
   constructor(
-    private rpc: AztecRPC,
+    private pxe: PXE,
     private encryptionPrivateKey: GrumpkinPrivateKey,
     private accountContract: AccountContract,
     saltOrAddress?: Salt | CompleteAddress,
@@ -43,7 +43,7 @@ export class AccountManager {
    * @returns An entrypoint.
    */
   public async getAccount(): Promise<AccountInterface> {
-    const nodeInfo = await this.rpc.getNodeInfo();
+    const nodeInfo = await this.pxe.getNodeInfo();
     const completeAddress = await this.getCompleteAddress();
     return this.accountContract.getInterface(completeAddress, nodeInfo);
   }
@@ -74,18 +74,18 @@ export class AccountManager {
    */
   public async getWallet(): Promise<AccountWallet> {
     const entrypoint = await this.getAccount();
-    return new AccountWallet(this.rpc, entrypoint);
+    return new AccountWallet(this.pxe, entrypoint);
   }
 
   /**
-   * Registers this account in the RPC server and returns the associated wallet. Registering
-   * the account on the RPC server is required for managing private state associated with it.
+   * Registers this account in the PXE Service and returns the associated wallet. Registering
+   * the account on the PXE Service is required for managing private state associated with it.
    * Use the returned wallet to create Contract instances to be interacted with from this account.
    * @returns A Wallet instance.
    */
   public async register(): Promise<AccountWallet> {
     const completeAddress = await this.getCompleteAddress();
-    await this.rpc.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
+    await this.pxe.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
     return this.getWallet();
   }
 
@@ -100,7 +100,7 @@ export class AccountManager {
       if (!this.salt) throw new Error(`Cannot deploy account contract without known salt.`);
       await this.register();
       const encryptionPublicKey = await this.getEncryptionPublicKey();
-      const deployer = new ContractDeployer(this.accountContract.getContractAbi(), this.rpc, encryptionPublicKey);
+      const deployer = new ContractDeployer(this.accountContract.getContractAbi(), this.pxe, encryptionPublicKey);
       const args = await this.accountContract.getDeploymentArgs();
       this.deployMethod = deployer.deploy(...args);
     }
@@ -112,7 +112,7 @@ export class AccountManager {
    * Uses the salt provided in the constructor or a randomly generated one.
    * Note that if the Account is constructed with an explicit complete address
    * it is assumed that the account contract has already been deployed and this method will throw.
-   * Registers the account in the RPC server before deploying the contract.
+   * Registers the account in the PXE Service before deploying the contract.
    * @returns A SentTx object that can be waited to get the associated Wallet.
    */
   public async deploy(): Promise<DeployAccountSentTx> {
@@ -127,7 +127,7 @@ export class AccountManager {
    * Uses the salt provided in the constructor or a randomly generated one.
    * Note that if the Account is constructed with an explicit complete address
    * it is assumed that the account contract has already been deployed and this method will throw.
-   * Registers the account in the RPC server before deploying the contract.
+   * Registers the account in the PXE Service before deploying the contract.
    * @param opts - Options to wait for the tx to be mined.
    * @returns A Wallet instance.
    */

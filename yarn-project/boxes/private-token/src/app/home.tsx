@@ -1,10 +1,10 @@
-import { Loader } from '@aztec/aztec-ui';
-import { CompleteAddress } from '@aztec/aztec.js';
-import { useEffect, useRef, useState } from 'react';
 import { SANDBOX_URL } from '../config.js';
 import { WalletDropdown } from './components/wallet_dropdown.js';
 import { Contract } from './contract.js';
 import styles from './home.module.scss';
+import { Loader } from '@aztec/aztec-ui';
+import { CompleteAddress } from '@aztec/aztec.js';
+import { useEffect, useRef, useState } from 'react';
 
 export function Home() {
   const [isLoadingWallet, setIsLoadingWallet] = useState(true);

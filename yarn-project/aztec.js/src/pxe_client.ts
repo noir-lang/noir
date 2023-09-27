@@ -2,12 +2,12 @@ import { AztecAddress, CompleteAddress, EthAddress, Fr, GrumpkinScalar, Point } 
 import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 import {
   AuthWitness,
-  AztecRPC,
   ContractData,
   ExtendedContractData,
   L2BlockL2Logs,
   L2Tx,
   NotePreimage,
+  PXE,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -16,8 +16,8 @@ import {
 
 export { makeFetch } from '@aztec/foundation/json-rpc/client';
 
-export const createAztecRpcClient = (url: string, fetch = makeFetch([1, 2, 3], true)): AztecRPC =>
-  createJsonRpcClient<AztecRPC>(
+export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], true)): PXE =>
+  createJsonRpcClient<PXE>(
     url,
     {
       CompleteAddress,

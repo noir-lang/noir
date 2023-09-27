@@ -1,10 +1,10 @@
+import { pxe } from '../../config.js';
+import { Copy } from './copy.js';
+import { Select } from './select.js';
+import styles from './wallet_dropdown.module.scss';
 import { Loader } from '@aztec/aztec-ui';
 import { CompleteAddress } from '@aztec/aztec.js';
 import { useEffect, useState } from 'react';
-import { rpcClient } from '../../config.js';
-import { Select } from './select.js';
-import styles from './wallet_dropdown.module.scss';
-import { Copy } from './copy.js';
 
 interface Props {
   selected: CompleteAddress | undefined;
@@ -20,7 +20,7 @@ export function WalletDropdown({ selected, onSelectChange, onError }: Props) {
       return;
     }
     const loadOptions = async () => {
-      const fetchedOptions = await rpcClient.getRegisteredAccounts();
+      const fetchedOptions = await pxe.getRegisteredAccounts();
       setOptions(fetchedOptions);
       onSelectChange(fetchedOptions[0]);
     };

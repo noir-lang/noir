@@ -36,7 +36,7 @@ Once installed it is invoked via:
 
 ## I have the Sandbox running, now what?
 
-Lets first establish that we are able to communicate with the Sandbox. Most commands will require the url to the Sandbox, which defaults in the CLI to `http://localhost:8080`. You can override this as an option with each command or by setting `AZTEC_RPC_HOST` environment variable.
+Lets first establish that we are able to communicate with the Sandbox. Most commands will require the url to the Sandbox, which defaults in the CLI to `http://localhost:8080`. You can override this as an option with each command or by setting `PXE_HOST` environment variable.
 
 To test communication with the Sandbox, let's run the command:
 
@@ -124,7 +124,7 @@ The `call` command calls a read-only method on a contract, one that will not gen
 - `--contract-abi` - The abi of the contract we are calling.
 - `--contract-address` - The address of the deployed contract
 
-As you can see from the result, this address has a balance of 1000000, as expected. When using the Sandbox, you are able to query the balance of any account that has been created in the system, even the accounts created by default. You may wonder why this is, as you haven't provided the private keys for these accounts. The Sandbox contains a component known as the AztecRPCServer. When an account is created, this component stores the provided encryption private key and is able to read the account's private state meaning that the Sandbox can report the balance of any of it's accounts. More information about the account model can be found [here](../../concepts/foundation/accounts/main.md).
+As you can see from the result, this address has a balance of 1000000, as expected. When using the Sandbox, you are able to query the balance of any account that has been created in the system, even the accounts created by default. You may wonder why this is, as you haven't provided the private keys for these accounts. The Sandbox contains a component known as the Private Execution Environment (PXE). When an account is created, this component stores the provided encryption private key and is able to read the account's private state meaning that the Sandbox can report the balance of any of it's accounts. More information about the account model can be found [here](../../concepts/foundation/accounts/main.md).
 
 ## Sending a Transaction
 

@@ -1,18 +1,18 @@
+import { PrivateTokenContract } from '../artifacts/private_token.js';
+import { pxe } from '../config.js';
+import { callContractFunction, deployContract, getWallet, viewContractFunction } from '../scripts/index.js';
 import {
   AccountWallet,
   AztecAddress,
-  AztecRPC,
+  PXE,
   CompleteAddress,
   Contract,
   Fr,
   Wallet,
-  createAztecRpcClient,
+  createPXEClient,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { PrivateTokenContract } from '../artifacts/private_token.js';
-import { rpcClient } from '../config.js';
-import { callContractFunction, deployContract, getWallet, viewContractFunction } from '../scripts/index.js';
 
 const logger = createDebugLogger('aztec:private-token-box-sandbox-test');
 
@@ -24,16 +24,16 @@ const MINT_AMOUNT = 11n;
 // as well as anvil.  anvil can be started with yarn test:integration
 const setupSandbox = async () => {
   const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
-  const aztecRpc = createAztecRpcClient(SANDBOX_URL);
-  await waitForSandbox(aztecRpc);
-  return aztecRpc;
+  const pxe = createPXEClient(SANDBOX_URL);
+  await waitForSandbox(pxe);
+  return pxe;
 };
 
-async function deployZKContract(owner: CompleteAddress, wallet: Wallet, rpcClient: AztecRPC) {
+async function deployZKContract(owner: CompleteAddress, wallet: Wallet, pxe: PXE) {
   logger('Deploying PrivateToken contract...');
   const typedArgs = [new Fr(INITIAL_BALANCE), owner.address.toField()];
 
-  const contractAddress = await deployContract(owner, PrivateTokenContract.abi, typedArgs, Fr.random(), rpcClient);
+  const contractAddress = await deployContract(owner, PrivateTokenContract.abi, typedArgs, Fr.random(), pxe);
 
   logger(`L2 contract deployed at ${contractAddress}`);
   return PrivateTokenContract.at(contractAddress, wallet);
@@ -42,14 +42,7 @@ async function deployZKContract(owner: CompleteAddress, wallet: Wallet, rpcClien
 async function getBalance(contractAddress: AztecAddress, privateTokenContract: Contract, owner: CompleteAddress) {
   const typedArgs = [owner.address.toField()];
 
-  return await viewContractFunction(
-    contractAddress,
-    privateTokenContract.abi,
-    'getBalance',
-    typedArgs,
-    rpcClient,
-    owner,
-  );
+  return await viewContractFunction(contractAddress, privateTokenContract.abi, 'getBalance', typedArgs, pxe, owner);
 }
 
 async function mint(
@@ -61,7 +54,7 @@ async function mint(
 ) {
   const typedArgs = [new Fr(amount), to.address.toField()];
 
-  return await callContractFunction(contractAddress, privateTokenContract.abi, 'mint', typedArgs, rpcClient, from);
+  return await callContractFunction(contractAddress, privateTokenContract.abi, 'mint', typedArgs, pxe, from);
 }
 
 async function transfer(
@@ -73,7 +66,7 @@ async function transfer(
 ) {
   const typedArgs = [new Fr(amount), to.address.toField()];
 
-  return await callContractFunction(contractAddress, privateTokenContract.abi, 'transfer', typedArgs, rpcClient, from);
+  return await callContractFunction(contractAddress, privateTokenContract.abi, 'transfer', typedArgs, pxe, from);
 }
 
 describe('ZK Contract Tests', () => {
@@ -83,16 +76,16 @@ describe('ZK Contract Tests', () => {
   let _account3: CompleteAddress;
   let privateTokenContract: Contract;
   let contractAddress: AztecAddress;
-  let rpcClient: AztecRPC;
+  let pxe: PXE;
 
   beforeAll(async () => {
-    rpcClient = await setupSandbox();
-    const accounts = await rpcClient.getRegisteredAccounts();
+    pxe = await setupSandbox();
+    const accounts = await pxe.getRegisteredAccounts();
     [owner, account2, _account3] = accounts;
 
-    wallet = await getWallet(owner, rpcClient);
+    wallet = await getWallet(owner, pxe);
 
-    privateTokenContract = await deployZKContract(owner, wallet, rpcClient);
+    privateTokenContract = await deployZKContract(owner, wallet, pxe);
     contractAddress = privateTokenContract.address;
   }, 60000);
 

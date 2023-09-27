@@ -19,7 +19,7 @@ services:
       P2P_BLOCK_CHECK_INTERVAL_MS: 50
       SEQ_TX_POLLING_INTERVAL_MS: 50
       WS_BLOCK_CHECK_INTERVAL_MS: 50
-      RPC_SERVER_BLOCK_POLLING_INTERVAL_MS: 50
+      PXE_SERVICE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
     volumes:
       - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw

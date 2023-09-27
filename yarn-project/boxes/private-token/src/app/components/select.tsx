@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import classnames from 'classnames';
-
 import { DropdownOption, DropdownType, Dropdown } from './dropdown.js';
 import style from './select.module.scss';
+import classnames from 'classnames';
+import { useState, useEffect, useRef } from 'react';
 
 interface SelectProps<T> {
   options: DropdownOption<T>[];

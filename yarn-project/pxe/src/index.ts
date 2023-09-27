@@ -1,5 +1,5 @@
-export * from './aztec_rpc_server/index.js';
-export * from './aztec_rpc_http/index.js';
+export * from './pxe_service/index.js';
+export * from './pxe_http/index.js';
 export * from './config/index.js';
 
 export { Tx, TxHash } from '@aztec/types';

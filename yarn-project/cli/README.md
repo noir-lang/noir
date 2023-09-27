@@ -43,14 +43,14 @@ These options are:
 
 - `PRIVATE_KEY` -> `-k, --private-key` for all commands that require a private key.
 - `PUBLIC_KEY` -> `-k, --public-key` for all commands that require a public key.
-- `AZTEC_RPC_HOST` -> `-u, --rpc-url` for commands that require an Aztec RPC URL.
+- `PXE_HOST` -> `-u, --rpc-url` for commands that require a PXE
 - `API_KEY` -> `a, --api-key` for `deploy-l1-contracts`.
 - `ETHEREUM_RPC_HOST` -> `-u, --rpc-url` for `deploy-l1-contracts`.
 
-So if for example you are running your Aztec RPC server remotely you can do:
+So if for example you are running your Private Execution Environment (PXE) remotely you can do:
 
 ```shell
-export AZTEC_RPC_HOST=http://external.site/rpc:8080
+export PXE_HOST=http://external.site/rpc:8080
 aztec-cli deploy my_contract.json
 ```
 
@@ -123,7 +123,7 @@ aztec-cli create-account [options]
 Options:
 
 - `-k, --private-key`: Private key to use for the account generation. Uses a random key by default.
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command creates an Aztec account that can be used for transactions. It generates a new account with a private key or uses the provided private key. The command displays the account's address and public key.
 
@@ -147,7 +147,7 @@ Options:
 
 - `-c, --contract-abi <fileLocation>`: Path to the compiled Aztec.nr contract's ABI file in JSON format. You can also use one of Aztec's example contracts found in [@aztec/noir-contracts](https://www.npmjs.com/package/@aztec/noir-contracts), e.g. PrivateTokenContractAbi. You can get a full ist of the available contracts with `aztec-cli example-contracts`
 - `-a, --args <constructorArgs...>` (optional): Contract constructor arguments Default: [].
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 - `-k, --public-key <string>`: Public key of the deployer. If not provided, it will check the RPC for existing ones.
 
 This command deploys a compiled Aztec.nr contract to Aztec. It requires the path to the contract's ABI file in JSON format. Optionally, you can specify the public key of the deployer and provide constructor arguments for the contract. The command displays the address of the deployed contract.
@@ -177,7 +177,7 @@ aztec-cli check-deploy <contractAddress> [options]
 Options:
 
 - `-ca, --contract-address <address>`: An Aztec address to check if the contract has been deployed to.
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command checks if a contract is deployed to the specified Aztec address. It verifies if the contract is present at the given address and displays the result.
 
@@ -201,7 +201,7 @@ aztec-cli get-tx-receipt <txHash> [options]
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command retrieves and displays the receipt for the specified transaction hash. It shows details such as the transaction status, block number, and block hash.
 
@@ -225,7 +225,7 @@ aztec-cli get-contract-data <contractAddress> [options]
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 - `-b, --include-bytecode`: Include the contract's public function bytecode, if any.
 
 This command retrieves and displays information about the Aztec contract deployed at the specified address. It shows the contract address, portal contract address, and optionally, the bytecode of the contract's public functions.
@@ -238,7 +238,7 @@ aztec-cli get-contract-data 0x123456789abcdef123456789abcdef12345678
 
 ### register-recipient
 
-Register a recipient account on the RPC server (called recipient because we can only send notes to this account and not receive them via this RPC server).
+Register a recipient account on the PXE (called recipient because we can only send notes to this account and not receive them via this PXE).
 To read about how keys are generated and used, head to our docs [here](https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/aztec/developer/wallet-providers/keys.md#addresses-partial-addresses-and-public-keys).
 
 Syntax:
@@ -252,7 +252,7 @@ Options:
 - `-a, --address <aztecAddress>`: The account's Aztec address.
 - `-p, --public-key <publicKey>`: 'The account public key.'
 - `-pa, --partial-address <partialAddress`: 'The partially computed address of the account contract.'
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 Example usage:
 
@@ -262,7 +262,7 @@ aztec-cli register-recipient -p 0x20d9d93c4a9eb2b4bdb70ead07d28d1edb74bfd78443a8
 
 ### get-accounts
 
-Gets all the Aztec accounts stored in an Aztec RPC.
+Gets all the Aztec accounts stored in a PXE.
 
 Syntax:
 
@@ -272,7 +272,7 @@ aztec-cli get-accounts [options]
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command retrieves and displays all the Aztec accounts available in the system.
 
@@ -296,7 +296,7 @@ aztec-cli get-account <address> [options]
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command retrieves and displays the public key of an account given its Aztec address.
 
@@ -324,7 +324,7 @@ Options:
 - `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
 - `-ca, --contract-address <address>`: Address of the contract.
 - `-k, --private-key <string>`: The sender's private key.
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command calls a function on an Aztec contract. It requires the contract's ABI, address, function name, and optionally, function arguments. The command executes the function call and displays the transaction details.
 
@@ -352,8 +352,8 @@ Options:
 - `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
 - `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
 - `-ca, --contract-address <address>`: Address of the contract.
-- `-f, --from <string>`: Address of the caller. If empty, first account in the Aztec RPC Server will be used.
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-f, --from <string>`: Address of the caller. If empty, first account in the Private Execution Environment (PXE) will be used.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command simulates the execution of a view function on a deployed contract without modifying the state. It requires the contract's ABI, address, function name, and optionally, function arguments. The command displays the result of the view function.
 
@@ -400,7 +400,7 @@ aztec-cli get-logs --from <number> --limit <number> [options]
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command retrieves and displays all the unencrypted logs from L2 blocks in the specified range. It shows the logs found in the blocks and unrolls them for readability.
 
@@ -422,7 +422,7 @@ aztec-cli block-number
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 This command retrieves and displays the current Aztec L2 block number.
 
@@ -448,7 +448,7 @@ aztec-cli get-node-info
 
 Options:
 
-- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+- `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
 ## Conclusion
 

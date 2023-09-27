@@ -69,15 +69,15 @@ function generateDeploy(input: ContractAbi) {
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(rpc: AztecRPC, ${args}) {
-    return new DeployMethod<${input.name}Contract>(Point.ZERO, rpc, ${abiName}, Array.from(arguments).slice(1));
+  public static deploy(pxe: PXE, ${args}) {
+    return new DeployMethod<${input.name}Contract>(Point.ZERO, pxe, ${abiName}, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
-  public static deployWithPublicKey(rpc: AztecRPC, publicKey: PublicKey, ${args}) {
-    return new DeployMethod<${input.name}Contract>(publicKey, rpc, ${abiName}, Array.from(arguments).slice(2));
+  public static deployWithPublicKey(pxe: PXE, publicKey: PublicKey, ${args}) {
+    return new DeployMethod<${input.name}Contract>(publicKey, pxe, ${abiName}, Array.from(arguments).slice(2));
   }
   `;
 }
@@ -180,7 +180,7 @@ export function generateTypescriptContractInterface(input: ContractAbi, abiImpor
 /* eslint-disable */
 import { AztecAddress, CompleteAddress, ContractBase, ContractFunctionInteraction, ContractMethod, DeployMethod, FieldLike, AztecAddressLike, EthAddressLike, Wallet } from '@aztec/aztec.js';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecRPC, PublicKey } from '@aztec/types';
+import { PXE, PublicKey } from '@aztec/types';
 import { ContractAbi } from '@aztec/foundation/abi';
 ${abiStatement}
 

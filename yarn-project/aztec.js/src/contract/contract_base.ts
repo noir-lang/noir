@@ -74,12 +74,12 @@ export class ContractBase {
 
   /**
    * Attach the current contract instance to a portal contract and optionally add its dependencies.
-   * The function will return a promise that resolves when all contracts have been added to the AztecRPCClient.
+   * The function will return a promise that resolves when all contracts have been added to the PXE.
    * This is useful when you need to interact with a deployed contract that has multiple nested contracts.
    *
    * @param portalContract - The Ethereum address of the portal contract.
    * @param dependencies - An optional array of additional DeployedContract instances to be attached.
-   * @returns A promise that resolves when all contracts are successfully added to the AztecRPCClient.
+   * @returns A promise that resolves when all contracts are successfully added to the PXE.
    */
   public attach(portalContract: EthAddress, dependencies: DeployedContract[] = []) {
     const deployedContract: DeployedContract = {

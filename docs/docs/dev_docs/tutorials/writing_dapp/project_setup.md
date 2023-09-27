@@ -28,4 +28,4 @@ yarn add @aztec/aztec.js
 
 ## Next steps
 
-With your project already set up, let's [connect to the Sandbox RPC Server and grab an account to interact with it](./rpc_server.md).
+With your project already set up, let's [connect to the Sandbox RPC Server and grab an account to interact with it](./pxe_service.md).

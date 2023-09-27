@@ -3,7 +3,6 @@ import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 import {
   AuthWitness,
-  AztecRPC,
   CompleteAddress,
   ContractData,
   ExtendedContractData,
@@ -11,6 +10,7 @@ import {
   L2BlockL2Logs,
   L2Tx,
   NotePreimage,
+  PXE,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -25,12 +25,12 @@ import { EthAddress } from '../index.js';
 export const localAnvil = foundry;
 
 /**
- * Wraps an instance of the Aztec RPC Server implementation to a JSON RPC HTTP interface.
+ * Wraps an instance of Private Execution Environment (PXE) implementation to a JSON RPC HTTP interface.
  * @returns A new instance of the HTTP server.
  */
-export function getHttpRpcServer(aztecRpcServer: AztecRPC): JsonRpcServer {
-  const generatedRpcServer = new JsonRpcServer(
-    aztecRpcServer,
+export function createPXERpcServer(pxeService: PXE): JsonRpcServer {
+  return new JsonRpcServer(
+    pxeService,
     {
       CompleteAddress,
       AztecAddress,
@@ -51,17 +51,16 @@ export function getHttpRpcServer(aztecRpcServer: AztecRPC): JsonRpcServer {
     false,
     ['start', 'stop'],
   );
-  return generatedRpcServer;
 }
 
 /**
- * Creates an http server that forwards calls to the rpc server and starts it on the given port.
- * @param aztecRpcServer - RPC server that answers queries to the created HTTP server.
+ * Creates an http server that forwards calls to the PXE and starts it on the given port.
+ * @param pxeService - PXE that answers queries to the created HTTP server.
  * @param port - Port to listen in.
  * @returns A running http server.
  */
-export function startHttpRpcServer(aztecRpcServer: AztecRPC, port: string | number): http.Server {
-  const rpcServer = getHttpRpcServer(aztecRpcServer);
+export function startPXEHttpServer(pxeService: PXE, port: string | number): http.Server {
+  const rpcServer = createPXERpcServer(pxeService);
 
   const app = rpcServer.getApp();
   const httpServer = http.createServer(app.callback());

@@ -25,9 +25,7 @@ export class Synchronizer {
   private noteProcessorsToCatchUp: NoteProcessor[] = [];
 
   constructor(private node: AztecNode, private db: Database, logSuffix = '') {
-    this.log = createDebugLogger(
-      logSuffix ? `aztec:aztec_rpc_synchronizer_${logSuffix}` : 'aztec:aztec_rpc_synchronizer',
-    );
+    this.log = createDebugLogger(logSuffix ? `aztec:pxe_synchronizer_${logSuffix}` : 'aztec:pxe_synchronizer');
   }
 
   /**

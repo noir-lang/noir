@@ -7,8 +7,8 @@ import { sha256ToField } from '@aztec/foundation/crypto';
 import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPCServer } from '@aztec/pxe';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { PXEService } from '@aztec/pxe';
+import { PXE, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
@@ -21,7 +21,7 @@ import { deployAndInitializeStandardizedTokenAndBridgeContracts } from './utils.
 export class CrossChainTestHarness {
   static async new(
     aztecNode: AztecNodeService | undefined,
-    aztecRpcServer: AztecRPC,
+    pxeService: PXE,
     deployL1ContractsValues: DeployL1Contracts,
     accounts: CompleteAddress[],
     wallet: Wallet,
@@ -69,7 +69,7 @@ export class CrossChainTestHarness {
 
     return new CrossChainTestHarness(
       aztecNode,
-      aztecRpcServer,
+      pxeService,
       cheatCodes,
       accounts,
       logger,
@@ -90,8 +90,8 @@ export class CrossChainTestHarness {
   constructor(
     /** AztecNode. */
     public aztecNode: AztecNodeService | undefined,
-    /** AztecRpcServer. */
-    public aztecRpcServer: AztecRPC,
+    /** Private Execution Environment (PXE). */
+    public pxeService: PXE,
     /** CheatCodes. */
     public cc: CheatCodes,
     /** Accounts. */
@@ -271,7 +271,7 @@ export class CrossChainTestHarness {
 
   async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
     this.logger('Ensure that the entry is not in outbox yet');
-    const contractData = await this.aztecRpcServer.getContractData(this.l2Bridge.address);
+    const contractData = await this.pxeService.getContractData(this.l2Bridge.address);
     // 0xb460af94, selector for "withdraw(uint256,address,address)"
     const content = sha256ToField(
       Buffer.concat([
@@ -335,8 +335,8 @@ export class CrossChainTestHarness {
 
   async stop() {
     await this.aztecNode?.stop();
-    if (this.aztecRpcServer instanceof AztecRPCServer) {
-      await this.aztecRpcServer?.stop();
+    if (this.pxeService instanceof PXEService) {
+      await this.pxeService?.stop();
     }
   }
 }

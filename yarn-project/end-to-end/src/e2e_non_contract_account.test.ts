@@ -2,13 +2,13 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, SignerlessWallet, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PokeableTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_non_contract_account', () => {
   let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let wallet: Wallet;
   let sender: AztecAddress;
   let recipient: AztecAddress;
@@ -23,13 +23,13 @@ describe('e2e_non_contract_account', () => {
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ teardown, aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    ({ teardown, aztecNode, pxe, accounts, wallet, logger } = await setup(2));
     sender = accounts[0].address;
     recipient = accounts[1].address;
-    pokerWallet = new SignerlessWallet(aztecRpcServer);
+    pokerWallet = new SignerlessWallet(pxe);
 
     logger(`Deploying L2 contract...`);
-    const tx = PokeableTokenContract.deploy(aztecRpcServer, initialBalance, sender, recipient).send();
+    const tx = PokeableTokenContract.deploy(pxe, initialBalance, sender, recipient).send();
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toEqual(TxStatus.MINED);

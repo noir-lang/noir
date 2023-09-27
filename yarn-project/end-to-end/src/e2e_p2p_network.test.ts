@@ -5,7 +5,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId } from '@aztec/p2p';
-import { AztecRPCServer, ConstantKeyPair, createAztecRPCServer, getConfigEnvVars as getRpcConfig } from '@aztec/pxe';
+import { ConstantKeyPair, PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 import { TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
@@ -17,7 +17,7 @@ const BOOT_NODE_TCP_PORT = 40400;
 
 interface NodeContext {
   node: AztecNodeService;
-  rpcServer: AztecRPCServer;
+  pxeService: PXEService;
   txs: SentTx[];
   account: AztecAddress;
 }
@@ -45,7 +45,7 @@ describe('e2e_p2p_network', () => {
     const contexts: NodeContext[] = [];
     for (let i = 0; i < NUM_NODES; i++) {
       const node = await createNode(i + 1 + BOOT_NODE_TCP_PORT, bootstrapNodeAddress);
-      const context = await createAztecRpcServerAndSubmitTransactions(node, NUM_TXS_PER_NODE);
+      const context = await createPXEServiceAndSubmitTransactions(node, NUM_TXS_PER_NODE);
       contexts.push(context);
     }
 
@@ -58,15 +58,15 @@ describe('e2e_p2p_network', () => {
         expect(isMined).toBe(true);
         expect(receiptAfterMined.status).toBe(TxStatus.MINED);
         const contractAddress = receiptAfterMined.contractAddress!;
-        expect(await isContractDeployed(context.rpcServer, contractAddress)).toBeTruthy();
-        expect(await isContractDeployed(context.rpcServer, AztecAddress.random())).toBeFalsy();
+        expect(await isContractDeployed(context.pxeService, contractAddress)).toBeTruthy();
+        expect(await isContractDeployed(context.pxeService, AztecAddress.random())).toBeFalsy();
       }
     }
 
     // shutdown all nodes.
     for (const context of contexts) {
       await context.node.stop();
-      await context.rpcServer.stop();
+      await context.pxeService.stop();
     }
     await bootstrapNode.stop();
   }, 80_000);
@@ -112,18 +112,13 @@ describe('e2e_p2p_network', () => {
     return await AztecNodeService.createAndSync(newConfig);
   };
 
-  // submits a set of transactions to the provided aztec rpc server
-  const submitTxsTo = async (
-    aztecRpcServer: AztecRPCServer,
-    account: AztecAddress,
-    numTxs: number,
-    publicKey: PublicKey,
-  ) => {
+  // submits a set of transactions to the provided Private Execution Environment (PXE)
+  const submitTxsTo = async (pxe: PXEService, account: AztecAddress, numTxs: number, publicKey: PublicKey) => {
     const txs: SentTx[] = [];
     for (let i = 0; i < numTxs; i++) {
       const salt = Fr.random();
       const origin = (await getContractDeploymentInfo(TestContractAbi, [], salt, publicKey)).completeAddress.address;
-      const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer, publicKey);
+      const deployer = new ContractDeployer(TestContractAbi, pxe, publicKey);
       const tx = deployer.deploy().send({ contractAddressSalt: salt });
       logger(`Tx sent with hash ${await tx.getTxHash()}`);
       const receipt = await tx.getReceipt();
@@ -139,26 +134,26 @@ describe('e2e_p2p_network', () => {
     return txs;
   };
 
-  // creates an instance of the aztec rpc server and submit a given number of transactions to it.
-  const createAztecRpcServerAndSubmitTransactions = async (
+  // creates an instance of the PXE and submit a given number of transactions to it.
+  const createPXEServiceAndSubmitTransactions = async (
     node: AztecNodeService,
     numTxs: number,
   ): Promise<NodeContext> => {
     const rpcConfig = getRpcConfig();
-    const aztecRpcServer = await createAztecRPCServer(node, rpcConfig, {}, true);
+    const pxeService = await createPXEService(node, rpcConfig, {}, true);
 
     const keyPair = ConstantKeyPair.random(await Grumpkin.new());
     const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
       await keyPair.getPrivateKey(),
       Fr.random(),
     );
-    await aztecRpcServer.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
+    await pxeService.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
 
-    const txs = await submitTxsTo(aztecRpcServer, completeAddress.address, numTxs, completeAddress.publicKey);
+    const txs = await submitTxsTo(pxeService, completeAddress.address, numTxs, completeAddress.publicKey);
     return {
       txs,
       account: completeAddress.address,
-      rpcServer: aztecRpcServer,
+      pxeService,
       node,
     };
   };

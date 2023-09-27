@@ -126,12 +126,12 @@ const config = {
       "docusaurus-plugin-typedoc",
       {
         id: "apis/pxe",
-        entryPoints: ["../yarn-project/types/src/interfaces/aztec_rpc.ts"],
+        entryPoints: ["../yarn-project/types/src/interfaces/pxe.ts"],
         tsconfig: "../yarn-project/types/tsconfig.json",
         entryPointStrategy: "expand",
         out: "apis/pxe",
         disableSources: true,
-        frontmatter: { sidebar_label: "Aztec RPC Server" },
+        frontmatter: { sidebar_label: "Private Execution Environment (PXE)" },
       },
     ],
     [

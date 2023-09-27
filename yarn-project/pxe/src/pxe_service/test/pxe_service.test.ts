@@ -2,20 +2,20 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecNode, AztecRPC, L2Tx, mockTx } from '@aztec/types';
+import { AztecNode, L2Tx, PXE, mockTx } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { MemoryDB } from '../../database/memory_db.js';
-import { RpcServerConfig } from '../../index.js';
-import { AztecRPCServer } from '../aztec_rpc_server.js';
-import { aztecRpcTestSuite } from './aztec_rpc_test_suite.js';
+import { PXEServiceConfig } from '../../index.js';
+import { PXEService } from '../pxe_service.js';
+import { pxeTestSuite } from './pxe_test_suite.js';
 
-async function createAztecRpcServer(): Promise<AztecRPC> {
+async function createPXEService(): Promise<PXE> {
   const keyStore = new TestKeyStore(await Grumpkin.new());
   const node = mock<AztecNode>();
   const db = new MemoryDB();
-  const config: RpcServerConfig = {
+  const config: PXEServiceConfig = {
     l2BlockPollingIntervalMS: 100,
   };
 
@@ -33,16 +33,16 @@ async function createAztecRpcServer(): Promise<AztecRPC> {
   };
   node.getL1ContractAddresses.mockResolvedValue(mockedContracts);
 
-  return new AztecRPCServer(keyStore, node, db, config);
+  return new PXEService(keyStore, node, db, config);
 }
 
-aztecRpcTestSuite('AztecRPCServer', createAztecRpcServer);
+pxeTestSuite('PXEService', createPXEService);
 
-describe('AztecRPCServer', () => {
+describe('PXEService', () => {
   let keyStore: TestKeyStore;
   let node: MockProxy<AztecNode>;
   let db: MemoryDB;
-  let config: RpcServerConfig;
+  let config: PXEServiceConfig;
 
   beforeEach(async () => {
     keyStore = new TestKeyStore(await Grumpkin.new());
@@ -59,7 +59,7 @@ describe('AztecRPCServer', () => {
 
     node.getTx.mockResolvedValue(settledTx);
 
-    const rpc = new AztecRPCServer(keyStore, node, db, config);
+    const rpc = new PXEService(keyStore, node, db, config);
     await expect(rpc.sendTx(duplicateTx)).rejects.toThrowError(/A settled tx with equal hash/);
   });
 });

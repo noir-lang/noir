@@ -5,8 +5,8 @@ import {
   TxStatus,
   Wallet,
   computeMessageSecretHash,
-  createAztecRpcClient,
   createDebugLogger,
+  createPXEClient,
   getL1ContractAddresses,
   getSandboxAccountsWallets,
   sleep,
@@ -45,12 +45,12 @@ const DAI_ADDRESS = EthAddress.fromString('0x6B175474E89094C44Da98b954EedeAC4952
 
 const EXPECTED_FORKED_BLOCK = 17514288;
 
-const aztecRpcUrl = SANDBOX_URL;
+const pxeRpcUrl = SANDBOX_URL;
 const ethRpcUrl = ETHEREUM_HOST;
 
 const hdAccount = mnemonicToAccount(MNEMONIC);
 
-const aztecRpcClient = createAztecRpcClient(aztecRpcUrl);
+const pxe = createPXEClient(pxeRpcUrl);
 let wallet: Wallet;
 
 /**
@@ -62,7 +62,7 @@ async function deployAllContracts(
   publicClient: PublicClient<HttpTransport, Chain>,
   walletClient: WalletClient<HttpTransport, Chain, HDAccount>,
 ) {
-  const l1ContractsAddresses = await getL1ContractAddresses(aztecRpcUrl);
+  const l1ContractsAddresses = await getL1ContractAddresses(pxeRpcUrl);
   logger('Deploying DAI Portal, initializing and deploying l2 contract...');
   const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
     wallet,
@@ -107,7 +107,7 @@ async function deployAllContracts(
   });
 
   // deploy l2 uniswap contract and attach to portal
-  const tx = UniswapContract.deploy(aztecRpcClient).send({
+  const tx = UniswapContract.deploy(pxe).send({
     portalContract: uniswapPortalAddress,
   });
   await tx.isMined();
@@ -163,7 +163,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
   let publicClient: PublicClient<HttpTransport, Chain>;
   let walletClient: WalletClient<HttpTransport, Chain, HDAccount>;
   beforeAll(async () => {
-    await waitForSandbox(aztecRpcClient);
+    await waitForSandbox(pxe);
 
     walletClient = createWalletClient({
       account: hdAccount,
@@ -184,7 +184,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
   it('should uniswap trade on L1 from L2 funds privately (swaps WETH -> DAI)', async () => {
     logger('Running L1/L2 messaging test on HTTP interface.');
 
-    [wallet] = await getSandboxAccountsWallets(aztecRpcClient);
+    [wallet] = await getSandboxAccountsWallets(pxe);
     const accounts = await wallet.getRegisteredAccounts();
     const owner = accounts[0].address;
     const receiver = accounts[1].address;

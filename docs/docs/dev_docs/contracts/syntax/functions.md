@@ -114,7 +114,7 @@ Oracles introduce **non-determinism** into a circuit, and thus are `unconstraine
 ### Private -> Private
 
 In Aztec Private to Private function calls are handled by the [private kernel circuit](../../../concepts/advanced/circuits/kernels/private_kernel.md), and take place on the user's device.
-Behind the scenes, the `Aztec RPC Server` (the beating heart of Aztec that runs in your wallet) will execute all of the functions in the desired order "simulating" them in sequence. For example, a very common use-case of Private to Private interaction is calling another private function from an `account contract` (Account contracts are a general concept, more information about them can be found [here](../../wallets/writing_an_account_contract.md)).
+Behind the scenes, the `Private Execution Environment (PXE)` (the beating heart of Aztec that runs in your wallet) will execute all of the functions in the desired order "simulating" them in sequence. For example, a very common use-case of Private to Private interaction is calling another private function from an `account contract` (Account contracts are a general concept, more information about them can be found [here](../../wallets/writing_an_account_contract.md)).
 
 Take, for example, the following call stack:
 

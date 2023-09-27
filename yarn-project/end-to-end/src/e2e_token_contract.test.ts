@@ -437,7 +437,7 @@ describe('e2e_token_contract', () => {
         // We need to compute the message we want to sign and add it to the wallet as approved
         const messageHash = await transferMessageHash(accounts[1], accounts[0], accounts[1], amount, nonce);
 
-        // Both wallets are connected to same node and rpc so we could just insert directly using
+        // Both wallets are connected to same node and PXE so we could just insert directly using
         // await wallet.signAndAddAuthWitness(messageHash, );
         // But doing it in two actions to show the flow.
         const witness = await wallets[0].createAuthWitness(messageHash);
@@ -491,7 +491,7 @@ describe('e2e_token_contract', () => {
           // We need to compute the message we want to sign and add it to the wallet as approved
           const messageHash = await transferMessageHash(accounts[1], accounts[0], accounts[1], amount, nonce);
 
-          // Both wallets are connected to same node and rpc so we could just insert directly using
+          // Both wallets are connected to same node and PXE so we could just insert directly using
           // await wallet.signAndAddAuthWitness(messageHash, );
           // But doing it in two actions to show the flow.
           const witness = await wallets[0].createAuthWitness(messageHash);
@@ -772,7 +772,7 @@ describe('e2e_token_contract', () => {
       // We need to compute the message we want to sign and add it to the wallet as approved
       const messageHash = await unshieldMessageHash(accounts[1], accounts[0], accounts[1], amount, nonce);
 
-      // Both wallets are connected to same node and rpc so we could just insert directly using
+      // Both wallets are connected to same node and PXE so we could just insert directly using
       // await wallet.signAndAddAuthWitness(messageHash, );
       // But doing it in two actions to show the flow.
       const witness = await wallets[0].createAuthWitness(messageHash);
@@ -826,7 +826,7 @@ describe('e2e_token_contract', () => {
         // We need to compute the message we want to sign and add it to the wallet as approved
         const messageHash = await unshieldMessageHash(accounts[1], accounts[0], accounts[1], amount, nonce);
 
-        // Both wallets are connected to same node and rpc so we could just insert directly using
+        // Both wallets are connected to same node and PXE so we could just insert directly using
         // await wallet.signAndAddAuthWitness(messageHash, );
         // But doing it in two actions to show the flow.
         const witness = await wallets[0].createAuthWitness(messageHash);
@@ -850,7 +850,7 @@ describe('e2e_token_contract', () => {
         const messageHash = await unshieldMessageHash(accounts[1], accounts[0], accounts[1], amount, nonce);
         const expectedMessageHash = await unshieldMessageHash(accounts[2], accounts[0], accounts[1], amount, nonce);
 
-        // Both wallets are connected to same node and rpc so we could just insert directly using
+        // Both wallets are connected to same node and PXE so we could just insert directly using
         // await wallet.signAndAddAuthWitness(messageHash, );
         // But doing it in two actions to show the flow.
         const witness = await wallets[0].createAuthWitness(messageHash);
@@ -1005,7 +1005,7 @@ describe('e2e_token_contract', () => {
         // We need to compute the message we want to sign and add it to the wallet as approved
         const messageHash = await burnMessageHash(accounts[1], accounts[0], amount, nonce);
 
-        // Both wallets are connected to same node and rpc so we could just insert directly using
+        // Both wallets are connected to same node and PXE so we could just insert directly using
         // await wallet.signAndAddAuthWitness(messageHash, );
         // But doing it in two actions to show the flow.
         const witness = await wallets[0].createAuthWitness(messageHash);
@@ -1051,7 +1051,7 @@ describe('e2e_token_contract', () => {
           // We need to compute the message we want to sign and add it to the wallet as approved
           const messageHash = await burnMessageHash(accounts[1], accounts[0], amount, nonce);
 
-          // Both wallets are connected to same node and rpc so we could just insert directly using
+          // Both wallets are connected to same node and PXE so we could just insert directly using
           // await wallet.signAndAddAuthWitness(messageHash, );
           // But doing it in two actions to show the flow.
           const witness = await wallets[0].createAuthWitness(messageHash);
@@ -1105,7 +1105,7 @@ describe('e2e_token_contract', () => {
         const messageHash = await burnMessageHash(accounts[1], accounts[0], amount, nonce);
         const expectedMessageHash = await burnMessageHash(accounts[2], accounts[0], amount, nonce);
 
-        // Both wallets are connected to same node and rpc so we could just insert directly using
+        // Both wallets are connected to same node and PXE so we could just insert directly using
         // await wallet.signAndAddAuthWitness(messageHash, { origin: accounts[0].address });
         // But doing it in two actions to show the flow.
         const witness = await wallets[0].createAuthWitness(messageHash);

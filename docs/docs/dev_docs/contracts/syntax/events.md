@@ -15,7 +15,7 @@ Unlike on Ethereum, there are 2 types of events supported by Aztec: encrypted an
 ## Encrypted Events
 
 Encrypted events can only be emitted by private functions and are encrypted using a public key of a recipient.
-For this reason it is necessary to register a recipient in the Aztec RPC Server before encrypting the events for them.
+For this reason it is necessary to register a recipient in the Private Execution Environment (PXE) before encrypting the events for them.
 Recipients can be registered using the Aztec CLI or Aztec.js:
 
 import Tabs from '@theme/Tabs';
@@ -47,18 +47,18 @@ const completeAddress = CompleteAddress.create(
   publicKey,
   partialKey
 );
-await aztecRpc.registerRecipient(completeAddress);
+await pxe.registerRecipient(completeAddress);
 ```
 
 </TabItem>
 </Tabs>
 
 :::info
-If a note recipient is one of the accounts inside the Aztec RPC Server, we don't need to register it as a recipient because we already have the public key available. You can register a recipient as shown [here](../deploying#deploying-private-token-contract)
+If a note recipient is one of the accounts inside the PXE, we don't need to register it as a recipient because we already have the public key available. You can register a recipient as shown [here](../deploying#deploying-private-token-contract)
 
 At this point the Sandbox only enables the emitting of encrypted note preimages through encrypted events.
 In the future we will allow emitting arbitrary information.
-(If you currently emit arbitrary information, Aztec RPC Server will fail to decrypt, process and store this data, so it will not be queryable).
+(If you currently emit arbitrary information, PXE will fail to decrypt, process and store this data, so it will not be queryable).
 :::
 
 To emit encrypted logs first import the `emit_encrypted_log` utility function which wraps an [oracle](./functions.md#oracle-functions):
@@ -71,19 +71,19 @@ Then you can call the function:
 
 ### Processing Encrypted Events
 
-One of the functions of the Aztec RPC Server is constantly loading encrypted logs from the `AztecNode` and decrypting them.
-When new encrypted logs are obtained, the Aztec RPC Server will try to decrypt them using the private encryption key of all the accounts registered inside Aztec RPC Server.
-If the decryption is successful, the Aztec RPC Server will store the decrypted note inside a database.
+One of the functions of the PXE is constantly loading encrypted logs from the `AztecNode` and decrypting them.
+When new encrypted logs are obtained, the PXE will try to decrypt them using the private encryption key of all the accounts registered inside PXE.
+If the decryption is successful, the PXE will store the decrypted note inside a database.
 If the decryption fails, the specific log will be discarded.
 
-For the Aztec RPC Server to successfully process the decrypted note we need to compute the note's 'note hash' and 'nullifier'.
-Aztec.nr enables smart contract developers to design custom notes, meaning developers can also customize how a note's note hash and nullifier should be computed. Because of this customizability, and because there will be a potentially-unlimited number of smart contracts deployed to Aztec, an Aztec RPC Server needs to be 'taught' how to compute the custom note hashes and nullifiers for a particular contract. Therefore, developers will need to implement a `compute_note_hash_and_nullifier` function inside their contracts.
+For the PXE to successfully process the decrypted note we need to compute the note's 'note hash' and 'nullifier'.
+Aztec.nr enables smart contract developers to design custom notes, meaning developers can also customize how a note's note hash and nullifier should be computed. Because of this customizability, and because there will be a potentially-unlimited number of smart contracts deployed to Aztec, an PXE needs to be 'taught' how to compute the custom note hashes and nullifiers for a particular contract. Therefore, developers will need to implement a `compute_note_hash_and_nullifier` function inside their contracts.
 
 :::danger
 If your function has private state variables, you **MUST** include a `compute_note_hash_and_nullifier` function to allow the RPC to process encrypted events.
 :::
 
-Every time a new note is successfully decrypted, the Aztec RPC Server will expect the existence of a `compute_note_hash_and_nullifier` function, which must teach it how to correctly process the new note.
+Every time a new note is successfully decrypted, the PXE will expect the existence of a `compute_note_hash_and_nullifier` function, which must teach it how to correctly process the new note.
 
 #include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 

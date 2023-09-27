@@ -520,7 +520,7 @@ jobs:
           name: "Build"
           command: build end-to-end
 
-  e2e-2-rpc-servers:
+  e2e-2-pxes:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -529,7 +529,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_2_rpc_servers.test.ts
+          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_2_pxes.test.ts
 
   e2e-multiple-accounts-1-enc-key:
     machine:
@@ -826,7 +826,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local aztec_rpc_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
+          command: cond_run_script end-to-end ./scripts/run_tests_local pxe_sandbox.test.ts ./scripts/docker-compose-e2e-sandbox.yml
 
   cli-docs-sandbox:
     machine:
@@ -1186,7 +1186,7 @@ workflows:
             - canary
           <<: *defaults
 
-      - e2e-2-rpc-servers: *e2e_test
+      - e2e-2-pxes: *e2e_test
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
       - e2e-token-contract: *e2e_test
@@ -1223,7 +1223,7 @@ workflows:
 
       - e2e-end:
           requires:
-            - e2e-2-rpc-servers
+            - e2e-2-pxes
             - e2e-deploy-contract
             - e2e-lending-contract
             - e2e-token-contract

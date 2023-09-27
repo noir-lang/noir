@@ -1,13 +1,13 @@
 import {
   AccountWallet,
   AztecAddress,
-  AztecRPC,
+  PXE,
   CompleteAddress,
   Contract,
   DeployMethod,
   Fr,
   TxReceipt,
-  createAztecRpcClient,
+  createPXEClient,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
 import { ContractAbi, FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
@@ -16,7 +16,7 @@ import { BlankContractAbi } from './artifacts/blank.js';
 export const contractAbi: ContractAbi = BlankContractAbi;
 
 export const SANDBOX_URL: string = process.env.SANDBOX_URL || 'http://localhost:8080';
-export const rpcClient: AztecRPC = createAztecRpcClient(SANDBOX_URL);
+export const pxe: PXE = createPXEClient(SANDBOX_URL);
 
 export const CONTRACT_ADDRESS_PARAM_NAMES = ['owner', 'contract_address', 'recipient'];
 export const FILTERED_FUNCTION_NAMES = [];
@@ -40,21 +40,15 @@ if (typeof document !== 'undefined') {
 
 export async function handleDeployClick(): Promise<string> {
   console.log('Deploying Contract');
-  const [wallet, ..._rest] = await getSandboxAccountsWallets(rpcClient);
+  const [wallet, ..._rest] = await getSandboxAccountsWallets(pxe);
 
-  const contractAztecAddress = await deployContract(
-    wallet.getCompleteAddress(),
-    contractAbi,
-    [],
-    Fr.random(),
-    rpcClient,
-  );
+  const contractAztecAddress = await deployContract(wallet.getCompleteAddress(), contractAbi, [], Fr.random(), pxe);
 
   return contractAztecAddress.toString();
 }
 
 export async function handleInteractClick(contractAddress: string) {
-  const [wallet, ..._rest] = await getSandboxAccountsWallets(rpcClient);
+  const [wallet, ..._rest] = await getSandboxAccountsWallets(pxe);
   const callArgs = { address: wallet.getCompleteAddress().address };
   const getPkAbi = getFunctionAbi(BlankContractAbi, 'getPublicKey');
   const typedArgs = convertArgs(getPkAbi, callArgs);
@@ -65,7 +59,7 @@ export async function handleInteractClick(contractAddress: string) {
     contractAbi,
     'getPublicKey',
     typedArgs,
-    rpcClient,
+    pxe,
     wallet.getCompleteAddress(),
   );
 }
@@ -81,11 +75,11 @@ export async function callContractFunction(
   abi: ContractAbi,
   functionName: string,
   typedArgs: any[], // for the exposed functions, this is an array of field elements Fr[]
-  rpc: AztecRPC,
+  pxe: PXE,
   wallet: CompleteAddress,
 ): Promise<FieldsOf<TxReceipt>> {
   // selectedWallet is how we specify the "sender" of the transaction
-  const selectedWallet = await getWallet(wallet, rpc);
+  const selectedWallet = await getWallet(wallet, pxe);
 
   // TODO: switch to the generated typescript class?
   const contract = await Contract.at(address, abi, selectedWallet);
@@ -100,14 +94,14 @@ export async function callContractFunction(
  * while the "wallet" has the account's private key and is used to sign transactions
  * we need the "wallet" to actually submit transactions using the "account" identity
  * @param account
- * @param rpc
+ * @param pxe
  * @returns
  */
-export async function getWallet(account: CompleteAddress, rpc: AztecRPC): Promise<AccountWallet> {
-  const accountWallets: AccountWallet[] = await getSandboxAccountsWallets(rpc);
+export async function getWallet(account: CompleteAddress, pxe: PXE): Promise<AccountWallet> {
+  const accountWallets: AccountWallet[] = await getSandboxAccountsWallets(pxe);
   const selectedWallet: AccountWallet = accountWallets.find(w => w.getAddress().equals(account.address))!;
   if (!selectedWallet) {
-    throw new Error(`Wallet for account ${account.address.toShortString()} not found in the RPC server.`);
+    throw new Error(`Wallet for account ${account.address.toShortString()} not found in the PXE.`);
   }
   return selectedWallet;
 }
@@ -117,7 +111,7 @@ export async function deployContract(
   contractAbi: ContractAbi,
   typedArgs: Fr[], // encode prior to passing in
   salt: Fr,
-  client: AztecRPC,
+  client: PXE,
 ): Promise<AztecAddress> {
   const tx = new DeployMethod(activeWallet.publicKey, client, contractAbi, typedArgs).send({
     contractAddressSalt: salt,

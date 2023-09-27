@@ -1,14 +1,14 @@
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
 import { expectUnencryptedLogsFromLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_public_token_contract', () => {
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let wallet: Wallet;
   let logger: DebugLogger;
   let recipient: AztecAddress;
@@ -26,7 +26,7 @@ describe('e2e_public_token_contract', () => {
 
   beforeEach(async () => {
     let accounts: CompleteAddress[];
-    ({ teardown, aztecRpcServer, accounts, wallet, logger } = await setup());
+    ({ teardown, pxe, accounts, wallet, logger } = await setup());
     recipient = accounts[0].address;
   }, 100_000);
 
@@ -52,7 +52,7 @@ describe('e2e_public_token_contract', () => {
     const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount);
 
-    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins minted']);
+    await expectUnencryptedLogsFromLastBlockToBe(pxe, ['Coins minted']);
   }, 45_000);
 
   // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
@@ -75,6 +75,6 @@ describe('e2e_public_token_contract', () => {
     const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount * 3n);
 
-    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins minted', 'Coins minted', 'Coins minted']);
+    await expectUnencryptedLogsFromLastBlockToBe(pxe, ['Coins minted', 'Coins minted', 'Coins minted']);
   }, 60_000);
 });

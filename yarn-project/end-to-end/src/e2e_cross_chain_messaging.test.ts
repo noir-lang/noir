@@ -25,7 +25,7 @@ describe('e2e_cross_chain_messaging', () => {
   beforeEach(async () => {
     const {
       aztecNode,
-      aztecRpcServer,
+      pxe,
       deployL1ContractsValues,
       accounts,
       wallets,
@@ -36,7 +36,7 @@ describe('e2e_cross_chain_messaging', () => {
 
     crossChainTestHarness = await CrossChainTestHarness.new(
       aztecNode,
-      aztecRpcServer,
+      pxe,
       deployL1ContractsValues,
       accounts,
       wallets[0],

@@ -54,7 +54,7 @@ export class PrivateTokenContract extends ContractBase {
   public static async at(address: AztecAddress, wallet: Wallet) { ... }
 
   /** Creates a tx to deploy a new instance of this contract. */
-  public static deploy(rpc: AztecRPC, initial_supply: FieldLike, owner: FieldLike) { ... }
+  public static deploy(pxe: PXE, initial_supply: FieldLike, owner: FieldLike) { ... }
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {

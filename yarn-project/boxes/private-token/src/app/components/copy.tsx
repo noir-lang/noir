@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import styles from './copy.module.scss';
+import { useState } from 'react';
 
 export function Copy({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);

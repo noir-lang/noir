@@ -218,7 +218,7 @@ const sidebars = {
           },
           items: [
             "dev_docs/tutorials/writing_dapp/project_setup",
-            "dev_docs/tutorials/writing_dapp/rpc_server",
+            "dev_docs/tutorials/writing_dapp/pxe_service",
             "dev_docs/tutorials/writing_dapp/contract_deployment",
             "dev_docs/tutorials/writing_dapp/contract_interaction",
             "dev_docs/tutorials/writing_dapp/testing",
@@ -351,9 +351,9 @@ const sidebars = {
       type: "category",
       items: [
         {
-          label: "Aztec RPC Server",
+          label: "Private Execution Environment (PXE)",
           type: "doc",
-          id: "apis/pxe/interfaces/AztecRPC",
+          id: "apis/pxe/interfaces/PXE",
         },
         {
           label: "Aztec.js",

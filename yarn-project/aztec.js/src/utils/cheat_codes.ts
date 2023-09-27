@@ -3,7 +3,7 @@ import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { toBigIntBE, toHex } from '@aztec/foundation/bigint-buffer';
 import { keccak } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecRPC, NotePreimage } from '@aztec/types';
+import { NotePreimage, PXE } from '@aztec/types';
 
 import fs from 'fs';
 
@@ -22,9 +22,9 @@ export class CheatCodes {
     public aztec: AztecCheatCodes,
   ) {}
 
-  static async create(rpcUrl: string, aztecRpc: AztecRPC): Promise<CheatCodes> {
+  static async create(rpcUrl: string, pxe: PXE): Promise<CheatCodes> {
     const ethCheatCodes = new EthCheatCodes(rpcUrl);
-    const aztecCheatCodes = new AztecCheatCodes(aztecRpc, await CircuitsWasm.get(), ethCheatCodes);
+    const aztecCheatCodes = new AztecCheatCodes(pxe, await CircuitsWasm.get(), ethCheatCodes);
     return new CheatCodes(ethCheatCodes, aztecCheatCodes);
   }
 }
@@ -35,7 +35,7 @@ export class CheatCodes {
 export class EthCheatCodes {
   constructor(
     /**
-     * The RPC client to use for interacting with the chain
+     * The RPC URL to use for interacting with the chain
      */
     public rpcUrl: string,
     /**
@@ -209,9 +209,9 @@ export class EthCheatCodes {
 export class AztecCheatCodes {
   constructor(
     /**
-     * The RPC client to use for interacting with the chain
+     * The PXE Service to use for interacting with the chain
      */
-    public aztecRpc: AztecRPC,
+    public pxe: PXE,
     /**
      * The circuits wasm module used for pedersen hashing
      */
@@ -248,7 +248,7 @@ export class AztecCheatCodes {
    * @returns The current block number
    */
   public async blockNumber(): Promise<number> {
-    return await this.aztecRpc.getBlockNumber();
+    return await this.pxe.getBlockNumber();
   }
 
   /**
@@ -257,7 +257,7 @@ export class AztecCheatCodes {
    * @param to - The timestamp to set the next block to (must be greater than current time)
    */
   public async warp(to: number): Promise<void> {
-    const rollupContract = (await this.aztecRpc.getNodeInfo()).l1ContractAddresses.rollupAddress;
+    const rollupContract = (await this.pxe.getNodeInfo()).l1ContractAddresses.rollupAddress;
     await this.eth.setNextBlockTimestamp(to);
     // also store this time on the rollup contract (slot 1 tracks `lastBlockTs`).
     // This is because when the sequencer executes public functions, it uses the timestamp stored in the rollup contract.
@@ -273,7 +273,7 @@ export class AztecCheatCodes {
    * @returns The value stored at the given slot
    */
   public async loadPublic(who: AztecAddress, slot: Fr | bigint): Promise<Fr> {
-    const storageValue = await this.aztecRpc.getPublicStorageAt(who, new Fr(slot));
+    const storageValue = await this.pxe.getPublicStorageAt(who, new Fr(slot));
     if (storageValue === undefined) {
       throw new Error(`Storage slot ${slot} not found`);
     }
@@ -288,6 +288,6 @@ export class AztecCheatCodes {
    * @returns The notes stored at the given slot
    */
   public loadPrivate(owner: AztecAddress, contract: AztecAddress, slot: Fr | bigint): Promise<NotePreimage[]> {
-    return this.aztecRpc.getPrivateStorageAt(owner, contract, new Fr(slot));
+    return this.pxe.getPrivateStorageAt(owner, contract, new Fr(slot));
   }
 }

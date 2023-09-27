@@ -4,11 +4,11 @@ import { TokenContractAbi } from '@aztec/noir-contracts/artifacts';
 
 describe('token', () => {
   // docs:start:setup
-  let rpc, stop, owner, recipient, token;
+  let pxe, stop, owner, recipient, token;
   beforeAll(async () => {
-    ({ rpcServer: rpc, stop } = await createSandbox());
-    owner = await createAccount(rpc);
-    recipient = await createAccount(rpc);
+    ({ pxe, stop } = await createSandbox());
+    owner = await createAccount(pxe);
+    recipient = await createAccount(pxe);
 
     token = await Contract.deploy(owner, TokenContractAbi, []).send().deployed();
     await token.methods._initialize(owner.getAddress()).send().wait();

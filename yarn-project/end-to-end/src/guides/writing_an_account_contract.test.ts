@@ -50,10 +50,10 @@ describe('guides/writing_an_account_contract', () => {
   afterEach(() => context.teardown());
 
   it('works', async () => {
-    const { aztecRpcServer: rpc, logger } = context;
+    const { pxe, logger } = context;
     // docs:start:account-contract-deploy
     const encryptionPrivateKey = GrumpkinScalar.random();
-    const account = new AccountManager(rpc, encryptionPrivateKey, new SchnorrHardcodedKeyAccountContract());
+    const account = new AccountManager(pxe, encryptionPrivateKey, new SchnorrHardcodedKeyAccountContract());
     const wallet = await account.waitDeploy();
     const address = wallet.getCompleteAddress().address;
     // docs:end:account-contract-deploy
@@ -79,7 +79,7 @@ describe('guides/writing_an_account_contract', () => {
     const walletAddress = wallet.getCompleteAddress();
     const wrongKey = GrumpkinScalar.random();
     const wrongAccountContract = new SchnorrHardcodedKeyAccountContract(wrongKey);
-    const wrongAccount = new AccountManager(rpc, encryptionPrivateKey, wrongAccountContract, walletAddress);
+    const wrongAccount = new AccountManager(pxe, encryptionPrivateKey, wrongAccountContract, walletAddress);
     const wrongWallet = await wrongAccount.getWallet();
     const tokenWithWrongWallet = token.withWallet(wrongWallet);
 

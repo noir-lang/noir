@@ -33,7 +33,7 @@ export class TxExecutionRequest {
     public packedArguments: PackedArguments[],
     /**
      * Transient authorization witnesses for authorizing the execution of one or more actions during this tx.
-     * These witnesses are not expected to be stored in the local witnesses database of the RPC server.
+     * These witnesses are not expected to be stored in the local witnesses database of the PXE.
      */
     public authWitnesses: AuthWitness[],
   ) {}

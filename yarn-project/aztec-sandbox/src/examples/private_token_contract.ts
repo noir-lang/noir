@@ -3,7 +3,7 @@ import {
   AztecAddress,
   Contract,
   GrumpkinScalar,
-  createAztecRpcClient,
+  createPXEClient,
   createRecipient,
   getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
@@ -16,7 +16,7 @@ export const privateKey = GrumpkinScalar.fromString('ac0974bec39a17e36ba4a6b4d23
 
 const url = 'http://localhost:8080';
 
-const aztecRpcClient = createAztecRpcClient(url);
+const pxe = createPXEClient(url);
 let wallet: AccountWallet;
 
 const INITIAL_BALANCE = 333n;
@@ -29,7 +29,7 @@ const SECONDARY_AMOUNT = 33n;
  */
 async function deployZKContract(owner: AztecAddress) {
   logger('Deploying L2 contract...');
-  const contract = await PrivateTokenContract.deploy(aztecRpcClient, INITIAL_BALANCE, owner).send().deployed();
+  const contract = await PrivateTokenContract.deploy(pxe, INITIAL_BALANCE, owner).send().deployed();
   logger('L2 contract deployed');
   return contract;
 }
@@ -50,9 +50,9 @@ async function getBalance(contract: Contract, ownerAddress: AztecAddress) {
 async function main() {
   logger('Running ZK contract test on HTTP interface.');
 
-  wallet = await getUnsafeSchnorrAccount(aztecRpcClient, privateKey).waitDeploy();
+  wallet = await getUnsafeSchnorrAccount(pxe, privateKey).waitDeploy();
   const owner = wallet.getCompleteAddress();
-  const recipient = await createRecipient(aztecRpcClient);
+  const recipient = await createRecipient(pxe);
 
   logger(`Created Owner account ${owner.toString()}`);
 

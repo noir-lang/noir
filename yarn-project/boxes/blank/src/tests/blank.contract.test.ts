@@ -1,13 +1,13 @@
 import {
   AccountWallet,
   AztecAddress,
-  AztecRPC,
+  PXE,
   CompleteAddress,
   Contract,
   Fr,
   TxStatus,
   Wallet,
-  createAztecRpcClient,
+  createPXEClient,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -19,14 +19,14 @@ const logger = createDebugLogger('aztec:blank-box-test');
 // as well as anvil.  anvil can be started with yarn test:integration
 const setupSandbox = async () => {
   const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
-  const aztecRpc = createAztecRpcClient(SANDBOX_URL);
-  await waitForSandbox(aztecRpc);
-  return aztecRpc;
+  const pxe = createPXEClient(SANDBOX_URL);
+  await waitForSandbox(pxe);
+  return pxe;
 };
 
-async function deployZKContract(owner: CompleteAddress, wallet: Wallet, rpcClient: AztecRPC) {
+async function deployZKContract(owner: CompleteAddress, wallet: Wallet, pxe: PXE) {
   logger('Deploying Blank contract...');
-  const contractAddress = await deployContract(owner, BlankContract.abi, [], Fr.random(), rpcClient);
+  const contractAddress = await deployContract(owner, BlankContract.abi, [], Fr.random(), pxe);
 
   logger(`L2 contract deployed at ${contractAddress}`);
   return BlankContract.at(contractAddress, wallet);
@@ -39,16 +39,16 @@ describe('ZK Contract Tests', () => {
   let _account3: CompleteAddress;
   let contract: Contract;
   let contractAddress: AztecAddress;
-  let rpcClient: AztecRPC;
+  let pxe: PXE;
 
   beforeAll(async () => {
-    rpcClient = await setupSandbox();
-    const accounts = await rpcClient.getRegisteredAccounts();
+    pxe = await setupSandbox();
+    const accounts = await pxe.getRegisteredAccounts();
     [owner, _account2, _account3] = accounts;
 
-    wallet = await getWallet(owner, rpcClient);
+    wallet = await getWallet(owner, pxe);
 
-    contract = await deployZKContract(owner, wallet, rpcClient);
+    contract = await deployZKContract(owner, wallet, pxe);
     contractAddress = contract.address;
   }, 60000);
 
@@ -58,7 +58,7 @@ describe('ZK Contract Tests', () => {
       contract.abi,
       'getPublicKey',
       [owner.address.toField()],
-      rpcClient,
+      pxe,
       owner,
     );
     expect(callTxReceipt.status).toBe(TxStatus.MINED);

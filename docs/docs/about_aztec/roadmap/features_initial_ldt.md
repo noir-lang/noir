@@ -64,7 +64,7 @@ A typescript wrapper for making RPC calls to an Aztec Sandbox node. See the sour
 
 A bundle of packages which emulate the actions of all eventual Aztec network participants. The goal is for developer experience to be akin to Ganache / Anvil.
 
-- Aztec RPC Client
+- PXE client
   - Simulate and/or execute private functions locally.
 - Aztec Public Node
   - Broadcasts a user's txs to the tx pool.

@@ -8,7 +8,7 @@ import {
   EthCheatCodes,
   Wallet,
   createAccounts,
-  createAztecRpcClient as createJsonRpcClient,
+  createPXEClient as createJsonRpcClient,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
 import { CircuitsWasm, GeneratorIndex } from '@aztec/circuits.js';
@@ -41,8 +41,8 @@ import {
   TokenPortalBytecode,
 } from '@aztec/l1-artifacts';
 import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPCServer, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/pxe';
-import { AztecRPC, L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
+import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { L2BlockL2Logs, LogType, PXE, TxStatus } from '@aztec/types';
 
 import {
   Account,
@@ -63,14 +63,14 @@ import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const { SANDBOX_URL = '' } = process.env;
 
-export const waitForRPCServer = async (rpcServer: AztecRPC, logger: DebugLogger) => {
+export const waitForPXE = async (pxe: PXE, logger: DebugLogger) => {
   await retryUntil(async () => {
     try {
-      logger('Attempting to contact RPC Server...');
-      await rpcServer.getNodeInfo();
+      logger('Attempting to contact PXE...');
+      await pxe.getNodeInfo();
       return true;
     } catch (error) {
-      logger('Failed to contact RPC Server!');
+      logger('Failed to contact PXE!');
     }
     return undefined;
   }, 'RPC Get Node Info');
@@ -126,26 +126,26 @@ export const setupL1Contracts = async (
 };
 
 /**
- * Sets up Aztec RPC Server.
- * @param numberOfAccounts - The number of new accounts to be created once the RPC server is initiated.
+ * Sets up Private Execution Environment (PXE).
+ * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
  * @param aztecNode - The instance of an aztec node, if one is required
  * @param firstPrivKey - The private key of the first account to be created.
  * @param logger - The logger to be used.
- * @param useLogSuffix - Whether to add a randomly generated suffix to the RPC server debug logs.
- * @returns Aztec RPC server, accounts, wallets and logger.
+ * @param useLogSuffix - Whether to add a randomly generated suffix to the PXE debug logs.
+ * @returns Private Execution Environment (PXE), accounts, wallets and logger.
  */
-export async function setupAztecRPCServer(
+export async function setupPXEService(
   numberOfAccounts: number,
   aztecNode: AztecNodeService,
   logger = getLogger(),
   useLogSuffix = false,
 ): Promise<{
   /**
-   * The Aztec RPC instance.
+   * The PXE instance.
    */
-  aztecRpcServer: AztecRPC;
+  pxe: PXE;
   /**
-   * The accounts created by the RPC server.
+   * The accounts created by the PXE.
    */
   accounts: CompleteAddress[];
   /**
@@ -157,14 +157,14 @@ export async function setupAztecRPCServer(
    */
   logger: DebugLogger;
 }> {
-  const rpcConfig = getRpcConfigEnvVars();
-  const rpc = await createAztecRPCServer(aztecNode, rpcConfig, {}, useLogSuffix);
+  const pxeServiceConfig = getPXEServiceConfig();
+  const pxe = await createPXEService(aztecNode, pxeServiceConfig, {}, useLogSuffix);
 
-  const wallets = await createAccounts(rpc, numberOfAccounts);
+  const wallets = await createAccounts(pxe, numberOfAccounts);
 
   return {
-    aztecRpcServer: rpc!,
-    accounts: await rpc!.getRegisteredAccounts(),
+    pxe,
+    accounts: await pxe.getRegisteredAccounts(),
     wallets,
     logger,
   };
@@ -181,11 +181,11 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
   // we are setting up against the sandbox, l1 contracts are already deployed
   logger(`Creating JSON RPC client to remote host ${SANDBOX_URL}`);
   const jsonClient = createJsonRpcClient(SANDBOX_URL);
-  await waitForRPCServer(jsonClient, logger);
-  logger('JSON RPC client connected to RPC Server');
+  await waitForPXE(jsonClient, logger);
+  logger('JSON RPC client connected to PXE');
   logger(`Retrieving contract addresses from ${SANDBOX_URL}`);
   const l1Contracts = (await jsonClient.getNodeInfo()).l1ContractAddresses;
-  logger('RPC server created, constructing wallets from initial sandbox accounts...');
+  logger('PXE created, constructing wallets from initial sandbox accounts...');
   const wallets = await getSandboxAccountsWallets(jsonClient);
 
   const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
@@ -206,7 +206,7 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
   const teardown = () => Promise.resolve();
   return {
     aztecNode: undefined,
-    aztecRpcServer: jsonClient,
+    pxe: jsonClient,
     deployL1ContractsValues,
     accounts: await jsonClient!.getRegisteredAccounts(),
     config,
@@ -220,7 +220,7 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
 
 /**
  * Sets up the environment for the end-to-end tests.
- * @param numberOfAccounts - The number of new accounts to be created once the RPC server is initiated.
+ * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
  */
 export async function setup(
   numberOfAccounts = 1,
@@ -231,15 +231,15 @@ export async function setup(
    */
   aztecNode: AztecNodeService | undefined;
   /**
-   * The Aztec RPC server.
+   * The Private Execution Environment (PXE).
    */
-  aztecRpcServer: AztecRPC;
+  pxe: PXE;
   /**
    * Return values from deployL1Contracts function.
    */
   deployL1ContractsValues: DeployL1Contracts;
   /**
-   * The accounts created by the RPC server.
+   * The accounts created by the PXE.
    */
   accounts: CompleteAddress[];
   /**
@@ -295,18 +295,18 @@ export async function setup(
 
   const aztecNode = await createAztecNode(config, logger);
 
-  const { aztecRpcServer, accounts, wallets } = await setupAztecRPCServer(numberOfAccounts, aztecNode!, logger);
+  const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, logger);
 
-  const cheatCodes = await CheatCodes.create(config.rpcUrl, aztecRpcServer!);
+  const cheatCodes = await CheatCodes.create(config.rpcUrl, pxe!);
 
   const teardown = async () => {
     await aztecNode?.stop();
-    if (aztecRpcServer instanceof AztecRPCServer) await aztecRpcServer?.stop();
+    if (pxe instanceof PXEService) await pxe?.stop();
   };
 
   return {
     aztecNode,
-    aztecRpcServer,
+    pxe,
     deployL1ContractsValues,
     accounts,
     config,
@@ -455,7 +455,7 @@ export async function deployAndInitializeStandardizedTokenAndBridgeContracts(
 
 /**
  * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract and attach is to the portal.
- * @param aztecRpcServer - the aztec rpc server instance
+ * @param wallet - Aztec wallet instance.
  * @param walletClient - A viem WalletClient.
  * @param publicClient - A viem PublicClient.
  * @param rollupRegistryAddress - address of rollup registry to pass to initialize the token portal
@@ -532,7 +532,7 @@ export const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (
   numEncryptedLogs: number,
 ) => {
   if (!aztecNode) {
-    // An api for retrieving encrypted logs does not exist on the rpc server so we have to use the node
+    // An api for retrieving encrypted logs does not exist on the PXE Service so we have to use the node
     // This means we can't perform this check if there is no node
     return;
   }
@@ -544,15 +544,15 @@ export const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (
 
 /**
  * Checks that the last block contains the given expected unencrypted log messages.
- * @param rpc - The instance of AztecRPC for retrieving the logs.
+ * @param pxe - The instance of PXE for retrieving the logs.
  * @param logMessages - The set of expected log messages.
  */
-export const expectUnencryptedLogsFromLastBlockToBe = async (rpc: AztecRPC, logMessages: string[]) => {
+export const expectUnencryptedLogsFromLastBlockToBe = async (pxe: PXE, logMessages: string[]) => {
   // docs:start:get_logs
   // Get the latest block number to retrieve logs from
-  const l2BlockNum = await rpc.getBlockNumber();
+  const l2BlockNum = await pxe.getBlockNumber();
   // Get the unencrypted logs from the last block
-  const unencryptedLogs = await rpc.getUnencryptedLogs(l2BlockNum, 1);
+  const unencryptedLogs = await pxe.getUnencryptedLogs(l2BlockNum, 1);
   // docs:end:get_logs
   const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
   const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));

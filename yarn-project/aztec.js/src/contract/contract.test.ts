@@ -156,7 +156,7 @@ describe('Contract Class', () => {
     expect(() => fooContract.methods.baz().view()).toThrow();
   });
 
-  it('should add contract and dependencies to aztec rpc', async () => {
+  it('should add contract and dependencies to PXE', async () => {
     const entry: DeployedContract = {
       abi: randomContractAbi(),
       completeAddress: resolvedExtendedContractData.getCompleteAddress(),

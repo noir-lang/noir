@@ -34,7 +34,7 @@ export class SimulatorOracle implements DBOracle {
     const completeAddress = await this.db.getCompleteAddress(address);
     if (!completeAddress)
       throw new Error(
-        `Unknown complete address for address ${address.toString()}. Add the information to Aztec RPC server by calling server.registerRecipient(...) or server.registerAccount(...)`,
+        `Unknown complete address for address ${address.toString()}. Add the information to PXE Service by calling server.registerRecipient(...) or server.registerAccount(...)`,
       );
     return completeAddress;
   }

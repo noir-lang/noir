@@ -4,19 +4,19 @@ import { Fr, FunctionSelector } from '@aztec/circuits.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, L2BlockL2Logs, TxStatus } from '@aztec/types';
+import { L2BlockL2Logs, PXE, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
 // See https://github.com/AztecProtocol/aztec-packages/issues/1601
 describe('e2e_ordering', () => {
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let wallet: Wallet;
   let teardown: () => Promise<void>;
 
   const expectLogsFromLastBlockToBe = async (logMessages: bigint[]) => {
-    const l2BlockNum = await aztecRpcServer.getBlockNumber();
-    const unencryptedLogs = await aztecRpcServer.getUnencryptedLogs(l2BlockNum, 1);
+    const l2BlockNum = await pxe.getBlockNumber();
+    const unencryptedLogs = await pxe.getUnencryptedLogs(l2BlockNum, 1);
     const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
     const bigintLogs = unrolledLogs.map((log: Buffer) => toBigIntBE(log));
 
@@ -24,7 +24,7 @@ describe('e2e_ordering', () => {
   };
 
   beforeEach(async () => {
-    ({ teardown, aztecRpcServer, wallet } = await setup());
+    ({ teardown, pxe, wallet } = await setup());
   }, 100_000);
 
   afterEach(() => teardown());
@@ -72,7 +72,7 @@ describe('e2e_ordering', () => {
           await expectLogsFromLastBlockToBe(expectedOrder);
 
           // The final value of the child is the last one set
-          const value = await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
+          const value = await pxe.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
           expect(value).toEqual(expectedOrder[1]); // final state should match last value set
         },
       );
@@ -96,7 +96,7 @@ describe('e2e_ordering', () => {
           const receipt = await tx.wait();
           expect(receipt.status).toBe(TxStatus.MINED);
 
-          const value = await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
+          const value = await pxe.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
           expect(value).toEqual(expectedOrder[1]); // final state should match last value set
         },
       );

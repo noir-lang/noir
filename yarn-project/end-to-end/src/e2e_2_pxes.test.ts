@@ -4,23 +4,23 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPCServer, EthAddress, Fr } from '@aztec/pxe';
-import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
+import { EthAddress, Fr, PXEService } from '@aztec/pxe';
+import { CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
-import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup, setupAztecRPCServer } from './fixtures/utils.js';
+import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
 
 const { SANDBOX_URL = '' } = process.env;
 
 const TIMEOUT = 60_000;
 
-describe('e2e_2_rpc_servers', () => {
+describe('e2e_2_pxes', () => {
   jest.setTimeout(TIMEOUT);
 
   let aztecNode: AztecNodeService | undefined;
-  let aztecRpcServerA: AztecRPC;
-  let aztecRpcServerB: AztecRPC;
+  let pxeA: PXE;
+  let pxeB: PXE;
   let walletA: Wallet;
   let walletB: Wallet;
   let userA: CompleteAddress;
@@ -29,14 +29,14 @@ describe('e2e_2_rpc_servers', () => {
   let teardownA: () => Promise<void>;
 
   beforeEach(async () => {
-    // this test can't be run against the sandbox as it requires 2 RPC servers
+    // this test can't be run against the sandbox as it requires 2 PXEs
     if (SANDBOX_URL) {
-      throw new Error(`Test can't be run against the sandbox as 2 RPC servers are required`);
+      throw new Error(`Test can't be run against the sandbox as 2 PXEs are required`);
     }
     let accounts: CompleteAddress[] = [];
     ({
       aztecNode,
-      aztecRpcServer: aztecRpcServerA,
+      pxe: pxeA,
       accounts,
       wallets: [walletA],
       logger,
@@ -45,16 +45,16 @@ describe('e2e_2_rpc_servers', () => {
     [userA] = accounts;
 
     ({
-      aztecRpcServer: aztecRpcServerB,
+      pxe: pxeB,
       accounts: accounts,
       wallets: [walletB],
-    } = await setupAztecRPCServer(1, aztecNode!, undefined, true));
+    } = await setupPXEService(1, aztecNode!, undefined, true));
     [userB] = accounts;
   }, 100_000);
 
   afterEach(async () => {
     await teardownA();
-    if (aztecRpcServerB instanceof AztecRPCServer) await aztecRpcServerB.stop();
+    if (pxeB instanceof PXEService) await pxeB.stop();
   });
 
   const awaitUserSynchronized = async (wallet: Wallet, owner: AztecAddress) => {
@@ -72,7 +72,7 @@ describe('e2e_2_rpc_servers', () => {
     checkIfSynchronized = true,
   ) => {
     if (checkIfSynchronized) {
-      // First wait until the corresponding RPC server has synchronized the account
+      // First wait until the corresponding PXE has synchronized the account
       await awaitUserSynchronized(wallet, owner);
     }
 
@@ -107,7 +107,7 @@ describe('e2e_2_rpc_servers', () => {
     );
   };
 
-  it('transfers fund from user A to B via RPC server A followed by transfer from B to A via RPC server B', async () => {
+  it('transfers fund from user A to B via PXE A followed by transfer from B to A via PXE B', async () => {
     const initialBalance = 987n;
     const transferAmount1 = 654n;
     const transferAmount2 = 323n;
@@ -116,12 +116,12 @@ describe('e2e_2_rpc_servers', () => {
     const tokenAddress = completeTokenAddress.address;
 
     // Add account B to wallet A
-    await aztecRpcServerA.registerRecipient(userB);
+    await pxeA.registerRecipient(userB);
     // Add account A to wallet B
-    await aztecRpcServerB.registerRecipient(userA);
+    await pxeB.registerRecipient(userA);
 
-    // Add token to RPC server B (RPC server A already has it because it was deployed through it)
-    await aztecRpcServerB.addContracts([
+    // Add token to PXE B (PXE A already has it because it was deployed through it)
+    await pxeB.addContracts([
       {
         abi: TokenContract.abi,
         completeAddress: completeTokenAddress,
@@ -134,7 +134,7 @@ describe('e2e_2_rpc_servers', () => {
     await expectTokenBalance(walletB, tokenAddress, userB.address, 0n);
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
 
-    // Transfer funds from A to B via RPC server A
+    // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);
     const receiptAToB = await contractWithWalletA.methods
       .transfer(userA.address, userB.address, transferAmount1, 0)
@@ -147,7 +147,7 @@ describe('e2e_2_rpc_servers', () => {
     await expectTokenBalance(walletB, tokenAddress, userB.address, transferAmount1);
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
 
-    // Transfer funds from B to A via RPC server B
+    // Transfer funds from B to A via PXE B
     const contractWithWalletB = await TokenContract.at(tokenAddress, walletB);
     await contractWithWalletB.methods
       .transfer(userB.address, userA.address, transferAmount2, 0)
@@ -168,23 +168,23 @@ describe('e2e_2_rpc_servers', () => {
     return contract.completeAddress;
   };
 
-  const awaitServerSynchronized = async (server: AztecRPC) => {
+  const awaitServerSynchronized = async (server: PXE) => {
     const isServerSynchronized = async () => {
       return await server.isGlobalStateSynchronized();
     };
     await retryUntil(isServerSynchronized, 'server sync', 10);
   };
 
-  const getChildStoredValue = (child: { address: AztecAddress }, aztecRpcServer: AztecRPC) =>
-    aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
+  const getChildStoredValue = (child: { address: AztecAddress }, pxe: PXE) =>
+    pxe.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
 
-  it('user calls a public function on a contract deployed by a different user using a different RPC server', async () => {
+  it('user calls a public function on a contract deployed by a different user using a different PXE', async () => {
     const childCompleteAddress = await deployChildContractViaServerA();
 
-    await awaitServerSynchronized(aztecRpcServerA);
+    await awaitServerSynchronized(pxeA);
 
-    // Add Child to RPC server B
-    await aztecRpcServerB.addContracts([
+    // Add Child to PXE B
+    await pxeB.addContracts([
       {
         abi: ChildContract.abi,
         completeAddress: childCompleteAddress,
@@ -197,13 +197,13 @@ describe('e2e_2_rpc_servers', () => {
     const childContractWithWalletB = await ChildContract.at(childCompleteAddress.address, walletB);
     await childContractWithWalletB.methods.pubIncValue(newValueToSet).send().wait({ interval: 0.1 });
 
-    await awaitServerSynchronized(aztecRpcServerA);
+    await awaitServerSynchronized(pxeA);
 
-    const storedValue = await getChildStoredValue(childCompleteAddress, aztecRpcServerB);
+    const storedValue = await getChildStoredValue(childCompleteAddress, pxeB);
     expect(storedValue).toBe(newValueToSet);
   });
 
-  it('private state is "zero" when Aztec RPC Server does not have the account private key', async () => {
+  it('private state is "zero" when Private Execution Environment (PXE) does not have the account private key', async () => {
     const userABalance = 100n;
     const userBBalance = 150n;
 
@@ -211,12 +211,12 @@ describe('e2e_2_rpc_servers', () => {
     const contractWithWalletA = await TokenContract.at(completeTokenAddress.address, walletA);
 
     // Add account B to wallet A
-    await aztecRpcServerA.registerRecipient(userB);
+    await pxeA.registerRecipient(userB);
     // Add account A to wallet B
-    await aztecRpcServerB.registerRecipient(userA);
+    await pxeB.registerRecipient(userA);
 
-    // Add token to RPC server B (RPC server A already has it because it was deployed through it)
-    await aztecRpcServerB.addContracts([
+    // Add token to PXE B (PXE A already has it because it was deployed through it)
+    await pxeB.addContracts([
       {
         abi: TokenContract.abi,
         completeAddress: completeTokenAddress,

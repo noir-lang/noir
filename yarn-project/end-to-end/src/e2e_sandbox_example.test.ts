@@ -1,10 +1,10 @@
 // docs:start:imports
 import {
-  AztecRPC,
   Fr,
+  PXE,
   computeMessageSecretHash,
-  createAztecRpcClient,
   createDebugLogger,
+  createPXEClient,
   getSandboxAccountsWallets,
   getSchnorrAccount,
   waitForSandbox,
@@ -21,12 +21,12 @@ describe('e2e_sandbox_example', () => {
     ////////////// CREATE THE CLIENT INTERFACE AND CONTACT THE SANDBOX //////////////
     const logger = createDebugLogger('token');
 
-    // We create AztecRPC client connected to the sandbox URL
-    const aztecRpc = createAztecRpcClient(SANDBOX_URL);
+    // We create PXE client connected to the sandbox URL
+    const pxe = createPXEClient(SANDBOX_URL);
     // Wait for sandbox to be ready
-    await waitForSandbox(aztecRpc);
+    await waitForSandbox(pxe);
 
-    const nodeInfo = await aztecRpc.getNodeInfo();
+    const nodeInfo = await pxe.getNodeInfo();
 
     logger('Aztec Sandbox Info ', nodeInfo);
     // docs:end:setup
@@ -41,7 +41,7 @@ describe('e2e_sandbox_example', () => {
     // docs:start:load_accounts
     ////////////// LOAD SOME ACCOUNTS FROM THE SANDBOX //////////////
     // The sandbox comes with a set of created accounts. Load them
-    const accounts = await getSandboxAccountsWallets(aztecRpc);
+    const accounts = await getSandboxAccountsWallets(pxe);
     const alice = accounts[0].getAddress();
     const bob = accounts[1].getAddress();
     logger(`Loaded alice's account at ${alice.toShortString()}`);
@@ -55,7 +55,7 @@ describe('e2e_sandbox_example', () => {
     const initialSupply = 1_000_000n;
 
     logger(`Deploying token contract minting an initial ${initialSupply} tokens to Alice...`);
-    const contract = await TokenContract.deploy(aztecRpc).send().deployed();
+    const contract = await TokenContract.deploy(pxe).send().deployed();
 
     // Create the contract abstraction and link to Alice's wallet for future signing
     const tokenContractAlice = await TokenContract.at(contract.address, accounts[0]);
@@ -73,8 +73,8 @@ describe('e2e_sandbox_example', () => {
     await tokenContractAlice.methods.redeem_shield(alice, initialSupply, secret).send().wait();
     // docs:end:Deployment
 
-    // ensure that token contract is registered in the rpc
-    expect(await aztecRpc.getContracts()).toEqual(expect.arrayContaining([contract.address]));
+    // ensure that token contract is registered in PXE
+    expect(await pxe.getContracts()).toEqual(expect.arrayContaining([contract.address]));
 
     // docs:start:Balance
 
@@ -137,21 +137,21 @@ describe('e2e_sandbox_example', () => {
 
   it('can create accounts on the sandbox', async () => {
     const logger = createDebugLogger('token');
-    // We create AztecRPC client connected to the sandbox URL
-    const aztecRpc = createAztecRpcClient(SANDBOX_URL);
+    // We create PXE client connected to the sandbox URL
+    const pxe = createPXEClient(SANDBOX_URL);
     // Wait for sandbox to be ready
-    await waitForSandbox(aztecRpc);
+    await waitForSandbox(pxe);
 
     // docs:start:create_accounts
     ////////////// CREATE SOME ACCOUNTS WITH SCHNORR SIGNERS //////////////
     // Creates new accounts using an account contract that verifies schnorr signatures
     // Returns once the deployment transactions have settled
-    const createSchnorrAccounts = async (numAccounts: number, aztecRpc: AztecRPC) => {
+    const createSchnorrAccounts = async (numAccounts: number, pxe: PXE) => {
       const accountManagers = Array(numAccounts)
         .fill(0)
         .map(() =>
           getSchnorrAccount(
-            aztecRpc,
+            pxe,
             GrumpkinScalar.random(), // encryption private key
             GrumpkinScalar.random(), // signing private key
           ),
@@ -166,14 +166,14 @@ describe('e2e_sandbox_example', () => {
 
     // Create 2 accounts and wallets to go with each
     logger(`Creating accounts using schnorr signers...`);
-    const accounts = await createSchnorrAccounts(2, aztecRpc);
+    const accounts = await createSchnorrAccounts(2, pxe);
 
     ////////////// VERIFY THE ACCOUNTS WERE CREATED SUCCESSFULLY //////////////
 
     const [alice, bob] = (await Promise.all(accounts.map(x => x.getCompleteAddress()))).map(x => x.address);
 
     // Verify that the accounts were deployed
-    const registeredAccounts = (await aztecRpc.getRegisteredAccounts()).map(x => x.address);
+    const registeredAccounts = (await pxe.getRegisteredAccounts()).map(x => x.address);
     for (const [account, name] of [
       [alice, 'Alice'],
       [bob, 'Bob'],

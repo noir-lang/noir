@@ -3,12 +3,12 @@ import { CompleteAddress, Fr, GrumpkinPrivateKey, GrumpkinScalar, getContractDep
 import { DebugLogger } from '@aztec/foundation/log';
 import { EscrowContractAbi } from '@aztec/noir-contracts/artifacts';
 import { EscrowContract, TokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, PublicKey, TxStatus } from '@aztec/types';
+import { PXE, PublicKey, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_escrow_contract', () => {
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let wallet: AccountWallet;
   let recipientWallet: AccountWallet;
   let accounts: CompleteAddress[];
@@ -27,7 +27,7 @@ describe('e2e_escrow_contract', () => {
     // Setup environment
     ({
       teardown,
-      aztecRpcServer,
+      pxe,
       accounts,
       wallets: [wallet, recipientWallet],
       logger,
@@ -35,13 +35,13 @@ describe('e2e_escrow_contract', () => {
     owner = accounts[0].address;
     recipient = accounts[1].address;
 
-    // Generate private key for escrow contract, register key in rpc server, and deploy
+    // Generate private key for escrow contract, register key in pxe service, and deploy
     // Note that we need to register it first if we want to emit an encrypted note for it in the constructor
     escrowPrivateKey = GrumpkinScalar.random();
     escrowPublicKey = await generatePublicKey(escrowPrivateKey);
     const salt = Fr.random();
     const deployInfo = await getContractDeploymentInfo(EscrowContractAbi, [owner], salt, escrowPublicKey);
-    await aztecRpcServer.registerAccount(escrowPrivateKey, deployInfo.completeAddress.partialAddress);
+    await pxe.registerAccount(escrowPrivateKey, deployInfo.completeAddress.partialAddress);
 
     escrowContract = await EscrowContract.deployWithPublicKey(wallet, escrowPublicKey, owner)
       .send({ contractAddressSalt: salt })

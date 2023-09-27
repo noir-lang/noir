@@ -8,7 +8,7 @@ import {
 import { ContractAbi, FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { AztecRPC, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/types';
+import { PXE, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/types';
 
 import { BaseContractInteraction } from '../contract/base_contract_interaction.js';
 import { Contract, ContractBase, SendMethodOptions } from '../contract/index.js';
@@ -40,8 +40,8 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   /** Constructor function to call. */
   private constructorAbi: FunctionAbi;
 
-  constructor(private publicKey: PublicKey, private arc: AztecRPC, private abi: ContractAbi, private args: any[] = []) {
-    super(arc);
+  constructor(private publicKey: PublicKey, protected pxe: PXE, private abi: ContractAbi, private args: any[] = []) {
+    super(pxe);
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) throw new Error('Cannot find constructor in the ABI.');
     this.constructorAbi = constructorAbi;
@@ -60,7 +60,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     const portalContract = options.portalContract ?? EthAddress.ZERO;
     const contractAddressSalt = options.contractAddressSalt ?? Fr.random();
 
-    const { chainId, protocolVersion } = await this.rpc.getNodeInfo();
+    const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
 
     const { completeAddress, constructorHash, functionTreeRoot } = await getContractDeploymentInfo(
       this.abi,
@@ -103,7 +103,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     this.completeAddress = completeAddress;
 
     // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
-    await this.rpc.addContracts([{ abi: this.abi, completeAddress, portalContract }]);
+    await this.pxe.addContracts([{ abi: this.abi, completeAddress, portalContract }]);
 
     return this.txRequest;
   }
@@ -118,7 +118,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public send(options: DeployOptions = {}): DeploySentTx<TContract> {
     const txHashPromise = super.send(options).getTxHash();
-    return new DeploySentTx(this.abi, this.arc, txHashPromise);
+    return new DeploySentTx(this.abi, this.pxe, txHashPromise);
   }
 
   /**

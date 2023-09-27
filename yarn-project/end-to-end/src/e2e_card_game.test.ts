@@ -1,7 +1,7 @@
 import { AccountWallet, AztecAddress, Wallet, deployInitialSandboxAccounts } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { CardGameContract } from '@aztec/noir-contracts/types';
-import { AztecRPC } from '@aztec/types';
+import { PXE } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -44,7 +44,7 @@ function unwrapOptions<T>(options: NoirOption<T>[]): T[] {
 const GAME_ID = 42;
 
 describe('e2e_card_game', () => {
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
 
@@ -64,8 +64,8 @@ describe('e2e_card_game', () => {
   beforeEach(async () => {
     // Card stats are derived from the users' private keys, so to get consistent values, we set up the
     // initial sandbox accounts that always use the same private keys, instead of random ones.
-    ({ aztecRpcServer, logger, teardown } = await setup(0));
-    wallets = await Promise.all((await deployInitialSandboxAccounts(aztecRpcServer)).map(a => a.account.getWallet()));
+    ({ pxe, logger, teardown } = await setup(0));
+    wallets = await Promise.all((await deployInitialSandboxAccounts(pxe)).map(a => a.account.getWallet()));
     [firstPlayerWallet, secondPlayerWallet, thirdPlayerWallet] = wallets;
     [firstPlayer, secondPlayer, thirdPlayer] = wallets.map(a => a.getAddress());
     await deployContract();

@@ -2,19 +2,19 @@ import { AztecAddress, Contract, ContractDeployer, Fr, Wallet, isContractDeploye
 import { CompleteAddress, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { PXE, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_deploy_contract', () => {
-  let aztecRpcServer: AztecRPC;
+  let pxe: PXE;
   let accounts: CompleteAddress[];
   let logger: DebugLogger;
   let wallet: Wallet;
   let teardown: () => Promise<void>;
 
   beforeEach(async () => {
-    ({ teardown, aztecRpcServer, accounts, logger, wallet } = await setup());
+    ({ teardown, pxe, accounts, logger, wallet } = await setup());
   }, 100_000);
 
   afterEach(() => teardown());
@@ -27,7 +27,7 @@ describe('e2e_deploy_contract', () => {
     const publicKey = accounts[0].publicKey;
     const salt = Fr.random();
     const deploymentData = await getContractDeploymentInfo(TestContractAbi, [], salt, publicKey);
-    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer, publicKey);
+    const deployer = new ContractDeployer(TestContractAbi, pxe, publicKey);
     const tx = deployer.deploy().send({ contractAddressSalt: salt });
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
@@ -50,15 +50,15 @@ describe('e2e_deploy_contract', () => {
       }),
     );
     const contractAddress = receiptAfterMined.contractAddress!;
-    expect(await isContractDeployed(aztecRpcServer, contractAddress)).toBe(true);
-    expect(await isContractDeployed(aztecRpcServer, AztecAddress.random())).toBe(false);
+    expect(await isContractDeployed(pxe, contractAddress)).toBe(true);
+    expect(await isContractDeployed(pxe, AztecAddress.random())).toBe(false);
   }, 30_000);
 
   /**
    * Verify that we can produce multiple rollups.
    */
   it('should deploy one contract after another in consecutive rollups', async () => {
-    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
+    const deployer = new ContractDeployer(TestContractAbi, pxe);
 
     for (let index = 0; index < 2; index++) {
       logger(`Deploying contract ${index + 1}...`);
@@ -74,7 +74,7 @@ describe('e2e_deploy_contract', () => {
    * Verify that we can deploy multiple contracts and interact with all of them.
    */
   it('should deploy multiple contracts and interact with them', async () => {
-    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
+    const deployer = new ContractDeployer(TestContractAbi, pxe);
 
     for (let index = 0; index < 2; index++) {
       logger(`Deploying contract ${index + 1}...`);
@@ -92,7 +92,7 @@ describe('e2e_deploy_contract', () => {
    */
   it('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
-    const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
+    const deployer = new ContractDeployer(TestContractAbi, pxe);
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });

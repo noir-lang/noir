@@ -18,14 +18,14 @@ import { DeployedContract } from './deployed-contract.js';
 import { NodeInfo } from './node-info.js';
 import { SyncStatus } from './sync-status.js';
 
-// docs:start:rpc-interface
+// docs:start:pxe-interface
 /**
- * The Aztec RPC Server runs locally for each user, providing functionality for all the operations
+ * Private Execution Environment (PXE) runs locally for each user, providing functionality for all the operations
  * needed to interact with the Aztec network, including account management, private data management,
  * transaction local simulation, and access to an Aztec node. This interface, as part of a Wallet,
  * is exposed to dapps for interacting with the network on behalf of the user.
  */
-export interface AztecRPC {
+export interface PXE {
   /**
    * Insert an auth witness for a given message hash. Auth witnesses are used to authorise actions on
    * behalf of a user. For instance, a token transfer initiated by a different address may request
@@ -41,8 +41,8 @@ export interface AztecRPC {
   addAuthWitness(authWitness: AuthWitness): Promise<void>;
 
   /**
-   * Registers a user account in the Aztec RPC server given its master encryption private key.
-   * Once a new account is registered, the RPC server will trial-decrypt all published notes on
+   * Registers a user account in PXE given its master encryption private key.
+   * Once a new account is registered, the PXE Service will trial-decrypt all published notes on
    * the chain and store those that correspond to the registered account.
    *
    * @param privKey - Private key of the corresponding user master public key.
@@ -52,13 +52,13 @@ export interface AztecRPC {
   registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void>;
 
   /**
-   * Registers a recipient in the Aztec RPC server. This is required when sending encrypted notes to
+   * Registers a recipient in PXE. This is required when sending encrypted notes to
    * a user who hasn't deployed their account contract yet. Since their account is not deployed, their
-   * encryption public key has not been broadcasted, so we need to manually register it on the RPC server
+   * encryption public key has not been broadcasted, so we need to manually register it on the PXE Service
    * in order to be able to encrypt data for this recipient.
    *
    * @param recipient - The complete address of the recipient
-   * @remarks Called recipient because we can only send notes to this account and not receive them via this RPC server.
+   * @remarks Called recipient because we can only send notes to this account and not receive them via this PXE Service.
    * This is because we don't have the associated private key and for this reason we can't decrypt
    * the recipient's notes. We can send notes to this account because we can encrypt them with the recipient's
    * public key.
@@ -66,8 +66,8 @@ export interface AztecRPC {
   registerRecipient(recipient: CompleteAddress): Promise<void>;
 
   /**
-   * Retrieves the user accounts registered on this rpc server.
-   * @returns An array of the accounts registered on this RPC server.
+   * Retrieves the user accounts registered on this PXE Service.
+   * @returns An array of the accounts registered on this PXE Service.
    */
   getRegisteredAccounts(): Promise<CompleteAddress[]>;
 
@@ -81,8 +81,8 @@ export interface AztecRPC {
   getRegisteredAccount(address: AztecAddress): Promise<CompleteAddress | undefined>;
 
   /**
-   * Retrieves the recipients added to this rpc server.
-   * @returns An array of recipients registered on this RPC server.
+   * Retrieves the recipients added to this PXE Service.
+   * @returns An array of recipients registered on this PXE Service.
    */
   getRecipients(): Promise<CompleteAddress[]>;
 
@@ -96,18 +96,18 @@ export interface AztecRPC {
   getRecipient(address: AztecAddress): Promise<CompleteAddress | undefined>;
 
   /**
-   * Adds deployed contracts to the RPC server. Deployed contract information is used to access the
+   * Adds deployed contracts to the PXE Service. Deployed contract information is used to access the
    * contract code when simulating local transactions. This is automatically called by aztec.js when
    * deploying a contract. Dapps that wish to interact with contracts already deployed should register
-   * these contracts in their users' RPC server through this method.
+   * these contracts in their users' PXE Service through this method.
    *
    * @param contracts - An array of DeployedContract objects containing contract ABI, address, and portal contract.
    */
   addContracts(contracts: DeployedContract[]): Promise<void>;
 
   /**
-   * Retrieves the addresses of contracts added to this rpc server.
-   * @returns An array of contracts addresses registered on this RPC server.
+   * Retrieves the addresses of contracts added to this PXE Service.
+   * @returns An array of contracts addresses registered on this PXE Service.
    */
   getContracts(): Promise<AztecAddress[]>;
 
@@ -149,7 +149,7 @@ export interface AztecRPC {
 
   /**
    * Retrieves the private storage data at a specified contract address and storage slot. Returns only data
-   * encrypted for the specified owner that has been already decrypted by the RPC server. Note that there
+   * encrypted for the specified owner that has been already decrypted by the PXE Service. Note that there
    * may be multiple notes for a user in a single slot.
    *
    * @param owner - The address for whom the private data is encrypted.
@@ -278,4 +278,4 @@ export interface AztecRPC {
    */
   getSyncStatus(): Promise<SyncStatus>;
 }
-// docs:end:rpc-interface
+// docs:end:pxe-interface

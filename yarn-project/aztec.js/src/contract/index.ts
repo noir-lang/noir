@@ -26,7 +26,7 @@
  * or obtaining the `request` for aggregating into a {@link BatchCall}.
  *
  * The result of `send`ing a transaction is a {@link SentTx} object, from which you can get the
- * transaction hash, or simply `wait` until the transaction is mined and the local RPC server
+ * transaction hash, or simply `wait` until the transaction is mined and the local PXE Service
  * has synchronised its changes.
  *
  * @remarks If you are using typescript, consider using the
