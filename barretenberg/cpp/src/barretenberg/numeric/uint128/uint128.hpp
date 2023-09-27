@@ -1,10 +1,10 @@
 #pragma once
+#include <cstdint>
 #include <iomanip>
 #include <ostream>
 
 #ifdef __i386__
 #include "barretenberg/common/serialize.hpp"
-#include <cstdint>
 
 namespace numeric {
 

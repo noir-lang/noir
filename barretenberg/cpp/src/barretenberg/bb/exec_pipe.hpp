@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <cstdio>
 #include <iostream>
 #include <vector>
