@@ -101,7 +101,7 @@ for E in "${PROJECTS[@]}"; do
       echo -e "${GREEN}Image exists locally. Tagging as $DEPLOY_IMAGE_URI${RESET}"
       docker tag $CACHE_IMAGE_URI $DEPLOY_IMAGE_URI
     else
-      if ecr_login && image_exists $REPO_URI $TAG ; then
+      if ecr_login && image_exists $REPO $TAG ; then
         docker pull $CACHE_IMAGE_URI
       else
         docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $CACHE_IMAGE_URI .
