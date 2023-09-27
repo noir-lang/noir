@@ -122,7 +122,7 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
     const main_witnessUint8Array = await generateWitness(
       {
         bytecode: main_circuit,
-        abi: main_abi
+        abi: main_abi,
       },
       main_inputs,
     );
@@ -168,7 +168,24 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       public_inputs: [main_inputs.y],
       key_hash: vkHash,
       // eslint-disable-next-line prettier/prettier
-      input_aggregation_object: ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+      input_aggregation_object: [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+      ],
     };
 
     logger.debug("recursion_inputs", recursion_inputs);
@@ -180,7 +197,7 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
     const recursion_witnessUint8Array = await generateWitness(
       {
         bytecode: recursion_circuit,
-        abi: recursion_abi
+        abi: recursion_abi,
       },
       recursion_inputs,
     );
