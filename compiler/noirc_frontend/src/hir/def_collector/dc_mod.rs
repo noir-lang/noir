@@ -6,9 +6,8 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{FunctionModifiers, TraitId},
+    node_interner::TraitId,
     parser::SubModule,
-    token::Attributes,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, ParsedModule, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -145,23 +144,10 @@ impl<'a> ModCollector<'a> {
             let unresolved_functions =
                 self.collect_trait_impl_function_overrides(context, &trait_impl, krate);
 
-            for (_, func_id, noir_function) in &unresolved_functions.functions {
-                let name = noir_function.name().to_owned();
+            let module = ModuleId { krate, local_id: self.module_id };
 
-                let modifiers = FunctionModifiers {
-                    name: name.clone(),
-                    visibility: crate::Visibility::Public,
-                    attributes: Attributes::empty(),
-                    is_unconstrained: false,
-                    contract_function_type: None,
-                    is_internal: None,
-                };
-                context.def_interner.push_function_definition(
-                    name,
-                    *func_id,
-                    modifiers,
-                    ModuleId::dummy_id(),
-                );
+            for (_, func_id, noir_function) in &unresolved_functions.functions {
+                context.def_interner.push_function(*func_id, &noir_function.def, module);
             }
 
             let unresolved_trait_impl = UnresolvedTraitImpl {
