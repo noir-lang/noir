@@ -502,7 +502,7 @@ impl ContractEvent {
         // For the ABI, we always want to resolve the struct paths from the root crate
         let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
 
-        Self { name: struct_type.name.0.contents.clone(), path: path, fields: fields }
+        Self { name: struct_type.name.0.contents.clone(), path, fields }
     }
 }
 
