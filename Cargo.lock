@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir_field",
  "bincode",
@@ -20,7 +20,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -33,7 +33,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -50,7 +50,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir",
  "blake2",
@@ -63,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acvm",
  "barretenberg_blackbox_solver",
@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir",
 ]
@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "barretenberg_blackbox_solver"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -562,7 +562,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir_field",
  "serde",
@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.27.3"
+version = "0.27.4"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
