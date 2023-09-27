@@ -169,7 +169,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
 
     /// Returns a slice containing the opcodes of the circuit being executed.
     pub fn opcodes(&self) -> &[Opcode] {
-        &self.opcodes
+        self.opcodes
     }
 
     /// Returns the index of the current opcode to be executed.

@@ -66,7 +66,7 @@ pub async fn execute_circuit_with_black_box_solver(
     console_error_panic_hook::set_once();
     let circuit: Circuit = Circuit::read(&*circuit).expect("Failed to deserialize circuit");
 
-    let mut acvm = ACVM::new(&solver.0, circuit.opcodes, initial_witness.into());
+    let mut acvm = ACVM::new(&solver.0, &circuit.opcodes, initial_witness.into());
 
     loop {
         let solver_status = acvm.solve();
