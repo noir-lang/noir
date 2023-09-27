@@ -12,7 +12,9 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_frontend::{hir::Context, Signedness, Type, TypeBinding, TypeVariableKind, Visibility};
+use noirc_frontend::{
+    hir::Context, Signedness, StructType, Type, TypeBinding, TypeVariableKind, Visibility,
+};
 use serde::{Deserialize, Serialize};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -475,6 +477,33 @@ fn decode_string_value(field_elements: &[FieldElement]) -> String {
 
     let final_string = str::from_utf8(&string_as_slice).unwrap();
     final_string.to_owned()
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ContractEvent {
+    /// Event name
+    name: String,
+    /// The fully qualified path to the event definition
+    path: String,
+
+    /// Fields of the event
+    #[serde(
+        serialize_with = "serialization::serialize_struct_fields",
+        deserialize_with = "serialization::deserialize_struct_fields"
+    )]
+    fields: Vec<(String, AbiType)>,
+}
+
+impl ContractEvent {
+    pub fn from_struct_type(context: &Context, struct_type: &StructType) -> Self {
+        let fields = vecmap(struct_type.get_fields(&[]), |(name, typ)| {
+            (name, AbiType::from_type(context, &typ))
+        });
+        // For the ABI, we always want to resolve the struct paths from the root crate
+        let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
+
+        Self { name: struct_type.name.0.contents.clone(), path: path, fields: fields }
+    }
 }
 
 #[cfg(test)]
