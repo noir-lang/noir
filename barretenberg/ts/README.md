@@ -123,4 +123,4 @@ If you change the C++ code run `yarn build:wasm` to rebuild the webassembly.
 To run the tests run `yarn test`.
 
 To run a continuous "stress test" run `yarn simple_test` to do 10 full pk/proof/vk iterations. This is useful for
-inspecting memory growth as the we continuously use the library.
+inspecting memory growth as we continuously use the library.
