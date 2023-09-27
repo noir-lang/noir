@@ -1,16 +1,11 @@
 import { abiEncode } from '@noir-lang/noirc_abi';
-import { validateInputs } from './input_validation.js';
 import { base64Decode } from './base64_decode.js';
 import { executeCircuit } from '@noir-lang/acvm_js';
 import { witnessMapToUint8Array } from './serialize.js';
 
 // Generates the witnesses needed to feed into the chosen proving system
 export async function generateWitness(compiledProgram, inputs): Promise<Uint8Array> {
-  // Validate inputs
-  const { isValid, error } = validateInputs(inputs, compiledProgram.abi);
-  if (!isValid) {
-    throw new Error(error?.toString());
-  }
+  // Throws on ABI encoding error
   const witnessMap = abiEncode(compiledProgram.abi, inputs, null);
 
   // Execute the circuit to generate the rest of the witnesses and serialize

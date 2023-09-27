@@ -12,12 +12,12 @@
         "release-tests"
     ],
     "scripts": {
-        "build": "yarn workspaces foreach run build",
+        "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
         "test": "yarn workspaces foreach run test",
         "test:integration": "yarn workspace integration-tests test",
-        "clean:workspaces": "yarn workspaces foreach run clean",
+        "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
         "clean:root": "rm -rf ./result ./target",
-        "clean": "yarn clean:workspaces && yarn clean:parent",
+        "clean": "yarn clean:workspaces && yarn clean:root",
         "lint": "yarn workspaces foreach run lint",
         "build:with:nix": "nix build -L .#wasm",
         "install:from:nix:noirc_abi_wasm": "cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm && cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm",
