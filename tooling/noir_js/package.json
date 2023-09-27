@@ -4,6 +4,7 @@
     "The Noir Team <team@noir-lang.org>"
   ],
   "version": "0.14.0",
+  "type":"module",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "dependencies": {
@@ -31,8 +32,8 @@
     "build:tsc:mjs": "tsc -p tsconfig.mjs.json",
     "build:types": "tsc -p tsconfig.types.json",
     "test": "yarn test:node:esm && yarn test:node:cjs",
-    "test:node:esm": "mocha --timeout 25000 --exit --config ./.mocharc.json",
-    "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
+    "test:node:esm": "TS_NODE_PROJECT=./tsconfig.mjs.json mocha --timeout 25000 --exit --config ./.mocharc.json",
+    "test:node:cjs": "TS_NODE_PROJECT=./tsconfig.cjs.json mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
