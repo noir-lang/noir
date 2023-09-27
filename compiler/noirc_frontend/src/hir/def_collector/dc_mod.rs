@@ -168,8 +168,7 @@ impl<'a> ModCollector<'a> {
                 file_id: self.file_id,
                 module_id: self.module_id,
                 trait_path: trait_name,
-                defined_methods: unresolved_functions,
-                methods: UnresolvedFunctions { file_id: self.file_id, functions: vec![] },
+                methods: unresolved_functions,
                 object_type: trait_impl.object_type,
                 the_trait: None, // will be filled later
             };

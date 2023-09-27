@@ -92,14 +92,6 @@ pub struct UnresolvedTraitImpl {
     pub the_trait: Option<TraitId>,
     pub trait_path: Path,
     pub object_type: UnresolvedType,
-
-    /// List of methods in the impl block, in the order the user defined them. There can be missing methods,
-    /// duplicates, methods not corresponding to a trait method, etc.
-    pub defined_methods: UnresolvedFunctions,
-
-    /// The final list of methods in the impl block. They are in the same order as the methods in the trait,
-    /// e.g. final_methods[2] is the implementation of the_trait.methods[2]. If there is a missing method in
-    /// `defined_methods`, a default implementation will be added here in the correct slot.
     pub methods: UnresolvedFunctions,
 }
 
@@ -445,6 +437,10 @@ fn collect_trait_impls(
             }
         };
 
+        // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
+        // for a particular method, the default implementation will be added at that slot.
+        let mut ordered_methods = Vec::new();
+
         if let Some(trait_id) = trait_impl.the_trait {
             let the_trait = interner.get_trait(trait_id);
 
@@ -457,7 +453,7 @@ fn collect_trait_impls(
 
             for method in &the_trait.methods {
                 let overrides: Vec<_> = trait_impl
-                    .defined_methods
+                    .methods
                     .functions
                     .iter()
                     .filter(|(_, _, f)| f.name() == method.name.0.contents)
@@ -483,11 +479,11 @@ fn collect_trait_impls(
                             module,
                         );
                         func_ids_in_trait.insert(func_id);
-                        trait_impl.methods.push_fn(
+                        ordered_methods.push((
                             method.default_impl_module_id,
                             func_id,
                             *default_impl.clone(),
-                        );
+                        ));
                     } else {
                         let error = DefCollectorErrorKind::TraitMissingMethod {
                             trait_name: the_trait.name.clone(),
@@ -513,13 +509,13 @@ fn collect_trait_impls(
                         errors.push((error.into(), trait_impl.file_id));
                     }
 
-                    trait_impl.methods.functions.push(overrides[0].clone());
+                    ordered_methods.push(overrides[0].clone());
                 }
             }
 
             // Emit MethodNotInTrait error for methods in the impl block that
             // don't have a corresponding method signature defined in the trait
-            for (_, func_id, func) in &trait_impl.defined_methods.functions {
+            for (_, func_id, func) in &trait_impl.methods.functions {
                 if !func_ids_in_trait.contains(func_id) {
                     let error = DefCollectorErrorKind::MethodNotInTrait {
                         trait_name: the_trait.name.clone(),
@@ -529,6 +525,8 @@ fn collect_trait_impls(
                 }
             }
         }
+
+        trait_impl.methods.functions = ordered_methods;
 
         for (_, func_id, ast) in &trait_impl.methods.functions {
             let file = def_maps[&crate_id].file_id(module_id);
