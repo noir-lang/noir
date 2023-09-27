@@ -235,6 +235,7 @@
         # Nix flakes cannot build more than one derivation in one command (see https://github.com/NixOS/nix/issues/5591)
         # so we use `symlinkJoin` to build everything as the "all" package.
         all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm acvm_js ]; };
+        all_wasm = pkgs.symlinkJoin { name = "all_wasm"; paths = [ noir_wasm noirc_abi_wasm acvm_js ]; };
 
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;

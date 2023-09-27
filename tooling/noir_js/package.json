@@ -18,11 +18,11 @@
   ],
   "source": "src/index.ts",
   "main": "lib/index.cjs",
-  "module": "lib/index.js",
+  "module": "lib/index.mjs",
   "exports": {
     "require": "./lib/index.cjs",
-    "default": "./lib/index.js",
-    "types": "./lib/index.d.ts"
+    "default": "./lib/index.mjs",
+    "types": "./lib/inde.ts"
   },
   "types": "lib/index.d.ts",
   "scripts": {
@@ -33,7 +33,9 @@
     "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "clean": "rm -rf ./lib"
+    
   },
   "devDependencies": {
     "@aztec/bb.js": "0.7.2",
