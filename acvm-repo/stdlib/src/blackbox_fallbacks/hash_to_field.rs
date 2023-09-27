@@ -103,7 +103,6 @@ fn field_addition(
             }),
         ],
         outputs: vec![BrilligOutputs::Simple(new_witness)],
-        foreign_call_results: vec![],
         bytecode: vec![brillig::Opcode::BinaryFieldOp {
             op: brillig::BinaryFieldOp::Add,
             lhs: RegisterIndex::from(0),
@@ -149,7 +148,6 @@ pub(crate) fn field_mul(
             }),
         ],
         outputs: vec![BrilligOutputs::Simple(new_witness)],
-        foreign_call_results: vec![],
         bytecode: vec![brillig::Opcode::BinaryFieldOp {
             op: brillig::BinaryFieldOp::Mul,
             lhs: RegisterIndex::from(0),

@@ -1,5 +1,5 @@
 use acir::{
-    brillig::{RegisterIndex, Value},
+    brillig::{ForeignCallResult, RegisterIndex, Value},
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
         OpcodeLocation,
@@ -20,6 +20,7 @@ impl BrilligSolver {
     pub(super) fn solve<B: BlackBoxFunctionSolver>(
         initial_witness: &mut WitnessMap,
         brillig: &Brillig,
+        foreign_call_results: &[ForeignCallResult],
         bb_solver: &B,
         acir_index: usize,
     ) -> Result<Option<ForeignCallWaitInfo>, OpcodeResolutionError> {
@@ -80,7 +81,7 @@ impl BrilligSolver {
             input_registers,
             input_memory,
             brillig.bytecode.clone(),
-            brillig.foreign_call_results.clone(),
+            foreign_call_results.to_vec(),
             bb_solver,
         );
 

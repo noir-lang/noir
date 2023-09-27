@@ -839,7 +839,6 @@ impl GeneratedAcir {
         let opcode = AcirOpcode::Brillig(AcvmBrillig {
             inputs,
             outputs,
-            foreign_call_results: Vec::new(),
             bytecode: generated_brillig.byte_code,
             predicate,
         });

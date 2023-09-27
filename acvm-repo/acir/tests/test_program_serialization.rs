@@ -181,8 +181,6 @@ fn simple_brillig_foreign_call() {
         outputs: vec![
             BrilligOutputs::Simple(w_inverted), // Output Register 1
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![brillig::Opcode::ForeignCall {
             function: "invert".into(),
             destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
@@ -248,8 +246,6 @@ fn complex_brillig_foreign_call() {
             BrilligOutputs::Simple(a_plus_b_plus_c),                      // Output Register 1
             BrilligOutputs::Simple(a_plus_b_plus_c_times_2),              // Output Register 2
         ],
-        // stack of foreign call/oracle resolutions, starts empty
-        foreign_call_results: vec![],
         bytecode: vec![
             // Oracles are named 'foreign calls' in brillig
             brillig::Opcode::ForeignCall {
