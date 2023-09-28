@@ -148,6 +148,33 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       return;
     }
 
+    // ********** Ensuring Consistency of data pulled from L1 **********
+
+    /**
+     * There are a number of calls in this sync operation to L1 for retrieving
+     * events and transaction data. There are a couple of things we need to bear in mind
+     * to ensure that data is read exactly once.
+     *
+     * The first is the problem of eventually consistent ETH service providers like Infura.
+     * We are not currently handling this correctly in the case of L1 to L2 messages and we will
+     * want to re-visit L2 Block and contract data retrieval at a later stage. This is not
+     * currently a problem but will need to be addressed before a mainnet release.
+     *
+     * The second is that in between the various calls to L1, the block number can move meaning some
+     * of the following calls will return data for blocks that were not present during earlier calls.
+     * This is a problem for example when setting the last block number marker for L1 to L2 messages -
+     * this.lastProcessedBlockNumber = currentBlockNumber;
+     * It's possible that we actually received messages in block currentBlockNumber + 1 meaning the next time
+     * we do this sync we get the same message again. Addtionally, the call to get cancelled L1 to L2 messages
+     * could read from a block not present when retrieving pending messages. If a message was added and cancelled
+     * in the same eth block then we could try and cancel a non-existent pending message.
+     *
+     * To combat this for the time being we simply ensure that all data retrieval methods only retrieve
+     * data up to the currentBlockNumber captured at the top of this function. We might want to improve on this
+     * in future but for the time being it should give us the guarantees that we need
+     *
+     */
+
     // ********** Events that are processed in between blocks **********
 
     // Process l1ToL2Messages, these are consumed as time passes, not each block
@@ -155,15 +182,15 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.publicClient,
       this.inboxAddress,
       blockUntilSynced,
-      currentBlockNumber,
       this.lastProcessedBlockNumber + 1n, // + 1 to prevent re-including messages from the last processed block
+      currentBlockNumber,
     );
     const retrievedCancelledL1ToL2Messages = await retrieveNewCancelledL1ToL2Messages(
       this.publicClient,
       this.inboxAddress,
       blockUntilSynced,
-      currentBlockNumber,
       this.lastProcessedBlockNumber + 1n,
+      currentBlockNumber,
     );
 
     // TODO (#717): optimise this - there could be messages in confirmed that are also in pending.
@@ -188,8 +215,8 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.publicClient,
       this.rollupAddress,
       blockUntilSynced,
-      currentBlockNumber,
       this.nextL2BlockFromBlock,
+      currentBlockNumber,
       nextExpectedL2BlockNum,
     );
 
@@ -202,8 +229,8 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       this.publicClient,
       this.contractDeploymentEmitterAddress,
       blockUntilSynced,
-      currentBlockNumber,
       this.nextL2BlockFromBlock,
+      currentBlockNumber,
       blockHashMapping,
     );
     if (retrievedBlocks.retrievedData.length === 0) {

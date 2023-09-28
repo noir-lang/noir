@@ -34,8 +34,8 @@ type DataRetrieval<T> = {
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param rollupAddress - The address of the rollup contract.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param currentL1BlockNum - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
+ * @param searchEndBlock - The highest block number that we should search up to.
  * @param expectedNextL2BlockNum - The next L2 block number that we expect to find.
  * @returns An array of L2 Blocks and the next eth block to search from
  */
@@ -43,16 +43,21 @@ export async function retrieveBlocks(
   publicClient: PublicClient,
   rollupAddress: EthAddress,
   blockUntilSynced: boolean,
-  currentL1BlockNum: bigint,
   searchStartBlock: bigint,
+  searchEndBlock: bigint,
   expectedNextL2BlockNum: bigint,
 ): Promise<DataRetrieval<L2Block>> {
   const retrievedBlocks: L2Block[] = [];
   do {
-    if (searchStartBlock > currentL1BlockNum) {
+    if (searchStartBlock > searchEndBlock) {
       break;
     }
-    const l2BlockProcessedLogs = await getL2BlockProcessedLogs(publicClient, rollupAddress, searchStartBlock);
+    const l2BlockProcessedLogs = await getL2BlockProcessedLogs(
+      publicClient,
+      rollupAddress,
+      searchStartBlock,
+      searchEndBlock,
+    );
     if (l2BlockProcessedLogs.length === 0) {
       break;
     }
@@ -61,7 +66,7 @@ export async function retrieveBlocks(
     retrievedBlocks.push(...newBlocks);
     searchStartBlock = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1].blockNumber! + 1n;
     expectedNextL2BlockNum += BigInt(newBlocks.length);
-  } while (blockUntilSynced && searchStartBlock <= currentL1BlockNum);
+  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedBlocks };
 }
 
@@ -70,8 +75,8 @@ export async function retrieveBlocks(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param contractDeploymentEmitterAddress - The address of the contract deployment emitter contract.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
+ * @param searchEndBlock - The highest block number that we should search up to.
  * @param blockHashMapping - A mapping from block number to relevant block hash.
  * @returns An array of ExtendedContractData and their equivalent L2 Block number along with the next eth block to search from..
  */
@@ -79,19 +84,20 @@ export async function retrieveNewContractData(
   publicClient: PublicClient,
   contractDeploymentEmitterAddress: EthAddress,
   blockUntilSynced: boolean,
-  currentBlockNumber: bigint,
   searchStartBlock: bigint,
+  searchEndBlock: bigint,
   blockHashMapping: { [key: number]: Buffer | undefined },
 ): Promise<DataRetrieval<[ExtendedContractData[], number]>> {
   let retrievedNewContracts: [ExtendedContractData[], number][] = [];
   do {
-    if (searchStartBlock > currentBlockNumber) {
+    if (searchStartBlock > searchEndBlock) {
       break;
     }
     const contractDataLogs = await getContractDeploymentLogs(
       publicClient,
       contractDeploymentEmitterAddress,
       searchStartBlock,
+      searchEndBlock,
     );
     if (contractDataLogs.length === 0) {
       break;
@@ -99,7 +105,7 @@ export async function retrieveNewContractData(
     const newContracts = processContractDeploymentLogs(blockHashMapping, contractDataLogs);
     retrievedNewContracts = retrievedNewContracts.concat(newContracts);
     searchStartBlock = (contractDataLogs.findLast(cd => !!cd)?.blockNumber || searchStartBlock) + 1n;
-  } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
+  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewContracts };
 }
 
@@ -108,28 +114,33 @@ export async function retrieveNewContractData(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param inboxAddress - The address of the inbox contract to fetch messages from.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
+ * @param searchEndBlock - The highest block number that we should search up to.
  * @returns An array of L1ToL2Message and next eth block to search from.
  */
 export async function retrieveNewPendingL1ToL2Messages(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   blockUntilSynced: boolean,
-  currentBlockNumber: bigint,
   searchStartBlock: bigint,
+  searchEndBlock: bigint,
 ): Promise<DataRetrieval<L1ToL2Message>> {
   const retrievedNewL1ToL2Messages: L1ToL2Message[] = [];
   do {
-    if (searchStartBlock > currentBlockNumber) {
+    if (searchStartBlock > searchEndBlock) {
       break;
     }
-    const newL1ToL2MessageLogs = await getPendingL1ToL2MessageLogs(publicClient, inboxAddress, searchStartBlock);
+    const newL1ToL2MessageLogs = await getPendingL1ToL2MessageLogs(
+      publicClient,
+      inboxAddress,
+      searchStartBlock,
+      searchEndBlock,
+    );
     const newL1ToL2Messages = processPendingL1ToL2MessageAddedLogs(newL1ToL2MessageLogs);
     retrievedNewL1ToL2Messages.push(...newL1ToL2Messages);
     // handles the case when there are no new messages:
     searchStartBlock = (newL1ToL2MessageLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
-  } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
+  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewL1ToL2Messages };
 }
 
@@ -138,32 +149,33 @@ export async function retrieveNewPendingL1ToL2Messages(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param inboxAddress - The address of the inbox contract to fetch messages from.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param currentBlockNumber - Latest available block number in the ETH node.
  * @param searchStartBlock - The block number to use for starting the search.
+ * @param searchEndBlock - The highest block number that we should search up to.
  * @returns An array of message keys that were cancelled and next eth block to search from.
  */
 export async function retrieveNewCancelledL1ToL2Messages(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   blockUntilSynced: boolean,
-  currentBlockNumber: bigint,
   searchStartBlock: bigint,
+  searchEndBlock: bigint,
 ): Promise<DataRetrieval<Fr>> {
   const retrievedNewCancelledL1ToL2Messages: Fr[] = [];
   do {
-    if (searchStartBlock > currentBlockNumber) {
+    if (searchStartBlock > searchEndBlock) {
       break;
     }
     const newL1ToL2MessageCancelledLogs = await getL1ToL2MessageCancelledLogs(
       publicClient,
       inboxAddress,
       searchStartBlock,
+      searchEndBlock,
     );
     const newCancelledL1ToL2Messages = processCancelledL1ToL2MessagesLogs(newL1ToL2MessageCancelledLogs);
     retrievedNewCancelledL1ToL2Messages.push(...newCancelledL1ToL2Messages);
     // handles the case when there are no new messages:
     searchStartBlock =
       (newL1ToL2MessageCancelledLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
-  } while (blockUntilSynced && searchStartBlock <= currentBlockNumber);
+  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewCancelledL1ToL2Messages };
 }

@@ -116,12 +116,14 @@ async function getBlockFromCallData(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param rollupAddress - The address of the rollup contract.
  * @param fromBlock - First block to get logs from (inclusive).
+ * @param toBlock - Last block to get logs from (inclusive).
  * @returns An array of `L2BlockProcessed` logs.
  */
 export async function getL2BlockProcessedLogs(
   publicClient: PublicClient,
   rollupAddress: EthAddress,
   fromBlock: bigint,
+  toBlock: bigint,
 ) {
   // Note: For some reason the return type of `getLogs` would not get correctly derived if I didn't set the abiItem
   //       as a standalone constant.
@@ -133,6 +135,7 @@ export async function getL2BlockProcessedLogs(
     address: getAddress(rollupAddress.toString()),
     event: abiItem,
     fromBlock,
+    toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
   });
 }
 
@@ -141,12 +144,14 @@ export async function getL2BlockProcessedLogs(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param contractDeploymentEmitterAddress - The address of the L2 contract deployment emitter contract.
  * @param fromBlock - First block to get logs from (inclusive).
+ * @param toBlock - Last block to get logs from (inclusive).
  * @returns An array of `ContractDeployment` logs.
  */
 export async function getContractDeploymentLogs(
   publicClient: PublicClient,
   contractDeploymentEmitterAddress: EthAddress,
   fromBlock: bigint,
+  toBlock: bigint,
 ): Promise<Log<bigint, number, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[]> {
   const abiItem = getAbiItem({
     abi: ContractDeploymentEmitterAbi,
@@ -156,6 +161,7 @@ export async function getContractDeploymentLogs(
     address: getAddress(contractDeploymentEmitterAddress.toString()),
     event: abiItem,
     fromBlock,
+    toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
   });
 }
 
@@ -205,12 +211,14 @@ export function processContractDeploymentLogs(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param inboxAddress - The address of the inbox contract.
  * @param fromBlock - First block to get logs from (inclusive).
+ * @param toBlock - Last block to get logs from (inclusive).
  * @returns An array of `MessageAdded` logs.
  */
 export async function getPendingL1ToL2MessageLogs(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   fromBlock: bigint,
+  toBlock: bigint,
 ): Promise<Log<bigint, number, undefined, true, typeof InboxAbi, 'MessageAdded'>[]> {
   const abiItem = getAbiItem({
     abi: InboxAbi,
@@ -220,6 +228,7 @@ export async function getPendingL1ToL2MessageLogs(
     address: getAddress(inboxAddress.toString()),
     event: abiItem,
     fromBlock,
+    toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
   });
 }
 
@@ -228,12 +237,14 @@ export async function getPendingL1ToL2MessageLogs(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param inboxAddress - The address of the inbox contract.
  * @param fromBlock - First block to get logs from (inclusive).
+ * @param toBlock - Last block to get logs from (inclusive).
  * @returns An array of `L1ToL2MessageCancelled` logs.
  */
 export async function getL1ToL2MessageCancelledLogs(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   fromBlock: bigint,
+  toBlock: bigint,
 ): Promise<Log<bigint, number, undefined, true, typeof InboxAbi, 'L1ToL2MessageCancelled'>[]> {
   const abiItem = getAbiItem({
     abi: InboxAbi,
@@ -243,5 +254,6 @@ export async function getL1ToL2MessageCancelledLogs(
     address: getAddress(inboxAddress.toString()),
     event: abiItem,
     fromBlock,
+    toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
   });
 }
