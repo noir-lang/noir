@@ -891,17 +891,7 @@ impl Context {
         } else {
             // Initialize the new array with the values from the old array
             result_block_id = self.block_id(result_id);
-            let init_values = try_vecmap(0..array_len, |i| {
-                let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
-
-                let read = self.acir_context.read_from_memory(block_id, &index_var)?;
-                Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
-            })?;
-            self.initialize_array(
-                result_block_id,
-                array_len,
-                Some(AcirValue::Array(init_values.into())),
-            )?;
+            self.copy_dynamic_array(block_id, result_block_id, array_len)?;
         }
 
         self.array_set_value(store_value, result_block_id, &mut var_index)?;
@@ -1013,6 +1003,8 @@ impl Context {
                         }
                     }
                     Value::Instruction { .. } => {
+                        // An instruction representing the slice means it has been processed previously during ACIR gen.
+                        // Use the previously defined result of an array operation to fetch the internal type information.
                         let array_acir_value = self.convert_value(array_id, dfg);
                         match array_acir_value {
                             AcirValue::DynamicArray(AcirDynamicArray {
@@ -1020,26 +1012,10 @@ impl Context {
                                 ..
                             }) => {
                                 if self.initialized_arrays.contains(&inner_elem_type_sizes) {
-                                    let init_values =
-                                        try_vecmap(0..(element_types.len() + 1), |i| {
-                                            let index = AcirValue::Var(
-                                                self.acir_context
-                                                    .add_constant(FieldElement::from(i as u128)),
-                                                AcirType::NumericType(NumericType::NativeField),
-                                            );
-                                            let var = index.into_var()?;
-                                            let read = self
-                                                .acir_context
-                                                .read_from_memory(inner_elem_type_sizes, &var)?;
-                                            Ok::<AcirValue, RuntimeError>(AcirValue::Var(
-                                                read,
-                                                AcirType::NumericType(NumericType::NativeField),
-                                            ))
-                                        })?;
-                                    self.initialize_array(
+                                    self.copy_dynamic_array(
+                                        inner_elem_type_sizes,
                                         element_type_sizes,
                                         element_types.len() + 1,
-                                        Some(AcirValue::Array(init_values.into())),
                                     )?;
                                     return Ok(element_type_sizes);
                                 } else {
@@ -1100,6 +1076,22 @@ impl Context {
         )?;
 
         Ok(element_type_sizes)
+    }
+
+    fn copy_dynamic_array(
+        &mut self,
+        source: BlockId,
+        destination: BlockId,
+        array_len: usize,
+    ) -> Result<(), RuntimeError> {
+        let init_values = try_vecmap(0..array_len, |i| {
+            let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+            let read = self.acir_context.read_from_memory(source, &index_var)?;
+            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+        })?;
+        self.initialize_array(destination, array_len, Some(AcirValue::Array(init_values.into())))?;
+        Ok(())
     }
 
     fn get_flattened_index(
