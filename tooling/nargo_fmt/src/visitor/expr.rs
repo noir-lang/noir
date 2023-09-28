@@ -47,7 +47,7 @@ impl FmtVisitor<'_> {
         self.with_indent(|this| {
             this.visit_stmts(block.0);
         });
-        
+
         let slice = slice!(self, self.last_position, block_span.end() - 1).trim_end();
         self.push_str(slice);
 
