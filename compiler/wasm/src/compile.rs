@@ -138,28 +138,25 @@ pub fn compile(args: JsValue) -> JsValue {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))] {
+    if #[cfg(target_os = "wasi")] {
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            std::fs::read_to_string(path_to_file)
+        }
+    } else {
+        use std::io::{Error, ErrorKind};
 
         #[wasm_bindgen(module = "@noir-lang/source-resolver")]
         extern "C" {
-
             #[wasm_bindgen(catch)]
             fn read_file(path: &str) -> Result<String, JsValue>;
-
         }
 
         fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
-            use std::io::{Error, ErrorKind};
-
             let path_str = path_to_file.to_str().unwrap();
             match read_file(path_str) {
                 Ok(buffer) => Ok(buffer),
                 Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
             }
-        }
-    } else {
-        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
-            std::fs::read_to_string(path_to_file)
         }
     }
 }
