@@ -1,7 +1,0 @@
-[package]
-name = "closures_mut_ref"
-type = "bin"
-authors = [""]
-compiler_version = "0.8.0"
-
-[dependencies]

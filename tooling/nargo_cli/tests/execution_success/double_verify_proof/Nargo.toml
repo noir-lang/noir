@@ -1,7 +1,0 @@
-[package]
-name = "double_verify_proof"
-type = "bin"
-authors = [""]
-compiler_version = "0.6.0"
-
-[dependencies]

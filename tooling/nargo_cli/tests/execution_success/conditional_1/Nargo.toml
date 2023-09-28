@@ -1,7 +1,0 @@
-[package]
-name = "conditional_1"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]
