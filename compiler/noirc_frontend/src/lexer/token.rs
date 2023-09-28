@@ -765,6 +765,7 @@ impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
 pub enum DocComments {
     Single(String),
     Block(String),
+    Outer(String),
 }
 
 impl fmt::Display for DocComments {
@@ -772,6 +773,7 @@ impl fmt::Display for DocComments {
         match self {
             DocComments::Single(comment) => write!(f, "{}", comment),
             DocComments::Block(comment) => write!(f, "{}", comment),
+            DocComments::Outer(comment) => write!(f, "{}", comment),
         }
     }
 }

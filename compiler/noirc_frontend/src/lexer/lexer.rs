@@ -179,13 +179,19 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('/') {
                     self.next_char();
                     if self.peek_char_is('/') {
-                        return self.parse_doc_comment();
+                        return self.parse_doc_comment(false);
+                    }
+                    else if self.peek_char_is('!') {
+                        return self.parse_doc_comment(true);
                     }
                     return self.parse_comment();
                 } else if self.peek_char_is('*') {
                     self.next_char();
                     if self.peek_char_is('*') {
-                        return self.parse_block_doc_comment();
+                        return self.parse_block_doc_comment(false);
+                    }
+                    else if self.peek_char_is('!') {
+                        return self.parse_block_doc_comment(true);
                     }
                     return self.parse_block_comment();
                 }
@@ -404,20 +410,28 @@ impl<'a> Lexer<'a> {
         self.eat_while(None, |ch| ch.is_whitespace());
     }
 
-    fn parse_doc_comment(&mut self) -> SpannedTokenResult {
+    fn parse_doc_comment(&mut self, is_outer: bool) -> SpannedTokenResult {
         use crate::token::DocComments;
 
         self.next_char();
         let start = self.position;
         let doc_comment = self.eat_while(None, |ch| ch != '\n');
-        let end = start + (doc_comment.len() as u32);
+        let end = self.position;
+        
+        let token = if is_outer {
+            DocComments::Outer(doc_comment)
+        }
+        else {
+            DocComments::Single(doc_comment)
+        };
+
         Ok(SpannedToken::new(
-            Token::DocComment(DocComments::Single(doc_comment)),
+            Token::DocComment(token),
             Span::inclusive(start, end),
         ))
     }
 
-    fn parse_block_doc_comment(&mut self) -> SpannedTokenResult {
+    fn parse_block_doc_comment(&mut self, is_outer: bool) -> SpannedTokenResult {
         use crate::token::DocComments;
 
         self.next_char();
@@ -449,15 +463,24 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        let end = start + (doc_comment.len() as u32);
+        doc_comment = doc_comment.trim().into();
+
+        let end = self.position;
+
+        let token = if is_outer {
+            DocComments::Outer(doc_comment)
+        }
+        else {
+            DocComments::Block(doc_comment)
+        };
 
         if depth == 0 {
             Ok(SpannedToken::new(
-                Token::DocComment(DocComments::Block(doc_comment)),
+                Token::DocComment(token),
                 Span::inclusive(start, end),
             ))
         } else {
-            let span = Span::inclusive(start, self.position);
+            let span = Span::inclusive(start, end);
             Err(LexerErrorKind::UnterminatedBlockComment { span })
         }
     }
@@ -927,20 +950,28 @@ mod tests {
     fn doc_comment_parse() {
         let input = "
             ///doc comment
+            //!qwe
             let five = 5;
             /**
-            block doc comment
+            block doc comment 
+            one more comment
             */
+            /*!
+            block outer doc comment 
+            another str
+             */
         ";
 
         let expected = vec![
             Token::DocComment(DocComments::Single("doc comment".to_string())),
+            Token::DocComment(DocComments::Outer("qwe".to_string())),
             Token::Keyword(Keyword::Let),
             Token::Ident("five".to_string()),
             Token::Assign,
             Token::Int(5_i128.into()),
             Token::Semicolon,
-            Token::DocComment(DocComments::Block("\n block doc comment\n ".to_string())),
+            Token::DocComment(DocComments::Block("block doc comment \n one more comment".to_string())),
+            Token::DocComment(DocComments::Outer("block outer doc comment \n another str".to_string())),
         ];
 
         let mut lexer = Lexer::new(input);
