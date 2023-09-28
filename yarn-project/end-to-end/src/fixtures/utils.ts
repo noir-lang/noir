@@ -175,7 +175,7 @@ export async function setupPXEService(
  * @param account - The account for use in create viem wallets.
  * @param config - The aztec Node Configuration
  * @param logger - The logger to be used
- * @returns RPC Client, viwm wallets, contract addreses etc.
+ * @returns Private eXecution Environment (PXE) client, viem wallets, contract addreses etc.
  */
 async function setupWithSandbox(account: Account, config: AztecNodeConfig, logger: DebugLogger) {
   // we are setting up against the sandbox, l1 contracts are already deployed

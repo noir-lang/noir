@@ -55,7 +55,7 @@ export class SimulatorOracle implements DBOracle {
         preimage: notePreimage.items,
         innerNoteHash,
         siloedNullifier,
-        // RPC Client can use this index to get full MembershipWitness
+        // PXE can use this index to get full MembershipWitness
         index,
       }),
     );

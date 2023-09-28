@@ -74,7 +74,8 @@ An application in Aztec.nr can access the encryption public key for a given addr
 #include_code encrypted /yarn-project/aztec-nr/value-note/src/utils.nr rust
 
 :::info
-In order to be able to provide the public encryption key for a given address, that public key needs to have been registered in advance. At the moment, there is no broadcasting mechanism for public keys, which means that you will need to manually register all addresses you intend to send encrypted notes to. You can do this via the `registerRecipient` method of the Private Execution Environment (PXE), callable either via aztec.js or the CLI. Note that any accounts you own that have been added to the RPC server are automatically registered.
+In order to be able to provide the public encryption key for a given address, that public key needs to have been registered in advance. At the moment, there is no broadcasting mechanism for public keys, which means that you will need to manually register all addresses you intend to send encrypted notes to. You can do this via the `registerRecipient` method of the Private Execution Environment (PXE), callable either via aztec.js or the CLI.
+Note that any accounts you own that have been added to the PXE are automatically registered.
 :::
 
 ### Nullifier secrets

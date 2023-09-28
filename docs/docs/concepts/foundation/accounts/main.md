@@ -102,7 +102,9 @@ However, this is not required when sitting on the receiving end. A user can dete
 
 Account contracts are also expected, though not required by the protocol, to implement a set of methods for authorizing actions on behalf of the user. During a transaction, a contract may call into the account contract and request the user authorization for a given action, identified by a hash. This pattern is used, for instance, for transferring tokens from an account that is not the caller.
 
-When executing a private function, this authorization is checked by requesting an _auth witness_ from the execution oracle, which is usually a signed message. The RPC Server is responsible for storing these auth witnesses and returning them to the requesting account contract. Auth witnesses can belong to the current user executing the local transaction, or to another user who shared it out-of-band.
+When executing a private function, this authorization is checked by requesting an _auth witness_ from the execution oracle, which is usually a signed message.
+The PXE is responsible for storing these auth witnesses and returning them to the requesting account contract.
+Auth witnesses can belong to the current user executing the local transaction, or to another user who shared it out-of-band.
 
 However, during a public function execution, it is not possible to retrieve a value from the local oracle. To support authorizations in public functions, account contracts should save in contract storage what actions have been pre-authorized by their owner. 
 

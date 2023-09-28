@@ -4,7 +4,9 @@ Wallets expose to dapps an interface that allows them to act on behalf of the us
 
 ## Overview
 
-Architecture-wise, a wallet is an instance of an **Private Execution Environment (PXE)** which manages user keys and private state. The RPC server also communicates with an **Aztec Node** for retrieving public information or broadcasting transactions. Note that the RPC server requires a local database for keeping private state, and is also expected to be continuously syncing new blocks for trial-decryption of user notes.
+Architecture-wise, a wallet is an instance of an **Private Execution Environment (PXE)** which manages user keys and private state.
+The PXE also communicates with an **Aztec Node** for retrieving public information or broadcasting transactions.
+Note that the PXE requires a local database for keeping private state, and is also expected to be continuously syncing new blocks for trial-decryption of user notes.
 
 Additionally, a wallet must be able to handle one or more [account contract implementations](../../concepts/foundation/accounts/main.md#account-contracts-and-wallets). When a user creates a new account, the account is represented on-chain by an account contract. The wallet is responsible for deploying and interacting with this contract. A wallet may support multiple flavours of accounts, such as an account that uses ECDSA signatures, or one that relies on WebAuthn, or one that requires multi-factor authentication. For a user, the choice of what account implementation to use is then determined by the wallet they interact with.
 

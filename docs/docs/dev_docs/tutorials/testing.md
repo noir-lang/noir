@@ -137,7 +137,7 @@ Private state in the Aztec Network is represented via sets of [private notes](..
 
 #include_code value-note-def yarn-project/aztec-nr/value-note/src/value_note.nr rust
 
-We can query the RPC server for all notes encrypted for a given user in a contract slot. For this example, we'll get all notes encrypted for the `owner` user that are stored on the token contract address and on the slot we calculated earlier. To calculate the actual balance, we extract the `value` of each note, which is the first element, and sum them up.
+We can query the Private eXecution Environment (PXE) for all notes encrypted for a given user in a contract slot. For this example, we'll get all notes encrypted for the `owner` user that are stored on the token contract address and on the slot we calculated earlier. To calculate the actual balance, we extract the `value` of each note, which is the first element, and sum them up.
 
 #include_code private-storage /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
@@ -157,7 +157,7 @@ At the time of this writing, only unencrypted events can be queried directly. En
 
 #### Querying unencrypted logs
 
-We can query the RPC server for the unencrypted logs emitted in the block where our transaction is mined. Note that logs need to be unrolled and formatted as strings for consumption.
+We can query the PXE for the unencrypted logs emitted in the block where our transaction is mined. Note that logs need to be unrolled and formatted as strings for consumption.
 
 #include_code unencrypted-logs /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 

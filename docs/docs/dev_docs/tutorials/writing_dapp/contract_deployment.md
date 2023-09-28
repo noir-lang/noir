@@ -60,7 +60,7 @@ This should have created an artifact `contracts/token/target/Token.json` with th
 
 ## Deploy your contracts
 
-Let's now write a script for deploying your contracts to the Sandbox. We'll create an RPC client, and then use the `ContractDeployer` class to deploy our contracts, and store the deployment address to a local JSON file.
+Let's now write a script for deploying your contracts to the Sandbox. We'll create a Private eXecution Environment (PXE) client, and then use the `ContractDeployer` class to deploy our contracts, and store the deployment address to a local JSON file.
 
 Create a new file `src/deploy.mjs`:
 

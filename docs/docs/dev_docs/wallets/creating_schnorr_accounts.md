@@ -9,7 +9,7 @@ This section shows how to create schnorr account wallets on the Aztec Sandbox.
 An in-depth explaining about accounts on aztec can be found [here](../../concepts/foundation/accounts/main.md). But creating an account on the Sandbox does 2 things:
 
 1. Deploys an account contract -- representing you -- allowing you to perform actions on the network (deploy contracts, call functions etc).
-2. Adds your encryption keys to the RPC Server allowing it to decrypt and manage your private state.
+2. Adds your encryption keys to the Private eXecution Environment (PXE) allowing it to decrypt and manage your private state.
 
 ## Pre-requisites
 
@@ -53,7 +53,10 @@ That might seem like a lot to digest but it can be broken down into the followin
 Note, we use the `getRegisteredAccounts` API to verify that the addresses computed as part of the
 account contract deployment have been successfully added to the Sandbox.
 
-If you were looking at your terminal that is running the Sandbox you should have seen a lot of activity. This is because the Sandbox will have simulated the deployment of both contracts, executed the private kernel circuit for each before submitted 2 transactions to the pool. The sequencer will have picked them up and inserted them into a rollup and executed the recursive rollup circuits before publishing the rollup to Anvil. Once this has completed, the rollup is retrieved and pulled down to the internal RPC Server so that any new account state can be decrypted.
+If you were looking at your terminal that is running the Sandbox you should have seen a lot of activity.
+This is because the Sandbox will have simulated the deployment of both contracts, executed the private kernel circuit for each account deployement and later on submitted the 2 transactions to the pool.
+The sequencer will have picked them up and inserted them into an L2 block and executed the recursive rollup circuits before publishing the L2 block on L1 (in our case Anvil).
+Once this has completed, the L2 block is retrieved and pulled down to the PXE so that any new account state can be decrypted.
 
 ## Next Steps
 
