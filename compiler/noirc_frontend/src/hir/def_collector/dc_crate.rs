@@ -367,9 +367,7 @@ fn collect_impls(
             resolver.add_generics(generics);
             let typ = resolver.resolve_type(unresolved_type.clone());
 
-            errors.extend(
-                resolver.take_errors().iter().cloned().map(|e| (e.into(), unresolved.file_id)),
-            );
+            errors.extend(take_errors(unresolved.file_id, resolver));
 
             if let Some(struct_type) = get_struct_type(&typ) {
                 let struct_type = struct_type.borrow();
@@ -413,8 +411,6 @@ fn collect_impls(
 }
 
 fn collect_trait_impl_methods(
-    //context: &mut Context,
-    //crate_id: CrateId,
     interner: &mut NodeInterner,
     current_def_map: &mut CrateDefMap,
     trait_id: TraitId,
@@ -542,15 +538,9 @@ fn collect_trait_impl(
                 let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
                 resolver.add_generics(&ast.def.generics);
                 let typ = resolver.resolve_type(unresolved_type.clone());
-                let resolver_errors: Vec<_> = resolver
-                    .take_errors()
-                    .iter()
-                    .cloned()
-                    .map(|e| (e.into(), trait_impl.file_id))
-                    .collect();
 
                 if let Some(struct_type) = get_struct_type(&typ) {
-                    errors.extend(resolver_errors);
+                    errors.extend(take_errors(trait_impl.file_id, resolver));
                     let current_def_map = def_maps.get_mut(&crate_id).unwrap();
                     match add_method_to_struct_namespace(
                         current_def_map,
@@ -680,7 +670,7 @@ fn resolve_globals(
         let name = global.stmt_def.pattern.name_ident().clone();
 
         let hir_stmt = resolver.resolve_global_let(global.stmt_def);
-        errors.extend(resolver.take_errors().iter().cloned().map(|e| (e.into(), global.file_id)));
+        errors.extend(take_errors(global.file_id, resolver));
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
@@ -852,6 +842,10 @@ fn take_errors_filter_self_not_resolved(
         .cloned()
         .map(|resolution_error| (resolution_error.into(), file_id))
         .collect()
+}
+
+fn take_errors(file_id: FileId, resolver: Resolver<'_>) -> Vec<(CompilationError, FileId)> {
+    resolver.take_errors().iter().cloned().map(|e| (e.into(), file_id)).collect()
 }
 
 /// Create the mappings from TypeId -> TraitType
