@@ -1,0 +1,7 @@
+[package]
+name = "brillig_top_level"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
