@@ -1,9 +1,9 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
-use crate::token::{FunctionAttribute, TestScope};
+use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::Location;
@@ -182,8 +182,20 @@ impl CrateDefMap {
                         })
                         .collect();
 
+                    let events = module
+                        .type_definitions()
+                        .filter_map(|id| {
+                            id.as_type().filter(|struct_id| {
+                                interner
+                                    .struct_attributes(struct_id)
+                                    .iter()
+                                    .any(|attr| attr == &SecondaryAttribute::Event)
+                            })
+                        })
+                        .collect();
+
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, location: module.location, functions })
+                    Some(Contract { name, location: module.location, functions, events })
                 } else {
                     None
                 }
@@ -236,13 +248,14 @@ pub struct ContractFunctionMeta {
     pub is_entry_point: bool,
 }
 
-/// A 'contract' in Noir source code with the given name and functions.
+/// A 'contract' in Noir source code with a given name, functions and events.
 /// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
     pub location: Location,
     pub functions: Vec<ContractFunctionMeta>,
+    pub events: Vec<StructId>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
