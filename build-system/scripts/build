@@ -69,7 +69,6 @@ cd $BUILD_DIR
 # If we have previously successful commit, we can early out if nothing relevant has changed since.
 if [[ $FORCE_BUILD == 'false' ]] && check_rebuild cache-"$CONTENT_HASH" $REPOSITORY; then
   echo "No rebuild necessary."
-  untag_remote_image $REPOSITORY tainted
   exit 0
 fi
 
