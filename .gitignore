@@ -49,4 +49,4 @@ compiler/wasm/nodejs
 compiler/wasm/web
 tooling/noirc_abi_wasm/nodejs
 tooling/noirc_abi_wasm/web
-tooling/noir_js/lib
+!tooling/noir_js/lib
