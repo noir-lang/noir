@@ -35,6 +35,8 @@ pub struct CompiledContract {
     pub functions: Vec<ContractFunction>,
 
     /// All the events defined inside the contract scope.
+    /// An event is a struct value that can be emitted via oracles
+    /// by any contract function during execution.
     pub events: Vec<ContractEvent>,
 
     pub file_map: BTreeMap<FileId, DebugFile>,
