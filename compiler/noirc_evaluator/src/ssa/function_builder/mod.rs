@@ -275,9 +275,8 @@ impl FunctionBuilder {
         array: ValueId,
         index: ValueId,
         value: ValueId,
-        length: Option<ValueId>,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, length }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction
