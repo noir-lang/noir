@@ -32,9 +32,7 @@ fn main(y :  Field) {
     } else {
         x[y - 2].a = 100;
     }
-    dep::std::println(x[y - 2].a);
     assert(x[y - 2].a == 50);
-
 
     if y == 2 {
         x[y - 1].b = [50, 51, 52];
