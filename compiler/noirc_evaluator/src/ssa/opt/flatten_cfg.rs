@@ -461,8 +461,18 @@ impl<'f> Context<'f> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_value.to_u128() as usize {
+                        // dbg!(len);
+                        // TODO: Possible way to indicate that the slice is over its capacity is to just 
+                        // mark an invalid constant such as -1 with the type unsigned or something
                         let zero = FieldElement::zero();
                         self.inserter.function.dfg.make_constant(zero, Type::field())
+                        // This results in muls by -1 on the merged values that are not simplified to constants by ACIR gen
+                        // let neg_one = -FieldElement::one();
+                        // self.inserter.function.dfg.make_constant(neg_one, Type::unsigned(32))
+                        // let max_field = FieldElement::from_be_bytes_reduce(&FieldElement::modulus().to_bytes_be());
+                        // let two = FieldElement::one() + FieldElement::one();
+                        // self.inserter.function.dfg.make_constant(two, Type::unsigned(32))
+
                     } else {
                         let get = Instruction::ArrayGet { array, index };
                         self.insert_instruction_with_typevars(get, typevars).first()

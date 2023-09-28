@@ -1,28 +1,6 @@
 fn main(x : Field) {
     // The parameters to this function must come directly from witness values (inputs to main).
-    // regression_dynamic_slice_index(x - 1, x - 4);
-    nested_slice_dynamic_index(x - 2);
-}
-
-struct Bar {
-    inner: [Field; 3],
-}
-
-struct Foo {
-    a: Field,
-    b: [Field; 3],
-    bar: Bar,
-}
-
-fn nested_slice_dynamic_index(y: Field) {
-    let foo_one = Foo { a: 1, b: [2, 3, 20], bar: Bar { inner: [100, 101, 102] }};
-    let foo_two = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] }};
-    let mut x = [foo_one];
-    x = x.push_back(foo_two);
-    // let x = [foo_one, foo_two];
-    // dep::std::println(x[y - 2]);
-    x[y - 2].a = 50;
-    assert(x[y - 2].a == 50);
+    regression_dynamic_slice_index(x - 1, x - 4);
 }
 
 fn regression_dynamic_slice_index(x: Field, y: Field) {
