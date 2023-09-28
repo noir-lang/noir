@@ -1,7 +1,0 @@
-[package]
-name = "simple_program_addition"
-type = "bin"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]
