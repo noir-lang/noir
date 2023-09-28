@@ -29,21 +29,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.7.2":
-  version: 0.7.2
-  resolution: "@aztec/bb.js@npm:0.7.2"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: 68299e5b0ef9583d78d1aaeb4e6a80cf5e049d45e48fb02798a41a2dfda0e68d729e8fbc1d23ab692914ce3857c729b48da9200fca49b838416b7988e5516d0b
-  languageName: node
-  linkType: hard
-
-"@aztec/bb.js@npm:^0.7.2":
+"@aztec/bb.js@npm:0.7.10, @aztec/bb.js@npm:^0.7.2":
   version: 0.7.10
   resolution: "@aztec/bb.js@npm:0.7.10"
   dependencies:
@@ -440,13 +426,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noir-lang/backend_barretenberg@workspace:tooling/backend_barretenberg":
+  version: 0.0.0-use.local
+  resolution: "@noir-lang/backend_barretenberg@workspace:tooling/backend_barretenberg"
+  dependencies:
+    "@aztec/bb.js": 0.7.10
+    "@noir-lang/types": "workspace:*"
+    "@types/node": ^20.6.2
+    "@types/prettier": ^3
+    eslint: ^8.40.0
+    eslint-plugin-prettier: ^5.0.0
+    prettier: 3.0.3
+    typescript: 5.1.5
+  languageName: unknown
+  linkType: soft
+
 "@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
   dependencies:
-    "@aztec/bb.js": 0.7.2
     "@noir-lang/acvm_js": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
+    "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
     "@types/mocha": ^10.0.1
     "@types/node": ^20.6.2
@@ -460,6 +461,8 @@ __metadata:
     ts-node: ^10.9.1
     tsc-multi: ^1.1.0
     typescript: ^5.2.2
+  peerDependencies:
+    "@noir-lang/backend_barretenberg": "workspace:*"
   languageName: unknown
   linkType: soft
 
@@ -516,6 +519,12 @@ __metadata:
     "@types/node": ^20.5.7
     ava: ^5.2.0
     typescript: 4.9.4
+  languageName: unknown
+  linkType: soft
+
+"@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
+  version: 0.0.0-use.local
+  resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   languageName: unknown
   linkType: soft
 
@@ -7542,6 +7551,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:5.1.5":
+  version: 5.1.5
+  resolution: "typescript@npm:5.1.5"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 0eef8699e05ae767096924dbed633c340b4d36e953bb8ed87fb12e9dd9dcea5055ceac7182c614a556dbd346a8a82df799d330e1e286ae66e17c84e1710f6a6f
+  languageName: node
+  linkType: hard
+
 "typescript@npm:^5.0.4, typescript@npm:^5.2.2":
   version: 5.2.2
   resolution: "typescript@npm:5.2.2"
@@ -7559,6 +7578,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 2160f7ad975c59b2f5816817d3916be1d156c5688a7517602b3b640c5015e740f4ba933996ac85371d68f7bbdd41602150fb8b68334122ac637fdb5418085e7a
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@5.1.5#~builtin<compat/typescript>":
+  version: 5.1.5
+  resolution: "typescript@patch:typescript@npm%3A5.1.5#~builtin<compat/typescript>::version=5.1.5&hash=5da071"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 12ff5d14888805f24479e54bc8a3f83647107a6345f6c29dffcd429fb345be55f584a37e262cca58a0105203e41d4cb4e31b1b9096c9abeca0e2ace8eb00935e
   languageName: node
   linkType: hard
 

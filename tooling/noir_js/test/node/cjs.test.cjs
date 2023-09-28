@@ -71,7 +71,7 @@ describe('input validation', () => {
     } catch (error) {
       const knownError = error;
       chai
-        .expect(knownError.message)
+        .expect(knownError)
         .to.equal(
           'Expected witness values to be integers, provided value causes `invalid digit found in string` error',
         );

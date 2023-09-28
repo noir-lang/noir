@@ -66,7 +66,7 @@ describe('input validation', () => {
       expect.fail('Expected generatedWitness to throw, due to x not being convertible to a uint64');
     } catch (error) {
       const knownError = error as Error;
-      expect(knownError.message).to.equal(
+      expect(knownError).to.equal(
         'Expected witness values to be integers, provided value causes `invalid digit found in string` error',
       );
     }

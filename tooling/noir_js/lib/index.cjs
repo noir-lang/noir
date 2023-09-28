@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.witnessMapToUint8Array = exports.acirToUint8Array = exports.generateWitness = exports.abi = exports.acvm = void 0;
+exports.Program = exports.witnessMapToUint8Array = exports.acirToUint8Array = exports.generateWitness = exports.abi = exports.acvm = void 0;
 const acvm = __importStar(require("@noir-lang/acvm_js"));
 exports.acvm = acvm;
 const abi = __importStar(require("@noir-lang/noirc_abi"));
@@ -33,3 +33,5 @@ Object.defineProperty(exports, "generateWitness", { enumerable: true, get: funct
 var serialize_js_1 = require("./serialize.cjs");
 Object.defineProperty(exports, "acirToUint8Array", { enumerable: true, get: function () { return serialize_js_1.acirToUint8Array; } });
 Object.defineProperty(exports, "witnessMapToUint8Array", { enumerable: true, get: function () { return serialize_js_1.witnessMapToUint8Array; } });
+var program_js_1 = require("./program.cjs");
+Object.defineProperty(exports, "Program", { enumerable: true, get: function () { return program_js_1.Program; } });

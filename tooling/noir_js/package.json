@@ -10,7 +10,11 @@
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
+    "@noir-lang/types": "workspace:*",
     "fflate": "^0.8.0"
+  },
+  "peerDependencies": {
+    "@noir-lang/backend_barretenberg": "workspace:*"
   },
   "files": [
     "lib",
@@ -18,10 +22,10 @@
   ],
   "source": "src/index.ts",
   "main": "lib/index.cjs",
-  "module": "lib/index.js",
+  "module": "lib/index.mjs",
   "exports": {
     "require": "./lib/index.cjs",
-    "default": "./lib/index.js",
+    "default": "./lib/index.mjs",
     "types": "./lib/index.d.ts"
   },
   "types": "lib/index.d.ts",
@@ -36,7 +40,6 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "devDependencies": {
-    "@aztec/bb.js": "0.7.2",
     "@types/chai": "^4",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.2",

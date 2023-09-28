@@ -3,12 +3,14 @@
     "version": "0.11.1",
     "private": true,
     "workspaces": [
+        "acvm-repo/acvm_js",
         "compiler/wasm",
         "compiler/source-resolver",
-        "tooling/noirc_abi_wasm",
         "compiler/integration-tests",
+        "tooling/noirc_abi_wasm",
+        "tooling/noir_js_types",
         "tooling/noir_js",
-        "acvm-repo/acvm_js",
+        "tooling/backend_barretenberg",
         "release-tests"
     ],
     "scripts": {
@@ -33,10 +35,8 @@
         "mocha": "^10.2.0",
         "prettier": "3.0.3",
         "ts-node": "^10.9.1",
+        "tslog": "^4.9.2",
         "typescript": "^5.0.4"
     },
-    "packageManager": "yarn@3.6.3",
-    "dependencies": {
-        "tslog": "^4.9.2"
-    }
+    "packageManager": "yarn@3.6.3"
 }
