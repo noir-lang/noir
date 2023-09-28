@@ -23,11 +23,6 @@ jobs:
           source $HOME/.cargo/env
           cargo install -f wasm-bindgen-cli --version 0.2.86
 
-      - name: Install toml2json
-        run: |
-          source $HOME/.cargo/env
-          cargo install toml2json
-
       - name: Install wasm-opt
         run: |
           npm i wasm-opt -g

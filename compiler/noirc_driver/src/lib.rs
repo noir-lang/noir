@@ -6,7 +6,7 @@
 use clap::Args;
 use debug::filter_relevant_files;
 use fm::FileId;
-use noirc_abi::{AbiParameter, AbiType};
+use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
@@ -285,7 +285,20 @@ fn compile_contract_inner(
         let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
         let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
 
-        Ok(CompiledContract { name: contract.name, functions, file_map })
+        Ok(CompiledContract {
+            name: contract.name,
+            events: contract
+                .events
+                .iter()
+                .map(|event_id| {
+                    let typ = context.def_interner.get_struct(*event_id);
+                    let typ = typ.borrow();
+                    ContractEvent::from_struct_type(context, &typ)
+                })
+                .collect(),
+            functions,
+            file_map,
+        })
     } else {
         Err(errors)
     }

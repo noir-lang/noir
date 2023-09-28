@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.14.0",
+  "version": "0.14.1",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
@@ -18,10 +18,10 @@
   ],
   "source": "src/index.ts",
   "main": "lib/index.cjs",
-  "module": "lib/index.js",
+  "module": "lib/index.mjs",
   "exports": {
     "require": "./lib/index.cjs",
-    "default": "./lib/index.js",
+    "default": "./lib/index.mjs",
     "types": "./lib/index.d.ts"
   },
   "types": "lib/index.d.ts",
@@ -33,7 +33,9 @@
     "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "clean": "rm -rf ./lib"
+    
   },
   "devDependencies": {
     "@aztec/bb.js": "0.7.2",

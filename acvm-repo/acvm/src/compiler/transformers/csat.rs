@@ -235,8 +235,8 @@ impl CSatTransformer {
         opcode.mul_terms = remaining_mul_terms;
 
         // Add the rest of the elements back into the new_opcode
-        new_opcode.mul_terms.extend(opcode.mul_terms.clone());
-        new_opcode.linear_combinations.extend(opcode.linear_combinations.clone());
+        new_opcode.mul_terms.extend(opcode.mul_terms);
+        new_opcode.linear_combinations.extend(opcode.linear_combinations);
         new_opcode.q_c = opcode.q_c;
         new_opcode.sort();
         new_opcode
@@ -332,7 +332,7 @@ impl CSatTransformer {
 
         // 2. Create Intermediate variables for the multiplication opcodes
         let mut remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
-        for mul_term in opcode.mul_terms.clone().into_iter() {
+        for mul_term in opcode.mul_terms {
             if self.solvable_witness.contains(&mul_term.1)
                 && self.solvable_witness.contains(&mul_term.2)
             {
