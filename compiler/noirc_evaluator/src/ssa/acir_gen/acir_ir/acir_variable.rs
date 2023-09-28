@@ -65,15 +65,6 @@ impl AcirType {
     pub(crate) fn unsigned(bit_size: u32) -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
-
-    /// True if type is signed
-    pub(crate) fn is_signed(&self) -> bool {
-        let numeric_type = match self {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => return false,
-        };
-        matches!(numeric_type, NumericType::Signed { .. })
-    }
 }
 
 impl From<SsaType> for AcirType {
