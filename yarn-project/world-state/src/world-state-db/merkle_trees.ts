@@ -28,7 +28,7 @@ import {
   loadTree,
   newTree,
 } from '@aztec/merkle-tree';
-import { L2Block, MerkleTreeId, SiblingPath, merkleTreeIds } from '@aztec/types';
+import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { default as levelup } from 'levelup';
 
