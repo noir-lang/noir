@@ -367,4 +367,21 @@ TEST_F(native_private_kernel_ordering_tests, native_empty_nullified_commitment_m
     ASSERT_TRUE(array_length(public_inputs.end.new_nullifiers) == 1);
 }
 
+TEST_F(native_private_kernel_ordering_tests, 0th_nullifier_zero_fails)
+{
+    auto private_inputs_inner = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
+
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers{};
+    auto& previous_kernel = private_inputs_inner.previous_kernel;
+    previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
+    PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel };
+
+    DummyBuilder builder = DummyBuilder("native_private_kernel_ordering_tests__0th_nullifier_zero_fails");
+    auto public_inputs = native_private_kernel_circuit_ordering(builder, private_inputs);
+
+    ASSERT_TRUE(builder.failed());
+    auto failure = builder.get_first_failure();
+    ASSERT_EQ(failure.code, CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLLIFIER_IS_ZERO);
+}
+
 }  // namespace aztec3::circuits::kernel::private_kernel

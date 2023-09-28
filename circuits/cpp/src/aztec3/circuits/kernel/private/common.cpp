@@ -114,6 +114,13 @@ void common_validate_read_requests(DummyBuilder& builder,
     }
 }
 
+void common_validate_0th_nullifier(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)
+{
+    builder.do_assert(end.new_nullifiers[0] != 0,
+                      "The 0th nullifier in the accumulated nullifier array is zero",
+                      CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLLIFIER_IS_ZERO);
+}
+
 void common_update_end_values(DummyBuilder& builder,
                               PrivateCallData<NT> const& private_call,
                               KernelCircuitPublicInputs<NT>& public_inputs)

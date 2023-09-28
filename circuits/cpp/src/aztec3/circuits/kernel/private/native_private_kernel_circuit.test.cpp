@@ -165,6 +165,8 @@ TEST_F(native_private_kernel_tests, native_transient_read_requests_no_match)
 // Testing that the special value EMPTY_NULLIFIED_COMMITMENT keeps new_nullifiers aligned with nullified_commitments.
 TEST_F(native_private_kernel_tests, native_empty_nullified_commitment_respected)
 {
+    // The 0th nullifier (and corresponding nullified_commitment EMPTY_NULLIFIED_COMMITMENT) which is
+    // added by the init iteration is set into private_inputs_inner.
     auto private_inputs_inner = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     private_inputs_inner.private_call.call_stack_item.public_inputs.new_commitments[0] = fr(23);
@@ -189,22 +191,23 @@ TEST_F(native_private_kernel_tests, native_empty_nullified_commitment_respected)
                                    << " with code: " << builder.get_first_failure().code;
 
     // EMPTY nullified commitment should keep new_nullifiers aligned with nullified_commitments
-    ASSERT_TRUE(public_inputs.end.nullified_commitments[0] == fr(EMPTY_NULLIFIED_COMMITMENT));
-    ASSERT_TRUE(public_inputs.end.nullified_commitments[1] != fr(0) &&
-                public_inputs.end.nullified_commitments[1] != fr(EMPTY_NULLIFIED_COMMITMENT));
+    // We have to shift the offset by 1 due to the 0th nullifier/nullified_commitment pair.
+    ASSERT_TRUE(public_inputs.end.nullified_commitments[1] == fr(EMPTY_NULLIFIED_COMMITMENT));
+    ASSERT_TRUE(public_inputs.end.nullified_commitments[2] != fr(0) &&
+                public_inputs.end.nullified_commitments[2] != fr(EMPTY_NULLIFIED_COMMITMENT));
 
     // Nothing squashed yet (until ordering circuit)
-    ASSERT_TRUE(array_length(public_inputs.end.new_nullifiers) == 2);
+    ASSERT_TRUE(array_length(public_inputs.end.new_nullifiers) == 3);  // 0th nullifier to be taking into account
     ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 2);
     // explicitly EMPTY commitment respected in array
-    ASSERT_TRUE(array_length(public_inputs.end.nullified_commitments) == 2);
+    ASSERT_TRUE(array_length(public_inputs.end.nullified_commitments) == 3);
 
     auto& previous_kernel = private_inputs_inner.previous_kernel;
     previous_kernel.public_inputs = public_inputs;
 
     PrivateKernelInputsOrdering<NT> private_inputs{ .previous_kernel = previous_kernel,
                                                     .nullifier_commitment_hints =
-                                                        std::array<fr, MAX_NEW_NULLIFIERS_PER_TX>{ 0, 1 } };
+                                                        std::array<fr, MAX_NEW_NULLIFIERS_PER_TX>{ 0, 0, 1 } };
 
     auto final_public_inputs = native_private_kernel_circuit_ordering(builder, private_inputs);
 
@@ -212,7 +215,7 @@ TEST_F(native_private_kernel_tests, native_empty_nullified_commitment_respected)
                                    << " with code: " << builder.get_first_failure().code;
 
     ASSERT_TRUE(array_length(final_public_inputs.end.new_commitments) == 1);  // 1/2 commitment squashed
-    ASSERT_TRUE(array_length(final_public_inputs.end.new_nullifiers) == 1);   // 1/2 nullifier squashed
+    ASSERT_TRUE(array_length(final_public_inputs.end.new_nullifiers) == 2);  // 1/2 nullifier squashed (+ 0th nullifier)
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

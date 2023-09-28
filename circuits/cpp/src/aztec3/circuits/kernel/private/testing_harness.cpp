@@ -501,6 +501,8 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
         public_inputs_encrypted_log_preimages_length;
     mock_previous_kernel.public_inputs.end.unencrypted_log_preimages_length =
         public_inputs_unencrypted_log_preimages_length;
+    mock_previous_kernel.public_inputs.end.new_nullifiers[0] = 321;  // 0th nullifier must be non-zero.
+    mock_previous_kernel.public_inputs.end.nullified_commitments[0] = EMPTY_NULLIFIED_COMMITMENT;
 
     //***************************************************************************
     // Now we can construct the full private inputs to the kernel circuit

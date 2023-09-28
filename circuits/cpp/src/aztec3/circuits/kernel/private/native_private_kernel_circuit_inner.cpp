@@ -112,7 +112,7 @@ void validate_inputs(DummyCircuitBuilder& builder, PrivateKernelInputsInner<NT> 
                       "Cannot execute private kernel circuit with an empty private call stack",
                       CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_EMPTY);
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1329): validate that 0th nullifier is nonzero
+    common_validate_0th_nullifier(builder, private_inputs.previous_kernel.public_inputs.end);
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.

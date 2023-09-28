@@ -161,7 +161,8 @@ KernelCircuitPublicInputsFinal<NT> native_private_kernel_circuit_ordering(
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs.previous_kernel, public_inputs);
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1329): validate that 0th nullifier is nonzero
+    common_validate_0th_nullifier(builder, private_inputs.previous_kernel.public_inputs.end);
+
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1486): validate that `len(new_nullifiers) ==
     // len(nullified_commitments)`
 
