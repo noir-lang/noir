@@ -9,6 +9,12 @@ use serde::{Deserialize, Serialize};
 /// - Proving and verification keys have been pregenerated based on this ACIR.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreprocessedProgram {
+    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`PreprocessedProgram`]
+    /// was compiled.
+    ///
+    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    pub hash: u64,
+
     pub backend: String,
     pub abi: Abi,
 

@@ -1,7 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use acvm::acir::circuit::Opcode;
 use acvm::Language;
+use backend_interface::BackendOpcodeSupport;
 use fm::FileManager;
 use iter_extended::vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
@@ -10,8 +12,10 @@ use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
 use nargo::prepare_package;
+use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
+use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
@@ -19,6 +23,7 @@ use clap::Args;
 use crate::backends::Backend;
 use crate::errors::{CliError, CompileError};
 
+use super::fs::program::read_program_from_file;
 use super::fs::program::{
     save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
@@ -69,13 +74,17 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let (compiled_programs, compiled_contracts) =
-        compile_workspace(backend, &binary_packages, &contract_packages, &args.compile_options)?;
+    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let (_, compiled_contracts) = compile_workspace(
+        &workspace,
+        &binary_packages,
+        &contract_packages,
+        np_language,
+        &opcode_support,
+        &args.compile_options,
+    )?;
 
     // Save build artifacts to disk.
-    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
-        save_program(program, &package, &circuit_dir, args.output_debug);
-    }
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
         save_contract(contract, &package, &circuit_dir, args.output_debug);
     }
@@ -84,17 +93,21 @@ pub(crate) fn run(
 }
 
 pub(super) fn compile_workspace(
-    backend: &Backend,
+    workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
+    np_language: Language,
+    opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
-    let (np_language, is_opcode_supported) = backend.get_backend_info()?;
+    let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
 
     // Compile all of the packages in parallel.
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
-        .map(|package| compile_program(package, compile_options, np_language, &is_opcode_supported))
+        .map(|package| {
+            compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
+        })
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
         contract_packages
@@ -122,6 +135,7 @@ pub(super) fn compile_workspace(
 }
 
 pub(crate) fn compile_bin_package(
+    workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
@@ -132,7 +146,7 @@ pub(crate) fn compile_bin_package(
     }
 
     let (file_manager, compilation_result) =
-        compile_program(package, compile_options, np_language, &is_opcode_supported);
+        compile_program(workspace, package, compile_options, np_language, &is_opcode_supported);
 
     let program = report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
 
@@ -140,6 +154,7 @@ pub(crate) fn compile_bin_package(
 }
 
 fn compile_program(
+    workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     np_language: Language,
@@ -147,8 +162,23 @@ fn compile_program(
 ) -> (FileManager, CompilationResult<CompiledProgram>) {
     let (mut context, crate_id) = prepare_package(package);
 
+    let cached_program = if let Ok(preprocessed_program) =
+        read_program_from_file(workspace.package_build_path(package))
+    {
+        // TODO: Load debug information.
+        Some(CompiledProgram {
+            hash: preprocessed_program.hash,
+            circuit: preprocessed_program.bytecode,
+            abi: preprocessed_program.abi,
+            debug: DebugInfo::default(),
+            file_map: BTreeMap::new(),
+        })
+    } else {
+        None
+    };
+
     let (program, warnings) =
-        match noirc_driver::compile_main(&mut context, crate_id, compile_options) {
+        match noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program) {
             Ok(program_and_warnings) => program_and_warnings,
             Err(errors) => {
                 return (context.file_manager, Err(errors));
@@ -159,6 +189,8 @@ fn compile_program(
     let optimized_program =
         nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
             .expect("Backend does not support an opcode that is in the IR");
+
+    save_program(optimized_program.clone(), package, &workspace.target_directory_path(), false);
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
@@ -192,6 +224,7 @@ fn save_program(
     output_debug: bool,
 ) {
     let preprocessed_program = PreprocessedProgram {
+        hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         bytecode: program.circuit,

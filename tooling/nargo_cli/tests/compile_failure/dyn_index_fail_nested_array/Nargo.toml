@@ -1,0 +1,7 @@
+[package]
+name = "dyn_index_fail_nested_array"
+type = "bin"
+authors = [""]
+compiler_version = "0.11.1"
+
+[dependencies]

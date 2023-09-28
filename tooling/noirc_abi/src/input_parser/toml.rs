@@ -1,4 +1,4 @@
-use super::{parse_str_to_field, InputValue};
+use super::{parse_str_to_field, parse_str_to_signed, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
 use iter_extended::{try_btree_map, try_vecmap};
@@ -118,9 +118,13 @@ impl InputValue {
             (TomlTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
             (
                 TomlTypes::String(string),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+                AbiType::Field
+                | AbiType::Integer { sign: crate::Sign::Unsigned, .. }
+                | AbiType::Boolean,
             ) => InputValue::Field(parse_str_to_field(&string)?),
-
+            (TomlTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
+                InputValue::Field(parse_str_to_signed(&string, *width)?)
+            }
             (
                 TomlTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,

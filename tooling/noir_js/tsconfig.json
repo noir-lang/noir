@@ -7,7 +7,9 @@
     "moduleResolution": "node",
     "outDir": "./lib",
     "esModuleInterop": true,
-    "strict": true
+    "resolveJsonModule": true,
+    "strict": true,
+    "noImplicitAny": false,
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

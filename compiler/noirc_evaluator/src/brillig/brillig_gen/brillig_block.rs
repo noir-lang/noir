@@ -1,5 +1,6 @@
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+    extract_heap_array, extract_register, extract_registers, BrilligBinaryOp, BrilligContext,
+    BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::{
@@ -15,9 +16,11 @@ use crate::ssa::ir::{
 use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory};
 use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 
 use super::brillig_black_box::convert_black_box_call;
+use super::brillig_block_variables::BlockVariables;
 use super::brillig_fn::FunctionContext;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
@@ -27,6 +30,10 @@ pub(crate) struct BrilligBlock<'block> {
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext,
+    /// Tracks the available variable during the codegen of the block
+    pub(crate) variables: BlockVariables,
+    /// For each instruction, the set of values that are not used anymore after it.
+    pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -37,7 +44,21 @@ impl<'block> BrilligBlock<'block> {
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
-        let mut brillig_block = BrilligBlock { function_context, block_id, brillig_context };
+        let live_in = function_context.liveness.get_live_in(&block_id);
+        let variables =
+            BlockVariables::new(live_in.clone(), function_context.all_block_parameters());
+
+        brillig_context.set_allocated_registers(
+            variables
+                .get_available_variables(function_context)
+                .into_iter()
+                .flat_map(extract_registers)
+                .collect(),
+        );
+        let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
+
+        let mut brillig_block =
+            BrilligBlock { function_context, block_id, brillig_context, variables, last_uses };
 
         brillig_block.convert_block(dfg);
     }
@@ -59,6 +80,7 @@ impl<'block> BrilligBlock<'block> {
         // Process the block's terminator instruction
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
+
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
 
@@ -110,27 +132,33 @@ impl<'block> BrilligBlock<'block> {
                     self.create_block_label_for_current_function(*else_destination),
                 );
             }
-            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                let target = &dfg[*destination];
-                for (src, dest) in arguments.iter().zip(target.parameters()) {
-                    // Destination variable might have already been created by another block that jumps to this target
-                    let destination = self.function_context.get_or_create_variable(
-                        self.brillig_context,
+            TerminatorInstruction::Jmp {
+                destination: destination_block,
+                arguments,
+                call_stack: _,
+            } => {
+                let target_block = &dfg[*destination_block];
+                for (src, dest) in arguments.iter().zip(target_block.parameters()) {
+                    // Destinations are block parameters so they should have been allocated previously.
+                    let destination = self.variables.get_block_param(
+                        self.function_context,
+                        *destination_block,
                         *dest,
                         dfg,
                     );
                     let source = self.convert_ssa_value(*src, dfg);
                     self.pass_variable(source, destination);
                 }
-                self.brillig_context
-                    .jump_instruction(self.create_block_label_for_current_function(*destination));
+                self.brillig_context.jump_instruction(
+                    self.create_block_label_for_current_function(*destination_block),
+                );
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
                     .iter()
                     .flat_map(|value_id| {
                         let return_variable = self.convert_ssa_value(*value_id, dfg);
-                        self.function_context.extract_registers(return_variable)
+                        extract_registers(return_variable)
                     })
                     .collect();
                 self.brillig_context.return_instruction(&return_registers);
@@ -186,9 +214,9 @@ impl<'block> BrilligBlock<'block> {
                 // Be a valid pointer to the array.
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference => {
-                    // This parameter variable might have already been created by another block that jumps to this one.
-                    self.function_context.get_or_create_variable(
-                        self.brillig_context,
+                    self.variables.get_block_param(
+                        self.function_context,
+                        self.block_id,
                         *param_id,
                         dfg,
                     );
@@ -207,7 +235,8 @@ impl<'block> BrilligBlock<'block> {
 
         match instruction {
             Instruction::Binary(binary) => {
-                let result_register = self.function_context.create_register_variable(
+                let result_register = self.variables.define_register_variable(
+                    self.function_context,
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
@@ -228,7 +257,8 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
-                let address_register = self.function_context.create_register_variable(
+                let address_register = self.variables.define_register_variable(
+                    self.function_context,
                     self.brillig_context,
                     result_value,
                     dfg,
@@ -242,7 +272,8 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.store_variable_instruction(address_register, source_variable);
             }
             Instruction::Load { address } => {
-                let target_variable = self.function_context.create_variable(
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
@@ -254,7 +285,8 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Not(value) => {
                 let condition_register = self.convert_ssa_register_value(*value, dfg);
-                let result_register = self.function_context.create_register_variable(
+                let result_register = self.variables.define_register_variable(
+                    self.function_context,
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
@@ -343,7 +375,8 @@ impl<'block> BrilligBlock<'block> {
                     );
                 }
                 Value::Intrinsic(Intrinsic::ArrayLen) => {
-                    let result_register = self.function_context.create_register_variable(
+                    let result_register = self.variables.define_register_variable(
+                        self.function_context,
                         self.brillig_context,
                         dfg.instruction_results(instruction_id)[0],
                         dfg,
@@ -354,8 +387,7 @@ impl<'block> BrilligBlock<'block> {
                     // or an array in the case of an array.
                     if let Type::Numeric(_) = dfg.type_of_value(param_id) {
                         let len_variable = self.convert_ssa_value(arguments[0], dfg);
-                        let len_register_index =
-                            self.function_context.extract_register(len_variable);
+                        let len_register_index = extract_register(len_variable);
                         self.brillig_context.mov_instruction(result_register, len_register_index);
                     } else {
                         self.convert_ssa_array_len(arguments[0], result_register, dfg);
@@ -383,14 +415,16 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.function_context.get_or_create_variable(
+                    let target_len_variable = self.variables.define_variable(
+                        self.function_context,
                         self.brillig_context,
                         results[0],
                         dfg,
                     );
-                    let target_len = self.function_context.extract_register(target_len_variable);
+                    let target_len = extract_register(target_len_variable);
 
-                    let target_slice = self.function_context.create_variable(
+                    let target_slice = self.variables.define_variable(
+                        self.function_context,
                         self.brillig_context,
                         results[1],
                         dfg,
@@ -415,14 +449,16 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len_variable = self.function_context.get_or_create_variable(
+                    let target_len_variable = self.variables.define_variable(
+                        self.function_context,
                         self.brillig_context,
                         results[0],
                         dfg,
                     );
-                    let target_len = self.function_context.extract_register(target_len_variable);
+                    let target_len = extract_register(target_len_variable);
 
-                    let target_slice = self.function_context.create_variable(
+                    let target_slice = self.variables.define_variable(
+                        self.function_context,
                         self.brillig_context,
                         results[1],
                         dfg,
@@ -450,7 +486,8 @@ impl<'block> BrilligBlock<'block> {
             },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_register = self.function_context.create_register_variable(
+                let destination_register = self.variables.define_register_variable(
+                    self.function_context,
                     self.brillig_context,
                     result_ids[0],
                     dfg,
@@ -460,7 +497,8 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::Cast(value, target_type) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_register = self.function_context.create_register_variable(
+                let destination_register = self.variables.define_register_variable(
+                    self.function_context,
                     self.brillig_context,
                     result_ids[0],
                     dfg,
@@ -475,8 +513,12 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_variable =
-                    self.function_context.create_variable(self.brillig_context, result_ids[0], dfg);
+                let destination_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    result_ids[0],
+                    dfg,
+                );
 
                 let array_variable = self.convert_ssa_value(*array, dfg);
                 let array_pointer = match array_variable {
@@ -498,8 +540,12 @@ impl<'block> BrilligBlock<'block> {
                 let value_variable = self.convert_ssa_value(*value, dfg);
 
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_variable =
-                    self.function_context.create_variable(self.brillig_context, result_ids[0], dfg);
+                let destination_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    result_ids[0],
+                    dfg,
+                );
 
                 self.convert_ssa_array_set(
                     source_variable,
@@ -511,6 +557,14 @@ impl<'block> BrilligBlock<'block> {
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
 
+        let dead_variables = self
+            .last_uses
+            .get(&instruction_id)
+            .expect("Last uses for instruction should have been computed");
+
+        for dead_variable in dead_variables {
+            self.variables.remove_variable(dead_variable);
+        }
         self.brillig_context.set_call_stack(CallStack::new());
     }
 
@@ -526,7 +580,7 @@ impl<'block> BrilligBlock<'block> {
             .iter()
             .flat_map(|argument_id| {
                 let variable_to_pass = self.convert_ssa_value(*argument_id, dfg);
-                self.function_context.extract_registers(variable_to_pass)
+                extract_registers(variable_to_pass)
             })
             .collect();
 
@@ -535,8 +589,14 @@ impl<'block> BrilligBlock<'block> {
         // Create label for the function that will be called
         let label_of_function_to_call = FunctionContext::function_id_to_function_label(func_id);
 
-        let saved_registers =
-            self.brillig_context.pre_call_save_registers_prep_args(&argument_registers);
+        let variables_to_save = self.variables.get_available_variables(self.function_context);
+
+        let saved_registers = self
+            .brillig_context
+            .pre_call_save_registers_prep_args(&argument_registers, &variables_to_save);
+
+        // We don't save and restore constants, so we dump them before a external call since the callee might use the registers where they are allocated.
+        self.variables.dump_constants();
 
         // Call instruction, which will interpret above registers 0..num args
         self.brillig_context.add_external_call_instruction(label_of_function_to_call);
@@ -546,15 +606,18 @@ impl<'block> BrilligBlock<'block> {
 
         // Allocate the registers for the variables where we are assigning the returns
         let variables_assigned_to = vecmap(result_ids, |result_id| {
-            self.function_context.create_variable(self.brillig_context, *result_id, dfg)
+            self.variables.define_variable(
+                self.function_context,
+                self.brillig_context,
+                *result_id,
+                dfg,
+            )
         });
 
         // Collect the registers that should have been returned
         let returned_registers: Vec<RegisterIndex> = variables_assigned_to
             .iter()
-            .flat_map(|returned_variable| {
-                self.function_context.extract_registers(*returned_variable)
-            })
+            .flat_map(|returned_variable| extract_registers(*returned_variable))
             .collect();
 
         assert!(
@@ -681,7 +744,8 @@ impl<'block> BrilligBlock<'block> {
         let results = dfg.instruction_results(instruction_id);
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
-                let target_len = match self.function_context.get_or_create_variable(
+                let target_len = match self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[0],
                     dfg,
@@ -690,8 +754,12 @@ impl<'block> BrilligBlock<'block> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                let target_variable =
-                    self.function_context.create_variable(self.brillig_context, results[1], dfg);
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    results[1],
+                    dfg,
+                );
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
@@ -703,7 +771,8 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_push_back_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
-                let target_len = match self.function_context.get_or_create_variable(
+                let target_len = match self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[0],
                     dfg,
@@ -712,8 +781,12 @@ impl<'block> BrilligBlock<'block> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                let target_variable =
-                    self.function_context.create_variable(self.brillig_context, results[1], dfg);
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    results[1],
+                    dfg,
+                );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
@@ -724,7 +797,8 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_push_front_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
-                let target_len = match self.function_context.get_or_create_variable(
+                let target_len = match self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[0],
                     dfg,
@@ -733,13 +807,22 @@ impl<'block> BrilligBlock<'block> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                let target_variable =
-                    self.function_context.create_variable(self.brillig_context, results[1], dfg);
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    results[1],
+                    dfg,
+                );
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 let pop_variables = vecmap(&results[2..element_size + 2], |result| {
-                    self.function_context.create_variable(self.brillig_context, *result, dfg)
+                    self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        *result,
+                        dfg,
+                    )
                 });
 
                 self.update_slice_length(target_len, arguments[0], dfg, BinaryIntOp::Sub);
@@ -747,7 +830,8 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
-                let target_len = match self.function_context.get_or_create_variable(
+                let target_len = match self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[element_size],
                     dfg,
@@ -757,10 +841,16 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let pop_variables = vecmap(&results[0..element_size], |result| {
-                    self.function_context.create_variable(self.brillig_context, *result, dfg)
+                    self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        *result,
+                        dfg,
+                    )
                 });
 
-                let target_variable = self.function_context.create_variable(
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[element_size + 1],
                     dfg,
@@ -772,7 +862,8 @@ impl<'block> BrilligBlock<'block> {
                 self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
-                let target_len = match self.function_context.get_or_create_variable(
+                let target_len = match self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[0],
                     dfg,
@@ -782,8 +873,12 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let target_id = results[1];
-                let target_variable =
-                    self.function_context.create_variable(self.brillig_context, target_id, dfg);
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    target_id,
+                    dfg,
+                );
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
@@ -810,7 +905,8 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.deallocate_register(converted_index);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
-                let target_len = match self.function_context.get_or_create_variable(
+                let target_len = match self.variables.define_variable(
+                    self.function_context,
                     self.brillig_context,
                     results[0],
                     dfg,
@@ -821,8 +917,12 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_id = results[1];
 
-                let target_variable =
-                    self.function_context.create_variable(self.brillig_context, target_id, dfg);
+                let target_variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    target_id,
+                    dfg,
+                );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 // Remove if indexing in remove is changed to flattened indexing
@@ -838,7 +938,12 @@ impl<'block> BrilligBlock<'block> {
                 );
 
                 let removed_items = vecmap(&results[2..element_size + 2], |result| {
-                    self.function_context.create_variable(self.brillig_context, *result, dfg)
+                    self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        *result,
+                        dfg,
+                    )
                 });
 
                 self.update_slice_length(target_len, arguments[0], dfg, BinaryIntOp::Sub);
@@ -872,9 +977,8 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         binary_op: BinaryIntOp,
     ) {
-        let source_len_variable =
-            self.function_context.get_or_create_variable(self.brillig_context, source_value, dfg);
-        let source_len = self.function_context.extract_register(source_len_variable);
+        let source_len_variable = self.convert_ssa_value(source_value, dfg);
+        let source_len = extract_register(source_len_variable);
 
         self.brillig_context.usize_op(source_len, target_len, binary_op, 1);
     }
@@ -930,99 +1034,89 @@ impl<'block> BrilligBlock<'block> {
         let binary_type =
             type_of_binary_operation(dfg[binary.lhs].get_type(), dfg[binary.rhs].get_type());
 
-        let mut left = self.convert_ssa_register_value(binary.lhs, dfg);
-        let mut right = self.convert_ssa_register_value(binary.rhs, dfg);
+        let left = self.convert_ssa_register_value(binary.lhs, dfg);
+        let right = self.convert_ssa_register_value(binary.rhs, dfg);
 
         let brillig_binary_op =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
-
-        // Some binary operations with fields are issued by the compiler, such as loop comparisons, cast those to the bit size here
-        // TODO Remove after fixing https://github.com/noir-lang/noir/issues/1979
-        if let (
-            BrilligBinaryOp::Integer { bit_size, .. },
-            Type::Numeric(NumericType::NativeField),
-        ) = (&brillig_binary_op, &binary_type)
-        {
-            let new_lhs = self.brillig_context.allocate_register();
-            let new_rhs = self.brillig_context.allocate_register();
-
-            self.brillig_context.cast_instruction(new_lhs, left, *bit_size);
-            self.brillig_context.cast_instruction(new_rhs, right, *bit_size);
-
-            left = new_lhs;
-            right = new_rhs;
-        }
 
         self.brillig_context.binary_instruction(left, right, result_register, brillig_binary_op);
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
-        let value = &dfg[dfg.resolve(value_id)];
+        let value_id = dfg.resolve(value_id);
+        let value = &dfg[value_id];
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                self.function_context.get_variable(value_id, dfg)
+                self.variables.get_allocation(self.function_context, value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
-                let new_variable = self.function_context.get_or_create_variable(
-                    self.brillig_context,
-                    value_id,
-                    dfg,
-                );
-                let register_index = self.function_context.extract_register(new_variable);
+                if let Some(variable) = self.variables.get_constant(value_id, dfg) {
+                    variable
+                } else {
+                    let new_variable =
+                        self.variables.allocate_constant(self.brillig_context, value_id, dfg);
+                    let register_index = extract_register(new_variable);
 
-                self.brillig_context.const_instruction(register_index, (*constant).into());
-                new_variable
+                    self.brillig_context.const_instruction(register_index, (*constant).into());
+                    new_variable
+                }
             }
             Value::Array { array, .. } => {
-                let new_variable = self.function_context.get_or_create_variable(
-                    self.brillig_context,
-                    value_id,
-                    dfg,
-                );
+                if let Some(variable) = self.variables.get_constant(value_id, dfg) {
+                    variable
+                } else {
+                    let new_variable =
+                        self.variables.allocate_constant(self.brillig_context, value_id, dfg);
 
-                // Initialize the variable
-                let pointer = match new_variable {
-                    RegisterOrMemory::HeapArray(heap_array) => {
-                        self.brillig_context
-                            .allocate_fixed_length_array(heap_array.pointer, array.len());
+                    // Initialize the variable
+                    let pointer = match new_variable {
+                        RegisterOrMemory::HeapArray(heap_array) => {
+                            self.brillig_context
+                                .allocate_fixed_length_array(heap_array.pointer, array.len());
 
-                        heap_array.pointer
+                            heap_array.pointer
+                        }
+                        RegisterOrMemory::HeapVector(heap_vector) => {
+                            self.brillig_context
+                                .const_instruction(heap_vector.size, array.len().into());
+                            self.brillig_context
+                                .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
+
+                            heap_vector.pointer
+                        }
+                        _ => unreachable!(
+                            "ICE: Cannot initialize array value created as {new_variable:?}"
+                        ),
+                    };
+
+                    // Write the items
+
+                    // Allocate a register for the iterator
+                    let iterator_register = self.brillig_context.make_constant(0_usize.into());
+
+                    for element_id in array.iter() {
+                        let element_variable = self.convert_ssa_value(*element_id, dfg);
+                        // Store the item in memory
+                        self.store_variable_in_array(pointer, iterator_register, element_variable);
+                        // Increment the iterator
+                        self.brillig_context.usize_op_in_place(
+                            iterator_register,
+                            BinaryIntOp::Add,
+                            1,
+                        );
                     }
-                    RegisterOrMemory::HeapVector(heap_vector) => {
-                        self.brillig_context
-                            .const_instruction(heap_vector.size, array.len().into());
-                        self.brillig_context
-                            .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
 
-                        heap_vector.pointer
-                    }
-                    _ => unreachable!(
-                        "ICE: Cannot initialize array value created as {new_variable:?}"
-                    ),
-                };
+                    self.brillig_context.deallocate_register(iterator_register);
 
-                // Write the items
-
-                // Allocate a register for the iterator
-                let iterator_register = self.brillig_context.make_constant(0_usize.into());
-
-                for element_id in array.iter() {
-                    let element_variable = self.convert_ssa_value(*element_id, dfg);
-                    // Store the item in memory
-                    self.store_variable_in_array(pointer, iterator_register, element_variable);
-                    // Increment the iterator
-                    self.brillig_context.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
+                    new_variable
                 }
-
-                self.brillig_context.deallocate_register(iterator_register);
-
-                new_variable
             }
             _ => {
                 todo!("ICE: Cannot convert value {value:?}")
@@ -1037,7 +1131,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) -> RegisterIndex {
         let variable = self.convert_ssa_value(value_id, dfg);
-        self.function_context.extract_register(variable)
+        extract_register(variable)
     }
 
     fn allocate_external_call_result(
@@ -1047,20 +1141,31 @@ impl<'block> BrilligBlock<'block> {
     ) -> RegisterOrMemory {
         let typ = dfg[result].get_type();
         match typ {
-            Type::Numeric(_) => {
-                self.function_context.create_variable(self.brillig_context, result, dfg)
-            }
+            Type::Numeric(_) => self.variables.define_variable(
+                self.function_context,
+                self.brillig_context,
+                result,
+                dfg,
+            ),
 
             Type::Array(..) => {
-                let variable =
-                    self.function_context.create_variable(self.brillig_context, result, dfg);
-                let array = self.function_context.extract_heap_array(variable);
+                let variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    result,
+                    dfg,
+                );
+                let array = extract_heap_array(variable);
                 self.brillig_context.allocate_fixed_length_array(array.pointer, array.size);
                 variable
             }
             Type::Slice(_) => {
-                let variable =
-                    self.function_context.create_variable(self.brillig_context, result, dfg);
+                let variable = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    result,
+                    dfg,
+                );
                 let vector = self.brillig_context.extract_heap_vector(variable);
 
                 // Set the pointer to the current stack frame

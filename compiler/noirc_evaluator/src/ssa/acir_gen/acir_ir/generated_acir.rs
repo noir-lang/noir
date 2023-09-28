@@ -452,6 +452,10 @@ impl GeneratedAcir {
         if let Some(rhs_const) = rhs.to_const() {
             max_rhs_bits = rhs_const.num_bits();
             if max_rhs_bits != 0 {
+                if max_rhs_bits > max_bit_size {
+                    let zero = self.get_or_create_witness(&Expression::zero());
+                    return Ok((zero, zero));
+                }
                 max_q_bits = max_bit_size - max_rhs_bits + 1;
             }
         }
@@ -540,11 +544,7 @@ impl GeneratedAcir {
         let r_witness = self.next_witness_index();
 
         let quotient_code = brillig_directive::directive_quotient(max_bit_size);
-        let inputs = vec![
-            BrilligInputs::Single(lhs),
-            BrilligInputs::Single(rhs),
-            BrilligInputs::Single(predicate.clone()),
-        ];
+        let inputs = vec![BrilligInputs::Single(lhs), BrilligInputs::Single(rhs)];
         let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
         self.brillig(Some(predicate), quotient_code, inputs, outputs);
 
@@ -575,10 +575,6 @@ impl GeneratedAcir {
 
         fn bit_size_u128(a: u128) -> u32 where {
             num_bits::<u128>() as u32 - a.leading_zeros()
-        }
-
-        fn bit_size_u32(a: u32) -> u32 where {
-            num_bits::<u32>() as u32 - a.leading_zeros()
         }
 
         assert!(
@@ -618,21 +614,6 @@ impl GeneratedAcir {
         self.range_constraint(w, bits)?;
 
         Ok(())
-    }
-
-    /// Computes the expression x(x-1)
-    ///
-    /// If the above is constrained to zero, then it can only be
-    /// true, iff x equals zero or one.
-    fn boolean_expr(&mut self, expr: &Expression) -> Expression {
-        let expr_as_witness = self.create_witness_for_expression(expr);
-        let mut expr_squared = Expression::default();
-        expr_squared.push_multiplication_term(
-            FieldElement::one(),
-            expr_as_witness,
-            expr_as_witness,
-        );
-        &expr_squared - expr
     }
 
     /// Adds an inversion brillig opcode.

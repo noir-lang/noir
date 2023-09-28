@@ -1,0 +1,54 @@
+name: Noir JS
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: wasm32-unknown-unknown
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm32-unknown-unknown-noir-js
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
+      - name: Build acvm_js
+        run: yarn workspace @noir-lang/acvm_js build
+
+      - name: Build noirc_abi
+        run: yarn workspace @noir-lang/noirc_abi build
+
+      - name: Run noir_js tests
+        run: |
+          yarn workspace @noir-lang/noir_js build
+          yarn workspace @noir-lang/noir_js test

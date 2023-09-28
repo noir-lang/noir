@@ -115,8 +115,8 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(&assign_stmt.expression);
         self.unify_with_coercions(&expr_type, &lvalue_type, assign_stmt.expression, || {
             TypeCheckError::TypeMismatchWithSource {
-                actual: lvalue_type.clone(),
-                expected: expr_type.clone(),
+                actual: expr_type.clone(),
+                expected: lvalue_type.clone(),
                 span,
                 source: Source::Assignment,
             }
@@ -297,6 +297,10 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Prefix(_) => self
                 .errors
                 .push(TypeCheckError::InvalidUnaryOp { kind: annotated_type.to_string(), span }),
+            HirExpression::Infix(expr) => {
+                self.lint_overflowing_uint(&expr.lhs, annotated_type);
+                self.lint_overflowing_uint(&expr.rhs, annotated_type);
+            }
             _ => {}
         }
     }
