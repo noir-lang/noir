@@ -7,20 +7,13 @@
 mod config;
 mod visitor;
 
-use noirc_frontend::parser::ParserError;
+use noirc_frontend::ParsedModule;
 use visitor::FmtVisitor;
 
-pub fn format(source: &str) -> Result<String, Vec<ParserError>> {
-    let (module, errors) = noirc_frontend::parse_program(source);
-
-    if !errors.is_empty() {
-        return Err(errors);
-    }
-
+pub fn format(source: &str, parsed_module: ParsedModule) -> String {
     let mut fmt = FmtVisitor::new(source);
-    fmt.visit_module(module);
-
-    Ok(fmt.finish())
+    fmt.visit_module(parsed_module);
+    fmt.finish()
 }
 
 #[cfg(test)]
@@ -35,7 +28,11 @@ mod tests {
 
             let source_path = file.path();
             let source = std::fs::read_to_string(&source_path).unwrap();
-            let fmt_text = crate::format(&source).unwrap();
+
+            let (parsed_module, errors) = noirc_frontend::parse_program(&source);
+            let fmt_text = crate::format(&source, parsed_module);
+
+            assert!(errors.is_empty());
 
             let target_path: PathBuf = source_path
                 .components()

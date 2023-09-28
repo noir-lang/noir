@@ -1,7 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use nargo_toml::find_package_root;
+use fm::FileManager;
+use nargo_toml::{
+    find_package_root, get_package_manifest, resolve_workspace_from_toml, PackageSelection,
+};
+use noirc_errors::CustomDiagnostic;
+use noirc_frontend::hir::def_map::parse_file;
 
 use crate::errors::CliError;
 
@@ -11,24 +16,37 @@ use super::NargoConfig;
 pub(crate) struct FormatCommand {}
 
 pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
-    let files = {
-        let package = find_package_root(&config.program_dir)?;
-        read_files(&package.join("src")).map_err(|error| CliError::Generic(error.to_string()))?
-    };
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All)?;
 
-    for file in files {
-        let source =
-            std::fs::read_to_string(&file).map_err(|error| CliError::Generic(error.to_string()))?;
-
-        let source = match nargo_fmt::format(&source) {
-            Ok(t) => t,
-            Err(errors) => {
-                println!("{errors:?}");
-                continue;
-            }
+    for package in &workspace {
+        let files = {
+            let package = find_package_root(&package.root_dir)?;
+            read_files(&package.join("src"))
+                .map_err(|error| CliError::Generic(error.to_string()))?
         };
 
-        std::fs::write(file, source).map_err(|error| CliError::Generic(error.to_string()))?;
+        let mut file_manager = FileManager::new(&package.root_dir);
+        for file in files {
+            let file_id = file_manager.add_file(&file).expect("file exists");
+            let (parsed_module, errors) = parse_file(&file_manager, file_id);
+
+            if !errors.is_empty() {
+                let errors = errors
+                    .into_iter()
+                    .map(|error| {
+                        let error: CustomDiagnostic = error.into();
+                        error.in_file(file_id)
+                    })
+                    .collect();
+                let _ = super::compile_cmd::report_errors::<()>(Err(errors), &file_manager, false);
+                continue;
+            }
+
+            let source =
+                nargo_fmt::format(file_manager.fetch_file(file_id).source(), parsed_module);
+            std::fs::write(file, source).map_err(|error| CliError::Generic(error.to_string()))?;
+        }
     }
 
     Ok(())
