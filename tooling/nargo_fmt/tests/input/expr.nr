@@ -57,3 +57,8 @@ fn only_comments() {
     // Keep this here
     // Keep this here
 }
+
+fn commnet() {
+    1
+    //
+}
