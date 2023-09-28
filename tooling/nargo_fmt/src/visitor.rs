@@ -10,7 +10,7 @@ mod expr;
 mod item;
 mod stmt;
 
-use noirc_frontend::{hir::resolution::errors::Span, NoirFunction};
+use noirc_frontend::hir::resolution::errors::Span;
 
 use crate::config::Config;
 
@@ -97,17 +97,36 @@ impl<'a> FmtVisitor<'a> {
         self.last_position = end;
 
         if slice.trim().is_empty() && !self.at_start() {
-            self.push_str("\n");
+            self.push_vertical_spaces(slice);
             process_last_slice(self, "", slice);
         } else {
             process_last_slice(self, slice, slice);
         }
     }
 
-    fn format_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
-        let slice = slice!(self, start, func.span().start());
-        let force_brace_newline = slice.contains("//");
-        (slice.trim_end().to_string(), force_brace_newline)
+    fn push_vertical_spaces(&mut self, slice: &str) {
+        let newline_upper_bound = 2;
+        let newline_lower_bound = 1;
+
+        let mut newline_count = bytecount::count(slice.as_bytes(), b'\n');
+        let offset = self.buffer.chars().rev().take_while(|c| *c == '\n').count();
+
+        if newline_count + offset > newline_upper_bound {
+            if offset >= newline_upper_bound {
+                newline_count = 0;
+            } else {
+                newline_count = newline_upper_bound - offset;
+            }
+        } else if newline_count + offset < newline_lower_bound {
+            if offset >= newline_lower_bound {
+                newline_count = 0;
+            } else {
+                newline_count = newline_lower_bound - offset;
+            }
+        }
+
+        let blank_lines = "\n".repeat(newline_count);
+        self.push_str(&blank_lines);
     }
 }
 

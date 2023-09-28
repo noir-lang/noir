@@ -1,9 +1,15 @@
 use noirc_frontend::{
     parser::{Item, ItemKind},
-    ParsedModule,
+    NoirFunction, ParsedModule,
 };
 
 impl super::FmtVisitor<'_> {
+    fn format_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
+        let slice = slice!(self, start, func.span().start());
+        let force_brace_newline = slice.contains("//");
+        (slice.trim_end().to_string(), force_brace_newline)
+    }
+
     pub(crate) fn visit_module(&mut self, module: ParsedModule) {
         for Item { kind, span } in module.items {
             match kind {

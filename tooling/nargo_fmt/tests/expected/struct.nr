@@ -46,10 +46,12 @@ struct Animal {
     legs: Field,
     eyes: u8,
 }
+
 fn get_dog() -> Animal {
     let dog = Animal { legs: 4, eyes: 2 };
     dog
 }
+
 fn main(x: Field, y: Field) {
     let first = Foo::default(x,y);
     let p = Pair { first, second: 1 };
