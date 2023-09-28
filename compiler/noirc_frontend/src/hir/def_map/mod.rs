@@ -1,14 +1,13 @@
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::DefCollector;
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner};
-use crate::parser::{parse_program, ParsedModule};
-use crate::token::{FunctionAttribute, TestScope};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::parser::{parse_program, ParsedModule, ParserError};
+use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::{FileDiagnostic, Location};
+use noirc_errors::Location;
 use std::collections::BTreeMap;
-
 mod module_def;
 pub use module_def::*;
 mod item_scope;
@@ -73,23 +72,29 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        errors: &mut Vec<FileDiagnostic>,
-    ) {
+    ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
+        let mut errors: Vec<(CompilationError, FileId)> = vec![];
         if context.def_map(&crate_id).is_some() {
-            return;
+            return errors;
         }
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&context.file_manager, root_file_id, errors);
+        let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
 
         #[cfg(feature = "aztec")]
-        let ast = aztec_library::transform(ast, &crate_id, context, errors);
+        let ast = match aztec_library::transform(ast, &crate_id, context) {
+            Ok(ast) => ast,
+            Err((error, file_id)) => {
+                errors.push((error.into(), file_id));
+                return errors;
+            }
+        };
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -104,7 +109,11 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        DefCollector::collect(def_map, context, ast, root_file_id, errors);
+        errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
+        errors.extend(
+            parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
+        );
+        errors
     }
 
     pub fn root(&self) -> LocalModuleId {
@@ -173,8 +182,20 @@ impl CrateDefMap {
                         })
                         .collect();
 
+                    let events = module
+                        .type_definitions()
+                        .filter_map(|id| {
+                            id.as_type().filter(|struct_id| {
+                                interner
+                                    .struct_attributes(struct_id)
+                                    .iter()
+                                    .any(|attr| attr == &SecondaryAttribute::Event)
+                            })
+                        })
+                        .collect();
+
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, location: module.location, functions })
+                    Some(Contract { name, location: module.location, functions, events })
                 } else {
                     None
                 }
@@ -227,25 +248,22 @@ pub struct ContractFunctionMeta {
     pub is_entry_point: bool,
 }
 
-/// A 'contract' in Noir source code with the given name and functions.
+/// A 'contract' in Noir source code with a given name, functions and events.
 /// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
     pub location: Location,
     pub functions: Vec<ContractFunctionMeta>,
+    pub events: Vec<StructId>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(
-    fm: &FileManager,
-    file_id: FileId,
-    all_errors: &mut Vec<FileDiagnostic>,
-) -> ParsedModule {
+pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file = fm.fetch_file(file_id);
     let (program, errors) = parse_program(file.source());
-    all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
-    program
+
+    (program, errors)
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

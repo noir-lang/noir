@@ -299,13 +299,12 @@ impl AcirContext {
 
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
-        let field_type = AcirType::NumericType(NumericType::NativeField);
 
         let results = self.brillig(
             predicate,
             inverse_code,
-            vec![AcirValue::Var(var, field_type.clone())],
-            vec![field_type],
+            vec![AcirValue::Var(var, AcirType::field())],
+            vec![AcirType::field()],
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -931,17 +930,10 @@ impl AcirContext {
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index = AcirValue::Var(
-                        self.add_constant(FieldElement::from(i as u128)),
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
-                    let index_var = index.into_var()?;
+                    let index_var = self.add_constant(FieldElement::from(i as u128));
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(
-                        value_read_var,
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
 
                     self.brillig_array_input(var_expressions, value_read)?;
                 }

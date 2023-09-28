@@ -1,7 +1,9 @@
 [package]
 name = "brillig"
 description = "Brillig is the bytecode ACIR uses for non-determinism."
-version = "0.27.0"
+# x-release-please-start-version
+version = "0.27.3"
+# x-release-please-end
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
