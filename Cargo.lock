@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "noirc_frontend",
  "readonly",
