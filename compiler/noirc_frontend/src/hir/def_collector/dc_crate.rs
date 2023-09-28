@@ -522,42 +522,40 @@ fn collect_trait_impl(
             }
         };
 
-    
     if let Some(trait_id) = trait_impl.trait_id {
-            errors.extend(collect_trait_impl_methods(
-                interner, def_maps, crate_id, trait_id, trait_impl,
-            ));
-            for (_, func_id, ast) in &trait_impl.methods.functions {
-                let file = def_maps[&crate_id].file_id(trait_impl.module_id);
+        errors
+            .extend(collect_trait_impl_methods(interner, def_maps, crate_id, trait_id, trait_impl));
+        for (_, func_id, ast) in &trait_impl.methods.functions {
+            let file = def_maps[&crate_id].file_id(trait_impl.module_id);
 
-                let path_resolver = StandardPathResolver::new(module);
-                let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-                resolver.add_generics(&ast.def.generics);
-                let typ = resolver.resolve_type(unresolved_type.clone());
+            let path_resolver = StandardPathResolver::new(module);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.add_generics(&ast.def.generics);
+            let typ = resolver.resolve_type(unresolved_type.clone());
 
-                if let Some(struct_type) = get_struct_type(&typ) {
-                    errors.extend(take_errors(trait_impl.file_id, resolver));
-                    let current_def_map = def_maps.get_mut(&crate_id).unwrap();
-                    match add_method_to_struct_namespace(
-                        current_def_map,
-                        struct_type,
-                        *func_id,
-                        ast.name_ident(),
-                    ) {
-                        Ok(()) => {},
-                        Err(err) => {
-                            errors.push((err.into(), trait_impl.file_id));
-                        }
+            if let Some(struct_type) = get_struct_type(&typ) {
+                errors.extend(take_errors(trait_impl.file_id, resolver));
+                let current_def_map = def_maps.get_mut(&crate_id).unwrap();
+                match add_method_to_struct_namespace(
+                    current_def_map,
+                    struct_type,
+                    *func_id,
+                    ast.name_ident(),
+                ) {
+                    Ok(()) => {}
+                    Err(err) => {
+                        errors.push((err.into(), trait_impl.file_id));
                     }
-                } else {
-                    let error = DefCollectorErrorKind::NonStructTraitImpl {
-                        trait_path: trait_impl.trait_path.clone(),
-                        span: trait_impl.trait_path.span(),
-                    };
-                    errors.push((error.into(), trait_impl.file_id));
                 }
+            } else {
+                let error = DefCollectorErrorKind::NonStructTraitImpl {
+                    trait_path: trait_impl.trait_path.clone(),
+                    span: trait_impl.trait_path.span(),
+                };
+                errors.push((error.into(), trait_impl.file_id));
             }
         }
+    }
     errors
 }
 
