@@ -1,7 +1,7 @@
 import { generateRustCode } from './rust.js';
 import { generateTypeScriptCode } from './typescript.js';
 
-const [, , exports = '../exports.json', lang = 'ts'] = process.argv;
+const [, , exp = '../exports.json', lang = 'ts'] = process.argv;
 
 function generateCode(exports: string, lang: string) {
   switch (lang) {
@@ -14,4 +14,4 @@ function generateCode(exports: string, lang: string) {
   }
 }
 
-console.log(generateCode(exports, lang));
+console.log(generateCode(exp, lang));

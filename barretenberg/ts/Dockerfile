@@ -10,5 +10,5 @@ COPY yarn.lock yarn.lock
 COPY .yarnrc.yml .yarnrc.yml
 RUN yarn --immutable
 COPY . .
-RUN yarn formatting && yarn build:ts
+RUN yarn formatting && SKIP_CPP_BUILD=1 yarn build
 CMD ["yarn", "test"]

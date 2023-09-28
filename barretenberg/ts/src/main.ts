@@ -4,7 +4,7 @@ import createDebug from 'debug';
 import { readFileSync, writeFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { Command } from 'commander';
-import acvmInfoJson from './info.json' assert { type: 'json' };
+import { acvmInfoJson } from './info.js';
 createDebug.log = console.error.bind(console);
 const debug = createDebug('bb.js');
 

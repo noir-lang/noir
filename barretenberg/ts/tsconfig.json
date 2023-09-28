@@ -17,5 +17,5 @@
     "rootDir": "src",
     "tsBuildInfoFile": ".tsbuildinfo"
   },
-  "include": ["src", "src/info.json"]
+  "include": ["src"]
 }
