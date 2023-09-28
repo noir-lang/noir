@@ -125,24 +125,6 @@ impl Circuit {
         PublicInputs(public_inputs)
     }
 
-    #[cfg(feature = "serialize-messagepack")]
-    pub fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = rmp_serde::to_vec(&self).unwrap();
-        let mut deflater = flate2::write::DeflateEncoder::new(writer, Compression::best());
-        deflater.write_all(&buf).unwrap();
-
-        Ok(())
-    }
-    #[cfg(feature = "serialize-messagepack")]
-    pub fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
-        let mut deflater = flate2::read::DeflateDecoder::new(reader);
-        let mut buf_d = Vec::new();
-        deflater.read_to_end(&mut buf_d).unwrap();
-        let circuit = rmp_serde::from_slice(buf_d.as_slice()).unwrap();
-        Ok(circuit)
-    }
-
-    #[cfg(not(feature = "serialize-messagepack"))]
     pub fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(&self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
@@ -151,7 +133,6 @@ impl Circuit {
         Ok(())
     }
 
-    #[cfg(not(feature = "serialize-messagepack"))]
     pub fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
