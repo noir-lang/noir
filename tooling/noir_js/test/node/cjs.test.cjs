@@ -70,7 +70,11 @@ describe('input validation', () => {
       chai.expect.fail('Expected generatedWitness to throw, due to x not being convertible to a uint64');
     } catch (error) {
       const knownError = error;
-      chai.expect(knownError.message).to.equal('Input for x is the wrong type, expected uint64, got "foo"');
+      chai
+        .expect(knownError.message)
+        .to.equal(
+          'Expected witness values to be integers, provided value causes `invalid digit found in string` error',
+        );
     }
   });
 });
