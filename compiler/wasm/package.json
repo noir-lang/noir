@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.14.0",
+  "version": "0.14.1",
   "license": "(MIT OR Apache-2.0)",
   "main": "./nodejs/noir_wasm.js",
   "types": "./web/noir_wasm.d.ts",
@@ -23,7 +23,7 @@
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
-    "clean": "rm -rf ./nodejs ./web ./target ./result",
+    "clean": "chmod u+w web nodejs && rm -rf ./nodejs ./web ./target ./result",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "peerDependencies": {

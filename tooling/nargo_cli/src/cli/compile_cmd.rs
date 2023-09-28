@@ -267,6 +267,7 @@ fn save_contract(
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
+        events: contract.events,
     };
 
     save_contract_to_file(
