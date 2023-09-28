@@ -11,6 +11,7 @@ struct Foo {
 fn main(mut x : [Foo; 4], y : pub Field) {
     assert(x[y - 3].a == 1);
     assert(x[y - 3].b == [2, 3, 20]);
+    assert(x[y - 2].a == 4);
     assert(x[y - 2].b == [5, 6, 21]);
     assert(x[y - 1].a == 7);
     assert(x[y - 1].b == [8, 9, 22]);
