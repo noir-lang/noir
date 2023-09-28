@@ -527,19 +527,19 @@ export class MerkleTrees implements MerkleTreeDb {
    * @param l2Block - The L2 block to handle.
    */
   private async _handleL2Block(l2Block: L2Block) {
+    const treeRootWithIdPairs = [
+      [l2Block.endContractTreeSnapshot.root, MerkleTreeId.CONTRACT_TREE],
+      [l2Block.endNullifierTreeSnapshot.root, MerkleTreeId.NULLIFIER_TREE],
+      [l2Block.endPrivateDataTreeSnapshot.root, MerkleTreeId.PRIVATE_DATA_TREE],
+      [l2Block.endPublicDataTreeRoot, MerkleTreeId.PUBLIC_DATA_TREE],
+      [l2Block.endL1ToL2MessagesTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      [l2Block.endHistoricBlocksTreeSnapshot.root, MerkleTreeId.BLOCKS_TREE],
+    ] as const;
     const compareRoot = (root: Fr, treeId: MerkleTreeId) => {
       const treeRoot = this.trees[treeId].getRoot(true);
       return treeRoot.equals(root.toBuffer());
     };
-    const rootChecks = [
-      compareRoot(l2Block.endContractTreeSnapshot.root, MerkleTreeId.CONTRACT_TREE),
-      compareRoot(l2Block.endNullifierTreeSnapshot.root, MerkleTreeId.NULLIFIER_TREE),
-      compareRoot(l2Block.endPrivateDataTreeSnapshot.root, MerkleTreeId.PRIVATE_DATA_TREE),
-      compareRoot(l2Block.endPublicDataTreeRoot, MerkleTreeId.PUBLIC_DATA_TREE),
-      compareRoot(l2Block.endL1ToL2MessagesTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
-      compareRoot(l2Block.endHistoricBlocksTreeSnapshot.root, MerkleTreeId.BLOCKS_TREE),
-    ];
-    const ourBlock = rootChecks.every(x => x);
+    const ourBlock = treeRootWithIdPairs.every(([root, id]) => compareRoot(root, id));
     if (ourBlock) {
       this.log(`Block ${l2Block.number} is ours, committing world state..`);
       await this._commit();
@@ -582,9 +582,20 @@ export class MerkleTrees implements MerkleTreeDb {
 
       await this._commit();
     }
-    for (const treeId of merkleTreeIds()) {
+
+    for (const [root, treeId] of treeRootWithIdPairs) {
+      const treeName = MerkleTreeId[treeId];
       const info = await this._getTreeInfo(treeId, false);
-      this.log(`Tree ${MerkleTreeId[treeId]} synched with size ${info.size} root ${info.root.toString('hex')}`);
+      const syncedStr = '0x' + info.root.toString('hex');
+      const rootStr = root.toString();
+      // Sanity check that the rebuilt trees match the roots published by the L2 block
+      if (!info.root.equals(root.toBuffer())) {
+        throw new Error(
+          `Synced tree root ${treeName} does not match published L2 block root: ${syncedStr} != ${rootStr}`,
+        );
+      } else {
+        this.log(`Tree ${treeName} synched with size ${info.size} root ${rootStr}`);
+      }
     }
   }
 }

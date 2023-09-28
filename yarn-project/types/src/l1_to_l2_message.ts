@@ -21,6 +21,12 @@ export interface L1ToL2MessageSource {
    * @returns The confirmed L1 to L2 message (throws if not found)
    */
   getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
+
+  /**
+   * Gets the number of the latest L2 block processed by the implementation.
+   * @returns The number of the latest L2 block processed by the implementation.
+   */
+  getBlockNumber(): Promise<number>;
 }
 
 /**

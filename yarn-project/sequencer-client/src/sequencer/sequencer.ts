@@ -262,6 +262,8 @@ export class Sequencer {
     const syncedBlocks = await Promise.all([
       this.worldState.status().then((s: WorldStateStatus) => s.syncedToL2Block),
       this.p2pClient.getStatus().then(s => s.syncedToL2Block),
+      this.l2BlockSource.getBlockNumber(),
+      this.l1ToL2MessageSource.getBlockNumber(),
     ]);
     const min = Math.min(...syncedBlocks);
     return min >= this.lastPublishedBlock;

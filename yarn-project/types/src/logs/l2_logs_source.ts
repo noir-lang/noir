@@ -26,4 +26,10 @@ export interface L2LogsSource {
    * @returns A promise signalling completion of the stop process.
    */
   stop(): Promise<void>;
+
+  /**
+   * Gets the number of the latest L2 block processed by the implementation.
+   * @returns The number of the latest L2 block processed by the implementation.
+   */
+  getBlockNumber(): Promise<number>;
 }
