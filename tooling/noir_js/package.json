@@ -22,7 +22,7 @@
   "exports": {
     "require": "./lib/index.cjs",
     "default": "./lib/index.mjs",
-    "types": "./lib/inde.ts"
+    "types": "./lib/index.d.ts"
   },
   "types": "lib/index.d.ts",
   "scripts": {
