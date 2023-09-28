@@ -1,10 +1,10 @@
 fn comment1() {
-//
+    //
 }
 
 // random comment
 fn comment2() {
-// Test
+    // Test
 }
 fn comment3() // some comment
 {}

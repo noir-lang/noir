@@ -1,17 +1,18 @@
-use noirc_frontend::{
-    hir::resolution::errors::Span,
-    parser::{Item, ItemKind, ParsedModule},
-    BlockExpression, Expression, ExpressionKind, NoirFunction, Statement, StatementKind,
-};
-
-use crate::config::Config;
-
 /// A macro to create a slice from a given data source, helping to avoid borrow checker errors.
+#[macro_export]
 macro_rules! slice {
     ($this:ident, $start:expr, $end:expr) => {
         &$this.source[$start as usize..$end as usize]
     };
 }
+
+mod expr;
+mod item;
+mod stmt;
+
+use noirc_frontend::{hir::resolution::errors::Span, NoirFunction};
+
+use crate::config::Config;
 
 pub(crate) struct FmtVisitor<'a> {
     config: Config,
@@ -36,10 +37,11 @@ impl<'a> FmtVisitor<'a> {
         self.buffer
     }
 
-    fn with_indent(&mut self, f: impl FnOnce(&mut Self)) {
+    fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.block_indent.block_indent(&self.config);
-        f(self);
+        let ret = f(self);
         self.block_indent.block_unindent(&self.config);
+        ret
     }
 
     fn at_start(&self) -> bool {
@@ -54,105 +56,6 @@ impl<'a> FmtVisitor<'a> {
     fn push_rewrite(&mut self, s: String, span: Span) {
         self.format_missing_indent(span.start(), true);
         self.push_str(&s);
-    }
-
-    pub(crate) fn visit_module(&mut self, module: ParsedModule) {
-        for Item { kind, span } in module.items {
-            match kind {
-                ItemKind::Function(func) => {
-                    let (fn_before_block, force_brace_newline) =
-                        self.rewrite_fn_before_block(func.clone(), span.start());
-
-                    self.format_missing_indent(span.start(), false);
-
-                    self.push_str(&fn_before_block);
-                    self.push_str(if force_brace_newline { "\n" } else { " " });
-
-                    self.visit_block(func.def.body, func.def.span, false);
-                }
-                _ => self.format_missing(span.end()),
-            }
-        }
-
-        self.format_missing_indent(self.source.len() as u32, false);
-    }
-
-    fn visit_block(&mut self, block: BlockExpression, block_span: Span, should_indent: bool) {
-        if block.is_empty() {
-            let slice = slice!(self, block_span.start(), block_span.end());
-            let comment_str = slice[1..slice.len() - 1].trim();
-
-            let block_str = if comment_str.is_empty() {
-                "{}".to_string()
-            } else {
-                let indent = self.block_indent.to_string();
-                format!("{{\n{indent}{comment_str}\n{indent}}}",)
-            };
-
-            self.last_position = block_span.end();
-            self.push_str(&block_str);
-            return;
-        }
-
-        self.last_position = block_span.start() + 1; // `{`
-
-        self.push_str("{");
-
-        self.with_indent(|this| {
-            this.visit_stmts(block.0);
-        });
-
-        self.push_str("\n");
-        self.last_position = block_span.end();
-
-        if should_indent {
-            self.push_str(&self.block_indent.to_string());
-        }
-
-        self.push_str("}");
-    }
-
-    fn visit_stmts(&mut self, stmts: Vec<Statement>) {
-        for Statement { kind, span } in stmts {
-            match kind {
-                StatementKind::Expression(expr) => self.visit_expr(expr),
-                StatementKind::Semi(expr) => {
-                    self.visit_expr(expr);
-                    self.push_str(";");
-                }
-                StatementKind::Error => unreachable!(),
-                _ => self.format_missing(span.end()),
-            }
-
-            self.last_position = span.end();
-        }
-    }
-
-    fn visit_expr(&mut self, expr: Expression) {
-        let span = expr.span;
-
-        let rewrite = self.format_expr(expr);
-        self.push_rewrite(rewrite, span);
-
-        self.last_position = span.end();
-    }
-
-    fn format_expr(&self, Expression { kind, span }: Expression) -> String {
-        match kind {
-            ExpressionKind::Block(block) => {
-                let mut visitor = FmtVisitor::new(self.source);
-
-                visitor.block_indent = self.block_indent;
-                visitor.visit_block(block, span, true);
-
-                visitor.buffer
-            }
-            ExpressionKind::Prefix(prefix) => {
-                format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
-            }
-            // TODO:
-            _expr => slice!(self, span.start(), span.end()).to_string(),
-        }
     }
 
     fn format_missing(&mut self, end: u32) {
@@ -201,7 +104,7 @@ impl<'a> FmtVisitor<'a> {
         }
     }
 
-    fn rewrite_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
+    fn format_fn_before_block(&self, func: NoirFunction, start: u32) -> (String, bool) {
         let slice = slice!(self, start, func.span().start());
         let force_brace_newline = slice.contains("//");
         (slice.trim_end().to_string(), force_brace_newline)

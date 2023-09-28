@@ -2,11 +2,18 @@
 fn qux() {
     {}
     {
-    /* a block with a comment */
+        /* a block with a comment */
     }
     {}
     {
-    // A block with a comment.
+        // A block with a comment.
+    }
+    {
+        {
+            {
+                // A block with a comment.
+            }
+        }
     }
 }
 fn foo_return() {
@@ -31,5 +38,13 @@ fn comment() {
     1
 }
 fn only_comment() {
+    // Keep this here
+}
+fn only_comments() {
+    // Keep this here
 // Keep this here
+}
+fn only_comments() {
+    // Keep this here
+    // Keep this here
 }
