@@ -1,6 +1,9 @@
 module.exports = {
   root: true,
   env: { browser: true, es2020: true },
+  parserOptions: {
+    project: './tsconfig.json',
+  },
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
@@ -14,14 +17,13 @@ module.exports = {
       node: true,
     },
   },
-  ignorePatterns: ['dist', '.eslintrc.cjs'],
+  ignorePatterns: ['dest', 'webpack.config.js', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
   plugins: [],
   overrides: [
     {
       files: ['*.ts', '*.tsx'],
       parserOptions: {
-        // hacky workaround for CI not having the same tsconfig setup
         project: true,
       },
     },

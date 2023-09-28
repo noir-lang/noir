@@ -40,7 +40,7 @@ async function isDirectoryNonEmpty(directoryPath: string): Promise<boolean> {
  * @param localOutputPath - local path to copy to
  */
 async function copyFolderFromGithub(data: JSZip, repositoryFolderPath: string, localOutputPath: string, log: LogFn) {
-  log(`Downloading from github: ${repositoryFolderPath}`);
+  log(`Downloading folder from github: ${repositoryFolderPath}`);
   const repositoryDirectories = Object.values(data.files).filter(file => {
     return file.dir && file.name.startsWith(repositoryFolderPath);
   });
@@ -51,16 +51,37 @@ async function copyFolderFromGithub(data: JSZip, repositoryFolderPath: string, l
     await fs.mkdir(targetPath, { recursive: true });
   }
 
-  const starterFiles = Object.values(data.files).filter(file => {
+  const folderFiles = Object.values(data.files).filter(file => {
     return !file.dir && file.name.startsWith(repositoryFolderPath);
   });
 
-  for (const file of starterFiles) {
+  for (const file of folderFiles) {
     const relativePath = file.name.replace(repositoryFolderPath, '');
     const targetPath = `${localOutputPath}/${relativePath}`;
     const content = await file.async('nodebuffer');
     await fs.writeFile(targetPath, content);
   }
+}
+
+/**
+ * @param data - in memory unzipped clone of a github repo
+ * @param repositoryFile - path of the file to copy from github repo
+ * @param localOutputPath - local path to copy the file to
+ */
+async function copyFileFromGithub(data: JSZip, repositoryFile: string, localOutputPath: string, log: LogFn) {
+  log(`Downloading file from github: ${repositoryFile}`);
+
+  const file = data.files[repositoryFile];
+
+  if (!file || file.dir) {
+    throw new Error(`File not found or it's a directory: ${repositoryFile}`);
+  }
+
+  const filename = path.basename(repositoryFile);
+  const targetPath = `${localOutputPath}/${filename}`;
+
+  const content = await file.async('nodebuffer');
+  await fs.writeFile(targetPath, content);
 }
 
 /**
@@ -98,12 +119,19 @@ async function downloadContractAndBoxFromGithub(
   const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${contractName}`;
   await copyFolderFromGithub(data, boxPath, outputPath, log);
 
+  // the expected noir version is contained in
+  // aztec-packages/yarn-project/noir-compiler/src/noir-version.json
+  // copy it in and use to update the package.json script to install that version of noir
+  const noirVersionPath = `${repoDirectoryPrefix}/yarn-project/noir-compiler/src/noir-version.json`;
+  await copyFileFromGithub(data, noirVersionPath, outputPath, log);
+
   const contractTargetDirectory = path.join(outputPath, 'src', 'contracts');
   const boxContainsNoirSource = await isDirectoryNonEmpty(contractTargetDirectory);
   if (boxContainsNoirSource) {
     return;
   } else {
     // we used to support downloading from the noir contracts monorepo but now force box to contain source code
+    // This should never happen, because of the check we do initially on the box name.
     throw Error(`Box ${contractName} does not contain noir source code.`);
   }
 }
@@ -200,6 +228,13 @@ async function updatePackageJsonVersions(packageVersion: string, outputPath: str
       }
     }
   }
+  // read the `noir-version.json`, grab the expected noir version, and patch the noir install script
+  const noirVersionPath = path.join(outputPath, 'noir-version.json');
+  const noirVersionContent = await fs.readFile(noirVersionPath, 'utf-8');
+  const noirVersionJSON = JSON.parse(noirVersionContent);
+  const noirTag = noirVersionJSON.tag;
+  packageData.scripts['install:noir'] = packageData.scripts['install:noir'].replace('NOIR_VERSION', `${noirTag}`);
+  log(`Updated Noir version to: ${noirTag}`);
 
   // modify the version of the sandbox to pull - it's set to "latest" version in the monorepo,
   // but we need to replace with the same tagVersion as the cli and the other aztec npm packages
@@ -262,7 +297,7 @@ export async function unboxContract(
   packageVersion: string,
   log: LogFn,
 ) {
-  const contractNames = ['private-token', 'blank'];
+  const contractNames = ['private-token', 'blank', 'blank-react'];
 
   if (!contractNames.includes(contractName)) {
     log(
@@ -276,11 +311,9 @@ export async function unboxContract(
 
   const tag = `${GITHUB_TAG_PREFIX}-v${packageVersion}`;
   // downloads the selected contract's relevant folder in @aztec/boxes/{contract_name}
-  // and the noir source code from `noir-contracts` into `${outputDirectoryName}/src/contracts`
-  // if not present in the box
   await downloadContractAndBoxFromGithub(tag, contractName, outputPath, log);
   // make adjustments for packaging to work as a standalone, as opposed to part of yarn workspace
-  // as in the monorepo source files
+  // as in the monorepo source files.  replace things like "workspace^" with the actual version number
   await updatePackagingConfigurations(packageVersion, tag, outputPath, log);
 
   log('');
@@ -288,5 +321,7 @@ export async function unboxContract(
   log('To get started, simply run the following commands:');
   log(`    cd ${outputDirectoryName}`);
   log('    yarn');
+  log('    yarn start:sandbox');
+  log('And in another terminal in the same directory,');
   log('    yarn start:dev');
 }
