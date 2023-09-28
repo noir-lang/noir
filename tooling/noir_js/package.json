@@ -35,7 +35,6 @@
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
     "clean": "rm -rf ./lib"
-    
   },
   "devDependencies": {
     "@aztec/bb.js": "0.7.2",
