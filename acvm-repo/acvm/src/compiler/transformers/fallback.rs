@@ -106,12 +106,8 @@ impl FallbackTransformer {
             }
             #[cfg(feature = "unstable-fallbacks")]
             BlackBoxFuncCall::SHA256 { inputs, outputs } => {
-                let mut sha256_inputs = Vec::new();
-                for input in inputs.iter() {
-                    let witness_index = Expression::from(input.witness);
-                    let num_bits = input.num_bits;
-                    sha256_inputs.push((witness_index, num_bits));
-                }
+                let sha256_inputs =
+                    inputs.iter().map(|input| (input.witness.into(), input.num_bits)).collect();
                 stdlib::blackbox_fallbacks::sha256(
                     sha256_inputs,
                     outputs.to_vec(),
@@ -120,42 +116,30 @@ impl FallbackTransformer {
             }
             #[cfg(feature = "unstable-fallbacks")]
             BlackBoxFuncCall::Blake2s { inputs, outputs } => {
-                let mut blake2s_input = Vec::new();
-                for input in inputs.iter() {
-                    let witness_index = Expression::from(input.witness);
-                    let num_bits = input.num_bits;
-                    blake2s_input.push((witness_index, num_bits));
-                }
+                let blake2s_inputs =
+                    inputs.iter().map(|input| (input.witness.into(), input.num_bits)).collect();
                 stdlib::blackbox_fallbacks::blake2s(
-                    blake2s_input,
+                    blake2s_inputs,
                     outputs.to_vec(),
                     current_witness_idx,
                 )
             }
             #[cfg(feature = "unstable-fallbacks")]
             BlackBoxFuncCall::HashToField128Security { inputs, output } => {
-                let mut blake2s_input = Vec::new();
-                for input in inputs.iter() {
-                    let witness_index = Expression::from(input.witness);
-                    let num_bits = input.num_bits;
-                    blake2s_input.push((witness_index, num_bits));
-                }
+                let hash_to_field_inputs =
+                    inputs.iter().map(|input| (input.witness.into(), input.num_bits)).collect();
                 stdlib::blackbox_fallbacks::hash_to_field(
-                    blake2s_input,
+                    hash_to_field_inputs,
                     *output,
                     current_witness_idx,
                 )
             }
             #[cfg(feature = "unstable-fallbacks")]
             BlackBoxFuncCall::Keccak256 { inputs, outputs } => {
-                let mut keccak_input = Vec::new();
-                for input in inputs.iter() {
-                    let witness_index = Expression::from(input.witness);
-                    let num_bits = input.num_bits;
-                    keccak_input.push((witness_index, num_bits));
-                }
+                let keccak_inputs =
+                    inputs.iter().map(|input| (input.witness.into(), input.num_bits)).collect();
                 stdlib::blackbox_fallbacks::keccak256(
-                    keccak_input,
+                    keccak_inputs,
                     outputs.to_vec(),
                     current_witness_idx,
                 )
