@@ -133,6 +133,7 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
+    "@types/leveldown": ^4.0.4
     "@types/levelup": ^5.1.2
     "@types/memdown": ^3.0.0
     "@types/node": ^18.7.23
@@ -386,6 +387,7 @@ __metadata:
     "@types/lodash.times": ^4.3.7
     "@types/lodash.zip": ^4.2.7
     "@types/lodash.zipwith": ^4.2.7
+    "@types/memdown": ^3.0.3
     "@types/node": ^18.7.23
     concurrently: ^7.6.0
     jest: ^29.5.0
@@ -397,6 +399,7 @@ __metadata:
     lodash.times: ^4.3.2
     lodash.zip: ^4.2.0
     lodash.zipwith: ^4.2.0
+    memdown: ^6.1.1
     puppeteer: ^21.3.4
     string-argv: ^0.3.2
     ts-jest: ^29.1.0
@@ -4489,6 +4492,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/leveldown@npm:^4.0.4":
+  version: 4.0.4
+  resolution: "@types/leveldown@npm:4.0.4"
+  dependencies:
+    "@types/abstract-leveldown": "*"
+    "@types/node": "*"
+  checksum: 630b2d2d1c48f83d14ab0f6c03ad2af1c427675c3692873c4fd3d673bde4140eabc028ce5736ad3d76aeea20769cf53df6f83468a4f0cf28f6d04dbb435edf48
+  languageName: node
+  linkType: hard
+
 "@types/levelup@npm:^5.1.2":
   version: 5.1.2
   resolution: "@types/levelup@npm:5.1.2"
@@ -4695,6 +4708,15 @@ __metadata:
   dependencies:
     "@types/abstract-leveldown": "*"
   checksum: bfc36240e32ed6f82b2b858be88aa8814e8c1e0a8922aae8bf44ce07a2c9e0e7bf867e01cab8aad10e1cab2d0bcb0b800b4f63b89d9c791328892acc00683469
+  languageName: node
+  linkType: hard
+
+"@types/memdown@npm:^3.0.3":
+  version: 3.0.3
+  resolution: "@types/memdown@npm:3.0.3"
+  dependencies:
+    "@types/abstract-leveldown": "*"
+  checksum: 9aa311838574b51e4334878102c80c6abc0e1ec14fe00f98c6ee812f3e6b24db53de632e0f763692730e0147e5c41add0ac4257c3deb3dc7abce176708ed73a4
   languageName: node
   linkType: hard
 

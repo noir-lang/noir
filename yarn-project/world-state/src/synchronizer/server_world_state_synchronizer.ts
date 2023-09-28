@@ -2,10 +2,14 @@ import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 
+import { LevelUp } from 'levelup';
+
 import { MerkleTreeOperations, MerkleTrees } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { WorldStateConfig } from './config.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchronizer } from './world_state_synchronizer.js';
+
+const DB_KEY_BLOCK_NUMBER = 'latestBlockNumber';
 
 /**
  * Synchronizes the world state with the L2 blocks from a L2BlockSource.
@@ -24,7 +28,8 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
   private runningPromise: Promise<void> = Promise.resolve();
   private currentState: WorldStateRunningState = WorldStateRunningState.IDLE;
 
-  constructor(
+  private constructor(
+    private db: LevelUp,
     private merkleTreeDb: MerkleTrees,
     private l2BlockSource: L2BlockSource,
     config: WorldStateConfig,
@@ -43,6 +48,22 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
 
   public getCommitted(): MerkleTreeOperations {
     return new MerkleTreeOperationsFacade(this.merkleTreeDb, false);
+  }
+
+  public static async new(
+    db: LevelUp,
+    merkleTreeDb: MerkleTrees,
+    l2BlockSource: L2BlockSource,
+    config: WorldStateConfig,
+    log = createDebugLogger('aztec:world_state'),
+  ) {
+    const server = new ServerWorldStateSynchronizer(db, merkleTreeDb, l2BlockSource, config, log);
+    await server.#init();
+    return server;
+  }
+
+  async #init() {
+    await this.restoreCurrentL2BlockNumber();
   }
 
   public async start() {
@@ -92,6 +113,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     await this.jobQueue.cancel();
     await this.merkleTreeDb.stop();
     await this.runningPromise;
+    await this.commitCurrentL2BlockNumber();
     this.setCurrentState(WorldStateRunningState.STOPPED);
   }
 
@@ -151,6 +173,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     // This request for blocks will timeout after 1 second if no blocks are received
     const blocks = await this.l2BlockDownloader.getL2Blocks(1);
     await this.handleL2Blocks(blocks);
+    await this.commitCurrentL2BlockNumber();
   }
 
   /**
@@ -188,5 +211,24 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
   private setCurrentState(newState: WorldStateRunningState) {
     this.currentState = newState;
     this.log(`Moved to state ${WorldStateRunningState[this.currentState]}`);
+  }
+
+  private async commitCurrentL2BlockNumber() {
+    const hex = this.currentL2BlockNum.toString(16);
+    const encoded = Buffer.from(hex.length % 2 === 1 ? '0' + hex : hex, 'hex');
+
+    await this.db.put(DB_KEY_BLOCK_NUMBER, encoded);
+    this.log.debug(`Committed current L2 block number ${this.currentL2BlockNum} to db`);
+  }
+
+  private async restoreCurrentL2BlockNumber() {
+    try {
+      const encoded: Buffer = await this.db.get(DB_KEY_BLOCK_NUMBER);
+      this.currentL2BlockNum = parseInt(encoded.toString('hex'), 16);
+      this.log.debug(`Restored current L2 block number ${this.currentL2BlockNum} from db`);
+    } catch (err) {
+      this.log.debug('No current L2 block number found in db, starting from 0');
+      this.currentL2BlockNum = 0;
+    }
   }
 }

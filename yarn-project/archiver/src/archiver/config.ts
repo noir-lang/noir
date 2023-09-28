@@ -41,6 +41,11 @@ export interface ArchiverConfig {
    * The deployed L1 contract addresses
    */
   l1Contracts: L1ContractAddresses;
+
+  /**
+   * Optional dir to store data. If omitted will store in memory.
+   */
+  dataDirectory?: string;
 }
 
 /**
@@ -59,6 +64,7 @@ export function getConfigEnvVars(): ArchiverConfig {
     API_KEY,
     INBOX_CONTRACT_ADDRESS,
     REGISTRY_CONTRACT_ADDRESS,
+    DATA_DIRECTORY,
   } = process.env;
   // Populate the relevant addresses for use by the archiver.
   const addresses: L1ContractAddresses = {
@@ -78,5 +84,6 @@ export function getConfigEnvVars(): ArchiverConfig {
     searchStartBlock: SEARCH_START_BLOCK ? +SEARCH_START_BLOCK : 0,
     apiKey: API_KEY,
     l1Contracts: addresses,
+    dataDirectory: DATA_DIRECTORY,
   };
 }

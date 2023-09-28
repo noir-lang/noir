@@ -1,4 +1,4 @@
-import { createMemDown, getConfigEnvVars } from '@aztec/aztec-node';
+import { getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AztecAddress,
   GlobalVariables,
@@ -33,6 +33,7 @@ import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { default as levelup } from 'levelup';
+import memdown from 'memdown';
 import {
   Address,
   Chain,
@@ -123,7 +124,7 @@ describe('L1Publisher integration', () => {
       publicClient,
     });
 
-    builderDb = await MerkleTrees.new(levelup(createMemDown())).then(t => t.asLatest());
+    builderDb = await MerkleTrees.new(levelup((memdown as any)())).then(t => t.asLatest());
     const vks = getVerificationKeys();
     const simulator = await WasmRollupCircuitSimulator.new();
     const prover = new EmptyRollupProver();

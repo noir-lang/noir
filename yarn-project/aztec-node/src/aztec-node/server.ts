@@ -45,12 +45,10 @@ import {
   getConfigEnvVars as getWorldStateConfig,
 } from '@aztec/world-state';
 
-import { default as levelup } from 'levelup';
-import { MemDown, default as memdown } from 'memdown';
+import levelup from 'levelup';
 
 import { AztecNodeConfig } from './config.js';
-
-export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
+import { openDb } from './db.js';
 
 /**
  * The aztec node.
@@ -90,10 +88,10 @@ export class AztecNodeService implements AztecNode {
     const p2pClient = await createP2PClient(config, new InMemoryTxPool(), archiver);
 
     // now create the merkle trees and the world state syncher
-    const merkleTreesDb = levelup(createMemDown());
-    const merkleTrees = await MerkleTrees.new(merkleTreesDb, await CircuitsWasm.get());
+    const db = await openDb(config);
+    const merkleTrees = await MerkleTrees.new(db, await CircuitsWasm.get());
     const worldStateConfig: WorldStateConfig = getWorldStateConfig();
-    const worldStateSynchronizer = new ServerWorldStateSynchronizer(merkleTrees, archiver, worldStateConfig);
+    const worldStateSynchronizer = await ServerWorldStateSynchronizer.new(db, merkleTrees, archiver, worldStateConfig);
 
     // start both and wait for them to sync from the block source
     await Promise.all([p2pClient.start(), worldStateSynchronizer.start()]);
@@ -120,7 +118,7 @@ export class AztecNodeService implements AztecNode {
       config.chainId,
       config.version,
       getGlobalVariableBuilder(config),
-      merkleTreesDb,
+      db,
     );
   }
 
