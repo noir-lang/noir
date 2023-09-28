@@ -1,15 +1,20 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
-
-COPY . .
-
+FROM ubuntu:lunar
+RUN apt-get update && apt-get install -y \
+    jq \
+    curl \
+    git \
+    sed
+WORKDIR /usr/src/yarn-project
+COPY noir-contracts noir-contracts
+COPY noir-compiler noir-compiler
+COPY aztec-nr aztec-nr
 WORKDIR /usr/src/yarn-project/noir-contracts
-RUN yarn build && yarn test
 
-# Prune dev dependencies. See comment in base image.
-RUN yarn cache clean
-RUN yarn workspaces focus --production > /dev/null
+# Download and extract nargo
+ENV NARGO_HOME="/usr/src/yarn-project/noir-contracts/.nargo"
+RUN ./scripts/install_noirup.sh $(pwd)
+ENV PATH="/usr/src/yarn-project/noir-contracts/.nargo/bin:${PATH}"
 
-FROM node:18-alpine
-COPY --from=builder /usr/src/yarn-project/noir-contracts /usr/src/yarn-project/noir-contracts
-WORKDIR /usr/src/yarn-project/noir-contracts
-ENTRYPOINT ["yarn"]
+RUN ./scripts/install_noir.sh
+RUN ./scripts/compile_all.sh
+RUN ./scripts/nargo_test_ci.sh

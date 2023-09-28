@@ -105,8 +105,8 @@ for E in "${PROJECTS[@]}"; do
         docker pull $CACHE_IMAGE_URI
       else
         docker build ${ADDITIONAL_ARGS:-} --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $CACHE_IMAGE_URI .
-        docker tag $CACHE_IMAGE_URI $DEPLOY_IMAGE_URI
       fi
+      docker tag $CACHE_IMAGE_URI $DEPLOY_IMAGE_URI
     fi
   fi
 

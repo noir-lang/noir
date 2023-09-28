@@ -84,7 +84,6 @@ l1-contracts:
 noir-contracts-build:
   buildDir: yarn-project
   projectDir: yarn-project/noir-contracts
-  dockerfile: Dockerfile.build
   rebuildPatterns:
     - ^yarn-project/noir-contracts/
     - ^yarn-project/aztec-nr/
