@@ -378,7 +378,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program
     .command('send')
     .description('Calls a function on an Aztec contract.')
-    .argument('<functionName>', 'Name of Function to view')
+    .argument('<functionName>', 'Name of function to execute')
     .option('-a, --args [functionArgs...]', 'Function arguments', [])
     .requiredOption(
       '-c, --contract-abi <fileLocation>',
@@ -416,7 +416,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description(
       'Simulates the execution of a view (read-only) function on a deployed contract, without modifying state.',
     )
-    .argument('<functionName>', 'Name of Function to view')
+    .argument('<functionName>', 'Name of function to call')
     .option('-a, --args [functionArgs...]', 'Function arguments', [])
     .requiredOption(
       '-c, --contract-abi <fileLocation>',
