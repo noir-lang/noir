@@ -66,11 +66,6 @@ impl AcirType {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
 
-    /// Returns a boolean type
-    fn boolean() -> Self {
-        AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
-    }
-
     /// True if type is signed
     pub(crate) fn is_signed(&self) -> bool {
         let numeric_type = match self {
