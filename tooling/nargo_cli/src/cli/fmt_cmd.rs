@@ -2,9 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::Args;
 use fm::FileManager;
-use nargo_toml::{
-    find_package_root, get_package_manifest, resolve_workspace_from_toml, PackageSelection,
-};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::def_map::parse_file;
 
@@ -21,8 +19,7 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
 
     for package in &workspace {
         let files = {
-            let package = find_package_root(&package.root_dir)?;
-            read_files(&package.join("src"))
+            read_files(&package.root_dir.join("src"))
                 .map_err(|error| CliError::Generic(error.to_string()))?
         };
 
