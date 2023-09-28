@@ -19,7 +19,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::token::Attributes;
+use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     ContractFunctionType, FunctionDefinition, Generics, Shared, TypeAliasType, TypeBinding,
     TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, Visibility,
@@ -31,6 +31,8 @@ pub struct TraitImplKey {
     pub trait_id: TraitId,
     // pub generics: Generics - TODO
 }
+
+type StructAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -73,6 +75,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
 
+    struct_attributes: HashMap<StructId, StructAttributes>,
     // Type Aliases map.
     //
     // Map type aliases to the actual type.
@@ -365,6 +368,7 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
             trait_implementations: HashMap::new(),
@@ -456,6 +460,7 @@ impl NodeInterner {
 
         let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
+        self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
         struct_id
     }
 
@@ -676,6 +681,10 @@ impl NodeInterner {
 
     pub fn function_attributes(&self, func_id: &FuncId) -> &Attributes {
         &self.function_modifiers[func_id].attributes
+    }
+
+    pub fn struct_attributes(&self, struct_id: &StructId) -> &StructAttributes {
+        &self.struct_attributes[struct_id]
     }
 
     /// Returns the interned statement corresponding to `stmt_id`

@@ -97,6 +97,10 @@ impl ModuleData {
         self.scope.find_name(name)
     }
 
+    pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
+        self.definitions.types().values().map(|(id, _)| *id)
+    }
+
     /// Return an iterator over all definitions defined within this module,
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
