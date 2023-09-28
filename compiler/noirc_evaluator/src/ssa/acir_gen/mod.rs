@@ -590,11 +590,8 @@ impl Context {
             return Ok(());
         }
 
-        let results = dfg.instruction_results(instruction);
-        let res_typ = dfg.type_of_value(results[0]);
-
         let (new_index, new_value) =
-            self.convert_array_operation_inputs(array, dfg, index, store_value, res_typ)?;
+            self.convert_array_operation_inputs(array, dfg, index, store_value)?;
 
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
@@ -686,97 +683,26 @@ impl Context {
         Ok(false)
     }
 
-    fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
-        let mut size = 0;
-        match &dfg[array_id] {
-            Value::Array { array, .. } => {
-                // The array is going to be the flattened outer array
-                // Flattened slice size from SSA value do not need to multiply len
-                for value in array {
-                    size += self.flattened_slice_size(*value, dfg);
-                }
-            }
-            Value::NumericConstant { .. } => {
-                size += 1;
-            }
-            Value::Instruction { .. } => {
-                let array_acir_value = self.convert_value(array_id, dfg);
-                size += Self::flattened_value_size(&array_acir_value);
-            }
-            _ => {
-                unreachable!("ICE: Unexpected SSA value when computing the slice size");
-            }
-        }
-        size
-    }
-
-    fn flattened_value_size(value: &AcirValue) -> usize {
-        let mut size = 0;
-        match value {
-            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
-                size += len;
-            }
-            AcirValue::Var(_, _) => {
-                size += 1;
-            }
-            AcirValue::Array(values) => {
-                for value in values {
-                    size += Self::flattened_value_size(value);
-                }
-            }
-        }
-        size
-    }
-
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - index_var is the index of the array
+    /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
+    ///     Thus internal array element type sizes need to be computed to accurately transform the index.
     /// - predicate_index is 0, or the index if the predicate is true
     /// - new_value is the optional value when the operation is an array_set
-    ///      When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///      It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     fn convert_array_operation_inputs(
         &mut self,
         array: ValueId,
         dfg: &DataFlowGraph,
         index: ValueId,
         store_value: Option<ValueId>,
-        res_typ: Type,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let index_var = if matches!(array_typ, Type::Array(_, _)) {
-            self.get_flattened_index(&array_typ, array_id, index_var, dfg)?
-        } else {
-            let flattened_index = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
-
-            let flat_slice_size = self.flattened_slice_size(array_id, dfg);
-            // TODO: clean this up and document why we are doing this
-            if store_value.is_none() {
-                let flat_slice_size_var =
-                    self.acir_context.add_constant(FieldElement::from(flat_slice_size as u128));
-                let res_typ_size = self
-                    .acir_context
-                    .add_constant(FieldElement::from(res_typ.flattened_size() as u128 - 1));
-                let flattened_index_plus_typ_size =
-                    self.acir_context.add_var(flattened_index, res_typ_size)?;
-                let predicate = self.acir_context.less_than_var(
-                    flattened_index_plus_typ_size,
-                    flat_slice_size_var,
-                    32,
-                    self.current_side_effects_enabled_var,
-                )?;
-                let true_pred = self.acir_context.mul_var(flattened_index, predicate)?;
-                let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred = self.acir_context.sub_var(one, predicate)?;
-                let zero = self.acir_context.add_constant(FieldElement::zero());
-                let false_pred = self.acir_context.mul_var(not_pred, zero)?;
-                self.acir_context.add_var(true_pred, false_pred)?
-            } else {
-                flattened_index
-            }
-        };
+        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
         let predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
@@ -1208,6 +1134,48 @@ impl Context {
             self.acir_context.read_from_memory(element_type_sizes, &element_size_var)?;
         let var_index = self.acir_context.mul_var(outer_offset, flat_element_size_var)?;
         self.acir_context.add_var(var_index, inner_offset)
+    }
+
+    fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
+        let mut size = 0;
+        match &dfg[array_id] {
+            Value::Array { array, .. } => {
+                // The array is going to be the flattened outer array
+                // Flattened slice size from SSA value does not need to be multiplied by the len
+                for value in array {
+                    size += self.flattened_slice_size(*value, dfg);
+                }
+            }
+            Value::NumericConstant { .. } => {
+                size += 1;
+            }
+            Value::Instruction { .. } => {
+                let array_acir_value = self.convert_value(array_id, dfg);
+                size += Self::flattened_value_size(&array_acir_value);
+            }
+            _ => {
+                unreachable!("ICE: Unexpected SSA value when computing the slice size");
+            }
+        }
+        size
+    }
+
+    fn flattened_value_size(value: &AcirValue) -> usize {
+        let mut size = 0;
+        match value {
+            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                size += len;
+            }
+            AcirValue::Var(_, _) => {
+                size += 1;
+            }
+            AcirValue::Array(values) => {
+                for value in values {
+                    size += Self::flattened_value_size(value);
+                }
+            }
+        }
+        size
     }
 
     /// Initializes an array with the given values and caches the fact that we

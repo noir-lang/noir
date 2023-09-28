@@ -461,17 +461,7 @@ impl<'f> Context<'f> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_value.to_u128() as usize {
-                        // dbg!(len);
-                        // TODO: Possible way to indicate that the slice is over its capacity is to just
-                        // mark an invalid constant such as -1 with the type unsigned or something
-                        let zero = FieldElement::zero();
-                        self.inserter.function.dfg.make_constant(zero, Type::field())
-                        // This results in muls by -1 on the merged values that are not simplified to constants by ACIR gen
-                        // let neg_one = -FieldElement::one();
-                        // self.inserter.function.dfg.make_constant(neg_one, Type::unsigned(32))
-                        // let max_field = FieldElement::from_be_bytes_reduce(&FieldElement::modulus().to_bytes_be());
-                        // let two = FieldElement::one() + FieldElement::one();
-                        // self.inserter.function.dfg.make_constant(two, Type::unsigned(32))
+                        self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
                         self.insert_instruction_with_typevars(get, typevars).first()
@@ -491,6 +481,37 @@ impl<'f> Context<'f> {
         }
 
         self.inserter.function.dfg.make_array(merged, typ)
+    }
+
+    /// Construct a dummy value to be attached to the smaller of two slices being merged.
+    /// We need to make sure we follow the internal element type structure of the slice type
+    /// even for dummy data to ensure that we do not have errors later in the compiler,
+    /// such as with dynamic indexing of non-homogenous slices.
+    fn make_slice_dummy_data(&mut self, typ: &Type) -> ValueId {
+        match typ {
+            Type::Numeric(_) => {
+                let zero = FieldElement::zero();
+                self.inserter.function.dfg.make_constant(zero, Type::field())
+            }
+            Type::Array(element_types, len) => {
+                let mut array = im::Vector::new();
+                for _ in 0..*len {
+                    for typ in element_types.iter() {
+                        array.push_back(self.make_slice_dummy_data(typ));
+                    }
+                }
+                self.inserter.function.dfg.make_array(array, typ.clone())
+            }
+            Type::Slice(_) => {
+                unreachable!("ICE: Slices of slice is unsupported")
+            }
+            Type::Reference => {
+                unreachable!("ICE: Merging references is unsupported")
+            }
+            Type::Function => {
+                unreachable!("ICE: Merging functions is unsupported")
+            }
+        }
     }
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
