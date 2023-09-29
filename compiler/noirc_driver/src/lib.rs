@@ -58,7 +58,7 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 // with the restricted version which only uses one file
 pub fn compile_file(context: &mut Context, root_file: &Path) -> CompilationResult<CompiledProgram> {
     let crate_id = prepare_crate(context, root_file);
-    compile_main(context, crate_id, &CompileOptions::default(), None)
+    compile_main(context, crate_id, &CompileOptions::default(), None, true)
 }
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
@@ -148,6 +148,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
+    force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (_, warnings) = check_crate(context, crate_id, options.deny_warnings)?;
 
@@ -163,7 +164,7 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main, cached_program)?;
+    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -257,7 +258,7 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None) {
+        let function = match compile_no_check(context, options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error);
@@ -314,6 +315,7 @@ pub fn compile_no_check(
     options: &CompileOptions,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
+    force_compile: bool,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
@@ -321,7 +323,7 @@ pub fn compile_no_check(
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
-    if !(options.print_acir || options.show_brillig || options.show_ssa) {
+    if !(force_compile || options.print_acir || options.show_brillig || options.show_ssa) {
         if let Some(cached_program) = cached_program {
             if hash == cached_program.hash {
                 return Ok(cached_program);
