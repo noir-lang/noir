@@ -1,6 +1,9 @@
 name: test-integration
 
 on:
+  push:
+    branches:
+      - jb-integration-scripts
   workflow_dispatch:
   pull_request:
     paths:
@@ -211,36 +214,9 @@ jobs:
         with:
           version: nightly
 
-      - name: Run Anvil
-        run: |
-          anvil > /dev/null 2>&1 &
-          sleep 10
-
-      - name: Create new Foundry project
-        run: forge init --no-git --no-commit --force foundry-project
-
-      - name: Run codegen-verifier for 1_mul
-        working-directory: tooling/nargo_cli/tests/execution_success/1_mul
-        run: nargo codegen-verifier
-
-      - name: Run codegen-verifier for main
-        working-directory: compiler/integration-tests/test/circuits/main
-        run: nargo codegen-verifier
-
-      - name: Copy compiled contracts
-        run: |
-          cp tooling/nargo_cli/tests/execution_success/1_mul/contract/1_mul/plonk_vk.sol foundry-project/src/1_mul.sol
-          cp compiler/integration-tests/test/circuits/main/contract/main/plonk_vk.sol foundry-project/src/main.sol
-
-      - name: Forge build
-        working-directory: foundry-project
-        run: forge build
-
-      - name: Forge deploy
-        working-directory: foundry-project
-        run: |
-          forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/1_mul.sol:UltraVerifier --json > mul_output.json
-          forge create --rpc-url http://127.0.0.1:8545 --mnemonic "test test test test test test test test test test test junk" src/main.sol:UltraVerifier  --json > main_output.json
+      - name: Setup project
+        working-directory: compiler/integration-tests
+        run: bash setup-project.sh
 
       - name: Setup `integration-tests`
         run: |
