@@ -447,6 +447,7 @@ __metadata:
     "@aztec/bb.js": 0.7.2
     "@noir-lang/acvm_js": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
+    "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
     "@types/mocha": ^10.0.1
     "@types/node": ^20.6.2
@@ -519,7 +520,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/types@workspace:tooling/noir_js_types":
+"@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   languageName: unknown
