@@ -384,7 +384,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72bd600f2652d2cccb0a33ab4f92d163ab3930844c8b0ad3713a5ae3285eeb4e"
 dependencies = [
  "futures",
- "lsp-types 0.94.0",
+ "lsp-types 0.94.1",
  "pin-project-lite",
  "rustix 0.38.4",
  "serde",
@@ -2161,9 +2161,9 @@ dependencies = [
 
 [[package]]
 name = "lsp-types"
-version = "0.94.0"
+version = "0.94.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b63735a13a1f9cd4f4835223d828ed9c2e35c8c5e61837774399f558b6a1237"
+checksum = "c66bfd44a06ae10647fe3f8214762e9369fd4248df1350924b4ef9e770a85ea1"
 dependencies = [
  "bitflags 1.3.2",
  "serde",
@@ -2343,11 +2343,10 @@ version = "0.15.0"
 dependencies = [
  "acvm",
  "async-lsp",
- "barretenberg_blackbox_solver",
  "codespan-lsp",
  "codespan-reporting",
  "fm",
- "lsp-types 0.94.0",
+ "lsp-types 0.94.1",
  "nargo",
  "nargo_toml",
  "noirc_driver",
@@ -2356,7 +2355,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "toml",
  "tower",
 ]
 
@@ -2368,7 +2366,6 @@ dependencies = [
  "async-lsp",
  "futures",
  "noir_lsp",
- "rustix 0.38.4",
  "tower",
 ]
 
