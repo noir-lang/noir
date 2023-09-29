@@ -18,7 +18,7 @@
   "types": "lib/esm/index.d.ts",
   "scripts": {
     "dev": "tsc --watch",
-    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && mv ./lib/cjs/index.js ./lib/cjs/index.cjs",
+    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && mv ./lib/cjs/index.js ./lib/cjs/index.cjs && mv ./lib/cjs/serialize.js ./lib/cjs/serialize.cjs && mv ./lib/cjs/base64_decode.js ./lib/cjs/base64_decode.cjs",
     "clean": "rm -r ./lib",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
@@ -26,7 +26,11 @@
   },
   "dependencies": {
     "@aztec/bb.js": "0.7.10",
-    "@noir-lang/types": "workspace:*"
+    "@noir-lang/types": "workspace:*",
+    "fflate": "^0.8.0"
+  },
+  "peerDependencies": {
+    "@noir-lang/backend_barretenberg": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.6.2",
