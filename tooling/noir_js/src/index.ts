@@ -5,3 +5,5 @@ export { acvm, abi };
 
 export { generateWitness } from './witness_generation.js';
 export { acirToUint8Array, witnessMapToUint8Array } from './serialize.js';
+
+export { Noir } from './program.js';

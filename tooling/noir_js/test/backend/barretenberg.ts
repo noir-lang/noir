@@ -1,9 +1,9 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
-// TODO: This should be re-exported from @aztec/bb-js
-import { Ptr } from '@aztec/bb.js/dest/browser/types';
 import { acirToUint8Array } from '../../src/index.js';
-import { Backend } from './backend_interface.js';
+import { Backend } from '@noir-lang/types';
 
 export class BarretenbergBackend implements Backend {
   // These type assertions are used so that we don't
@@ -11,14 +11,21 @@ export class BarretenbergBackend implements Backend {
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
   api = {} as Barretenberg;
-  acirComposer = {} as Ptr;
+  acirComposer = {} as any;
   acirUncompressedBytecode: Uint8Array;
 
-  constructor(acirBytecodeBase64: string) {
+  private constructor(acirCircuit: { bytecode: string }) {
+    const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
-  async init(): Promise<void> {
+  static async initialize(acirCircuit: { bytecode: string }): Promise<BarretenbergBackend> {
+    const backend = new BarretenbergBackend(acirCircuit);
+    await backend.init();
+    return backend;
+  }
+
+  private async init(): Promise<void> {
     const numThreads = 4;
 
     const { api, composer } = await this.initBarretenberg(numThreads, this.acirUncompressedBytecode);

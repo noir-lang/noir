@@ -80,7 +80,7 @@ fn add_noir_lib(context: &mut Context, library_name: &str) {
         context
             .crate_graph
             .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
-            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {} library", library_name));
+            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
     }
 }
 
@@ -125,9 +125,10 @@ pub fn compile(args: JsValue) -> JsValue {
 
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
     } else {
-        let compiled_program = compile_main(&mut context, crate_id, &options.compile_options, None)
-            .expect("Compilation failed")
-            .0;
+        let compiled_program =
+            compile_main(&mut context, crate_id, &options.compile_options, None, true)
+                .expect("Compilation failed")
+                .0;
 
         let optimized_program =
             nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)

@@ -9,9 +9,9 @@ use const_format::formatcp;
 // }
 
 const USERNAME: &str = "AztecProtocol";
-const REPO: &str = "barretenberg";
-const VERSION: &str = "0.5.1";
-const TAG: &str = formatcp!("barretenberg-v{}", VERSION);
+const REPO: &str = "aztec-packages";
+const VERSION: &str = "0.7.3";
+const TAG: &str = formatcp!("aztec-packages-v{}", VERSION);
 
 const API_URL: &str =
     formatcp!("https://github.com/{}/{}/releases/download/{}", USERNAME, REPO, TAG);

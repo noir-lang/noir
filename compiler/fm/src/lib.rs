@@ -290,7 +290,7 @@ mod tests {
         // - dir/lib.nr
         // - dir/sub_dir.nr
         // - dir/sub_dir/foo.nr
-        create_dummy_file(&dir, Path::new(&format!("{}.nr", sub_dir_name)));
+        create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
 
         // First check for the sub_dir.nr file and add it to the FileManager
         let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
