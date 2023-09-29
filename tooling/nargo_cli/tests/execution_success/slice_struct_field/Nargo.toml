@@ -1,0 +1,7 @@
+[package]
+name = "slice_struct_field"
+type = "bin"
+authors = [""]
+compiler_version = "0.13.0"
+
+[dependencies]
