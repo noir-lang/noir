@@ -271,7 +271,7 @@ mod secp256k1_tests {
         let valid =
             verify_secp256k1_ecdsa_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
-        assert!(valid)
+        assert!(valid);
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod secp256k1_tests {
             &SIGNATURE,
         );
 
-        assert!(!valid)
+        assert!(!valid);
     }
 
     #[test]
@@ -316,7 +316,7 @@ mod secp256k1_tests {
             &SIGNATURE,
         );
 
-        assert!(valid)
+        assert!(valid);
     }
 }
 
@@ -352,7 +352,7 @@ mod secp256r1_tests {
         let valid =
             verify_secp256r1_ecdsa_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
-        assert!(valid)
+        assert!(valid);
     }
 
     #[test]
@@ -381,7 +381,7 @@ mod secp256r1_tests {
             &SIGNATURE,
         );
 
-        assert!(!valid)
+        assert!(!valid);
     }
 
     #[test]
@@ -397,6 +397,6 @@ mod secp256r1_tests {
             &SIGNATURE,
         );
 
-        assert!(valid)
+        assert!(valid);
     }
 }

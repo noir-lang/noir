@@ -211,7 +211,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
                     match destination {
                         RegisterOrMemory::RegisterIndex(value_index) => match output {
                             ForeignCallOutput::Single(value) => {
-                                self.registers.set(*value_index, *value)
+                                self.registers.set(*value_index, *value);
                             }
                             _ => unreachable!(
                                 "Function result size does not match brillig bytecode (expected 1 result)"
@@ -365,7 +365,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
         let result_value =
             evaluate_binary_field_op(&op, lhs_value.to_field(), rhs_value.to_field());
 
-        self.registers.set(result, result_value.into())
+        self.registers.set(result, result_value.into());
     }
 
     /// Process a binary operation.
@@ -455,7 +455,7 @@ mod tests {
         let VM { registers, .. } = vm;
         let output_value = registers.get(RegisterIndex::from(2));
 
-        assert_eq!(output_value, Value::from(3u128))
+        assert_eq!(output_value, Value::from(3u128));
     }
 
     #[test]
@@ -895,7 +895,7 @@ mod tests {
             if matches!(status, VMStatus::Finished | VMStatus::ForeignCallWait { .. }) {
                 break;
             }
-            assert_eq!(status, VMStatus::InProgress)
+            assert_eq!(status, VMStatus::InProgress);
         }
     }
 

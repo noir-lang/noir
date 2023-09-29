@@ -292,7 +292,7 @@ mod tests {
             result.push(*out1.last().unwrap());
             result.push(*out2.last().unwrap());
         } else {
-            result.push(*out2.last().unwrap())
+            result.push(*out2.last().unwrap());
         }
         result
     }

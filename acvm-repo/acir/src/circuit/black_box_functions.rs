@@ -112,7 +112,7 @@ mod tests {
             assert_eq!(
                 resolved_func, bb_func,
                 "BlackBoxFunc::lookup returns unexpected BlackBoxFunc"
-            )
+            );
         }
     }
 }

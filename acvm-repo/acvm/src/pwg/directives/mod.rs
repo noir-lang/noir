@@ -80,7 +80,7 @@ pub(super) fn solve_directives(
                     None => FieldElement::zero(),
                 };
 
-                insert_value(witness, value, initial_witness)?
+                insert_value(witness, value, initial_witness)?;
             }
 
             Ok(())
