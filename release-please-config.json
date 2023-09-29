@@ -4,7 +4,7 @@
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
   "pull-request-title-pattern": "chore(noir): Release ${scope}",
-  "group-pull-request-title-pattern": "chore(noir): Release ${scope}",
+  "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {
     ".": {
       "release-type": "simple",
