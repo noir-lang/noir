@@ -69,7 +69,10 @@ impl InputValue {
                     return false;
                 }
 
-                vec_elements.iter().zip(fields.iter()).all(|(input_value, abi_param)| input_value.matches_abi(abi_param))
+                vec_elements
+                    .iter()
+                    .zip(fields.iter())
+                    .all(|(input_value, abi_param)| input_value.matches_abi(abi_param))
             }
 
             // All other InputValue-AbiType combinations are fundamentally incompatible.

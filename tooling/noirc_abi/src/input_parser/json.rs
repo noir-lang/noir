@@ -105,7 +105,9 @@ impl JsonTypes {
             }
 
             (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
-                let fields = try_vecmap(vector.iter().zip(fields.iter()), |(value, typ)| JsonTypes::try_from_input_value(value, typ))?;
+                let fields = try_vecmap(vector.iter().zip(fields.iter()), |(value, typ)| {
+                    JsonTypes::try_from_input_value(value, typ)
+                })?;
                 JsonTypes::Array(fields)
             }
 
@@ -175,10 +177,10 @@ impl InputValue {
             }
 
             (JsonTypes::Array(array), AbiType::Tuple { fields }) => {
-                let tuple_fields = try_vecmap(
-                    array.into_iter().zip(fields.iter()),
-                    |(value, typ)| InputValue::try_from_json(value, typ, arg_name)
-                )?;
+                let tuple_fields =
+                    try_vecmap(array.into_iter().zip(fields.iter()), |(value, typ)| {
+                        InputValue::try_from_json(value, typ, arg_name)
+                    })?;
                 InputValue::Vec(tuple_fields)
             }
 

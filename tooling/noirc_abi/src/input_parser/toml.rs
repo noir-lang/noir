@@ -104,9 +104,11 @@ impl TomlTypes {
 
             (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
                 if vector.len() != fields.len() {
-                    return Err(InputParserError::AbiTypeMismatch(abi_type.clone()))
+                    return Err(InputParserError::AbiTypeMismatch(abi_type.clone()));
                 }
-                let fields = try_vecmap(vector.iter().zip(fields.iter()), |(value, typ)| TomlTypes::try_from_input_value(value, typ))?;
+                let fields = try_vecmap(vector.iter().zip(fields.iter()), |(value, typ)| {
+                    TomlTypes::try_from_input_value(value, typ)
+                })?;
                 TomlTypes::Array(fields)
             }
 
@@ -166,13 +168,13 @@ impl InputValue {
 
             (TomlTypes::Array(array), AbiType::Tuple { fields }) => {
                 if array.len() != fields.len() {
-                    return Err(InputParserError::AbiTypeMismatch(param_type.clone()))
+                    return Err(InputParserError::AbiTypeMismatch(param_type.clone()));
                 }
 
-                let tuple_fields = try_vecmap(
-                    array.into_iter().zip(fields.iter()),
-                    |(value, typ)| InputValue::try_from_toml(value, typ, arg_name)
-                )?;
+                let tuple_fields =
+                    try_vecmap(array.into_iter().zip(fields.iter()), |(value, typ)| {
+                        InputValue::try_from_toml(value, typ, arg_name)
+                    })?;
                 InputValue::Vec(tuple_fields)
             }
 
