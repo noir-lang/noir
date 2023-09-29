@@ -10,6 +10,7 @@
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
+    "@noir-lang/types": "workspace:*",
     "fflate": "^0.8.0"
   },
   "files": [

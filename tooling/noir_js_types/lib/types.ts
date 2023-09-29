@@ -11,3 +11,8 @@ export interface Backend {
 
   verifyIntermediateProof(proof: Uint8Array): Promise<boolean>;
 }
+
+export type CompiledCircuit = {
+  bytecode: string;
+  abi: object;
+};

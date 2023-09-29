@@ -1,10 +1,10 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
-import { Backend } from './backend/backend_interface.js';
-import { generateWitness } from './witness_generation.js';
+import { Backend, CompiledCircuit } from "@noir-lang/types";
+import { generateWitness } from "./witness_generation.js";
 
 export class Noir {
   constructor(
-    private circuit: { bytecode: string; abi: any },
+    private circuit: CompiledCircuit,
     private backend: Backend,
   ) {}
 
