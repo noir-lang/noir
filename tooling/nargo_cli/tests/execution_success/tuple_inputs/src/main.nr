@@ -8,7 +8,7 @@ struct Foo {
     bar: Bar,
 }
 
-fn main(pair : (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) -> pub (Field, Field) {
+fn main(pair : (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) -> pub (Field, u8) {
     assert(pair.0 == 1);
     assert(pair.1 == 0);
 
@@ -33,5 +33,5 @@ fn main(pair : (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) ->
     assert(u == pair.0 + 1);
     assert(v == pair.0);
 
-    (u, v)
+    (u, v as u8)
 }
