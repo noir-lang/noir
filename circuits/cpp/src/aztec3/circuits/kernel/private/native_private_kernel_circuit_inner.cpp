@@ -35,26 +35,6 @@ void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, Kernel
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-// // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
-// // private_call.call_stack_item.public_inputs!
-// CT::AggregationObject verify_proofs(Builder& builder,
-//                                     PrivateInputs<CT> const& private_inputs,
-//                                     size_t const& num_private_call_public_inputs,
-//                                     size_t const& num_private_kernel_public_inputs)
-// {
-//     CT::AggregationObject aggregation_object = Aggregator::aggregate(
-//         &builder, private_inputs.private_call.vk, private_inputs.private_call.proof,
-//         num_private_call_public_inputs);
-
-//     Aggregator::aggregate(&builder,
-//                           private_inputs.previous_kernel.vk,
-//                           private_inputs.previous_kernel.proof,
-//                           num_private_kernel_public_inputs,
-//                           aggregation_object);
-
-//     return aggregation_object;
-// }
-
 void pop_and_validate_this_private_call_hash(
     DummyCircuitBuilder& builder,
     PrivateCallData<NT> const& private_call,
@@ -115,9 +95,6 @@ void validate_inputs(DummyCircuitBuilder& builder, PrivateKernelInputsInner<NT> 
     common_validate_0th_nullifier(builder, private_inputs.previous_kernel.public_inputs.end);
 }
 
-// NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
-// TODO(mike): is there a way to identify whether an input has not been used by ths circuit? This would help us
-// more-safely ensure we're constraining everything.
 KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBuilder& builder,
                                                                   PrivateKernelInputsInner<NT> const& private_inputs)
 {
@@ -153,13 +130,8 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBu
                           private_call_stack_item.public_inputs.contract_deployment_data,
                           private_call_stack_item.function_data);
 
-    // We'll skip any verification in this native implementation, because for a Local Developer Testnet, there won't
-    // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(builder,
-    //                                         private_inputs,
-    //                                         _private_inputs.private_call.vk->num_public_inputs,
-    //                                         _private_inputs.previous_kernel.vk->num_public_inputs);
-
-    // TODO(dbanks12): kernel vk membership check!
+    // This is where a real circuit would perform recursive verification of the previous kernel proof and private call
+    // proof.
 
     // Note: given that we skipped the verify_proof function, the aggregation object we get at the end will just be
     // the same as we had at the start. public_inputs.end.aggregation_object = aggregation_object;

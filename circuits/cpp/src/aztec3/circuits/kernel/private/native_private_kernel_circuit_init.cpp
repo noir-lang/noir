@@ -41,28 +41,6 @@ void initialise_end_values(PrivateKernelInputsInit<NT> const& private_inputs,
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-// using plonk::stdlib::merkle_tree::
-
-// // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
-// // private_call.call_stack_item.public_inputs!
-// CT::AggregationObject verify_proofs(Builder& builder,
-//                                     PrivateKernelInputsInit<CT> const& private_inputs,
-//                                     size_t const& num_private_call_public_inputs,
-//                                     size_t const& num_private_kernel_public_inputs)
-// {
-//     CT::AggregationObject aggregation_object = Aggregator::aggregate(
-//         &builder, private_inputs.private_call.vk, private_inputs.private_call.proof,
-//         num_private_call_public_inputs);
-
-//     Aggregator::aggregate(&builder,
-//                           private_inputs.previous_kernel.vk,
-//                           private_inputs.previous_kernel.proof,
-//                           num_private_kernel_public_inputs,
-//                           aggregation_object);
-
-//     return aggregation_object;
-// }
-
 void validate_this_private_call_against_tx_request(DummyCircuitBuilder& builder,
                                                    PrivateKernelInputsInit<NT> const& private_inputs)
 {
@@ -171,9 +149,6 @@ void update_end_values(DummyCircuitBuilder& builder,
     // https://github.com/AztecProtocol/aztec-packages/issues/660
 }
 
-// NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
-// TODO(mike): is there a way to identify whether an input has not been used by ths circuit? This would help us
-// more-safely ensure we're constraining everything.
 KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyCircuitBuilder& builder,
                                                                     PrivateKernelInputsInit<NT> const& private_inputs)
 {
@@ -205,13 +180,8 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyCircuit
                           private_inputs.tx_request.tx_context.contract_deployment_data,
                           private_inputs.tx_request.function_data);
 
-    // We'll skip any verification in this native implementation, because for a Local Developer Testnet, there won't
-    // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(builder,
-    //                                         private_inputs,
-    //                                         _private_inputs.private_call.vk->num_public_inputs,
-    //                                         _private_inputs.previous_kernel.vk->num_public_inputs);
-
-    // TODO(dbanks12): kernel vk membership check!
+    // This is where a real circuit would perform recursive verification of the previous kernel proof and private call
+    // proof.
 
     // In the native version, as there is no verify_proofs call, we can initialize aggregation object with the default
     // constructor.
