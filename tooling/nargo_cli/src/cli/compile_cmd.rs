@@ -82,6 +82,7 @@ pub(crate) fn run(
         np_language,
         &opcode_support,
         &args.compile_options,
+        args.output_debug,
     )?;
 
     // Save build artifacts to disk.
@@ -99,6 +100,7 @@ pub(super) fn compile_workspace(
     np_language: Language,
     opcode_support: &BackendOpcodeSupport,
     compile_options: &CompileOptions,
+    output_debug: bool,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     let is_opcode_supported = |opcode: &_| opcode_support.is_opcode_supported(opcode);
 
@@ -106,7 +108,14 @@ pub(super) fn compile_workspace(
     let program_results: Vec<(FileManager, CompilationResult<CompiledProgram>)> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(workspace, package, compile_options, np_language, &is_opcode_supported)
+            compile_program(
+                workspace,
+                package,
+                compile_options,
+                output_debug,
+                np_language,
+                &is_opcode_supported,
+            )
         })
         .collect();
     let contract_results: Vec<(FileManager, CompilationResult<CompiledContract>)> =
@@ -138,6 +147,7 @@ pub(crate) fn compile_bin_package(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
+    output_debug: bool,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<CompiledProgram, CliError> {
@@ -145,8 +155,14 @@ pub(crate) fn compile_bin_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let (file_manager, compilation_result) =
-        compile_program(workspace, package, compile_options, np_language, &is_opcode_supported);
+    let (file_manager, compilation_result) = compile_program(
+        workspace,
+        package,
+        compile_options,
+        output_debug,
+        np_language,
+        &is_opcode_supported,
+    );
 
     let program = report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
 
@@ -157,6 +173,7 @@ fn compile_program(
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
+    output_debug: bool,
     np_language: Language,
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> (FileManager, CompilationResult<CompiledProgram>) {
@@ -177,20 +194,33 @@ fn compile_program(
         None
     };
 
-    let (program, warnings) =
-        match noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program) {
-            Ok(program_and_warnings) => program_and_warnings,
-            Err(errors) => {
-                return (context.file_manager, Err(errors));
-            }
-        };
+    // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
+    let force_recompile = output_debug;
+
+    let (program, warnings) = match noirc_driver::compile_main(
+        &mut context,
+        crate_id,
+        compile_options,
+        cached_program,
+        force_recompile,
+    ) {
+        Ok(program_and_warnings) => program_and_warnings,
+        Err(errors) => {
+            return (context.file_manager, Err(errors));
+        }
+    };
 
     // Apply backend specific optimizations.
     let optimized_program =
         nargo::ops::optimize_program(program, np_language, &is_opcode_supported)
             .expect("Backend does not support an opcode that is in the IR");
 
-    save_program(optimized_program.clone(), package, &workspace.target_directory_path(), false);
+    save_program(
+        optimized_program.clone(),
+        package,
+        &workspace.target_directory_path(),
+        output_debug,
+    );
 
     (context.file_manager, Ok((optimized_program, warnings)))
 }
