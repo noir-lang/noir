@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.1](https://github.com/noir-lang/noir/compare/v0.15.0...v0.15.1) (2023-09-29)
+
+
+### Features
+
+* Add noir types package ([#2893](https://github.com/noir-lang/noir/issues/2893)) ([e8fc868](https://github.com/noir-lang/noir/commit/e8fc8687e6dd89295fd023201443f1197963a243))
+* **traits:** Multi module support for traits ([#2844](https://github.com/noir-lang/noir/issues/2844)) ([4deb07f](https://github.com/noir-lang/noir/commit/4deb07f80ce110187b66a46dd5624af3b8df3dbd))
+
+
+### Bug Fixes
+
+* Force recompilation when `output_debug` flag is set. ([#2898](https://github.com/noir-lang/noir/issues/2898)) ([9854416](https://github.com/noir-lang/noir/commit/9854416f5ac03c9da6538edc6a0a540ccccb4b61))
+
 ## [0.15.0](https://github.com/noir-lang/noir/compare/v0.14.1...v0.15.0) (2023-09-28)
 
 

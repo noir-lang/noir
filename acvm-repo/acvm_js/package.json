@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "0.27.4",
+  "version": "0.27.5",
   "private": true,
   "repository": {
     "type": "git",
