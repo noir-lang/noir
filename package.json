@@ -5,23 +5,26 @@
     "workspaces": [
         "compiler/wasm",
         "compiler/source-resolver",
-        "tooling/noirc_abi_wasm",
         "compiler/integration-tests",
+        "tooling/noir_js_types",
+        "tooling/noirc_abi_wasm",
         "tooling/noir_js",
+        "acvm-repo/acvm_js",
         "release-tests"
     ],
     "scripts": {
-        "build": "yarn workspaces foreach run build",
+        "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
         "test": "yarn workspaces foreach run test",
         "test:integration": "yarn workspace integration-tests test",
-        "clean:workspaces": "yarn workspaces foreach run clean",
+        "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
         "clean:root": "rm -rf ./result ./target",
-        "clean": "yarn clean:workspaces && yarn clean:parent",
+        "clean": "yarn clean:workspaces && yarn clean:root",
         "lint": "yarn workspaces foreach run lint",
-        "build:with:nix": "nix build -L .#wasm",
+        "build:with:nix": "nix build -L .#all_wasm",
         "install:from:nix:noirc_abi_wasm": "cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm && cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm",
         "install:from:nix:noir_wasm": "cp -r ./result/noir_wasm/nodejs ./compiler/wasm && cp -r ./result/noir_wasm/web ./compiler/wasm",
-        "install:from:nix": "yarn build:with:nix && yarn install:from:nix:noirc_abi_wasm && yarn install:from:nix:noir_wasm"
+        "install:from:nix:acvm_js": "cp -rf ./result/acvm_js/nodejs ./acvm-repo/acvm_js && cp -rf ./result/acvm_js/web ./acvm-repo/acvm_js",
+        "install:from:nix": "yarn build:with:nix && yarn install:from:nix:noirc_abi_wasm && yarn install:from:nix:noir_wasm && yarn install:from:nix:acvm_js"
     },
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.59.5",

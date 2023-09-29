@@ -1,20 +1,7 @@
 /target
-.DS_Store
-examples/**/target/
-examples/9
-.vscode
 node_modules
-pkg/
-lib/
-result
-.direnv
-**/outputs
 
-# Yarn
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
+# Build outputs
+result
+nodejs
+web

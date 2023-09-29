@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "0.27.0",
+  "version": "0.27.4",
   "private": true,
   "repository": {
     "type": "git",
@@ -24,9 +24,11 @@
   "sideEffects": false,
   "packageManager": "yarn@3.5.1",
   "scripts": {
+    "build": "bash ./build.sh",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "clean": "chmod u+w web nodejs && rm -rf web nodejs"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
@@ -37,9 +39,9 @@
     "@web/test-runner-playwright": "^0.10.0",
     "chai": "^4.3.7",
     "eslint": "^8.40.0",
-    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",
-    "prettier": "^2.8.8",
+    "prettier": "3.0.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   }

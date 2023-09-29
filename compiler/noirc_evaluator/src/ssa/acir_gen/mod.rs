@@ -400,11 +400,8 @@ impl Context {
 
                 let mut read_dynamic_array_index =
                     |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
-                        let index = AcirValue::Var(
-                            self.acir_context.add_constant(FieldElement::from(array_index as u128)),
-                            AcirType::NumericType(NumericType::NativeField),
-                        );
-                        let index_var = index.into_var()?;
+                        let index_var =
+                            self.acir_context.add_constant(FieldElement::from(array_index as u128));
 
                         self.acir_context.read_from_memory(block_id, &index_var)
                     };
@@ -904,16 +901,10 @@ impl Context {
             // Initialize the new array with the values from the old array
             result_block_id = self.block_id(result_id);
             let init_values = try_vecmap(0..array_len, |i| {
-                let index = AcirValue::Var(
-                    self.acir_context.add_constant(FieldElement::from(i as u128)),
-                    AcirType::NumericType(NumericType::NativeField),
-                );
-                let var = index.into_var()?;
-                let read = self.acir_context.read_from_memory(block_id, &var)?;
-                Ok::<AcirValue, RuntimeError>(AcirValue::Var(
-                    read,
-                    AcirType::NumericType(NumericType::NativeField),
-                ))
+                let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                let read = self.acir_context.read_from_memory(block_id, &index_var)?;
+                Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
             })?;
             self.initialize_array(
                 result_block_id,
@@ -1617,18 +1608,11 @@ impl Context {
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index = AcirValue::Var(
-                        self.acir_context.add_constant(FieldElement::from(i as u128)),
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let index_var = index.into_var()?;
                     let value_read_var =
                         self.acir_context.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(
-                        value_read_var,
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
 
                     old_slice.push_back(value_read);
                 }
@@ -1663,15 +1647,6 @@ impl Context {
             AcirContext::flatten_value(&mut acir_vars, value);
         }
         acir_vars
-    }
-
-    fn bit_count(&self, lhs: ValueId, dfg: &DataFlowGraph) -> u32 {
-        match dfg.type_of_value(lhs) {
-            Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
-            _ => 0,
-        }
     }
 
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
@@ -1713,13 +1688,6 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
-    }
-
-    /// Creates a default, meaningless value meant only to be a valid value of the given type.
-    fn create_default_value(&mut self, param_type: &Type) -> Result<AcirValue, RuntimeError> {
-        self.create_value_from_type(param_type, &mut |this, _| {
-            Ok(this.acir_context.add_constant(FieldElement::zero()))
-        })
     }
 }
 
