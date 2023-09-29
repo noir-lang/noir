@@ -103,7 +103,7 @@ impl TomlTypes {
             }
 
             (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
-                let fields = try_vecmap(vector.iter().zip(fields.iter()), |(value, typ)| {
+                let fields = try_vecmap(vector.iter().zip(fields), |(value, typ)| {
                     TomlTypes::try_from_input_value(value, typ)
                 })?;
                 TomlTypes::Array(fields)
