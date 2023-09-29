@@ -71,7 +71,7 @@ impl InputValue {
 
                 vec_elements
                     .iter()
-                    .zip(fields.iter())
+                    .zip(fields)
                     .all(|(input_value, abi_param)| input_value.matches_abi(abi_param))
             }
 
