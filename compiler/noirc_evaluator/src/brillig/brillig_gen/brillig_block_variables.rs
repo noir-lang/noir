@@ -95,8 +95,7 @@ impl BlockVariables {
         } else {
             assert!(
                 self.available_variables.contains(&value_id),
-                "ICE: ValueId {:?} is not available",
-                value_id
+                "ICE: ValueId {value_id:?} is not available"
             );
 
             *function_context
