@@ -165,7 +165,7 @@ impl InputValue {
 
             (TomlTypes::Array(array), AbiType::Tuple { fields }) => {
                 let tuple_fields =
-                    try_vecmap(array.into_iter().zip(fields.iter()), |(value, typ)| {
+                    try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
                         InputValue::try_from_toml(value, typ, arg_name)
                     })?;
                 InputValue::Vec(tuple_fields)
