@@ -1,5 +1,7 @@
-#![warn(unused_crate_dependencies)]
+#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! This crate provides the implementation of BlackBox functions of ACIR and Brillig.
 //! For functions that are backend-dependent, it provides a Trait [BlackBoxFunctionSolver] that must be implemented by the backend.

@@ -1,5 +1,7 @@
-#![warn(unused_crate_dependencies)]
+#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
 //!
