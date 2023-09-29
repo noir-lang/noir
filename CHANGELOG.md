@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.15.0](https://github.com/noir-lang/noir/compare/v0.14.1...v0.15.0) (2023-09-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* update to `bb` version 0.7.3 ([#2729](https://github.com/noir-lang/noir/issues/2729))
+
+### Features
+
+* Contract events in artifacts ([#2873](https://github.com/noir-lang/noir/issues/2873)) ([4765c82](https://github.com/noir-lang/noir/commit/4765c8288c583a61a81ff97eea1ef49df13eeca0))
+
+
+### Bug Fixes
+
+* Finer bit size in bound constrain ([#2869](https://github.com/noir-lang/noir/issues/2869)) ([68385e2](https://github.com/noir-lang/noir/commit/68385e294a1501b19b28f3f5510e973283ed0821))
+
+
+### Miscellaneous Chores
+
+* Update to `bb` version 0.7.3 ([#2729](https://github.com/noir-lang/noir/issues/2729)) ([fce68d1](https://github.com/noir-lang/noir/commit/fce68d1404ae66bd7a71417d791dd70545bf24f2))
+
 ## [0.14.1](https://github.com/noir-lang/noir/compare/v0.14.0...v0.14.1) (2023-09-27)
 
 

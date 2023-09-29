@@ -4,7 +4,10 @@ import { executeCircuit } from '@noir-lang/acvm_js';
 import { witnessMapToUint8Array } from './serialize.js';
 
 // Generates the witnesses needed to feed into the chosen proving system
-export async function generateWitness(compiledProgram, inputs): Promise<Uint8Array> {
+export async function generateWitness(
+  compiledProgram: { bytecode: string; abi: unknown },
+  inputs: unknown,
+): Promise<Uint8Array> {
   // Throws on ABI encoding error
   const witnessMap = abiEncode(compiledProgram.abi, inputs, null);
 
