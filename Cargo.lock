@@ -1509,7 +1509,6 @@ dependencies = [
  "rust-embed",
  "serde",
  "tempfile",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2344,6 +2343,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
+ "wasm-bindgen",
 ]
 
 [[package]]
