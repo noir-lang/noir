@@ -55,7 +55,7 @@ export class BarretenbergBackend implements Backend {
   //
   // The settings for this proof are the same as the settings for a "normal" proof
   // ie one that is not in the recursive setting.
-  async generateProof(decompressedWitness: Uint8Array, optimizeForVerifyInCircuit = false): Promise<Uint8Array> {
+  async generateFinalProof(decompressedWitness: Uint8Array, optimizeForVerifyInCircuit = false): Promise<Uint8Array> {
     await this.instantiate();
     const proof = await this.api.acirCreateProof(
       this.acirComposer,
@@ -78,9 +78,9 @@ export class BarretenbergBackend implements Backend {
   // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
   // generate the proof using components that will make the proof
   // easier to verify in a circuit.
-  async generateChildProof(witness: Uint8Array): Promise<Uint8Array> {
+  async generateIntermediateProof(witness: Uint8Array): Promise<Uint8Array> {
     const optimizeForVerifyInCircuit = true;
-    return this.generateProof(witness, optimizeForVerifyInCircuit);
+    return this.generateFinalProof(witness, optimizeForVerifyInCircuit);
   }
 
   // Generates artifacts that will be passed to a circuit that will verify this proof.
@@ -92,7 +92,7 @@ export class BarretenbergBackend implements Backend {
   // method.
   //
   // The number of public inputs denotes how many public inputs are in the inner proof.
-  async generateChildProofArtifacts(
+  async generateIntermediateProofArtifacts(
     proof: Uint8Array,
     numOfPublicInputs = 0,
   ): Promise<{
@@ -117,12 +117,12 @@ export class BarretenbergBackend implements Backend {
     };
   }
 
-  async verifyChildProof(proof: Uint8Array): Promise<boolean> {
+  async verifyIntermediateProof(proof: Uint8Array): Promise<boolean> {
     const optimizeForVerifyInCircuit = true;
-    return this.verifyProof(proof, optimizeForVerifyInCircuit);
+    return this.verifyFinalProof(proof, optimizeForVerifyInCircuit);
   }
 
-  async verifyProof(proof: Uint8Array, optimizeForVerifyInCircuit = false): Promise<boolean> {
+  async verifyFinalProof(proof: Uint8Array, optimizeForVerifyInCircuit = false): Promise<boolean> {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
     return await this.api.acirVerifyProof(this.acirComposer, proof, optimizeForVerifyInCircuit);

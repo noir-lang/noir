@@ -45,7 +45,7 @@ export class BarretenbergBackend {
     //
     // The settings for this proof are the same as the settings for a "normal" proof
     // ie one that is not in the recursive setting.
-    async generateProof(decompressedWitness, optimizeForVerifyInCircuit = false) {
+    async generateFinalProof(decompressedWitness, optimizeForVerifyInCircuit = false) {
         await this.instantiate();
         const proof = await this.api.acirCreateProof(this.acirComposer, this.acirUncompressedBytecode, decompressedWitness, optimizeForVerifyInCircuit);
         return proof;
@@ -61,9 +61,9 @@ export class BarretenbergBackend {
     // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
     // generate the proof using components that will make the proof
     // easier to verify in a circuit.
-    async generateChildProof(witness) {
+    async generateIntermediateProof(witness) {
         const optimizeForVerifyInCircuit = true;
-        return this.generateProof(witness, optimizeForVerifyInCircuit);
+        return this.generateFinalProof(witness, optimizeForVerifyInCircuit);
     }
     // Generates artifacts that will be passed to a circuit that will verify this proof.
     //
@@ -74,7 +74,7 @@ export class BarretenbergBackend {
     // method.
     //
     // The number of public inputs denotes how many public inputs are in the inner proof.
-    async generateChildProofArtifacts(proof, numOfPublicInputs = 0) {
+    async generateIntermediateProofArtifacts(proof, numOfPublicInputs = 0) {
         await this.instantiate();
         const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
         // TODO: perhaps we should put this in the init function. Need to benchmark
@@ -88,11 +88,11 @@ export class BarretenbergBackend {
             vkHash: vk[1].toString(),
         };
     }
-    async verifyChildProof(proof) {
+    async verifyIntermediateProof(proof) {
         const optimizeForVerifyInCircuit = true;
-        return this.verifyProof(proof, optimizeForVerifyInCircuit);
+        return this.verifyFinalProof(proof, optimizeForVerifyInCircuit);
     }
-    async verifyProof(proof, optimizeForVerifyInCircuit = false) {
+    async verifyFinalProof(proof, optimizeForVerifyInCircuit = false) {
         await this.instantiate();
         await this.api.acirInitVerificationKey(this.acirComposer);
         return await this.api.acirVerifyProof(this.acirComposer, proof, optimizeForVerifyInCircuit);

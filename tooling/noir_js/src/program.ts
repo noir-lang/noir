@@ -9,7 +9,7 @@ export class Noir {
   ) {}
 
   // Initial inputs to your program
-  async generateFinalProof(inputs: any): Promise<Uint8Array> {
+  async generateFinalProof(inputs: any, optimizeRecursionProofForRecursion = false): Promise<Uint8Array> {
     const serializedWitness = await generateWitness(this.circuit, inputs);
     return this.backend.generateFinalProof(serializedWitness);
   }

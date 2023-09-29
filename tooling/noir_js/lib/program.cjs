@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Program = void 0;
+exports.Noir = void 0;
 const witness_generation_js_1 = require("./witness_generation.cjs");
-class Program {
+class Noir {
     circuit;
     backend;
     constructor(circuit, backend) {
@@ -10,12 +10,12 @@ class Program {
         this.backend = backend;
     }
     // Initial inputs to your program
-    async generateProof(inputs, optimizeForVerifyInCircuit = false) {
+    async generateFinalProof(inputs) {
         const serializedWitness = await (0, witness_generation_js_1.generateWitness)(this.circuit, inputs);
-        return this.backend.generateProof(serializedWitness, optimizeForVerifyInCircuit);
+        return this.backend.generateFinalProof(serializedWitness);
     }
-    async verifyProof(proof, optimizeForVerifyInCircuit = false) {
-        return this.backend.verifyProof(proof, optimizeForVerifyInCircuit);
+    async verifyFinalProof(proof) {
+        return this.backend.verifyFinalProof(proof);
     }
 }
-exports.Program = Program;
+exports.Noir = Noir;

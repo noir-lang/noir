@@ -1,5 +1,5 @@
 import { generateWitness } from "./witness_generation.mjs";
-export class Program {
+export class Noir {
     circuit;
     backend;
     constructor(circuit, backend) {
@@ -7,11 +7,11 @@ export class Program {
         this.backend = backend;
     }
     // Initial inputs to your program
-    async generateProof(inputs, optimizeForVerifyInCircuit = false) {
+    async generateFinalProof(inputs) {
         const serializedWitness = await generateWitness(this.circuit, inputs);
-        return this.backend.generateProof(serializedWitness, optimizeForVerifyInCircuit);
+        return this.backend.generateFinalProof(serializedWitness);
     }
-    async verifyProof(proof, optimizeForVerifyInCircuit = false) {
-        return this.backend.verifyProof(proof, optimizeForVerifyInCircuit);
+    async verifyFinalProof(proof) {
+        return this.backend.verifyFinalProof(proof);
     }
 }

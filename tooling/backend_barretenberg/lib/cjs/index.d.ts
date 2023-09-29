@@ -8,14 +8,14 @@ export declare class BarretenbergBackend implements Backend {
     private numberOfThreads;
     constructor(acirCircuit: CompiledCircuit, numberOfThreads?: number);
     instantiate(): Promise<void>;
-    generateProof(decompressedWitness: Uint8Array, optimizeForVerifyInCircuit?: boolean): Promise<Uint8Array>;
-    generateChildProof(witness: Uint8Array): Promise<Uint8Array>;
-    generateChildProofArtifacts(proof: Uint8Array, numOfPublicInputs?: number): Promise<{
+    generateFinalProof(decompressedWitness: Uint8Array, optimizeForVerifyInCircuit?: boolean): Promise<Uint8Array>;
+    generateIntermediateProof(witness: Uint8Array): Promise<Uint8Array>;
+    generateIntermediateProofArtifacts(proof: Uint8Array, numOfPublicInputs?: number): Promise<{
         proofAsFields: string[];
         vkAsFields: string[];
         vkHash: string;
     }>;
-    verifyChildProof(proof: Uint8Array): Promise<boolean>;
-    verifyProof(proof: Uint8Array, optimizeForVerifyInCircuit?: boolean): Promise<boolean>;
+    verifyIntermediateProof(proof: Uint8Array): Promise<boolean>;
+    verifyFinalProof(proof: Uint8Array, optimizeForVerifyInCircuit?: boolean): Promise<boolean>;
     destroy(): Promise<void>;
 }
