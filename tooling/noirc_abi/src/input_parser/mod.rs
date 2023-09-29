@@ -64,6 +64,14 @@ impl InputValue {
                 })
             }
 
+            (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
+                if vec_elements.len() != fields.len() {
+                    return false;
+                }
+
+                vec_elements.iter().zip(fields.iter()).all(|(input_value, abi_param)| input_value.matches_abi(abi_param))
+            }
+
             // All other InputValue-AbiType combinations are fundamentally incompatible.
             _ => false,
         }

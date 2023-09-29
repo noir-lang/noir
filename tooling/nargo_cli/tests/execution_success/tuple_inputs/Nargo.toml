@@ -1,0 +1,7 @@
+[package]
+name = "tuple_inputs"
+type = "bin"
+authors = [""]
+compiler_version = "0.14.1"
+
+[dependencies]

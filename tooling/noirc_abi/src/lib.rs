@@ -62,6 +62,9 @@ pub enum AbiType {
         )]
         fields: Vec<(String, AbiType)>,
     },
+    Tuple {
+        fields: Vec<AbiType>,
+    },
     String {
         length: u64,
     },
@@ -164,7 +167,10 @@ impl AbiType {
                     context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
                 Self::Struct { fields, path }
             }
-            Type::Tuple(_) => todo!("AbiType::from_type not yet implemented for tuple types"),
+            Type::Tuple(fields) => {
+                let fields = vecmap(fields, |typ| Self::from_type(context, typ));
+                Self::Tuple { fields }
+            }
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
@@ -181,6 +187,9 @@ impl AbiType {
             AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+            }
+            AbiType::Tuple { fields } => {
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
             AbiType::String { length } => *length as u32,
         }
@@ -370,6 +379,11 @@ impl Abi {
                     encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
                 }
             }
+            (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
+                for (i, typ) in fields.iter().enumerate() {
+                    encoded_value.extend(Self::encode_value(vec_elements[i].clone(), typ)?);
+                }
+            }
             _ => unreachable!("value should have already been checked to match abi type"),
         }
         Ok(encoded_value)
@@ -461,6 +475,14 @@ fn decode_value(
             }
 
             InputValue::Struct(struct_map)
+        }
+        AbiType::Tuple { fields } => {
+            let mut tuple_elements = Vec::with_capacity(fields.len());
+            for field_typ in fields {
+                tuple_elements.push(decode_value(field_iterator, field_typ)?);
+            }
+
+            InputValue::Vec(tuple_elements)
         }
     };
 
