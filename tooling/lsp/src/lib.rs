@@ -1,3 +1,8 @@
+#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use std::{
     future::{self, Future},
     ops::{self, ControlFlow},
@@ -648,7 +653,7 @@ fn on_did_save_text_document(
                 for sec in diagnostic.secondaries {
                     // Not using `unwrap_or_default` here because we don't want to overwrite a valid range with a default range
                     if let Some(r) = byte_span_to_range(files, file_id, sec.span.into()) {
-                        range = r
+                        range = r;
                     }
                 }
                 let severity = match diagnostic.kind {
@@ -660,7 +665,7 @@ fn on_did_save_text_document(
                     severity,
                     message: diagnostic.message,
                     ..Default::default()
-                })
+                });
             }
         }
     }
@@ -706,7 +711,7 @@ fn get_package_tests_in_crate(
             uri: Url::from_file_path(file_path)
                 .expect("Expected a valid file path that can be converted into a URI"),
             range,
-        })
+        });
     }
 
     if package_tests.is_empty() {

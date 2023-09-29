@@ -92,7 +92,7 @@ pub(crate) fn bit_decomposition(
     // First create a witness for each bit
     let mut bit_vector = Vec::with_capacity(bit_size as usize);
     for _ in 0..bit_size {
-        bit_vector.push(variables.new_variable())
+        bit_vector.push(variables.new_variable());
     }
 
     // Next create a directive which computes those bits.
@@ -139,7 +139,7 @@ pub(crate) fn byte_decomposition(
     // First create a witness for each byte
     let mut vector = Vec::with_capacity(num_bytes as usize);
     for _ in 0..num_bytes {
-        vector.push(variables.new_variable())
+        vector.push(variables.new_variable());
     }
 
     // Next create a directive which computes those byte.

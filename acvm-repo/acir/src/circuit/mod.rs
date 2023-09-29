@@ -167,7 +167,7 @@ impl std::fmt::Display for Circuit {
         write_public_inputs(f, &self.return_values)?;
 
         for opcode in &self.opcodes {
-            writeln!(f, "{opcode}")?
+            writeln!(f, "{opcode}")?;
         }
         Ok(())
     }
@@ -236,7 +236,7 @@ mod tests {
         }
 
         let (circ, got_circ) = read_write(circuit);
-        assert_eq!(circ, got_circ)
+        assert_eq!(circ, got_circ);
     }
 
     #[test]
