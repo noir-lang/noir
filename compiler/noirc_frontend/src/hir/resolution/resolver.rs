@@ -105,6 +105,11 @@ struct ResolverMeta {
     warn_if_unused: bool,
 }
 
+pub enum ResolvePathError {
+    WrongKind,
+    NotFound,
+}
+
 impl<'a> Resolver<'a> {
     pub fn new(
         interner: &'a mut NodeInterner,
@@ -1370,8 +1375,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
-        self.interner.get_trait(type_id)
+    pub fn get_trait(&self, trait_id: TraitId) -> Trait {
+        self.interner.get_trait(trait_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {

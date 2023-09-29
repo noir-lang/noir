@@ -500,7 +500,6 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
-                let the_trait = the_trait.borrow();
                 let method = &the_trait.methods[method.method_index];
 
                 (method.get_type(), method.arguments.len())
@@ -859,7 +858,6 @@ impl<'interner> TypeChecker<'interner> {
                 for constraint in func_meta.trait_constraints {
                     if *object_type == constraint.typ {
                         let the_trait = self.interner.get_trait(constraint.trait_id);
-                        let the_trait = the_trait.borrow();
 
                         for (method_index, method) in the_trait.methods.iter().enumerate() {
                             if method.name.0.contents == method_name {
