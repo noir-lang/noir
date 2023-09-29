@@ -25,5 +25,8 @@ tower.workspace = true
 cfg-if.workspace = true
 async-lsp = { version = "0.0.5", default-features = false, features = ["omni-trait"] }
 
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+wasm-bindgen.workspace = true
+
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros"] }
