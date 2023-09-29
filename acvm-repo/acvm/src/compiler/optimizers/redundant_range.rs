@@ -233,6 +233,6 @@ mod tests {
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let optimizer = RangeOptimizer::new(circuit);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert_eq!(optimized_circuit.opcodes.len(), 5)
+        assert_eq!(optimized_circuit.opcodes.len(), 5);
     }
 }

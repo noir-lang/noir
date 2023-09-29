@@ -1761,7 +1761,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main"]);
 
         // There should only be one error
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 1, "Expected 1 error, got: {errors:?}");
 
         // It should be regarding the unused variable
         match &errors[0] {
@@ -1831,7 +1831,7 @@ mod test {
         "#;
 
         let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
+        assert!(errors.len() == 3, "Expected 3 errors, got: {errors:?}");
 
         // Errors are:
         // `a` is undeclared
@@ -1907,7 +1907,7 @@ mod test {
         "#;
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
+            println!("Unexpected errors: {errors:?}");
             unreachable!("there should be no errors");
         }
     }
@@ -1979,7 +1979,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
+            println!("Unexpected errors: {errors:?}");
             unreachable!("there should be no errors");
         }
 
@@ -2021,7 +2021,7 @@ mod test {
         "#;
 
         let errors = resolve_src_code(src, vec!["main", "println"]);
-        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {errors:?}");
 
         for err in errors {
             match &err {
