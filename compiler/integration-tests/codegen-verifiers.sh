@@ -2,6 +2,8 @@
 
 cd "$(dirname "$0")"
 
+pwd
+
 # Run codegen-verifier for 1_mul
 cd tooling/nargo_cli/tests/execution_success/1_mul
 nargo codegen-verifier
