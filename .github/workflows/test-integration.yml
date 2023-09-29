@@ -214,7 +214,7 @@ jobs:
         with:
           version: nightly
 
-      - name: Setup project
+      - name: Deploy verifier contracts to Anvil
         working-directory: compiler/integration-tests
         run: bash ./scripts/setup-project.sh
 
