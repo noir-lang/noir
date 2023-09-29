@@ -32,7 +32,7 @@ The `Token` contract also requires two helper files. Copy-them too:
 
 Create `contracts/token/types.nr` and copy-paste the following:
 
-#include_code token_types_all yarn-project/noir-contracts/src/contracts/token_contract/src/types.nr rust
+#include_code token_types_all yarn-project/noir-contracts/src/contracts/token_contract/src/types/transparent_note.nr rust
 
 Finally, create `contracts/token/util.nr` and copy-paste the following:
 

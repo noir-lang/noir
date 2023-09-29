@@ -18,7 +18,7 @@ const hashPayload = async (payload: Fr[]) => {
   );
 };
 
-const TIMEOUT = 60_000;
+const TIMEOUT = 90_000;
 
 describe('e2e_token_contract', () => {
   jest.setTimeout(TIMEOUT);

@@ -41,6 +41,22 @@ impl SafeU120 {
         self.value == other.value
     }
 
+    fn lt(self: Self, other: Self) -> bool {
+        self.value < other.value
+    }
+
+    fn le(self: Self, other: Self) -> bool {
+        self.value <= other.value
+    }
+
+    fn gt(self: Self, other: Self) -> bool {
+        self.value > other.value
+    }
+
+    fn ge(self: Self, other: Self) -> bool {
+        self.value >= other.value
+    }
+
     fn sub(
       self: Self,
       b: Self,
@@ -137,6 +153,44 @@ fn test_eq() {
     let a = SafeU120::new(1);
     let b = SafeU120::new(1);
     assert(a.eq(b));
+}
+
+#[test]
+fn test_lt() {
+    let a = SafeU120::new(1);
+    let b = SafeU120::new(2);
+    assert(a.lt(b));
+    assert(b.lt(a) == false);
+}
+
+
+#[test]
+fn test_le() {
+    let a = SafeU120::new(2);
+    let b = SafeU120::new(2);
+    let c = SafeU120::new(5);
+    assert(a.le(b));
+    assert(a.le(c));
+    assert(c.le(a) == false);
+}
+
+#[test]
+fn test_gt() {
+    let a = SafeU120::new(1);
+    let b = SafeU120::new(2);
+    assert(b.gt(a));
+    assert(a.gt(b) == false);
+}
+
+
+#[test]
+fn test_ge() {
+    let a = SafeU120::new(2);
+    let b = SafeU120::new(2);
+    let c = SafeU120::new(5);
+    assert(a.ge(b));
+    assert(a.ge(c) == false);
+    assert(c.ge(a));
 }
 
 #[test(should_fail)]

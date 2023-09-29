@@ -9,6 +9,10 @@ impl AztecAddress {
     }
   }
 
+  fn eq(self: Self, other: Self) -> bool {
+    self.address == other.address
+  }
+
   fn serialize(self: Self) -> [Field; 1] {
     [self.address]
   }

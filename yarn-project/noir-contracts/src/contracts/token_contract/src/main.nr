@@ -16,12 +16,6 @@ contract Token {
 
     use dep::safe_math::SafeU120;
 
-    use dep::value_note::{
-        balance_utils,
-        utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
-    };
-
     use dep::aztec::{
         note::{
             note_header::NoteHeader,
@@ -29,35 +23,41 @@ contract Token {
         },
         context::{PrivateContext, PublicContext, Context},
         state_vars::{map::Map, public_state::PublicState, set::Set},
-        types::type_serialization::field_serialization::{
-            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
+        types::type_serialization::{
+            field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
+            bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
+            aztec_address_serialization::{AztecAddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
         types::address::{AztecAddress},
         oracle::compute_selector::compute_selector,
         auth::{assert_valid_message_for, assert_valid_public_message_for}
     };
 
-    use crate::types::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN};
+    use crate::types::{
+        transparent_note::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN},
+        token_note::{TokenNote, TokenNoteMethods, TOKEN_NOTE_LEN},
+        balances_map::{BalancesMap},
+        safe_u120_serialization::{SafeU120SerializationMethods, SAFE_U120_SERIALIZED_LEN}
+    };
     use crate::util::{compute_message_hash};
     // docs:end::imports
 
     // docs:start:storage_struct
     struct Storage {
-
         // docs:start:storage_admin
-        admin: PublicState<Field, FIELD_SERIALIZED_LEN>,
+        admin: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>,
         // docs:end:storage_admin
         // docs:start:storage_minters
-        minters: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        minters: Map<PublicState<bool, BOOL_SERIALIZED_LEN>>,
         // docs:end:storage_minters
         // docs:start:storage_balances
-        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+        balances: BalancesMap,
         // docs:end:storage_balances
-        total_supply: PublicState<Field, FIELD_SERIALIZED_LEN>,
+        total_supply: PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>,
         // docs:start:storage_pending_shields
         pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
         // docs:end:storage_pending_shields
-        public_balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        public_balances: Map<PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
     }
     // docs:end:storage_struct
 
@@ -69,7 +69,7 @@ contract Token {
                 admin: PublicState::new(
                     context,
                     1,
-                    FieldSerializationMethods,
+                    AztecAddressSerializationMethods,
                 ),
                 // docs:end:storage_admin_init
                 // docs:start:storage_minters_init
@@ -80,22 +80,16 @@ contract Token {
                         PublicState::new(
                             context,
                             slot,
-                            FieldSerializationMethods,
+                            BoolSerializationMethods,
                         )
                     },
                 ),
                 // docs:end:storage_minters_init
-                balances: Map::new(
-                    context,
-                    3,
-                    |context, slot| {
-                        Set::new(context, slot, ValueNoteMethods)
-                    },
-                ),
+                balances: BalancesMap::new(context, 3),
                 total_supply: PublicState::new(
                     context,
                     4,
-                    FieldSerializationMethods,
+                    SafeU120SerializationMethods,
                 ),
                 // docs:start:storage_pending_shields_init
                 pending_shields: Set::new(context, 5, TransparentNoteMethods),
@@ -107,7 +101,7 @@ contract Token {
                         PublicState::new(
                             context,
                             slot,
-                            FieldSerializationMethods,
+                            SafeU120SerializationMethods,
                         )
                     },
                 ),
@@ -130,9 +124,9 @@ contract Token {
     fn set_admin(
         new_admin: AztecAddress,
     ) {
-        assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
+        assert(storage.admin.read().eq(AztecAddress::new(context.msg_sender())), "caller is not admin");
         // docs:start:write_admin
-        storage.admin.write(new_admin.address);
+        storage.admin.write(new_admin);
         // docs:end:write_admin
     }
     // docs:end:set_admin
@@ -144,10 +138,10 @@ contract Token {
         approve: bool,
     ) {
         // docs:start:read_admin
-        assert(storage.admin.read() == context.msg_sender(), "caller is not admin");
+        assert(storage.admin.read().eq(AztecAddress::new(context.msg_sender())), "caller is not admin");
         // docs:end:read_admin
         // docs:start:write_minter
-        storage.minters.at(minter.address).write(approve as Field);
+        storage.minters.at(minter.address).write(approve);
         // docs:end:write_minter
     }
     // docs:end:set_minter
@@ -159,14 +153,14 @@ contract Token {
         amount: Field,
     ) -> Field {
         // docs:start:read_minter
-        assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
+        assert(storage.minters.at(context.msg_sender()).read(), "caller is not minter");
         // docs:end:read_minter
         let amount = SafeU120::new(amount);
-        let new_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(amount);
-        let supply = SafeU120::new(storage.total_supply.read()).add(amount);
+        let new_balance = storage.public_balances.at(to.address).read().add(amount);
+        let supply = storage.total_supply.read().add(amount);
 
-        storage.public_balances.at(to.address).write(new_balance.value as Field);
-        storage.total_supply.write(supply.value as Field);
+        storage.public_balances.at(to.address).write(new_balance);
+        storage.total_supply.write(supply);
         1
     }
     // docs:end:mint_public
@@ -177,12 +171,12 @@ contract Token {
         amount: Field,
         secret_hash: Field,
     ) -> Field {
-        assert(storage.minters.at(context.msg_sender()).read() == 1, "caller is not minter");
+        assert(storage.minters.at(context.msg_sender()).read(), "caller is not minter");
         let pending_shields = storage.pending_shields;
         let mut note = TransparentNote::new(amount, secret_hash);
-        let supply = SafeU120::new(storage.total_supply.read()).add(SafeU120::new(amount));
+        let supply = storage.total_supply.read().add(SafeU120::new(amount));
 
-        storage.total_supply.write(supply.value as Field);
+        storage.total_supply.write(supply);
         // docs:start:insert_from_public
         pending_shields.insert_from_public(&mut note);
         // docs:end:insert_from_public
@@ -208,12 +202,12 @@ contract Token {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = SafeU120::new(storage.public_balances.at(from.address).read()).sub(amount);
+        let from_balance = storage.public_balances.at(from.address).read().sub(amount);
 
         let pending_shields = storage.pending_shields;
         let mut note = TransparentNote::new(amount.value as Field, secret_hash);
 
-        storage.public_balances.at(from.address).write(from_balance.value as Field);
+        storage.public_balances.at(from.address).write(from_balance);
         pending_shields.insert_from_public(&mut note);
         1
     }
@@ -236,11 +230,11 @@ contract Token {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = SafeU120::new(storage.public_balances.at(from.address).read()).sub(amount);
-        storage.public_balances.at(from.address).write(from_balance.value as Field);
+        let from_balance = storage.public_balances.at(from.address).read().sub(amount);
+        storage.public_balances.at(from.address).write(from_balance);
 
-        let to_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(amount);
-        storage.public_balances.at(to.address).write(to_balance.value as Field);
+        let to_balance = storage.public_balances.at(to.address).read().add(amount);
+        storage.public_balances.at(to.address).write(to_balance);
 
         1
     }
@@ -262,11 +256,11 @@ contract Token {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = SafeU120::new(storage.public_balances.at(from.address).read()).sub(amount);
-        storage.public_balances.at(from.address).write(from_balance.value as Field);
+        let from_balance = storage.public_balances.at(from.address).read().sub(amount);
+        storage.public_balances.at(from.address).write(from_balance);
 
-        let new_supply = SafeU120::new(storage.total_supply.read()).sub(amount);
-        storage.total_supply.write(new_supply.value as Field);
+        let new_supply = storage.total_supply.read().sub(amount);
+        storage.total_supply.write(new_supply);
 
         1
     }
@@ -280,13 +274,13 @@ contract Token {
         secret: Field,
     ) -> Field {
         let pending_shields = storage.pending_shields;
-        let balance = storage.balances.at(to.address);
         let mut public_note = TransparentNote::new_from_secret(amount, secret);
         
         // docs:start:assert_contains_and_remove_publicly_created
         pending_shields.assert_contains_and_remove_publicly_created(&mut public_note);
         // docs:end:assert_contains_and_remove_publicly_created
-        increment(balance, amount, to.address);
+
+        storage.balances.at(to).add(SafeU120::new(amount));
 
         1
     }
@@ -308,8 +302,7 @@ contract Token {
             assert(nonce == 0, "invalid nonce");
         }
 
-        let from_balance = storage.balances.at(from.address);
-        decrement(from_balance, amount, from.address);
+        storage.balances.at(from).sub(SafeU120::new(amount));
 
         let selector = compute_selector("_increase_public_balance((Field),Field)");
         let _void = context.call_public_function(context.this_address(), selector, [to.address, amount]);
@@ -334,11 +327,9 @@ contract Token {
             assert(nonce == 0, "invalid nonce");
         }
 
-        let from_balance = storage.balances.at(from.address);
-        let to_balance = storage.balances.at(to.address);
-
-        decrement(from_balance, amount, from.address);
-        increment(to_balance, amount, to.address);
+        let amount = SafeU120::new(amount);
+        storage.balances.at(from).sub(amount);
+        storage.balances.at(to).add(amount);
 
         1
     }
@@ -359,9 +350,7 @@ contract Token {
             assert(nonce == 0, "invalid nonce");
         }
 
-        let from_balance = storage.balances.at(from.address);
-
-        decrement(from_balance, amount, from.address);
+        storage.balances.at(from).sub(SafeU120::new(amount));
 
         let selector = compute_selector("_reduce_total_supply(Field)");
         let _void = context.call_public_function(context.this_address(), selector, [amount]);
@@ -380,8 +369,8 @@ contract Token {
     fn _initialize(
         new_admin: AztecAddress,
     ) {
-        storage.admin.write(new_admin.address);
-        storage.minters.at(new_admin.address).write(1);
+        storage.admin.write(new_admin);
+        storage.minters.at(new_admin.address).write(true);
     }
     // docs:end:initialize
 
@@ -393,8 +382,8 @@ contract Token {
         to: AztecAddress,
         amount: Field,
     ) {
-        let new_balance = SafeU120::new(storage.public_balances.at(to.address).read()).add(SafeU120::new(amount));
-        storage.public_balances.at(to.address).write(new_balance.value as Field);
+        let new_balance = storage.public_balances.at(to.address).read().add(SafeU120::new(amount));
+        storage.public_balances.at(to.address).write(new_balance);
     }
     // docs:end:increase_public_balance
 
@@ -404,8 +393,8 @@ contract Token {
         amount: Field,
     ) {
         // Only to be called from burn.
-        let new_supply = SafeU120::new(storage.total_supply.read()).sub(SafeU120::new(amount));
-        storage.total_supply.write(new_supply.value as Field);
+        let new_supply = storage.total_supply.read().sub(SafeU120::new(amount));
+        storage.total_supply.write(new_supply);
     }
     // docs:end:reduce_total_supply
 
@@ -413,7 +402,7 @@ contract Token {
 
     // docs:start:admin
     unconstrained fn admin() -> Field {
-        storage.admin.read()
+        storage.admin.read().address
     }
     // docs:end:admin
 
@@ -421,31 +410,29 @@ contract Token {
     unconstrained fn is_minter(
         minter: AztecAddress,
     ) -> bool {
-        storage.minters.at(minter.address).read() as bool
+        storage.minters.at(minter.address).read()
     }
     // docs:end:is_minter
 
     // docs:start:total_supply
-    unconstrained fn total_supply() -> Field {
-        storage.total_supply.read()
+    unconstrained fn total_supply() -> u120 {
+        storage.total_supply.read().value
     }
     // docs:end:total_supply
 
     // docs:start:balance_of_private
     unconstrained fn balance_of_private(
         owner: AztecAddress,
-    ) -> Field {
-        let owner_balance = storage.balances.at(owner.address);
-
-        balance_utils::get_balance(owner_balance)
+    ) -> u120 {
+        storage.balances.at(owner).balance_of().value
     }
     // docs:end:balance_of_private
 
     // docs:start:balance_of_public
     unconstrained fn balance_of_public(
         owner: AztecAddress,
-    ) -> Field {
-        storage.public_balances.at(owner.address).read()
+    ) -> u120 {
+        storage.public_balances.at(owner.address).read().value
     }
     // docs:end:balance_of_public
 
@@ -456,12 +443,12 @@ contract Token {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; TOKEN_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         if (storage_slot == 5) {
             note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, preimage)
         } else {
-            note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(TokenNoteMethods, note_header, preimage)
         }
     }
     // docs:end:compute_note_hash_and_nullifier
