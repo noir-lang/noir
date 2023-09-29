@@ -19,7 +19,7 @@
   "scripts": {
     "dev": "tsc --watch",
     "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && mv ./lib/cjs/index.js ./lib/cjs/index.cjs && mv ./lib/cjs/serialize.js ./lib/cjs/serialize.cjs && mv ./lib/cjs/base64_decode.js ./lib/cjs/base64_decode.cjs",
-    "clean": "rm -r ./lib",
+    "clean": "rm -rf ./lib",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
