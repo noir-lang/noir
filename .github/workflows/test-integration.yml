@@ -213,7 +213,7 @@ jobs:
 
       - name: Setup project
         working-directory: compiler/integration-tests
-        run: bash setup-project.sh
+        run: bash ./scripts/setup-project.sh
 
       - name: Setup `integration-tests`
         run: |
