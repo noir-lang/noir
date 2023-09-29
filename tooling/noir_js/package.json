@@ -3,9 +3,10 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.14.1",
+  "version": "0.15.0",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
+  "type": "module",
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
@@ -16,23 +17,20 @@
     "package.json"
   ],
   "source": "src/index.ts",
-  "main": "lib/cjs/index.js",
-  "module": "lib/mjs/index.mjs",
+  "main": "lib/index.cjs",
+  "module": "lib/index.mjs",
   "exports": {
-    "require": "./lib/cjs/index.js",
-    "default": "./lib/mjs/index.js",
-    "types": "./lib/types/index.d.ts"
+    "require": "./lib/index.cjs",
+    "default": "./lib/index.mjs",
+    "types": "./lib/index.d.ts"
   },
-  "types": "lib/types/index.d.ts",
+  "types": "lib/index.d.ts",
   "scripts": {
-    "dev": "tsc --watch",
-    "build": "yarn run build:tsc:cjs && yarn run build:tsc:mjs && yarn run build:types && ./fixup.sh",
-    "build:tsc:cjs": "tsc -p tsconfig.cjs.json",
-    "build:tsc:mjs": "tsc -p tsconfig.mjs.json",
-    "build:types": "tsc -p tsconfig.types.json",
+    "dev": "tsc-multi --watch",
+    "build": "tsc-multi",
     "test": "yarn test:node:esm && yarn test:node:cjs",
-    "test:node:esm": "TS_NODE_PROJECT=./tsconfig.mjs.json mocha --timeout 25000 --exit --config ./.mocharc.json",
-    "test:node:cjs": "TS_NODE_PROJECT=./tsconfig.cjs.json mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
+    "test:node:esm": "mocha --timeout 25000 --exit --config ./.mocharc.json",
+    "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
@@ -50,6 +48,7 @@
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
     "ts-node": "^10.9.1",
+    "tsc-multi": "^1.1.0",
     "typescript": "^5.2.2"
   }
 }

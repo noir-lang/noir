@@ -1,5 +1,4 @@
 {
-  "require": "ts-node/register",
   "extensions": ["cjs"],
   "spec": [
     "test/node/**/*.test.cjs"
