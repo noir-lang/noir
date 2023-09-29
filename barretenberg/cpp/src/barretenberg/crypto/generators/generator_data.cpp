@@ -1,5 +1,7 @@
 #include "./generator_data.hpp"
 
+// TODO(@zac-williamson #2341 delete this file once we migrate to new pedersen hash standard)
+
 namespace crypto {
 namespace generators {
 namespace {

@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/ecc/groups/element.hpp"
+#include "element.hpp"
 
 // NOLINTBEGIN(readability-implicit-bool-conversion, cppcoreguidelines-avoid-c-arrays)
 namespace barretenberg::group_elements {
@@ -601,8 +602,8 @@ element<Fq, Fr, T> element<Fq, Fr, T>::mul_without_endomorphism(const Fr& expone
 
     element work_element(*this);
     const uint64_t maximum_set_bit = converted_scalar.get_msb();
-    // This is simpler and doublings of infinity should be fast. We should think if we want to defend against the timing
-    // leak here (if used with ECDSA it can sometimes lead to private key compromise)
+    // This is simpler and doublings of infinity should be fast. We should think if we want to defend against the
+    // timing leak here (if used with ECDSA it can sometimes lead to private key compromise)
     for (uint64_t i = maximum_set_bit - 1; i < maximum_set_bit; --i) {
         work_element.self_dbl();
         if (converted_scalar.get_bit(i)) {

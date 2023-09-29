@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/arithmetization/gate_data.hpp"
 #include "barretenberg/serialize/cbind.hpp"
@@ -14,6 +15,9 @@ static constexpr uint32_t DUMMY_TAG = 0;
 template <typename Arithmetization> class CircuitBuilderBase {
   public:
     using FF = typename Arithmetization::FF;
+    using EmbeddedCurve =
+        std::conditional_t<std::same_as<FF, barretenberg::g1::coordinate_field>, curve::BN254, curve::Grumpkin>;
+
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;

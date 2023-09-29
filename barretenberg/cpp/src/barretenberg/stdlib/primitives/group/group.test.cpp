@@ -1,3 +1,5 @@
+// TODO(@zac-williamson #2341 delete this file and once we migrate to new hash standard)
+
 #include "barretenberg/stdlib/primitives/group/group.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"

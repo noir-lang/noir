@@ -1,3 +1,5 @@
+// TODO(@zac-williamson #2341 delete this file once we migrate to new pedersen hash standard)
+
 #include "./generator_data.hpp"
 #include "./fixed_base_scalar_mul.hpp"
 #include "barretenberg/common/streams.hpp"

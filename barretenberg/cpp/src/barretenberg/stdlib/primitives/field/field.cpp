@@ -693,6 +693,9 @@ template <typename Builder> bool_t<Builder> field_t<Builder>::operator!=(const f
 template <typename Builder>
 field_t<Builder> field_t<Builder>::conditional_negate(const bool_t<Builder>& predicate) const
 {
+    if (predicate.is_constant()) {
+        return predicate.get_value() ? -(*this) : *this;
+    }
     field_t<Builder> predicate_field(predicate);
     field_t<Builder> multiplicand = -(predicate_field + predicate_field);
     return multiplicand.madd(*this, *this);
@@ -704,6 +707,14 @@ field_t<Builder> field_t<Builder>::conditional_assign(const bool_t<Builder>& pre
                                                       const field_t& lhs,
                                                       const field_t& rhs)
 {
+    if (predicate.is_constant()) {
+        return predicate.get_value() ? lhs : rhs;
+    }
+    // if lhs and rhs are the same witness, just return it!
+    if (lhs.get_witness_index() == rhs.get_witness_index() && (lhs.additive_constant == rhs.additive_constant) &&
+        (lhs.multiplicative_constant == rhs.multiplicative_constant)) {
+        return lhs;
+    }
     return (lhs - rhs).madd(predicate, rhs);
 }
 

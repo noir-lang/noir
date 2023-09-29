@@ -1,3 +1,5 @@
+// TODO(@zac-wiliamson #2341 delete this file and rename c_bind_new to c_bind once we have migrated to new hash standard
+
 #include "c_bind.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/serialize.hpp"

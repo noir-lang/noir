@@ -1,3 +1,5 @@
+// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
+
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include <gtest/gtest.h>

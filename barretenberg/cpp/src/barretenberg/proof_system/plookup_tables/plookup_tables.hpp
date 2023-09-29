@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/throw_or_abort.hpp"
 
+#include "./fixed_base/fixed_base.hpp"
 #include "aes128.hpp"
 #include "blake2s.hpp"
 #include "dummy.hpp"
@@ -18,15 +19,33 @@
 
 namespace plookup {
 
-const MultiTable& create_table(const MultiTableId id);
+const MultiTable& create_table(MultiTableId id);
 
-ReadData<barretenberg::fr> get_lookup_accumulators(const MultiTableId id,
+ReadData<barretenberg::fr> get_lookup_accumulators(MultiTableId id,
                                                    const barretenberg::fr& key_a,
                                                    const barretenberg::fr& key_b = 0,
-                                                   const bool is_2_to_1_map = false);
+                                                   bool is_2_to_1_lookup = false);
 
 inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
 {
+    // we have >50 basic fixed base tables so we match with some logic instead of a switch statement
+    auto id_var = static_cast<size_t>(id);
+    if (id_var >= static_cast<size_t>(FIXED_BASE_0_0) && id_var < static_cast<size_t>(FIXED_BASE_1_0)) {
+        return fixed_base::table::generate_basic_fixed_base_table<0>(
+            id, index, id_var - static_cast<size_t>(FIXED_BASE_0_0));
+    }
+    if (id_var >= static_cast<size_t>(FIXED_BASE_1_0) && id_var < static_cast<size_t>(FIXED_BASE_2_0)) {
+        return fixed_base::table::generate_basic_fixed_base_table<1>(
+            id, index, id_var - static_cast<size_t>(FIXED_BASE_1_0));
+    }
+    if (id_var >= static_cast<size_t>(FIXED_BASE_2_0) && id_var < static_cast<size_t>(FIXED_BASE_3_0)) {
+        return fixed_base::table::generate_basic_fixed_base_table<2>(
+            id, index, id_var - static_cast<size_t>(FIXED_BASE_2_0));
+    }
+    if (id_var >= static_cast<size_t>(FIXED_BASE_3_0) && id_var < static_cast<size_t>(PEDERSEN_29_SMALL)) {
+        return fixed_base::table::generate_basic_fixed_base_table<3>(
+            id, index, id_var - static_cast<size_t>(FIXED_BASE_3_0));
+    }
     switch (id) {
     case AES_SPARSE_MAP: {
         return sparse_tables::generate_sparse_table_with_rotation<9, 8, 0>(AES_SPARSE_MAP, index);

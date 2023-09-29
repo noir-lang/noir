@@ -127,4 +127,10 @@ template <typename FF> struct ecc_add_gate_ {
     FF endomorphism_coefficient;
     FF sign_coefficient;
 };
+template <typename FF> struct ecc_dbl_gate_ {
+    uint32_t x1;
+    uint32_t y1;
+    uint32_t x3;
+    uint32_t y3;
+};
 } // namespace proof_system

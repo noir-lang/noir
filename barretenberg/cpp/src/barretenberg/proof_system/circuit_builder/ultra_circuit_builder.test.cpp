@@ -174,6 +174,29 @@ TEST(ultra_circuit_constructor, test_elliptic_gate)
     EXPECT_EQ(circuit_constructor.check_circuit(), false);
 }
 
+TEST(ultra_circuit_constructor, test_elliptic_double_gate)
+{
+    typedef grumpkin::g1::affine_element affine_element;
+    typedef grumpkin::g1::element element;
+    UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
+
+    affine_element p1 = crypto::generators::get_generator_data({ 0, 0 }).generator;
+    affine_element p3(element(p1).dbl());
+
+    uint32_t x1 = circuit_constructor.add_variable(p1.x);
+    uint32_t y1 = circuit_constructor.add_variable(p1.y);
+    uint32_t x3 = circuit_constructor.add_variable(p3.x);
+    uint32_t y3 = circuit_constructor.add_variable(p3.y);
+
+    circuit_constructor.create_ecc_dbl_gate({ x1, y1, x3, y3 });
+
+    auto saved_state = UltraCircuitBuilder::CircuitDataBackup::store_full_state(circuit_constructor);
+    bool result = circuit_constructor.check_circuit();
+
+    EXPECT_EQ(result, true);
+    EXPECT_TRUE(saved_state.is_same_state(circuit_constructor));
+}
+
 TEST(ultra_circuit_constructor, non_trivial_tag_permutation)
 {
     UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();

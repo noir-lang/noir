@@ -1,3 +1,5 @@
+// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
+
 #pragma once
 #include "../generators/fixed_base_scalar_mul.hpp"
 #include "../generators/generator_data.hpp"

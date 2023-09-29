@@ -1,3 +1,5 @@
+// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
+
 #include "./pedersen.hpp"
 #include <iostream>
 #ifndef NO_OMP_MULTITHREADING

@@ -1,4 +1,6 @@
 #pragma once
+
+// TODO(@zac-williamson #2341 delete this file once we migrate to new pedersen hash standard)
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <array>
 #include <tuple>

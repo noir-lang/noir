@@ -89,6 +89,22 @@ template <class Params_> struct alignas(32) field {
     constexpr field(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t d) noexcept
         : data{ a, b, c, d } {};
 
+    /**
+     * @brief Convert a 512-bit big integer into a field element.
+     *
+     * @details Used for deriving field elements from random values. 512-bits prevents biased output as 2^512>>modulus
+     *
+     */
+    constexpr explicit field(const uint512_t& input) noexcept
+    {
+        uint256_t value = (input % modulus).lo;
+        data[0] = value.data[0];
+        data[1] = value.data[1];
+        data[2] = value.data[2];
+        data[3] = value.data[3];
+        self_to_montgomery_form();
+    }
+
     constexpr explicit operator uint32_t() const
     {
         field out = from_montgomery_form();

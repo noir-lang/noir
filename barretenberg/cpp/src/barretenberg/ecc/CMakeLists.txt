@@ -1,4 +1,4 @@
-barretenberg_module(ecc numeric crypto_keccak)
+barretenberg_module(ecc numeric crypto_keccak crypto_sha256)
 
 if(DISABLE_ADX)
     message(STATUS "Disabling ADX assembly variant.")

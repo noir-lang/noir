@@ -1,4 +1,7 @@
 #pragma once
+
+// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
+
 #include "../generators/fixed_base_scalar_mul.hpp"
 #include "../generators/generator_data.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"

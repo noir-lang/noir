@@ -1,3 +1,5 @@
+// TODO(@zac-wiliamson #2341 delete this file once we migrate to new hash standard
+
 #include "./pedersen.hpp"
 #include "./convert_buffer_to_field.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"

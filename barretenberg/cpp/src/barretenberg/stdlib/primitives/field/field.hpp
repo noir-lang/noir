@@ -4,8 +4,7 @@
 #include "barretenberg/common/assert.hpp"
 #include <functional>
 
-namespace proof_system::plonk {
-namespace stdlib {
+namespace proof_system::plonk::stdlib {
 
 template <typename Builder> class bool_t;
 template <typename Builder> class field_t {
@@ -15,34 +14,36 @@ template <typename Builder> class field_t {
 
     field_t(const int value)
         : context(nullptr)
+        , witness_index(IS_CONSTANT)
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = IS_CONSTANT;
     }
 
+    // NOLINTNEXTLINE(google-runtime-int) intended behaviour
     field_t(const unsigned long long value)
         : context(nullptr)
+        , witness_index(IS_CONSTANT)
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = IS_CONSTANT;
     }
 
     field_t(const unsigned int value)
         : context(nullptr)
+        , witness_index(IS_CONSTANT)
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = IS_CONSTANT;
     }
 
+    // NOLINTNEXTLINE(google-runtime-int) intended behaviour
     field_t(const unsigned long value)
         : context(nullptr)
+        , witness_index(IS_CONSTANT)
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = IS_CONSTANT;
     }
 
     field_t(const barretenberg::fr& value)
@@ -68,7 +69,7 @@ template <typename Builder> class field_t {
         , witness_index(other.witness_index)
     {}
 
-    field_t(field_t&& other)
+    field_t(field_t&& other) noexcept
         : context(other.context)
         , additive_constant(other.additive_constant)
         , multiplicative_constant(other.multiplicative_constant)
@@ -77,15 +78,20 @@ template <typename Builder> class field_t {
 
     field_t(const bool_t<Builder>& other);
 
+    ~field_t() = default;
+
     static constexpr bool is_composite = false;
     static constexpr uint256_t modulus = barretenberg::fr::modulus;
 
-    static field_t from_witness_index(Builder* parent_context, const uint32_t witness_index);
+    static field_t from_witness_index(Builder* parent_context, uint32_t witness_index);
 
     explicit operator bool_t<Builder>() const;
 
     field_t& operator=(const field_t& other)
     {
+        if (this == &other) {
+            return *this;
+        }
         additive_constant = other.additive_constant;
         multiplicative_constant = other.multiplicative_constant;
         witness_index = other.witness_index;
@@ -93,7 +99,7 @@ template <typename Builder> class field_t {
         return *this;
     }
 
-    field_t& operator=(field_t&& other)
+    field_t& operator=(field_t&& other) noexcept
     {
         additive_constant = other.additive_constant;
         multiplicative_constant = other.multiplicative_constant;
@@ -149,7 +155,8 @@ template <typename Builder> class field_t {
     };
 
     // Postfix increment (x++)
-    field_t operator++(int)
+    // NOLINTNEXTLINE
+    field_t operator++(const int)
     {
         field_t this_before_operation = field_t(*this);
         *this = *this + 1;
@@ -244,7 +251,7 @@ template <typename Builder> class field_t {
      * Slices a `field_t` at given indices (msb, lsb) both included in the slice,
      * returns three parts: [low, slice, high].
      */
-    std::array<field_t, 3> slice(const uint8_t msb, const uint8_t lsb) const;
+    std::array<field_t, 3> slice(uint8_t msb, uint8_t lsb) const;
 
     /**
      * is_zero will return a bool_t, and add constraints that enforce its correctness
@@ -252,7 +259,7 @@ template <typename Builder> class field_t {
      **/
     bool_t<Builder> is_zero() const;
 
-    void create_range_constraint(const size_t num_bits, std::string const& msg = "field_t::range_constraint") const;
+    void create_range_constraint(size_t num_bits, std::string const& msg = "field_t::range_constraint") const;
     void assert_is_not_zero(std::string const& msg = "field_t::assert_is_not_zero") const;
     void assert_is_zero(std::string const& msg = "field_t::assert_is_zero") const;
     bool is_constant() const { return witness_index == IS_CONSTANT; }
@@ -289,9 +296,11 @@ template <typename Builder> class field_t {
     uint32_t get_witness_index() const { return witness_index; }
 
     std::vector<bool_t<Builder>> decompose_into_bits(
-        const size_t num_bits = 256,
+        size_t num_bits = 256,
         std::function<witness_t<Builder>(Builder* ctx, uint64_t, uint256_t)> get_bit =
-            [](Builder* ctx, uint64_t j, uint256_t val) { return witness_t<Builder>(ctx, val.get_bit(j)); }) const;
+            [](Builder* ctx, uint64_t j, const uint256_t& val) {
+                return witness_t<Builder>(ctx, val.get_bit(j));
+            }) const;
 
     /**
      * @brief Return (a < b) as bool circuit type.
@@ -419,5 +428,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, fi
 
 EXTERN_STDLIB_TYPE(field_t);
 
-} // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace proof_system::plonk::stdlib

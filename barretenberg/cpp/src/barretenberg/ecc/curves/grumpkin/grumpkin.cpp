@@ -10,6 +10,8 @@ static std::array<g1::affine_element, max_num_generators> generators;
 static bool init_generators = false;
 
 } // namespace
+// TODO(@zac-wiliamson #2341 remove this method once we migrate to new hash standard (derive_generators_secure is
+// curve-agnostic)
 g1::affine_element get_generator(const size_t generator_index)
 {
     if (!init_generators) {

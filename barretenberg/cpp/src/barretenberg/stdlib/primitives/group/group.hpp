@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO(@zac-williamson #2341 delete this file and rename cycle_group to group once we migrate to new hash standard)
 #include "../field/field.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"

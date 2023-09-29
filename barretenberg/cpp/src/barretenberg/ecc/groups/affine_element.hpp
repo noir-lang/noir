@@ -6,6 +6,8 @@
 #include <vector>
 
 namespace barretenberg::group_elements {
+template <typename T>
+concept SupportsHashToCurve = T::can_hash_to_curve;
 template <typename Fq, typename Fr, typename Params> class alignas(64) affine_element {
   public:
     using in_buf = const uint8_t*;
@@ -68,14 +70,14 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     [[nodiscard]] constexpr bool on_curve() const noexcept;
 
+    static constexpr std::optional<affine_element> derive_from_x_coordinate(const Fq& x, bool sign_bit) noexcept;
+
     /**
      * @brief Samples a random point on the curve.
      *
      * @return A randomly chosen point on the curve
      */
     static affine_element random_element(numeric::random::Engine* engine = nullptr) noexcept;
-
-    static std::optional<affine_element> derive_from_x_coordinate(const Fq& x, bool sign_bit) noexcept;
 
     /**
      * @brief Hash a seed value to curve.
@@ -85,8 +87,8 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     template <typename = typename std::enable_if<Params::can_hash_to_curve>>
     static affine_element hash_to_curve(uint64_t seed) noexcept;
 
-    template <typename = typename std::enable_if<Params::can_hash_to_curve>>
-    static affine_element hash_to_curve(const std::vector<uint8_t>& seed) noexcept;
+    static affine_element hash_to_curve(const std::vector<uint8_t>& seed, uint8_t attempt_count = 0) noexcept
+        requires SupportsHashToCurve<Params>;
 
     constexpr bool operator==(const affine_element& other) const noexcept;
 

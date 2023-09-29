@@ -13,6 +13,8 @@ static bool init_generators = false;
 
 /* In case where prime bit length is 256, the method produces a generator, but only with one less bit of randomness than
 the maximum possible, as the y coordinate in that case is determined by the x-coordinate. */
+// TODO(@zac-wiliamson #2341 remove this method once we migrate to new hash standard (derive_generators_secure is
+// curve-agnostic)
 g1::affine_element get_generator(const size_t generator_index)
 {
     if (!init_generators) {

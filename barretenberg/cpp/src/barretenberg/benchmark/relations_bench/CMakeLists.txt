@@ -7,6 +7,7 @@ relations.bench.cpp
 # Required libraries for benchmark suites
 set(LINKED_LIBRARIES
   polynomials
+  proof_system
   benchmark::benchmark
 )
 

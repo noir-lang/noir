@@ -1,4 +1,6 @@
 #pragma once
+// TODO(@zac-wiliamson #2341 delete this file and rename c_bind_new to c_bind once we have migrated to new hash standard
+
 #include "barretenberg/common/wasm_export.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 

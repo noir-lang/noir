@@ -6,8 +6,11 @@ namespace plookup {
 using namespace barretenberg;
 
 namespace {
-static std::array<MultiTable, MultiTableId::NUM_MULTI_TABLES> MULTI_TABLES;
-static bool inited = false;
+// TODO(@zac-williamson) convert these into static const members of a struct
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+std::array<MultiTable, MultiTableId::NUM_MULTI_TABLES> MULTI_TABLES;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+bool inited = false;
 
 void init_multi_tables()
 {
@@ -91,9 +94,17 @@ void init_multi_tables()
         keccak_tables::Chi::get_chi_output_table(MultiTableId::KECCAK_CHI_OUTPUT);
     MULTI_TABLES[MultiTableId::KECCAK_FORMAT_OUTPUT] =
         keccak_tables::KeccakOutput::get_keccak_output_table(MultiTableId::KECCAK_FORMAT_OUTPUT);
+    MULTI_TABLES[MultiTableId::FIXED_BASE_LEFT_LO] =
+        fixed_base::table::get_fixed_base_table<0, 128>(MultiTableId::FIXED_BASE_LEFT_LO);
+    MULTI_TABLES[MultiTableId::FIXED_BASE_LEFT_HI] =
+        fixed_base::table::get_fixed_base_table<1, 126>(MultiTableId::FIXED_BASE_LEFT_HI);
+    MULTI_TABLES[MultiTableId::FIXED_BASE_RIGHT_LO] =
+        fixed_base::table::get_fixed_base_table<2, 128>(MultiTableId::FIXED_BASE_RIGHT_LO);
+    MULTI_TABLES[MultiTableId::FIXED_BASE_RIGHT_HI] =
+        fixed_base::table::get_fixed_base_table<3, 126>(MultiTableId::FIXED_BASE_RIGHT_HI);
 
     barretenberg::constexpr_for<0, 25, 1>([&]<size_t i>() {
-        MULTI_TABLES[(size_t)MultiTableId::KECCAK_NORMALIZE_AND_ROTATE + i] =
+        MULTI_TABLES[static_cast<size_t>(MultiTableId::KECCAK_NORMALIZE_AND_ROTATE) + i] =
             keccak_tables::Rho<8, i>::get_rho_output_table(MultiTableId::KECCAK_NORMALIZE_AND_ROTATE);
     });
     MULTI_TABLES[MultiTableId::HONK_DUMMY_MULTI] = dummy_tables::get_honk_dummy_multitable();
@@ -119,7 +130,6 @@ ReadData<barretenberg::fr> get_lookup_accumulators(const MultiTableId id,
     const size_t num_lookups = multi_table.lookup_ids.size();
 
     ReadData<barretenberg::fr> lookup;
-
     const auto key_a_slices = numeric::slice_input_using_variable_bases(key_a, multi_table.slice_sizes);
     const auto key_b_slices = numeric::slice_input_using_variable_bases(key_b, multi_table.slice_sizes);
 
@@ -139,6 +149,7 @@ ReadData<barretenberg::fr> get_lookup_accumulators(const MultiTableId id,
         const BasicTable::KeyEntry key_entry{ { key_a_slices[i], key_b_slices[i] }, values };
         lookup.key_entries.emplace_back(key_entry);
     }
+
     lookup[ColumnIdx::C1].resize(num_lookups);
     lookup[ColumnIdx::C2].resize(num_lookups);
     lookup[ColumnIdx::C3].resize(num_lookups);

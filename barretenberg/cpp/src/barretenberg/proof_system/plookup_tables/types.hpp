@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 
+#include "./fixed_base/fixed_base_params.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 
 namespace plookup {
@@ -52,7 +53,12 @@ enum BasicTableId {
     BLAKE_XOR_ROTATE1,
     BLAKE_XOR_ROTATE2,
     BLAKE_XOR_ROTATE4,
-    PEDERSEN_29_SMALL,
+    FIXED_BASE_0_0,
+    FIXED_BASE_1_0 = FIXED_BASE_0_0 + FixedBaseParams::NUM_TABLES_PER_LO_MULTITABLE,
+    FIXED_BASE_2_0 = FIXED_BASE_1_0 + FixedBaseParams::NUM_TABLES_PER_HI_MULTITABLE,
+    FIXED_BASE_3_0 = FIXED_BASE_2_0 + FixedBaseParams::NUM_TABLES_PER_LO_MULTITABLE,
+    // TODO(@zac-wiliamson #2341 remove PEDERSEN basic tables)
+    PEDERSEN_29_SMALL = FIXED_BASE_3_0 + FixedBaseParams::NUM_TABLES_PER_HI_MULTITABLE,
     PEDERSEN_28,
     PEDERSEN_27,
     PEDERSEN_26,
@@ -111,10 +117,15 @@ enum MultiTableId {
     AES_NORMALIZE,
     AES_INPUT,
     AES_SBOX,
+    // TODO(@zac-wiliamson #2341 remove PEDERSEN_LEFT/RIGHT/HI/LO)
     PEDERSEN_LEFT_HI,
     PEDERSEN_LEFT_LO,
     PEDERSEN_RIGHT_HI,
     PEDERSEN_RIGHT_LO,
+    FIXED_BASE_LEFT_LO,
+    FIXED_BASE_LEFT_HI,
+    FIXED_BASE_RIGHT_LO,
+    FIXED_BASE_RIGHT_HI,
     UINT32_XOR,
     UINT32_AND,
     BN254_XLO,
