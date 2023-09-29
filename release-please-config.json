@@ -3,7 +3,7 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
-  "pull-request-title-pattern": "chore(noir): Release ${scope}",
+  "pull-request-title-pattern": "chore: Release Noir(${version})",
   "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {
     ".": {
