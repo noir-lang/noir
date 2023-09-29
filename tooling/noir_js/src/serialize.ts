@@ -1,6 +1,6 @@
-import { WitnessMap, compressWitness } from '@noir-lang/acvm_js';
-import { decompressSync as gunzip } from 'fflate';
-import { base64Decode } from './base64_decode.js';
+import { WitnessMap, compressWitness } from "@noir-lang/acvm_js";
+import { decompressSync as gunzip } from "fflate";
+import { base64Decode } from "./base64_decode.js";
 
 // After solving the witness, to pass it a backend, we need to serialize it to a Uint8Array
 export function witnessMapToUint8Array(solvedWitness: WitnessMap): Uint8Array {

@@ -1,14 +1,14 @@
-import { expect } from 'chai';
-import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { generateWitness } from '../../src/index.js';
-import { Noir } from '../../src/program.js';
-import { BarretenbergBackend as Backend } from '../backend/barretenberg.js';
+import { expect } from "chai";
+import assert_lt_json from "../noir_compiled_examples/assert_lt/target/assert_lt.json" assert { type: "json" };
+import { generateWitness } from "../../src/index.js";
+import { Noir } from "../../src/program.js";
+import { BarretenbergBackend as Backend } from "../backend/barretenberg.js";
 
-it('end-to-end proof creation and verification (outer)', async () => {
+it("end-to-end proof creation and verification (outer)", async () => {
   // Noir.Js part
   const inputs = {
-    x: '2',
-    y: '3',
+    x: "2",
+    y: "3",
   };
   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
@@ -23,11 +23,11 @@ it('end-to-end proof creation and verification (outer)', async () => {
   expect(isValid).to.be.true;
 });
 
-it('end-to-end proof creation and verification (outer) -- Program API', async () => {
+it("end-to-end proof creation and verification (outer) -- Program API", async () => {
   // Noir.Js part
   const inputs = {
-    x: '2',
-    y: '3',
+    x: "2",
+    y: "3",
   };
 
   // Initialize backend
@@ -42,11 +42,11 @@ it('end-to-end proof creation and verification (outer) -- Program API', async ()
   expect(isValid).to.be.true;
 });
 
-it('end-to-end proof creation and verification (inner)', async () => {
+it("end-to-end proof creation and verification (inner)", async () => {
   // Noir.Js part
   const inputs = {
-    x: '2',
-    y: '3',
+    x: "2",
+    y: "3",
   };
   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
@@ -73,11 +73,11 @@ it('end-to-end proof creation and verification (inner)', async () => {
 // a prover and verifier class to more accurately reflect what happens in production.
 //
 // If its not fixable, we can leave it in as documentation of this behavior.
-it('[BUG] -- bb.js null function or function signature mismatch (different instance) ', async () => {
+it("[BUG] -- bb.js null function or function signature mismatch (different instance) ", async () => {
   // Noir.Js part
   const inputs = {
-    x: '2',
-    y: '3',
+    x: "2",
+    y: "3",
   };
   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
@@ -90,11 +90,13 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
     const verifier = await Backend.initialize(assert_lt_json);
     await verifier.verifyFinalProof(proof);
     expect.fail(
-      'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
+      "bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.",
     );
   } catch (error) {
     const knownError = error as Error;
-    expect(knownError.message).to.contain('null function or function signature mismatch');
+    expect(knownError.message).to.contain(
+      "null function or function signature mismatch",
+    );
   }
 });
 
@@ -105,11 +107,11 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
 // If we only create one type of proof, then this works as expected.
 //
 // If we do not create an inner proof, then this will work as expected.
-it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ', async () => {
+it("[BUG] -- bb.js null function or function signature mismatch (outer-inner) ", async () => {
   // Noir.Js part
   const inputs = {
-    x: '2',
-    y: '3',
+    x: "2",
+    y: "3",
   };
   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
@@ -131,9 +133,13 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
     // We can also try verifying an inner proof and it will fail.
     // const isValidInner = await prover.verifyInnerProof(_proofInner);
     // expect(isValidInner).to.be.true;
-    expect.fail('bb.js currently returns a bug when we try to verify an inner and outer proof with the same backend');
+    expect.fail(
+      "bb.js currently returns a bug when we try to verify an inner and outer proof with the same backend",
+    );
   } catch (error) {
     const knownError = error as Error;
-    expect(knownError.message).to.contain('null function or function signature mismatch');
+    expect(knownError.message).to.contain(
+      "null function or function signature mismatch",
+    );
   }
 });
