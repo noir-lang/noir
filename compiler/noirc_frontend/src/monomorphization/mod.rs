@@ -819,7 +819,6 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let the_trait = self.interner.get_trait(method.trait_id);
-        let the_trait = the_trait.borrow();
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
