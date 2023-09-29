@@ -103,7 +103,7 @@ contract Test {
         let note = DummyNote::new(amount, secretHash);
         
         // Public oracle call to emit new commitment.
-        context.push_new_nullifier(note.get_commitment(), 0);
+        context.push_new_nullifier(note.get_commitment(), EMPTY_NULLIFIED_COMMITMENT);
     }
 
     // Forcefully emits a nullifier (for testing purposes)

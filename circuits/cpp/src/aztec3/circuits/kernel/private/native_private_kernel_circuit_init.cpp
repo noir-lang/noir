@@ -160,6 +160,8 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyCircuit
 
     validate_inputs(builder, private_inputs);
 
+    common_validate_arrays(builder, private_inputs.private_call.call_stack_item.public_inputs);
+
     validate_this_private_call_against_tx_request(builder, private_inputs);
 
     common_validate_call_stack(builder, private_inputs.private_call);

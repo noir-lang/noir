@@ -5,6 +5,8 @@
 
 #include <barretenberg/barretenberg.hpp>
 
+#include <cstddef>
+
 /**
  * NOTE: see bberg's stdlib/primitives/field/array.hpp for the corresponding circuit implementations of these functions.
  */
@@ -58,6 +60,41 @@ template <typename T, size_t SIZE> size_t array_length(std::array<T, SIZE> const
         length++;
     }
     return length;
+};
+
+/**
+ * @brief Routine which validates that all zero values of an array form a contiguous region at the end, i.e.,
+          of the form: [*,*,*...,0,0,0,0] where any * is non-zero. Note that a full array of non-zero values is
+          valid.
+ * @tparam The type of the values stored in the array.
+ * @tparam The builder type.
+ * @tparam The size of the array.
+ * @param builder The builder which will assert on an array being malformed.
+ * @param arr The array to validate.
+ * @param error_message The prefix to the error message set by the caller
+ */
+template <typename T, typename Builder, size_t SIZE>
+void validate_array(Builder& builder, std::array<T, SIZE> const& arr, std::string const& error_message)
+{
+    size_t first_zero_pos = SIZE;
+    size_t last_non_zero_pos = 0;
+    for (size_t i = 0; i < SIZE; i++) {
+        if (!is_empty(arr[i])) {
+            last_non_zero_pos = i;
+        } else if (is_empty(arr[i]) && first_zero_pos == SIZE) {
+            first_zero_pos = i;
+        }
+    }
+
+    builder.do_assert(
+        last_non_zero_pos <= first_zero_pos,  // Only case when equality holds is for a full zeros array.
+        format(
+            error_message,
+            " - array is not well-formed. A non-zero value occured after a zero. Last position of a non-zero value: ",
+            last_non_zero_pos,
+            "; First position of a zero-value: ",
+            first_zero_pos),
+        CircuitErrorCode::ARRAY_NOT_ZERO_RIGHT_PADDED);
 };
 
 /**

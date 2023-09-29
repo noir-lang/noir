@@ -7,6 +7,7 @@
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include "aztec3/circuits/abis/read_request_membership_witness.hpp"
 #include "aztec3/circuits/hash.hpp"
@@ -16,6 +17,7 @@
 
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 
+using aztec3::circuits::abis::CompleteAddress;
 using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionData;
@@ -26,6 +28,7 @@ using aztec3::circuits::abis::ReadRequestMembershipWitness;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
+using aztec3::utils::validate_array;
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
@@ -112,6 +115,28 @@ void common_validate_read_requests(DummyBuilder& builder,
             // that a non-transient read_request was derived from the proper/current contract address?
         }
     }
+}
+
+/**
+ * @brief We validate that relevant arrays assumed to be zero-padded on the right comply to this format.
+ *
+ * @param builder
+ * @param app_public_inputs Reference to the private_circuit_public_inputs of the current kernel iteration.
+ */
+void common_validate_arrays(DummyBuilder& builder, PrivateCircuitPublicInputs<NT> const& app_public_inputs)
+{
+    // Each of the following arrays is expected to be zero-padded.
+    // In addition, some of the following arrays (new_commitments, etc...) are passed
+    // to push_array_to_array() routines which rely on the passed arrays to be well-formed.
+    validate_array(builder, app_public_inputs.return_values, "Return values");
+    validate_array(builder, app_public_inputs.read_requests, "Read requests");
+    validate_array(builder, app_public_inputs.new_commitments, "New commitments");
+    validate_array(builder, app_public_inputs.new_nullifiers, "New nullifiers");
+    validate_array(builder, app_public_inputs.nullified_commitments, "Nullified commitments");
+    validate_array(builder, app_public_inputs.private_call_stack, "Private Call Stack");
+    validate_array(builder, app_public_inputs.public_call_stack, "Public Call Stack");
+    validate_array(builder, app_public_inputs.new_l2_to_l1_msgs, "New L2 to L1 messages");
+    // encrypted_logs_hash and unencrypted_logs_hash have their own integrity checks.
 }
 
 void common_validate_0th_nullifier(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)
@@ -296,10 +321,10 @@ void common_contract_logic(DummyBuilder& builder,
         auto constructor_hash =
             compute_constructor_hash(function_data, private_call_public_inputs.args_hash, private_call_vk_hash);
 
-        auto const new_contract_address = abis::CompleteAddress<NT>::compute(contract_dep_data.deployer_public_key,
-                                                                             contract_dep_data.contract_address_salt,
-                                                                             contract_dep_data.function_tree_root,
-                                                                             constructor_hash)
+        auto const new_contract_address = CompleteAddress<NT>::compute(contract_dep_data.deployer_public_key,
+                                                                       contract_dep_data.contract_address_salt,
+                                                                       contract_dep_data.function_tree_root,
+                                                                       constructor_hash)
                                               .address;
 
         // Add new contract data if its a contract deployment function

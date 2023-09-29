@@ -159,9 +159,16 @@ impl PrivateContext {
         self.new_commitments.push(note_hash);
     }
 
+    // We never push a zero nullified_commitment as zero is used to indicate the end
+    // of a field array in private kernel. This routine transparently replaces a
+    // zero value into the special placeholder: EMPTY_NULLIFIED_COMMITMENT.
     fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field) {
         self.new_nullifiers.push(nullifier);
-        self.nullified_commitments.push(nullified_commitment);
+        let mut non_zero_nullified = nullified_commitment;
+        if (non_zero_nullified == 0) {
+            non_zero_nullified = EMPTY_NULLIFIED_COMMITMENT;
+        }
+        self.nullified_commitments.push(non_zero_nullified);
     }
 
     // docs:start:context_message_portal

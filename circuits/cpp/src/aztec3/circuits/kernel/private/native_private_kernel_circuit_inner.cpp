@@ -106,6 +106,8 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBu
 
     validate_inputs(builder, private_inputs);
 
+    common_validate_arrays(builder, private_inputs.private_call.call_stack_item.public_inputs);
+
     pop_and_validate_this_private_call_hash(builder, private_inputs.private_call, public_inputs.end.private_call_stack);
 
     common_validate_call_stack(builder, private_inputs.private_call);

@@ -68,10 +68,6 @@ void match_reads_to_commitments(DummyCircuitBuilder& builder,
     }
 }
 
-// TODO(https://github.com/AztecProtocol/aztec-packages/issues/837): optimized based on hints
-// regarding matching a nullifier to a commitment
-// i.e., we get pairs i,j such that new_nullifiers[i] == new_commitments[j]
-
 /**
  * @brief This function matches transient nullifiers to commitments and squashes (deletes) them both.
  *
