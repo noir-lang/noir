@@ -309,7 +309,7 @@ fn on_tests_request(
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{}", err),
+                message: err.to_string(),
             });
             return future::ready(Ok(None));
         }
@@ -318,10 +318,7 @@ fn on_tests_request(
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
-            return future::ready(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                format!("{}", err),
-            )));
+            return future::ready(Err(ResponseError::new(ErrorCode::REQUEST_FAILED, err)));
         }
     };
 
@@ -382,7 +379,7 @@ fn on_code_lens_request(
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{err}"),
+                message: err.to_string(),
             });
             return future::ready(Ok(None));
         }
@@ -391,10 +388,7 @@ fn on_code_lens_request(
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
-            return future::ready(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                format!("{err}"),
-            )));
+            return future::ready(Err(ResponseError::new(ErrorCode::REQUEST_FAILED, err)));
         }
     };
 

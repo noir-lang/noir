@@ -341,7 +341,7 @@ impl<F: PrimeField> FieldElement<F> {
 
         let and_byte_arr: Vec<_> = lhs_bytes
             .into_iter()
-            .zip(rhs_bytes.into_iter())
+            .zip(rhs_bytes)
             .map(|(lhs, rhs)| if is_xor { lhs ^ rhs } else { lhs & rhs })
             .collect();
 
