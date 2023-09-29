@@ -519,6 +519,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noir-lang/types@workspace:tooling/noir_js_types":
+  version: 0.0.0-use.local
+  resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
+  languageName: unknown
+  linkType: soft
+
 "@npmcli/fs@npm:^3.1.0":
   version: 3.1.0
   resolution: "@npmcli/fs@npm:3.1.0"
