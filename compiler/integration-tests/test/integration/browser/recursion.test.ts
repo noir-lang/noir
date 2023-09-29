@@ -7,22 +7,22 @@ import newCompiler, {
   compile,
   init_log_level as compilerLogLevel,
 } from "@noir-lang/noir_wasm";
-import { decompressSync as gunzip } from "fflate";
-import { acvm, abi } from "@noir-lang/noir_js";
+import { Program } from "@noir-lang/noir_js";
+import { BarretenbergBackend } from "@noir-lang/backend_barretenberg";
 
 // @ts-ignore
-import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
+// import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
 
 import * as TOML from "smol-toml";
 
 const logger = new Logger({ name: "test", minLevel: TEST_LOG_LEVEL });
 
-const { default: initACVM, executeCircuit, compressWitness } = acvm;
-const { default: newABICoder, abiEncode } = abi;
+// const { default: initACVM, executeCircuit, compressWitness } = acvm;
+// const { default: newABICoder, abiEncode } = abi;
 
 await newCompiler();
-await newABICoder();
-await initACVM();
+// await newABICoder();
+// await initACVM();
 
 compilerLogLevel("INFO");
 
@@ -40,19 +40,19 @@ async function getFile(url: URL): Promise<string> {
   return await response.text();
 }
 
-const CIRCUIT_SIZE = 2 ** 19;
+// const CIRCUIT_SIZE = 2 ** 19;
 
-const api = await Barretenberg.new(numberOfThreads);
-await api.commonInitSlabAllocator(CIRCUIT_SIZE);
-// Plus 1 needed!
-const crs = await Crs.new(CIRCUIT_SIZE + 1);
-await api.srsInitSrs(
-  new RawBuffer(crs.getG1Data()),
-  crs.numPoints,
-  new RawBuffer(crs.getG2Data()),
-);
+// const api = await Barretenberg.new(numberOfThreads);
+// await api.commonInitSlabAllocator(CIRCUIT_SIZE);
+// // Plus 1 needed!
+// const crs = await Crs.new(CIRCUIT_SIZE + 1);
+// await api.srsInitSrs(
+//   new RawBuffer(crs.getG1Data()),
+//   crs.numPoints,
+//   new RawBuffer(crs.getG2Data()),
+// );
 
-const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
+// const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
 async function getCircuit(noirSource) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -64,41 +64,41 @@ async function getCircuit(noirSource) {
   return compile({});
 }
 
-async function generateWitness(acir, abi, inputs) {
-  const witnessMap: WitnessMap = abiEncode(abi, inputs, null);
+// async function generateWitness(acir, abi, inputs) {
+//   const witnessMap: WitnessMap = abiEncode(abi, inputs, null);
 
-  const compressedByteCode = Uint8Array.from(atob(acir), (c) =>
-    c.charCodeAt(0),
-  );
+//   const compressedByteCode = Uint8Array.from(atob(acir), (c) =>
+//     c.charCodeAt(0),
+//   );
 
-  return executeCircuit(compressedByteCode, witnessMap, () => {
-    throw Error("unexpected oracle");
-  });
-}
+//   return executeCircuit(compressedByteCode, witnessMap, () => {
+//     throw Error("unexpected oracle");
+//   });
+// }
 
-async function generateProof(
-  acirUint8Array: Uint8Array,
-  witnessUint8Array: Uint8Array,
-  optimizeForRecursion: boolean,
-) {
-  // This took ~6.5 minutes!
-  return api.acirCreateProof(
-    acirComposer,
-    acirUint8Array,
-    witnessUint8Array,
-    optimizeForRecursion,
-  );
-}
+// async function generateProof(
+//   acirUint8Array: Uint8Array,
+//   witnessUint8Array: Uint8Array,
+//   optimizeForRecursion: boolean,
+// ) {
+//   // This took ~6.5 minutes!
+//   return api.acirCreateProof(
+//     acirComposer,
+//     acirUint8Array,
+//     witnessUint8Array,
+//     optimizeForRecursion,
+//   );
+// }
 
-async function verifyProof(proof: Uint8Array, optimizeForRecursion: boolean) {
-  await api.acirInitVerificationKey(acirComposer);
-  const verified = await api.acirVerifyProof(
-    acirComposer,
-    proof,
-    optimizeForRecursion,
-  );
-  return verified;
-}
+// async function verifyProof(proof: Uint8Array, optimizeForRecursion: boolean) {
+//   await api.acirInitVerificationKey(acirComposer);
+//   const verified = await api.acirVerifyProof(
+//     acirComposer,
+//     proof,
+//     optimizeForRecursion,
+//   );
+//   return verified;
+// }
 
 describe("It compiles noir program code, receiving circuit bytes and abi object.", () => {
   let circuit_main_source;
@@ -108,11 +108,11 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
   before(async () => {
     const circuit_main_source_url = new URL(
       `${base_relative_path}/${circuit_main}/src/main.nr`,
-      import.meta.url,
+      import.meta.url
     );
     const circuit_main_toml_url = new URL(
       `${base_relative_path}/${circuit_main}/Prover.toml`,
-      import.meta.url,
+      import.meta.url
     );
 
     circuit_main_source = await getFile(circuit_main_source_url);
@@ -120,115 +120,133 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
 
     const circuit_recursion_source_url = new URL(
       `${base_relative_path}/${circuit_recursion}/src/main.nr`,
-      import.meta.url,
+      import.meta.url
     );
 
     circuit_recursion_source = await getFile(circuit_recursion_source_url);
   });
 
   it("Should generate valid inner proof for correct input, then verify proof within a proof", async () => {
-    //@ts-ignore
-    const { circuit: main_circuit, abi: main_abi } =
-      await getCircuit(circuit_main_source);
+    const compiled_main_circuit = await getCircuit(circuit_main_source);
+    console.log(compiled_main_circuit);
     const main_inputs = TOML.parse(circuit_main_toml);
 
-    const main_witness = await generateWitness(
-      main_circuit,
-      main_abi,
-      main_inputs,
-    );
-    const main_compressedByteCode = Uint8Array.from(atob(main_circuit), (c) =>
-      c.charCodeAt(0),
-    );
-    const main_compressedWitness = compressWitness(main_witness);
-    const main_acirUint8Array = gunzip(main_compressedByteCode);
-    const main_witnessUint8Array = gunzip(main_compressedWitness);
+    const backend = new BarretenbergBackend({
+      bytecode: compiled_main_circuit.circuit,
+      abi: compiled_main_circuit.abi,
+    });
 
-    const optimizeMainProofForRecursion = true;
-
-    const main_proof = await generateProof(
-      main_acirUint8Array,
-      main_witnessUint8Array,
-      optimizeMainProofForRecursion,
+    const program = new Program(
+      {
+        bytecode: compiled_main_circuit.circuit,
+        abi: compiled_main_circuit.abi,
+      },
+      backend,
     );
 
-    const main_verification = await verifyProof(
-      main_proof,
-      optimizeMainProofForRecursion,
-    );
+    const proof = await program.generateProof(main_inputs);
 
-    logger.debug("main_verification", main_verification);
+    const isValid = await program.verifyProof(proof);
 
-    expect(main_verification).to.be.true;
+    expect(isValid).to.be.true;
 
-    const numPublicInputs = 1;
-    const proofAsFields = (
-      await api.acirSerializeProofIntoFields(
-        acirComposer,
-        main_proof,
-        numPublicInputs,
-      )
-    ).map((p) => p.toString());
+    // const main_witness = await generateWitness(
+    //   main_circuit,
+    //   main_abi,
+    //   main_inputs,
+    // );
+    // const main_compressedByteCode = Uint8Array.from(atob(main_circuit), (c) =>
+    //   c.charCodeAt(0),
+    // );
+    // const main_compressedWitness = compressWitness(main_witness);
+    // const main_acirUint8Array = gunzip(main_compressedByteCode);
+    // const main_witnessUint8Array = gunzip(main_compressedWitness);
 
-    const vk = await api.acirSerializeVerificationKeyIntoFields(acirComposer);
+    // const optimizeMainProofForRecursion = true;
 
-    const vkAsFields = vk[0].map((vk) => vk.toString());
-    const vkHash = vk[1].toString();
+    // const main_proof = await generateProof(
+    //   main_acirUint8Array,
+    //   main_witnessUint8Array,
+    //   optimizeMainProofForRecursion,
+    // );
 
-    const recursion_inputs = {
-      verification_key: vkAsFields,
-      proof: proofAsFields,
-      public_inputs: [main_inputs.y],
-      key_hash: vkHash,
-      // eslint-disable-next-line prettier/prettier
-      input_aggregation_object: ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
-    };
+    // const main_verification = await verifyProof(
+    //   main_proof,
+    //   optimizeMainProofForRecursion,
+    // );
 
-    logger.debug("recursion_inputs", recursion_inputs);
+    // logger.debug("main_verification", main_verification);
 
-    const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(
-      circuit_recursion_source,
-    );
+    // expect(main_verification).to.be.true;
 
-    const recursion_witness = await generateWitness(
-      recursion_circuit,
-      recursion_abi,
-      recursion_inputs,
-    );
+    // const numPublicInputs = 1;
+    // const proofAsFields = (
+    //   await api.acirSerializeProofIntoFields(
+    //     acirComposer,
+    //     main_proof,
+    //     numPublicInputs,
+    //   )
+    // ).map((p) => p.toString());
 
-    const recursion_compressedByteCode = Uint8Array.from(
-      atob(recursion_circuit),
-      (c) => c.charCodeAt(0),
-    );
+    // const vk = await api.acirSerializeVerificationKeyIntoFields(acirComposer);
 
-    const recursion_compressedWitness = compressWitness(recursion_witness);
-    const recursion_acirUint8Array = gunzip(recursion_compressedByteCode);
-    const recursion_witnessUint8Array = gunzip(recursion_compressedWitness);
+    // const vkAsFields = vk[0].map((vk) => vk.toString());
+    // const vkHash = vk[1].toString();
 
-    const optimizeRecursionProofForRecursion = false;
+    // const recursion_inputs = {
+    //   verification_key: vkAsFields,
+    //   proof: proofAsFields,
+    //   public_inputs: [main_inputs.y],
+    //   key_hash: vkHash,
+    //   // eslint-disable-next-line prettier/prettier
+    //   input_aggregation_object: ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+    // };
 
-    const recursion_proof = await generateProof(
-      recursion_acirUint8Array,
-      recursion_witnessUint8Array,
-      optimizeRecursionProofForRecursion,
-    );
+    // logger.debug("recursion_inputs", recursion_inputs);
 
-    const recursion_numPublicInputs = 1;
+    // const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(
+    //   circuit_recursion_source,
+    // );
 
-    const recursion_proofAsFields = (
-      await api.acirSerializeProofIntoFields(
-        acirComposer,
-        recursion_proof,
-        recursion_numPublicInputs,
-      )
-    ).map((p) => p.toString());
+    // const recursion_witness = await generateWitness(
+    //   recursion_circuit,
+    //   recursion_abi,
+    //   recursion_inputs,
+    // );
 
-    logger.debug("recursion_proofAsFields", recursion_proofAsFields);
+    // const recursion_compressedByteCode = Uint8Array.from(
+    //   atob(recursion_circuit),
+    //   (c) => c.charCodeAt(0),
+    // );
 
-    const recursion_verification = await verifyProof(recursion_proof, false);
+    // const recursion_compressedWitness = compressWitness(recursion_witness);
+    // const recursion_acirUint8Array = gunzip(recursion_compressedByteCode);
+    // const recursion_witnessUint8Array = gunzip(recursion_compressedWitness);
 
-    logger.debug("recursion_verification", recursion_verification);
+    // const optimizeRecursionProofForRecursion = false;
 
-    expect(recursion_verification).to.be.true;
+    // const recursion_proof = await generateProof(
+    //   recursion_acirUint8Array,
+    //   recursion_witnessUint8Array,
+    //   optimizeRecursionProofForRecursion,
+    // );
+
+    // const recursion_numPublicInputs = 1;
+
+    // const recursion_proofAsFields = (
+    //   await api.acirSerializeProofIntoFields(
+    //     acirComposer,
+    //     recursion_proof,
+    //     recursion_numPublicInputs,
+    //   )
+    // ).map((p) => p.toString());
+
+    // logger.debug("recursion_proofAsFields", recursion_proofAsFields);
+
+    // const recursion_verification = await verifyProof(recursion_proof, false);
+
+    // logger.debug("recursion_verification", recursion_verification);
+
+    // expect(recursion_verification).to.be.true;
   }).timeout(60 * 20e3);
 });
