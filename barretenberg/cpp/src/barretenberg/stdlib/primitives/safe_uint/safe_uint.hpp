@@ -98,30 +98,9 @@ template <typename Builder> class safe_uint_t {
     // Subtraction when you have a pre-determined bound on the difference size
     safe_uint_t subtract(const safe_uint_t& other,
                          const size_t difference_bit_size,
-                         std::string const& description = "") const
-    {
-        ASSERT(difference_bit_size <= MAX_BIT_NUM);
-        ASSERT(!(this->value.is_constant() && other.value.is_constant()));
-        field_ct difference_val = this->value - other.value;
-        safe_uint_t<Builder> difference(difference_val, difference_bit_size, format("subtract: ", description));
-        // This checks the subtraction is correct for integers without any wraps
-        if (difference.current_max + other.current_max > MAX_VALUE)
-            throw_or_abort("maximum value exceeded in safe_uint subtract");
-        return difference;
-    }
+                         std::string const& description = "") const;
 
-    safe_uint_t operator-(const safe_uint_t& other) const
-    {
-        // We could get a constant underflow
-        ASSERT(!(this->value.is_constant() && other.value.is_constant() &&
-                 static_cast<uint256_t>(value.get_value()) < static_cast<uint256_t>(other.value.get_value())));
-        field_ct difference_val = this->value - other.value;
-        safe_uint_t<Builder> difference(difference_val, (size_t)(current_max.get_msb() + 1), "- operator");
-        // This checks the subtraction is correct for integers without any wraps
-        if (difference.current_max + other.current_max > MAX_VALUE)
-            throw_or_abort("maximum value exceeded in safe_uint minus operator");
-        return difference;
-    }
+    safe_uint_t operator-(const safe_uint_t& other) const;
 
     // division when you have a pre-determined bound on the sizes of the quotient and remainder
     safe_uint_t divide(
@@ -132,60 +111,10 @@ template <typename Builder> class safe_uint_t {
         const std::function<std::pair<uint256_t, uint256_t>(uint256_t, uint256_t)>& get_quotient =
             [](uint256_t val, uint256_t divisor) {
                 return std::make_pair((uint256_t)(val / (uint256_t)divisor), (uint256_t)(val % (uint256_t)divisor));
-            })
-    {
-        ASSERT(this->value.is_constant() == false);
-        ASSERT(quotient_bit_size <= MAX_BIT_NUM);
-        ASSERT(remainder_bit_size <= MAX_BIT_NUM);
-        uint256_t val = this->value.get_value();
-        auto [quotient_val, remainder_val] = get_quotient(val, (uint256_t)other.value.get_value());
-        field_ct quotient_field(witness_t(value.context, quotient_val));
-        field_ct remainder_field(witness_t(value.context, remainder_val));
-        safe_uint_t<Builder> quotient(
-            quotient_field, quotient_bit_size, format("divide method quotient: ", description));
-        safe_uint_t<Builder> remainder(
-            remainder_field, remainder_bit_size, format("divide method remainder: ", description));
-
-        // This line implicitly checks we are not overflowing
-        safe_uint_t int_val = quotient * other + remainder;
-
-        // We constrain divisor - remainder - 1 to be non-negative to ensure that remainder < divisor.
-        // Define remainder_plus_one to avoid multiple subtractions
-        const safe_uint_t<Builder> remainder_plus_one = remainder + 1;
-        // Subtraction of safe_uint_t's imposes the desired range constraint
-        other - remainder_plus_one;
-
-        this->assert_equal(int_val, "divide method quotient and/or remainder incorrect");
-
-        return quotient;
-    }
+            }) const;
 
     // Potentially less efficient than divide function - bounds remainder and quotient by max of this
-    safe_uint_t operator/(const safe_uint_t& other) const
-    {
-        ASSERT(this->value.is_constant() == false);
-        uint256_t val = this->value.get_value();
-        auto [quotient_val, remainder_val] = val.divmod((uint256_t)other.value.get_value());
-        field_ct quotient_field(witness_t(value.context, quotient_val));
-        field_ct remainder_field(witness_t(value.context, remainder_val));
-        safe_uint_t<Builder> quotient(
-            quotient_field, (size_t)(current_max.get_msb() + 1), format("/ operator quotient"));
-        safe_uint_t<Builder> remainder(
-            remainder_field, (size_t)(other.current_max.get_msb() + 1), format("/ operator remainder"));
-
-        // This line implicitly checks we are not overflowing
-        safe_uint_t int_val = quotient * other + remainder;
-
-        // We constrain divisor - remainder - 1 to be non-negative to ensure that remainder < divisor.
-        // // define remainder_plus_one to avoid multiple subtractions
-        const safe_uint_t<Builder> remainder_plus_one = remainder + 1;
-        // // subtraction of safe_uint_t's imposes the desired range constraint
-        other - remainder_plus_one;
-
-        this->assert_equal(int_val, "/ operator quotient and/or remainder incorrect");
-
-        return quotient;
-    }
+    safe_uint_t operator/(const safe_uint_t& other) const;
 
     safe_uint_t add_two(const safe_uint_t& add_a, const safe_uint_t& add_b) const
     {
