@@ -12,7 +12,7 @@ import { PXE, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
-import { deployAndInitializeStandardizedTokenAndBridgeContracts } from './utils.js';
+import { deployAndInitializeTokenAndBridgeContracts } from './utils.js';
 
 /**
  * A Class for testing cross chain interactions, contains common interactions
@@ -43,7 +43,7 @@ export class CrossChainTestHarness {
 
     // Deploy and initialize all required contracts
     logger('Deploying and initializing token, portal and its bridge...');
-    const contracts = await deployAndInitializeStandardizedTokenAndBridgeContracts(
+    const contracts = await deployAndInitializeTokenAndBridgeContracts(
       wallet,
       walletClient,
       publicClient,
@@ -154,11 +154,11 @@ export class CrossChainTestHarness {
 
     this.logger('Sending messages to L1 portal to be consumed publicly');
     const args = [
-      this.ownerAddress.toString(),
       bridgeAmount,
+      this.ownerAddress.toString(),
+      this.ethAccount.toString(),
       deadline,
       secretHash.toString(true),
-      this.ethAccount.toString(),
     ] as const;
     const { result: messageKeyHex } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
@@ -181,10 +181,10 @@ export class CrossChainTestHarness {
     this.logger('Sending messages to L1 portal to be consumed privately');
     const args = [
       bridgeAmount,
-      deadline,
-      secretHashForL2MessageConsumption.toString(true),
       secretHashForRedeemingMintedNotes.toString(true),
       this.ethAccount.toString(),
+      deadline,
+      secretHashForL2MessageConsumption.toString(true),
     ] as const;
     const { result: messageKeyHex } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
       account: this.ethAccount.toString(),
@@ -264,8 +264,12 @@ export class CrossChainTestHarness {
     expect(balance).toBe(expectedBalance);
   }
 
+  async getL2PublicBalanceOf(owner: AztecAddress) {
+    return await this.l2Token.methods.balance_of_public(owner).view();
+  }
+
   async expectPublicBalanceOnL2(owner: AztecAddress, expectedBalance: bigint) {
-    const balance = await this.l2Token.methods.balance_of_public(owner).view({ from: owner });
+    const balance = await this.getL2PublicBalanceOf(owner);
     expect(balance).toBe(expectedBalance);
   }
 

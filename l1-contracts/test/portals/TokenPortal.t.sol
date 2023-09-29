@@ -143,10 +143,10 @@ contract TokenPortalTest is Test {
     // Perform op
     bytes32 entryKey = tokenPortal.depositToAztecPrivate{value: bid}(
       amount,
-      deadline,
-      secretHashForL2MessageConsumption,
       secretHashForRedeemingMintedNotes,
-      address(this)
+      address(this),
+      deadline,
+      secretHashForL2MessageConsumption
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
@@ -185,7 +185,7 @@ contract TokenPortalTest is Test {
 
     // Perform op
     bytes32 entryKey = tokenPortal.depositToAztecPublic{value: bid}(
-      to, amount, deadline, secretHashForL2MessageConsumption, address(this)
+      amount, to, address(this), deadline, secretHashForL2MessageConsumption
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
@@ -210,7 +210,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePublic(
-      to, amount, deadline, secretHashForL2MessageConsumption, bid
+      amount, to, deadline, secretHashForL2MessageConsumption, bid
     );
     vm.stopPrank();
 
@@ -221,7 +221,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePrivate(
-      amount, deadline, secretHashForL2MessageConsumption, secretHashForRedeemingMintedNotes, bid
+      amount, secretHashForRedeemingMintedNotes, deadline, secretHashForL2MessageConsumption, bid
     );
 
     // actually cancel the message
@@ -231,7 +231,7 @@ contract TokenPortalTest is Test {
     emit L1ToL2MessageCancelled(expectedEntryKey);
     // perform op
     bytes32 entryKey = tokenPortal.cancelL1ToAztecMessagePublic(
-      to, amount, deadline, secretHashForL2MessageConsumption, bid
+      amount, to, deadline, secretHashForL2MessageConsumption, bid
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
@@ -257,7 +257,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePrivate(
-      amount, deadline, secretHashForL2MessageConsumption, secretHashForRedeemingMintedNotes, bid
+      amount, secretHashForRedeemingMintedNotes, deadline, secretHashForL2MessageConsumption, bid
     );
     vm.stopPrank();
 
@@ -268,7 +268,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePublic(
-      to, amount, deadline, secretHashForL2MessageConsumption, bid
+      amount, to, deadline, secretHashForL2MessageConsumption, bid
     );
 
     // actually cancel the message
@@ -278,7 +278,7 @@ contract TokenPortalTest is Test {
     emit L1ToL2MessageCancelled(expectedEntryKey);
     // perform op
     bytes32 entryKey = tokenPortal.cancelL1ToAztecMessagePrivate(
-      amount, deadline, secretHashForL2MessageConsumption, secretHashForRedeemingMintedNotes, bid
+      amount, secretHashForRedeemingMintedNotes, deadline, secretHashForL2MessageConsumption, bid
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");

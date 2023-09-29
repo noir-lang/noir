@@ -21,6 +21,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/cli": "workspace:^",
     "@aztec/end-to-end": "workspace:^",

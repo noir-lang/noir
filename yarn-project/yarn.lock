@@ -259,6 +259,7 @@ __metadata:
   resolution: "@aztec/canary@workspace:canary"
   dependencies:
     "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
     "@aztec/cli": "workspace:^"
     "@aztec/end-to-end": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"

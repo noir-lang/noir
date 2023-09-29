@@ -1,9 +1,9 @@
 import {
+  AccountWallet,
   AztecAddress,
   EthAddress,
   Fr,
   TxStatus,
-  Wallet,
   computeMessageSecretHash,
   createDebugLogger,
   createPXEClient,
@@ -12,8 +12,9 @@ import {
   sleep,
   waitForSandbox,
 } from '@aztec/aztec.js';
+import { FunctionSelector } from '@aztec/circuits.js';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
-import { NonNativeTokenContract, UniswapContract } from '@aztec/noir-contracts/types';
+import { TokenBridgeContract, TokenContract, UniswapContract } from '@aztec/noir-contracts/types';
 
 import {
   HDAccount,
@@ -29,16 +30,13 @@ import {
 import { mnemonicToAccount } from 'viem/accounts';
 import { Chain, foundry } from 'viem/chains';
 
-import { deployAndInitializeNonNativeL2TokenContracts, deployL1Contract } from './utils.js';
+import { deployAndInitializeTokenAndBridgeContracts, deployL1Contract, hashPayload } from './utils.js';
 
 const logger = createDebugLogger('aztec:canary');
 
 const { SANDBOX_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 
 export const MNEMONIC = 'test test test test test test test test test test test junk';
-
-const INITIAL_BALANCE = 333n;
-const wethAmountToBridge = parseEther('1');
 
 const WETH9_ADDRESS = EthAddress.fromString('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
 const DAI_ADDRESS = EthAddress.fromString('0x6B175474E89094C44Da98b954EedeAC495271d0F');
@@ -51,43 +49,48 @@ const ethRpcUrl = ETHEREUM_HOST;
 const hdAccount = mnemonicToAccount(MNEMONIC);
 
 const pxe = createPXEClient(pxeRpcUrl);
-let wallet: Wallet;
+
+const wethAmountToBridge: bigint = parseEther('1');
+const uniswapFeeTier = 3000;
+const minimumOutputAmount = 0n;
+const deadline = 2 ** 32 - 1; // max uint32 - 1
 
 /**
  * Deploys all l1 / l2 contracts
  * @param owner - Owner address.
  */
 async function deployAllContracts(
-  owner: AztecAddress,
+  ownerWallet: AccountWallet,
+  ownerAddress: AztecAddress,
   publicClient: PublicClient<HttpTransport, Chain>,
   walletClient: WalletClient<HttpTransport, Chain, HDAccount>,
 ) {
   const l1ContractsAddresses = await getL1ContractAddresses(pxeRpcUrl);
   logger('Deploying DAI Portal, initializing and deploying l2 contract...');
-  const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
-    wallet,
+  const daiContracts = await deployAndInitializeTokenAndBridgeContracts(
+    ownerWallet,
     walletClient,
     publicClient,
-    l1ContractsAddresses!.registry,
-    INITIAL_BALANCE,
-    owner,
+    l1ContractsAddresses!.registryAddress,
+    ownerAddress,
     DAI_ADDRESS,
   );
-  const daiL2Contract = daiContracts.l2Contract;
+  const daiL2Contract = daiContracts.token;
+  const daiL2Bridge = daiContracts.bridge;
   const daiContract = daiContracts.underlyingERC20;
   const daiTokenPortalAddress = daiContracts.tokenPortalAddress;
 
   logger('Deploying WETH Portal, initializing and deploying l2 contract...');
-  const wethContracts = await deployAndInitializeNonNativeL2TokenContracts(
-    wallet,
+  const wethContracts = await deployAndInitializeTokenAndBridgeContracts(
+    ownerWallet,
     walletClient,
     publicClient,
-    l1ContractsAddresses!.registry,
-    INITIAL_BALANCE,
-    owner,
+    l1ContractsAddresses!.registryAddress,
+    ownerAddress,
     WETH9_ADDRESS,
   );
-  const wethL2Contract = wethContracts.l2Contract;
+  const wethL2Contract = wethContracts.token;
+  const wethL2Bridge = wethContracts.bridge;
   const wethContract = wethContracts.underlyingERC20;
   const wethTokenPortal = wethContracts.tokenPortal;
   const wethTokenPortalAddress = wethContracts.tokenPortalAddress;
@@ -107,24 +110,23 @@ async function deployAllContracts(
   });
 
   // deploy l2 uniswap contract and attach to portal
-  const tx = UniswapContract.deploy(pxe).send({
-    portalContract: uniswapPortalAddress,
-  });
-  await tx.isMined();
-  const receipt = await tx.getReceipt();
-  const uniswapL2Contract = await UniswapContract.at(receipt.contractAddress!, wallet);
+  const uniswapL2Contract = await UniswapContract.deploy(ownerWallet)
+    .send({ portalContract: uniswapPortalAddress })
+    .deployed();
   await uniswapL2Contract.attach(uniswapPortalAddress);
 
   await uniswapPortal.write.initialize(
-    [l1ContractsAddresses!.registry.toString(), uniswapL2Contract.address.toString()],
+    [l1ContractsAddresses!.registryAddress.toString(), uniswapL2Contract.address.toString()],
     {} as any,
   );
 
   return {
     daiL2Contract,
+    daiL2Bridge,
     daiContract,
     daiTokenPortalAddress,
     wethL2Contract,
+    wethL2Bridge,
     wethContract,
     wethTokenPortal,
     wethTokenPortalAddress,
@@ -134,34 +136,85 @@ async function deployAllContracts(
   };
 }
 
-const getL2BalanceOf = async (owner: AztecAddress, l2Contract: NonNativeTokenContract) => {
-  return await l2Contract.methods.getBalance(owner).view({ from: owner });
+const getL2PrivateBalanceOf = async (owner: AztecAddress, l2Contract: TokenContract) => {
+  return await l2Contract.methods.balance_of_private(owner).view({ from: owner });
 };
 
-const expectBalanceOnL2 = async (owner: AztecAddress, expectedBalance: bigint, l2Contract: NonNativeTokenContract) => {
-  const balance = await getL2BalanceOf(owner, l2Contract);
+const getL2PublicBalanceOf = async (owner: AztecAddress, l2Contract: TokenContract) => {
+  return await l2Contract.methods.balance_of_public(owner).view();
+};
+
+const expectPrivateBalanceOnL2 = async (owner: AztecAddress, expectedBalance: bigint, l2Contract: TokenContract) => {
+  const balance = await getL2PrivateBalanceOf(owner, l2Contract);
   logger(`Account ${owner} balance: ${balance}. Expected to be: ${expectedBalance}`);
   expect(balance).toBe(expectedBalance);
 };
 
+const expectPublicBalanceOnL2 = async (owner: AztecAddress, expectedBalance: bigint, l2Contract: TokenContract) => {
+  const balance = await getL2PublicBalanceOf(owner, l2Contract);
+  logger(`Account ${owner} balance: ${balance}. Expected to be: ${expectedBalance}`);
+  expect(balance).toBe(expectedBalance);
+};
+
+const generateClaimSecret = async () => {
+  const secret = Fr.random();
+  const secretHash = await computeMessageSecretHash(secret);
+  return [secret, secretHash];
+};
+
 const transferWethOnL2 = async (
-  wethL2Contract: NonNativeTokenContract,
+  wethL2Contract: TokenContract,
   ownerAddress: AztecAddress,
   receiver: AztecAddress,
   transferAmount: bigint,
 ) => {
-  const transferTx = wethL2Contract.methods.transfer(transferAmount, receiver).send();
-  await transferTx.isMined();
-  const transferReceipt = await transferTx.getReceipt();
-  expect(transferReceipt.status).toBe(TxStatus.MINED);
-  logger(`WETH to L2 Transfer Receipt status: ${transferReceipt.status}`);
+  const transferTx = wethL2Contract.methods.transfer_public(ownerAddress, receiver, transferAmount, 0).send();
+  const receipt = await transferTx.wait();
+  expect(receipt.status).toBe(TxStatus.MINED);
 };
 
-// TODO(2167) - Fix this! Adapt to new portal standard and new cross chain harness.
-describe.skip('uniswap_trade_on_l1_from_l2', () => {
-  let ethAccount = EthAddress.ZERO;
+const consumeMessageOnAztecAndMintSecretly = async (
+  l2Bridge: TokenBridgeContract,
+  bridgeAmount: bigint,
+  secretHashForRedeemingMintedNotes: Fr,
+  canceller: EthAddress,
+  messageKey: Fr,
+  secretForL2MessageConsumption: Fr,
+) => {
+  logger('Consuming messages on L2 secretively');
+  // Call the mint tokens function on the Aztec.nr contract
+  const consumptionTx = l2Bridge.methods
+    .claim_private(
+      bridgeAmount,
+      secretHashForRedeemingMintedNotes,
+      canceller,
+      messageKey,
+      secretForL2MessageConsumption,
+    )
+    .send();
+  const consumptionReceipt = await consumptionTx.wait();
+  expect(consumptionReceipt.status).toBe(TxStatus.MINED);
+};
+
+const redeemShieldPrivatelyOnL2 = async (
+  l2Contract: TokenContract,
+  to: AztecAddress,
+  shieldAmount: bigint,
+  secret: Fr,
+) => {
+  logger('Spending commitment in private call');
+  const privateTx = l2Contract.methods.redeem_shield(to, shieldAmount, secret).send();
+  const privateReceipt = await privateTx.wait();
+  expect(privateReceipt.status).toBe(TxStatus.MINED);
+};
+
+describe('uniswap_trade_on_l1_from_l2', () => {
   let publicClient: PublicClient<HttpTransport, Chain>;
   let walletClient: WalletClient<HttpTransport, Chain, HDAccount>;
+  let ownerWallet: AccountWallet;
+  let ownerAddress: AztecAddress;
+  let ownerEthAddress: EthAddress;
+
   beforeAll(async () => {
     await waitForSandbox(pxe);
 
@@ -179,22 +232,24 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
       throw new Error('This test must be run on a fork of mainnet with the expected fork block');
     }
 
-    ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
+    ownerEthAddress = EthAddress.fromString((await walletClient.getAddresses())[0]);
   }, 60_000);
   it('should uniswap trade on L1 from L2 funds privately (swaps WETH -> DAI)', async () => {
     logger('Running L1/L2 messaging test on HTTP interface.');
 
-    [wallet] = await getSandboxAccountsWallets(pxe);
-    const accounts = await wallet.getRegisteredAccounts();
-    const owner = accounts[0].address;
+    [ownerWallet] = await getSandboxAccountsWallets(pxe);
+    const accounts = await ownerWallet.getRegisteredAccounts();
+    ownerAddress = accounts[0].address;
     const receiver = accounts[1].address;
 
-    const result = await deployAllContracts(owner, publicClient, walletClient);
+    const result = await deployAllContracts(ownerWallet, ownerAddress, publicClient, walletClient);
     const {
       daiL2Contract,
+      daiL2Bridge,
       daiContract,
       daiTokenPortalAddress,
       wethL2Contract,
+      wethL2Bridge,
       wethContract,
       wethTokenPortal,
       wethTokenPortalAddress,
@@ -202,7 +257,7 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
       uniswapPortal,
     } = result;
 
-    const ownerInitialBalance = await wethL2Contract.methods.getBalance(owner).view();
+    const ownerInitialBalance = await getL2PrivateBalanceOf(ownerAddress, wethL2Contract);
     logger(`Owner's initial L2 WETH balance: ${ownerInitialBalance}`);
 
     // Give me some WETH so I can deposit to L2 and do the swap...
@@ -212,134 +267,153 @@ describe.skip('uniswap_trade_on_l1_from_l2', () => {
       value: parseEther('1'),
     });
 
-    const meBeforeBalance = await wethContract.read.balanceOf([ethAccount.toString()]);
+    const wethL1BeforeBalance = await wethContract.read.balanceOf([ownerEthAddress.toString()]);
     // 1. Approve weth to be bridged
     await wethContract.write.approve([wethTokenPortalAddress.toString(), wethAmountToBridge], {} as any);
 
     // 2. Deposit weth into the portal and move to L2
     // generate secret
-    const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
-    const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
-    const deadline = 2 ** 32 - 1; // max uint32 - 1
+    const [secretForMintingWeth, secretHashForMintingWeth] = await generateClaimSecret();
+    const [secretForRedeemingWeth, secretHashForRedeemingWeth] = await generateClaimSecret();
     logger('Sending messages to L1 portal');
-    const args = [owner.toString(), wethAmountToBridge, deadline, secretString, ethAccount.toString()] as const;
-    const { result: messageKeyHex } = await wethTokenPortal.simulate.depositToAztecPublic(args, {
-      account: ethAccount.toString(),
+    const args = [
+      wethAmountToBridge,
+      secretHashForRedeemingWeth.toString(true),
+      ownerEthAddress.toString(),
+      deadline,
+      secretHashForMintingWeth.toString(true),
+    ] as const;
+    const { result: messageKeyHex } = await wethTokenPortal.simulate.depositToAztecPrivate(args, {
+      account: ownerEthAddress.toString(),
     } as any);
-    await wethTokenPortal.write.depositToAztecPublic(args, {} as any);
+    await wethTokenPortal.write.depositToAztecPrivate(args, {} as any);
 
-    const currentL1Balance = await wethContract.read.balanceOf([ethAccount.toString()]);
-    logger(`Initial Balance: ${currentL1Balance}. Should be: ${meBeforeBalance - wethAmountToBridge}`);
-    expect(currentL1Balance).toBe(meBeforeBalance - wethAmountToBridge);
+    const currentL1Balance = await wethContract.read.balanceOf([ownerEthAddress.toString()]);
+    logger(`Initial Balance: ${currentL1Balance}. Should be: ${wethL1BeforeBalance - wethAmountToBridge}`);
+    expect(currentL1Balance).toBe(wethL1BeforeBalance - wethAmountToBridge);
     const messageKey = Fr.fromString(messageKeyHex);
 
     // Wait for the archiver to process the message
     await sleep(5000);
     // send a transfer tx to force through rollup with the message included
-    const transferAmount = 1n;
-    await transferWethOnL2(wethL2Contract, owner, receiver, transferAmount);
+    await transferWethOnL2(wethL2Contract, ownerAddress, receiver, 0n);
 
     // 3. Claim WETH on L2
     logger('Minting weth on L2');
-    // Call the mint tokens function on the Aztec.nr contract
-    const consumptionTx = wethL2Contract.methods
-      .mint(wethAmountToBridge, owner, messageKey, secret, ethAccount.toField())
-      .send();
-    await consumptionTx.isMined();
-    const consumptionReceipt = await consumptionTx.getReceipt();
-    expect(consumptionReceipt.status).toBe(TxStatus.MINED);
-    logger(`Consumption Receipt status: ${consumptionReceipt.status}`);
-    await expectBalanceOnL2(owner, wethAmountToBridge + BigInt(ownerInitialBalance) - transferAmount, wethL2Contract);
+    await consumeMessageOnAztecAndMintSecretly(
+      wethL2Bridge,
+      wethAmountToBridge,
+      secretHashForRedeemingWeth,
+      ownerEthAddress,
+      messageKey,
+      secretForMintingWeth,
+    );
+    await redeemShieldPrivatelyOnL2(wethL2Contract, ownerAddress, wethAmountToBridge, secretForRedeemingWeth);
+    await expectPrivateBalanceOnL2(ownerAddress, wethAmountToBridge + BigInt(ownerInitialBalance), wethL2Contract);
 
     // Store balances
-    const wethBalanceBeforeSwap = await getL2BalanceOf(owner, wethL2Contract);
-    const daiBalanceBeforeSwap = await getL2BalanceOf(owner, daiL2Contract);
+    const wethL2BalanceBeforeSwap = await getL2PrivateBalanceOf(ownerAddress, wethL2Contract);
+    const daiL2BalanceBeforeSwap = await getL2PrivateBalanceOf(ownerAddress, daiL2Contract);
 
-    // 4. Send L2 to L1 message to withdraw funds and another message to swap assets.
-    logger('Send L2 tx to withdraw WETH to uniswap portal and send message to swap assets on L1');
-    // recipient is the uniswap portal
-    const minimumOutputAmount = 0n;
+    // 4. Owner gives uniswap approval to unshield funds to self on its behalf
+    logger('Approving uniswap to unshield funds to self on my behalf');
+    const nonceForWETHUnshieldApproval = new Fr(2n);
+    const unshieldToUniswapMessageHash = await hashPayload([
+      uniswapL2Contract.address.toField(),
+      wethL2Contract.address.toField(),
+      FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)').toField(),
+      ownerAddress.toField(),
+      uniswapL2Contract.address.toField(),
+      new Fr(wethAmountToBridge),
+      nonceForWETHUnshieldApproval,
+    ]);
+    await ownerWallet.createAuthWitness(Fr.fromBuffer(unshieldToUniswapMessageHash));
 
-    const withdrawTx = uniswapL2Contract.methods
+    // 5. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
+    logger('Withdrawing weth to L1 and sending message to swap to dai');
+
+    const [secretForDepositingSwappedDai, secretHashForDepositingSwappedDai] = await generateClaimSecret();
+    const [secretForRedeemingDai, secretHashForRedeemingDai] = await generateClaimSecret();
+
+    const withdrawReceipt = await uniswapL2Contract.methods
       .swap(
-        wethL2Contract.address.toField(),
+        wethL2Contract.address,
+        wethL2Bridge.address,
         wethAmountToBridge,
-        new Fr(3000),
-        daiL2Contract.address.toField(),
-        new Fr(minimumOutputAmount),
-        owner,
-        owner,
-        secretHash,
-        new Fr(2 ** 32 - 1),
-        ethAccount.toField(),
-        ethAccount.toField(),
+        daiL2Bridge.address,
+        nonceForWETHUnshieldApproval,
+        uniswapFeeTier,
+        minimumOutputAmount,
+        secretHashForRedeemingDai,
+        secretHashForDepositingSwappedDai,
+        deadline,
+        ownerEthAddress,
+        ownerEthAddress,
       )
-      .send();
-    await withdrawTx.isMined();
-    const withdrawReceipt = await withdrawTx.getReceipt();
+      .send()
+      .wait();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
-    logger(`Withdraw receipt status: ${withdrawReceipt.status}`);
+    // ensure that user's funds were burnt
+    await expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge, wethL2Contract);
+    // ensure that uniswap contract didn't eat the funds.
+    await expectPublicBalanceOnL2(uniswapL2Contract.address, 0n, wethL2Contract);
 
-    // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
-    await expectBalanceOnL2(owner, INITIAL_BALANCE - transferAmount, wethL2Contract);
-
-    // 5. Consume L2 to L1 message by calling uniswapPortal.swap()
+    // 6. Consume L2 to L1 message by calling uniswapPortal.swap()
     logger('Execute withdraw and swap on the uniswapPortal!');
-    const daiBalanceOfPortalBefore = await daiContract.read.balanceOf([daiTokenPortalAddress.toString()]);
-    logger(`DAI balance of portal: ${daiBalanceOfPortalBefore}`);
+    const daiL1BalanceOfPortalBeforeSwap = await daiContract.read.balanceOf([daiTokenPortalAddress.toString()]);
     const swapArgs = [
       wethTokenPortalAddress.toString(),
       wethAmountToBridge,
-      3000,
+      uniswapFeeTier,
       daiTokenPortalAddress.toString(),
       minimumOutputAmount,
-      owner.toString(),
-      secretString,
+      secretHashForRedeemingDai.toString(true),
+      secretHashForDepositingSwappedDai.toString(true),
       deadline,
-      ethAccount.toString(),
+      ownerEthAddress.toString(),
       true,
     ] as const;
-    const { result: depositDaiMessageKeyHex } = await uniswapPortal.simulate.swap(swapArgs, {
-      account: ethAccount.toString(),
+    const { result: depositDaiMessageKeyHex } = await uniswapPortal.simulate.swapPrivate(swapArgs, {
+      account: ownerEthAddress.toString(),
     } as any);
+
     // this should also insert a message into the inbox.
-    await uniswapPortal.write.swap(swapArgs, {} as any);
+    await uniswapPortal.write.swapPrivate(swapArgs, {} as any);
     const depositDaiMessageKey = Fr.fromString(depositDaiMessageKeyHex);
+
     // weth was swapped to dai and send to portal
-    const daiBalanceOfPortalAfter = await daiContract.read.balanceOf([daiTokenPortalAddress.toString()]);
-    expect(daiBalanceOfPortalAfter).toBeGreaterThan(daiBalanceOfPortalBefore);
+    const daiL1BalanceOfPortalAfter = await daiContract.read.balanceOf([daiTokenPortalAddress.toString()]);
     logger(
-      `DAI balance in Portal: ${daiBalanceOfPortalAfter} should be bigger than ${daiBalanceOfPortalBefore}. ${
-        daiBalanceOfPortalAfter > daiBalanceOfPortalBefore
-      }`,
+      `DAI balance in Portal: balance after (${daiL1BalanceOfPortalAfter}) should be bigger than balance before (${daiL1BalanceOfPortalBeforeSwap})`,
     );
-    const daiAmountToBridge = daiBalanceOfPortalAfter - daiBalanceOfPortalBefore;
+    expect(daiL1BalanceOfPortalAfter).toBeGreaterThan(daiL1BalanceOfPortalBeforeSwap);
+    const daiAmountToBridge = BigInt(daiL1BalanceOfPortalAfter - daiL1BalanceOfPortalBeforeSwap);
 
     // Wait for the archiver to process the message
     await sleep(5000);
     // send a transfer tx to force through rollup with the message included
-    await transferWethOnL2(wethL2Contract, owner, receiver, transferAmount);
+    await transferWethOnL2(wethL2Contract, ownerAddress, receiver, 0n);
 
-    // 6. claim dai on L2
+    // 7. claim dai on L2
     logger('Consuming messages to mint dai on L2');
-    // Call the mint tokens function on the Aztec.nr contract
-    const daiMintTx = daiL2Contract.methods
-      .mint(daiAmountToBridge, owner, depositDaiMessageKey, secret, ethAccount.toField())
-      .send();
-    await daiMintTx.isMined();
-    const daiMintTxReceipt = await daiMintTx.getReceipt();
-    expect(daiMintTxReceipt.status).toBe(TxStatus.MINED);
-    logger(`DAI mint TX status: ${daiMintTxReceipt.status}`);
-    await expectBalanceOnL2(owner, INITIAL_BALANCE + BigInt(daiAmountToBridge), daiL2Contract);
+    await consumeMessageOnAztecAndMintSecretly(
+      daiL2Bridge,
+      daiAmountToBridge,
+      secretHashForRedeemingDai,
+      ownerEthAddress,
+      depositDaiMessageKey,
+      secretForDepositingSwappedDai,
+    );
+    await redeemShieldPrivatelyOnL2(daiL2Contract, ownerAddress, daiAmountToBridge, secretForRedeemingDai);
+    await expectPrivateBalanceOnL2(ownerAddress, daiL2BalanceBeforeSwap + daiAmountToBridge, daiL2Contract);
 
-    const wethBalanceAfterSwap = await getL2BalanceOf(owner, wethL2Contract);
-    const daiBalanceAfterSwap = await getL2BalanceOf(owner, daiL2Contract);
+    const wethL2BalanceAfterSwap = await getL2PrivateBalanceOf(ownerAddress, wethL2Contract);
+    const daiL2BalanceAfterSwap = await getL2PrivateBalanceOf(ownerAddress, daiL2Contract);
 
-    logger('WETH balance before swap: ', wethBalanceBeforeSwap.toString());
-    logger('DAI balance before swap  : ', daiBalanceBeforeSwap.toString());
+    logger('WETH balance before swap: ', wethL2BalanceBeforeSwap.toString());
+    logger('DAI balance before swap  : ', daiL2BalanceBeforeSwap.toString());
     logger('***** 🧚‍♀️ SWAP L2 assets on L1 Uniswap 🧚‍♀️ *****');
-    logger('WETH balance after swap : ', wethBalanceAfterSwap.toString());
-    logger('DAI balance after swap  : ', daiBalanceAfterSwap.toString());
-  }, 240_000);
+    logger('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
+    logger('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
+  }, 140_000);
 });

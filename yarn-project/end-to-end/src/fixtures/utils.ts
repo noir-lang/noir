@@ -351,7 +351,7 @@ export function getLogger() {
  * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if none supplied, it deploys one)
  * @returns l2 contract instance, bridge contract instance, token portal instance, token portal address and the underlying ERC20 instance
  */
-export async function deployAndInitializeStandardizedTokenAndBridgeContracts(
+export async function deployAndInitializeTokenAndBridgeContracts(
   wallet: Wallet,
   walletClient: WalletClient<HttpTransport, Chain, Account>,
   publicClient: PublicClient<HttpTransport, Chain>,

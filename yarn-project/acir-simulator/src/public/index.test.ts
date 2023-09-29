@@ -247,9 +247,7 @@ describe('ACIR public execution simulator', () => {
         const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
 
         if (isInternal === undefined) {
-          await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError(
-            /ContractsDb don't contain isInternal for/,
-          );
+          await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError(/Method not found -/);
         } else {
           const result = await executor.simulate(execution, globalVariables);
 

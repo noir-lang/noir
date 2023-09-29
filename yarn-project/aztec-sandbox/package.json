@@ -21,8 +21,7 @@
     "formatting:fix": "run -T prettier -w ./src",
     "build:dev": "tsc -b --watch",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "run:example:token": "DEBUG='aztec:*' node ./dest/examples/private_token_contract.js",
-    "run:example:uniswap": "DEBUG='aztec:*' node ./dest/examples/uniswap_trade_on_l1_from_l2.js"
+    "run:example:token": "DEBUG='aztec:*' node ./dest/examples/private_token_contract.js"
   },
   "inherits": [
     "../package.common.json"

@@ -1,133 +1,155 @@
-mod non_native_token_interface;
+mod interfaces;
+mod util;
 
-// Demonstrates how to send a message to a portal contract on L1. We use Uniswap here as it's the most typical example.
+// Demonstrates how to use portal contracts to swap on L1 Uniswap with funds on L2
+// Has two separate flows for private and public respectively
+// Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
 contract Uniswap {
-    use dep::aztec::oracle::context::get_portal_address;
+    use dep::aztec::{
+        auth::IS_VALID_SELECTOR,
+        context::{PrivateContext, PublicContext, Context},
+        oracle::compute_selector::compute_selector,
+        oracle::context::get_portal_address,
+        state_vars::{map::Map, public_state::PublicState},
+        types::address::{AztecAddress, EthereumAddress},
+        types::type_serialization::bool_serialization::{
+            BoolSerializationMethods, BOOL_SERIALIZED_LEN,
+        },
+        types::type_serialization::field_serialization::{
+            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
+        },
+    };
     
-    use crate::non_native_token_interface::NonNativeTokenPrivateContextInterface;
+    use crate::interfaces::{Token, TokenBridge};
+    use crate::util::{compute_message_hash, compute_swap_private_content_hash};
+
+    struct Storage {
+        // like with account contracts, stores the approval message on a slot and tracks if they are active
+        approved_action: Map<PublicState<bool, BOOL_SERIALIZED_LEN>>,
+        // tracks the nonce used to create the approval message for burning funds
+        // gets incremented each time after use to prevent replay attacks
+        nonce_for_burn_approval: PublicState<Field, FIELD_SERIALIZED_LEN>,
+    }
+
+    impl Storage {
+        fn init(context: Context) -> pub Self {
+            Storage {
+                approved_action: Map::new(
+                    context,
+                    1,
+                    |context, slot| {
+                        PublicState::new(context, slot, BoolSerializationMethods)
+                    },
+                ),
+                nonce_for_burn_approval: PublicState::new(context, 2, FieldSerializationMethods),
+            }
+        }
+    }
     
     #[aztec(private)]
     fn constructor() {}
 
-    // What we need to make this nicer:
-    // 1. A way to access other (and my own) contract's portal addresses (we need many additional args for no good reason now)
-    // 2. don't pass all args manually to initial context
-    // 3. Variable length arrays for input arguments (8 not enough)
-    // 4. Should have storage for fixed values.
-    // 5. account abstraction using its own "custom" constants instead of using shared constants...
-    // 6. currently have to manually set the args array for calling other contracts which is inconvenient when using structs etc.
-
     #[aztec(private)]
     fn swap(
-        inputAsset: Field, 
-        inputAmount: Field,
-        uniswapFeeTier: Field, // which uniswap tier to use (eg 3000 for 0.3% fee)
-        outputAsset: Field,
-        minimumOutputAmount: Field, // minimum output amount to receive (slippage protection for the swap)
-        sender: Field, 
-        recipient: Field, // receiver address of output asset after the swap
-        secretHash: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
-        deadlineForL1ToL2Message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
-        cancellerForL1ToL2Message: Field, // L1 address of who can cancel the message to consume assets on L2.
-        callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+        input_asset: AztecAddress, // since private, we pass here and later assert that this is as expected by input_bridge
+        input_asset_bridge: AztecAddress, 
+        input_amount: Field,
+        output_asset_bridge: AztecAddress,
+        // params for using the unshield approval
+        nonce_for_unshield_approval: Field,
+        // params for the swap
+        uniswap_fee_tier: Field, // which uniswap tier to use (eg 3000 for 0.3% fee)
+        minimum_output_amount: Field, // minimum output amount to receive (slippage protection for the swap)
+        // params for the depositing output_asset back to Aztec
+        secret_hash_for_redeeming_minted_notes: Field, // secret hash used to redeem minted notes at a later time. This enables anyone to call this function and mint tokens to a user on their behalf
+        secret_hash_for_L1_to_l2_message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
+        deadline_for_L1_to_l2_message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
+        canceller_for_L1_to_L2_message: EthereumAddress, // L1 address of who can cancel the message to consume assets on L2.
+        caller_on_L1: EthereumAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> Field {
-        // Get portal addresses
-        let l1UniswapPortal = context.this_portal_address();
-        let inputAssetPortalAddress = get_portal_address(inputAsset);
-        let outputAssetPortalAddress = get_portal_address(outputAsset);
 
-        // inputAsset.withdraw(inputAmount, sender, recipient=l1UniswapPortal, callerOnL1=l1UniswapPortal) 
-        // only uniswap portal can call this (done to safeguard ordering of message consumption)
-        // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
-        let inputAssetInterface = NonNativeTokenPrivateContextInterface::at(inputAsset);
-        let return_value = inputAssetInterface.withdraw(
+        // Transfer funds to this contract
+        Token::at(input_asset.address).unshield(
             &mut context,
-            inputAmount,
-            sender,
-            l1UniswapPortal,
-            l1UniswapPortal,
-        )[0];
-        
-        // Send the swap message to L1 portal
-        let content_hash = _compute_swap_content_hash(
-           inputAssetPortalAddress,
-           inputAmount,
-           uniswapFeeTier,
-           outputAssetPortalAddress,
-           minimumOutputAmount,
-           recipient,
-           secretHash,
-           deadlineForL1ToL2Message,
-           cancellerForL1ToL2Message,
-           callerOnL1,
+            context.msg_sender(),
+            context.this_address(),
+            input_amount,
+            nonce_for_unshield_approval,
+        );
+
+        // Approve bridge to burn this contract's funds and exit to L1 Uniswap Portal
+        context.call_public_function(
+            context.this_address(), 
+            compute_selector("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"), 
+            [input_asset.address, input_asset_bridge.address, input_amount],
+        );
+
+        // Create swap message and send to Outbox for Uniswap Portal
+        // this ensures the integrity of what the user originally intends to do on L1.
+        let input_asset_bridge_portal_address = get_portal_address(input_asset_bridge.address);
+        let output_asset_bridge_portal_address = get_portal_address(output_asset_bridge.address);
+        assert(input_asset_bridge_portal_address != 0, "L1 portal address of input_asset's bridge is 0");
+        assert(output_asset_bridge_portal_address != 0, "L1 portal address of output_asset's bridge is 0");
+
+        let content_hash = compute_swap_private_content_hash(
+            input_asset_bridge_portal_address,
+            input_amount,
+            uniswap_fee_tier,
+            output_asset_bridge_portal_address,
+            minimum_output_amount,
+            secret_hash_for_redeeming_minted_notes,
+            secret_hash_for_L1_to_l2_message,
+            deadline_for_L1_to_l2_message,
+            canceller_for_L1_to_L2_message.address,
+            caller_on_L1.address,
         );
         context.message_portal(content_hash);
 
-        return_value
+        1
     }
 
-    // refer `l1-contracts/test/portals/UniswapPortal.sol` on how L2 to L1 message is expected
-    fn _compute_swap_content_hash(
-        inputTokenPortal: Field,
-        inAmount: Field,
-        uniswapFeeTier: Field,
-        outputTokenPortal: Field,
-        amountOutMin: Field,
-        aztecRecipientAddress: Field,
-        secretHash: Field,
-        deadlineForL1ToL2Message: Field,
-        canceller: Field,
-        callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-    ) -> pub Field {
-
-        let mut hash_bytes: [u8; 324] = [0; 324]; // 10 fields of 32 bytes each + 4 bytes fn selector
-
-        let inputTokenPortal_bytes = inputTokenPortal.to_be_bytes(32);
-        let inAmount_bytes = inAmount.to_be_bytes(32);
-        let uniswapFeeTier_bytes = uniswapFeeTier.to_be_bytes(32);
-        let outputTokenPortal_bytes = outputTokenPortal.to_be_bytes(32);
-        let amountOutMin_bytes = amountOutMin.to_be_bytes(32);
-        let aztecRecipientAddress_bytes = aztecRecipientAddress.to_be_bytes(32);
-        let secretHash_bytes = secretHash.to_be_bytes(32);
-        let deadlineForL1ToL2Message_bytes = deadlineForL1ToL2Message.to_be_bytes(32);
-        let canceller_bytes = canceller.to_be_bytes(32);
-        let callerOnL1_bytes = callerOnL1.to_be_bytes(32);
-
-        // function selector: 0x9c073c81 keccak256("swap(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address,address)")
-        hash_bytes[0] = 0x9c;
-        hash_bytes[1] = 0x07;
-        hash_bytes[2] = 0x3c;
-        hash_bytes[3] = 0x81;
-
-        for i in 0..32 {
-            hash_bytes[i + 4] = inputTokenPortal_bytes[i];
-            hash_bytes[i + 36] = inAmount_bytes[i];
-            hash_bytes[i + 68] = uniswapFeeTier_bytes[i];
-            hash_bytes[i + 100] = outputTokenPortal_bytes[i];
-            hash_bytes[i + 132] = amountOutMin_bytes[i];
-            hash_bytes[i + 164] = aztecRecipientAddress_bytes[i];
-            hash_bytes[i + 196] = secretHash_bytes[i];
-            hash_bytes[i + 228] = deadlineForL1ToL2Message_bytes[i];
-            hash_bytes[i + 260] = canceller_bytes[i];
-            hash_bytes[i + 292] = callerOnL1_bytes[i];
+    // Since the token bridge burns funds on behalf of this contract, this contract has to tell the token contract if the signature is valid
+    // implementation is similar to how account contracts validate public approvals.
+    // if valid, it returns the IS_VALID selector which is expected by token contract
+    #[aztec(public)]
+    fn is_valid_public(message_hash: Field) -> Field {
+        let value = storage.approved_action.at(message_hash).read();
+        if (value){
+            IS_VALID_SELECTOR
+        } else {
+            0
         }
+    }
 
-        let content_sha256 = dep::std::hash::sha256(hash_bytes);
+    // This helper method approves the bridge to burn this contract's funds and exits the input asset to L1
+    // Assumes contract already has funds
+    // Note that private can't read public return values so created an internal public that handles everything
+    // this method is used for both private and public swaps.
+    #[aztec(public)]
+    internal fn _approve_bridge_and_exit_input_asset_to_L1(
+        token: AztecAddress,
+        token_bridge: AztecAddress, 
+        amount: Field,
+    ) {
+        // Assert that user provided token address is same as expected by token bridge.
+        assert(token.address == (TokenBridge::at(token_bridge.address).token(context)), "input_asset address is not the same as seen in the bridge contract");
+        
+        // approve bridge to burn this contract's funds (required when exiting on L1, as it burns funds on L2):
+        let nonce_for_burn_approval = storage.nonce_for_burn_approval.read();
+        let selector = compute_selector("burn_public((Field),Field,Field)");
+        let message_hash = compute_message_hash([token_bridge.address, token.address, selector, context.this_address(), amount, nonce_for_burn_approval]);
+        storage.approved_action.at(message_hash).write(true);
 
-        // // Convert the content_sha256 to a field element
-        let mut v = 1;
-        let mut high = 0 as Field;
-        let mut low = 0 as Field;
+        // increment nonce_for_burn_approval so it won't be used again
+        storage.nonce_for_burn_approval.write(nonce_for_burn_approval + 1);
 
-        for i in 0..16 {
-            high = high + (content_sha256[15 - i] as Field) * v;
-            low = low + (content_sha256[16 + 15 - i] as Field) * v;
-            v = v * 256;
-        }
-
-        // Abuse that a % p + b % p = (a + b) % p and that low < p
-        let content_hash = low + high * v;
-
-        content_hash
+        // Exit to L1 Uniswap Portal !
+        TokenBridge::at(token_bridge.address).exit_to_l1_public(
+            context,
+            context.this_portal_address(),
+            amount,
+            context.this_portal_address(),
+            nonce_for_burn_approval,
+        );
     }
 }

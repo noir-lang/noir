@@ -20,6 +20,9 @@
   },
   "references": [
     {
+      "path": "../circuits.js"
+    },
+    {
       "path": "../aztec.js"
     },
     {

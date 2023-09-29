@@ -418,12 +418,17 @@ void validate_public_data_reads(
 
 fr validate_and_process_public_state(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
+    // TODO(#2521) - data read validation should happen against the current state of the tx and not the start state.
+    // Blocks all interesting usecases that read and write to the same public state in the same tx.
+    // https://aztecprotocol.slack.com/archives/C02M7VC7TN0/p1695809629015719?thread_ts=1695653252.007339&cid=C02M7VC7TN0
+
+
     // Process public data reads and public data update requests for left input
-    validate_public_data_reads(builder,
-                               baseRollupInputs.start_public_data_tree_root,
-                               baseRollupInputs.kernel_data[0].public_inputs.end.public_data_reads,
-                               0,
-                               baseRollupInputs.new_public_data_reads_sibling_paths);
+    // validate_public_data_reads(builder,
+    //                            baseRollupInputs.start_public_data_tree_root,
+    //                            baseRollupInputs.kernel_data[0].public_inputs.end.public_data_reads,
+    //                            0,
+    //                            baseRollupInputs.new_public_data_reads_sibling_paths);
 
     auto mid_public_data_tree_root = insert_public_data_update_requests(
         builder,
@@ -432,13 +437,19 @@ fr validate_and_process_public_state(DummyBuilder& builder, BaseRollupInputs con
         0,
         baseRollupInputs.new_public_data_update_requests_sibling_paths);
 
+
+    // TODO(#2521) - data read validation should happen against the current state of the tx and not the start state.
+    // Blocks all interesting usecases that read and write to the same public state in the same tx.
+    // https://aztecprotocol.slack.com/archives/C02M7VC7TN0/p1695809629015719?thread_ts=1695653252.007339&cid=C02M7VC7TN0
+
+
     // Process public data reads and public data update requests for right input using the resulting tree root from the
     // left one
-    validate_public_data_reads(builder,
-                               mid_public_data_tree_root,
-                               baseRollupInputs.kernel_data[1].public_inputs.end.public_data_reads,
-                               MAX_PUBLIC_DATA_READS_PER_TX,
-                               baseRollupInputs.new_public_data_reads_sibling_paths);
+    // validate_public_data_reads(builder,
+    //                            mid_public_data_tree_root,
+    //                            baseRollupInputs.kernel_data[1].public_inputs.end.public_data_reads,
+    //                            MAX_PUBLIC_DATA_READS_PER_TX,
+    //                            baseRollupInputs.new_public_data_reads_sibling_paths);
 
     auto end_public_data_tree_root = insert_public_data_update_requests(
         builder,

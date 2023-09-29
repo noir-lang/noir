@@ -1,1 +1,0 @@
-../../non_native_token_contract/src/interface.nr

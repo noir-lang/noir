@@ -854,44 +854,47 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     // run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, native_invalid_public_state_read)
-{
-    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_invalid_public_state_read");
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+// TODO(#2521) - data read validation should happen against the current state of the tx and not the start state.
+// https://aztecprotocol.slack.com/archives/C02M7VC7TN0/p1695809629015719?thread_ts=1695653252.007339&cid=C02M7VC7TN0
 
-    MemoryStore contract_tree_store;
-    MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
+// TEST_F(base_rollup_tests, native_invalid_public_state_read)
+// {
+//     DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_invalid_public_state_read");
+//     MemoryStore private_data_tree_store;
+//     MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
 
-    MemoryStore public_data_tree_store;
-    MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+//     MemoryStore contract_tree_store;
+//     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
 
-    MemoryStore l1_to_l2_messages_tree_store;
-    MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+//     MemoryStore public_data_tree_store;
+//     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    auto data_read = abis::PublicDataRead<NT>{
-        .leaf_index = fr(1),
-        .value = fr(42),
-    };
+//     MemoryStore l1_to_l2_messages_tree_store;
+//     MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
-    std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
-    auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+//     auto data_read = abis::PublicDataRead<NT>{
+//         .leaf_index = fr(1),
+//         .value = fr(42),
+//     };
 
-    // We change the initial tree root so the read value does not match
-    public_data_tree.update_element(1, fr(43));
-    inputs.start_public_data_tree_root = public_data_tree.root();
+//     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
+//     kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
+//     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
+//         kernel_data, private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
 
-    BaseOrMergeRollupPublicInputs outputs =
-        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
+//     // We change the initial tree root so the read value does not match
+//     public_data_tree.update_element(1, fr(43));
+//     inputs.start_public_data_tree_root = public_data_tree.root();
 
-    ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
-    ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
-    ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
-    ASSERT_TRUE(builder.failed());
-    // TODO(1998): see above
-    // run_cbind(inputs, outputs, true, false);
-}
+//     BaseOrMergeRollupPublicInputs outputs =
+//         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
+
+//     ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
+//     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
+//     ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
+//     ASSERT_TRUE(builder.failed());
+//     // TODO(1998): see above
+//     // run_cbind(inputs, outputs, true, false);
+// }
 
 }  // namespace aztec3::circuits::rollup::base::native_base_rollup_circuit

@@ -208,9 +208,7 @@ export class PublicExecutionContext extends TypedOracle {
     const portalAddress = (await this.contractsDb.getPortalContractAddress(targetContractAddress)) ?? EthAddress.ZERO;
     const isInternal = await this.contractsDb.getIsInternal(targetContractAddress, functionSelector);
     if (isInternal === undefined) {
-      throw new Error(
-        `ERR: ContractsDb don't contain isInternal for ${targetContractAddress.toString()}:${functionSelector.toString()}. Defaulting to false.`,
-      );
+      throw new Error(`ERR: Method not found - ${targetContractAddress.toString()}:${functionSelector.toString()}`);
     }
 
     const acir = await this.contractsDb.getBytecode(targetContractAddress, functionSelector);
