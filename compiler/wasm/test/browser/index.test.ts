@@ -1,10 +1,6 @@
-import { expect } from "@esm-bundle/chai";
-import initNoirWasm from "@noir-lang/noir_wasm";
-import {
-  compileNoirSource,
-  nargoArtifactPath,
-  noirSourcePath,
-} from "../shared";
+import { expect } from '@esm-bundle/chai';
+import initNoirWasm from '@noir-lang/noir_wasm';
+import { compileNoirSource, nargoArtifactPath, noirSourcePath } from '../shared';
 
 beforeEach(async () => {
   await initNoirWasm();
@@ -25,8 +21,8 @@ async function getPrecompiledSource(): Promise<string> {
   return JSON.parse(compiledData).bytecode;
 }
 
-describe("noir wasm compilation", () => {
-  it("matches nargos compilation", async () => {
+describe('noir wasm compilation', () => {
+  it('matches nargos compilation', async () => {
     const source = await getSource();
 
     const wasmCircuitBase64 = await compileNoirSource(source);
