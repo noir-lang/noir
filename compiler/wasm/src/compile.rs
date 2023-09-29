@@ -125,9 +125,10 @@ pub fn compile(args: JsValue) -> JsValue {
 
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
     } else {
-        let compiled_program = compile_main(&mut context, crate_id, &options.compile_options, None)
-            .expect("Compilation failed")
-            .0;
+        let compiled_program =
+            compile_main(&mut context, crate_id, &options.compile_options, None, true)
+                .expect("Compilation failed")
+                .0;
 
         let optimized_program =
             nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
