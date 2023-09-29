@@ -21,8 +21,8 @@
   "module": "lib/index.mjs",
   "exports": {
     "require": "./lib/index.cjs",
-    "default": "./lib/index.mjs",
-    "types": "./lib/index.d.ts"
+    "types": "./lib/index.d.ts",
+    "default": "./lib/index.mjs"
   },
   "types": "lib/index.d.ts",
   "scripts": {
