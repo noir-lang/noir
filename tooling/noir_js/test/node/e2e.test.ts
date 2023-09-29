@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { generateWitness } from '../../src/index.js';
-import { Program } from '../../src/program.js';
+import { Noir } from '../../src/program.js';
 import { BarretenbergBackend as Backend } from '../backend/barretenberg.js';
 
 it('end-to-end proof creation and verification (outer)', async () => {
@@ -33,7 +33,7 @@ it('end-to-end proof creation and verification (outer) -- Program API', async ()
   // Initialize backend
   const backend = await Backend.initialize(assert_lt_json);
   // Initialize program
-  const program = new Program(assert_lt_json, backend);
+  const program = new Noir(assert_lt_json, backend);
   // Generate proof
   const proof = await program.generateFinalProof(inputs);
 

@@ -2,7 +2,7 @@
 import { Backend } from './backend/backend_interface.js';
 import { generateWitness } from './witness_generation.js';
 
-export class Program {
+export class Noir {
   constructor(
     private circuit: { bytecode: string; abi: any },
     private backend: Backend,
