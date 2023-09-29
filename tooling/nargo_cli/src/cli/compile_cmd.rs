@@ -194,13 +194,21 @@ fn compile_program(
         None
     };
 
-    let (program, warnings) =
-        match noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program) {
-            Ok(program_and_warnings) => program_and_warnings,
-            Err(errors) => {
-                return (context.file_manager, Err(errors));
-            }
-        };
+    // If we want to output the debug information then we need to perform a full recompilation of the ACIR.
+    let force_recompile = output_debug;
+
+    let (program, warnings) = match noirc_driver::compile_main(
+        &mut context,
+        crate_id,
+        compile_options,
+        cached_program,
+        force_compile,
+    ) {
+        Ok(program_and_warnings) => program_and_warnings,
+        Err(errors) => {
+            return (context.file_manager, Err(errors));
+        }
+    };
 
     // Apply backend specific optimizations.
     let optimized_program =
