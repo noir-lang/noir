@@ -17,7 +17,9 @@ cfg_if::cfg_if! {
         mod logging;
         mod public_witness;
         mod js_execution_error;
+        mod black_box_solvers;
 
+        pub use black_box_solvers::{and, xor, sha256, blake2s256, keccak256, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
         pub use build_info::build_info;
         pub use compression::{compress_witness, decompress_witness};
         pub use execute::{execute_circuit, execute_circuit_with_black_box_solver, create_black_box_solver};
