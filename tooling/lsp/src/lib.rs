@@ -1,3 +1,8 @@
+#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use std::{
     future::{self, Future},
     ops::{self, ControlFlow},
@@ -376,7 +381,7 @@ fn on_code_lens_request(
             // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
             let _ = state.client.log_message(LogMessageParams {
                 typ: MessageType::WARNING,
-                message: format!("{err}"),
+                message: err.to_string(),
             });
             return future::ready(Ok(None));
         }
@@ -385,10 +390,7 @@ fn on_code_lens_request(
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
-            return future::ready(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                format!("{err}"),
-            )));
+            return future::ready(Err(ResponseError::new(ErrorCode::REQUEST_FAILED, err)));
         }
     };
 
@@ -648,7 +650,7 @@ fn on_did_save_text_document(
                 for sec in diagnostic.secondaries {
                     // Not using `unwrap_or_default` here because we don't want to overwrite a valid range with a default range
                     if let Some(r) = byte_span_to_range(files, file_id, sec.span.into()) {
-                        range = r
+                        range = r;
                     }
                 }
                 let severity = match diagnostic.kind {
@@ -660,7 +662,7 @@ fn on_did_save_text_document(
                     severity,
                     message: diagnostic.message,
                     ..Default::default()
-                })
+                });
             }
         }
     }
@@ -708,7 +710,7 @@ fn get_package_tests_in_crate(
             uri: Url::from_file_path(file_path)
                 .expect("Expected a valid file path that can be converted into a URI"),
             range,
-        })
+        });
     }
 
     if package_tests.is_empty() {

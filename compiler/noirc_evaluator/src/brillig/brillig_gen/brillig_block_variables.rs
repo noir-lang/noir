@@ -31,7 +31,7 @@ impl BlockVariables {
     /// Returns all non-constant variables that have not been removed at this point.
     pub(crate) fn get_available_variables(
         &self,
-        function_context: &mut FunctionContext,
+        function_context: &FunctionContext,
     ) -> Vec<RegisterOrMemory> {
         self.available_variables
             .iter()
