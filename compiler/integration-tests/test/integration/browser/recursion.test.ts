@@ -168,7 +168,24 @@ describe("It compiles noir program code, receiving circuit bytes and abi object.
       public_inputs: [main_inputs.y],
       key_hash: vkHash,
       // eslint-disable-next-line prettier/prettier
-      input_aggregation_object: ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"],
+      input_aggregation_object: [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+      ],
     };
 
     logger.debug("recursion_inputs", recursion_inputs);
