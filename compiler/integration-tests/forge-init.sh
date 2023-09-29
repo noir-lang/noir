@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd "$(dirname "$0")"
+cd ../..
 
 # Create forge project
 forge init --no-git --no-commit --force foundry-project

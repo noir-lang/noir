@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd "$(dirname "$0")"
+cd ../..
 
 anvil > /dev/null 2>&1 &
 sleep 10

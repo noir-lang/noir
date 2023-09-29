@@ -1,8 +1,6 @@
 #!/bin/bash
 
-cd "$(dirname "$0")"
-
-pwd
+cd ../..
 
 # Run codegen-verifier for 1_mul
 cd tooling/nargo_cli/tests/execution_success/1_mul
