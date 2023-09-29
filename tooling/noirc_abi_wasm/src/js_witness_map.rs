@@ -60,7 +60,7 @@ pub(crate) fn js_value_to_field_element(js_value: JsValue) -> Result<FieldElemen
     let hex_str = js_value.as_string().ok_or("failed to parse field element from non-string")?;
 
     FieldElement::from_hex(&hex_str)
-        .ok_or_else(|| format!("Invalid hex string: '{}'", hex_str).into())
+        .ok_or_else(|| format!("Invalid hex string: '{hex_str}'").into())
 }
 
 pub(crate) fn field_element_to_js_string(field_element: &FieldElement) -> JsString {

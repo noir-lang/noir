@@ -92,16 +92,16 @@ fn regression_merge_slices(x: Field, y: Field) {
 
 fn merge_slices_if(x: Field, y: Field) {
     let slice = merge_slices_return(x, y);
-    assert(slice[2] == 10);
     assert(slice.len() == 3);
+    assert(slice[2] == 10);
 
     let slice = merge_slices_mutate(x, y);
-    assert(slice[3] == 5);
     assert(slice.len() == 4);
+    assert(slice[3] == 5);
 
     let slice = merge_slices_mutate_in_loop(x, y);
-    assert(slice[6] == 4);
     assert(slice.len() == 7);
+    assert(slice[6] == 4);
 
     let slice = merge_slices_mutate_two_ifs(x, y);
     assert(slice.len() == 6);

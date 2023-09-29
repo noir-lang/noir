@@ -26,6 +26,9 @@ pub(crate) enum FilesystemError {
     /// WitnessMap serialization error
     #[error(transparent)]
     WitnessMapSerialization(#[from] WitnessMapError),
+
+    #[error("Error: could not deserialize build program: {0}")]
+    ProgramSerializationError(String),
 }
 
 #[derive(Debug, Error)]

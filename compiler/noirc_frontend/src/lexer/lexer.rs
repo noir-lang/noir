@@ -320,12 +320,34 @@ impl<'a> Lexer<'a> {
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
         let start = self.position;
+        let mut string = String::new();
 
-        let str_literal = self.eat_while(None, |ch| ch != '"');
+        while let Some(next) = self.next_char() {
+            let char = match next {
+                '"' => break,
+                '\\' => match self.next_char() {
+                    Some('r') => '\r',
+                    Some('n') => '\n',
+                    Some('t') => '\t',
+                    Some('0') => '\0',
+                    Some('"') => '"',
+                    Some('\\') => '\\',
+                    Some(escaped) => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                    }
+                    None => {
+                        let span = Span::inclusive(start, self.position);
+                        return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                    }
+                },
+                other => other,
+            };
 
-        let str_literal_token = Token::Str(str_literal);
+            string.push(char);
+        }
 
-        self.next_char(); // Advance past the closing quote
+        let str_literal_token = Token::Str(string);
 
         let end = self.position;
         Ok(str_literal_token.into_span(start, end))

@@ -19,7 +19,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::token::Attributes;
+use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     ContractFunctionType, FunctionDefinition, Generics, Shared, TypeAliasType, TypeBinding,
     TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind, Visibility,
@@ -31,6 +31,8 @@ pub struct TraitImplKey {
     pub trait_id: TraitId,
     // pub generics: Generics - TODO
 }
+
+type StructAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -73,6 +75,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
 
+    struct_attributes: HashMap<StructId, StructAttributes>,
     // Type Aliases map.
     //
     // Map type aliases to the actual type.
@@ -87,7 +90,7 @@ pub struct NodeInterner {
     //
     // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
     // We'd just lookup their methods as needed through the NodeInterner.
-    traits: HashMap<TraitId, Shared<Trait>>,
+    traits: HashMap<TraitId, Trait>,
 
     // Trait implementation map
     // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
@@ -114,7 +117,12 @@ pub struct NodeInterner {
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 }
 
+/// All the information from a function that is filled out during definition collection rather than
+/// name resolution. Resultingly, if information about a function is needed during name resolution,
+/// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
 pub struct FunctionModifiers {
+    pub name: String,
+
     /// Whether the function is `pub` or not.
     pub visibility: Visibility,
 
@@ -135,8 +143,10 @@ pub struct FunctionModifiers {
 impl FunctionModifiers {
     /// A semi-reasonable set of default FunctionModifiers used for testing.
     #[cfg(test)]
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
+            name: String::new(),
             visibility: Visibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
@@ -358,6 +368,7 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
             trait_implementations: HashMap::new(),
@@ -409,9 +420,10 @@ impl NodeInterner {
 
         self.traits.insert(
             type_id,
-            Shared::new(Trait::new(
+            Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
+                typ.crate_id,
                 typ.trait_def.span,
                 vecmap(&typ.trait_def.generics, |_| {
                     // Temporary type variable ids before the trait is resolved to its actual ids.
@@ -423,7 +435,7 @@ impl NodeInterner {
                 }),
                 self_type_typevar_id,
                 self_type_typevar,
-            )),
+            ),
         );
     }
 
@@ -449,6 +461,7 @@ impl NodeInterner {
 
         let new_struct = StructType::new(struct_id, name, typ.struct_def.span, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
+        self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
         struct_id
     }
 
@@ -475,8 +488,8 @@ impl NodeInterner {
     }
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let mut value = self.traits.get_mut(&trait_id).unwrap().borrow_mut();
-        f(&mut value);
+        let value = self.traits.get_mut(&trait_id).unwrap();
+        f(value);
     }
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
@@ -593,6 +606,7 @@ impl NodeInterner {
         // We're filling in contract_function_type and is_internal now, but these will be verified
         // later during name resolution.
         let modifiers = FunctionModifiers {
+            name: function.name.0.contents.clone(),
             visibility: if function.is_public { Visibility::Public } else { Visibility::Private },
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
@@ -655,8 +669,7 @@ impl NodeInterner {
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
-        let name_id = self.function_meta(func_id).name.id;
-        self.definition_name(name_id)
+        &self.function_modifiers[func_id].name
     }
 
     pub fn function_modifiers(&self, func_id: &FuncId) -> &FunctionModifiers {
@@ -669,6 +682,10 @@ impl NodeInterner {
 
     pub fn function_attributes(&self, func_id: &FuncId) -> &Attributes {
         &self.function_modifiers[func_id].attributes
+    }
+
+    pub fn struct_attributes(&self, struct_id: &StructId) -> &StructAttributes {
+        &self.struct_attributes[struct_id]
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -744,7 +761,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_trait(&self, id: TraitId) -> Shared<Trait> {
+    pub fn get_trait(&self, id: TraitId) -> Trait {
         self.traits[&id].clone()
     }
 

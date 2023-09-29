@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use acvm::acir::circuit::Circuit;
 use fm::FileId;
-use noirc_abi::Abi;
+use noirc_abi::{Abi, ContractEvent};
 use noirc_errors::debug_info::DebugInfo;
 
 use super::debug::DebugFile;
@@ -33,6 +33,11 @@ pub struct CompiledContract {
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`
     /// stored in this `Vector`.
     pub functions: Vec<ContractFunction>,
+
+    /// All the events defined inside the contract scope.
+    /// An event is a struct value that can be emitted via oracles
+    /// by any contract function during execution.
+    pub events: Vec<ContractEvent>,
 
     pub file_map: BTreeMap<FileId, DebugFile>,
 }

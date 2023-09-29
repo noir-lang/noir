@@ -46,7 +46,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span, Spanned};
+use noirc_errors::{Span, Spanned};
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -54,14 +54,10 @@ use noirc_errors::{CustomDiagnostic, Span, Spanned};
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
-pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
-    let (tokens, lexing_errors) = Lexer::lex(source_program);
-    let mut errors = vecmap(lexing_errors, Into::into);
-
+pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
+    let (tokens, _lexing_errors) = Lexer::lex(source_program);
     let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
-    errors.extend(parsing_errors.into_iter().map(Into::into));
-
-    (module.unwrap(), errors)
+    (module.unwrap(), parsing_errors)
 }
 
 /// program: module EOF
@@ -556,18 +552,17 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(generics())
-        .then(ident())
+        .then(path())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(parse_type())
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|args, span, emit| {
             let ((other_args, where_clause), items) = args;
-            let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
-                other_args;
+            let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
 
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(NoirTraitImpl {
@@ -575,7 +570,6 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 trait_name,
                 trait_generics,
                 object_type,
-                object_type_span,
                 items,
                 where_clause,
             })
@@ -631,8 +625,8 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
 }
 
 fn trait_bound() -> impl NoirParser<TraitBound> {
-    ident().then(generic_type_args(parse_type())).map(|(trait_name, trait_generics)| TraitBound {
-        trait_name,
+    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
+        trait_path,
         trait_generics,
         trait_id: None,
     })
@@ -1418,10 +1412,6 @@ where
         .then(expr_no_constructors.clone())
         .map(|(start, end)| ForRange::Range(start, end))
         .or(expr_no_constructors.map(ForRange::Array))
-        .validate(|expr, span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ForLoopDefaultTypeChanging, span));
-            expr
-        })
 }
 
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>

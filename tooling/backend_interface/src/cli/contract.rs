@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use crate::BackendError;
 
+use super::string_from_stderr;
+
 /// VerifyCommand will call the barretenberg binary
 /// to return a solidity library with the verification key
 /// that can be used to verify proofs on-chain.
@@ -31,9 +33,9 @@ impl ContractCommand {
 
         if output.status.success() {
             String::from_utf8(output.stdout)
-                .map_err(|error| BackendError::MalformedResponse(error.into_bytes()))
+                .map_err(|error| BackendError::InvalidUTF8Vector(error.into_bytes()))
         } else {
-            Err(BackendError::CommandFailed(output.stderr))
+            Err(BackendError::CommandFailed(string_from_stderr(&output.stderr)))
         }
     }
 }

@@ -4,7 +4,7 @@ Thank you for your interest in Noir! There are many ways to participate in the c
 
 ## Asking Questions
 
-The best place to ask general questions about Noir is in the #noir channel on the [Aztec discord](https://discord.gg/aztec).
+The best place to ask general questions about Noir is in the #noir channel on the [Noir discord](https://discord.gg/YpCUTkzTC7).
 
 It might also be helpful to review existing and previous Github issues to see if your question has been answered already.
 
@@ -21,7 +21,7 @@ When submitting an issue, please include as much detail as possible about the er
 
 ## Contributing to the Standard Library
 
-Noir is still very new and there are many cryptographic primitives that we have yet to build that will be useful for the community. If you have other ideas, please reach out on the [Aztec Discord](https://discord.gg/aztec) to discuss. You can find the current list of requested primitives in the [issues section](https://github.com/noir-lang/noir/labels/noir-stdlib) marked with the label `noir-stdlib`.
+Noir is still very new and there are many cryptographic primitives that we have yet to build that will be useful for the community. If you have other ideas, please reach out on the [Noir Discord](https://discord.gg/YpCUTkzTC7) to discuss. You can find the current list of requested primitives in the [issues section](https://github.com/noir-lang/noir/labels/noir-stdlib) marked with the label `noir-stdlib`.
 
 ## Funding Opportunities
 

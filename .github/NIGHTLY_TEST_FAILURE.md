@@ -1,6 +1,6 @@
 ---
 title: "nightly test-integration failed"
-assignees: kobyhallx, phated, tomafrench, jonybur
+assignees: kobyhallx, tomafrench, jonybur
 labels: bug
 ---
 

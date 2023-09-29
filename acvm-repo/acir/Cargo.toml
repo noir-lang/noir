@@ -1,0 +1,31 @@
+[package]
+name = "acir"
+description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
+# x-release-please-start-version
+version = "0.27.4"
+# x-release-please-end
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+acir_field.workspace = true
+brillig.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+flate2 = "1.0.24"
+bincode.workspace = true
+
+[dev-dependencies]
+serde_json = "1.0"
+strum = "0.24"
+strum_macros = "0.24"
+
+[features]
+default = ["bn254"]
+bn254 = ["acir_field/bn254", "brillig/bn254"]
+bls12_381 = ["acir_field/bls12_381", "brillig/bls12_381"]

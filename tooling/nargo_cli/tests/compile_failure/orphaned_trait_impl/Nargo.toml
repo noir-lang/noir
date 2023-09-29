@@ -1,0 +1,9 @@
+[package]
+name = "orphaned_trait_impl"
+type = "bin"
+authors = [""]
+compiler_version = "0.12.0"
+
+[dependencies]
+crate1 = { path = "crate1" }
+crate2 = { path = "crate2" }

@@ -73,7 +73,7 @@
       # Configuration shared between builds
       config = {
         # x-release-please-start-version
-        version = "0.12.0";
+        version = "0.15.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -109,7 +109,6 @@
           rustToolchain
           wasm-bindgen-cli
           binaryen
-          toml2json
         ];
 
         buildInputs = [ ] ++ extraBuildInputs;
@@ -127,6 +126,9 @@
       });
       noir-lsp-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
         pname = "noir_lsp_wasm";
+      });
+      acvm-js-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
+        pname = "acvm_js";
       });
 
       nargo = craneLib.buildPackage (nativeConfig // {
@@ -195,6 +197,27 @@
         doCheck = false;
       });
 
+      acvm_js = craneLib.buildPackage (wasmConfig // rec {
+        pname = "acvm_js";
+
+        inherit GIT_COMMIT GIT_DIRTY;
+
+        cargoArtifacts = acvm-js-cargo-artifacts;
+
+        cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
+
+        buildPhaseCargoCommand = ''
+          bash acvm-repo/acvm_js/buildPhaseCargoCommand.sh release
+        '';
+
+        installPhase = ''
+          bash acvm-repo/acvm_js/installPhase.sh
+        '';
+
+        # We don't want to run tests because they don't work in the Nix sandbox
+        doCheck = false;
+      });
+
       wasm-bindgen-cli = pkgs.callPackage ./wasm-bindgen-cli.nix {
         rustPlatform = pkgs.makeRustPlatform {
           rustc = rustToolchain;
@@ -227,19 +250,22 @@
 
         # Nix flakes cannot build more than one derivation in one command (see https://github.com/NixOS/nix/issues/5591)
         # so we use `symlinkJoin` to build everything as the "all" package.
-        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm noir_lsp_wasm ]; };
+        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm noir_lsp_wasm acvm_js ]; };
+        all_wasm = pkgs.symlinkJoin { name = "all_wasm"; paths = [ noir_wasm noirc_abi_wasm acvm_js ]; };
 
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
         inherit noir_wasm;
         inherit noirc_abi_wasm;
         inherit noir_lsp_wasm;
+        inherit acvm_js;
 
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
         inherit noir-wasm-cargo-artifacts;
         inherit noirc-abi-wasm-cargo-artifacts;
         inherit noir-lsp-wasm-cargo-artifacts;
+        inherit acvm-js-cargo-artifacts;
       };
 
       # Setup the environment to match the environment settings, the inputs from our checks derivations,
@@ -249,6 +275,7 @@
           nargo
           noir_wasm
           noirc_abi_wasm
+          acvm_js
         ];
 
         # Additional tools that weren't included as `nativeBuildInputs` of any of the derivations in `inputsFrom`
