@@ -3,7 +3,6 @@ use noir_lsp::NargoLspService;
 use tower::ServiceBuilder;
 
 mod backend;
-mod stdio;
 
 fn main() {
     // let blackbox_solver = acvm::blackbox_solver::BarretenbergSolver::initialize().await;
@@ -18,10 +17,10 @@ fn main() {
             .service(router)
     });
 
-    let stdin = stdio::PipeStdin::lock().expect("stdin to lock");
-    let stdout = stdio::PipeStdout::lock().expect("stdout to lock");
+    let stdin = async_lsp::stdio::PipeStdin::lock().expect("stdin to lock");
+    let stdout = async_lsp::stdio::PipeStdout::lock().expect("stdout to lock");
 
     futures::executor::block_on(async {
         server.run_buffered(stdin, stdout).await.expect("server should start");
-    })
+    });
 }

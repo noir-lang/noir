@@ -102,3 +102,6 @@ num-traits = "0.2"
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
 # See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
 opt-level = 1
+
+[patch.crates-io]
+async-lsp = { git = "https://github.com/TomAFrench/async-lsp", branch = "tf/futures" }

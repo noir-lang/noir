@@ -1,6 +1,6 @@
 use acvm::BlackBoxFunctionSolver;
 
-pub struct MockBackend;
+pub(crate) struct MockBackend;
 
 impl BlackBoxFunctionSolver for MockBackend {
     fn schnorr_verify(
