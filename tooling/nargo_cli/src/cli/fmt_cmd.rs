@@ -17,6 +17,9 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
     let toml_path = get_package_manifest(&config.program_dir)?;
     let workspace = resolve_workspace_from_toml(&toml_path, PackageSelection::All)?;
 
+    let config = nargo_fmt::Config::read(&config.program_dir)
+        .map_err(|err| CliError::Generic(err.to_string()))?;
+
     for package in &workspace {
         let files = {
             read_files(&package.root_dir.join("src"))
@@ -40,8 +43,12 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
                 continue;
             }
 
-            let source =
-                nargo_fmt::format(file_manager.fetch_file(file_id).source(), parsed_module);
+            let source = nargo_fmt::format(
+                file_manager.fetch_file(file_id).source(),
+                parsed_module,
+                &config,
+            );
+
             std::fs::write(file, source).map_err(|error| CliError::Generic(error.to_string()))?;
         }
     }

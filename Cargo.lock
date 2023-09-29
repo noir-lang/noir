@@ -2313,7 +2313,8 @@ version = "0.14.1"
 dependencies = [
  "bytecount",
  "noirc_frontend",
- "readonly",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -2936,17 +2937,6 @@ dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
  "num_cpus",
-]
-
-[[package]]
-name = "readonly"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8f439da1766942fe069954da6058b2e6c1760eb878bae76f5be9fc29f56f574"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.26",
 ]
 
 [[package]]

@@ -15,7 +15,7 @@ impl FmtVisitor<'_> {
     fn format_expr(&self, Expression { kind, span }: Expression) -> String {
         match kind {
             ExpressionKind::Block(block) => {
-                let mut visitor = FmtVisitor::new(self.source);
+                let mut visitor = FmtVisitor::new(self.source, self.config);
 
                 visitor.block_indent = self.block_indent;
                 visitor.visit_block(block, span, true);
@@ -66,9 +66,9 @@ impl FmtVisitor<'_> {
         let block_str = if comment_str.is_empty() {
             "{}".to_string()
         } else {
-            self.block_indent.block_indent(&self.config);
+            self.block_indent.block_indent(self.config);
             let open_indent = self.block_indent.to_string();
-            self.block_indent.block_unindent(&self.config);
+            self.block_indent.block_unindent(self.config);
             let close_indent =
                 if should_indent { self.block_indent.to_string() } else { String::new() };
 

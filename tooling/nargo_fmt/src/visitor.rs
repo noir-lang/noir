@@ -14,19 +14,19 @@ use noirc_frontend::hir::resolution::errors::Span;
 
 use crate::config::Config;
 
-pub(crate) struct FmtVisitor<'a> {
-    config: Config,
+pub(crate) struct FmtVisitor<'me> {
+    config: &'me Config,
     buffer: String,
-    source: &'a str,
+    source: &'me str,
     block_indent: Indent,
     last_position: u32,
 }
 
-impl<'a> FmtVisitor<'a> {
-    pub(crate) fn new(source: &'a str) -> Self {
+impl<'me> FmtVisitor<'me> {
+    pub(crate) fn new(source: &'me str, config: &'me Config) -> Self {
         Self {
-            config: Config::default(),
             buffer: String::new(),
+            config,
             source,
             last_position: 0,
             block_indent: Indent { block_indent: 0 },
@@ -38,9 +38,9 @@ impl<'a> FmtVisitor<'a> {
     }
 
     fn with_indent<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.block_indent.block_indent(&self.config);
+        self.block_indent.block_indent(self.config);
         let ret = f(self);
-        self.block_indent.block_unindent(&self.config);
+        self.block_indent.block_unindent(self.config);
         ret
     }
 

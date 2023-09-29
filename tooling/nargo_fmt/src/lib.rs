@@ -10,8 +10,10 @@ mod visitor;
 use noirc_frontend::ParsedModule;
 use visitor::FmtVisitor;
 
-pub fn format(source: &str, parsed_module: ParsedModule) -> String {
-    let mut fmt = FmtVisitor::new(source);
+pub use config::Config;
+
+pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
+    let mut fmt = FmtVisitor::new(source, config);
     fmt.visit_module(parsed_module);
     fmt.finish()
 }
@@ -20,17 +22,21 @@ pub fn format(source: &str, parsed_module: ParsedModule) -> String {
 mod tests {
     use std::{ffi::OsStr, path::PathBuf};
 
+    use crate::Config;
+
     #[test]
     fn test() {
         let files = std::fs::read_dir("tests/input").unwrap();
         for file in files {
             let file = file.unwrap();
 
+            let config = Config::default();
+
             let source_path = file.path();
             let source = std::fs::read_to_string(&source_path).unwrap();
 
             let (parsed_module, errors) = noirc_frontend::parse_program(&source);
-            let fmt_text = crate::format(&source, parsed_module);
+            let fmt_text = crate::format(&source, parsed_module, &config);
 
             assert!(errors.is_empty());
 
