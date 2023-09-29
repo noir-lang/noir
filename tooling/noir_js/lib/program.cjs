@@ -10,12 +10,12 @@ class Program {
         this.backend = backend;
     }
     // Initial inputs to your program
-    async generateProof(inputs) {
+    async generateProof(inputs, optimizeForVerifyInCircuit = false) {
         const serializedWitness = await (0, witness_generation_js_1.generateWitness)(this.circuit, inputs);
-        return this.backend.generateProof(serializedWitness);
+        return this.backend.generateProof(serializedWitness, optimizeForVerifyInCircuit);
     }
-    async verifyProof(proof) {
-        return this.backend.verifyProof(proof);
+    async verifyProof(proof, optimizeForVerifyInCircuit = false) {
+        return this.backend.verifyProof(proof, optimizeForVerifyInCircuit);
     }
 }
 exports.Program = Program;

@@ -20,17 +20,18 @@ export class BarretenbergBackend {
     api;
     acirComposer;
     acirUncompressedBytecode;
-    constructor(acirCircuit) {
+    numberOfThreads = 1;
+    constructor(acirCircuit, numberOfThreads = 1) {
         const acirBytecodeBase64 = acirCircuit.bytecode;
+        this.numberOfThreads = numberOfThreads;
         this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
     }
     async instantiate() {
-        const numThreads = 4;
         if (!this.api) {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             //@ts-ignore
             const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-            const api = await Barretenberg.new(numThreads);
+            const api = await Barretenberg.new(this.numberOfThreads);
             const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
             const crs = await Crs.new(subgroupSize + 1);
             await api.commonInitSlabAllocator(subgroupSize);
@@ -39,15 +40,6 @@ export class BarretenbergBackend {
             this.api = api;
         }
     }
-    // private async initBarretenberg(numThreads: number, acirUncompressedBytecode: Uint8Array) {
-    //   const api = await Barretenberg.new(numThreads);
-    //   const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(acirUncompressedBytecode);
-    //   const crs = await Crs.new(subgroupSize + 1);
-    //   await api.commonInitSlabAllocator(subgroupSize);
-    //   await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
-    //   const acirComposer = await api.acirNewAcirComposer(subgroupSize);
-    //   return { api: api, composer: acirComposer };
-    // }
     // Generate an outer proof. This is the proof for the circuit which will verify
     // inner proofs and or can be seen as the proof created for regular circuits.
     //
