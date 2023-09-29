@@ -202,7 +202,7 @@ fn compile_program(
         crate_id,
         compile_options,
         cached_program,
-        force_compile,
+        force_recompile,
     ) {
         Ok(program_and_warnings) => program_and_warnings,
         Err(errors) => {
