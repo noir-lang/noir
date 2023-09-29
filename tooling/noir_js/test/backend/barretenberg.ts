@@ -3,7 +3,7 @@
 // @ts-ignore
 import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
 import { acirToUint8Array } from '../../src/index.js';
-import { Backend } from './backend_interface.js';
+import { Backend } from '../../src/backend/backend_interface.js';
 
 export class BarretenbergBackend implements Backend {
   // These type assertions are used so that we don't
