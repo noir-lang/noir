@@ -380,8 +380,8 @@ impl Abi {
                 }
             }
             (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
-                for (i, typ) in fields.iter().enumerate() {
-                    encoded_value.extend(Self::encode_value(vec_elements[i].clone(), typ)?);
+                for (value, typ) in vec_elements.into_iter().zip(fields) {
+                    encoded_value.extend(Self::encode_value(value, typ)?);
                 }
             }
             _ => unreachable!("value should have already been checked to match abi type"),
