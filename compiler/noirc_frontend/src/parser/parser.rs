@@ -552,18 +552,17 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(generics())
-        .then(ident())
+        .then(path())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(parse_type())
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|args, span, emit| {
             let ((other_args, where_clause), items) = args;
-            let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
-                other_args;
+            let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
 
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(NoirTraitImpl {
@@ -571,7 +570,6 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 trait_name,
                 trait_generics,
                 object_type,
-                object_type_span,
                 items,
                 where_clause,
             })
@@ -627,8 +625,8 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
 }
 
 fn trait_bound() -> impl NoirParser<TraitBound> {
-    ident().then(generic_type_args(parse_type())).map(|(trait_name, trait_generics)| TraitBound {
-        trait_name,
+    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
+        trait_path,
         trait_generics,
         trait_id: None,
     })

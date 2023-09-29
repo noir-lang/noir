@@ -54,7 +54,7 @@ async function getFile(url: URL): Promise<string> {
 
 // const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
 
-async function getCircuit(noirSource) {
+async function getCircuit(noirSource: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initializeResolver((id: string) => {
     logger.debug("source-resolver: resolving:", id);

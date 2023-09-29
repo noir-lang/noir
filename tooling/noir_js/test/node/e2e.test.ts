@@ -61,24 +61,22 @@ it('end-to-end proof creation and verification (outer)', async () => {
 //   };
 //   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
-//   // bb.js part
-//   const prover = new Backend(assert_lt_json.bytecode);
-//   await prover.init();
+  // bb.js part
+  const prover = await Backend.initialize(assert_lt_json);
 
 //   const proof = await prover.generateFinalProof(serializedWitness);
 
-//   try {
-//     const verifier = new Backend(assert_lt_json.bytecode);
-//     await verifier.init();
-//     await verifier.verifyFinalProof(proof);
-//     expect.fail(
-//       'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
-//     );
-//   } catch (error) {
-//     const knownError = error as Error;
-//     expect(knownError.message).to.contain('null function or function signature mismatch');
-//   }
-// });
+  try {
+    const verifier = await Backend.initialize(assert_lt_json);
+    await verifier.verifyFinalProof(proof);
+    expect.fail(
+      'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
+    );
+  } catch (error) {
+    const knownError = error as Error;
+    expect(knownError.message).to.contain('null function or function signature mismatch');
+  }
+});
 
 // // This bug occurs when we use the same backend to create an inner proof and then an outer proof
 // // and then try to verify either one of them.
@@ -95,16 +93,15 @@ it('end-to-end proof creation and verification (outer)', async () => {
 //   };
 //   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
-//   // bb.js part
-//   //
-//   // Proof creation
-//   //
-//   const prover = new Backend(assert_lt_json.bytecode);
-//   await prover.init();
-//   // Create a proof using both proving systems, the majority of the time
-//   // one would only use outer proofs.
-//   const proofOuter = await prover.generateFinalProof(serializedWitness);
-//   const _proofInner = await prover.generateIntermediateProof(serializedWitness);
+  // bb.js part
+  //
+  // Proof creation
+  //
+  const prover = await Backend.initialize(assert_lt_json);
+  // Create a proof using both proving systems, the majority of the time
+  // one would only use outer proofs.
+  const proofOuter = await prover.generateFinalProof(serializedWitness);
+  const _proofInner = await prover.generateIntermediateProof(serializedWitness);
 
 //   // Proof verification
 //   //
