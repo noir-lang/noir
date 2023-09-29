@@ -1,9 +1,9 @@
 export const abi = {
   parameters: [
     {
-      name: "foo",
-      type: { kind: "field" },
-      visibility: "private",
+      name: 'foo',
+      type: { kind: 'field' },
+      visibility: 'private',
     },
   ],
   param_witnesses: { foo: [1, 2] },
@@ -12,5 +12,5 @@ export const abi = {
 };
 
 export const inputs = {
-  foo: ["1", "2"],
+  foo: ['1', '2'],
 };

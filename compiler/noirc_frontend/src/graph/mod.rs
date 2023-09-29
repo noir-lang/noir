@@ -312,7 +312,7 @@ mod tests {
         let mut vec_ids = Vec::with_capacity(n);
         for i in 0..n {
             let mut pth = PathBuf::new();
-            pth.push(format!("{}", i));
+            pth.push(format!("{i}"));
             pth.set_extension(FILE_EXTENSION);
             vec_ids.push(fm.add_file(pth.into(), String::new()));
         }

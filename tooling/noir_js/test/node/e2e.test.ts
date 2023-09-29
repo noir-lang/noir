@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { generateWitness } from '../../src/index.js';
+import { Noir } from '../../src/program.js';
 import { BarretenbergBackend as Backend } from '../backend/barretenberg.js';
 
 it('end-to-end proof creation and verification (outer)', async () => {
@@ -14,12 +15,30 @@ it('end-to-end proof creation and verification (outer)', async () => {
   // bb.js part
   //
   // Proof creation
-  const prover = new Backend(assert_lt_json.bytecode);
-  await prover.init();
+  const prover = await Backend.initialize(assert_lt_json);
   const proof = await prover.generateFinalProof(serializedWitness);
 
   // Proof verification
   const isValid = await prover.verifyFinalProof(proof);
+  expect(isValid).to.be.true;
+});
+
+it('end-to-end proof creation and verification (outer) -- Program API', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '2',
+    y: '3',
+  };
+
+  // Initialize backend
+  const backend = await Backend.initialize(assert_lt_json);
+  // Initialize program
+  const program = new Noir(assert_lt_json, backend);
+  // Generate proof
+  const proof = await program.generateFinalProof(inputs);
+
+  // Proof verification
+  const isValid = await program.verifyFinalProof(proof);
   expect(isValid).to.be.true;
 });
 
@@ -34,8 +53,7 @@ it('end-to-end proof creation and verification (inner)', async () => {
   // bb.js part
   //
   // Proof creation
-  const prover = new Backend(assert_lt_json.bytecode);
-  await prover.init();
+  const prover = await Backend.initialize(assert_lt_json);
   const proof = await prover.generateIntermediateProof(serializedWitness);
 
   // Proof verification
@@ -64,14 +82,12 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
   const serializedWitness = await generateWitness(assert_lt_json, inputs);
 
   // bb.js part
-  const prover = new Backend(assert_lt_json.bytecode);
-  await prover.init();
+  const prover = await Backend.initialize(assert_lt_json);
 
   const proof = await prover.generateFinalProof(serializedWitness);
 
   try {
-    const verifier = new Backend(assert_lt_json.bytecode);
-    await verifier.init();
+    const verifier = await Backend.initialize(assert_lt_json);
     await verifier.verifyFinalProof(proof);
     expect.fail(
       'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
@@ -101,8 +117,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   //
   // Proof creation
   //
-  const prover = new Backend(assert_lt_json.bytecode);
-  await prover.init();
+  const prover = await Backend.initialize(assert_lt_json);
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
   const proofOuter = await prover.generateFinalProof(serializedWitness);

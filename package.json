@@ -5,8 +5,9 @@
     "workspaces": [
         "compiler/wasm",
         "compiler/source-resolver",
-        "tooling/noirc_abi_wasm",
         "compiler/integration-tests",
+        "tooling/noir_js_types",
+        "tooling/noirc_abi_wasm",
         "tooling/noir_js",
         "acvm-repo/acvm_js",
         "release-tests"
