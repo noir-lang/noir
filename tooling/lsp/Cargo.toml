@@ -21,6 +21,7 @@ noirc_frontend.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tower.workspace = true
+cfg-if.workspace = true
 lsp-types = "0.94.1"
 async-lsp = { version = "0.0.5", default-features = false, features = ["omni-trait"] }
 
