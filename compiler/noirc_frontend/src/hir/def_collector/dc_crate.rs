@@ -794,11 +794,7 @@ fn resolve_trait_methods(
                 .iter()
                 .filter(|(_, _, q)| q.name() == name.0.contents)
                 .collect();
-            let default_impl = if !default_impl_list.is_empty() {
-                if default_impl_list.len() > 1 {
-                    // TODO(nickysn): Add check for method duplicates in the trait and emit proper error messages. This is planned in a future PR.
-                    panic!("Too many functions with the same name!");
-                }
+            let default_impl = if default_impl_list.len() == 1 {
                 Some(Box::new(default_impl_list[0].2.clone()))
             } else {
                 None
