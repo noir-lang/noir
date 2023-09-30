@@ -11,8 +11,8 @@ export class Noir {
   ) {}
 
   async init(): Promise<void> {
-    // If these are available, then we are in the 
-    // web environment. For the node environment, this 
+    // If these are available, then we are in the
+    // web environment. For the node environment, this
     // is a no-op.
     if (typeof initAbi === 'function') {
       initAbi();
