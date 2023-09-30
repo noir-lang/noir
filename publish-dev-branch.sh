@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Check if working directory is clean
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Working directory is not clean, please commit or stash your changes before publishing"
+  exit 1
+fi
+
 # Change the scope to @kevaundray so I can publish to my account for now
 bash ./change-scope.sh || { echo "Changing scope script failed"; exit 1; }
 
