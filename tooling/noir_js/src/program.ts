@@ -8,8 +8,12 @@ export class Noir {
   constructor(
     private circuit: CompiledCircuit,
     private backend: Backend,
-  ) {
-    // We are in the web environment
+  ) {}
+
+  async init(): Promise<void> {
+    // If these are available, then we are in the 
+    // web environment. For the node environment, this 
+    // is a no-op.
     if (typeof initAbi === 'function') {
       initAbi();
       initACVM();
