@@ -1,4 +1,4 @@
-use std::vec;
+use std::{collections::HashMap, vec};
 
 use fm::FileId;
 use noirc_errors::Location;
@@ -316,6 +316,102 @@ impl<'a> ModCollector<'a> {
         errors
     }
 
+    fn check_for_duplicate_trait_items(
+        &mut self,
+        trait_items: &Vec<TraitItem>,
+    ) -> Vec<(CompilationError, FileId)> {
+        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+
+        let mut functions_and_consts: HashMap<&Ident, &TraitItem> = HashMap::new();
+        let mut types: HashMap<&Ident, &TraitItem> = HashMap::new();
+
+        for trait_item in trait_items {
+            match trait_item {
+                TraitItem::Function {
+                    name,
+                    generics: _,
+                    parameters: _,
+                    return_type: _,
+                    where_clause: _,
+                    body: _,
+                } => {
+                    if let Some(prev_item) = functions_and_consts.insert(name, trait_item) {
+                        let error = match prev_item {
+                            TraitItem::Function {
+                                name: prev_name,
+                                generics: _,
+                                parameters: _,
+                                return_type: _,
+                                where_clause: _,
+                                body: _,
+                            } => DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::TraitAssociatedFunction,
+                                first_def: prev_name.clone(),
+                                second_def: name.clone(),
+                            },
+                            TraitItem::Constant { name: prev_name, typ: _, default_value: _ } => {
+                                DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::TraitAssociatedItem,
+                                    first_def: prev_name.clone(),
+                                    second_def: name.clone(),
+                                }
+                            }
+                            TraitItem::Type { name: _ } => {
+                                unreachable!();
+                            }
+                        };
+                        errors.push((error.into(), self.file_id));
+                    }
+                }
+                TraitItem::Constant { name, typ: _, default_value: _ } => {
+                    if let Some(prev_item) = functions_and_consts.insert(name, trait_item) {
+                        let error = match prev_item {
+                            TraitItem::Function {
+                                name: prev_name,
+                                generics: _,
+                                parameters: _,
+                                return_type: _,
+                                where_clause: _,
+                                body: _,
+                            } => DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::TraitAssociatedItem,
+                                first_def: prev_name.clone(),
+                                second_def: name.clone(),
+                            },
+                            TraitItem::Constant { name: prev_name, typ: _, default_value: _ } => {
+                                DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::TraitAssociatedConst,
+                                    first_def: prev_name.clone(),
+                                    second_def: name.clone(),
+                                }
+                            }
+                            TraitItem::Type { name: _ } => {
+                                unreachable!();
+                            }
+                        };
+                        errors.push((error.into(), self.file_id));
+                    }
+                }
+                TraitItem::Type { name } => {
+                    if let Some(prev_item) = types.insert(name, trait_item) {
+                        if let TraitItem::Type { name: prev_name } = prev_item {
+                            let error = DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::TraitAssociatedType,
+                                first_def: prev_name.clone(),
+                                second_def: name.clone(),
+                            };
+                            errors.push((error.into(), self.file_id));
+                        } else {
+                            unreachable!();
+                        }
+                    }
+                }
+            }
+        }
+
+        errors
+    }
+
     /// Collect any traits definitions declared within the ast.
     /// Returns a vector of errors if any traits were already defined.
     fn collect_traits(
@@ -349,6 +445,8 @@ impl<'a> ModCollector<'a> {
                 };
                 errors.push((error.into(), self.file_id));
             }
+
+            errors.append(&mut self.check_for_duplicate_trait_items(&trait_definition.items));
 
             // Add all functions that have a default implementation in the trait
             let mut unresolved_functions =

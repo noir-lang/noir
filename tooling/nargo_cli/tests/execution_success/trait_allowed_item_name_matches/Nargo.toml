@@ -1,0 +1,7 @@
+[package]
+name = "trait_allowed_item_name_matches"
+type = "bin"
+authors = [""]
+compiler_version = "0.15.0"
+
+[dependencies]
