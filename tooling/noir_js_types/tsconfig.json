@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "lib/esm",
+    "target": "ES2020",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

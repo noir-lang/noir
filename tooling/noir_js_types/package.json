@@ -4,11 +4,26 @@
     "The Noir Team <team@noir-lang.org>"
   ],
   "version": "0.14.1",
-  "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "files": [
     "lib",
     "package.json"
   ],
-  "types": "lib/types.ts"
+  "main": "lib/cjs/types.js",
+  "module": "lib/esm/types.js",
+  "types": "lib/esm/types.d.ts",
+  "scripts": {
+    "build:esm": "tsc",
+    "build:cjs": "tsc --module CommonJS --outDir lib/cjs",
+    "build": "yarn run build:cjs && yarn run build:esm"
+  },
+  "exports": {
+    ".": {
+      "import": "./lib/esm/types.js",
+      "require": "./lib/cjs/types.js"
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
 }
