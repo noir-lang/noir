@@ -1,4 +1,4 @@
-# The Noir Programming Language  
+# The Noir Programming Language
 
 Noir is a Domain Specific Language for SNARK proving systems. It has been designed to use any ACIR compatible proving system.
 
