@@ -14,10 +14,10 @@ commit_hash=$(git rev-parse --short HEAD)
 tag_name="${branch_name}-${commit_hash}"
 
 # Check if working directory is clean
-# if [ -n "$(git status --porcelain)" ]; then
-#   echo "Working directory is not clean, please commit or stash your changes before publishing"
-#   exit 1
-# fi
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Working directory is not clean, please commit or stash your changes before publishing"
+  exit 1
+fi
 
 # Check if yarn is installed
 if ! command -v yarn &> /dev/null; then
