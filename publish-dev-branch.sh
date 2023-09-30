@@ -13,3 +13,7 @@ bash ./update-version.sh
 
 # publish and patch the workspace dependencies
 bash ./publish-script.sh
+
+# The above processes will modify a lot of files
+# Lets reset the changes that were made
+git restore --source=HEAD --staged --worktree -- .
