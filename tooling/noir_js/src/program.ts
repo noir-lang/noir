@@ -1,7 +1,8 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 import { Backend, CompiledCircuit } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
-import initSync from '@noir-lang/noirc_abi';
+import initAbi from '@noir-lang/noirc_abi';
+import initACVM from '@noir-lang/acvm_js';
 
 export class Noir {
   constructor(
@@ -9,8 +10,9 @@ export class Noir {
     private backend: Backend,
   ) {
     // We are in the web environment
-    if (typeof initSync === 'function') {
-      initSync();
+    if (typeof initAbi === 'function') {
+      initAbi();
+      initACVM();
     }
   }
 
