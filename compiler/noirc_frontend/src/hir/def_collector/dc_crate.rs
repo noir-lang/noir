@@ -463,7 +463,7 @@ fn collect_trait_impl_methods(
 
             if overrides.len() > 1 {
                 let error = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Function,
+                    typ: DuplicateType::TraitAssociatedFunction,
                     first_def: overrides[0].2.name_ident().clone(),
                     second_def: overrides[1].2.name_ident().clone(),
                 };
