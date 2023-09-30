@@ -8,7 +8,10 @@ export class Noir {
     private circuit: CompiledCircuit,
     private backend: Backend,
   ) {
-    initSync();
+    // We are in the web environment
+    if (typeof initSync === 'function') {
+      initSync();
+    }
   }
 
   // Initial inputs to your program
