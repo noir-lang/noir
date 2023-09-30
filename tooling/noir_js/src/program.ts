@@ -1,14 +1,14 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 import { Backend, CompiledCircuit } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
-import initNoirAbi from '@noir-lang/noirc_abi';
+import initSync from '@noir-lang/noirc_abi';
 
 export class Noir {
   constructor(
     private circuit: CompiledCircuit,
     private backend: Backend,
   ) {
-    initNoirAbi();
+    initSync();
   }
 
   // Initial inputs to your program
