@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Run script from root of repo 
+cd ..
+
 # Check if yarn is installed
 if ! command -v yarn &> /dev/null; then
   echo "Yarn is not installed, please install it first"

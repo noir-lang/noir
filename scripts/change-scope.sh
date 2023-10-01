@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Run script from root of repo 
+cd ..
+
 # Define old and new scopes
 old_scope="@noir-lang"
 new_scope="@kevaundray"
