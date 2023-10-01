@@ -1,0 +1,40 @@
+{
+  "name": "@noir-lang/noirc_abi",
+  "collaborators": [
+    "The Noir Team <team@noir-lang.org>"
+  ],
+  "version": "0.15.0",
+  "license": "(MIT OR Apache-2.0)",
+  "files": [
+    "nodejs",
+    "web",
+    "package.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./nodejs/noirc_abi_wasm.js",
+  "types": "./web/noirc_abi_wasm.d.ts",
+  "module": "./web/noirc_abi_wasm.js",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noir-lang/noir.git"
+  },
+  "scripts": {
+    "build": "bash ./build.sh",
+    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
+    "test:browser": "web-test-runner",
+    "clean": "chmod u+w web nodejs && rm -rf ./nodejs ./web ./target ./result",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+  },
+  "devDependencies": {
+    "@esm-bundle/chai": "^4.3.4-fix.0",
+    "@web/dev-server-esbuild": "^0.3.6",
+    "@web/test-runner": "^0.15.3",
+    "@web/test-runner-playwright": "^0.10.0",
+    "@web/test-runner-webdriver": "^0.7.0",
+    "eslint": "^8.40.0",
+    "mocha": "^10.2.0"
+  }
+}

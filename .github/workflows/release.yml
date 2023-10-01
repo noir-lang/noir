@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
@@ -59,7 +59,7 @@ jobs:
       - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: publish.yml
+          workflow: publish-nargo.yml
           repo: noir-lang/noir
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -74,8 +74,72 @@ jobs:
       - name: Dispatch to noir_wasm
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: update.yml
-          repo: noir-lang/noir_wasm
+          workflow: publish-noir-wasm.yml
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+  publish-noir-js:
+    name: Publish noir_js package
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to noir_wasm
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-noir-js.yml
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+  publish-source-resolver:
+    name: Publish source resolver package
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to source resolver
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-source-resolver.yml
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+
+  publish-abi-wasm:
+    name: Dispatch to publish-abi_wasm workflow
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish-abi_wasm.yml workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-abi_wasm.yml
+          repo: ${{ github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  publish-acvm:
+    name: Publish crates
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to publish workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-acvm.yml
+          ref: master
+          inputs: '{ "acvm-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  publish-acvm-js:
+    name: Dispatch to publish-acvm-js workflow
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish-acvm-js.yml workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-acvm-js.yml
+          ref: master
+          inputs: '{ "acvm-ref": "${{ needs.release-please.outputs.tag-name }}" }'

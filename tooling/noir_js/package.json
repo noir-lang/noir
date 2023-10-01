@@ -1,0 +1,54 @@
+{
+  "name": "@noir-lang/noir_js",
+  "collaborators": [
+    "The Noir Team <team@noir-lang.org>"
+  ],
+  "version": "0.15.0",
+  "packageManager": "yarn@3.5.1",
+  "license": "(MIT OR Apache-2.0)",
+  "type": "module",
+  "dependencies": {
+    "@noir-lang/acvm_js": "workspace:*",
+    "@noir-lang/noirc_abi": "workspace:*",
+    "fflate": "^0.8.0"
+  },
+  "files": [
+    "lib",
+    "package.json"
+  ],
+  "source": "src/index.ts",
+  "main": "lib/index.cjs",
+  "module": "lib/index.mjs",
+  "exports": {
+    "require": "./lib/index.cjs",
+    "types": "./lib/index.d.ts",
+    "default": "./lib/index.mjs"
+  },
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "dev": "tsc-multi --watch",
+    "build": "tsc-multi",
+    "test": "yarn test:node:esm && yarn test:node:cjs",
+    "test:node:esm": "mocha --timeout 25000 --exit --config ./.mocharc.json",
+    "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
+    "prettier": "prettier 'src/**/*.ts'",
+    "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "clean": "rm -rf ./lib"
+  },
+  "devDependencies": {
+    "@aztec/bb.js": "0.7.2",
+    "@types/chai": "^4",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.6.2",
+    "@types/prettier": "^3",
+    "chai": "^4.3.8",
+    "eslint": "^8.40.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "mocha": "^10.2.0",
+    "prettier": "3.0.3",
+    "ts-node": "^10.9.1",
+    "tsc-multi": "^1.1.0",
+    "typescript": "^5.2.2"
+  }
+}

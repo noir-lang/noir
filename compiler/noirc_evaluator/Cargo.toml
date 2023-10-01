@@ -1,0 +1,19 @@
+[package]
+name = "noirc_evaluator"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+noirc_frontend.workspace = true
+noirc_errors.workspace = true
+noirc_abi.workspace = true
+acvm.workspace = true
+fxhash.workspace = true
+iter-extended.workspace = true
+thiserror.workspace = true
+num-bigint = "0.4"
+im = "15.1"

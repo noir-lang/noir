@@ -1,0 +1,200 @@
+name: Publish Nargo
+
+on:
+  workflow_dispatch:
+    # Allow pushing a manual nightly release
+    inputs:
+      tag:
+        description: The tag to build Nargo from (leave empty to build a nightly release from master)
+        required: false
+      features:
+        description: Extra feature flags to release with
+        required: false
+      publish:
+        description: Whether to publish the build artifacts
+        type: boolean
+        default: false
+  schedule:
+    # Run a nightly release at 2 AM UTC
+    - cron: "0 2 * * *"
+  merge_group:
+  pull_request:
+
+permissions:
+  # Necessary to upload new release artifacts
+  contents: write
+
+jobs:
+  build-apple-darwin:
+    runs-on: macos-latest
+    env:
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+    strategy:
+      matrix:
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Setup for Apple Silicon
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_13.2.1.app/Contents/Developer/
+          echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build environment and Compile
+        run: |
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo-${{ matrix.target }}
+          path: ./dist/*
+          retention-days: 3
+
+      - name: Install Yarn dependencies
+        if: matrix.target == 'x86_64-apple-darwin'
+        uses: ./.github/actions/setup
+
+      - name: Test built artifact
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: |
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/          
+          yarn workspace release-tests test
+
+      - name: Upload binaries to release tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          overwrite: true
+          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    env:
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Install Cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
+
+      - name: Build Nargo
+        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo-${{ matrix.target }}
+          path: ./dist/*
+          retention-days: 3
+
+      - name: Install Yarn dependencies
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        uses: ./.github/actions/setup
+
+      - name: Test built artifact
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        run: |
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          yarn workspace release-tests test
+
+      - name: Upload binaries to release tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          overwrite: true
+          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}

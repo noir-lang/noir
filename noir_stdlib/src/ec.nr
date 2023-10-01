@@ -148,7 +148,7 @@ global C5 = 19103219067921713944291392827692070036145651957329286315305642004821
 //}
 
 // TODO: Make this built-in.
-fn safe_inverse(x: Field) -> Field {
+pub fn safe_inverse(x: Field) -> Field {
     if x == 0 {
         0
     } else {
@@ -157,7 +157,7 @@ fn safe_inverse(x: Field) -> Field {
 }
 
 // Boolean indicating whether Field element is a square, i.e. whether there exists a y in Field s.t. x = y*y.
-fn is_square(x: Field) -> bool {
+pub fn is_square(x: Field) -> bool {
     let v = pow(x, 0 - 1/2);
 
     v*(v-1) == 0
@@ -165,7 +165,7 @@ fn is_square(x: Field) -> bool {
 
 // Power function of two Field arguments of arbitrary size.
 // Adapted from std::field::pow_32.
-fn pow(x: Field, y: Field) -> Field { // As in tests with minor modifications
+pub fn pow(x: Field, y: Field) -> Field { // As in tests with minor modifications
     let N_BITS = crate::field::modulus_num_bits();
 
     let mut r = 1 as Field;
@@ -184,7 +184,7 @@ fn pow(x: Field, y: Field) -> Field { // As in tests with minor modifications
 // as well as C3 = (C2 - 1)/2, where C2 = (p-1)/(2^c1),
 // and C5 = ZETA^C2, where ZETA is a non-square element of Field.
 // These are pre-computed above as globals.
-fn sqrt(x: Field) -> Field {
+pub fn sqrt(x: Field) -> Field {
     let mut z = pow(x, C3);
     let mut t = z*z*x;
     z *= x;

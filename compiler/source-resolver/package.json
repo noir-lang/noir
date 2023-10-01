@@ -1,0 +1,41 @@
+{
+  "name": "@noir-lang/source-resolver",
+  "version": "0.15.0",
+  "license": "MIT",
+  "main": "./lib-node/index_node.js",
+  "types": "./types/index_node.d.ts",
+  "module": "./lib/index.js",
+  "browser": "./lib/index.js",
+  "exports": {
+    ".": {
+      "require": "./lib-node/index_node.js",
+      "import": "./lib/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noir-lang/noir.git"
+  },
+  "scripts": {
+    "clean-modules": "rm -rf lib",
+    "build:node": "tsc -p tsconfig.cjs.json",
+    "build:web": "tsc -p tsconfig.esm.json",
+    "build": "npm run clean-modules && npm run build:node && npm run build:web && npm run generate-types",
+    "test": "ava",
+    "generate-types": "tsc src/*.ts --declaration --emitDeclarationOnly --outDir types",
+    "clean": "rm -rf ./lib ./lib-node",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.7",
+    "ava": "^5.2.0",
+    "typescript": "4.9.4"
+  },
+  "files": [
+    "lib",
+    "lib-node",
+    "src",
+    "types",
+    "package.json"
+  ]
+}

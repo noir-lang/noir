@@ -1,54 +1,74 @@
 [workspace]
 
 members = [
-    "crates/acvm_backend_barretenberg",
-    "crates/noirc_evaluator",
-    "crates/noirc_frontend",
-    "crates/noirc_errors",
-    "crates/noirc_driver",
-    "crates/noirc_printable_type",
-    "crates/nargo",
-    "crates/nargo_cli",
-    "crates/nargo_toml",
-    "crates/fm",
-    "crates/arena",
-    "crates/noirc_abi",
-    "crates/iter-extended",
-    "crates/wasm",
+    "compiler/noirc_evaluator",
+    "compiler/noirc_frontend",
+    "compiler/noirc_errors",
+    "compiler/noirc_driver",
+    "compiler/noirc_printable_type",
+    "compiler/fm",
+    "compiler/wasm",
+    # Utility crates used by the Noir compiler
+    "compiler/utils/arena",
+    "compiler/utils/iter-extended",
+    # Crates related to tooling built ontop of the Noir compiler
+    "tooling/backend_interface",
+    "tooling/bb_abstraction_leaks",
+    "tooling/lsp",
+    "tooling/nargo",
+    "tooling/nargo_cli",
+    "tooling/nargo_toml",
+    "tooling/noirc_abi",
+    "tooling/noirc_abi_wasm",
+    # ACVM
+    "acvm-repo/acir_field",
+    "acvm-repo/acir",
+    "acvm-repo/acvm",
+    "acvm-repo/acvm_js",
+    "acvm-repo/stdlib",
+    "acvm-repo/brillig",
+    "acvm-repo/brillig_vm",
+    "acvm-repo/blackbox_solver",
+    "acvm-repo/barretenberg_blackbox_solver",
 ]
-default-members = ["crates/nargo_cli"]
+default-members = ["tooling/nargo_cli"]
 resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.10.5"
+version = "0.15.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/noir-lang/noir/"
 
 [workspace.dependencies]
-acvm = "0.23.0"
-arena = { path = "crates/arena" }
-fm = { path = "crates/fm" }
-iter-extended = { path = "crates/iter-extended" }
-nargo = { path = "crates/nargo" }
-nargo_cli = { path = "crates/nargo_cli" }
-nargo_toml = { path = "crates/nargo_toml" }
-noir_lsp = { path = "crates/lsp" }
-noirc_abi = { path = "crates/noirc_abi" }
-noirc_driver = { path = "crates/noirc_driver" }
-noirc_errors = { path = "crates/noirc_errors" }
-noirc_evaluator = { path = "crates/noirc_evaluator" }
-noirc_frontend = { path = "crates/noirc_frontend" }
-noirc_printable_type = { path = "crates/noirc_printable_type" }
-noir_wasm = { path = "crates/wasm" }
+arena = { path = "compiler/utils/arena" }
+fm = { path = "compiler/fm" }
+iter-extended = { path = "compiler/utils/iter-extended" }
+nargo = { path = "tooling/nargo" }
+nargo_cli = { path = "tooling/nargo_cli" }
+nargo_toml = { path = "tooling/nargo_toml" }
+noir_lsp = { path = "tooling/lsp" }
+noirc_abi = { path = "tooling/noirc_abi" }
+bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
+noirc_driver = { path = "compiler/noirc_driver" }
+noirc_errors = { path = "compiler/noirc_errors" }
+noirc_evaluator = { path = "compiler/noirc_evaluator" }
+noirc_frontend = { path = "compiler/noirc_frontend" }
+noirc_printable_type = { path = "compiler/noirc_printable_type" }
+noir_wasm = { path = "compiler/wasm" }
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
-chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
+chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312", default-features = false, features = [
+    "ahash",
+    "std",
+] }
 dirs = "4"
 lsp-types = "0.94"
 serde = { version = "1.0.136", features = ["derive"] }
@@ -61,3 +81,23 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
+fxhash = "0.2.1"
+acir = { path = "acvm-repo/acir", default-features = false }
+acvm = { path = "acvm-repo/acvm" }
+acir_field = { path = "acvm-repo/acir_field", default-features = false }
+stdlib = { package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
+brillig = { path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { path = "acvm-repo/blackbox_solver", default-features = false }
+barretenberg_blackbox_solver = { path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+
+bincode = "1.3.3"
+
+hex = "0.4.2"
+num-bigint = "0.4"
+num-traits = "0.2"
+
+[profile.dev]
+# This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
+# See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
+opt-level = 1
