@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use crate::errors::ConfigError;
+
 macro_rules! config {
     ($($field_name:ident: $field_ty:ty, $default_value:expr, $description:expr );+ $(;)*) => (
         pub struct Config {
@@ -41,15 +43,16 @@ config! {
 }
 
 impl Config {
-    pub fn read(path: &Path) -> Result<Self, std::io::Error> {
+    pub fn read(path: &Path) -> Result<Self, ConfigError> {
         let mut config = Self::default();
+        let config_path = path.join("noirfmt.toml");
 
-        let raw_toml = match std::fs::read_to_string(path.join("noirfmt.toml")) {
+        let raw_toml = match std::fs::read_to_string(&config_path) {
             Ok(t) => t,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(err) => return Err(err),
+            Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
         };
-        let toml = toml::from_str(&raw_toml).expect("TODO: error hadling");
+        let toml = toml::from_str(&raw_toml).map_err(ConfigError::MalformedFile)?;
 
         config.fill_from_toml(toml);
         Ok(config)

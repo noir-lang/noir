@@ -10,3 +10,4 @@ bytecount = "0.6.3"
 noirc_frontend.workspace = true
 serde.workspace = true
 toml.workspace = true
+thiserror.workspace = true

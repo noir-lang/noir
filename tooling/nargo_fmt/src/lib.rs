@@ -5,6 +5,7 @@
 #![warn(unused_qualifications, clippy::use_self)]
 
 mod config;
+pub mod errors;
 mod visitor;
 
 use noirc_frontend::ParsedModule;

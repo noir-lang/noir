@@ -2313,6 +2313,7 @@ dependencies = [
  "bytecount",
  "noirc_frontend",
  "serde",
+ "thiserror",
  "toml",
 ]
 
