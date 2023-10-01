@@ -552,9 +552,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
+"@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir-js-types":
   version: 0.0.0-use.local
-  resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
+  resolution: "@noir-lang/types@workspace:tooling/noir-js-types"
   dependencies:
     typescript: ^5.2.2
   languageName: unknown

@@ -48,7 +48,7 @@ jobs:
       - name: Build noirc_abi
         run: yarn workspace @noir-lang/noirc_abi build
 
-      - name: Build noir_js_types
+      - name: Build noir-js-types
         run: yarn workspace @noir-lang/types build
 
       - name: Build barretenberg wrapper
