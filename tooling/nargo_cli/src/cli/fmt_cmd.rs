@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
 use fm::FileManager;
@@ -21,14 +21,10 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
         .map_err(|err| CliError::Generic(err.to_string()))?;
 
     for package in &workspace {
-        let files = {
-            read_files(&package.root_dir.join("src"))
-                .map_err(|error| CliError::Generic(error.to_string()))?
-        };
-
         let mut file_manager = FileManager::new(&package.root_dir);
-        for file in files {
-            let file_id = file_manager.add_file(&file).expect("file exists");
+
+        visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
+            let file_id = file_manager.add_file(&entry.path()).expect("file exists");
             let (parsed_module, errors) = parse_file(&file_manager, file_id);
 
             if !errors.is_empty() {
@@ -39,8 +35,9 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
                         error.in_file(file_id)
                     })
                     .collect();
+
                 let _ = super::compile_cmd::report_errors::<()>(Err(errors), &file_manager, false);
-                continue;
+                return Ok(());
             }
 
             let source = nargo_fmt::format(
@@ -49,29 +46,27 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
                 &config,
             );
 
-            std::fs::write(file, source).map_err(|error| CliError::Generic(error.to_string()))?;
-        }
+            std::fs::write(entry.path(), source)
+        })
+        .map_err(|error| CliError::Generic(error.to_string()))?;
     }
-
     Ok(())
 }
 
-fn read_files(path: &Path) -> color_eyre::Result<Vec<PathBuf>> {
-    let mut files = vec![];
-
-    if path.is_dir() {
-        let entries = std::fs::read_dir(path)?;
-
-        for entry in entries {
-            let path = entry?.path();
-
+fn visit_noir_files(
+    dir: &Path,
+    cb: &mut dyn FnMut(&DirEntry) -> std::io::Result<()>,
+) -> std::io::Result<()> {
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
             if path.is_dir() {
-                files.append(&mut read_files(&path)?);
-            } else if path.extension().map_or(false, |extension| extension == "nr") {
-                files.push(path);
+                visit_noir_files(&path, cb)?;
+            } else if entry.path().extension().map_or(false, |extension| extension == "nr") {
+                cb(&entry)?;
             }
         }
     }
-
-    Ok(files)
+    Ok(())
 }
