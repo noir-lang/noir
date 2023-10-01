@@ -454,9 +454,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
+"@noir-lang/backend_barretenberg@workspace:tooling/noir-js_backend_barretenberg":
   version: 0.0.0-use.local
-  resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
+  resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir-js_backend_barretenberg"
   dependencies:
     "@aztec/bb.js": 0.7.10
     "@noir-lang/types": "workspace:*"
@@ -472,9 +472,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
+"@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir-js":
   version: 0.0.0-use.local
-  resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
+  resolution: "@noir-lang/noir_js@workspace:tooling/noir-js"
   dependencies:
     "@aztec/bb.js": 0.7.2
     "@noir-lang/acvm_js": "workspace:*"

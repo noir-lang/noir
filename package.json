@@ -8,8 +8,8 @@
         "compiler/integration-tests",
         "tooling/noir-js-types",
         "tooling/noirc-abi-wasm",
-        "tooling/noir_js",
-        "tooling/noir_js_backend_barretenberg",
+        "tooling/noir-js",
+        "tooling/noir-js_backend_barretenberg",
         "acvm-repo/acvm_js",
         "release-tests"
     ],
