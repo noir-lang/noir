@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-# Run script from root of repo 
-cd ..
-
 # Get current branch name
 branch_name=$(git rev-parse --abbrev-ref HEAD)
 # Replace `/`` with `-` in branch name
