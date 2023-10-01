@@ -1504,13 +1504,11 @@ dependencies = [
 name = "fm"
 version = "0.15.0"
 dependencies = [
- "cfg-if",
  "codespan-reporting",
  "iter-extended",
  "rust-embed",
  "serde",
  "tempfile",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2331,7 +2329,7 @@ version = "0.15.0"
 dependencies = [
  "acvm",
  "async-lsp",
- "barretenberg_blackbox_solver",
+ "cfg-if",
  "codespan-lsp",
  "codespan-reporting",
  "fm",
@@ -2344,8 +2342,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "toml",
  "tower",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2354,6 +2352,7 @@ version = "0.15.0"
 dependencies = [
  "acvm",
  "build-data",
+ "cfg-if",
  "console_error_panic_hook",
  "fm",
  "getrandom",
