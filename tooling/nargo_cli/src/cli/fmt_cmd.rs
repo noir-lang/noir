@@ -21,7 +21,8 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
         .map_err(|err| CliError::Generic(err.to_string()))?;
 
     for package in &workspace {
-        let mut file_manager = FileManager::new(&package.root_dir);
+        let mut file_manager =
+            FileManager::new(&package.root_dir, Box::new(|path| std::fs::read_to_string(path)));
 
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
             let file_id = file_manager.add_file(&entry.path()).expect("file exists");
