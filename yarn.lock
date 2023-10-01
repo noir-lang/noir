@@ -555,6 +555,8 @@ __metadata:
 "@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
+  dependencies:
+    typescript: ^5.2.2
   languageName: unknown
   linkType: soft
 
