@@ -1,5 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import initNoirAbi, { abiEncode, abiDecode, WitnessMap } from '@noir-lang/noirc_abi';
+import initNoirAbi, { abiEncode, abiDecode, WitnessMap } from '@noir-lang/noirc-abi';
 import { DecodedInputs } from '../types';
 
 beforeEach(async () => {

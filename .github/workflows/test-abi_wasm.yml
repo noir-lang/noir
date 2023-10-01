@@ -33,19 +33,19 @@ jobs:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
-      - name: Build noirc_abi_wasm
+      - name: Build noirc-abi-wasm
         run: |
-          nix build -L .#noirc_abi_wasm
-          cp -r ./result/noirc_abi_wasm/nodejs ./tooling/noirc_abi_wasm
-          cp -r ./result/noirc_abi_wasm/web ./tooling/noirc_abi_wasm
+          nix build -L .#noirc-abi-wasm
+          cp -r ./result/noirc-abi-wasm/nodejs ./tooling/noirc-abi-wasm
+          cp -r ./result/noirc-abi-wasm/web ./tooling/noirc-abi-wasm
 
       - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc-abi-wasm)" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: noirc_abi_wasm
+          name: noirc-abi-wasm
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 10
 
@@ -60,18 +60,18 @@ jobs:
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
+          name: noirc-abi-wasm
+          path: ./tooling/noirc-abi-wasm
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
       - name: Run node tests
-        run: yarn workspace @noir-lang/noirc_abi test
+        run: yarn workspace @noir-lang/noirc-abi test
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/noirc_abi test:browser
+        run: yarn workspace @noir-lang/noirc-abi test:browser
 

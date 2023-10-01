@@ -21,7 +21,7 @@
         },
         {
           "type": "json",
-          "path": "tooling/noirc_abi_wasm/package.json",
+          "path": "tooling/noirc-abi-wasm/package.json",
           "jsonpath": "$.version"
         },
         {

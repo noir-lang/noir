@@ -1,4 +1,4 @@
-import { abiEncode } from '@noir-lang/noirc_abi';
+import { abiEncode } from '@noir-lang/noirc-abi';
 import { base64Decode } from './base64_decode.js';
 import { executeCircuit } from '@noir-lang/acvm_js';
 import { witnessMapToUint8Array } from './serialize.js';

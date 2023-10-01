@@ -2384,7 +2384,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "noirc_abi_wasm"
+name = "noirc-abi-wasm"
 version = "0.15.0"
 dependencies = [
  "acvm",

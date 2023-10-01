@@ -1,5 +1,5 @@
 {
-  "name": "@noir-lang/noirc_abi",
+  "name": "@noir-lang/noirc-abi",
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
@@ -13,9 +13,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "./nodejs/noirc_abi_wasm.js",
-  "types": "./web/noirc_abi_wasm.d.ts",
-  "module": "./web/noirc_abi_wasm.js",
+  "main": "./nodejs/noirc-abi-wasm.js",
+  "types": "./web/noirc-abi-wasm.d.ts",
+  "module": "./web/noirc-abi-wasm.js",
   "sideEffects": false,
   "repository": {
     "type": "git",

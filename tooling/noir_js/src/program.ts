@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 import { Backend, CompiledCircuit } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
-import initAbi from '@noir-lang/noirc_abi';
+import initAbi from '@noir-lang/noirc-abi';
 import initACVM from '@noir-lang/acvm_js';
 
 export class Noir {

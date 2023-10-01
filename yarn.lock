@@ -478,7 +478,7 @@ __metadata:
   dependencies:
     "@aztec/bb.js": 0.7.2
     "@noir-lang/acvm_js": "workspace:*"
-    "@noir-lang/noirc_abi": "workspace:*"
+    "@noir-lang/noirc-abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
     "@types/mocha": ^10.0.1
@@ -511,9 +511,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noirc_abi@workspace:*, @noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm":
+"@noir-lang/noirc-abi@workspace:*, @noir-lang/noirc-abi@workspace:tooling/noirc-abi-wasm":
   version: 0.0.0-use.local
-  resolution: "@noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm"
+  resolution: "@noir-lang/noirc-abi@workspace:tooling/noirc-abi-wasm"
   dependencies:
     "@esm-bundle/chai": ^4.3.4-fix.0
     "@web/dev-server-esbuild": ^0.3.6

@@ -47,6 +47,6 @@ libbarretenberg-wasm32
 # Wasm build atifacts
 compiler/wasm/nodejs
 compiler/wasm/web
-tooling/noirc_abi_wasm/nodejs
-tooling/noirc_abi_wasm/web
+tooling/noirc-abi-wasm/nodejs
+tooling/noirc-abi-wasm/web
 tooling/noir_js/lib

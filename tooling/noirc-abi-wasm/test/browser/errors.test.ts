@@ -1,5 +1,9 @@
-import { expect } from 'chai';
-import { abiEncode } from '@noir-lang/noirc_abi';
+import { expect } from '@esm-bundle/chai';
+import initNoirAbi, { abiEncode } from '@noir-lang/noirc-abi';
+
+beforeEach(async () => {
+  await initNoirAbi();
+});
 
 it('errors when an integer input overflows', async () => {
   const { abi, inputs } = await import('../shared/uint_overflow');

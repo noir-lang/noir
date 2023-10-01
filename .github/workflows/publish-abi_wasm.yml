@@ -31,12 +31,12 @@ jobs:
           nix_path: nixpkgs=channel:nixos-23.05
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build noirc_abi_wasm
+      - name: Build noirc-abi-wasm
         run: |
-          nix build -L .#noirc_abi_wasm
+          nix build -L .#noirc-abi-wasm
 
       - name: Discover Build Output Path
-        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/noirc-abi-wasm)" >> $GITHUB_ENV
 
       - name: Copy Build Output to Temporary Directory
         run: |

@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { abiEncode, abiDecode, WitnessMap } from '@noir-lang/noirc_abi';
+import { abiEncode, abiDecode, WitnessMap } from '@noir-lang/noirc-abi';
 import { DecodedInputs } from '../types';
 
 it('recovers original inputs when abi encoding and decoding', async () => {

@@ -1,5 +1,5 @@
 import * as acvm from '@noir-lang/acvm_js';
-import * as abi from '@noir-lang/noirc_abi';
+import * as abi from '@noir-lang/noirc-abi';
 
 export { acvm, abi };
 

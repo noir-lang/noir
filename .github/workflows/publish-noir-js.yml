@@ -32,7 +32,7 @@ jobs:
           rustup target add wasm32-unknown-unknown
 
       - name: Build noirc_abi
-        run: yarn workspace @noir-lang/noirc_abi build
+        run: yarn workspace @noir-lang/noirc-abi build
 
       - name: Build noir_js
         run: yarn workspace @noir-lang/noir_js build

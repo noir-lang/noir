@@ -122,7 +122,7 @@
         pname = "noir_wasm";
       });
       noirc-abi-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
-        pname = "noirc_abi_wasm";
+        pname = "noirc-abi-wasm";
       });
       acvm-js-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
         pname = "acvm_js";
@@ -160,8 +160,8 @@
         doCheck = false;
       });
 
-      noirc_abi_wasm = craneLib.buildPackage (wasmConfig // rec {
-        pname = "noirc_abi_wasm";
+      noirc-abi-wasm = craneLib.buildPackage (wasmConfig // rec {
+        pname = "noirc-abi-wasm";
 
         inherit GIT_COMMIT GIT_DIRTY;
 
@@ -170,11 +170,11 @@
         cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
 
         buildPhaseCargoCommand = ''
-          bash tooling/noirc_abi_wasm/buildPhaseCargoCommand.sh release
+          bash tooling/noirc-abi-wasm/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
-          bash tooling/noirc_abi_wasm/installPhase.sh
+          bash tooling/noirc-abi-wasm/installPhase.sh
         '';
 
         # We don't want to run tests because they don't work in the Nix sandbox
@@ -234,13 +234,13 @@
 
         # Nix flakes cannot build more than one derivation in one command (see https://github.com/NixOS/nix/issues/5591)
         # so we use `symlinkJoin` to build everything as the "all" package.
-        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm acvm_js ]; };
-        all_wasm = pkgs.symlinkJoin { name = "all_wasm"; paths = [ noir_wasm noirc_abi_wasm acvm_js ]; };
+        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc-abi-wasm acvm_js ]; };
+        all_wasm = pkgs.symlinkJoin { name = "all_wasm"; paths = [ noir_wasm noirc-abi-wasm acvm_js ]; };
 
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
         inherit noir_wasm;
-        inherit noirc_abi_wasm;
+        inherit noirc-abi-wasm;
         inherit acvm_js;
 
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
@@ -256,7 +256,7 @@
         inputsFrom = [
           nargo
           noir_wasm
-          noirc_abi_wasm
+          noirc-abi-wasm
           acvm_js
         ];
 

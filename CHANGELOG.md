@@ -41,7 +41,7 @@
 
 ### Features
 
-* **abi:** Throw errors rather than returning string from `noirc_abi_wasm` ([#2817](https://github.com/noir-lang/noir/issues/2817)) ([df7b42c](https://github.com/noir-lang/noir/commit/df7b42cd253d1b908a42c367b116813f9999d93b))
+* **abi:** Throw errors rather than returning string from `noirc-abi-wasm` ([#2817](https://github.com/noir-lang/noir/issues/2817)) ([df7b42c](https://github.com/noir-lang/noir/commit/df7b42cd253d1b908a42c367b116813f9999d93b))
 * **acir:** Enable dynamic indices on non-homogenous arrays ([#2703](https://github.com/noir-lang/noir/issues/2703)) ([622d2e4](https://github.com/noir-lang/noir/commit/622d2e436992c23e6d0885b591bd1072ca57b307))
 * Default integers to u64 ([#2764](https://github.com/noir-lang/noir/issues/2764)) ([01cb041](https://github.com/noir-lang/noir/commit/01cb041a92ef6043dd5a160e0a56a63400801980))
 * Implement string escape sequences ([#2803](https://github.com/noir-lang/noir/issues/2803)) ([f7529b8](https://github.com/noir-lang/noir/commit/f7529b80f0958fd47a525f25a123f16438bbb892))
@@ -173,7 +173,7 @@
 ### Features
 
 * Add `nargo backend ls` and `nargo backend use` command to switch between backends ([#2552](https://github.com/noir-lang/noir/issues/2552)) ([7471147](https://github.com/noir-lang/noir/commit/7471147e4239410557f2f98d6e5102d8090dd09c))
-* Add `noirc_abi_wasm` crate for ABI encoding in JS ([#1945](https://github.com/noir-lang/noir/issues/1945)) ([669e0da](https://github.com/noir-lang/noir/commit/669e0dab56f7368e805aaf651eb4052f476029e4))
+* Add `noirc-abi-wasm` crate for ABI encoding in JS ([#1945](https://github.com/noir-lang/noir/issues/1945)) ([669e0da](https://github.com/noir-lang/noir/commit/669e0dab56f7368e805aaf651eb4052f476029e4))
 * Add support for brillig call stacks in runtime errors ([#2549](https://github.com/noir-lang/noir/issues/2549)) ([a077391](https://github.com/noir-lang/noir/commit/a07739112ca8928d2211dd09adf89692d8b429d0))
 * Apply optimizations to unconstrained code ([#2348](https://github.com/noir-lang/noir/issues/2348)) ([8e0f6c4](https://github.com/noir-lang/noir/commit/8e0f6c4e1004d50b6392941ccf72a78f3a5870da))
 * **aztec_noir:** Abstract kernel return types ([#2521](https://github.com/noir-lang/noir/issues/2521)) ([2668ac2](https://github.com/noir-lang/noir/commit/2668ac2a8380ac362de34e7b8f1c231608d3606a))
