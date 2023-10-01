@@ -1,5 +1,5 @@
 {
-  "name": "@noir-lang/backend_barretenberg",
+  "name": "@noir-lang/backend-barretenberg",
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
@@ -30,7 +30,7 @@
     "fflate": "^0.8.0"
   },
   "peerDependencies": {
-    "@noir-lang/backend_barretenberg": "workspace:*"
+    "@noir-lang/backend-barretenberg": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.6.2",

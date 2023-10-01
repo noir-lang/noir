@@ -9,8 +9,8 @@
         "tooling/noir-js-types",
         "tooling/noirc-abi-wasm",
         "tooling/noir-js",
-        "tooling/noir-js_backend_barretenberg",
-        "acvm-repo/acvm_js",
+        "tooling/noir-js-backend-barretenberg",
+        "acvm-repo/acvm-js",
         "release-tests"
     ],
     "scripts": {
@@ -24,7 +24,7 @@
         "build:with:nix": "nix build -L .#all_wasm",
         "install:from:nix:noirc-abi-wasm": "cp -r ./result/noirc-abi-wasm/nodejs ./tooling/noirc-abi-wasm && cp -r ./result/noirc-abi-wasm/web ./tooling/noirc-abi-wasm",
         "install:from:nix:noir_wasm": "cp -r ./result/noir_wasm/nodejs ./compiler/wasm && cp -r ./result/noir_wasm/web ./compiler/wasm",
-        "install:from:nix:acvm_js": "cp -rf ./result/acvm_js/nodejs ./acvm-repo/acvm_js && cp -rf ./result/acvm_js/web ./acvm-repo/acvm_js",
+        "install:from:nix:acvm_js": "cp -rf ./result/acvm_js/nodejs ./acvm-repo/acvm-js && cp -rf ./result/acvm_js/web ./acvm-repo/acvm-js",
         "install:from:nix": "yarn build:with:nix && yarn install:from:nix:noirc-abi-wasm && yarn install:from:nix:noir_wasm && yarn install:from:nix:acvm_js"
     },
     "devDependencies": {

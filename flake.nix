@@ -191,11 +191,11 @@
         cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
 
         buildPhaseCargoCommand = ''
-          bash acvm-repo/acvm_js/buildPhaseCargoCommand.sh release
+          bash acvm-repo/acvm-js/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
-          bash acvm-repo/acvm_js/installPhase.sh
+          bash acvm-repo/acvm-js/installPhase.sh
         '';
 
         # We don't want to run tests because they don't work in the Nix sandbox

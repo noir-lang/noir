@@ -24,7 +24,7 @@ members = [
     "acvm-repo/acir_field",
     "acvm-repo/acir",
     "acvm-repo/acvm",
-    "acvm-repo/acvm_js",
+    "acvm-repo/acvm-js",
     "acvm-repo/stdlib",
     "acvm-repo/brillig",
     "acvm-repo/brillig_vm",

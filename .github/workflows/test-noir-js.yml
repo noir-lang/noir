@@ -52,7 +52,7 @@ jobs:
         run: yarn workspace @noir-lang/types build
 
       - name: Build barretenberg wrapper
-        run: yarn workspace @noir-lang/backend_barretenberg build
+        run: yarn workspace @noir-lang/backend-barretenberg build
 
       - name: Run noir_js tests
         run: |

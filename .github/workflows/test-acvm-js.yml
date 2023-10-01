@@ -55,8 +55,8 @@ jobs:
       
       - name: Move build artifacts
         run: |
-          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
-          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm-js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm-js/web
 
       - name: Set up test environment
         uses: ./.github/actions/setup
@@ -81,8 +81,8 @@ jobs:
       
       - name: Move build artifacts
         run: |
-          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
-          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm-js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm-js/web
 
       - name: Set up test environment
         uses: ./.github/actions/setup
@@ -93,5 +93,5 @@ jobs:
           npx playwright install-deps
 
       - name: Run browser tests
-        working-directory: ./acvm-repo/acvm_js
+        working-directory: ./acvm-repo/acvm-js
         run: yarn workspace @noir-lang/acvm_js test:browser
