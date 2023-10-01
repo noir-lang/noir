@@ -411,7 +411,7 @@ fn collect_impls(
 
 fn collect_trait_impl_methods(
     interner: &mut NodeInterner,
-    def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
     crate_id: CrateId,
     trait_id: TraitId,
     trait_impl: &mut UnresolvedTraitImpl,

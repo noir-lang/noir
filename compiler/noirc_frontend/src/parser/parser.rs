@@ -1637,7 +1637,7 @@ mod test {
         P: NoirParser<T>,
     {
         vecmap(programs, move |program| {
-            let message = format!("Failed to parse:\n{}", program);
+            let message = format!("Failed to parse:\n{program}");
             let (op_t, diagnostics) = parse_recover(&parser, program);
             diagnostics.iter().for_each(|diagnostic| {
                 if diagnostic.is_error() {
@@ -2362,8 +2362,7 @@ mod test {
                 let num_errors = errors.len();
                 let shown_errors = show_errors(errors);
                 eprintln!(
-                    "\nExpected {} error(s) and got {}:\n\n{}\n\nFrom input:   {}\nExpected AST: {}\nActual AST:   {}\n",
-                    expected_errors, num_errors, shown_errors, src, expected_result, actual);
+                    "\nExpected {expected_errors} error(s) and got {num_errors}:\n\n{shown_errors}\n\nFrom input:   {src}\nExpected AST: {expected_result}\nActual AST:   {actual}\n");
             }
             result
         });

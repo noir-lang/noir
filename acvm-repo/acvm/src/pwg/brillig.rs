@@ -137,11 +137,11 @@ impl BrilligSolver {
         for output in &brillig.outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, FieldElement::zero(), initial_witness)?
+                    insert_value(witness, FieldElement::zero(), initial_witness)?;
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     for witness in witness_arr {
-                        insert_value(witness, FieldElement::zero(), initial_witness)?
+                        insert_value(witness, FieldElement::zero(), initial_witness)?;
                     }
                 }
             }

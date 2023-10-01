@@ -16,7 +16,7 @@ pub mod workspace;
 
 use std::collections::BTreeMap;
 
-use fm::FileManager;
+use fm::{FileManager, FileReader};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName},
@@ -42,9 +42,9 @@ pub fn prepare_dependencies(
     }
 }
 
-pub fn prepare_package(package: &Package) -> (Context, CrateId) {
+pub fn prepare_package(package: &Package, file_reader: Box<FileReader>) -> (Context, CrateId) {
     // TODO: FileManager continues to leak into various crates
-    let fm = FileManager::new(&package.root_dir);
+    let fm = FileManager::new(&package.root_dir, file_reader);
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 

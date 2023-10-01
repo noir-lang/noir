@@ -80,7 +80,7 @@ fn add_noir_lib(context: &mut Context, library_name: &str) {
         context
             .crate_graph
             .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
-            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {} library", library_name));
+            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
     }
 }
 
@@ -98,7 +98,7 @@ pub fn compile(args: JsValue) -> JsValue {
     debug!("Compiler configuration {:?}", &options);
 
     let root = Path::new("/");
-    let fm = FileManager::new(root);
+    let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
@@ -125,14 +125,39 @@ pub fn compile(args: JsValue) -> JsValue {
 
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
     } else {
-        let compiled_program = compile_main(&mut context, crate_id, &options.compile_options, None)
-            .expect("Compilation failed")
-            .0;
+        let compiled_program =
+            compile_main(&mut context, crate_id, &options.compile_options, None, true)
+                .expect("Compilation failed")
+                .0;
 
         let optimized_program =
             nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
                 .expect("Program optimization failed");
 
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(target_os = "wasi")] {
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            std::fs::read_to_string(path_to_file)
+        }
+    } else {
+        use std::io::{Error, ErrorKind};
+
+        #[wasm_bindgen(module = "@noir-lang/source-resolver")]
+        extern "C" {
+            #[wasm_bindgen(catch)]
+            fn read_file(path: &str) -> Result<String, JsValue>;
+        }
+
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            let path_str = path_to_file.to_str().unwrap();
+            match read_file(path_str) {
+                Ok(buffer) => Ok(buffer),
+                Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
+            }
+        }
     }
 }
