@@ -1,5 +1,6 @@
 use acvm::{
-    acir::brillig::{ForeignCallOutput, ForeignCallResult, Value},
+    acir::brillig::{ForeignCallResult, Value},
+    brillig_vm::brillig::ForeignCallParam,
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
@@ -52,24 +53,26 @@ impl ForeignCall {
                 Ok(ForeignCallResult { values: vec![] })
             }
             Some(ForeignCall::Sequence) => {
-                let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
+                let sequence_length: u128 =
+                    foreign_call.inputs[0].unwrap_value().to_field().to_u128();
                 let sequence = vecmap(0..sequence_length, Value::from);
 
                 Ok(ForeignCallResult {
                     values: vec![
-                        ForeignCallOutput::Single(sequence_length.into()),
-                        ForeignCallOutput::Array(sequence),
+                        ForeignCallParam::Single(sequence_length.into()),
+                        ForeignCallParam::Array(sequence),
                     ],
                 })
             }
             Some(ForeignCall::ReverseSequence) => {
-                let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
+                let sequence_length: u128 =
+                    foreign_call.inputs[0].unwrap_value().to_field().to_u128();
                 let sequence = vecmap((0..sequence_length).rev(), Value::from);
 
                 Ok(ForeignCallResult {
                     values: vec![
-                        ForeignCallOutput::Single(sequence_length.into()),
-                        ForeignCallOutput::Array(sequence),
+                        ForeignCallParam::Single(sequence_length.into()),
+                        ForeignCallParam::Array(sequence),
                     ],
                 })
             }
@@ -77,7 +80,7 @@ impl ForeignCall {
         }
     }
 
-    fn execute_println(foreign_call_inputs: &[Vec<Value>]) -> Result<(), NargoError> {
+    fn execute_println(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), NargoError> {
         let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
         println!("{display_values}");
         Ok(())
