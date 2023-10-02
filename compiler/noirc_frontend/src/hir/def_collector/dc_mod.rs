@@ -330,11 +330,13 @@ impl<'a> ModCollector<'a> {
                 TraitItem::Function { name, .. } => {
                     if let Some(prev_item) = functions_and_consts.insert(name, trait_item) {
                         let error = match prev_item {
-                            TraitItem::Function { name: prev_name, .. } => DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedFunction,
-                                first_def: prev_name.clone(),
-                                second_def: name.clone(),
-                            },
+                            TraitItem::Function { name: prev_name, .. } => {
+                                DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::TraitAssociatedFunction,
+                                    first_def: prev_name.clone(),
+                                    second_def: name.clone(),
+                                }
+                            }
                             TraitItem::Constant { name: prev_name, .. } => {
                                 DefCollectorErrorKind::Duplicate {
                                     typ: DuplicateType::TraitAssociatedItem,
@@ -352,11 +354,13 @@ impl<'a> ModCollector<'a> {
                 TraitItem::Constant { name, .. } => {
                     if let Some(prev_item) = functions_and_consts.insert(name, trait_item) {
                         let error = match prev_item {
-                            TraitItem::Function { name: prev_name, .. } => DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedItem,
-                                first_def: prev_name.clone(),
-                                second_def: name.clone(),
-                            },
+                            TraitItem::Function { name: prev_name, .. } => {
+                                DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::TraitAssociatedItem,
+                                    first_def: prev_name.clone(),
+                                    second_def: name.clone(),
+                                }
+                            }
                             TraitItem::Constant { name: prev_name, .. } => {
                                 DefCollectorErrorKind::Duplicate {
                                     typ: DuplicateType::TraitAssociatedConst,
