@@ -6,7 +6,8 @@
     "private": true,
     "scripts": {
         "build": "echo Integration Test build step",
-        "test": "yarn test:browser",
+        "test": "bash ./scripts/codegen-verifiers.sh && yarn test:browser && yarn test:node",
+        "test:node": "hardhat test test/node/**/*",
         "test:browser": "web-test-runner",
         "test:integration:browser": "web-test-runner test/browser/**/*.test.ts",
         "test:integration:browser:watch": "web-test-runner test/browser/**/*.test.ts --watch",
@@ -17,6 +18,8 @@
         "@noir-lang/noir_js": "workspace:*",
         "@noir-lang/noir_wasm": "workspace:*",
         "@noir-lang/source-resolver": "workspace:*",
+        "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+        "@nomicfoundation/hardhat-ethers": "^3.0.0",
         "@web/dev-server-esbuild": "^0.3.6",
         "@web/test-runner": "^0.15.3",
         "@web/test-runner-webdriver": "^0.7.0",
@@ -24,8 +27,11 @@
         "eslint-plugin-prettier": "^5.0.0",
         "ethers": "^6.7.1",
         "fflate": "^0.8.0",
+        "hardhat": "^2.17.4",
         "prettier": "3.0.3",
         "smol-toml": "^1.1.2",
+        "solidity-coverage": "^0.8.1",
+        "toml": "^3.0.0",
         "tslog": "^4.9.2"
     }
 }

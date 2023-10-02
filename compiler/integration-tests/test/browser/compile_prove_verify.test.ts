@@ -1,16 +1,15 @@
 import { expect } from '@esm-bundle/chai';
-import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
+import * as TOML from 'smol-toml';
+
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
-import { ethers } from 'ethers';
-import * as TOML from 'smol-toml';
-import { getFile } from './utils.js';
-import { separatePublicInputsFromProof } from '../shared/proof.js';
 
-const provider = new ethers.JsonRpcProvider('http://localhost:8545');
+import { getFile } from './utils.js';
+import { TEST_LOG_LEVEL } from '../environment.js';
+
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
 const { default: initACVM } = acvm;
@@ -25,14 +24,10 @@ compilerLogLevel('INFO');
 const test_cases = [
   {
     case: 'tooling/nargo_cli/tests/execution_success/1_mul',
-    compiled: 'compiler/integration-tests/foundry-project/out/1_mul.sol/UltraVerifier.json',
-    deployInformation: 'compiler/integration-tests/foundry-project/mul_output.json',
     numPublicInputs: 0,
   },
   {
     case: 'compiler/integration-tests/test/circuits/main',
-    compiled: 'compiler/integration-tests/foundry-project/out/main.sol/UltraVerifier.json',
-    deployInformation: 'compiler/integration-tests/foundry-project/main_output.json',
     numPublicInputs: 1,
   },
 ];
@@ -84,20 +79,6 @@ test_cases.forEach((testInfo) => {
 
     const verified = await program.verifyFinalProof(proofWithPublicInputs);
     expect(verified, 'Proof fails verification in JS').to.be.true;
-
-    // Smart contract verification
-
-    const compiled_contract = await getFile(`${base_relative_path}/${testInfo.compiled}`);
-    const deploy_information = await getFile(`${base_relative_path}/${testInfo.deployInformation}`);
-
-    const { abi } = JSON.parse(compiled_contract);
-    const { deployedTo } = JSON.parse(deploy_information);
-    const contract = new ethers.Contract(deployedTo, abi, provider);
-
-    const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
-    const result = await contract.verify(proof, publicInputs);
-
-    expect(result).to.be.true;
   });
 
   suite.addTest(mochaTest);
