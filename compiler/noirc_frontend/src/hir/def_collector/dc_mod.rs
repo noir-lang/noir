@@ -327,65 +327,44 @@ impl<'a> ModCollector<'a> {
 
         for trait_item in trait_items {
             match trait_item {
-                TraitItem::Function {
-                    name,
-                    generics: _,
-                    parameters: _,
-                    return_type: _,
-                    where_clause: _,
-                    body: _,
-                } => {
+                TraitItem::Function { name, .. } => {
                     if let Some(prev_item) = functions_and_consts.insert(name, trait_item) {
                         let error = match prev_item {
-                            TraitItem::Function {
-                                name: prev_name,
-                                generics: _,
-                                parameters: _,
-                                return_type: _,
-                                where_clause: _,
-                                body: _,
-                            } => DefCollectorErrorKind::Duplicate {
+                            TraitItem::Function { name: prev_name, .. } => DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedFunction,
                                 first_def: prev_name.clone(),
                                 second_def: name.clone(),
                             },
-                            TraitItem::Constant { name: prev_name, typ: _, default_value: _ } => {
+                            TraitItem::Constant { name: prev_name, .. } => {
                                 DefCollectorErrorKind::Duplicate {
                                     typ: DuplicateType::TraitAssociatedItem,
                                     first_def: prev_name.clone(),
                                     second_def: name.clone(),
                                 }
                             }
-                            TraitItem::Type { name: _ } => {
+                            TraitItem::Type { .. } => {
                                 unreachable!();
                             }
                         };
                         errors.push((error.into(), self.file_id));
                     }
                 }
-                TraitItem::Constant { name, typ: _, default_value: _ } => {
+                TraitItem::Constant { name, .. } => {
                     if let Some(prev_item) = functions_and_consts.insert(name, trait_item) {
                         let error = match prev_item {
-                            TraitItem::Function {
-                                name: prev_name,
-                                generics: _,
-                                parameters: _,
-                                return_type: _,
-                                where_clause: _,
-                                body: _,
-                            } => DefCollectorErrorKind::Duplicate {
+                            TraitItem::Function { name: prev_name, .. } => DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedItem,
                                 first_def: prev_name.clone(),
                                 second_def: name.clone(),
                             },
-                            TraitItem::Constant { name: prev_name, typ: _, default_value: _ } => {
+                            TraitItem::Constant { name: prev_name, .. } => {
                                 DefCollectorErrorKind::Duplicate {
                                     typ: DuplicateType::TraitAssociatedConst,
                                     first_def: prev_name.clone(),
                                     second_def: name.clone(),
                                 }
                             }
-                            TraitItem::Type { name: _ } => {
+                            TraitItem::Type { .. } => {
                                 unreachable!();
                             }
                         };
