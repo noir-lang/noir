@@ -1009,7 +1009,7 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BinaryIntOp, ForeignCallOutput, ForeignCallResult, HeapVector, RegisterIndex,
+        BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapVector, RegisterIndex,
         RegisterOrMemory, Value,
     };
     use acvm::brillig_vm::{Registers, VMStatus, VM};
@@ -1133,7 +1133,7 @@ pub(crate) mod tests {
             Registers { inner: vec![] },
             vec![],
             bytecode,
-            vec![ForeignCallResult { values: vec![ForeignCallOutput::Array(number_sequence)] }],
+            vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
         );
         let status = vm.process_opcodes();
