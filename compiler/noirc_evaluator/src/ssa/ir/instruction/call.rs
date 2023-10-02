@@ -299,11 +299,8 @@ fn simplify_slice_push_back(
     }
     let new_slice = dfg.make_array(slice, element_type);
 
-    let set_last_slice_value_instr = Instruction::ArraySet {
-        array: new_slice,
-        index: arguments[0],
-        value: arguments[2],
-    };
+    let set_last_slice_value_instr =
+        Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
     let set_last_slice_value = dfg
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();

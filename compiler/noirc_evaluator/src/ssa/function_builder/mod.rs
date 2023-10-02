@@ -343,7 +343,10 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
-        self.current_function.dfg.get_intrinsic_from_value(value)
+        match self.current_function.dfg[value] {
+            Value::Intrinsic(intrinsic) => Some(intrinsic),
+            _ => None,
+        }
     }
 }
 
