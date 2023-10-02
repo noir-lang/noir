@@ -303,7 +303,6 @@ fn simplify_slice_push_back(
         array: new_slice,
         index: arguments[0],
         value: arguments[2],
-        length: Some(new_slice_length),
     };
     let set_last_slice_value = dfg
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)

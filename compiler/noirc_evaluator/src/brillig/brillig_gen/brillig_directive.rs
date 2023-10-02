@@ -39,40 +39,31 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
 }
 
 /// Generates brillig bytecode which computes `a / b` and returns the quotient and remainder.
-/// It returns `(0,0)` if the predicate is null.
-///
 ///
 /// This is equivalent to the Noir (psuedo)code
 ///
 /// ```ignore
-/// fn quotient<T>(a: T, b: T, predicate: bool) -> (T,T) {
-///    if predicate != 0 {
-///      (a/b, a-a/b*b)
-///    } else {
-///      (0,0)
-///    }
+/// fn quotient<T>(a: T, b: T) -> (T,T) {
+///    (a/b, a-a/b*b)
 /// }
 /// ```
 pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
     // `a` is (0) (i.e register index 0)
     // `b` is (1)
-    // `predicate` is (2)
     GeneratedBrillig {
         byte_code: vec![
-            // If the predicate is zero, we jump to the exit segment
-            BrilligOpcode::JumpIfNot { condition: RegisterIndex::from(2), location: 6 },
-            //q = a/b is set into register (3)
+            //q = a/b is set into register (2)
             BrilligOpcode::BinaryIntOp {
                 op: BinaryIntOp::UnsignedDiv,
                 lhs: RegisterIndex::from(0),
                 rhs: RegisterIndex::from(1),
-                destination: RegisterIndex::from(3),
+                destination: RegisterIndex::from(2),
                 bit_size,
             },
             //(1)= q*b
             BrilligOpcode::BinaryIntOp {
                 op: BinaryIntOp::Mul,
-                lhs: RegisterIndex::from(3),
+                lhs: RegisterIndex::from(2),
                 rhs: RegisterIndex::from(1),
                 destination: RegisterIndex::from(1),
                 bit_size,
@@ -88,17 +79,7 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             //(0) = q
             BrilligOpcode::Mov {
                 destination: RegisterIndex::from(0),
-                source: RegisterIndex::from(3),
-            },
-            BrilligOpcode::Stop,
-            // Exit segment: we return 0,0
-            BrilligOpcode::Const {
-                destination: RegisterIndex::from(0),
-                value: Value::from(0_usize),
-            },
-            BrilligOpcode::Const {
-                destination: RegisterIndex::from(1),
-                value: Value::from(0_usize),
+                source: RegisterIndex::from(2),
             },
             BrilligOpcode::Stop,
         ],

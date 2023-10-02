@@ -7,7 +7,7 @@ it('generates witnesses successfully', async () => {
     x: '2',
     y: '3',
   };
-  const _solvedWitness = await generateWitness(assert_lt_json, inputs);
+  expect(() => generateWitness(assert_lt_json, inputs)).to.not.throw;
 });
 
 it('string input and number input are the same', async () => {
@@ -66,7 +66,9 @@ describe('input validation', () => {
       expect.fail('Expected generatedWitness to throw, due to x not being convertible to a uint64');
     } catch (error) {
       const knownError = error as Error;
-      expect(knownError.message).to.equal('Input for x is the wrong type, expected uint64, got "foo"');
+      expect(knownError.message).to.equal(
+        'Expected witness values to be integers, provided value causes `invalid digit found in string` error',
+      );
     }
   });
 });

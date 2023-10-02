@@ -83,10 +83,17 @@ pub(crate) struct AcirDynamicArray {
     block_id: BlockId,
     /// Length of the array
     len: usize,
+    /// Identification for the ACIR dynamic array
+    /// inner element type sizes array
+    element_type_sizes: BlockId,
 }
 impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "id: {}, len: {}", self.block_id.0, self.len)
+        write!(
+            f,
+            "id: {}, len: {}, element_type_sizes: {:?}",
+            self.block_id.0, self.len, self.element_type_sizes.0
+        )
     }
 }
 
@@ -249,12 +256,17 @@ impl Context {
             let value = self.convert_ssa_block_param(&typ)?;
             match &value {
                 AcirValue::Var(_, _) => (),
-                AcirValue::Array(values) => {
+                AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
-                        values.len()
+                        return Err(InternalError::UnExpected {
+                            expected: "Block params should be an array".to_owned(),
+                            found: format!("Instead got {:?}", typ),
+                            call_stack: self.acir_context.get_call_stack(),
+                        }
+                        .into());
                     };
                     self.initialize_array(block_id, len, Some(value.clone()))?;
                 }
@@ -384,6 +396,7 @@ impl Context {
                             AcirValue::DynamicArray(AcirDynamicArray {
                                 block_id: lhs_block_id,
                                 len,
+                                ..
                             }),
                             AcirValue::DynamicArray(AcirDynamicArray {
                                 block_id: rhs_block_id,
@@ -400,11 +413,8 @@ impl Context {
 
                 let mut read_dynamic_array_index =
                     |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
-                        let index = AcirValue::Var(
-                            self.acir_context.add_constant(FieldElement::from(array_index as u128)),
-                            AcirType::NumericType(NumericType::NativeField),
-                        );
-                        let index_var = index.into_var()?;
+                        let index_var =
+                            self.acir_context.add_constant(FieldElement::from(array_index as u128));
 
                         self.acir_context.read_from_memory(block_id, &index_var)
                     };
@@ -464,14 +474,13 @@ impl Context {
                             match &output {
                                 // We need to make sure we initialize arrays returned from intrinsic calls
                                 // or else they will fail if accessed with a dynamic index
-                                AcirValue::Array(values) => {
+                                AcirValue::Array(_) => {
                                     let block_id = self.block_id(result);
-                                    let values = vecmap(values, |v| v.clone());
                                     let array_typ = dfg.type_of_value(*result);
                                     let len = if matches!(array_typ, Type::Array(_, _)) {
                                         array_typ.flattened_size()
                                     } else {
-                                        values.len()
+                                        Self::flattened_value_size(&output)
                                     };
                                     self.initialize_array(block_id, len, Some(output.clone()))?;
                                 }
@@ -676,11 +685,13 @@ impl Context {
 
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - index_var is the index of the array
+    /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
+    ///     Thus internal array element type sizes need to be computed to accurately transform the index.
     /// - predicate_index is 0, or the index if the predicate is true
     /// - new_value is the optional value when the operation is an array_set
-    ///      When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///      It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     fn convert_array_operation_inputs(
         &mut self,
         array: ValueId,
@@ -691,13 +702,7 @@ impl Context {
         let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         let index_var = self.convert_numeric_value(index, dfg)?;
-        // TODO(#2752): Need to add support for dynamic indices with non-homogenous slices
-        let index_var = if matches!(array_typ, Type::Array(_, _)) {
-            let array_len = dfg.try_get_array_length(array_id).expect("ICE: expected an array");
-            self.get_flattened_index(&array_typ, array_id, array_len, index_var)?
-        } else {
-            index_var
-        };
+        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
         let predicate_index =
             self.acir_context.mul_var(index_var, self.current_side_effects_enabled_var)?;
@@ -782,7 +787,6 @@ impl Context {
 
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-
         let value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
 
         self.define_result(dfg, instruction, value.clone());
@@ -819,6 +823,7 @@ impl Context {
             }
             Type::Slice(_) => {
                 // TODO(#2752): need SSA values here to fetch the len like we do for a Type::Array
+                // Update this to enable fetching slices from nested arrays
                 Err(InternalError::UnExpected {
                     expected: "array".to_owned(),
                     found: ssa_type.to_string(),
@@ -842,8 +847,8 @@ impl Context {
         map_array: bool,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
-        let (array, length) = match dfg[instruction] {
-            Instruction::ArraySet { array, length, .. } => (array, length),
+        let array = match dfg[instruction] {
+            Instruction::ArraySet { array, .. } => array,
             _ => {
                 return Err(InternalError::UnExpected {
                     expected: "Instruction should be an ArraySet".to_owned(),
@@ -854,7 +859,7 @@ impl Context {
             }
         };
 
-        let (_, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
+        let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
@@ -868,20 +873,7 @@ impl Context {
                 // Flatten the array length to handle arrays of complex types
                 array_typ.flattened_size()
             }
-            Type::Slice(_) => {
-                // Fetch the true length of the slice from the array_set instruction
-                let length = length
-                    .expect("ICE: array set on slice must have a length associated with the call");
-                let length_acir_var = self.convert_value(length, dfg).into_var()?;
-                let len = self.acir_context.var_to_expression(length_acir_var)?.to_const();
-                if let Some(len) = len {
-                    len.to_u128() as usize
-                } else if let Some((array, _)) = dfg.get_array_constant(array) {
-                    array.len()
-                } else {
-                    panic!("ICE: slice length should be fully tracked and constant by ACIR gen");
-                }
-            }
+            Type::Slice(_) => self.flattened_slice_size(array_id, dfg),
             _ => unreachable!("ICE - expected an array"),
         };
 
@@ -899,29 +891,17 @@ impl Context {
         } else {
             // Initialize the new array with the values from the old array
             result_block_id = self.block_id(result_id);
-            let init_values = try_vecmap(0..array_len, |i| {
-                let index = AcirValue::Var(
-                    self.acir_context.add_constant(FieldElement::from(i as u128)),
-                    AcirType::NumericType(NumericType::NativeField),
-                );
-                let var = index.into_var()?;
-                let read = self.acir_context.read_from_memory(block_id, &var)?;
-                Ok::<AcirValue, RuntimeError>(AcirValue::Var(
-                    read,
-                    AcirType::NumericType(NumericType::NativeField),
-                ))
-            })?;
-            self.initialize_array(
-                result_block_id,
-                array_len,
-                Some(AcirValue::Array(init_values.into())),
-            )?;
+            self.copy_dynamic_array(block_id, result_block_id, array_len)?;
         }
 
         self.array_set_value(store_value, result_block_id, &mut var_index)?;
 
-        let result_value =
-            AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len: array_len });
+        let arr_element_type_sizes = self.internal_block_id(&array_id);
+        let result_value = AcirValue::DynamicArray(AcirDynamicArray {
+            block_id: result_block_id,
+            len: array_len,
+            element_type_sizes: arr_element_type_sizes,
+        });
         self.define_result(dfg, instruction, result_value);
         Ok(())
     }
@@ -971,18 +951,18 @@ impl Context {
         if !already_initialized {
             let value = &dfg[array_id];
             match value {
-                Value::Array { array, .. } => {
+                Value::Array { .. } => {
                     let value = self.convert_value(array_id, dfg);
                     let len = if matches!(array_typ, Type::Array(_, _)) {
                         array_typ.flattened_size()
                     } else {
-                        array.len()
+                        self.flattened_slice_size(array_id, dfg)
                     };
                     self.initialize_array(block_id, len, Some(value))?;
                 }
                 _ => {
                     return Err(InternalError::General {
-                        message: format!("Array {array} should be initialized"),
+                        message: format!("Array {array_id} should be initialized"),
                         call_stack: self.acir_context.get_call_stack(),
                     }
                     .into())
@@ -993,16 +973,18 @@ impl Context {
         Ok((array_id, array_typ, block_id))
     }
 
-    fn init_element_types_size_array(
+    fn init_element_type_sizes_array(
         &mut self,
         array_typ: &Type,
         array_id: ValueId,
+        dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
         let element_type_sizes = self.internal_block_id(&array_id);
         // Check whether an internal type sizes array has already been initialized
         if self.initialized_arrays.contains(&element_type_sizes) {
             return Ok(element_type_sizes);
         }
+
         let mut flat_elem_type_sizes = Vec::new();
         flat_elem_type_sizes.push(0);
         match array_typ {
@@ -1011,17 +993,78 @@ impl Context {
                     flat_elem_type_sizes.push(typ.flattened_size() + flat_elem_type_sizes[i]);
                 }
             }
+            Type::Slice(element_types) => {
+                match &dfg[array_id] {
+                    Value::Array { array, .. } => {
+                        for i in 0..element_types.len() {
+                            flat_elem_type_sizes.push(
+                                self.flattened_slice_size(array[i], dfg) + flat_elem_type_sizes[i],
+                            );
+                        }
+                    }
+                    Value::Instruction { .. } => {
+                        // An instruction representing the slice means it has been processed previously during ACIR gen.
+                        // Use the previously defined result of an array operation to fetch the internal type information.
+                        let array_acir_value = self.convert_value(array_id, dfg);
+                        match array_acir_value {
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                element_type_sizes: inner_elem_type_sizes,
+                                ..
+                            }) => {
+                                if self.initialized_arrays.contains(&inner_elem_type_sizes) {
+                                    self.copy_dynamic_array(
+                                        inner_elem_type_sizes,
+                                        element_type_sizes,
+                                        element_types.len() + 1,
+                                    )?;
+                                    return Ok(element_type_sizes);
+                                } else {
+                                    return Err(InternalError::General {
+                                        message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
+                                        call_stack: self.acir_context.get_call_stack(),
+                                    }
+                                    .into());
+                                }
+                            }
+                            AcirValue::Array(values) => {
+                                for i in 0..element_types.len() {
+                                    flat_elem_type_sizes.push(
+                                        Self::flattened_value_size(&values[i])
+                                            + flat_elem_type_sizes[i],
+                                    );
+                                }
+                            }
+                            _ => {
+                                return Err(InternalError::UnExpected {
+                                    expected: "AcirValue::DynamicArray or AcirValue::Array"
+                                        .to_owned(),
+                                    found: format!("{:?}", array_acir_value),
+                                    call_stack: self.acir_context.get_call_stack(),
+                                }
+                                .into())
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(InternalError::UnExpected {
+                            expected: "array or instruction".to_owned(),
+                            found: format!("{:?}", &dfg[array_id]),
+                            call_stack: self.acir_context.get_call_stack(),
+                        }
+                        .into())
+                    }
+                };
+            }
             _ => {
                 return Err(InternalError::UnExpected {
-                    expected: "array".to_owned(),
+                    expected: "array or slice".to_owned(),
                     found: array_typ.to_string(),
                     call_stack: self.acir_context.get_call_stack(),
                 }
                 .into());
             }
         }
-        // We do not have to initialize the last elem size value as that is the maximum array size
-        flat_elem_type_sizes.pop();
+        // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
             let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
             AcirValue::Var(var, AcirType::field())
@@ -1035,20 +1078,32 @@ impl Context {
         Ok(element_type_sizes)
     }
 
+    fn copy_dynamic_array(
+        &mut self,
+        source: BlockId,
+        destination: BlockId,
+        array_len: usize,
+    ) -> Result<(), RuntimeError> {
+        let init_values = try_vecmap(0..array_len, |i| {
+            let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+            let read = self.acir_context.read_from_memory(source, &index_var)?;
+            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+        })?;
+        self.initialize_array(destination, array_len, Some(AcirValue::Array(init_values.into())))?;
+        Ok(())
+    }
+
     fn get_flattened_index(
         &mut self,
         array_typ: &Type,
         array_id: ValueId,
-        array_len: usize,
         var_index: AcirVar,
+        dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        let element_type_sizes = self.init_element_types_size_array(array_typ, array_id)?;
+        let element_type_sizes = self.init_element_type_sizes_array(array_typ, array_id, dfg)?;
 
         let element_size = array_typ.element_size();
-        let flat_array_size = array_typ.flattened_size();
-        let flat_elem_size = flat_array_size / array_len;
-        let flat_element_size_var =
-            self.acir_context.add_constant(FieldElement::from(flat_elem_size as u128));
 
         let element_size_var =
             self.acir_context.add_constant(FieldElement::from(element_size as u128));
@@ -1067,8 +1122,52 @@ impl Context {
         let inner_offset =
             self.acir_context.read_from_memory(element_type_sizes, &inner_offset_index)?;
 
+        let flat_element_size_var =
+            self.acir_context.read_from_memory(element_type_sizes, &element_size_var)?;
         let var_index = self.acir_context.mul_var(outer_offset, flat_element_size_var)?;
         self.acir_context.add_var(var_index, inner_offset)
+    }
+
+    fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
+        let mut size = 0;
+        match &dfg[array_id] {
+            Value::Array { array, .. } => {
+                // The array is going to be the flattened outer array
+                // Flattened slice size from SSA value does not need to be multiplied by the len
+                for value in array {
+                    size += self.flattened_slice_size(*value, dfg);
+                }
+            }
+            Value::NumericConstant { .. } => {
+                size += 1;
+            }
+            Value::Instruction { .. } => {
+                let array_acir_value = self.convert_value(array_id, dfg);
+                size += Self::flattened_value_size(&array_acir_value);
+            }
+            _ => {
+                unreachable!("ICE: Unexpected SSA value when computing the slice size");
+            }
+        }
+        size
+    }
+
+    fn flattened_value_size(value: &AcirValue) -> usize {
+        let mut size = 0;
+        match value {
+            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                size += len;
+            }
+            AcirValue::Var(_, _) => {
+                size += 1;
+            }
+            AcirValue::Array(values) => {
+                for value in values {
+                    size += Self::flattened_value_size(value);
+                }
+            }
+        }
+        size
     }
 
     /// Initializes an array with the given values and caches the fact that we
@@ -1634,21 +1733,14 @@ impl Context {
                     self.slice_intrinsic_input(old_slice, var)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let index = AcirValue::Var(
-                        self.acir_context.add_constant(FieldElement::from(i as u128)),
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
 
-                    let index_var = index.into_var()?;
                     let value_read_var =
                         self.acir_context.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(
-                        value_read_var,
-                        AcirType::NumericType(NumericType::NativeField),
-                    );
+                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
 
                     old_slice.push_back(value_read);
                 }
@@ -1777,3 +1869,4 @@ mod tests {
         assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }
+//

@@ -1,0 +1,97 @@
+name: Test acvm_js
+
+on: [push, pull_request]
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build-acvm-js-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - name: Build acvm-js
+        run: |
+          nix build -L .#acvm_js
+
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: acvm-js
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+  test-acvm_js-node:
+    needs: [build-acvm-js-package]
+    name: Node.js Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./result
+      
+      - name: Move build artifacts
+        run: |
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
+
+      - name: Set up test environment
+        uses: ./.github/actions/setup
+
+      - name: Run node tests
+        run: yarn workspace @noir-lang/acvm_js test
+
+  test-acvm_js-browser:
+    needs: [build-acvm-js-package]
+    name: Browser Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./result
+      
+      - name: Move build artifacts
+        run: |
+          mv ./result/acvm_js/nodejs ./acvm-repo/acvm_js/nodejs
+          mv ./result/acvm_js/web ./acvm-repo/acvm_js/web
+
+      - name: Set up test environment
+        uses: ./.github/actions/setup
+
+      - name: Install playwright deps
+        run: |
+          npx playwright install
+          npx playwright install-deps
+
+      - name: Run browser tests
+        working-directory: ./acvm-repo/acvm_js
+        run: yarn workspace @noir-lang/acvm_js test:browser

@@ -87,7 +87,7 @@ fn regression_2083() {
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
-    // merge_slices_else(x);
+    merge_slices_else(x);
 }
 
 fn merge_slices_if(x: Field, y: Field) {

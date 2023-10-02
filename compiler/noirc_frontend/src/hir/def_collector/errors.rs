@@ -1,5 +1,6 @@
 use crate::hir::resolution::import::PathResolutionError;
 use crate::Ident;
+use crate::Path;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
@@ -8,7 +9,7 @@ use thiserror::Error;
 
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DuplicateType {
     Function,
     Module,
@@ -19,7 +20,7 @@ pub enum DuplicateType {
     TraitImplementation,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
@@ -30,7 +31,7 @@ pub enum DefCollectorErrorKind {
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
     #[error("Non-struct type used in trait impl")]
-    NonStructTraitImpl { trait_ident: Ident, span: Span },
+    NonStructTraitImpl { trait_path: Path, span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
     #[error("Mismatch number of parameters in of trait implementation")]
@@ -44,11 +45,22 @@ pub enum DefCollectorErrorKind {
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Ident },
+    NotATrait { not_a_trait_name: Path },
     #[error("Trait not found")]
-    TraitNotFound { trait_ident: Ident },
+    TraitNotFound { trait_path: Path },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
+    #[error("Module is already part of the crate")]
+    ModuleAlreadyPartOfCrate { mod_name: Ident, span: Span },
+    #[error("Module was originally declared here")]
+    ModuleOrignallyDefined { mod_name: Ident, span: Span },
+    #[cfg(feature = "aztec")]
+    #[error("Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml")]
+    AztecNotFound {},
+    #[error(
+        "Either the type or the trait must be from the same crate as the trait implementation"
+    )]
+    TraitImplOrphaned { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -107,9 +119,9 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::NonStructTraitImpl { trait_ident, span } => {
+            DefCollectorErrorKind::NonStructTraitImpl { trait_path, span } => {
                 Diagnostic::simple_error(
-                    format!("Only struct types may implement trait `{trait_ident}`"),
+                    format!("Only struct types may implement trait `{trait_path}`"),
                     "Only struct types may implement traits".into(),
                     span,
                 )
@@ -119,10 +131,10 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 format!("{type_name} was defined outside the current crate"),
                 span,
             ),
-            DefCollectorErrorKind::TraitNotFound { trait_ident } => Diagnostic::simple_error(
-                format!("Trait {trait_ident} not found"),
+            DefCollectorErrorKind::TraitNotFound { trait_path } => Diagnostic::simple_error(
+                format!("Trait {trait_path} not found"),
                 "".to_string(),
-                trait_ident.span(),
+                trait_path.span(),
             ),
             DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
                 expected_num_parameters,
@@ -159,14 +171,32 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::NotATrait { not_a_trait_name } => {
-                let span = not_a_trait_name.0.span();
-                let name = &not_a_trait_name.0.contents;
+                let span = not_a_trait_name.span();
                 Diagnostic::simple_error(
-                    format!("{name} is not a trait, therefore it can't be implemented"),
+                    format!("{not_a_trait_name} is not a trait, therefore it can't be implemented"),
                     String::new(),
                     span,
                 )
             }
+            DefCollectorErrorKind::ModuleAlreadyPartOfCrate { mod_name, span } => {
+                let message = format!("Module '{mod_name}' is already part of the crate");
+                let secondary = String::new();
+                Diagnostic::simple_error(message, secondary, span)
+            }
+            DefCollectorErrorKind::ModuleOrignallyDefined { mod_name, span } => {
+                let message = format!("Note: {mod_name} was originally declared here");
+                let secondary = String::new();
+                Diagnostic::simple_error(message, secondary, span)
+            }
+            #[cfg(feature = "aztec")]
+            DefCollectorErrorKind::AztecNotFound {} => Diagnostic::from_message(
+                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
+            ),
+            DefCollectorErrorKind::TraitImplOrphaned { span } => Diagnostic::simple_error(
+                "Orphaned trait implementation".into(),
+                "Either the type or the trait must be from the same crate as the trait implementation".into(),
+                span,
+            ),
         }
     }
 }
