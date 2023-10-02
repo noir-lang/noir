@@ -40,7 +40,7 @@ fn main() {
     let test_dir = manifest_dir.join("tests");
 
     generate_execution_success_tests(&mut test_file, &test_dir);
-    generate_test_success_tests(&mut test_file, &test_dir);
+    generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
@@ -84,8 +84,8 @@ fn execution_success_{test_name}() {{
     }
 }
 
-fn generate_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "test_success";
+fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "noir_test_success";
     let test_data_dir = test_data_dir.join(test_sub_dir);
 
     let test_case_dirs =
@@ -105,7 +105,7 @@ fn generate_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
             test_file,
             r#"
 #[test]
-fn test_success_{test_name}() {{
+fn noir_test_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
