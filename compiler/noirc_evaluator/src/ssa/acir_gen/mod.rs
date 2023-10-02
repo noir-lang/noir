@@ -783,10 +783,14 @@ impl Context {
         mut var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
-        let (_, _, block_id) = self.check_array_is_initialized(array, dfg)?;
+        let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
 
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
+        let initial_array_size = self.flattened_slice_size(array_id, dfg);
+        dbg!(initial_array_size);
+        dbg!(res_typ.clone());
+        // dbg!(self.flattened_slice_size(results[0], dfg));
         let value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
 
         self.define_result(dfg, instruction, value.clone());
@@ -1064,6 +1068,7 @@ impl Context {
                 .into())
             }
         }
+        dbg!(flat_elem_type_sizes.clone());
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
             let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));

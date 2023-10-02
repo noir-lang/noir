@@ -91,6 +91,7 @@ impl<'a> FunctionContext<'a> {
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
     fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> ValueId {
+        dbg!("inside codegen_non_tuple_expression");
         self.codegen_expression(expr).into_leaf().eval(self)
     }
 
@@ -484,7 +485,9 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_extract_tuple_field(&mut self, tuple: &Expression, field_index: usize) -> Values {
+        // dbg!(tuple.clone());
         let tuple = self.codegen_expression(tuple);
+        // dbg!(tuple.clone());
         Self::get_field(tuple, field_index)
     }
 
