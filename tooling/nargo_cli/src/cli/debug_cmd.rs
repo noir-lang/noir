@@ -26,6 +26,10 @@ pub(crate) struct DebugCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
+    /// Detail all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
+
     /// The name of the package to execute
     #[clap(long)]
     package: Option<CrateName>,
