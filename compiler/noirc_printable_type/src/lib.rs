@@ -131,12 +131,23 @@ fn convert_fmt_string_inputs(
     {
         let printable_type = fetch_printable_type(printable_value)?;
         let type_size = printable_type.field_count() as usize;
-
-        let mut input_values_as_fields = input_and_printable_values[i..(i + type_size)]
-            .iter()
-            .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
-
-        let value = decode_value(&mut input_values_as_fields, &printable_type);
+        let value = match printable_type {
+            PrintableType::Array { .. } | PrintableType::String { .. } => {
+                // Arrays and strings are represented in a single value vector rather than multiple separate input values
+                let mut input_values_as_fields = input_and_printable_values[i]
+                    .values()
+                    .into_iter()
+                    .map(|value| value.to_field());
+                decode_value(&mut input_values_as_fields, &printable_type)
+            }
+            _ => {
+                // We must use a flat map here as each value in a struct will be in a separate input value
+                let mut input_values_as_fields = input_and_printable_values[i..(i + type_size)]
+                    .iter()
+                    .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+                decode_value(&mut input_values_as_fields, &printable_type)
+            }
+        };
 
         output.push((value, printable_type));
     }
