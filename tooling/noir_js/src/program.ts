@@ -15,8 +15,7 @@ export class Noir {
     // web environment. For the node environment, this
     // is a no-op.
     if (typeof initAbi === 'function') {
-      initAbi();
-      initACVM();
+      await Promise.all([initAbi(), initACVM()]);
     }
   }
 
