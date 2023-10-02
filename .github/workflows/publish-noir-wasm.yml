@@ -2,9 +2,6 @@ name: Publish Noir Wasm
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - jb-fix-publishing-workflows
 
 jobs:
   publish-noir-wasm:
@@ -45,7 +42,6 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./temp_publish_dir
-        # run: yarn npm publish --tag latest
-        run: yarn pack --dry-run
+        run: yarn npm publish --tag latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

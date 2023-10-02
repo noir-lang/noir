@@ -6,9 +6,6 @@ on:
       noir-ref:
         description: The noir reference to checkout
         required: true
-  push:
-    branches:
-      - jb-fix-publishing-workflows
 
 jobs:
   noirc-abi-wasm-build:
@@ -48,8 +45,7 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./temp_publish_dir
-        # run: yarn npm publish --tag latest
-        run: yarn pack --dry-run
+        run: yarn npm publish --tag latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

@@ -2,9 +2,6 @@ name: Publish Noir Js
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - jb-fix-publishing-workflows
 
 jobs:
   release-noir-js:
@@ -52,7 +49,6 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./tooling/noir_js
-        # run: yarn npm publish --access public
-        run: yarn pack --dry-run
+        run: yarn npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

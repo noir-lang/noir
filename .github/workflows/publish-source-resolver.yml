@@ -2,9 +2,6 @@ name: Publish Source Resolver
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - jb-fix-publishing-workflows
 
 jobs:
   release-source-resolver:
@@ -28,7 +25,6 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./compiler/source-resolver
-        # run: yarn npm publish
-        run: yarn pack --dry-run
+        run: yarn npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
