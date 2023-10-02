@@ -6,7 +6,6 @@ contract SchnorrHardcodedAccount {
         entrypoint::{ EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE },
         abi::{ PrivateCircuitPublicInputs, PrivateContextInputs, Hasher },
         types::{ vec::BoundedVec, point::Point },
-        constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
         context::PrivateContext,
         account::AccountActions,
         oracle::auth_witness::get_auth_witness,

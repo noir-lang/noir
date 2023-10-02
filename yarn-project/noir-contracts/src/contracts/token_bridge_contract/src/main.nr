@@ -9,6 +9,7 @@ mod token_interface;
 contract TokenBridge {
     use dep::aztec::{
         context::{Context},
+        hash::{compute_secret_hash},
         state_vars::{public_state::PublicState},
         types::type_serialization::field_serialization::{
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,
@@ -18,7 +19,7 @@ contract TokenBridge {
     };
 
     use crate::token_interface::Token;
-    use crate::util::{get_mint_public_content_hash, get_mint_private_content_hash, get_withdraw_content_hash, compute_secret_hash};
+    use crate::util::{get_mint_public_content_hash, get_mint_private_content_hash, get_withdraw_content_hash};
 
     // Storage structure, containing all storage, and specifying what slots they use.
     struct Storage {

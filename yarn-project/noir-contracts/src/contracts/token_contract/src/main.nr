@@ -1,7 +1,6 @@
 // docs:start:token_all
 // docs:start:imports
 mod types;
-mod util;
 
 // Minimal token implementation that supports `AuthWit` accounts.
 // The auth message follows a similar pattern to the cross-chain message and includes a designated caller.
@@ -23,6 +22,7 @@ contract Token {
             utils as note_utils,
         },
         context::{PrivateContext, PublicContext, Context},
+        hash::{compute_message_hash},
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::{
             field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
@@ -40,7 +40,6 @@ contract Token {
         balances_map::{BalancesMap},
         safe_u120_serialization::{SafeU120SerializationMethods, SAFE_U120_SERIALIZED_LEN}
     };
-    use crate::util::{compute_message_hash};
     // docs:end::imports
 
     // docs:start:storage_struct

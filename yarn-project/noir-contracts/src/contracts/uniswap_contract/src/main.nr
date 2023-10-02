@@ -8,6 +8,7 @@ contract Uniswap {
     use dep::aztec::{
         auth::{IS_VALID_SELECTOR, assert_valid_public_message_for},
         context::{PrivateContext, PublicContext, Context},
+        hash::compute_message_hash,
         oracle::compute_selector::compute_selector,
         oracle::context::get_portal_address,
         state_vars::{map::Map, public_state::PublicState},
@@ -21,7 +22,7 @@ contract Uniswap {
     };
     
     use crate::interfaces::{Token, TokenBridge};
-    use crate::util::{compute_message_hash, compute_swap_private_content_hash, compute_swap_public_content_hash};
+    use crate::util::{compute_swap_private_content_hash, compute_swap_public_content_hash};
 
     struct Storage {
         // like with account contracts, stores the approval message on a slot and tracks if they are active

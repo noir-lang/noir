@@ -7,7 +7,6 @@ contract EcdsaAccount {
     use dep::std::option::Option;
     use dep::aztec::{
         abi::CallContext,
-        constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
         context::{PrivateContext, PublicContext, Context},
         entrypoint::{EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE},
         log::emit_encrypted_log,

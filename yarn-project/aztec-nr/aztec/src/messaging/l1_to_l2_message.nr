@@ -3,6 +3,7 @@ use crate::constants_gen::{
     GENERATOR_INDEX__NULLIFIER,
     GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,
 };
+use crate::hash::{sha256_to_field};
 
 struct L1ToL2Message {
     sender: Field,
@@ -64,20 +65,7 @@ impl L1ToL2Message {
             hash_bytes[i + 224] = fee_bytes[i];
         }
 
-        let message_sha256 = dep::std::hash::sha256(hash_bytes);
-
-        // Convert the message_sha256 to a field element
-        let mut v = 1;
-        let mut high = 0 as Field;
-        let mut low = 0 as Field;
-
-        for i in 0..16 {
-            high = high + (message_sha256[15 - i] as Field) * v;
-            low = low + (message_sha256[16 + 15 - i] as Field) * v;
-            v = v * 256;
-        }
-
-        let message_hash = low + high * v;
+        let message_hash = sha256_to_field(hash_bytes);
         message_hash        
     }
 

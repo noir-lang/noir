@@ -7,7 +7,9 @@ import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+// docs:start:content_hash_sol_import
 import {Hash} from "@aztec/core/libraries/Hash.sol";
+// docs:end:content_hash_sol_import
 
 contract TokenPortal {
   using SafeERC20 for IERC20;

@@ -1,11 +1,4 @@
-use dep::std::hash::{pedersen_with_separator, sha256};
-use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
-
-fn compute_message_hash<N>(args: [Field; N]) -> Field {
-  // @todo @lherskind We should probably use a separate generator for this, 
-  //                  to avoid any potential collisions with payloads.
-  pedersen_with_separator(args, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0]
-}
+use dep::aztec::hash::sha256_to_field;
 
 // This method computes the L2 to L1 message content hash for the private
 // refer `l1-contracts/test/portals/UniswapPortal.sol` on how L2 to L1 message is expected
@@ -52,23 +45,7 @@ fn compute_swap_private_content_hash(
         hash_bytes[i + 260] = canceller_bytes[i];
         hash_bytes[i + 292] = caller_on_L1_bytes[i];
     }
-
-    let content_sha256 = sha256(hash_bytes);
-
-    // Convert the content_sha256 to a field element
-    let mut v = 1;
-    let mut high = 0 as Field;
-    let mut low = 0 as Field;
-
-    for i in 0..16 {
-        high = high + (content_sha256[15 - i] as Field) * v;
-        low = low + (content_sha256[16 + 15 - i] as Field) * v;
-        v = v * 256;
-    }
-
-    // Abuse that a % p + b % p = (a + b) % p and that low < p
-    let content_hash = low + high * v;
-
+    let content_hash = sha256_to_field(hash_bytes);
     content_hash
 }
 
@@ -118,21 +95,6 @@ fn compute_swap_public_content_hash(
         hash_bytes[i + 292] = caller_on_L1_bytes[i];
     }
 
-    let content_sha256 = sha256(hash_bytes);
-
-    // Convert the content_sha256 to a field element
-    let mut v = 1;
-    let mut high = 0 as Field;
-    let mut low = 0 as Field;
-
-    for i in 0..16 {
-        high = high + (content_sha256[15 - i] as Field) * v;
-        low = low + (content_sha256[16 + 15 - i] as Field) * v;
-        v = v * 256;
-    }
-
-    // Abuse that a % p + b % p = (a + b) % p and that low < p
-    let content_hash = low + high * v;
-
+    let content_hash = sha256_to_field(hash_bytes);
     content_hash
 }

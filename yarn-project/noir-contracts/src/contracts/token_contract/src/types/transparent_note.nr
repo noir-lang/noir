@@ -1,12 +1,11 @@
 // docs:start:token_types_all
 use dep::std::hash::pedersen;
-use dep::std::hash::pedersen_with_separator;
 use dep::aztec::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
     utils::compute_siloed_note_hash,
 };
-use dep::aztec::constants_gen::GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET;
+use dep::aztec::hash::{compute_secret_hash};
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
 
@@ -39,7 +38,7 @@ impl TransparentNote {
     fn new_from_secret(amount: Field, secret: Field) -> Self {
         TransparentNote {
             amount: amount,
-            secret_hash: TransparentNote::compute_secret_hash(secret),
+            secret_hash: compute_secret_hash(secret),
             secret: secret,
             header: NoteHeader::empty(),
         }
@@ -83,13 +82,8 @@ impl TransparentNote {
 
     // CUSTOM FUNCTIONS FOR THIS NOTE TYPE
 
-    fn compute_secret_hash(secret: Field) -> Field {
-        // TODO(#1205) This is probably not the right index to use
-        pedersen_with_separator([secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET)[0]
-    }
-
     fn knows_secret(self, secret: Field) {
-        let hash = TransparentNote::compute_secret_hash(secret);
+        let hash = compute_secret_hash(secret);
         assert(self.secret_hash == hash);
     }
 }
