@@ -547,7 +547,7 @@ impl<'f> Context<'f> {
             Some(&self.outer_block_stores),
         );
 
-        // Merging must occur in a separate loop as we cannot `*self` as mutable more than one at a time
+        // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
         for (address, (then_case, else_case, _)) in &new_map {
             let value =
