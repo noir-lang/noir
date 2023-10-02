@@ -49,10 +49,13 @@ fn compute_note_hash_for_read_or_nullify<Note, N>(
     let get_header = note_interface.get_header;
     let header = get_header(note_with_header);
 
-    if (header.nonce == 0) {
-        // when nonce is zero, that means we are reading a pending note (doesn't have a nonce yet),
-        // so we just read the inner_note_hash (kernel will silo by contract address)
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+    if (header.is_transient) {
+        // If a note is transient, we just read the inner_note_hash (kernel will silo by contract address).
         compute_inner_note_hash(note_interface, note_with_header)
+    } else if (header.nonce == 0) {
+        // If not transient and nonce is zero, that means we are reading a public note.
+        compute_siloed_note_hash(note_interface, note_with_header)
     } else {
         // When nonce is nonzero, that means we are reading a settled note (from tree) created in a
         // previous TX. So we need the unique_siloed_note_hash which has already been hashed with

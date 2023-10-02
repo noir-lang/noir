@@ -1,9 +1,8 @@
-import { AccountWallet, computeMessageSecretHash } from '@aztec/aztec.js';
+import { AccountWallet, NotePreimage, TxHash, TxStatus, computeMessageSecretHash } from '@aztec/aztec.js';
 import { CircuitsWasm, CompleteAddress, Fr, FunctionSelector, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
@@ -31,6 +30,12 @@ describe('e2e_token_contract', () => {
   let asset: TokenContract;
 
   let tokenSim: TokenSimulator;
+
+  const addPendingShieldNoteToPXE = async (accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) => {
+    const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+    const preimage = new NotePreimage([new Fr(amount), secretHash]);
+    await wallets[accountIndex].addNote(accounts[0].address, asset.address, storageSlot, preimage, txHash);
+  };
 
   beforeAll(async () => {
     ({ teardown, logger, wallets, accounts } = await setup(3));
@@ -148,6 +153,7 @@ describe('e2e_token_contract', () => {
       const secret = Fr.random();
       const amount = 10000n;
       let secretHash: Fr;
+      let txHash: TxHash;
 
       beforeAll(async () => {
         secretHash = await computeMessageSecretHash(secret);
@@ -159,9 +165,11 @@ describe('e2e_token_contract', () => {
           const receipt = await tx.wait();
           expect(receipt.status).toBe(TxStatus.MINED);
           tokenSim.mintPrivate(amount);
+          txHash = receipt.txHash;
         });
 
         it('redeem as recipient', async () => {
+          await addPendingShieldNoteToPXE(0, amount, secretHash, txHash);
           const txClaim = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
           const receiptClaim = await txClaim.wait();
           expect(receiptClaim.status).toBe(TxStatus.MINED);
@@ -171,10 +179,12 @@ describe('e2e_token_contract', () => {
 
       describe('failure cases', () => {
         it('try to redeem as recipient (double-spend) [REVERTS]', async () => {
-          const txClaim = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
-          await txClaim.isMined();
-          const receipt = await txClaim.getReceipt();
-          expect(receipt.status).toBe(TxStatus.DROPPED);
+          await expect(addPendingShieldNoteToPXE(0, amount, secretHash, txHash)).rejects.toThrowError(
+            'The note has been destroyed.',
+          );
+          await expect(
+            asset.methods.redeem_shield(accounts[0].address, amount, secret).simulate(),
+          ).rejects.toThrowError('Can only remove a note that has been read from the set.');
         });
 
         it('mint_private as non-minter', async () => {
@@ -596,17 +606,12 @@ describe('e2e_token_contract', () => {
       await tokenSim.check();
 
       // Redeem it
+      await addPendingShieldNoteToPXE(0, amount, secretHash, receipt.txHash);
       const txClaim = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
       const receiptClaim = await txClaim.wait();
       expect(receiptClaim.status).toBe(TxStatus.MINED);
 
       tokenSim.redeemShield(accounts[0].address, amount);
-
-      // Check that claiming again will hit a double-spend and fail due to pending note already consumed.
-      const txClaimDoubleSpend = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
-      await txClaimDoubleSpend.isMined();
-      const receiptDoubleSpend = await txClaimDoubleSpend.getReceipt();
-      expect(receiptDoubleSpend.status).toBe(TxStatus.DROPPED);
     });
 
     it('on behalf of other', async () => {
@@ -636,17 +641,12 @@ describe('e2e_token_contract', () => {
       expect(receiptReplay.status).toBe(TxStatus.DROPPED);
 
       // Redeem it
+      await addPendingShieldNoteToPXE(0, amount, secretHash, receipt.txHash);
       const txClaim = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
       const receiptClaim = await txClaim.wait();
       expect(receiptClaim.status).toBe(TxStatus.MINED);
 
       tokenSim.redeemShield(accounts[0].address, amount);
-
-      // Check that claiming again will hit a double-spend and fail due to pending note already consumed.
-      const txClaimDoubleSpend = asset.methods.redeem_shield(accounts[0].address, amount, secret).send();
-      await txClaimDoubleSpend.isMined();
-      const receiptDoubleSpend = await txClaimDoubleSpend.getReceipt();
-      expect(receiptDoubleSpend.status).toBe(TxStatus.DROPPED);
     });
 
     describe('failure cases', () => {

@@ -97,10 +97,6 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  checkNoteHashExists(_nonce: Fr, _innerNoteHash: Fr): Promise<boolean> {
-    throw new Error('Not available.');
-  }
-
   notifyCreatedNote(_storageSlot: Fr, _preimage: Fr[], _innerNoteHash: Fr): void {
     throw new Error('Not available.');
   }

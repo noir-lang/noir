@@ -186,6 +186,11 @@ describe('e2e_cross_chain_messaging', () => {
     expect(consumptionReceipt.status).toBe(TxStatus.MINED);
 
     // Now user1 can claim the notes that user2 minted on their behalf.
+    await crossChainTestHarness.addPendingShieldNoteToPXE(
+      bridgeAmount,
+      secretHashForRedeemingMintedNotes,
+      consumptionReceipt.txHash,
+    );
     await crossChainTestHarness.redeemShieldPrivatelyOnL2(bridgeAmount, secretForRedeemingMintedNotes);
     await crossChainTestHarness.expectPrivateBalanceOnL2(ownerAddress, bridgeAmount);
   }, 50_000);

@@ -3,7 +3,7 @@ import { CircuitsWasm, CompleteAddress, FunctionSelector, GeneratorIndex } from 
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts/types';
-import { TxStatus } from '@aztec/types';
+import { NotePreimage, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
@@ -121,8 +121,13 @@ describe('e2e_lending_contract', () => {
 
         const a = asset.methods.mint_public(lendingAccount.address, mintAmount).send();
         const b = asset.methods.mint_private(mintAmount, secretHash).send();
-
         await Promise.all([a, b].map(waitForSuccess));
+
+        const storageSlot = new Fr(5);
+        const preimage = new NotePreimage([new Fr(mintAmount), secretHash]);
+        const txHash = await b.getTxHash();
+        await wallet.addNote(accounts[0].address, asset.address, storageSlot, preimage, txHash);
+
         await waitForSuccess(asset.methods.redeem_shield(lendingAccount.address, mintAmount, secret).send());
       }
     }

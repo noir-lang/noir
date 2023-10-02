@@ -143,6 +143,15 @@ export const cliTestSuite = (
       await run(
         `send mint_private --args ${INITIAL_BALANCE} ${secretHash} --contract-abi TokenContractAbi --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
       );
+
+      debug('Add note to the PXE.');
+      const txHashes = findMultipleInLogs(/Transaction Hash: ([0-9a-f]{64})/i);
+      const mintPrivateTxHash = txHashes[txHashes.length - 1][1];
+      await run(
+        `add-note ${ownerAddress} ${contractAddress} 5 ${mintPrivateTxHash} --preimage ${INITIAL_BALANCE} ${secretHash}`,
+      );
+
+      debug('Redeem tokens.');
       await run(
         `send redeem_shield --args ${ownerAddress} ${INITIAL_BALANCE} ${secret} --contract-abi TokenContractAbi --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
       );

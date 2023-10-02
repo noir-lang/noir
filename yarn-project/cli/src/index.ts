@@ -3,6 +3,7 @@ import {
   ContractDeployer,
   Fr,
   GrumpkinScalar,
+  NotePreimage,
   generatePublicKey,
   getSchnorrAccount,
   isContractDeployed,
@@ -30,6 +31,8 @@ import {
   getExampleContractArtifacts,
   getTxSender,
   parseAztecAddress,
+  parseField,
+  parseFields,
   parsePartialAddress,
   parsePrivateKey,
   parsePublicKey,
@@ -438,6 +441,21 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const from = await getTxSender(client, options.from);
       const result = await client.viewTx(functionName, functionArgs, options.contractAddress, from);
       log('\nView result: ', result, '\n');
+    });
+
+  program
+    .command('add-note')
+    .description('Adds a note to the database in the PXE.')
+    .argument('<address>', 'The Aztec address of the note owner.', parseAztecAddress)
+    .argument('<contractAddress>', 'Aztec address of the contract.', parseAztecAddress)
+    .argument('<storageSlot>', 'The storage slot of the note.', parseField)
+    .argument('<txHash>', 'The tx hash of the tx containing the note.', parseTxHash)
+    .requiredOption('-p, --preimage [notePreimage...]', 'Note preimage.', [])
+    .addOption(pxeOption)
+    .action(async (address, contractAddress, storageSlot, txHash, options) => {
+      const preimage = new NotePreimage(parseFields(options.preimage));
+      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
+      await client.addNote(address, contractAddress, storageSlot, preimage, txHash);
     });
 
   // Helper for users to decode hex strings into structs if needed.

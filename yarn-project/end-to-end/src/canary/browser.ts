@@ -162,6 +162,7 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
             getUnsafeSchnorrAccount,
             Contract,
             Fr,
+            NotePreimage,
             computeMessageSecretHash,
             getSandboxAccountsWallets,
           } = window.AztecJs;
@@ -174,17 +175,23 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
             accounts = await pxe.getRegisteredAccounts();
           }
           const [owner] = await getSandboxAccountsWallets(pxe);
+          const ownerAddress = owner.getAddress();
           const tx = new DeployMethod(accounts[0].publicKey, pxe, TokenContractAbi).send();
           await tx.wait();
           const receipt = await tx.getReceipt();
           console.log(`Contract Deployed: ${receipt.contractAddress}`);
 
           const token = await Contract.at(receipt.contractAddress!, TokenContractAbi, owner);
-          await token.methods._initialize(owner.getAddress()).send().wait();
+          await token.methods._initialize(ownerAddress).send().wait();
           const secret = Fr.random();
           const secretHash = await computeMessageSecretHash(secret);
-          await token.methods.mint_private(initialBalance, secretHash).send().wait();
-          await token.methods.redeem_shield(owner.getAddress(), initialBalance, secret).send().wait();
+          const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
+
+          const storageSlot = new Fr(5);
+          const preimage = new NotePreimage([new Fr(initialBalance), secretHash]);
+          await pxe.addNote(ownerAddress, token.address, storageSlot, preimage, mintPrivateReceipt.txHash);
+
+          await token.methods.redeem_shield(ownerAddress, initialBalance, secret).send().wait();
 
           return receipt.txHash.toString();
         },

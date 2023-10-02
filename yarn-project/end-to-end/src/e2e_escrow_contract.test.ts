@@ -1,4 +1,11 @@
-import { AccountWallet, AztecAddress, BatchCall, computeMessageSecretHash, generatePublicKey } from '@aztec/aztec.js';
+import {
+  AccountWallet,
+  AztecAddress,
+  BatchCall,
+  NotePreimage,
+  computeMessageSecretHash,
+  generatePublicKey,
+} from '@aztec/aztec.js';
 import { CompleteAddress, Fr, GrumpkinPrivateKey, GrumpkinScalar, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { EscrowContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -8,6 +15,7 @@ import { PXE, PublicKey, TxStatus } from '@aztec/types';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_escrow_contract', () => {
+  const pendingShieldsStorageSlot = new Fr(5);
   let pxe: PXE;
   let wallet: AccountWallet;
   let recipientWallet: AccountWallet;
@@ -53,13 +61,19 @@ describe('e2e_escrow_contract', () => {
 
     expect((await token.methods._initialize(owner).send().wait()).status).toBe(TxStatus.MINED);
 
+    const mintAmount = 100n;
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
-    expect((await token.methods.mint_private(100n, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
-    expect((await token.methods.redeem_shield(escrowContract.address, 100n, secret).send().wait()).status).toEqual(
-      TxStatus.MINED,
-    );
+    const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
+    expect(receipt.status).toEqual(TxStatus.MINED);
+
+    const preimage = new NotePreimage([new Fr(mintAmount), secretHash]);
+    await pxe.addNote(escrowContract.address, token.address, pendingShieldsStorageSlot, preimage, receipt.txHash);
+
+    expect(
+      (await token.methods.redeem_shield(escrowContract.address, mintAmount, secret).send().wait()).status,
+    ).toEqual(TxStatus.MINED);
 
     logger(`Token contract deployed at ${token.address}`);
   }, 100_000);
@@ -93,11 +107,17 @@ describe('e2e_escrow_contract', () => {
 
   it('moves funds using multiple keys on the same tx (#1010)', async () => {
     logger(`Minting funds in token contract to ${owner}`);
+    const mintAmount = 50n;
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
-    expect((await token.methods.mint_private(50n, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
-    expect((await token.methods.redeem_shield(owner, 50n, secret).send().wait()).status).toEqual(TxStatus.MINED);
+    const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
+    expect(receipt.status).toEqual(TxStatus.MINED);
+
+    const preimage = new NotePreimage([new Fr(mintAmount), secretHash]);
+    await pxe.addNote(owner, token.address, pendingShieldsStorageSlot, preimage, receipt.txHash);
+
+    expect((await token.methods.redeem_shield(owner, mintAmount, secret).send().wait()).status).toEqual(TxStatus.MINED);
 
     await expectBalance(owner, 50n);
 

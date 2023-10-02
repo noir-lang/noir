@@ -97,11 +97,9 @@ contract PrivateToken {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    // docs:start:compute_note_hash_and_nullifier
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader { contract_address, nonce, storage_slot };
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
-    // docs:end:compute_note_hash_and_nullifier
 }
 // docs:end:all

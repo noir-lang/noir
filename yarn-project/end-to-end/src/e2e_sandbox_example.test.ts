@@ -1,6 +1,7 @@
 // docs:start:imports
 import {
   Fr,
+  NotePreimage,
   PXE,
   computeMessageSecretHash,
   createDebugLogger,
@@ -69,7 +70,12 @@ describe('e2e_sandbox_example', () => {
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
-    await tokenContractAlice.methods.mint_private(initialSupply, secretHash).send().wait();
+    const receipt = await tokenContractAlice.methods.mint_private(initialSupply, secretHash).send().wait();
+
+    const pendingShieldsStorageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+    const preimage = new NotePreimage([new Fr(initialSupply), secretHash]);
+    await pxe.addNote(alice, contract.address, pendingShieldsStorageSlot, preimage, receipt.txHash);
+
     await tokenContractAlice.methods.redeem_shield(alice, initialSupply, secret).send().wait();
     // docs:end:Deployment
 
@@ -120,7 +126,11 @@ describe('e2e_sandbox_example', () => {
     // Now mint some further funds for Bob
     const mintQuantity = 10_000n;
     logger(`Minting ${mintQuantity} tokens to Bob...`);
-    await tokenContractBob.methods.mint_private(mintQuantity, secretHash).send().wait();
+    const mintPrivateReceipt = await tokenContractBob.methods.mint_private(mintQuantity, secretHash).send().wait();
+
+    const bobPendingShield = new NotePreimage([new Fr(mintQuantity), secretHash]);
+    await pxe.addNote(bob, contract.address, pendingShieldsStorageSlot, bobPendingShield, mintPrivateReceipt.txHash);
+
     await tokenContractBob.methods.redeem_shield(bob, mintQuantity, secret).send().wait();
 
     // Check the new balances

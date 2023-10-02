@@ -42,7 +42,6 @@ import {
   NodeInfo,
   NotePreimage,
   PXE,
-  PublicKey,
   SimulationError,
   Tx,
   TxExecutionRequest,
@@ -201,12 +200,25 @@ export class PXEService implements PXE {
   }
 
   public async addNote(
+    account: AztecAddress,
     contractAddress: AztecAddress,
     storageSlot: Fr,
     preimage: NotePreimage,
-    nonce: Fr,
-    account: PublicKey,
+    txHash: TxHash,
+    nonce?: Fr,
   ) {
+    const { publicKey } = (await this.db.getCompleteAddress(account)) ?? {};
+    if (!publicKey) {
+      throw new Error('Unknown account.');
+    }
+
+    if (!nonce) {
+      [nonce] = await this.getNoteNonces(contractAddress, storageSlot, preimage, txHash);
+    }
+    if (!nonce) {
+      throw new Error(`Cannot find the note in tx: ${txHash}.`);
+    }
+
     const { innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =
       await this.simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, preimage.items);
 
@@ -225,7 +237,6 @@ export class PXEService implements PXE {
       throw new Error('The note has been destroyed.');
     }
 
-    // TODO - Should not modify the db while syncing.
     await this.db.addNoteSpendingInfo({
       contractAddress,
       storageSlot,
@@ -234,7 +245,7 @@ export class PXEService implements PXE {
       innerNoteHash,
       siloedNullifier,
       index,
-      publicKey: account,
+      publicKey,
     });
   }
 
@@ -259,16 +270,23 @@ export class PXEService implements PXE {
       if (commitment.equals(Fr.ZERO)) break;
 
       const nonce = computeCommitmentNonce(wasm, firstNullifier, i);
-      const { uniqueSiloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
+      const { siloedNoteHash, uniqueSiloedNoteHash } = await this.simulator.computeNoteHashAndNullifier(
         contractAddress,
         nonce,
         storageSlot,
         preimage.items,
       );
+      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+      // Remove this once notes added from public also include nonces.
+      if (commitment.equals(siloedNoteHash)) {
+        nonces.push(Fr.ZERO);
+        break;
+      }
       if (commitment.equals(uniqueSiloedNoteHash)) {
         nonces.push(nonce);
       }
     }
+
     return nonces;
   }
 

@@ -1,12 +1,4 @@
-import {
-  CallContext,
-  CircuitsWasm,
-  FunctionData,
-  FunctionSelector,
-  GlobalVariables,
-  HistoricBlockData,
-} from '@aztec/circuits.js';
-import { siloCommitment } from '@aztec/circuits.js/abis';
+import { CallContext, FunctionData, FunctionSelector, GlobalVariables, HistoricBlockData } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -117,21 +109,6 @@ export class PublicExecutionContext extends TypedOracle {
     // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
     const message = await this.commitmentsDb.getL1ToL2Message(msgKey);
     return { ...message, root: this.historicBlockData.l1ToL2MessagesTreeRoot };
-  }
-
-  /**
-   * Fetches a path to prove existence of a commitment in the db, given its contract side commitment (before silo).
-   * @param nonce - The nonce of the note.
-   * @param innerNoteHash - The inner note hash of the note.
-   * @returns 1 if (persistent or transient) note hash exists, 0 otherwise. Value is in ACVMField form.
-   */
-  public async checkNoteHashExists(nonce: Fr, innerNoteHash: Fr): Promise<boolean> {
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-    // Once public kernel or base rollup circuit injects nonces, this can be updated to use uniqueSiloedCommitment.
-    const wasm = await CircuitsWasm.get();
-    const siloedNoteHash = siloCommitment(wasm, this.execution.contractAddress, innerNoteHash);
-    const index = await this.commitmentsDb.getCommitmentIndex(siloedNoteHash);
-    return index !== undefined;
   }
 
   /**

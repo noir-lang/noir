@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, GrumpkinPrivateKey, PartialAddress, Point } from '@aztec/circuits.js';
+import { AztecAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
 import {
   AuthWitness,
   ContractData,
@@ -74,8 +74,15 @@ export abstract class BaseWallet implements Wallet {
   getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any> {
     return this.pxe.getPublicStorageAt(contract, storageSlot);
   }
-  addNote(contract: AztecAddress, storageSlot: Fr, preimage: NotePreimage, nonce: Fr, account: Point): Promise<void> {
-    return this.pxe.addNote(contract, storageSlot, preimage, nonce, account);
+  addNote(
+    account: AztecAddress,
+    contract: AztecAddress,
+    storageSlot: Fr,
+    preimage: NotePreimage,
+    txHash: TxHash,
+    nonce?: Fr,
+  ): Promise<void> {
+    return this.pxe.addNote(account, contract, storageSlot, preimage, txHash, nonce);
   }
   getNoteNonces(contract: AztecAddress, storageSlot: Fr, preimage: NotePreimage, txHash: TxHash): Promise<Fr[]> {
     return this.pxe.getNoteNonces(contract, storageSlot, preimage, txHash);

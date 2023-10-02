@@ -378,7 +378,7 @@ Storage is referenced as `storage.variable`.
 
 This private function enables an account to move tokens from a `TransparentNote` in the `pending_shields` mapping to any Aztec account as a `ValueNote` in private `balances`.
 
-Going through the function logic, first storage is initialized. Then it gets the private balance for the recipient. A `TransparentNote` is created from the `amount` and `secret` and verified to exist storage in `pending_shields` with the `assert_contains_and_remove_publicly_created` method. If that is verified, the recipient's private balance is incremented using the `increment` helper function from the `value_note` [library](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/value-note/src/utils.nr).
+Going through the function logic, first the `secret_hash` is generated from the given secret. This ensures that only the entity possessing the secret can use it to redeem the note. Following this, a `TransparentNote` is retrieved from the set, using the provided amount and secret. The note is subsequently removed from the set, allowing it to be redeemed only once. The recipient's private balance is then increased using the `increment` helper function from the `value_note` [library](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/value-note/src/utils.nr).
 
 The function returns `1` to indicate successful execution.
 

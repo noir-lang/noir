@@ -4,6 +4,7 @@ import {
   BaseAccountContract,
   CompleteAddress,
   Fr,
+  NotePreimage,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
@@ -67,8 +68,14 @@ describe('guides/writing_an_account_contract', () => {
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
-    await token.methods.mint_private(50, secretHash).send().wait();
-    await token.methods.redeem_shield({ address }, 50, secret).send().wait();
+    const mintAmount = 50n;
+    const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
+
+    const storageSlot = new Fr(5);
+    const preimage = new NotePreimage([new Fr(mintAmount), secretHash]);
+    await pxe.addNote(address, token.address, storageSlot, preimage, receipt.txHash);
+
+    await token.methods.redeem_shield({ address }, mintAmount, secret).send().wait();
 
     const balance = await token.methods.balance_of_private({ address }).view();
     logger(`Balance of wallet is now ${balance}`);

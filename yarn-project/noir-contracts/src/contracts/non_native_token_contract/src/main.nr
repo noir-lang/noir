@@ -35,6 +35,7 @@ contract NonNativeToken {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         note::{
+            note_getter_options::NoteGetterOptions,
             note_header::NoteHeader,
             utils as note_utils,
         },
@@ -243,13 +244,16 @@ contract NonNativeToken {
         secret: Field,
         owner: Field,
     ) {
-        
         let pending_shields = storage.pending_shields;
 
-        let mut public_note = TransparentNote::new_from_secret(amount, secret);
+        // Find the note that has the exact amount and secret hash.
+        let secret_hash = TransparentNote::compute_secret_hash(secret);
+        let options = NoteGetterOptions::new().select(0, amount).select(1, secret_hash).set_limit(1);
+        let notes = pending_shields.get_notes(options);
+        let note = notes[0].unwrap_unchecked();
 
-        // Ensure that the note exists in the tree and remove it.
-        pending_shields.assert_contains_and_remove_publicly_created(&mut public_note);
+        // Remove the note so that it can't be redeemed again.
+        pending_shields.remove(note);
 
         // Mint the tokens
         let balance = storage.balances.at(owner);
@@ -301,7 +305,7 @@ contract NonNativeToken {
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader { contract_address, nonce, storage_slot };
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         if (storage_slot == 2) {
             note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, preimage)
         } else {

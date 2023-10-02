@@ -3,6 +3,7 @@ import {
   CircuitsWasm,
   CompleteAddress,
   ContractDeploymentData,
+  EMPTY_NULLIFIED_COMMITMENT,
   FieldsOf,
   FunctionData,
   HistoricBlockData,
@@ -145,6 +146,13 @@ describe('Private Execution test suite', () => {
   };
 
   const hash = (data: Buffer[]) => pedersenPlookupCommitInputs(circuitsWasm, data);
+  const hashFields = (data: Fr[]) =>
+    Fr.fromBuffer(
+      pedersenPlookupCommitInputs(
+        circuitsWasm,
+        data.map(f => f.toBuffer()),
+      ),
+    );
 
   beforeAll(async () => {
     circuitsWasm = await CircuitsWasm.get();
@@ -232,22 +240,11 @@ describe('Private Execution test suite', () => {
       const note = buildNote(60n, owner, storageSlot);
 
       // Should be the same as how we compute the values for the ValueNote in the Aztec.nr library.
-      const valueNoteHash = pedersenPlookupCommitInputs(
-        circuitsWasm,
-        note.preimage.map(f => f.toBuffer()),
-      );
-      const innerNoteHash = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(circuitsWasm, [storageSlot.toBuffer(), valueNoteHash]),
-      );
+      const valueNoteHash = hashFields(note.preimage);
+      const innerNoteHash = hashFields([storageSlot, valueNoteHash]);
       const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, note.nonce, siloedNoteHash);
-      const innerNullifier = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(circuitsWasm, [
-          uniqueSiloedNoteHash.toBuffer(),
-          ownerPk.low.toBuffer(),
-          ownerPk.high.toBuffer(),
-        ]),
-      );
+      const innerNullifier = hashFields([uniqueSiloedNoteHash, ownerPk.low, ownerPk.high]);
 
       const result = await acirSimulator.computeNoteHashAndNullifier(
         contractAddress,
@@ -372,33 +369,6 @@ describe('Private Execution test suite', () => {
       expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
       expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     });
-
-    it('Should be able to claim a note by providing the correct secret and nonce', async () => {
-      const amount = 100n;
-      const secret = Fr.random();
-      const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'claim');
-      const storageSlot = new Fr(2n);
-      // choose nonzero nonce otherwise reads will be interpreted as transient (inner note hash instead of unique+siloed)
-      const nonce = new Fr(1n);
-      const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
-      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
-      oracle.getCommitmentIndex.mockResolvedValue(2n);
-
-      const result = await runSimulator({
-        abi,
-        args: [amount, secret, recipient, nonce],
-      });
-
-      // Check a nullifier has been inserted.
-      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
-      expect(newNullifiers).toHaveLength(1);
-
-      // Check the read request was inserted successfully.
-      const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
-      const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
-      const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, nonce, siloedNoteHash);
-      expect(readRequests).toEqual([uniqueSiloedNoteHash]);
-    });
   });
 
   describe('stateful test contract contract', () => {
@@ -451,22 +421,11 @@ describe('Private Execution test suite', () => {
       const note = buildNote(60n, owner, storageSlot);
 
       // Should be the same as how we compute the values for the ValueNote in the Aztec.nr library.
-      const valueNoteHash = pedersenPlookupCommitInputs(
-        circuitsWasm,
-        note.preimage.map(f => f.toBuffer()),
-      );
-      const innerNoteHash = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(circuitsWasm, [storageSlot.toBuffer(), valueNoteHash]),
-      );
+      const valueNoteHash = hashFields(note.preimage);
+      const innerNoteHash = hashFields([storageSlot, valueNoteHash]);
       const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(circuitsWasm, note.nonce, siloedNoteHash);
-      const innerNullifier = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(circuitsWasm, [
-          uniqueSiloedNoteHash.toBuffer(),
-          ownerPk.low.toBuffer(),
-          ownerPk.high.toBuffer(),
-        ]),
-      );
+      const innerNullifier = hashFields([uniqueSiloedNoteHash, ownerPk.low, ownerPk.high]);
 
       const result = await acirSimulator.computeNoteHashAndNullifier(
         contractAddress,
@@ -732,9 +691,19 @@ describe('Private Execution test suite', () => {
       const preimage = [toBufferBE(amount, 32), secretHash.toBuffer()];
       const noteHash = Fr.fromBuffer(hash(preimage));
       const storageSlot = new Fr(2);
-      const innerNoteHash = hash([storageSlot.toBuffer(), noteHash.toBuffer()]);
-      const siloedNoteHash = siloCommitment(wasm, contractAddress, Fr.fromBuffer(innerNoteHash));
-      oracle.getCommitmentIndex.mockResolvedValue(0n);
+      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), noteHash.toBuffer()]));
+      const siloedNoteHash = siloCommitment(wasm, contractAddress, innerNoteHash);
+      oracle.getNotes.mockResolvedValue([
+        {
+          contractAddress,
+          storageSlot,
+          nonce: Fr.ZERO,
+          preimage: preimage.map(p => Fr.fromBuffer(p)),
+          innerNoteHash: new Fr(EMPTY_NULLIFIED_COMMITMENT),
+          siloedNullifier: Fr.random(),
+          index: 1n,
+        },
+      ]);
 
       const result = await runSimulator({
         abi,
@@ -859,9 +828,8 @@ describe('Private Execution test suite', () => {
       expect(gotNoteValue).toEqual(amountToTransfer);
 
       const nullifier = result.callStackItem.publicInputs.newNullifiers[0];
-      expect(nullifier).toEqual(
-        await acirSimulator.computeInnerNullifier(contractAddress, Fr.ZERO, note.storageSlot, note.preimage),
-      );
+      const expectedNullifier = hashFields([innerNoteHash, ownerPk.low, ownerPk.high]);
+      expect(nullifier).toEqual(expectedNullifier);
     });
 
     it('should be able to insert, read, and nullify pending commitments in nested calls', async () => {
@@ -926,11 +894,9 @@ describe('Private Execution test suite', () => {
       const gotNoteValue = execGetThenNullify.callStackItem.publicInputs.returnValues[0].value;
       expect(gotNoteValue).toEqual(amountToTransfer);
 
-      const nonce = Fr.ZERO;
       const nullifier = execGetThenNullify.callStackItem.publicInputs.newNullifiers[0];
-      expect(nullifier).toEqual(
-        await acirSimulator.computeInnerNullifier(contractAddress, nonce, note.storageSlot, note.preimage),
-      );
+      const expectedNullifier = hashFields([innerNoteHash, ownerPk.low, ownerPk.high]);
+      expect(nullifier).toEqual(expectedNullifier);
 
       // check that the last get_notes call return no note
       const afterNullifyingNoteValue = getNotesAfterNullify.callStackItem.publicInputs.returnValues[0].value;

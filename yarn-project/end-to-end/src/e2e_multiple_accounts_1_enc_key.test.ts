@@ -1,5 +1,12 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, Wallet, computeMessageSecretHash, generatePublicKey, getSchnorrAccount } from '@aztec/aztec.js';
+import {
+  AztecAddress,
+  NotePreimage,
+  Wallet,
+  computeMessageSecretHash,
+  generatePublicKey,
+  getSchnorrAccount,
+} from '@aztec/aztec.js';
 import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
@@ -52,7 +59,13 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
 
-    expect((await token.methods.mint_private(initialBalance, secretHash).send().wait()).status).toEqual(TxStatus.MINED);
+    const receipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
+    expect(receipt.status).toEqual(TxStatus.MINED);
+
+    const storageSlot = new Fr(5);
+    const preimage = new NotePreimage([new Fr(initialBalance), secretHash]);
+    await pxe.addNote(accounts[0], token.address, storageSlot, preimage, receipt.txHash);
+
     expect((await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait()).status).toEqual(
       TxStatus.MINED,
     );

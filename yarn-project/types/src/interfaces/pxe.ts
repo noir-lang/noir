@@ -7,7 +7,6 @@ import {
   L2BlockL2Logs,
   L2Tx,
   NotePreimage,
-  PublicKey,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -172,18 +171,20 @@ export interface PXE {
 
   /**
    * Adds a note to the database. Throw if the note hash of the note doesn't exist in the tree.
+   * @param account - The account the note is associated with.
    * @param contract - The contract address of the note.
    * @param storageSlot - The storage slot of the note.
    * @param preimage - The note preimage.
-   * @param nonce - The nonce of the note.
-   * @param account - The public key of the account the note is associated with.
+   * @param txHash - The tx hash of the tx containing the note.
+   * @param nonce - The nonce of the note. If undefined, will look for the first index that matches the preimage.
    */
   addNote(
+    account: AztecAddress,
     contract: AztecAddress,
     storageSlot: Fr,
     preimage: NotePreimage,
-    nonce: Fr,
-    account: PublicKey,
+    txHash: TxHash,
+    nonce?: Fr,
   ): Promise<void>;
 
   /**

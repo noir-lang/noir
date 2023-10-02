@@ -97,7 +97,7 @@ Note that the deployed contract address is exported, so we can use it as `$CONTR
 
 Alice is set up as the contract admin and token minter in the `_initialize` function. Let's get Alice some private tokens.
 
-We need to export the `SECRET` and `SECRET_HASH` values in order to privately mint tokens. Private tokens are claimable by anyone with the pre-image to a provided hash, see more about how the token contract works in the [token contract tutorial](../tutorials/writing_token_contract.md). Once the tokens have been minted, Alice can claim them with the `redeem_shield` function. After this, Alice should have 1000 tokens in their private balance.
+We need to export the `SECRET` and `SECRET_HASH` values in order to privately mint tokens. Private tokens are claimable by anyone with the pre-image to a provided hash, see more about how the token contract works in the [token contract tutorial](../tutorials/writing_token_contract.md). After the tokens have been minted, the notes will have to added to the PXE to be consumed by private functions. Once added, Alice can claim them with the `redeem_shield` function. After this, Alice should have 1000 tokens in their private balance.
 
 #include_code mint-private yarn-project/end-to-end/src/guides/up_quick_start.sh bash
 
@@ -117,4 +117,3 @@ Aztec's Layer 2 network is a fully programmable combined private/public ZK rollu
 - Private Execution Environment (PXE) - Normally residing with the end client, this decrypts and stores a client's private state, executes simulations and submits transactions to the Aztec Node.
 - [Aztec.js](./sandbox) - Aztec's client library for interacting with the PXE (think Ethers.js).
 - [Aztec.nr](../contracts/main.md) - Aztec's smart contract framework
-

@@ -58,17 +58,13 @@ impl PrivateTokenAirdropPrivateContextInterface {
     self,
     context: &mut PrivateContext,
     amount: Field,
-    secret: Field,
-    owner: Field,
-    nonce: Field
+    secret: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialized_args = [0; 4];
+    let mut serialized_args = [0; 2];
     serialized_args[0] = amount;
     serialized_args[1] = secret;
-    serialized_args[2] = owner;
-    serialized_args[3] = nonce;
 
-    context.call_private_function(self.address, 0xa9220f0f, serialized_args)
+    context.call_private_function(self.address, 0xe642f6a0, serialized_args)
   }
   
 

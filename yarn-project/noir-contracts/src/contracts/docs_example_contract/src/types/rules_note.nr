@@ -1,7 +1,6 @@
 use dep::aztec::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
-    utils::compute_note_hash_for_read_or_nullify,
 };
 
 global RULES_NOTE_LEN: Field = 2;

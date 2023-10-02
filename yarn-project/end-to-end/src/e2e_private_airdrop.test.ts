@@ -1,8 +1,7 @@
-import { CompleteAddress, TxHash, Wallet } from '@aztec/aztec.js';
+import { CompleteAddress, NotePreimage, TxHash, Wallet } from '@aztec/aztec.js';
 import { Fr, MAX_NEW_COMMITMENTS_PER_CALL } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
-import { NotePreimage } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -71,7 +70,10 @@ describe('private airdrop', () => {
     expect(nonces.length).toBe(numNonces);
     expect(nonces[nonceIndex]).not.toEqual(Fr.ZERO);
 
-    return contract.methods.claim(claim.amount, claim.secret, account, nonces[nonceIndex]).send().wait();
+    const nonce = nonces[nonceIndex];
+    await wallet.addNote(account, contract.address, claimsStorageSlot, claim.preimage, txHash, nonce);
+
+    return contract.methods.claim(claim.amount, claim.secret).send().wait();
   };
 
   it('should create claim notes for any accounts to claim', async () => {

@@ -93,7 +93,7 @@ contract StatefulTest {
     }
 
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
-        let note_header = NoteHeader { contract_address, nonce, storage_slot };
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }

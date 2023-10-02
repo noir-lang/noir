@@ -16,6 +16,7 @@ export {
   FunctionCall,
   L2BlockL2Logs,
   NodeInfo,
+  NotePreimage,
   PackedArguments,
   PublicKey,
   GrumpkinPrivateKey,

@@ -145,16 +145,6 @@ unconstrained fn get_total_points(
     total_points
 }
 
-// docs:start:state_vars-SetContains
-fn assert_contains_card<RERUEN_LEN, FILTER_PARAMS>(
-    state_var: Set<CardNote, CARD_NOTE_LEN>,
-    card: &mut CardNote,
-    nonce: Field,
-) {
-    state_var.assert_contains_and_remove(card, nonce);
-}
-// docs:end:state_vars-SetContains
-
 // docs:start:state_vars-MapAtSingletonInit
 fn add_new_profile(
     state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,

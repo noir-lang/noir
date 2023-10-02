@@ -53,7 +53,7 @@ export class ExecutionNoteCache {
       const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
       const noteIndexToRemove = notes.findIndex(n => n.innerNoteHash.equals(innerNoteHash));
       if (noteIndexToRemove === -1) {
-        throw new Error('Attemp to remove a pending note that does not exist.');
+        throw new Error('Attempt to remove a pending note that does not exist.');
       }
       notes.splice(noteIndexToRemove, 1);
       this.newNotes.set(contractAddress.toBigInt(), notes);

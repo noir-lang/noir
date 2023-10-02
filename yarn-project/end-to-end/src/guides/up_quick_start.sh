@@ -29,11 +29,17 @@ aztec-cli send _initialize \
 SECRET="0x29bf6afaf29f61cbcf2a4fa7da97be481fb418dc08bdab5338839974beb7b49f"
 SECRET_HASH="0x0a42b1fe22b652cc8610e33bb1128040ce2d2862e7041ff235aa871739822b74"
 
-aztec-cli send mint_private \
+MINT_PRIVATE_OUTPUT=$(aztec-cli send mint_private \
   --args 1000 $SECRET_HASH \
   --contract-abi TokenContractAbi \
   --contract-address $CONTRACT \
-  --private-key $ALICE_PRIVATE_KEY
+  --private-key $ALICE_PRIVATE_KEY)
+
+MINT_PRIVATE_TX_HASH=$(echo "$MINT_PRIVATE_OUTPUT" | grep "Transaction hash:" | awk '{print $NF}')
+
+aztec-cli add-note \
+  $ALICE $CONTRACT 5 $MINT_PRIVATE_TX_HASH \
+  --preimage 1000 $SECRET_HASH
 
 aztec-cli send redeem_shield \
   --args $ALICE 1000 $SECRET \

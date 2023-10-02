@@ -10,11 +10,8 @@ use crate::context::PrivateContext;
 use crate::note::{
     note_getter_options::{NoteGetterOptions, Select, Sort},
     note_interface::NoteInterface,
-    note_header::NoteHeader,
     note_viewer_options::NoteViewerOptions,
     utils::compute_note_hash_for_read_or_nullify,
-    utils::compute_inner_note_hash,
-    utils::compute_siloed_note_hash,
 };
 use crate::oracle;
 use crate::types::vec::BoundedVec;
@@ -30,31 +27,6 @@ fn check_note_header<Note, N>(
     let contract_address = context.this_address();
     assert(header.contract_address == contract_address);
     assert(header.storage_slot == storage_slot);
-}
-
-// Ensure a note's hash exists in the tree without retrieving the entire
-// notes via the oracle.
-fn ensure_note_hash_exists<Note, N>(
-    context: &mut PrivateContext,
-    note_interface: NoteInterface<Note, N>,
-    note: Note,
-    from_public: bool,
-) {
-    let get_header = note_interface.get_header;
-    let header = get_header(note);
-
-    // Check the note hash via oracle and early out if it doesn't exist.
-    let inner_note_hash = compute_inner_note_hash(note_interface, note);
-    let exists = oracle::notes::check_note_hash_exists(header.nonce, inner_note_hash);
-    assert(exists, "Note hash does not exist.");
-
-    let mut note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);
-    if from_public {
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-        // Should remove this once public kernel applies nonces.
-        note_hash_for_read_request = compute_siloed_note_hash(note_interface, note);
-    }
-    context.push_read_request(note_hash_for_read_request);
 }
 
 fn get_note<Note, N>(

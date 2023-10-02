@@ -267,3 +267,44 @@ export function parsePrivateKey(privateKey: string): GrumpkinScalar {
     throw new InvalidArgumentError(`Invalid private key: ${privateKey}`);
   }
 }
+
+/**
+ * Parses a field from a string. Throws InvalidArgumentError if the string is not a valid field value.
+ * @param field - A string representing the field.
+ * @returns A field.
+ */
+export function parseField(field: string): Fr {
+  try {
+    const isHex = field.startsWith('0x') || field.match(new RegExp(`^[0-9a-f]{${Fr.SIZE_IN_BYTES * 2}}$`, 'i'));
+    if (isHex) {
+      return Fr.fromString(field);
+    }
+
+    if (['true', 'false'].includes(field)) {
+      return new Fr(field === 'true');
+    }
+
+    const isNumber = +field || field === '0';
+    if (isNumber) {
+      return new Fr(BigInt(field));
+    }
+
+    const isBigInt = field.endsWith('n');
+    if (isBigInt) {
+      return new Fr(BigInt(field.replace(/n$/, '')));
+    }
+
+    return new Fr(BigInt(field));
+  } catch (err) {
+    throw new InvalidArgumentError(`Invalid field: ${field}`);
+  }
+}
+
+/**
+ * Parses an array of strings to Frs.
+ * @param fields - An array of strings representing the fields.
+ * @returns An array of Frs.
+ */
+export function parseFields(fields: string[]): Fr[] {
+  return fields.map(parseField);
+}
