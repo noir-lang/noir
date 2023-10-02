@@ -1,4 +1,4 @@
-name: Publish acvm_js
+name: Publish acvm-js
 
 on:
   workflow_dispatch:
@@ -36,8 +36,7 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Build acvm-js
-        run: |
-          nix build .#acvm_js
+        run: nix build .#acvm_js
 
       - name: Discover Build Output Path
         run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result)" >> $GITHUB_ENV
@@ -49,7 +48,7 @@ jobs:
           touch temp_publish_dir/yarn.lock
 
       - name: Publish to NPM
-        working-directory: ./temp_publish_dir
+        working-directory: ./temp_publish_dir/acvm_js
         # run: yarn npm publish --tag latest
         run: yarn pack --dry-run
         env:
