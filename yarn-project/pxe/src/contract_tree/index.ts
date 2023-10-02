@@ -24,7 +24,7 @@ import {
 } from '@aztec/circuits.js/abis';
 import { ContractAbi, FunctionSelector } from '@aztec/foundation/abi';
 import { assertLength } from '@aztec/foundation/serialize';
-import { AztecNode, ContractCommitmentProvider, ContractDao, PublicKey } from '@aztec/types';
+import { AztecNode, ContractDao, MerkleTreeId, PublicKey, StateInfoProvider } from '@aztec/types';
 
 /**
  * The ContractTree class represents a Merkle tree of functions for a particular contract.
@@ -43,7 +43,7 @@ export class ContractTree {
      * The contract data object containing the ABI and contract address.
      */
     public readonly contract: ContractDao,
-    private contractCommitmentProvider: ContractCommitmentProvider,
+    private stateInfoProvider: StateInfoProvider,
     private wasm: CircuitsWasm,
     /**
      * Data associated with the contract constructor for a new contract.
@@ -154,7 +154,7 @@ export class ContractTree {
   public async getContractMembershipWitness() {
     const index = await this.getContractIndex();
 
-    const siblingPath = await this.contractCommitmentProvider.getContractPath(index);
+    const siblingPath = await this.stateInfoProvider.getContractPath(index);
     return new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
       CONTRACT_TREE_HEIGHT,
       index,
@@ -229,7 +229,10 @@ export class ContractTree {
       const root = await this.getFunctionTreeRoot();
       const newContractData = new NewContractData(completeAddress.address, portalContract, root);
       const commitment = computeContractLeaf(this.wasm, newContractData);
-      this.contractIndex = await this.contractCommitmentProvider.findContractIndex(commitment.toBuffer());
+      this.contractIndex = await this.stateInfoProvider.findLeafIndex(
+        MerkleTreeId.CONTRACT_TREE,
+        commitment.toBuffer(),
+      );
       if (this.contractIndex === undefined) {
         throw new Error(
           `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,

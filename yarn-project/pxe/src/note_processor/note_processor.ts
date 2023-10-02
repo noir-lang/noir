@@ -40,7 +40,7 @@ export class NoteProcessor {
     private keyStore: KeyStore,
     private db: Database,
     private node: AztecNode,
-    private simulator = getAcirSimulator(db, node, node, node, keyStore),
+    private simulator = getAcirSimulator(db, node, keyStore),
     private log = createDebugLogger('aztec:aztec_note_processor'),
   ) {}
 

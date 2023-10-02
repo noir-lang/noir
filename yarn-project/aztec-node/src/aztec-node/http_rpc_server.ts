@@ -17,15 +17,7 @@ export function createAztecNodeRpcServer(node: AztecNode) {
     { Tx, L2BlockL2Logs },
     false,
     // disable methods not part of the AztecNode interface
-    [
-      'start',
-      'stop',
-      'findContractIndex',
-      'findCommitmentIndex',
-      'getDataTreePath',
-      'getL1ToL2MessageAndIndex',
-      'getL1ToL2MessagesTreePath',
-    ],
+    ['start', 'stop', 'getDataTreePath', 'getL1ToL2MessageAndIndex', 'getL1ToL2MessagesTreePath'],
   );
   return rpc;
 }

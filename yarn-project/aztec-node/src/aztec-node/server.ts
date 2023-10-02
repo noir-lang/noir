@@ -254,13 +254,14 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Find the index of the given contract.
-   * @param leafValue - The value to search for.
-   * @returns The index of the given leaf in the contracts tree or undefined if not found.
+   * Find the index of the given leaf in the given tree.
+   * @param treeId - The tree to search in.
+   * @param leafValue - The value to search for
+   * @returns The index of the given leaf in the given tree or undefined if not found.
    */
-  public async findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
+  public async findLeafIndex(treeId: MerkleTreeId, leafValue: Buffer): Promise<bigint | undefined> {
     const committedDb = await this.#getWorldState();
-    return committedDb.findLeafIndex(MerkleTreeId.CONTRACT_TREE, leafValue);
+    return committedDb.findLeafIndex(treeId, leafValue);
   }
 
   /**
@@ -271,16 +272,6 @@ export class AztecNodeService implements AztecNode {
   public async getContractPath(leafIndex: bigint): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.CONTRACT_TREE, leafIndex);
-  }
-
-  /**
-   * Find the index of the given commitment.
-   * @param leafValue - The value to search for.
-   * @returns The index of the given leaf in the private data tree or undefined if not found.
-   */
-  public async findCommitmentIndex(leafValue: Buffer): Promise<bigint | undefined> {
-    const committedDb = await this.#getWorldState();
-    return committedDb.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, leafValue);
   }
 
   /**
@@ -301,9 +292,8 @@ export class AztecNodeService implements AztecNode {
    */
   public async getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex> {
     // todo: #697 - make this one lookup.
-    const committedDb = await this.#getWorldState();
+    const index = (await this.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey.toBuffer()))!;
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
-    const index = (await committedDb.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey.toBuffer()))!;
     return Promise.resolve({ message, index });
   }
 
@@ -315,16 +305,6 @@ export class AztecNodeService implements AztecNode {
   public async getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState();
     return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, leafIndex);
-  }
-
-  /**
-   * Find the index of the given nullifier.
-   * @param nullifier - The nullifier to search for.
-   * @returns The index of the given leaf in the nullifier tree or undefined if not found.
-   */
-  public async findNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {
-    const committedDb = await this.#getWorldState();
-    return committedDb.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
   }
 
   /**

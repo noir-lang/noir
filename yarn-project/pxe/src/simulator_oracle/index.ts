@@ -9,7 +9,7 @@ import {
   HistoricBlockData,
   PublicKey,
 } from '@aztec/circuits.js';
-import { DataCommitmentProvider, KeyStore, L1ToL2MessageProvider } from '@aztec/types';
+import { KeyStore, MerkleTreeId, StateInfoProvider } from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
@@ -22,8 +22,7 @@ export class SimulatorOracle implements DBOracle {
     private contractDataOracle: ContractDataOracle,
     private db: Database,
     private keyStore: KeyStore,
-    private l1ToL2MessageProvider: L1ToL2MessageProvider,
-    private dataTreeProvider: DataCommitmentProvider,
+    private stateInfoProvider: StateInfoProvider,
   ) {}
 
   getSecretKey(_contractAddress: AztecAddress, pubKey: PublicKey): Promise<GrumpkinPrivateKey> {
@@ -86,10 +85,10 @@ export class SimulatorOracle implements DBOracle {
    *          index of the message in the l1ToL2MessagesTree
    */
   async getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs> {
-    const messageAndIndex = await this.l1ToL2MessageProvider.getL1ToL2MessageAndIndex(msgKey);
+    const messageAndIndex = await this.stateInfoProvider.getL1ToL2MessageAndIndex(msgKey);
     const message = messageAndIndex.message.toFieldArray();
     const index = messageAndIndex.index;
-    const siblingPath = await this.l1ToL2MessageProvider.getL1ToL2MessagesTreePath(index);
+    const siblingPath = await this.stateInfoProvider.getL1ToL2MessagesTreePath(index);
     return {
       message,
       siblingPath: siblingPath.toFieldArray(),
@@ -103,7 +102,7 @@ export class SimulatorOracle implements DBOracle {
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */
   async getCommitmentIndex(commitment: Fr) {
-    return await this.dataTreeProvider.findCommitmentIndex(commitment.toBuffer());
+    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, commitment.toBuffer());
   }
 
   /**
