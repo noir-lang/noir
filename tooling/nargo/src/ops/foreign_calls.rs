@@ -1,10 +1,9 @@
 use acvm::{
-    acir::brillig::{ForeignCallResult, Value},
-    brillig_vm::brillig::ForeignCallParam,
+    acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
-use noirc_printable_type::PrintableValueDisplay;
+use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
 
 use crate::NargoError;
 
@@ -14,6 +13,11 @@ pub(crate) enum ForeignCall {
     Println,
     Sequence,
     ReverseSequence,
+    CreateMock,
+    SetMockParams,
+    SetMockReturns,
+    SetMockTimes,
+    ClearMock,
 }
 
 impl std::fmt::Display for ForeignCall {
@@ -28,6 +32,11 @@ impl ForeignCall {
             ForeignCall::Println => "println",
             ForeignCall::Sequence => "get_number_sequence",
             ForeignCall::ReverseSequence => "get_reverse_number_sequence",
+            ForeignCall::CreateMock => "create_mock",
+            ForeignCall::SetMockParams => "set_mock_params",
+            ForeignCall::SetMockReturns => "set_mock_returns",
+            ForeignCall::SetMockTimes => "set_mock_times",
+            ForeignCall::ClearMock => "clear_mock",
         }
     }
 
@@ -36,16 +45,57 @@ impl ForeignCall {
             "println" => Some(ForeignCall::Println),
             "get_number_sequence" => Some(ForeignCall::Sequence),
             "get_reverse_number_sequence" => Some(ForeignCall::ReverseSequence),
+            "create_mock" => Some(ForeignCall::CreateMock),
+            "set_mock_params" => Some(ForeignCall::SetMockParams),
+            "set_mock_returns" => Some(ForeignCall::SetMockReturns),
+            "set_mock_times" => Some(ForeignCall::SetMockTimes),
+            "clear_mock" => Some(ForeignCall::ClearMock),
             _ => None,
         }
     }
+}
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct MockedCall {
+    id: usize,
+    name: String,
+    params: Option<Vec<ForeignCallParam>>,
+    result: ForeignCallResult,
+    times_left: Option<u64>,
+}
+
+impl MockedCall {
+    fn new(id: usize, name: String) -> Self {
+        Self {
+            id,
+            name,
+            params: None,
+            result: ForeignCallResult { values: vec![] },
+            times_left: None,
+        }
+    }
+}
+
+impl MockedCall {
+    fn matches(&self, name: &str, params: &Vec<ForeignCallParam>) -> bool {
+        self.name == name && (self.params.is_none() || self.params.as_ref() == Some(params))
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ForeignCallExecutor {
+    last_mock_id: usize,
+    mocked_responses: Vec<MockedCall>,
+}
+
+impl ForeignCallExecutor {
     pub(crate) fn execute(
+        &mut self,
         foreign_call: &ForeignCallWaitInfo,
         show_output: bool,
     ) -> Result<ForeignCallResult, NargoError> {
         let foreign_call_name = foreign_call.function.as_str();
-        match Self::lookup(foreign_call_name) {
+        match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Println) => {
                 if show_output {
                     Self::execute_println(&foreign_call.inputs)?;
@@ -76,8 +126,90 @@ impl ForeignCall {
                     ],
                 })
             }
-            None => panic!("unexpected foreign call {foreign_call_name:?}"),
+            Some(ForeignCall::CreateMock) => {
+                let mock_oracle_name = Self::parse_string(&foreign_call.inputs[0]);
+                assert!(ForeignCall::lookup(&mock_oracle_name).is_none());
+                let id = self.last_mock_id;
+                self.mocked_responses.push(MockedCall::new(id, mock_oracle_name));
+                self.last_mock_id += 1;
+
+                Ok(ForeignCallResult { values: vec![Value::from(id).into()] })
+            }
+            Some(ForeignCall::SetMockParams) => {
+                let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
+                self.find_mock_by_id(id)
+                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .params = Some(params.to_vec());
+
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::SetMockReturns) => {
+                let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
+                self.find_mock_by_id(id)
+                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .result = ForeignCallResult { values: params.to_vec() };
+
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::SetMockTimes) => {
+                let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
+                let times = params[0]
+                    .unwrap_value()
+                    .to_field()
+                    .try_to_u64()
+                    .expect("Invalid bit size of times");
+
+                self.find_mock_by_id(id)
+                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .times_left = Some(times);
+
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            Some(ForeignCall::ClearMock) => {
+                let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
+                self.mocked_responses.retain(|response| response.id != id);
+                Ok(ForeignCallResult { values: vec![] })
+            }
+            None => {
+                let response_position = self
+                    .mocked_responses
+                    .iter()
+                    .position(|response| response.matches(foreign_call_name, &foreign_call.inputs))
+                    .unwrap_or_else(|| panic!("Unknown foreign call {}", foreign_call_name));
+
+                let mock = self
+                    .mocked_responses
+                    .get_mut(response_position)
+                    .expect("Invalid position of mocked response");
+                let result = mock.result.values.clone();
+
+                if let Some(times_left) = &mut mock.times_left {
+                    *times_left -= 1;
+                    if *times_left == 0 {
+                        self.mocked_responses.remove(response_position);
+                    }
+                }
+
+                Ok(ForeignCallResult { values: result })
+            }
         }
+    }
+
+    fn extract_mock_id(
+        foreign_call_inputs: &[ForeignCallParam],
+    ) -> Result<(usize, &[ForeignCallParam]), ForeignCallError> {
+        let (id, params) =
+            foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
+        Ok((id.unwrap_value().to_usize(), params))
+    }
+
+    fn find_mock_by_id(&mut self, id: usize) -> Option<&mut MockedCall> {
+        self.mocked_responses.iter_mut().find(|response| response.id == id)
+    }
+
+    fn parse_string(param: &ForeignCallParam) -> String {
+        let fields: Vec<_> = param.values().into_iter().map(|value| value.to_field()).collect();
+        decode_string_value(&fields)
     }
 
     fn execute_println(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), NargoError> {
