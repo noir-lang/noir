@@ -1,7 +1,10 @@
-name: Release and Publish Noir Js
+name: Publish Noir Js
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - jb-fix-publishing-workflows
 
 jobs:
   release-noir-js:
@@ -17,9 +20,13 @@ jobs:
       - name: Install jq
         run: sudo apt-get install jq
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.67.0
+
       - name: Install cargo and wasm-bindgen
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source $HOME/.cargo/env
           cargo install -f wasm-bindgen-cli --version 0.2.86
 
@@ -42,6 +49,7 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./tooling/noir_js
-        run: yarn npm publish --access public
+        # run: yarn npm publish --access public
+        run: yarn pack --dry-run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

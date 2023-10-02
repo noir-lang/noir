@@ -6,6 +6,9 @@ on:
       noir-ref:
         description: The noir reference to checkout
         required: true
+  push:
+    branches:
+      - jb-fix-publishing-workflows
 
 jobs:
   noirc-abi-wasm-build:
@@ -32,8 +35,7 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build noirc_abi_wasm
-        run: |
-          nix build -L .#noirc_abi_wasm
+        run: nix build .#noirc_abi_wasm
 
       - name: Discover Build Output Path
         run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
@@ -42,10 +44,11 @@ jobs:
         run: |
           mkdir temp_publish_dir
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
+          touch temp_publish_dir/yarn.lock
 
-      - name: Publish to npm
+      - name: Publish to NPM
         working-directory: ./temp_publish_dir
-        run: |
-          yarn npm publish --tag latest
+        # run: yarn npm publish --tag latest
+        run: yarn pack --dry-run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

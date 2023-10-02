@@ -2,6 +2,9 @@ name: Publish Source Resolver
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - jb-fix-publishing-workflows
 
 jobs:
   release-source-resolver:
@@ -11,6 +14,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          registry-url: "https://registry.npmjs.org"
+          node-version: 18.15
+
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -19,6 +28,7 @@ jobs:
 
       - name: Publish to NPM
         working-directory: ./compiler/source-resolver
-        run: yarn npm publish
+        # run: yarn npm publish
+        run: yarn pack --dry-run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
