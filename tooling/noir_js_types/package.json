@@ -22,6 +22,7 @@
     ".": {
       "import": "./lib/esm/types.js",
       "require": "./lib/cjs/types.js"
+      "types: "./lib/esm/types.d.ts"
     }
   },
   "devDependencies": {
