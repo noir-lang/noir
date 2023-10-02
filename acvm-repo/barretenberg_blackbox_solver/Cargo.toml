@@ -42,7 +42,7 @@ wasmer = "3.3"
 pkg-config = "0.3"
 tar = "~0.4.15"
 flate2 = "~1.0.1"
-reqwest = { version = "0.11.16", default-features = false, features = [
+reqwest = { version = "0.11.20", default-features = false, features = [
     "rustls-tls",
     "blocking",
 ] }
