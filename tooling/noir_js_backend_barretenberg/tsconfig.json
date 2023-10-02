@@ -3,7 +3,7 @@
     "target": "esnext",
     "declaration": true,
     "emitDeclarationOnly": false,
-    "module": "ESNext",
+    "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./lib/esm",
     "esModuleInterop": true,

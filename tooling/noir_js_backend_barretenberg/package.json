@@ -8,17 +8,17 @@
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
   "source": "src/index.ts",
-  "main": "lib/cjs/index.cjs",
+  "main": "lib/cjs/index.js",
   "module": "lib/esm/index.js",
   "exports": {
-    "require": "./lib/cjs/index.cjs",
-    "default": "./lib/esm/index.js",
-    "types": "./lib/esm/index.d.ts"
+    "require": "./lib/cjs/index.js",
+    "types": "./lib/esm/index.d.ts",
+    "default": "./lib/esm/index.js"
   },
   "types": "lib/esm/index.d.ts",
   "scripts": {
     "dev": "tsc --watch",
-    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && mv ./lib/cjs/index.js ./lib/cjs/index.cjs && mv ./lib/cjs/serialize.js ./lib/cjs/serialize.cjs && mv ./lib/cjs/base64_decode.js ./lib/cjs/base64_decode.cjs",
+    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && ./fixup.sh",
     "clean": "rm -rf ./lib",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
