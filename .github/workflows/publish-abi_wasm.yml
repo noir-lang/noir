@@ -38,16 +38,16 @@ jobs:
         run: nix build .#noirc_abi_wasm
 
       - name: Discover Build Output Path
-        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result)" >> $GITHUB_ENV
 
       - name: Copy Build Output to Temporary Directory
         run: |
           mkdir temp_publish_dir
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
-          touch temp_publish_dir/yarn.lock
+          touch temp_publish_dir/noirc_abi_wasm/yarn.lock
 
       - name: Publish to NPM
-        working-directory: ./temp_publish_dir
+        working-directory: ./temp_publish_dir/noirc_abi_wasm
         # run: yarn npm publish --tag latest
         run: yarn pack --dry-run
         env:

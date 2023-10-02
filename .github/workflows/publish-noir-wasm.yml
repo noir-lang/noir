@@ -24,6 +24,9 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - uses: cachix/install-nix-action@v22
         with:
           nix_path: nixpkgs=channel:nixos-23.05
@@ -38,13 +41,10 @@ jobs:
         run: |
           mkdir temp_publish_dir
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
-          touch temp_publish_dir/yarn.lock
-
-      - name: Authenticate with npm
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          touch temp_publish_dir/noir_wasm/yarn.lock
 
       - name: Publish to NPM
-        working-directory: ./temp_publish_dir
+        working-directory: ./temp_publish_dir/noir_wasm
         # run: yarn npm publish --tag latest
         run: yarn pack --dry-run
         env:
