@@ -37,7 +37,9 @@ void common_validate_read_requests(DummyBuilder& builder,
                                               MAX_READ_REQUESTS_PER_CALL> const& read_request_membership_witnesses);
 
 void common_validate_arrays(DummyBuilder& builder, PrivateCircuitPublicInputs<NT> const& app_public_inputs);
-void common_validate_0th_nullifier(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end);
+void common_validate_previous_kernel_arrays(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end);
+void common_validate_previous_kernel_values(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end);
+void common_validate_previous_kernel_0th_nullifier(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end);
 
 void common_update_end_values(DummyBuilder& builder,
                               PrivateCallData<NT> const& private_call,

@@ -128,22 +128,46 @@ void common_validate_arrays(DummyBuilder& builder, PrivateCircuitPublicInputs<NT
     // Each of the following arrays is expected to be zero-padded.
     // In addition, some of the following arrays (new_commitments, etc...) are passed
     // to push_array_to_array() routines which rely on the passed arrays to be well-formed.
-    validate_array(builder, app_public_inputs.return_values, "Return values");
-    validate_array(builder, app_public_inputs.read_requests, "Read requests");
-    validate_array(builder, app_public_inputs.new_commitments, "New commitments");
-    validate_array(builder, app_public_inputs.new_nullifiers, "New nullifiers");
-    validate_array(builder, app_public_inputs.nullified_commitments, "Nullified commitments");
-    validate_array(builder, app_public_inputs.private_call_stack, "Private Call Stack");
-    validate_array(builder, app_public_inputs.public_call_stack, "Public Call Stack");
-    validate_array(builder, app_public_inputs.new_l2_to_l1_msgs, "New L2 to L1 messages");
+    validate_array(builder, app_public_inputs.return_values, "App public inputs - Return values");
+    validate_array(builder, app_public_inputs.read_requests, "App public inputs - Read requests");
+    validate_array(builder, app_public_inputs.new_commitments, "App public inputs - New commitments");
+    validate_array(builder, app_public_inputs.new_nullifiers, "App public inputs - New nullifiers");
+    validate_array(builder, app_public_inputs.nullified_commitments, "App public inputs - Nullified commitments");
+    validate_array(builder, app_public_inputs.private_call_stack, "App public inputs - Private call stack");
+    validate_array(builder, app_public_inputs.public_call_stack, "App public inputs - Public call stack");
+    validate_array(builder, app_public_inputs.new_l2_to_l1_msgs, "App public inputs - New L2 to L1 messages");
     // encrypted_logs_hash and unencrypted_logs_hash have their own integrity checks.
 }
 
-void common_validate_0th_nullifier(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)
+/**
+ * @brief We validate that relevant arrays assumed to be zero-padded on the right comply to this format.
+ *
+ * @param builder
+ * @param end Reference to previous_kernel.public_inputs.end.
+ */
+void common_validate_previous_kernel_arrays(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)
+{
+    // Each of the following arrays is expected to be zero-padded.
+    validate_array(builder, end.read_requests, "Accumulated data - Read Requests");
+    validate_array(builder, end.new_commitments, "Accumulated data - New commitments");
+    validate_array(builder, end.new_nullifiers, "Accumulated data - New nullifiers");
+    validate_array(builder, end.nullified_commitments, "Accumulated data - Nullified commitments");
+    validate_array(builder, end.private_call_stack, "Accumulated data - Private call stack");
+    validate_array(builder, end.public_call_stack, "Accumulated data - Public call stack");
+    validate_array(builder, end.new_l2_to_l1_msgs, "Accumulated data - New L2 to L1 messages");
+}
+
+void common_validate_previous_kernel_0th_nullifier(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)
 {
     builder.do_assert(end.new_nullifiers[0] != 0,
                       "The 0th nullifier in the accumulated nullifier array is zero",
                       CircuitErrorCode::PRIVATE_KERNEL__0TH_NULLLIFIER_IS_ZERO);
+}
+
+void common_validate_previous_kernel_values(DummyBuilder& builder, CombinedAccumulatedData<NT> const& end)
+{
+    common_validate_previous_kernel_arrays(builder, end);
+    common_validate_previous_kernel_0th_nullifier(builder, end);
 }
 
 void common_update_end_values(DummyBuilder& builder,
