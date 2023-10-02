@@ -9,7 +9,7 @@ on:
 
 jobs:
   test-noir-js:
-    name: test
+    name: Test Noir JS
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
