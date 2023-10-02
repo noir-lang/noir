@@ -90,7 +90,7 @@ impl MockedCall {
 
 #[derive(Debug, Default)]
 pub(crate) struct ForeignCallExecutor {
-    /// Mocks have unique ids used to identify them from noir, allowing to update or remove them.
+    /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
     mocked_responses: Vec<MockedCall>,
