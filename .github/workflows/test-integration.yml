@@ -3,8 +3,7 @@ name: test-integration
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - ./compiler/integration-tests/**
+  merge_group:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
