@@ -341,6 +341,13 @@ impl FunctionBuilder {
     pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId {
         self.current_function.dfg.import_intrinsic(intrinsic)
     }
+
+    pub(crate) fn get_intrinsic_from_value(&mut self, value: ValueId) -> Option<Intrinsic> {
+        match self.current_function.dfg[value] {
+            Value::Intrinsic(intrinsic) => Some(intrinsic),
+            _ => None,
+        }
+    }
 }
 
 impl std::ops::Index<ValueId> for FunctionBuilder {
