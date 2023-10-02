@@ -145,7 +145,8 @@ fn inversion_brillig_oracle_equivalence() {
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
     // As caller of VM, need to resolve foreign calls
-    let foreign_call_result = Value::from(foreign_call_wait_info.inputs[0][0].to_field().inverse());
+    let foreign_call_result =
+        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
     // Alter Brillig oracle opcode with foreign call resolution
     acvm.resolve_pending_foreign_call(foreign_call_result.into());
 
@@ -274,7 +275,8 @@ fn double_inversion_brillig_oracle() {
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
-    let x_plus_y_inverse = Value::from(foreign_call_wait_info.inputs[0][0].to_field().inverse());
+    let x_plus_y_inverse =
+        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
 
     // Resolve Brillig foreign call
     acvm.resolve_pending_foreign_call(x_plus_y_inverse.into());
@@ -291,7 +293,8 @@ fn double_inversion_brillig_oracle() {
         acvm.get_pending_foreign_call().expect("should have a brillig foreign call request");
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
-    let i_plus_j_inverse = Value::from(foreign_call_wait_info.inputs[0][0].to_field().inverse());
+    let i_plus_j_inverse =
+        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
     assert_ne!(x_plus_y_inverse, i_plus_j_inverse);
 
     // Alter Brillig oracle opcode
@@ -396,7 +399,8 @@ fn oracle_dependent_execution() {
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
     // Resolve Brillig foreign call
-    let x_inverse = Value::from(foreign_call_wait_info.inputs[0][0].to_field().inverse());
+    let x_inverse =
+        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
     acvm.resolve_pending_foreign_call(x_inverse.into());
 
     // After filling data request, continue solving
@@ -412,7 +416,8 @@ fn oracle_dependent_execution() {
     assert_eq!(foreign_call_wait_info.inputs.len(), 1, "Should be waiting for a single input");
 
     // Resolve Brillig foreign call
-    let y_inverse = Value::from(foreign_call_wait_info.inputs[0][0].to_field().inverse());
+    let y_inverse =
+        Value::from(foreign_call_wait_info.inputs[0].unwrap_value().to_field().inverse());
     acvm.resolve_pending_foreign_call(y_inverse.into());
 
     // We've resolved all the brillig foreign calls so we should be able to complete execution now.

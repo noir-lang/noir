@@ -1,49 +1,38 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { Barretenberg, Crs, RawBuffer } from '@aztec/bb.js';
-import { acirToUint8Array } from '../../src/index.js';
-import { Backend } from '@noir-lang/types';
+import { acirToUint8Array } from './serialize.js';
+import { Backend, CompiledCircuit } from '@noir-lang/types';
 
 export class BarretenbergBackend implements Backend {
   // These type assertions are used so that we don't
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
-  api = {} as Barretenberg;
-  acirComposer = {} as any;
-  acirUncompressedBytecode: Uint8Array;
+  private api: any;
+  private acirComposer: any;
+  private acirUncompressedBytecode: Uint8Array;
+  private numberOfThreads = 1;
 
-  private constructor(acirCircuit: { bytecode: string }) {
+  constructor(acirCircuit: CompiledCircuit, numberOfThreads = 1) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
+    this.numberOfThreads = numberOfThreads;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
-  static async initialize(acirCircuit: { bytecode: string }): Promise<BarretenbergBackend> {
-    const backend = new BarretenbergBackend(acirCircuit);
-    await backend.init();
-    return backend;
-  }
+  private async instantiate(): Promise<void> {
+    if (!this.api) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //@ts-ignore
+      const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
+      const api = await Barretenberg.new(this.numberOfThreads);
 
-  private async init(): Promise<void> {
-    const numThreads = 4;
+      const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
+      const crs = await Crs.new(subgroupSize + 1);
+      await api.commonInitSlabAllocator(subgroupSize);
+      await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
-    const { api, composer } = await this.initBarretenberg(numThreads, this.acirUncompressedBytecode);
-
-    this.api = api;
-    this.acirComposer = composer;
-  }
-
-  private async initBarretenberg(numThreads: number, acirUncompressedBytecode: Uint8Array) {
-    const api = await Barretenberg.new(numThreads);
-
-    const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(acirUncompressedBytecode);
-    const crs = await Crs.new(subgroupSize + 1);
-    await api.commonInitSlabAllocator(subgroupSize);
-    await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
-
-    const acirComposer = await api.acirNewAcirComposer(subgroupSize);
-    return { api: api, composer: acirComposer };
+      this.acirComposer = await api.acirNewAcirComposer(subgroupSize);
+      this.api = api;
+    }
   }
 
   // Generate an outer proof. This is the proof for the circuit which will verify
@@ -73,6 +62,7 @@ export class BarretenbergBackend implements Backend {
   }
 
   async generateProof(decompressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<Uint8Array> {
+    await this.instantiate();
     const proof = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
@@ -100,6 +90,7 @@ export class BarretenbergBackend implements Backend {
     vkAsFields: string[];
     vkHash: string;
   }> {
+    await this.instantiate();
     const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
@@ -128,11 +119,15 @@ export class BarretenbergBackend implements Backend {
   }
 
   async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
+    await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
     return await this.api.acirVerifyProof(this.acirComposer, proof, makeEasyToVerifyInCircuit);
   }
 
   async destroy(): Promise<void> {
+    if (!this.api) {
+      return;
+    }
     await this.api.destroy();
   }
 }

@@ -1,0 +1,43 @@
+{
+  "name": "@noir-lang/backend_barretenberg",
+  "collaborators": [
+    "The Noir Team <team@noir-lang.org>"
+  ],
+  "version": "0.7.10",
+  "packageManager": "yarn@3.5.1",
+  "license": "(MIT OR Apache-2.0)",
+  "type": "module",
+  "source": "src/index.ts",
+  "main": "lib/cjs/index.cjs",
+  "module": "lib/esm/index.js",
+  "exports": {
+    "require": "./lib/cjs/index.cjs",
+    "default": "./lib/esm/index.js",
+    "types": "./lib/esm/index.d.ts"
+  },
+  "types": "lib/esm/index.d.ts",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && mv ./lib/cjs/index.js ./lib/cjs/index.cjs && mv ./lib/cjs/serialize.js ./lib/cjs/serialize.cjs && mv ./lib/cjs/base64_decode.js ./lib/cjs/base64_decode.cjs",
+    "clean": "rm -rf ./lib",
+    "prettier": "prettier 'src/**/*.ts'",
+    "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "0.7.10",
+    "@noir-lang/types": "workspace:*",
+    "fflate": "^0.8.0"
+  },
+  "peerDependencies": {
+    "@noir-lang/backend_barretenberg": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.2",
+    "@types/prettier": "^3",
+    "eslint": "^8.40.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "3.0.3",
+    "typescript": "5.1.5"
+  }
+}

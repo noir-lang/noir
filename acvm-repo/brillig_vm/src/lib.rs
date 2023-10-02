@@ -12,8 +12,8 @@
 //! [acvm]: https://crates.io/crates/acvm
 
 use acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, ForeignCallOutput, ForeignCallResult, HeapArray, HeapVector,
-    Opcode, RegisterIndex, RegisterOrMemory, Value,
+    BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, Opcode,
+    RegisterIndex, RegisterOrMemory, Value,
 };
 use acir::FieldElement;
 // Re-export `brillig`.
@@ -54,7 +54,7 @@ pub enum VMStatus {
         function: String,
         /// Input values
         /// Each input is a list of values as an input can be either a single value or a memory pointer
-        inputs: Vec<Vec<Value>>,
+        inputs: Vec<ForeignCallParam>,
     },
 }
 
@@ -119,7 +119,11 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
 
     /// Sets the status of the VM to `ForeignCallWait`.
     /// Indicating that the VM is now waiting for a foreign call to be resolved.
-    fn wait_for_foreign_call(&mut self, function: String, inputs: Vec<Vec<Value>>) -> VMStatus {
+    fn wait_for_foreign_call(
+        &mut self,
+        function: String,
+        inputs: Vec<ForeignCallParam>,
+    ) -> VMStatus {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
@@ -210,7 +214,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
                 for (destination, output) in destinations.iter().zip(values) {
                     match destination {
                         RegisterOrMemory::RegisterIndex(value_index) => match output {
-                            ForeignCallOutput::Single(value) => {
+                            ForeignCallParam::Single(value) => {
                                 self.registers.set(*value_index, *value);
                             }
                             _ => unreachable!(
@@ -219,7 +223,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
                         },
                         RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_index, size }) => {
                             match output {
-                                ForeignCallOutput::Array(values) => {
+                                ForeignCallParam::Array(values) => {
                                     if values.len() != *size {
                                         invalid_foreign_call_result = true;
                                         break;
@@ -236,7 +240,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
                         }
                         RegisterOrMemory::HeapVector(HeapVector { pointer: pointer_index, size: size_index }) => {
                             match output {
-                                ForeignCallOutput::Array(values) => {
+                                ForeignCallParam::Array(values) => {
                                     // Set our size in the size register
                                     self.registers.set(*size_index, Value::from(values.len()));
                                     // Convert the destination pointer to a usize
@@ -330,14 +334,12 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
         self.status.clone()
     }
 
-    fn get_register_value_or_memory_values(&self, input: RegisterOrMemory) -> Vec<Value> {
+    fn get_register_value_or_memory_values(&self, input: RegisterOrMemory) -> ForeignCallParam {
         match input {
-            RegisterOrMemory::RegisterIndex(value_index) => {
-                vec![self.registers.get(value_index)]
-            }
+            RegisterOrMemory::RegisterIndex(value_index) => self.registers.get(value_index).into(),
             RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_index, size }) => {
                 let start = self.registers.get(pointer_index);
-                self.memory.read_slice(start.to_usize(), size).to_vec()
+                self.memory.read_slice(start.to_usize(), size).to_vec().into()
             }
             RegisterOrMemory::HeapVector(HeapVector {
                 pointer: pointer_index,
@@ -345,7 +347,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
             }) => {
                 let start = self.registers.get(pointer_index);
                 let size = self.registers.get(size_index);
-                self.memory.read_slice(start.to_usize(), size.to_usize()).to_vec()
+                self.memory.read_slice(start.to_usize(), size.to_usize()).to_vec().into()
             }
         }
     }
@@ -922,7 +924,7 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "double".into(),
-                inputs: vec![vec![Value::from(5u128)]]
+                inputs: vec![Value::from(5u128).into()]
             }
         );
 
@@ -983,7 +985,7 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "matrix_2x2_transpose".into(),
-                inputs: vec![initial_matrix]
+                inputs: vec![initial_matrix.into()]
             }
         );
 
@@ -1056,13 +1058,13 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "string_double".into(),
-                inputs: vec![input_string.clone()]
+                inputs: vec![input_string.clone().into()]
             }
         );
 
         // Push result we're waiting for
         vm.foreign_call_results.push(ForeignCallResult {
-            values: vec![ForeignCallOutput::Array(output_string.clone())],
+            values: vec![ForeignCallParam::Array(output_string.clone())],
         });
 
         // Resume VM
@@ -1118,7 +1120,7 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "matrix_2x2_transpose".into(),
-                inputs: vec![initial_matrix.clone()]
+                inputs: vec![initial_matrix.clone().into()]
             }
         );
 
@@ -1203,7 +1205,7 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "matrix_2x2_transpose".into(),
-                inputs: vec![matrix_a, matrix_b]
+                inputs: vec![matrix_a.into(), matrix_b.into()]
             }
         );
 
