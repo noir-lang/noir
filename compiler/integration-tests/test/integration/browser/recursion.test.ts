@@ -4,13 +4,10 @@ import { TEST_LOG_LEVEL } from '../../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
-import { decompressSync as gunzip } from 'fflate';
 import { acvm, abi, generateWitness } from '@noir-lang/noir_js';
 
-// @ts-ignore
-import { Barretenberg, RawBuffer, Crs } from '@aztec/bb.js';
-
 import * as TOML from 'smol-toml';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
@@ -22,8 +19,6 @@ await newABICoder();
 await initACVM();
 
 compilerLogLevel('INFO');
-
-const numberOfThreads = navigator.hardwareConcurrency || 1;
 
 const base_relative_path = '../../../../..';
 const circuit_main = 'compiler/integration-tests/test/circuits/main';
@@ -37,16 +32,6 @@ async function getFile(url: URL): Promise<string> {
   return await response.text();
 }
 
-const CIRCUIT_SIZE = 2 ** 19;
-
-const api = await Barretenberg.new(numberOfThreads);
-await api.commonInitSlabAllocator(CIRCUIT_SIZE);
-// Plus 1 needed!
-const crs = await Crs.new(CIRCUIT_SIZE + 1);
-await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
-
-const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
-
 async function getCircuit(noirSource: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initializeResolver((id: string) => {
@@ -55,17 +40,6 @@ async function getCircuit(noirSource: string) {
   });
 
   return compile({});
-}
-
-async function generateProof(acirUint8Array: Uint8Array, witnessUint8Array: Uint8Array, optimizeForRecursion: boolean) {
-  // This took ~6.5 minutes!
-  return api.acirCreateProof(acirComposer, acirUint8Array, witnessUint8Array, optimizeForRecursion);
-}
-
-async function verifyProof(proof: Uint8Array, optimizeForRecursion: boolean) {
-  await api.acirInitVerificationKey(acirComposer);
-  const verified = await api.acirVerifyProof(acirComposer, proof, optimizeForRecursion);
-  return verified;
 }
 
 describe('It compiles noir program code, receiving circuit bytes and abi object.', () => {
@@ -92,35 +66,23 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     const { circuit: main_circuit, abi: main_abi } = await getCircuit(circuit_main_source);
     const main_inputs = TOML.parse(circuit_main_toml);
 
-    const main_witnessUint8Array = await generateWitness(
-      {
-        bytecode: main_circuit,
-        abi: main_abi,
-      },
-      main_inputs,
-    );
-    const main_compressedByteCode = Uint8Array.from(atob(main_circuit), (c) => c.charCodeAt(0));
-    const main_acirUint8Array = gunzip(main_compressedByteCode);
+    const main_program = { bytecode: main_circuit, abi: main_abi };
+    const main_backend = new BarretenbergBackend(main_program);
 
-    const optimizeMainProofForRecursion = true;
+    const main_witnessUint8Array = await generateWitness(main_program, main_inputs);
 
-    const main_proof = await generateProof(main_acirUint8Array, main_witnessUint8Array, optimizeMainProofForRecursion);
-
-    const main_verification = await verifyProof(main_proof, optimizeMainProofForRecursion);
+    const main_proof = await main_backend.generateIntermediateProof(main_witnessUint8Array);
+    const main_verification = await main_backend.verifyIntermediateProof(main_proof);
 
     logger.debug('main_verification', main_verification);
 
     expect(main_verification).to.be.true;
 
     const numPublicInputs = 1;
-    const proofAsFields = (await api.acirSerializeProofIntoFields(acirComposer, main_proof, numPublicInputs)).map((p) =>
-      p.toString(),
+    const { proofAsFields, vkAsFields, vkHash } = await main_backend.generateIntermediateProofArtifacts(
+      main_proof,
+      numPublicInputs,
     );
-
-    const vk = await api.acirSerializeVerificationKeyIntoFields(acirComposer);
-
-    const vkAsFields = vk[0].map((vk) => vk.toString());
-    const vkHash = vk[1].toString();
 
     const recursion_inputs = {
       verification_key: vkAsFields,
@@ -133,36 +95,24 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     logger.debug('recursion_inputs', recursion_inputs);
 
     const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(circuit_recursion_source);
+    const recursion_program = { bytecode: recursion_circuit, abi: recursion_abi };
 
-    const recursion_witnessUint8Array = await generateWitness(
-      {
-        bytecode: recursion_circuit,
-        abi: recursion_abi,
-      },
-      recursion_inputs,
-    );
+    const recursion_backend = new BarretenbergBackend(recursion_program);
 
-    const recursion_compressedByteCode = Uint8Array.from(atob(recursion_circuit), (c) => c.charCodeAt(0));
+    const recursion_witnessUint8Array = await generateWitness(recursion_program, recursion_inputs);
 
-    const recursion_acirUint8Array = gunzip(recursion_compressedByteCode);
-
-    const optimizeRecursionProofForRecursion = false;
-
-    const recursion_proof = await generateProof(
-      recursion_acirUint8Array,
-      recursion_witnessUint8Array,
-      optimizeRecursionProofForRecursion,
-    );
+    const recursion_proof = await recursion_backend.generateFinalProof(recursion_witnessUint8Array);
 
     const recursion_numPublicInputs = 1;
 
-    const recursion_proofAsFields = (
-      await api.acirSerializeProofIntoFields(acirComposer, recursion_proof, recursion_numPublicInputs)
-    ).map((p) => p.toString());
+    const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateIntermediateProofArtifacts(
+      recursion_proof,
+      recursion_numPublicInputs,
+    );
 
     logger.debug('recursion_proofAsFields', recursion_proofAsFields);
 
-    const recursion_verification = await verifyProof(recursion_proof, false);
+    const recursion_verification = await recursion_backend.verifyFinalProof(recursion_proof);
 
     logger.debug('recursion_verification', recursion_verification);
 
