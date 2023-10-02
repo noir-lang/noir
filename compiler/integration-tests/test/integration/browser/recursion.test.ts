@@ -42,7 +42,7 @@ async function getCircuit(noirSource: string) {
   return compile({});
 }
 
-describe.only('It compiles noir program code, receiving circuit bytes and abi object.', () => {
+describe('It compiles noir program code, receiving circuit bytes and abi object.', () => {
   let circuit_main_source;
   let circuit_main_toml;
   let circuit_recursion_source;
