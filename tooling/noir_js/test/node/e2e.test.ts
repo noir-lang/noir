@@ -33,7 +33,7 @@ it('end-to-end proof creation and verification (inner)', async () => {
   //
   // Proof creation
   const prover = new BarretenbergBackend(assert_lt_json);
-  
+
   const proof = await prover.generateIntermediateProof(serializedWitness);
 
   // Proof verification
