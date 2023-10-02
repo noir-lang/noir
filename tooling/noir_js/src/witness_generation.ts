@@ -5,9 +5,13 @@ import { witnessMapToUint8Array } from './serialize.js';
 
 // Generates the witnesses needed to feed into the chosen proving system
 export async function generateWitness(compiledProgram, inputs): Promise<Uint8Array> {
-  if (typeof initABIWASM === 'function' && typeof initACVMWASM === 'function') {
-    await initABIWASM();
-    await initACVMWASM();
+  try {
+    if (typeof initABIWASM === 'function' && typeof initACVMWASM === 'function') {
+      await initABIWASM();
+      await initACVMWASM();
+    }
+  } catch (err) {
+    throw new Error(`Could not initialize noir_js libraries ${err}`);
   }
 
   // Throws on ABI encoding error
