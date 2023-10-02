@@ -34,14 +34,14 @@ const FIELD_ELEMENT_BYTES = 32;
 const test_cases = [
   {
     case: 'tooling/nargo_cli/tests/execution_success/1_mul',
-    compiled: 'foundry-project/out/1_mul.sol/UltraVerifier.json',
-    deployInformation: 'foundry-project/mul_output.json',
+    compiled: 'compiler/integration-tests/foundry-project/out/1_mul.sol/UltraVerifier.json',
+    deployInformation: 'compiler/integration-tests/foundry-project/mul_output.json',
     numPublicInputs: 0,
   },
   {
     case: 'compiler/integration-tests/test/circuits/main',
-    compiled: 'foundry-project/out/main.sol/UltraVerifier.json',
-    deployInformation: 'foundry-project/main_output.json',
+    compiled: 'compiler/integration-tests/foundry-project/out/main.sol/UltraVerifier.json',
+    deployInformation: 'compiler/integration-tests/foundry-project/main_output.json',
     numPublicInputs: 1,
   },
 ];
