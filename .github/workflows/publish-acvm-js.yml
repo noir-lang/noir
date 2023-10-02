@@ -47,8 +47,12 @@ jobs:
           cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
           touch temp_publish_dir/yarn.lock
 
+      - name: Log out debug info
+        working-directory: ./temp_publish_dir
+        run: ls -R
+
       - name: Publish to NPM
-        working-directory: ./temp_publish_dir/acvm_js
+        working-directory: ./temp_publish_dir
         # run: yarn npm publish --tag latest
         run: yarn pack --dry-run
         env:
