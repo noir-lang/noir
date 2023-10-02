@@ -78,6 +78,7 @@ pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    trait_bounds: Vec<UnresolvedTraitConstraint>,
     pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
     file: FileId,
@@ -120,6 +121,7 @@ impl<'a> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
+            trait_bounds: Vec::new(),
             scopes: ScopeForest::default(),
             interner,
             self_type: None,
@@ -158,12 +160,14 @@ impl<'a> Resolver<'a> {
         self.resolve_local_globals();
 
         self.add_generics(&func.def.generics);
+        self.trait_bounds = func.def.where_clause.clone();
 
         let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
+        self.trait_bounds.clear();
         (hir_func, func_meta, self.errors)
     }
 
@@ -1075,39 +1079,43 @@ impl<'a> Resolver<'a> {
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
-                // If the Path is being used as an Expression, then it is referring to a global from a separate module
-                // Otherwise, then it is referring to an Identifier
-                // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-                // If the expression is a singular indent, we search the resolver's current scope as normal.
-                let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                if let Some(expr) = self.resolve_generic_path(&path) {
+                    expr
+                } else {
+                    // If the Path is being used as an Expression, then it is referring to a global from a separate module
+                    // Otherwise, then it is referring to an Identifier
+                    // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+                    // If the expression is a singular indent, we search the resolver's current scope as normal.
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
-                if hir_ident.id != DefinitionId::dummy_id() {
-                    match self.interner.definition(hir_ident.id).kind {
-                        DefinitionKind::Function(id) => {
-                            if self.interner.function_visibility(id) == Visibility::Private {
-                                let span = hir_ident.location.span;
-                                self.check_can_reference_private_function(id, span);
+                    if hir_ident.id != DefinitionId::dummy_id() {
+                        match self.interner.definition(hir_ident.id).kind {
+                            DefinitionKind::Function(id) => {
+                                if self.interner.function_visibility(id) == Visibility::Private {
+                                    let span = hir_ident.location.span;
+                                    self.check_can_reference_private_function(id, span);
+                                }
                             }
-                        }
-                        DefinitionKind::Global(_) => {}
-                        DefinitionKind::GenericType(_) => {
-                            // Initialize numeric generics to a polymorphic integer type in case
-                            // they're used in expressions. We must do this here since the type
-                            // checker does not check definition kinds and otherwise expects
-                            // parameters to already be typed.
-                            if self.interner.id_type(hir_ident.id) == Type::Error {
-                                let typ = Type::polymorphic_integer(self.interner);
-                                self.interner.push_definition_type(hir_ident.id, typ);
+                            DefinitionKind::Global(_) => {}
+                            DefinitionKind::GenericType(_) => {
+                                // Initialize numeric generics to a polymorphic integer type in case
+                                // they're used in expressions. We must do this here since the type
+                                // checker does not check definition kinds and otherwise expects
+                                // parameters to already be typed.
+                                if self.interner.id_type(hir_ident.id) == Type::Error {
+                                    let typ = Type::polymorphic_integer(self.interner);
+                                    self.interner.push_definition_type(hir_ident.id, typ);
+                                }
                             }
-                        }
-                        DefinitionKind::Local(_) => {
-                            // only local variables can be captured by closures.
-                            self.resolve_local_variable(hir_ident, var_scope_index);
+                            DefinitionKind::Local(_) => {
+                                // only local variables can be captured by closures.
+                                self.resolve_local_variable(hir_ident, var_scope_index);
+                            }
                         }
                     }
-                }
 
-                HirExpression::Ident(hir_ident)
+                    HirExpression::Ident(hir_ident)
+                }
             }
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
@@ -1443,6 +1451,39 @@ impl<'a> Resolver<'a> {
 
     fn lookup_type_alias(&mut self, path: Path) -> Option<&TypeAliasType> {
         self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
+    }
+
+    fn resolve_generic_path(&self, path: &Path) -> Option<HirExpression> {
+        for UnresolvedTraitConstraint { typ, trait_bound } in &self.trait_bounds {
+            if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
+                // if we're attempting to resolve `T::U::V::some_method` and constraint is `T::U::V: SomeTrait`
+                // we iterate through the Trait's elements.
+
+                if path.segments.len() == constraint_path.segments.len() + 1 {
+                    let mut is_match = true;
+                    for (idx, ident) in constraint_path.segments.iter().enumerate() {
+                        if *ident != path.segments[idx] {
+                            is_match = false;
+                            break;
+                        }
+                    }
+
+                    if is_match {
+                        if let Ok(ModuleDefId::TraitId(trait_id)) =
+                            self.path_resolver.resolve(self.def_maps, trait_bound.trait_path.clone())
+                        {
+                            let the_trait = self.interner.get_trait(trait_id);
+                            if let Some(method) =
+                                the_trait.find_method(path.segments.last().unwrap().clone())
+                            {
+                                return Some(HirExpression::TraitMethodReference(method));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {

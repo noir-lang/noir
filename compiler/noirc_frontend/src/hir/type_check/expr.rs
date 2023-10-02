@@ -173,11 +173,8 @@ impl<'interner> TypeChecker<'interner> {
                             }
                         }
 
-                        let (function_id, function_call) = method_call.into_function_call(
-                            method_ref,
-                            location,
-                            self.interner,
-                        );
+                        let (function_id, function_call) =
+                            method_call.into_function_call(method_ref, location, self.interner);
 
                         let span = self.interner.expr_span(expr_id);
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
@@ -291,7 +288,19 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(_) => unreachable!("unexpected TraitMethodReference - they should be added after initial type checking"),
+            HirExpression::TraitMethodReference(method) => {
+                let the_trait = self.interner.get_trait(method.trait_id);
+                let method = &the_trait.methods[method.method_index];
+
+                let typ = Type::Function(
+                    method.arguments.clone(),
+                    Box::new(method.return_type.clone()),
+                    Box::new(Type::Unit),
+                );
+                let (typ, bindings) = typ.instantiate(self.interner);
+                self.interner.store_instantiation_bindings(*expr_id, bindings);
+                typ
+            }
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
