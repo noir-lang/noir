@@ -16,7 +16,8 @@
   "scripts": {
     "build:esm": "tsc",
     "build:cjs": "tsc --module CommonJS --outDir lib/cjs",
-    "build": "yarn run build:cjs && yarn run build:esm"
+    "build": "yarn run build:cjs && yarn run build:esm",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "exports": {
     ".": {
@@ -26,6 +27,10 @@
     }
   },
   "devDependencies": {
+    "@types/prettier": "^3",
+    "eslint": "^8.50.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "3.0.3",
     "typescript": "^5.2.2"
   }
 }

@@ -34,7 +34,7 @@
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
     "@web/test-runner-webdriver": "^0.7.0",
-    "eslint": "^8.40.0",
+    "eslint": "^8.50.0",
     "mocha": "^10.2.0"
   }
 }
