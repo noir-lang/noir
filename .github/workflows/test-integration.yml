@@ -3,8 +3,7 @@ name: test-integration
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - ./compiler/integration-tests/**
+  merge_group:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
@@ -222,6 +221,8 @@ jobs:
         run: |
           yarn workspace @noir-lang/source-resolver build
           yarn workspace @noir-lang/acvm_js build
+          yarn workspace @noir-lang/types build
+          yarn workspace @noir-lang/backend_barretenberg build
           yarn workspace @noir-lang/noir_js build
 
       - name: Run `integration-tests`
