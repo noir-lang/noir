@@ -16,7 +16,7 @@ mod opcodes;
 mod value;
 
 pub use black_box::BlackBoxOp;
-pub use foreign_call::{ForeignCallOutput, ForeignCallResult};
+pub use foreign_call::{ForeignCallParam, ForeignCallResult};
 pub use opcodes::{
     BinaryFieldOp, BinaryIntOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory,
 };
