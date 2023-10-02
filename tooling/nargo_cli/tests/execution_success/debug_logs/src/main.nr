@@ -39,6 +39,8 @@ fn main(x : Field, y : pub Field) {
 
     let struct_string = if x != 5 { f"{foo}" } else { f"{bar}" };
     std::println(struct_string);
+
+    regression_2906();
 }
 
 fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Field)> {
@@ -61,4 +63,18 @@ struct myStruct {
 struct fooStruct {
     my_struct: myStruct,
     foo: Field,
+}
+
+fn regression_2906() {
+    let array_two_vals = [1, 2];
+    dep::std::println(f"array_ok: {array_two_vals}"); 
+
+    let label_two_vals = "12";
+    dep::std::println(f"label_ok: {label_two_vals}");
+
+    let array_five_vals = [1, 2, 3, 4, 5];
+    dep::std::println(f"array_f: {array_five_vals}");
+
+    let label_five_vals = "12345";
+    dep::std::println(f"label_f: {label_five_vals}");
 }
