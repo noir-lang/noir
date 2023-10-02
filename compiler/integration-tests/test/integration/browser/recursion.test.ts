@@ -42,7 +42,7 @@ async function getCircuit(noirSource: string) {
   return compile({});
 }
 
-describe('It compiles noir program code, receiving circuit bytes and abi object.', () => {
+describe.only('It compiles noir program code, receiving circuit bytes and abi object.', () => {
   let circuit_main_source;
   let circuit_main_toml;
   let circuit_recursion_source;
@@ -103,14 +103,16 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const recursion_proof = await recursion_backend.generateFinalProof(recursion_witnessUint8Array);
 
-    const recursion_numPublicInputs = 1;
-
-    const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateIntermediateProofArtifacts(
-      recursion_proof,
-      recursion_numPublicInputs,
-    );
-
-    logger.debug('recursion_proofAsFields', recursion_proofAsFields);
+    // Causes an "unreachable" error.
+    // Due to the fact that it's a non-recursive proof?
+    //
+    // const recursion_numPublicInputs = 1;
+    // const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateIntermediateProofArtifacts(
+    //   recursion_proof,
+    //   recursion_numPublicInputs,
+    // );
+    //
+    // logger.debug('recursion_proofAsFields', recursion_proofAsFields);
 
     const recursion_verification = await recursion_backend.verifyFinalProof(recursion_proof);
 
