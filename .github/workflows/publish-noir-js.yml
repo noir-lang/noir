@@ -41,6 +41,9 @@ jobs:
       - name: Build noirc_abi
         run: yarn workspace @noir-lang/noirc_abi build
 
+      - name: Build acvm_js
+        run: yarn workspace @noir-lang/acvm_js build
+
       - name: Build noir_js
         run: yarn workspace @noir-lang/noir_js build
 
