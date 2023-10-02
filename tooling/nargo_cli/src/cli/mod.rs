@@ -21,6 +21,7 @@ mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
+mod debug_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
@@ -58,6 +59,7 @@ enum NargoCommand {
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
+    Debug(debug_cmd::DebugCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
@@ -93,6 +95,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+        NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),

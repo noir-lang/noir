@@ -49,6 +49,7 @@ impl NargoError {
                 OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),
                 OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => Some(reason),
             },
+            ExecutionError::Halted => None,
         }
     }
 }
@@ -60,6 +61,9 @@ pub enum ExecutionError {
 
     #[error(transparent)]
     SolvingError(#[from] OpcodeResolutionError),
+
+    #[error("Execution halted")]
+    Halted,
 }
 
 /// Extracts the opcode locations from a nargo error.
