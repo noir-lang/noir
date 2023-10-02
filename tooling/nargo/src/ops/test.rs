@@ -1,15 +1,15 @@
 use acvm::{acir::native_types::WitnessMap, BlackBoxFunctionSolver};
 use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_errors::FileDiagnostic;
+use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 
 use crate::NargoError;
 
-use super::execute_circuit;
+use super::{execute_circuit, try_to_diagnose_error};
 
 pub enum TestStatus {
     Pass,
-    Fail { message: String },
+    Fail { message: String, diagnostic: Option<FileDiagnostic> },
     CompileError(FileDiagnostic),
 }
 
@@ -27,7 +27,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             // otherwise constraints involving these expressions will not error.
             let circuit_execution =
                 execute_circuit(blackbox_solver, program.circuit, WitnessMap::new(), show_output);
-            test_status_program_compile_pass(test_function, circuit_execution)
+            test_status_program_compile_pass(test_function, program.debug, circuit_execution)
         }
         Err(diag) => test_status_program_compile_fail(diag, test_function),
     }
@@ -56,7 +56,7 @@ fn test_status_program_compile_fail(
         return TestStatus::CompileError(diag);
     }
 
-    check_expected_failure_message(test_function, &diag.diagnostic.message)
+    check_expected_failure_message(test_function, &diag.diagnostic.message.clone(), Some(diag))
 }
 
 /// The test function compiled successfully.
@@ -65,6 +65,7 @@ fn test_status_program_compile_fail(
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: TestFunction,
+    debug: DebugInfo,
     circuit_execution: Result<WitnessMap, NargoError>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
@@ -74,6 +75,7 @@ fn test_status_program_compile_pass(
             if test_function.should_fail() {
                 return TestStatus::Fail {
                     message: "error: Test passed when it should have failed".to_string(),
+                    diagnostic: None,
                 };
             }
             return TestStatus::Pass;
@@ -84,18 +86,25 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
+    let diagnostic = try_to_diagnose_error(&circuit_execution_err, &debug);
+
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
-        return TestStatus::Fail { message: circuit_execution_err.to_string() };
+        return TestStatus::Fail { message: circuit_execution_err.to_string(), diagnostic };
     }
 
     check_expected_failure_message(
         test_function,
         circuit_execution_err.user_defined_failure_message().unwrap_or_default(),
+        diagnostic,
     )
 }
 
-fn check_expected_failure_message(test_function: TestFunction, got_error: &str) -> TestStatus {
+fn check_expected_failure_message(
+    test_function: TestFunction,
+    got_error: &str,
+    diagnostic: Option<FileDiagnostic>,
+) -> TestStatus {
     // Extract the expected failure message, if there was one
     //
     // #[test(should_fail)] will not produce any message
@@ -118,5 +127,6 @@ fn check_expected_failure_message(test_function: TestFunction, got_error: &str) 
             test_function.failure_reason().unwrap_or_default(),
             got_error.trim_matches('\'')
         ),
+        diagnostic,
     }
 }

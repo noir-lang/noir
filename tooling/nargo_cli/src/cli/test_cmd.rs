@@ -106,14 +106,22 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stdout");
             }
-            TestStatus::Fail { message } => {
-                let writer = StandardStream::stderr(ColorChoice::Always);
-                let mut writer = writer.lock();
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                    .expect("Failed to set color");
-                writeln!(writer, "{message}").expect("Failed to write to stdout");
-                writer.reset().expect("Failed to reset writer");
+            TestStatus::Fail { message, diagnostic } => {
+                if let Some(diagnostic) = diagnostic {
+                    noirc_errors::reporter::report_all(
+                        context.file_manager.as_file_map(),
+                        &[diagnostic],
+                        compile_options.deny_warnings,
+                    );
+                } else {
+                    let writer = StandardStream::stderr(ColorChoice::Always);
+                    let mut writer = writer.lock();
+                    writer
+                        .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                        .expect("Failed to set color");
+                    writeln!(writer, "{message}").expect("Failed to write to stdout");
+                    writer.reset().expect("Failed to reset writer");
+                }
                 failing += 1;
             }
             TestStatus::CompileError(err) => {
