@@ -57,20 +57,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:^0.7.3":
-  version: 0.7.3
-  resolution: "@aztec/bb.js@npm:0.7.3"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: 4da507d3de83b56c24f074cf61dfa6812b9c37f2047af25f79feac9973a900fd517bedb707ce00de9bf8acffec871f1894385e2bc3b74fd81f2c6b4c41a02293
-  languageName: node
-  linkType: hard
-
 "@babel/code-frame@npm:^7.12.11, @babel/code-frame@npm:^7.21.4":
   version: 7.22.13
   resolution: "@babel/code-frame@npm:7.22.13"
@@ -454,7 +440,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
+"@noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
@@ -4550,7 +4536,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": ^0.7.3
+    "@noir-lang/backend_barretenberg": "workspace:*"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@noir-lang/source-resolver": "workspace:*"
@@ -4558,7 +4544,6 @@ __metadata:
     "@web/test-runner": ^0.15.3
     "@web/test-runner-webdriver": ^0.7.0
     ethers: ^6.7.1
-    fflate: ^0.8.0
     smol-toml: ^1.1.2
     tslog: ^4.9.2
   languageName: unknown
