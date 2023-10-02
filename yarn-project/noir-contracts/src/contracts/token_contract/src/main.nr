@@ -22,7 +22,7 @@ contract Token {
             utils as note_utils,
         },
         context::{PrivateContext, PublicContext, Context},
-        hash::{compute_message_hash},
+        hash::{compute_message_hash, compute_secret_hash},
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::{
             field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
@@ -274,7 +274,7 @@ contract Token {
         secret: Field,
     ) -> Field {
         let pending_shields = storage.pending_shields;
-        let secret_hash = TransparentNote::compute_secret_hash(secret);
+        let secret_hash = compute_secret_hash(secret);
         let options = NoteGetterOptions::new().select(0, amount).select(1, secret_hash).set_limit(1);
         let notes = pending_shields.get_notes(options);
         let note = notes[0].unwrap_unchecked();
