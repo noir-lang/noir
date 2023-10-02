@@ -327,7 +327,7 @@ fn get_inputs_string(inputs: &[FunctionInput]) -> String {
             result += &format!("(_{}, num_bits: {})", inp.witness.witness_index(), inp.num_bits);
             // Add a comma, unless it is the last entry
             if index != inputs.len() - 1 {
-                result += ", "
+                result += ", ";
             }
         }
         result
@@ -358,7 +358,7 @@ fn get_outputs_string(outputs: &[Witness]) -> String {
             result += &format!("_{}", output.witness_index());
             // Add a comma, unless it is the last entry
             if index != outputs.len() - 1 {
-                result += ", "
+                result += ", ";
             }
         }
         result

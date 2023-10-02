@@ -67,14 +67,16 @@ struct fooStruct {
 
 fn regression_2906() {
     let array_two_vals = [1, 2];
-    dep::std::println(f"array_ok: {array_two_vals}"); 
+    dep::std::println(f"array_two_vals: {array_two_vals}"); 
 
     let label_two_vals = "12";
-    dep::std::println(f"label_ok: {label_two_vals}");
+    dep::std::println(f"label_two_vals: {label_two_vals}");
 
     let array_five_vals = [1, 2, 3, 4, 5];
-    dep::std::println(f"array_f: {array_five_vals}");
+    dep::std::println(f"array_five_vals: {array_five_vals}");
 
     let label_five_vals = "12345";
-    dep::std::println(f"label_f: {label_five_vals}");
+    dep::std::println(f"label_five_vals: {label_five_vals}");
+
+    dep::std::println(f"array_five_vals: {array_five_vals}, label_five_vals: {label_five_vals}");
 }

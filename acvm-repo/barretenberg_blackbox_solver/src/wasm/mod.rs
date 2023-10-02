@@ -195,7 +195,7 @@ impl Barretenberg {
         let store = self.store.borrow();
         let memory_view = memory.view(&store);
 
-        memory_view.write(offset as u64, data).unwrap()
+        memory_view.write(offset as u64, data).unwrap();
     }
 
     // TODO: Consider making this Result-returning
@@ -231,7 +231,7 @@ impl Barretenberg {
 
         let mut args: Vec<Value> = vec![];
         for param in params.into_iter().cloned() {
-            args.push(param.try_into()?)
+            args.push(param.try_into()?);
         }
         let func = self
             .instance

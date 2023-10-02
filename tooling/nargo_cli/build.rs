@@ -105,7 +105,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             r#"
 #[test]
 fn compile_success_empty_{test_name}() {{
-    
+
     // We use a mocked backend for this test as we do not rely on the returned circuit size
     // but we must call a backend as part of querying the number of opcodes in the circuit.
 
