@@ -22,3 +22,30 @@ test('test an RPC function with an array of classes', async () => {
   expect(response.status).toBe(200);
   expect(response.text).toBe(JSON.stringify({ result: [{ data: 'a' }, { data: 'b' }, { data: 'c' }] }));
 });
+
+test('test invalid JSON', async () => {
+  const server = new JsonRpcServer(new TestState([]), { TestNote }, {}, false);
+  const response = await request(server.getApp().callback()).post('/').send('{');
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    error: { code: -32700, message: 'Parse error' },
+    id: null,
+    jsonrpc: '2.0',
+  });
+});
+
+test('invalid method', async () => {
+  const server = new JsonRpcServer(new TestState([]), { TestNote }, {}, false);
+  const response = await request(server.getApp().callback()).post('/').send({
+    jsonrpc: '2.0',
+    method: 'invalid',
+    params: [],
+    id: 42,
+  });
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    error: { code: -32601, message: 'Method not found' },
+    id: 42,
+    jsonrpc: '2.0',
+  });
+});

@@ -56,9 +56,9 @@ export async function defaultFetch(
   }
   if (!resp.ok) {
     if (noRetry) {
-      throw new NoRetryError(responseJson.error);
+      throw new NoRetryError(responseJson.error.message);
     } else {
-      throw new Error(responseJson.error);
+      throw new Error(responseJson.error.message);
     }
   }
 

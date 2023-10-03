@@ -39,14 +39,34 @@ export class JsonRpcServer {
         await next();
       } catch (err: any) {
         this.log.error(err);
-        ctx.status = 400;
-        ctx.body = { error: err.message };
+        if (err instanceof SyntaxError) {
+          ctx.status = 400;
+          ctx.body = {
+            jsonrpc: '2.0',
+            id: null,
+            error: {
+              code: -32700,
+              message: 'Parse error',
+            },
+          };
+        } else {
+          ctx.status = 500;
+          ctx.body = {
+            jsonrpc: '2.0',
+            id: null,
+            error: {
+              code: -32603,
+              message: 'Internal error',
+            },
+          };
+        }
       }
     };
     const app = new Koa();
     app.on('error', error => {
       this.log.error(`Error on API handler: ${error}`);
     });
+    app.use(exceptionHandler);
     app.use(compress({ br: false } as any));
     app.use(
       bodyParser({
@@ -56,7 +76,6 @@ export class JsonRpcServer {
       }),
     );
     app.use(cors());
-    app.use(exceptionHandler);
     app.use(router.routes());
     app.use(router.allowedMethods());
 
@@ -98,7 +117,15 @@ export class JsonRpcServer {
             // Propagate the error message to the client. Plenty of the errors are expected to occur (e.g. adding
             // a duplicate recipient) so this is necessary.
             ctx.status = 400;
-            ctx.body = { error: err.message };
+            ctx.body = {
+              jsonrpc,
+              id,
+              error: {
+                // TODO assign error codes - https://github.com/AztecProtocol/aztec-packages/issues/2633
+                code: -32000,
+                message: err.message,
+              },
+            };
           }
         });
       }
@@ -113,7 +140,14 @@ export class JsonRpcServer {
           this.disallowedMethods.includes(method)
         ) {
           ctx.status = 400;
-          ctx.body = { error: `Invalid method name: ${method}` };
+          ctx.body = {
+            jsonrpc,
+            id,
+            error: {
+              code: -32601,
+              message: 'Method not found',
+            },
+          };
         } else {
           try {
             const result = await this.proxy.call(method, params);
@@ -127,7 +161,15 @@ export class JsonRpcServer {
             // Propagate the error message to the client. Plenty of the errors are expected to occur (e.g. adding
             // a duplicate recipient) so this is necessary.
             ctx.status = 400;
-            ctx.body = { error: err.message };
+            ctx.body = {
+              jsonrpc,
+              id,
+              error: {
+                // TODO assign error codes - https://github.com/AztecProtocol/aztec-packages/issues/2633
+                code: -32000,
+                message: err.message,
+              },
+            };
           }
         }
       });
