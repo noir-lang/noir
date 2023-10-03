@@ -44,25 +44,20 @@ pub(super) fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
-    let file_path = match params.text_document.uri.to_file_path() {
-        Ok(file_path) => file_path,
-        Err(()) => {
-            return future::ready(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "URI is not a valid file path",
-            )))
-        }
-    };
+    future::ready(on_code_lens_request_inner(state, params))
+}
 
-    let root_path = match &state.root_path {
-        Some(root) => root,
-        None => {
-            return future::ready(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "Could not find project root",
-            )))
-        }
-    };
+fn on_code_lens_request_inner(
+    state: &mut LspState,
+    params: CodeLensParams,
+) -> Result<CodeLensResult, ResponseError> {
+    let file_path = params.text_document.uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
+
+    let root_path = state.root_path.as_deref().ok_or_else(|| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
+    })?;
 
     let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
@@ -73,16 +68,14 @@ pub(super) fn on_code_lens_request(
                 typ: MessageType::WARNING,
                 message: err.to_string(),
             });
-            return future::ready(Ok(None));
+            return Ok(None);
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
-        Ok(workspace) => workspace,
-        Err(err) => {
+    let workspace =
+        resolve_workspace_from_toml(&toml_path, PackageSelection::All).map_err(|err| {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
-            return future::ready(Err(ResponseError::new(ErrorCode::REQUEST_FAILED, err)));
-        }
-    };
+            ResponseError::new(ErrorCode::REQUEST_FAILED, err)
+        })?;
 
     let mut lenses: Vec<CodeLens> = vec![];
 
@@ -197,7 +190,9 @@ pub(super) fn on_code_lens_request(
         }
     }
 
-    let res = if lenses.is_empty() { Ok(None) } else { Ok(Some(lenses)) };
-
-    future::ready(res)
+    if lenses.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(lenses))
+    }
 }
