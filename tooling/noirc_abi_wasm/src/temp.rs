@@ -55,6 +55,13 @@ impl JsonTypes {
                 JsonTypes::Table(map_with_json_types)
             }
 
+            (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
+                let fields = try_vecmap(vector.iter().zip(fields), |(value, typ)| {
+                    JsonTypes::try_from_input_value(value, typ)
+                })?;
+                JsonTypes::Array(fields)
+            }
+
             _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
         };
         Ok(json_value)
@@ -102,6 +109,13 @@ pub(super) fn input_value_from_json_type(
             })?;
 
             InputValue::Struct(native_table)
+        }
+
+        (JsonTypes::Array(array), AbiType::Tuple { fields }) => {
+            let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
+                input_value_from_json_type(value, typ, arg_name)
+            })?;
+            InputValue::Vec(tuple_fields)
         }
 
         (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),

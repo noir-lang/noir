@@ -5,7 +5,7 @@ use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use crate::errors::ExecutionError;
 use crate::NargoError;
 
-use super::foreign_calls::ForeignCall;
+use super::foreign_calls::ForeignCallExecutor;
 
 pub fn execute_circuit<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
@@ -23,6 +23,8 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
             .find(|(loc, _)| loc == opcode_location)
             .map(|(_, message)| message.clone())
     };
+
+    let mut foreign_call_executor = ForeignCallExecutor::default();
 
     loop {
         let solver_status = acvm.solve();
@@ -57,7 +59,8 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
                 }));
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;
+                let foreign_call_result =
+                    foreign_call_executor.execute(&foreign_call, show_output)?;
                 acvm.resolve_pending_foreign_call(foreign_call_result);
             }
         }

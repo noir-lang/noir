@@ -7,7 +7,7 @@ use crate::{
     Ident,
 };
 
-use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs, ScopeResolveError};
+use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 /// Contains the actual contents of a module: its parent (if one exists),
 /// children, and scope with all definitions defined within the scope.
@@ -85,16 +85,16 @@ impl ModuleData {
         self.scope.find_func_with_name(name)
     }
 
-    pub fn find_trait_with_name(&self, name: &Ident) -> Result<TraitId, ScopeResolveError> {
-        self.scope.find_trait_with_name(name)
-    }
-
     pub fn import(&mut self, name: Ident, id: ModuleDefId) -> Result<(), (Ident, Ident)> {
         self.scope.add_item_to_namespace(name, id)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {
         self.scope.find_name(name)
+    }
+
+    pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
+        self.definitions.types().values().map(|(id, _)| *id)
     }
 
     /// Return an iterator over all definitions defined within this module,

@@ -1,4 +1,8 @@
-use acvm::{acir::circuit::OpcodeLocation, pwg::OpcodeResolutionError};
+use acvm::{
+    acir::circuit::OpcodeLocation,
+    pwg::{ErrorLocation, OpcodeResolutionError},
+};
+use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic, Location};
 use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
 
@@ -56,4 +60,80 @@ pub enum ExecutionError {
 
     #[error(transparent)]
     SolvingError(#[from] OpcodeResolutionError),
+}
+
+/// Extracts the opcode locations from a nargo error.
+fn extract_locations_from_error(
+    error: &ExecutionError,
+    debug: &DebugInfo,
+) -> Option<Vec<Location>> {
+    let mut opcode_locations = match error {
+        ExecutionError::SolvingError(OpcodeResolutionError::BrilligFunctionFailed {
+            call_stack,
+            ..
+        })
+        | ExecutionError::AssertionFailed(_, call_stack) => Some(call_stack.clone()),
+        ExecutionError::SolvingError(OpcodeResolutionError::IndexOutOfBounds {
+            opcode_location: error_location,
+            ..
+        })
+        | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
+            opcode_location: error_location,
+        }) => match error_location {
+            ErrorLocation::Unresolved => {
+                unreachable!("Cannot resolve index for unsatisfied constraint")
+            }
+            ErrorLocation::Resolved(opcode_location) => Some(vec![*opcode_location]),
+        },
+        _ => None,
+    }?;
+
+    if let Some(OpcodeLocation::Brillig { acir_index, .. }) = opcode_locations.get(0) {
+        opcode_locations.insert(0, OpcodeLocation::Acir(*acir_index));
+    }
+
+    Some(
+        opcode_locations
+            .iter()
+            .flat_map(|opcode_location| debug.opcode_location(opcode_location).unwrap_or_default())
+            .collect(),
+    )
+}
+
+/// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
+pub fn try_to_diagnose_runtime_error(
+    nargo_err: &NargoError,
+    debug: &DebugInfo,
+) -> Option<FileDiagnostic> {
+    let execution_error = match nargo_err {
+        NargoError::ExecutionError(execution_error) => execution_error,
+        _ => return None,
+    };
+
+    let source_locations = extract_locations_from_error(execution_error, debug)?;
+
+    // The location of the error itself will be the location at the top
+    // of the call stack (the last item in the Vec).
+    let location = source_locations.last()?;
+
+    let message = match nargo_err {
+        NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
+            format!("Assertion failed: '{message}'")
+        }
+        NargoError::ExecutionError(ExecutionError::SolvingError(
+            OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
+        )) => {
+            format!("Index out of bounds, array has size {array_size:?}, but index was {index:?}")
+        }
+        NargoError::ExecutionError(ExecutionError::SolvingError(
+            OpcodeResolutionError::UnsatisfiedConstrain { .. },
+        )) => "Failed constraint".into(),
+        _ => nargo_err.to_string(),
+    };
+
+    Some(
+        CustomDiagnostic::simple_error(message, String::new(), location.span)
+            .in_file(location.file)
+            .with_call_stack(source_locations),
+    )
 }

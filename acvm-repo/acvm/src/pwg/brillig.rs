@@ -1,5 +1,5 @@
 use acir::{
-    brillig::{ForeignCallResult, RegisterIndex, Value},
+    brillig::{ForeignCallParam, ForeignCallResult, RegisterIndex, Value},
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
         OpcodeLocation,
@@ -138,11 +138,11 @@ impl BrilligSolver {
         for output in &brillig.outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, FieldElement::zero(), initial_witness)?
+                    insert_value(witness, FieldElement::zero(), initial_witness)?;
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     for witness in witness_arr {
-                        insert_value(witness, FieldElement::zero(), initial_witness)?
+                        insert_value(witness, FieldElement::zero(), initial_witness)?;
                     }
                 }
             }
@@ -160,5 +160,5 @@ pub struct ForeignCallWaitInfo {
     /// An identifier interpreted by the caller process
     pub function: String,
     /// Resolved inputs to a foreign call computed in the previous steps of a Brillig VM process
-    pub inputs: Vec<Vec<Value>>,
+    pub inputs: Vec<ForeignCallParam>,
 }

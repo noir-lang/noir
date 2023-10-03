@@ -1034,28 +1034,11 @@ impl<'block> BrilligBlock<'block> {
         let binary_type =
             type_of_binary_operation(dfg[binary.lhs].get_type(), dfg[binary.rhs].get_type());
 
-        let mut left = self.convert_ssa_register_value(binary.lhs, dfg);
-        let mut right = self.convert_ssa_register_value(binary.rhs, dfg);
+        let left = self.convert_ssa_register_value(binary.lhs, dfg);
+        let right = self.convert_ssa_register_value(binary.rhs, dfg);
 
         let brillig_binary_op =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
-
-        // Some binary operations with fields are issued by the compiler, such as loop comparisons, cast those to the bit size here
-        // TODO Remove after fixing https://github.com/noir-lang/noir/issues/1979
-        if let (
-            BrilligBinaryOp::Integer { bit_size, .. },
-            Type::Numeric(NumericType::NativeField),
-        ) = (&brillig_binary_op, &binary_type)
-        {
-            let new_lhs = self.brillig_context.allocate_register();
-            let new_rhs = self.brillig_context.allocate_register();
-
-            self.brillig_context.cast_instruction(new_lhs, left, *bit_size);
-            self.brillig_context.cast_instruction(new_rhs, right, *bit_size);
-
-            left = new_lhs;
-            right = new_rhs;
-        }
 
         self.brillig_context.binary_instruction(left, right, result_register, brillig_binary_op);
     }

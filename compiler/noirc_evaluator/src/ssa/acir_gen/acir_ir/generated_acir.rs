@@ -596,10 +596,12 @@ impl GeneratedAcir {
             // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
             let bit_size = bit_size_u128(rhs_offset);
-            // r = 2^bit_size - rhs_offset
+            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construtction
             let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // however, since it is a constant, we can compute it's actual bit size
+            let r_bit_size = bit_size_u128(r);
             // witness = lhs_offset + r
-            assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+            assert!(bits + r_bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
             let witness = self.get_or_create_witness(&aor);
@@ -607,7 +609,6 @@ impl GeneratedAcir {
             self.range_constraint(witness, bit_size)?;
             return Ok(());
         }
-
         // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
         let sub_expression = rhs - &lhs_offset; //rhs-lhs_offset
         let w = self.create_witness_for_expression(&sub_expression);

@@ -5,9 +5,9 @@
 //      - trait impl blocks (impl<T,U> Foo for Bar where T...)
 //      - structs (struct Foo<T> where T: ...)
 
-trait Asd {
-    fn asd(self) -> Field;
-}
+// import the trait from another module to ensure the where clauses are ok with that
+mod the_trait;
+use crate::the_trait::Asd;
 
 struct Add10  { x: Field, }
 struct Add20  { x: Field, }
@@ -24,7 +24,7 @@ impl Asd for AddXY {
     }
 }
 
-fn assert_asd_eq_100<T>(t: T) where T: Asd {
+fn assert_asd_eq_100<T>(t: T) where T: crate::the_trait::Asd {
     assert(t.asd() == 100);
 }
 
