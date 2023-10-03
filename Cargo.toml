@@ -91,7 +91,7 @@ brillig_vm = { path = "acvm-repo/brillig_vm", default-features = false }
 acvm_blackbox_solver = { path = "acvm-repo/blackbox_solver", default-features = false }
 barretenberg_blackbox_solver = { path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
 
-bincode = "1.3.3"
+bincode = { version = "2.0.0-rc.3", features = ["serde"] }
 
 hex = "0.4.2"
 num-bigint = "0.4"
