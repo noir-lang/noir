@@ -9,7 +9,7 @@ mul_dir=$repo_root/tooling/nargo_cli/tests/execution_success/1_mul
 nargo --program-dir $mul_dir codegen-verifier
 
 # Run codegen-verifier for main
-main_dir=$repo_root/compiler/integration-tests/test/circuits/main
+main_dir=$repo_root/compiler/integration-tests/circuits/main
 nargo --program-dir $main_dir codegen-verifier
 
 # Copy compiled contracts from the root of compiler/integration-tests
