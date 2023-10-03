@@ -57,8 +57,14 @@ mod reflection {
 
         let registry = tracer.registry().unwrap();
 
-        let data = serde_json::to_vec(&registry).unwrap();
-        write_to_file(&data, &PathBuf::from("./codegen/acir.json"));
+        let path = PathBuf::from("./codegen/acir.cpp");
+
+        let old_hash = if path.is_file() {
+            let old_source = std::fs::read(path).unwrap();
+            Some(fxhash::hash64(&old_source))
+        } else {
+            None
+        };
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -66,6 +72,11 @@ mod reflection {
             .with_encodings(vec![serde_generate::Encoding::Bincode]);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
+
+        if let Some(old_hash) = old_hash {
+            let new_hash = fxhash::hash64(&source);
+            assert_eq!(new_hash, old_hash, "Serialization format has changed");
+        }
 
         write_to_file(&source, &PathBuf::from("./codegen/acir.cpp"));
     }
@@ -78,8 +89,14 @@ mod reflection {
 
         let registry = tracer.registry().unwrap();
 
-        let data = serde_json::to_vec(&registry).unwrap();
-        write_to_file(&data, &PathBuf::from("./codegen/witness.json"));
+        let path = PathBuf::from("./codegen/witness.cpp");
+
+        let old_hash = if path.is_file() {
+            let old_source = std::fs::read(path).unwrap();
+            Some(fxhash::hash64(&old_source))
+        } else {
+            None
+        };
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -87,6 +104,11 @@ mod reflection {
             .with_encodings(vec![serde_generate::Encoding::Bincode]);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
+
+        if let Some(old_hash) = old_hash {
+            let new_hash = fxhash::hash64(&source);
+            assert_eq!(new_hash, old_hash, "Serialization format has changed");
+        }
 
         write_to_file(&source, &PathBuf::from("./codegen/witness.cpp"));
     }

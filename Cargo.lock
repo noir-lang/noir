@@ -10,6 +10,7 @@ dependencies = [
  "bincode",
  "brillig",
  "flate2",
+ "fxhash",
  "serde",
  "serde-generate",
  "serde-reflection",
