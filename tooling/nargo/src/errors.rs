@@ -105,34 +105,35 @@ pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError,
     debug: &DebugInfo,
 ) -> Option<FileDiagnostic> {
-    if let NargoError::ExecutionError(execution_error) = nargo_err {
-        if let Some(source_locations) = extract_locations_from_error(execution_error, debug) {
-            // The location of the error itself will be the location at the top
-            // of the call stack (the last item in the Vec).
-            if let Some(location) = source_locations.last() {
-                let message = match nargo_err {
-                    NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
-                        format!("Assertion failed: '{message}'")
-                    }
-                    NargoError::ExecutionError(ExecutionError::SolvingError(
-                        OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
-                    )) => {
-                        format!(
-                                "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
-                            )
-                    }
-                    NargoError::ExecutionError(ExecutionError::SolvingError(
-                        OpcodeResolutionError::UnsatisfiedConstrain { .. },
-                    )) => "Failed constraint".into(),
-                    _ => nargo_err.to_string(),
-                };
-                return Some(
-                    CustomDiagnostic::simple_error(message, String::new(), location.span)
-                        .in_file(location.file)
-                        .with_call_stack(source_locations),
-                );
-            }
+    let execution_error = match nargo_err {
+        NargoError::ExecutionError(execution_error) => execution_error,
+        _ => return None,
+    };
+
+    let source_locations = extract_locations_from_error(execution_error, debug)?;
+
+    // The location of the error itself will be the location at the top
+    // of the call stack (the last item in the Vec).
+    let location = source_locations.last()?;
+
+    let message = match nargo_err {
+        NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
+            format!("Assertion failed: '{message}'")
         }
-    }
-    None
+        NargoError::ExecutionError(ExecutionError::SolvingError(
+            OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
+        )) => {
+            format!("Index out of bounds, array has size {array_size:?}, but index was {index:?}")
+        }
+        NargoError::ExecutionError(ExecutionError::SolvingError(
+            OpcodeResolutionError::UnsatisfiedConstrain { .. },
+        )) => "Failed constraint".into(),
+        _ => nargo_err.to_string(),
+    };
+
+    Some(
+        CustomDiagnostic::simple_error(message, String::new(), location.span)
+            .in_file(location.file)
+            .with_call_stack(source_locations),
+    )
 }
