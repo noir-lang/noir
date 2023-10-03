@@ -5,7 +5,8 @@ on:
     inputs:
       noir-ref:
         description: The noir reference to checkout
-        required: true
+        required: false
+        default: 'main'
 
 jobs:
   dispatch-nix-publish:

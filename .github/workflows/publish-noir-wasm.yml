@@ -5,7 +5,8 @@ on:
     inputs:
       noir-ref:
         description: The noir reference to checkout
-        required: true
+        required: false
+        default: 'main'
 
 jobs:
   dispatch-nix-publish:
@@ -20,6 +21,6 @@ jobs:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{
-            "noir-ref": "${{ github.event.inputs.noir-ref }}", # This line is fixed
+            "noir-ref": "${{ github.event.inputs.noir-ref }}",
             "package-name": "noir_wasm"
           }'
