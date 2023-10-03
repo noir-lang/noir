@@ -7,9 +7,6 @@ on:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
-env:
-  CI: true
-
 jobs:
   build-nargo:
     runs-on: ubuntu-latest
@@ -208,15 +205,6 @@ jobs:
         run: |
           npm i wasm-opt -g
 
-      - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - name: Deploy verifier contracts to Anvil
-        working-directory: compiler/integration-tests
-        run: bash ./scripts/setup-project.sh
-
       - name: Setup `integration-tests`
         run: |
           yarn workspace @noir-lang/source-resolver build
@@ -227,7 +215,7 @@ jobs:
 
       - name: Run `integration-tests`
         run: |
-          yarn test:integration
+          yarn test
 
       - name: Alert on nightly test failure
         uses: JasonEtco/create-an-issue@v2
