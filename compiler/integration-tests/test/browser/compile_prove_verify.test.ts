@@ -1,5 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import { TEST_LOG_LEVEL } from '../../environment.js';
+import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
@@ -7,6 +7,8 @@ import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { ethers } from 'ethers';
 import * as TOML from 'smol-toml';
+import { getFile } from './utils.js';
+import { separatePublicInputsFromProof } from '../shared/proof.js';
 
 const provider = new ethers.JsonRpcProvider('http://localhost:8545');
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
@@ -14,17 +16,6 @@ const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 await newCompiler();
 
 compilerLogLevel('INFO');
-
-async function getFile(file_path: string): Promise<string> {
-  const file_url = new URL(file_path, import.meta.url);
-  const response = await fetch(file_url);
-
-  if (!response.ok) throw new Error('Network response was not OK');
-
-  return await response.text();
-}
-
-const FIELD_ELEMENT_BYTES = 32;
 
 const test_cases = [
   {
@@ -34,7 +25,7 @@ const test_cases = [
     numPublicInputs: 0,
   },
   {
-    case: 'compiler/integration-tests/test/circuits/main',
+    case: 'compiler/integration-tests/circuits/main',
     compiled: 'compiler/integration-tests/foundry-project/out/main.sol/UltraVerifier.json',
     deployInformation: 'compiler/integration-tests/foundry-project/main_output.json',
     numPublicInputs: 1,
@@ -53,22 +44,6 @@ async function getCircuit(noirSource: string) {
   });
 
   return compile({});
-}
-
-function separatePublicInputsFromProof(
-  proof: Uint8Array,
-  numPublicInputs: number,
-): { proof: Uint8Array; publicInputs: Uint8Array[] } {
-  const publicInputs = Array.from({ length: numPublicInputs }, (_, i) => {
-    const offset = i * FIELD_ELEMENT_BYTES;
-    return proof.slice(offset, offset + FIELD_ELEMENT_BYTES);
-  });
-  const slicedProof = proof.slice(numPublicInputs * FIELD_ELEMENT_BYTES);
-
-  return {
-    proof: slicedProof,
-    publicInputs,
-  };
 }
 
 test_cases.forEach((testInfo) => {

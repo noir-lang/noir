@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from '@esm-bundle/chai';
-import { TEST_LOG_LEVEL } from '../../environment.js';
+import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
@@ -8,6 +8,7 @@ import { acvm, abi, generateWitness } from '@noir-lang/noir_js';
 
 import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { getFile } from './utils.js';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
@@ -21,16 +22,8 @@ await initACVM();
 compilerLogLevel('INFO');
 
 const base_relative_path = '../../../../..';
-const circuit_main = 'compiler/integration-tests/test/circuits/main';
-const circuit_recursion = 'compiler/integration-tests/test/circuits/recursion';
-
-async function getFile(url: URL): Promise<string> {
-  const response = await fetch(url);
-
-  if (!response.ok) throw new Error('Network response was not OK');
-
-  return await response.text();
-}
+const circuit_main = 'compiler/integration-tests/circuits/main';
+const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
 async function getCircuit(noirSource: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -48,18 +41,10 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
   let circuit_recursion_source;
 
   before(async () => {
-    const circuit_main_source_url = new URL(`${base_relative_path}/${circuit_main}/src/main.nr`, import.meta.url);
-    const circuit_main_toml_url = new URL(`${base_relative_path}/${circuit_main}/Prover.toml`, import.meta.url);
+    circuit_main_source = await getFile(`${base_relative_path}/${circuit_main}/src/main.nr`);
+    circuit_main_toml = await getFile(`${base_relative_path}/${circuit_main}/Prover.toml`);
 
-    circuit_main_source = await getFile(circuit_main_source_url);
-    circuit_main_toml = await getFile(circuit_main_toml_url);
-
-    const circuit_recursion_source_url = new URL(
-      `${base_relative_path}/${circuit_recursion}/src/main.nr`,
-      import.meta.url,
-    );
-
-    circuit_recursion_source = await getFile(circuit_recursion_source_url);
+    circuit_recursion_source = await getFile(`${base_relative_path}/${circuit_recursion}/src/main.nr`);
   });
 
   it('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
