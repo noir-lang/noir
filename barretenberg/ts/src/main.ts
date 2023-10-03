@@ -126,7 +126,15 @@ export async function prove(
 export async function gateCount(bytecodePath: string) {
   const api = await Barretenberg.new(1);
   try {
-    process.stdout.write(`${await getGates(bytecodePath, api)}`);
+    const numberOfGates = await getGates(bytecodePath, api);
+
+    // Create an 8-byte buffer and write the number into it.
+    // Writing number directly to stdout will result in a variable sized
+    // input depending on the size.
+    const buffer = Buffer.alloc(8);
+    buffer.writeBigInt64LE(BigInt(numberOfGates));
+
+    process.stdout.write(buffer);
   } finally {
     await api.destroy();
   }
