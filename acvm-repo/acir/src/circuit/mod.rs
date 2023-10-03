@@ -137,7 +137,7 @@ impl Circuit {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
         gz_decoder.read_to_end(&mut buf_d).unwrap();
-        let circuit = bincode::deserialize(buf_d.as_slice()).unwrap();
+        let circuit = bincode::deserialize(&buf_d).unwrap();
         Ok(circuit)
     }
 }
