@@ -21,6 +21,7 @@ export class Noir {
 
   // Initial inputs to your program
   async generateFinalProof(inputs: any): Promise<Uint8Array> {
+    await this.init();
     const serializedWitness = await generateWitness(this.circuit, inputs);
     return this.backend.generateFinalProof(serializedWitness);
   }

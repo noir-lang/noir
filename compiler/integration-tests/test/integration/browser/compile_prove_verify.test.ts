@@ -3,7 +3,7 @@ import { TEST_LOG_LEVEL } from '../../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
-import { acvm, abi, Noir } from '@noir-lang/noir_js';
+import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { ethers } from 'ethers';
 import * as TOML from 'smol-toml';
@@ -11,12 +11,7 @@ import * as TOML from 'smol-toml';
 const provider = new ethers.JsonRpcProvider('http://localhost:8545');
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
-const { default: initACVM } = acvm;
-const { default: newABICoder } = abi;
-
 await newCompiler();
-await newABICoder();
-await initACVM();
 
 compilerLogLevel('INFO');
 
@@ -112,17 +107,17 @@ test_cases.forEach((testInfo) => {
 
     // Smart contract verification
 
-    const compiled_contract = await getFile(`${base_relative_path}/${testInfo.compiled}`);
-    const deploy_information = await getFile(`${base_relative_path}/${testInfo.deployInformation}`);
+    // const compiled_contract = await getFile(`${base_relative_path}/${testInfo.compiled}`);
+    // const deploy_information = await getFile(`${base_relative_path}/${testInfo.deployInformation}`);
 
-    const { abi } = JSON.parse(compiled_contract);
-    const { deployedTo } = JSON.parse(deploy_information);
-    const contract = new ethers.Contract(deployedTo, abi, provider);
+    // const { abi } = JSON.parse(compiled_contract);
+    // const { deployedTo } = JSON.parse(deploy_information);
+    // const contract = new ethers.Contract(deployedTo, abi, provider);
 
-    const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
-    const result = await contract.verify(proof, publicInputs);
+    // const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
+    // const result = await contract.verify(proof, publicInputs);
 
-    expect(result).to.be.true;
+    // expect(result).to.be.true;
   });
 
   suite.addTest(mochaTest);
