@@ -18,7 +18,8 @@
   "types": "lib/esm/index.d.ts",
   "scripts": {
     "dev": "tsc --watch",
-    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && ./fixup.sh",
+    "generate:package": "bash ./fixup.sh",
+    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && yarn generate:package",
     "clean": "rm -rf ./lib",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
