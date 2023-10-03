@@ -544,11 +544,7 @@ impl GeneratedAcir {
         let r_witness = self.next_witness_index();
 
         let quotient_code = brillig_directive::directive_quotient(max_bit_size);
-        let inputs = vec![
-            BrilligInputs::Single(lhs),
-            BrilligInputs::Single(rhs),
-            BrilligInputs::Single(predicate.clone()),
-        ];
+        let inputs = vec![BrilligInputs::Single(lhs), BrilligInputs::Single(rhs)];
         let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
         self.brillig(Some(predicate), quotient_code, inputs, outputs);
 
@@ -581,10 +577,6 @@ impl GeneratedAcir {
             num_bits::<u128>() as u32 - a.leading_zeros()
         }
 
-        fn bit_size_u32(a: u32) -> u32 where {
-            num_bits::<u32>() as u32 - a.leading_zeros()
-        }
-
         assert!(
             bits < FieldElement::max_num_bits(),
             "range check with bit size of the prime field is not implemented yet"
@@ -604,10 +596,12 @@ impl GeneratedAcir {
             // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
             let bit_size = bit_size_u128(rhs_offset);
-            // r = 2^bit_size - rhs_offset
+            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construtction
             let r = (1_u128 << bit_size) - rhs_offset - 1;
+            // however, since it is a constant, we can compute it's actual bit size
+            let r_bit_size = bit_size_u128(r);
             // witness = lhs_offset + r
-            assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
+            assert!(bits + r_bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
             let witness = self.get_or_create_witness(&aor);
@@ -615,28 +609,12 @@ impl GeneratedAcir {
             self.range_constraint(witness, bit_size)?;
             return Ok(());
         }
-
         // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
         let sub_expression = rhs - &lhs_offset; //rhs-lhs_offset
         let w = self.create_witness_for_expression(&sub_expression);
         self.range_constraint(w, bits)?;
 
         Ok(())
-    }
-
-    /// Computes the expression x(x-1)
-    ///
-    /// If the above is constrained to zero, then it can only be
-    /// true, iff x equals zero or one.
-    fn boolean_expr(&mut self, expr: &Expression) -> Expression {
-        let expr_as_witness = self.create_witness_for_expression(expr);
-        let mut expr_squared = Expression::default();
-        expr_squared.push_multiplication_term(
-            FieldElement::one(),
-            expr_as_witness,
-            expr_as_witness,
-        );
-        &expr_squared - expr
     }
 
     /// Adds an inversion brillig opcode.

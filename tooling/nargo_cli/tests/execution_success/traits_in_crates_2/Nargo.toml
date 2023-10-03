@@ -1,0 +1,9 @@
+[package]
+name = "traits_in_crates_2"
+type = "bin"
+authors = [""]
+compiler_version = "0.12.0"
+
+[dependencies]
+crate1 = { path = "crate1" }
+crate2 = { path = "crate2" }

@@ -1,162 +1,129 @@
-import { expect } from "@esm-bundle/chai";
-import { initializeResolver } from "@noir-lang/source-resolver";
-import newCompiler, {
-  compile,
-  init_log_level as compilerLogLevel,
-} from "@noir-lang/noir_wasm";
-import { Barretenberg, RawBuffer, Crs } from "@aztec/bb.js";
-import { acvm, abi } from "@noir-lang/noir_js";
-import { decompressSync as gunzip } from "fflate";
+import { expect } from '@esm-bundle/chai';
+import { TEST_LOG_LEVEL } from '../../environment.js';
+import { Logger } from 'tslog';
+import { initializeResolver } from '@noir-lang/source-resolver';
+import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
+import { acvm, abi, Noir } from '@noir-lang/noir_js';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { ethers } from 'ethers';
+import * as TOML from 'smol-toml';
 
-import * as TOML from "smol-toml";
+const provider = new ethers.JsonRpcProvider('http://localhost:8545');
+const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
-const { default: initACVM, executeCircuit, compressWitness } = acvm;
-const { default: newABICoder, abiEncode } = abi;
-
-type WitnessMap = acvm.WitnessMap;
+const { default: initACVM } = acvm;
+const { default: newABICoder } = abi;
 
 await newCompiler();
 await newABICoder();
 await initACVM();
 
-compilerLogLevel("DEBUG");
+compilerLogLevel('INFO');
 
-async function getFile(url: URL): Promise<string> {
-  const response = await fetch(url);
+async function getFile(file_path: string): Promise<string> {
+  const file_url = new URL(file_path, import.meta.url);
+  const response = await fetch(file_url);
 
-  if (!response.ok) throw new Error("Network response was not OK");
+  if (!response.ok) throw new Error('Network response was not OK');
 
   return await response.text();
 }
 
-const CIRCUIT_SIZE = 2 ** 19;
+const FIELD_ELEMENT_BYTES = 32;
 
 const test_cases = [
   {
-    case: "tooling/nargo_cli/tests/execution_success/1_mul",
+    case: 'tooling/nargo_cli/tests/execution_success/1_mul',
+    compiled: 'compiler/integration-tests/foundry-project/out/1_mul.sol/UltraVerifier.json',
+    deployInformation: 'compiler/integration-tests/foundry-project/mul_output.json',
+    numPublicInputs: 0,
   },
   {
-    case: "tooling/nargo_cli/tests/execution_success/double_verify_proof",
+    case: 'compiler/integration-tests/test/circuits/main',
+    compiled: 'compiler/integration-tests/foundry-project/out/main.sol/UltraVerifier.json',
+    deployInformation: 'compiler/integration-tests/foundry-project/main_output.json',
+    numPublicInputs: 1,
   },
 ];
 
-const numberOfThreads = navigator.hardwareConcurrency || 1;
-
-const suite = Mocha.Suite.create(mocha.suite, "Noir end to end test");
+const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
 
 suite.timeout(60 * 20e3); //20mins
 
+async function getCircuit(noirSource: string) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  initializeResolver((id: string) => {
+    logger.debug('source-resolver: resolving:', id);
+    return noirSource;
+  });
+
+  return compile({});
+}
+
+function separatePublicInputsFromProof(
+  proof: Uint8Array,
+  numPublicInputs: number,
+): { proof: Uint8Array; publicInputs: Uint8Array[] } {
+  const publicInputs = Array.from({ length: numPublicInputs }, (_, i) => {
+    const offset = i * FIELD_ELEMENT_BYTES;
+    return proof.slice(offset, offset + FIELD_ELEMENT_BYTES);
+  });
+  const slicedProof = proof.slice(numPublicInputs * FIELD_ELEMENT_BYTES);
+
+  return {
+    proof: slicedProof,
+    publicInputs,
+  };
+}
+
 test_cases.forEach((testInfo) => {
-  const test_name = testInfo.case.split("/").pop();
-  const mochaTest = new Mocha.Test(
-    `${test_name} (Compile, Execute, Prove, Verify)`,
-    async () => {
-      const base_relative_path = "../../../../..";
-      const test_case = testInfo.case;
+  const test_name = testInfo.case.split('/').pop();
+  const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Prove, Verify)`, async () => {
+    const base_relative_path = '../../../../..';
+    const test_case = testInfo.case;
 
-      const noir_source_url = new URL(
-        `${base_relative_path}/${test_case}/src/main.nr`,
-        import.meta.url,
-      );
-      const prover_toml_url = new URL(
-        `${base_relative_path}/${test_case}/Prover.toml`,
-        import.meta.url,
-      );
+    const noir_source = await getFile(`${base_relative_path}/${test_case}/src/main.nr`);
 
-      const noir_source = await getFile(noir_source_url);
-      const prover_toml = await getFile(prover_toml_url);
+    let compile_output;
+    try {
+      compile_output = await getCircuit(noir_source);
 
-      expect(noir_source).to.be.a.string;
+      expect(await compile_output, 'Compile output ').to.be.an('object');
+    } catch (e) {
+      expect(e, 'Compilation Step').to.not.be.an('error');
+      throw e;
+    }
 
-      initializeResolver((id: string) => {
-        console.log("Resolving:", id);
-        return noir_source;
-      });
+    const noir_program = { bytecode: compile_output.circuit, abi: compile_output.abi };
+    const backend = new BarretenbergBackend(noir_program);
+    const program = new Noir(noir_program, backend);
 
-      const inputs = TOML.parse(prover_toml);
+    const prover_toml = await getFile(`${base_relative_path}/${test_case}/Prover.toml`);
+    const inputs = TOML.parse(prover_toml);
 
-      expect(inputs, "Prover.toml").to.be.an("object");
+    // JS Proving
 
-      let compile_output;
+    const proofWithPublicInputs = await program.generateFinalProof(inputs);
 
-      try {
-        compile_output = await compile({});
+    // JS verification
 
-        expect(await compile_output, "Compile output ").to.be.an("object");
-      } catch (e) {
-        expect(e, "Compilation Step").to.not.be.an("error");
-        throw e;
-      }
+    const verified = await program.verifyFinalProof(proofWithPublicInputs);
+    expect(verified, 'Proof fails verification in JS').to.be.true;
 
-      let witnessMap: WitnessMap;
-      try {
-        witnessMap = abiEncode(compile_output.abi, inputs, null);
-      } catch (e) {
-        expect(e, "Abi Encoding Step").to.not.be.an("error");
-        throw e;
-      }
+    // Smart contract verification
 
-      let solvedWitness: WitnessMap;
-      let compressedByteCode;
-      try {
-        compressedByteCode = Uint8Array.from(
-          atob(compile_output.circuit),
-          (c) => c.charCodeAt(0),
-        );
+    const compiled_contract = await getFile(`${base_relative_path}/${testInfo.compiled}`);
+    const deploy_information = await getFile(`${base_relative_path}/${testInfo.deployInformation}`);
 
-        solvedWitness = await executeCircuit(
-          compressedByteCode,
-          witnessMap,
-          () => {
-            throw Error("unexpected oracle");
-          },
-        );
-      } catch (e) {
-        expect(e, "Abi Encoding Step").to.not.be.an("error");
-        throw e;
-      }
+    const { abi } = JSON.parse(compiled_contract);
+    const { deployedTo } = JSON.parse(deploy_information);
+    const contract = new ethers.Contract(deployedTo, abi, provider);
 
-      try {
-        const compressedWitness = compressWitness(solvedWitness);
-        const acirUint8Array = gunzip(compressedByteCode);
-        const witnessUint8Array = gunzip(compressedWitness);
+    const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
+    const result = await contract.verify(proof, publicInputs);
 
-        const isRecursive = true;
-        const api = await Barretenberg.new(numberOfThreads);
-        await api.commonInitSlabAllocator(CIRCUIT_SIZE);
-
-        // Plus 1 needed!
-        const crs = await Crs.new(CIRCUIT_SIZE + 1);
-        await api.srsInitSrs(
-          new RawBuffer(crs.getG1Data()),
-          crs.numPoints,
-          new RawBuffer(crs.getG2Data()),
-        );
-
-        const acirComposer = await api.acirNewAcirComposer(CIRCUIT_SIZE);
-
-        // This took ~6.5 minutes!
-        const proof = await api.acirCreateProof(
-          acirComposer,
-          acirUint8Array,
-          witnessUint8Array,
-          isRecursive,
-        );
-
-        // And this took ~5 minutes!
-        const verified = await api.acirVerifyProof(
-          acirComposer,
-          proof,
-          isRecursive,
-        );
-
-        expect(verified).to.be.true;
-      } catch (e) {
-        expect(e, "Proving and Verifying").to.not.be.an("error");
-        throw e;
-      }
-    },
-  );
+    expect(result).to.be.true;
+  });
 
   suite.addTest(mochaTest);
 });

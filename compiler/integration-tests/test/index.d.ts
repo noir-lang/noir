@@ -1,1 +1,1 @@
-declare module "@aztec/bb.js";
+declare module '@aztec/bb.js';

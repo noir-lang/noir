@@ -1,5 +1,5 @@
 use acvm::acir::circuit::Circuit;
-use noirc_abi::Abi;
+use noirc_abi::{Abi, ContractEvent};
 use noirc_driver::ContractFunctionType;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +16,8 @@ pub struct PreprocessedContract {
     pub backend: String,
     /// Each of the contract's functions are compiled into a separate program stored in this `Vec`.
     pub functions: Vec<PreprocessedContractFunction>,
+    /// All the events defined inside the contract scope.
+    pub events: Vec<ContractEvent>,
 }
 
 /// Each function in the contract will be compiled as a separate noir program.

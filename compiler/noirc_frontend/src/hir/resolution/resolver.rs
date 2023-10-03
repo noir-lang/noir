@@ -105,6 +105,11 @@ struct ResolverMeta {
     warn_if_unused: bool,
 }
 
+pub enum ResolvePathError {
+    WrongKind,
+    NotFound,
+}
+
 impl<'a> Resolver<'a> {
     pub fn new(
         interner: &'a mut NodeInterner,
@@ -672,7 +677,7 @@ impl<'a> Resolver<'a> {
     ) -> Vec<TraitConstraint> {
         vecmap(where_clause, |constraint| TraitConstraint {
             typ: self.resolve_type(constraint.typ.clone()),
-            trait_id: constraint.trait_bound.trait_id,
+            trait_id: constraint.trait_bound.trait_id.unwrap_or_else(TraitId::dummy_id),
         })
     }
 
@@ -1370,8 +1375,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
-        self.interner.get_trait(type_id)
+    pub fn get_trait(&self, trait_id: TraitId) -> Trait {
+        self.interner.get_trait(trait_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
@@ -1570,6 +1575,7 @@ mod test {
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::resolution::resolver::StmtId;
 
+    use super::{PathResolver, Resolver};
     use crate::graph::CrateId;
     use crate::hir_def::expr::HirExpression;
     use crate::hir_def::stmt::HirStatement;
@@ -1579,8 +1585,7 @@ mod test {
         hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
         parse_program, Path,
     };
-
-    use super::{PathResolver, Resolver};
+    use noirc_errors::CustomDiagnostic;
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
@@ -1589,7 +1594,10 @@ mod test {
     ) -> (ParsedModule, NodeInterner, BTreeMap<CrateId, CrateDefMap>, FileId, TestPathResolver)
     {
         let (program, errors) = parse_program(src);
-        if errors.iter().any(|e| e.is_error()) {
+        if errors.iter().any(|e| {
+            let diagnostic: CustomDiagnostic = e.clone().into();
+            diagnostic.is_error()
+        }) {
             panic!("Unexpected parse errors in test code: {:?}", errors);
         }
 
@@ -1753,7 +1761,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main"]);
 
         // There should only be one error
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 1, "Expected 1 error, got: {errors:?}");
 
         // It should be regarding the unused variable
         match &errors[0] {
@@ -1823,7 +1831,7 @@ mod test {
         "#;
 
         let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
+        assert!(errors.len() == 3, "Expected 3 errors, got: {errors:?}");
 
         // Errors are:
         // `a` is undeclared
@@ -1899,7 +1907,7 @@ mod test {
         "#;
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
+            println!("Unexpected errors: {errors:?}");
             unreachable!("there should be no errors");
         }
     }
@@ -1971,7 +1979,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
+            println!("Unexpected errors: {errors:?}");
             unreachable!("there should be no errors");
         }
 
@@ -2013,7 +2021,7 @@ mod test {
         "#;
 
         let errors = resolve_src_code(src, vec!["main", "println"]);
-        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {errors:?}");
 
         for err in errors {
             match &err {

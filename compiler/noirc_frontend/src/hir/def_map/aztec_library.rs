@@ -1,7 +1,8 @@
 use acvm::FieldElement;
-use noirc_errors::{CustomDiagnostic, Span};
+use noirc_errors::Span;
 
 use crate::graph::CrateId;
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
@@ -14,7 +15,7 @@ use crate::{
     FunctionDefinition, NoirStruct, PrefixExpression, Signedness, TypeImpl, UnaryOp,
     UnresolvedTypeExpression,
 };
-use noirc_errors::FileDiagnostic;
+use fm::FileId;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -158,8 +159,7 @@ pub(crate) fn transform(
     mut ast: ParsedModule,
     crate_id: &CrateId,
     context: &Context,
-    errors: &mut Vec<FileDiagnostic>,
-) -> ParsedModule {
+) -> Result<ParsedModule, (DefCollectorErrorKind, FileId)> {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
@@ -167,11 +167,15 @@ pub(crate) fn transform(
         let storage_defined = check_for_storage_definition(&submodule.contents);
 
         if transform_module(&mut submodule.contents, storage_defined) {
-            check_for_aztec_dependency(crate_id, context, errors);
-            include_relevant_imports(&mut submodule.contents);
+            match check_for_aztec_dependency(crate_id, context) {
+                Ok(()) => include_relevant_imports(&mut submodule.contents),
+                Err(file_id) => {
+                    return Err((DefCollectorErrorKind::AztecNotFound {}, file_id));
+                }
+            }
         }
     }
-    ast
+    Ok(ast)
 }
 
 /// Includes an import to the aztec library if it has not been included yet
@@ -190,21 +194,13 @@ fn include_relevant_imports(ast: &mut ParsedModule) {
 }
 
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
-fn check_for_aztec_dependency(
-    crate_id: &CrateId,
-    context: &Context,
-    errors: &mut Vec<FileDiagnostic>,
-) {
+fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<(), FileId> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
-
-    if !has_aztec_dependency {
-        errors.push(FileDiagnostic::new(
-            crate_graph.root_file_id,
-            CustomDiagnostic::from_message(
-                "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml",
-            ),
-        ));
+    if has_aztec_dependency {
+        Ok(())
+    } else {
+        Err(crate_graph.root_file_id)
     }
 }
 
@@ -603,9 +599,9 @@ fn make_return_push_array(push_value: Expression) -> Statement {
 /// `context.return_values.push_array({push_value}.serialize())`
 fn make_struct_return_type(expression: Expression) -> Statement {
     let serialized_call = method_call(
-        expression.clone(), // variable
-        "serialize",        // method name
-        vec![],             // args
+        expression,  // variable
+        "serialize", // method name
+        vec![],      // args
     );
     make_return_push_array(serialized_call)
 }
@@ -627,7 +623,7 @@ fn make_array_return_type(expression: Expression) -> Statement {
         vec![inner_cast_expression],
     ));
 
-    create_loop_over(expression.clone(), vec![assignment])
+    create_loop_over(expression, vec![assignment])
 }
 
 /// Castable return type
@@ -638,7 +634,7 @@ fn make_array_return_type(expression: Expression) -> Statement {
 /// ```
 fn make_castable_return_type(expression: Expression) -> Statement {
     // Cast these types to a field before pushing
-    let cast_expression = cast(expression.clone(), UnresolvedTypeData::FieldElement);
+    let cast_expression = cast(expression, UnresolvedTypeData::FieldElement);
     make_return_push(cast_expression)
 }
 
@@ -723,9 +719,9 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // `array.len()`
     let end_range_expression = method_call(
-        var.clone(), // variable
-        "len",       // method name
-        vec![],      // args
+        var,    // variable
+        "len",  // method name
+        vec![], // args
     );
 
     // What will be looped over

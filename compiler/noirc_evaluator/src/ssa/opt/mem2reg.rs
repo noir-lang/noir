@@ -70,7 +70,6 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -100,7 +99,6 @@ impl Ssa {
 struct PerFunctionContext<'f> {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
-    dom_tree: DominatorTree,
 
     blocks: BTreeMap<BasicBlockId, Block>,
 
@@ -117,12 +115,10 @@ impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         PerFunctionContext {
             cfg,
             post_order,
-            dom_tree,
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),

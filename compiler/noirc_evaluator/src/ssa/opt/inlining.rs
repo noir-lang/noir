@@ -88,9 +88,6 @@ struct PerFunctionContext<'function> {
     /// block.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
-    /// Maps InstructionIds from the function being inlined to the function being inlined into.
-    instructions: HashMap<InstructionId, InstructionId>,
-
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
 }
@@ -191,7 +188,6 @@ impl<'function> PerFunctionContext<'function> {
             context,
             source_function,
             blocks: HashMap::default(),
-            instructions: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
         }

@@ -1,5 +1,5 @@
 [package]
-name = "cconditional_regression_to_bits"
+name = "conditional_regression_to_bits"
 type = "bin"
 authors = [""]
 compiler_version = "0.1"

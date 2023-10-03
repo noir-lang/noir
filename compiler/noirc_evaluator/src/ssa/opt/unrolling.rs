@@ -75,7 +75,6 @@ struct Loops {
     yet_to_unroll: Vec<Loop>,
     modified_blocks: HashSet<BasicBlockId>,
     cfg: ControlFlowGraph,
-    dom_tree: DominatorTree,
 }
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
@@ -109,7 +108,6 @@ fn find_all_loops(function: &Function) -> Loops {
         yet_to_unroll: loops,
         modified_blocks: HashSet::new(),
         cfg,
-        dom_tree,
     }
 }
 

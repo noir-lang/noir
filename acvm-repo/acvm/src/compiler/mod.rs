@@ -94,7 +94,7 @@ pub fn compile(
     for opcode in acir.opcodes {
         match opcode {
             Opcode::Arithmetic(arith_expr) => {
-                opcodes.push(Opcode::Arithmetic(GeneralOptimizer::optimize(arith_expr)))
+                opcodes.push(Opcode::Arithmetic(GeneralOptimizer::optimize(arith_expr)));
             }
             other_opcode => opcodes.push(other_opcode),
         };
@@ -168,7 +168,7 @@ pub fn compile(
                 match func {
                     acir::circuit::opcodes::BlackBoxFuncCall::AND { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
-                        transformer.mark_solvable(*output)
+                        transformer.mark_solvable(*output);
                     }
                     acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. } => (),
                     acir::circuit::opcodes::BlackBoxFuncCall::SHA256 { outputs, .. }
@@ -192,7 +192,7 @@ pub fn compile(
                     }
                     | acir::circuit::opcodes::BlackBoxFuncCall::Pedersen { outputs, .. } => {
                         transformer.mark_solvable(outputs.0);
-                        transformer.mark_solvable(outputs.1)
+                        transformer.mark_solvable(outputs.1);
                     }
                     acir::circuit::opcodes::BlackBoxFuncCall::HashToField128Security {
                         output,
@@ -201,7 +201,7 @@ pub fn compile(
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. } => {
-                        transformer.mark_solvable(*output)
+                        transformer.mark_solvable(*output);
                     }
                 }
 

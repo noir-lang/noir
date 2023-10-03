@@ -20,7 +20,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
     show_output: bool,
     config: &CompileOptions,
 ) -> TestStatus {
-    let program = compile_no_check(context, config, test_function.get_id(), None);
+    let program = compile_no_check(context, config, test_function.get_id(), None, false);
     match program {
         Ok(program) => {
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
@@ -56,7 +56,16 @@ fn test_status_program_compile_fail(
         return TestStatus::CompileError(diag);
     }
 
-    check_expected_failure_message(test_function, &diag.diagnostic.message)
+    // Given "Failed constraint: 'reason'"
+    // This method will return "reason"
+    fn extract_constraint_error_message(input: &str) -> Option<String> {
+        input.split(": '").nth(1)?.split('\'').next().map(str::to_string)
+    }
+
+    check_expected_failure_message(
+        test_function,
+        &extract_constraint_error_message(&diag.diagnostic.message).unwrap(),
+    )
 }
 
 /// The test function compiled successfully.
