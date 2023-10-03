@@ -1484,20 +1484,15 @@ impl<'a> Resolver<'a> {
 
     // this resolves a static trait method T::trait_method by iterating over the where clause
     fn resolve_trait_method_by_named_generic(&mut self, path: &Path) -> Option<HirExpression> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+
         for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
             if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
-                // if we're attempting to resolve `T::U::V::some_method`
-                // we care about constraints of the form `T::U::V: SomeTrait`
-
-                let mut is_match = path.segments.len() == constraint_path.segments.len() + 1;
-                for (idx, ident) in constraint_path.segments.iter().enumerate() {
-                    if *ident != path.segments[idx] {
-                        is_match = false;
-                        break;
-                    }
-                }
-                if !is_match {
-                    continue;
+                // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
+                if constraint_path.segments.len() == 1 && path.segments[0] != constraint_path.last_segment() {
+                    continue
                 }
 
                 if let Ok(ModuleDefId::TraitId(trait_id)) =
