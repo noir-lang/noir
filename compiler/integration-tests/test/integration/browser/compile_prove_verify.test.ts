@@ -107,17 +107,17 @@ test_cases.forEach((testInfo) => {
 
     // Smart contract verification
 
-    // const compiled_contract = await getFile(`${base_relative_path}/${testInfo.compiled}`);
-    // const deploy_information = await getFile(`${base_relative_path}/${testInfo.deployInformation}`);
+    const compiled_contract = await getFile(`${base_relative_path}/${testInfo.compiled}`);
+    const deploy_information = await getFile(`${base_relative_path}/${testInfo.deployInformation}`);
 
-    // const { abi } = JSON.parse(compiled_contract);
-    // const { deployedTo } = JSON.parse(deploy_information);
-    // const contract = new ethers.Contract(deployedTo, abi, provider);
+    const { abi } = JSON.parse(compiled_contract);
+    const { deployedTo } = JSON.parse(deploy_information);
+    const contract = new ethers.Contract(deployedTo, abi, provider);
 
-    // const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
-    // const result = await contract.verify(proof, publicInputs);
+    const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
+    const result = await contract.verify(proof, publicInputs);
 
-    // expect(result).to.be.true;
+    expect(result).to.be.true;
   });
 
   suite.addTest(mochaTest);
