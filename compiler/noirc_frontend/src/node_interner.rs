@@ -118,6 +118,9 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+    
+    /// Trait implementations on primitive types
+    primitive_trait_impls: HashMap<(Type, String), FuncId>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -382,6 +385,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            primitive_trait_impls: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -870,9 +874,27 @@ impl NodeInterner {
 
     pub fn add_trait_implementation(&mut self, key: &TraitImplKey, trait_impl: Shared<TraitImpl>) {
         self.trait_implementations.insert(key.clone(), trait_impl.clone());
-
         for func_id in &trait_impl.borrow().methods {
-            self.add_method(&key.typ, self.function_name(func_id).to_owned(), *func_id);
+            let method_name = self.function_name(func_id).to_owned();
+            match &key.typ {
+                Type::Struct(struct_type, _generics) => {
+                    let key = (struct_type.borrow().id, method_name);
+                    self.struct_methods.insert(key, *func_id);
+                }
+                Type::FieldElement
+                | Type::Array(..)
+                | Type::Integer(..)
+                | Type::Bool
+                | Type::Tuple(..)
+                | Type::String(..) => {
+                    let key = (key.typ.clone(), method_name);
+                    self.primitive_trait_impls.insert(key, *func_id);
+                }
+                Type::Error => {}
+                _ => {
+                    unreachable!("Cannot add a method to the unsupported type '{}'", key.typ)
+                }
+            }
         }
     }
 
@@ -885,6 +907,10 @@ impl NodeInterner {
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         get_type_method_key(typ)
             .and_then(|key| self.primitive_methods.get(&(key, method_name.to_owned())).copied())
+    }
+
+    pub fn lookup_primitive_trait_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
+        self.primitive_trait_impls.get(&(typ.clone(), method_name.to_string())).copied()
     }
 }
 
@@ -926,5 +952,28 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::NotConstant
         | Type::Struct(_, _)
         | Type::FmtString(_, _) => None,
+    }
+}
+
+pub fn allow_trait_impl_for_type(typ: &Type) -> bool {
+    match &typ {
+        Type::FieldElement
+        | Type::Array(..)
+        | Type::Integer(..)
+        | Type::Bool
+        | Type::Struct(..)
+        | Type::Tuple(..)
+        | Type::String(..) => true,
+
+        Type::FmtString(..)
+        | Type::Unit
+        | Type::TypeVariable(..)
+        | Type::NamedGeneric(..)
+        | Type::Function(..)
+        | Type::MutableReference(..)
+        | Type::Forall(..)
+        | Type::Constant(..)
+        | Type::NotConstant
+        | Type::Error => false,
     }
 }

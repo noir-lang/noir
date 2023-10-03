@@ -900,7 +900,11 @@ impl<'interner> TypeChecker<'interner> {
 
             // In the future we could support methods for non-struct types if we have a context
             // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self.interner.lookup_primitive_method(other, method_name) {
+            other => match self
+                .interner
+                .lookup_primitive_method(other, method_name)
+                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
