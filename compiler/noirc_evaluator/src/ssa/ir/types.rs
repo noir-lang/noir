@@ -78,6 +78,20 @@ impl Type {
         }
     }
 
+    pub(crate) fn contains_slice_element(&self) -> bool {
+        match self {
+            Type::Array(elements, _) => {
+                elements.iter().any(|element| element.contains_slice_element())
+            }
+            Type::Slice(_) => true,
+            Type::Numeric(_) => false,
+            // TODO: look at if we need special handling for references
+            _ => {
+                unreachable!("ICE: expected array or slice type");
+            }
+        }
+    }
+
     /// Returns the flattened size of a Type
     pub(crate) fn flattened_size(&self) -> usize {
         let mut size = 0;
