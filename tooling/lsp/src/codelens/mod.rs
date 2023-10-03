@@ -27,6 +27,10 @@ const COMPILE_CODELENS_TITLE: &str = "Compile";
 const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
 
+fn with_arrow(title: &str) -> String {
+    format!("{ARROW} {title}")
+}
+
 fn package_selection_args(workspace: &Workspace, package: &Package) -> Vec<serde_json::Value> {
     vec![
         "--program-dir".into(),
@@ -109,7 +113,7 @@ pub(super) fn on_code_lens_request(
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
             let test_command = Command {
-                title: format!("{ARROW} {TEST_CODELENS_TITLE}"),
+                title: with_arrow(TEST_CODELENS_TITLE),
                 command: TEST_COMMAND.into(),
                 arguments: Some(
                     [
@@ -142,7 +146,7 @@ pub(super) fn on_code_lens_request(
                     byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
                 let compile_command = Command {
-                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
+                    title: with_arrow(COMPILE_CODELENS_TITLE),
                     command: COMPILE_COMMAND.into(),
                     arguments: Some(package_selection_args(&workspace, package)),
                 };
@@ -181,7 +185,7 @@ pub(super) fn on_code_lens_request(
                     byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
                 let compile_command = Command {
-                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
+                    title: with_arrow(COMPILE_CODELENS_TITLE),
                     command: COMPILE_COMMAND.into(),
                     arguments: Some(package_selection_args(&workspace, package)),
                 };
