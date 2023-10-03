@@ -38,7 +38,8 @@ async function getCircuit(noirSource: string) {
     return noirSource;
   });
 
-  return compile({});
+  // We're ignoring this in the resolver but pass in something sensible.
+  return compile('/main.nr');
 }
 
 test_cases.forEach((testInfo) => {
