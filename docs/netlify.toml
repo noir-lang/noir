@@ -169,3 +169,8 @@
 [[redirects]]
     from = "/dev_docs/contracts/syntax/state_variables"
     to = "/dev_docs/contracts/syntax/storage"
+
+
+[[redirects]]
+    from = "/misc/aztec-connect-sunset"
+    to = "misc/aztec_connect_sunset"
