@@ -24,6 +24,9 @@ bincode.workspace = true
 serde_json = "1.0"
 strum = "0.24"
 strum_macros = "0.24"
+serde-reflection = "0.3.6"
+serde-generate = "0.25.1"
+fxhash.workspace = true
 
 [features]
 default = ["bn254"]

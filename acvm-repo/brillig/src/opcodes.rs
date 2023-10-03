@@ -57,7 +57,7 @@ pub enum RegisterOrMemory {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Opcode {
+pub enum BrilligOpcode {
     /// Takes the fields in registers `lhs` and `rhs`
     /// Performs the specified binary operation
     /// and stores the value in the `result` register.  
@@ -133,24 +133,24 @@ pub enum Opcode {
     Stop,
 }
 
-impl Opcode {
+impl BrilligOpcode {
     pub fn name(&self) -> &'static str {
         match self {
-            Opcode::BinaryFieldOp { .. } => "binary_field_op",
-            Opcode::BinaryIntOp { .. } => "binary_int_op",
-            Opcode::JumpIfNot { .. } => "jmp_if_not",
-            Opcode::JumpIf { .. } => "jmp_if",
-            Opcode::Jump { .. } => "jmp",
-            Opcode::Call { .. } => "call",
-            Opcode::Const { .. } => "const",
-            Opcode::Return => "return",
-            Opcode::ForeignCall { .. } => "foreign_call",
-            Opcode::Mov { .. } => "mov",
-            Opcode::Load { .. } => "load",
-            Opcode::Store { .. } => "store",
-            Opcode::BlackBox(_) => "black_box",
-            Opcode::Trap => "trap",
-            Opcode::Stop => "stop",
+            BrilligOpcode::BinaryFieldOp { .. } => "binary_field_op",
+            BrilligOpcode::BinaryIntOp { .. } => "binary_int_op",
+            BrilligOpcode::JumpIfNot { .. } => "jmp_if_not",
+            BrilligOpcode::JumpIf { .. } => "jmp_if",
+            BrilligOpcode::Jump { .. } => "jmp",
+            BrilligOpcode::Call { .. } => "call",
+            BrilligOpcode::Const { .. } => "const",
+            BrilligOpcode::Return => "return",
+            BrilligOpcode::ForeignCall { .. } => "foreign_call",
+            BrilligOpcode::Mov { .. } => "mov",
+            BrilligOpcode::Load { .. } => "load",
+            BrilligOpcode::Store { .. } => "store",
+            BrilligOpcode::BlackBox(_) => "black_box",
+            BrilligOpcode::Trap => "trap",
+            BrilligOpcode::Stop => "stop",
         }
     }
 }
