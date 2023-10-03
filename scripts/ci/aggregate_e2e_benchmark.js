@@ -11,7 +11,9 @@ const {
   L1_ROLLUP_CALLDATA_SIZE_IN_BYTES,
   L1_ROLLUP_CALLDATA_GAS,
   L1_ROLLUP_EXECUTION_GAS,
-  ROLLUP_PUBLISHED_TO_L1,
+  L2_BLOCK_PROCESSING_TIME,
+  L2_BLOCK_SYNCED,
+  L2_BLOCK_PUBLISHED_TO_L1,
   ROLLUP_SIZES,
   BENCHMARK_FILE_JSON,
 } = require("./benchmark_shared.js");
@@ -44,11 +46,22 @@ function processRollupPublished(entry, results) {
   append(results, L1_ROLLUP_EXECUTION_GAS, bucket, entry.gasUsed);
 }
 
+// Processes an entry with event name 'l2-block-handled' and updates results
+// Skips instances where the block was emitted by the same node where the processing is skipped
+function processRollupBlockSynced(entry, results) {
+  const bucket = entry.txCount;
+  if (!ROLLUP_SIZES.includes(bucket)) return;
+  if (entry.isBlockOurs) return;
+  append(results, L2_BLOCK_PROCESSING_TIME, bucket, entry.duration);
+}
+
 // Processes a parsed entry from a logfile and updates results
 function processEntry(entry, results) {
   switch (entry.eventName) {
-    case ROLLUP_PUBLISHED_TO_L1:
+    case L2_BLOCK_PUBLISHED_TO_L1:
       return processRollupPublished(entry, results);
+    case L2_BLOCK_SYNCED:
+      return processRollupBlockSynced(entry, results);
     default:
       return;
   }
@@ -73,6 +86,8 @@ async function main() {
     }
   }
 
+  console.log(`Collected entries:`, JSON.stringify(results, null, 2));
+
   // For each bucket of each metric compute the average all collected datapoints
   for (const metricName in results) {
     const metric = results[metricName];
@@ -88,6 +103,7 @@ async function main() {
   results.timestamp = new Date().toISOString();
 
   // Write results to disk
+  console.log(`Aggregated results:`, JSON.stringify(results, null, 2));
   fs.writeFileSync(BENCHMARK_FILE_JSON, JSON.stringify(results, null, 2));
 }
 

@@ -6,18 +6,25 @@ import { getConfigEnvVars as getWorldStateVars } from '@aztec/world-state';
 /**
  * The configuration the aztec node.
  */
-export type AztecNodeConfig = ArchiverConfig & SequencerClientConfig & P2PConfig;
+export type AztecNodeConfig = ArchiverConfig &
+  SequencerClientConfig &
+  P2PConfig & {
+    /** Whether the sequencer is disabled for this node. */
+    disableSequencer: boolean;
+  };
 
 /**
  * Returns the config of the aztec node from environment variables with reasonable defaults.
  * @returns A valid aztec node config.
  */
 export function getConfigEnvVars(): AztecNodeConfig {
+  const { SEQ_DISABLED } = process.env;
   const allEnvVars: AztecNodeConfig = {
     ...getSequencerVars(),
     ...getArchiverVars(),
     ...getP2PConfigEnvVars(),
     ...getWorldStateVars(),
+    disableSequencer: !!SEQ_DISABLED,
   };
 
   return allEnvVars;

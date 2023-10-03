@@ -810,6 +810,21 @@ export class L2Block {
   }
 
   /**
+   * Returns stats used for logging.
+   * @returns Stats on tx count, number, and log size and count.
+   */
+  getStats() {
+    return {
+      txCount: this.numberOfTxs,
+      blockNumber: this.number,
+      encryptedLogCount: this.newEncryptedLogs?.getTotalLogCount() ?? 0,
+      unencryptedLogCount: this.newUnencryptedLogs?.getTotalLogCount() ?? 0,
+      encryptedLogSize: this.newEncryptedLogs?.getSerializedLength() ?? 0,
+      unencryptedLogSize: this.newUnencryptedLogs?.getSerializedLength() ?? 0,
+    };
+  }
+
+  /**
    * Inspect for debugging purposes..
    * @param maxBufferSize - The number of bytes to be extracted from buffer.
    * @returns A human-friendly string representation of the l2Block.

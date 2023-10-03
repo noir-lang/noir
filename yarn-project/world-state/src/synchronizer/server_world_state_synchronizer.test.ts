@@ -24,6 +24,7 @@ import {
 } from '@aztec/types';
 
 import { jest } from '@jest/globals';
+import { mock } from 'jest-mock-extended';
 import levelup from 'levelup';
 import times from 'lodash.times';
 import { default as memdown } from 'memdown';
@@ -32,15 +33,8 @@ import { MerkleTreeDb, MerkleTrees, WorldStateConfig } from '../index.js';
 import { ServerWorldStateSynchronizer } from './server_world_state_synchronizer.js';
 import { WorldStateRunningState } from './world_state_synchronizer.js';
 
-/**
- * Generic mock implementation.
- */
-type Mockify<T> = {
-  [P in keyof T]: jest.Mock;
-};
-
 const LATEST_BLOCK_NUMBER = 5;
-const getLatestBlockNumber = () => LATEST_BLOCK_NUMBER;
+const getLatestBlockNumber = () => Promise.resolve(LATEST_BLOCK_NUMBER);
 let nextBlocks: L2Block[] = [];
 const consumeNextBlocks = () => {
   const blocks = nextBlocks;
@@ -122,32 +116,22 @@ const createSynchronizer = async (
 const log = createDebugLogger('aztec:server_world_state_synchronizer_test');
 
 describe('server_world_state_synchronizer', () => {
-  const rollupSource: Mockify<Pick<L2BlockSource, 'getBlockNumber' | 'getL2Blocks'>> = {
-    getBlockNumber: jest.fn().mockImplementation(getLatestBlockNumber),
-    getL2Blocks: jest.fn().mockImplementation(consumeNextBlocks),
-  };
+  const rollupSource = mock<L2BlockSource>({
+    getBlockNumber: jest.fn(getLatestBlockNumber),
+    getL2Blocks: jest.fn(consumeNextBlocks),
+  });
 
-  const merkleTreeDb: Mockify<MerkleTreeDb> = {
-    getTreeInfo: jest
-      .fn()
-      .mockImplementation(() =>
-        Promise.resolve({ treeId: MerkleTreeId.CONTRACT_TREE, root: Buffer.alloc(32, 0), size: 0n }),
-      ),
-    appendLeaves: jest.fn().mockImplementation(() => Promise.resolve()),
-    updateLeaf: jest.fn().mockImplementation(() => Promise.resolve()),
-    getSiblingPath: jest.fn().mockImplementation(() => {
-      return async () => {
-        const wasm = await CircuitsWasm.get();
-        const pedersen: Pedersen = new Pedersen(wasm);
-        SiblingPath.ZERO(32, INITIAL_LEAF, pedersen);
-      }; //Promise.resolve();
+  const merkleTreeDb = mock<MerkleTreeDb>({
+    getTreeInfo: jest.fn(() =>
+      Promise.resolve({ depth: 8, treeId: MerkleTreeId.CONTRACT_TREE, root: Buffer.alloc(32, 0), size: 0n }),
+    ),
+    getSiblingPath: jest.fn(async () => {
+      const wasm = await CircuitsWasm.get();
+      const pedersen: Pedersen = new Pedersen(wasm);
+      return SiblingPath.ZERO(32, INITIAL_LEAF, pedersen) as SiblingPath<number>;
     }),
-    updateHistoricBlocksTree: jest.fn().mockImplementation(() => Promise.resolve()),
-    commit: jest.fn().mockImplementation(() => Promise.resolve()),
-    rollback: jest.fn().mockImplementation(() => Promise.resolve()),
-    handleL2Block: jest.fn().mockImplementation(() => Promise.resolve()),
-    stop: jest.fn().mockImplementation(() => Promise.resolve()),
-  } as any;
+    handleL2Block: jest.fn(() => Promise.resolve({ isBlockOurs: false })),
+  });
 
   const performInitialSync = async (server: ServerWorldStateSynchronizer) => {
     // test initial state
@@ -178,7 +162,7 @@ describe('server_world_state_synchronizer', () => {
       .fill(0)
       .map((_, index: number) => getMockBlock(LATEST_BLOCK_NUMBER + index + 1));
 
-    rollupSource.getBlockNumber.mockReturnValueOnce(LATEST_BLOCK_NUMBER + count);
+    rollupSource.getBlockNumber.mockResolvedValueOnce(LATEST_BLOCK_NUMBER + count);
 
     // start the sync process and await it
     await server.start().catch(err => log.error('Sync not completed: ', err));
@@ -331,7 +315,7 @@ describe('server_world_state_synchronizer', () => {
   });
 
   it('adds the received L2 blocks', async () => {
-    merkleTreeDb.handleL2Block.mockReset();
+    merkleTreeDb.handleL2Block.mockClear();
     const server = await createSynchronizer(createMockDb(), merkleTreeDb, rollupSource);
     const totalBlocks = LATEST_BLOCK_NUMBER + 1;
     nextBlocks = Array(totalBlocks)

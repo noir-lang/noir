@@ -937,7 +937,7 @@ jobs:
       - run:
           name: "Benchmark"
           command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_publish_rollup.test.ts
-          environment: { DEBUG: 'aztec:benchmarks:*,aztec:sequencer' }
+          environment: { DEBUG: 'aztec:benchmarks:*,aztec:sequencer,aztec:world_state,aztec:merkle_trees' }
 
   build-docs:
     machine:

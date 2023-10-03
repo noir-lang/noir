@@ -145,12 +145,7 @@ export class L1Publisher implements L2BlockReceiver {
         const stats: L1PublishStats = {
           ...pick(receipt, 'gasPrice', 'gasUsed', 'transactionHash'),
           ...pick(tx!, 'calldataGas', 'calldataSize'),
-          txCount: l2BlockData.numberOfTxs,
-          blockNumber: l2BlockData.number,
-          encryptedLogCount: l2BlockData.newEncryptedLogs?.getTotalLogCount() ?? 0,
-          unencryptedLogCount: l2BlockData.newUnencryptedLogs?.getTotalLogCount() ?? 0,
-          encryptedLogSize: l2BlockData.newEncryptedLogs?.getSerializedLength() ?? 0,
-          unencryptedLogSize: l2BlockData.newUnencryptedLogs?.getSerializedLength() ?? 0,
+          ...l2BlockData.getStats(),
           eventName: 'rollup-published-to-l1',
         };
         this.log.info(`Published L2 block to L1 rollup contract`, stats);
