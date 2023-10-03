@@ -34,6 +34,7 @@ TEST(private_to_private_function_call_tests, circuit_private_to_private_function
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
         .portal_contract_address = 0,
+        .function_selector = function_data.selector,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = false,

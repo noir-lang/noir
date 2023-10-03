@@ -35,6 +35,7 @@ TEST(abi_tests, native_read_write_call_context)
         .msg_sender = 1,
         .storage_contract_address = 2,
         .portal_contract_address = 3,
+        .function_selector = { .value = 1 },
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = false,
@@ -92,6 +93,7 @@ TEST(abi_tests, native_call_context)
         .msg_sender = 10,
         .storage_contract_address = 11,
         .portal_contract_address = 12,
+        .function_selector = { .value = 1 },
         .is_delegate_call = false,
         .is_static_call = false,
     };
@@ -105,6 +107,7 @@ TEST(abi_tests, native_to_circuit_call_context)
         .msg_sender = 10,
         .storage_contract_address = 11,
         .portal_contract_address = 12,
+        .function_selector = { .value = 1 },
         .is_delegate_call = false,
         .is_static_call = false,
     };

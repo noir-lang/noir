@@ -301,7 +301,15 @@ export function makeAggregationObject(seed = 1): AggregationObject {
  * @returns A call context.
  */
 export function makeCallContext(seed = 0, storageContractAddress = makeAztecAddress(seed + 1)): CallContext {
-  return new CallContext(makeAztecAddress(seed), storageContractAddress, makeEthAddress(seed + 2), false, false, false);
+  return new CallContext(
+    makeAztecAddress(seed),
+    storageContractAddress,
+    makeEthAddress(seed + 2),
+    makeSelector(seed + 3),
+    false,
+    false,
+    false,
+  );
 }
 
 /**
@@ -649,6 +657,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       makeAztecAddress(seed + 1),
       makeAztecAddress(seed + 2),
       new EthAddress(numToUInt32BE(seed + 3, /* eth address is 20 bytes */ 20)),
+      makeSelector(seed + 4),
       true,
       true,
       true,

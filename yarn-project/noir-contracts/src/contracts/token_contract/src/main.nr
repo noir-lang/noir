@@ -193,8 +193,7 @@ contract Token {
     ) -> Field {
         if (from.address != context.msg_sender()) {
             // The redeem is only spendable once, so we need to ensure that you cannot insert multiple shields from the same message.
-            let selector = compute_selector("shield((Field),Field,Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, secret_hash, nonce]);
+            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), context.selector(), from.address, amount, secret_hash, nonce]);
             assert_valid_public_message_for(&mut context, from.address, message_field);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -221,8 +220,7 @@ contract Token {
         nonce: Field,
     ) -> Field {
         if (from.address != context.msg_sender()) {
-            let selector = compute_selector("transfer_public((Field),(Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
+            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), context.selector(), from.address, to.address, amount, nonce]);
             assert_valid_public_message_for(&mut context, from.address, message_field);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -247,8 +245,7 @@ contract Token {
         nonce: Field,
     ) -> Field {
         if (from.address != context.msg_sender()) {
-            let selector = compute_selector("burn_public((Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, nonce]);
+            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), context.selector(), from.address, amount, nonce]);
             assert_valid_public_message_for(&mut context, from.address, message_field);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -294,8 +291,7 @@ contract Token {
         nonce: Field,
     ) -> Field {
         if (from.address != context.msg_sender()) {
-            let selector = compute_selector("unshield((Field),(Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
+            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), context.selector(), from.address, to.address, amount, nonce]);
             assert_valid_message_for(&mut context, from.address, message_field);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -319,8 +315,7 @@ contract Token {
         nonce: Field,
     ) -> Field {
         if (from.address != context.msg_sender()) {
-            let selector = compute_selector("transfer((Field),(Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, to.address, amount, nonce]);
+            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), context.selector(), from.address, to.address, amount, nonce]);
             assert_valid_message_for(&mut context, from.address, message_field);
         } else {
             assert(nonce == 0, "invalid nonce");
@@ -342,8 +337,7 @@ contract Token {
         nonce: Field,
     ) -> Field {
         if (from.address != context.msg_sender()) {
-            let selector = compute_selector("burn((Field),Field,Field)");
-            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), selector, from.address, amount, nonce]);
+            let message_field = compute_message_hash([context.msg_sender(), context.this_address(), context.selector(), from.address, amount, nonce]);
             assert_valid_message_for(&mut context, from.address, message_field);
         } else {
             assert(nonce == 0, "invalid nonce");

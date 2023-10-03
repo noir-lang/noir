@@ -48,6 +48,8 @@ template <typename NCT> struct FunctionSelector {
         return selector;
     };
 
+    fr to_field() const { return fr(value); }
+
     void set_public()
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));

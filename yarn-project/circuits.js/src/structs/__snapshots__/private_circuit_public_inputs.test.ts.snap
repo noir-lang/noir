@@ -5,6 +5,8 @@ exports[`basic PrivateCircuitPublicInputs serialization serializes a trivial Pri
 msg_sender: 0x1
 storage_contract_address: 0x2
 portal_contract_address: 0x3
+function_selector: value: 4
+
 is_delegate_call: 1
 is_static_call: 1
 is_contract_deployment: 1

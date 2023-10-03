@@ -5,6 +5,8 @@ exports[`basic PublicCircuitPublicInputs serialization serializes a trivial Publ
 msg_sender: 0x0
 storage_contract_address: 0x1
 portal_contract_address: 0x202020202020202020202020202020202020202
+function_selector: value: 3
+
 is_delegate_call: 0
 is_static_call: 0
 is_contract_deployment: 0

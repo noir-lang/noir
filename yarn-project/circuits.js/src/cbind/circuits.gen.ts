@@ -1138,6 +1138,7 @@ interface MsgpackCallContext {
   msg_sender: Buffer;
   storage_contract_address: Buffer;
   portal_contract_address: Buffer;
+  function_selector: MsgpackFunctionSelector;
   is_delegate_call: boolean;
   is_static_call: boolean;
   is_contract_deployment: boolean;
@@ -1153,6 +1154,9 @@ export function toCallContext(o: MsgpackCallContext): CallContext {
   if (o.portal_contract_address === undefined) {
     throw new Error('Expected portal_contract_address in CallContext deserialization');
   }
+  if (o.function_selector === undefined) {
+    throw new Error('Expected function_selector in CallContext deserialization');
+  }
   if (o.is_delegate_call === undefined) {
     throw new Error('Expected is_delegate_call in CallContext deserialization');
   }
@@ -1166,6 +1170,7 @@ export function toCallContext(o: MsgpackCallContext): CallContext {
     Address.fromBuffer(o.msg_sender),
     Address.fromBuffer(o.storage_contract_address),
     Fr.fromBuffer(o.portal_contract_address),
+    toFunctionSelector(o.function_selector),
     o.is_delegate_call,
     o.is_static_call,
     o.is_contract_deployment,
@@ -1182,6 +1187,9 @@ export function fromCallContext(o: CallContext): MsgpackCallContext {
   if (o.portalContractAddress === undefined) {
     throw new Error('Expected portalContractAddress in CallContext serialization');
   }
+  if (o.functionSelector === undefined) {
+    throw new Error('Expected functionSelector in CallContext serialization');
+  }
   if (o.isDelegateCall === undefined) {
     throw new Error('Expected isDelegateCall in CallContext serialization');
   }
@@ -1195,6 +1203,7 @@ export function fromCallContext(o: CallContext): MsgpackCallContext {
     msg_sender: toBuffer(o.msgSender),
     storage_contract_address: toBuffer(o.storageContractAddress),
     portal_contract_address: toBuffer(o.portalContractAddress),
+    function_selector: fromFunctionSelector(o.functionSelector),
     is_delegate_call: o.isDelegateCall,
     is_static_call: o.isStaticCall,
     is_contract_deployment: o.isContractDeployment,

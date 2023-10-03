@@ -169,6 +169,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
         .portal_contract_address = portal_contract_address,
+        .function_selector = function_data.selector,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = is_constructor,

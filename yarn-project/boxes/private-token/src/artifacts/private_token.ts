@@ -9,14 +9,14 @@ import {
   ContractMethod,
   DeployMethod,
   FieldLike,
+  AztecAddressLike,
+  EthAddressLike,
   Wallet,
 } from '@aztec/aztec.js';
-import { ContractAbi } from '@aztec/foundation/abi';
-import { Point } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { PXE, PublicKey } from '@aztec/types';
-
+import { ContractAbi } from '@aztec/foundation/abi';
 import PrivateTokenContractAbiJson from './private_token_contract.json' assert { type: 'json' };
-
 export const PrivateTokenContractAbi = PrivateTokenContractAbiJson as ContractAbi;
 
 /**

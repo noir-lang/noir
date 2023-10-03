@@ -1,5 +1,7 @@
 #pragma once
 
+#include "aztec3/circuits/abis/function_selector.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/msgpack_derived_equals.hpp"
 #include "aztec3/utils/msgpack_derived_output.hpp"
@@ -23,6 +25,8 @@ template <typename NCT> struct CallContext {
     address storage_contract_address = 0;
     fr portal_contract_address = 0;
 
+    FunctionSelector<NCT> function_selector{};
+
     boolean is_delegate_call = false;
     boolean is_static_call = false;
     boolean is_contract_deployment = false;
@@ -31,6 +35,7 @@ template <typename NCT> struct CallContext {
     MSGPACK_FIELDS(msg_sender,
                    storage_contract_address,
                    portal_contract_address,
+                   function_selector,
                    is_delegate_call,
                    is_static_call,
                    is_contract_deployment);
@@ -48,8 +53,13 @@ template <typename NCT> struct CallContext {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
         CallContext<CircuitTypes<Builder>> call_context = {
-            to_ct(msg_sender),       to_ct(storage_contract_address), to_ct(portal_contract_address),
-            to_ct(is_delegate_call), to_ct(is_static_call),           to_ct(is_contract_deployment),
+            to_ct(msg_sender),
+            to_ct(storage_contract_address),
+            to_ct(portal_contract_address),
+            function_selector.to_circuit_type(builder),
+            to_ct(is_delegate_call),
+            to_ct(is_static_call),
+            to_ct(is_contract_deployment),
 
         };
 
@@ -59,11 +69,17 @@ template <typename NCT> struct CallContext {
     template <typename Builder> CallContext<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         CallContext<NativeTypes> call_context = {
-            to_nt(msg_sender),       to_nt(storage_contract_address), to_nt(portal_contract_address),
-            to_nt(is_delegate_call), to_nt(is_static_call),           to_nt(is_contract_deployment),
+            to_nt(msg_sender),
+            to_nt(storage_contract_address),
+            to_nt(portal_contract_address),
+            to_native_type(function_selector),
+            to_nt(is_delegate_call),
+            to_nt(is_static_call),
+            to_nt(is_contract_deployment),
         };
 
         return call_context;
@@ -72,8 +88,10 @@ template <typename NCT> struct CallContext {
     fr hash() const
     {
         std::vector<fr> const inputs = {
-            msg_sender.to_field(), storage_contract_address.to_field(), portal_contract_address, fr(is_delegate_call),
-            fr(is_static_call),    fr(is_contract_deployment),
+            msg_sender.to_field(),      storage_contract_address.to_field(),
+            portal_contract_address,    function_selector.to_field(),
+            fr(is_delegate_call),       fr(is_static_call),
+            fr(is_contract_deployment),
         };
 
         return NCT::hash(inputs, GeneratorIndex::CALL_CONTEXT);
@@ -86,6 +104,7 @@ template <typename NCT> struct CallContext {
         msg_sender.to_field().assert_is_zero();
         storage_contract_address.to_field().assert_is_zero();
         portal_contract_address.assert_is_zero();
+        function_selector.to_field().assert_is_zero();
         fr(is_delegate_call).assert_is_zero();
         fr(is_static_call).assert_is_zero();
         fr(is_contract_deployment).assert_is_zero();
@@ -98,6 +117,7 @@ template <typename NCT> struct CallContext {
         msg_sender.to_field().set_public();
         storage_contract_address.to_field().set_public();
         portal_contract_address.set_public();
+        function_selector.set_public();
         fr(is_delegate_call).set_public();
         fr(is_static_call).set_public();
         fr(is_contract_deployment).set_public();

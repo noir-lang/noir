@@ -113,6 +113,7 @@ struct CallContext {
     msg_sender : Field,
     storage_contract_address : Field,
     portal_contract_address : Field,
+    function_selector: Field,
 
     is_delegate_call : bool,
     is_static_call : bool,
@@ -126,6 +127,7 @@ impl CallContext {
             self.msg_sender,
             self.storage_contract_address,
             self.portal_contract_address,
+            self.function_selector,
             self.is_delegate_call as Field,
             self.is_static_call as Field,
             self.is_contract_deployment as Field,

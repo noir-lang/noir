@@ -121,6 +121,10 @@ impl PrivateContext {
         self.inputs.private_global_variables.version
     }
 
+    fn selector(self) -> Field {
+        self.inputs.call_context.function_selector
+    }
+
     fn finish(self) -> abi::PrivateCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
         let encrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
@@ -252,46 +256,46 @@ impl PrivateContext {
                     msg_sender : fields[5],
                     storage_contract_address : fields[6],
                     portal_contract_address : fields[7],
-                    
-                    is_delegate_call : fields[8] as bool,
-                    is_static_call : fields[9] as bool,
-                    is_contract_deployment: fields[10] as bool,
+                    function_selector: fields[8], // practically same as fields[1]
+                    is_delegate_call : fields[9] as bool,
+                    is_static_call : fields[10] as bool,
+                    is_contract_deployment: fields[11] as bool,
                 },
                 // TODO handle the offsets as a variable incremented during extraction?
-                args_hash: fields[11],
-                return_values: arr_copy_slice(fields, [0; RETURN_VALUES_LENGTH], 12),
-                read_requests: arr_copy_slice(fields, [0; MAX_READ_REQUESTS_PER_CALL], 16),
-                new_commitments: arr_copy_slice(fields, [0; MAX_NEW_COMMITMENTS_PER_CALL], 48),
-                new_nullifiers: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 64),
-                nullified_commitments: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 80),
-                private_call_stack: arr_copy_slice(fields, [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 96),
-                public_call_stack: arr_copy_slice(fields, [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 100),
-                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 104),
-                encrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 106),
-                unencrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 108),
-                encrypted_log_preimages_length: fields[110],
-                unencrypted_log_preimages_length: fields[111],
+                args_hash: fields[12],
+                return_values: arr_copy_slice(fields, [0; RETURN_VALUES_LENGTH], 13),
+                read_requests: arr_copy_slice(fields, [0; MAX_READ_REQUESTS_PER_CALL], 17),
+                new_commitments: arr_copy_slice(fields, [0; MAX_NEW_COMMITMENTS_PER_CALL], 49),
+                new_nullifiers: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 65),
+                nullified_commitments: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 81),
+                private_call_stack: arr_copy_slice(fields, [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 97),
+                public_call_stack: arr_copy_slice(fields, [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 101),
+                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 105),
+                encrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 107),
+                unencrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 109),
+                encrypted_log_preimages_length: fields[111],
+                unencrypted_log_preimages_length: fields[112],
                 block_data: HistoricBlockData {
                     // Must match order in `private_circuit_public_inputs.hpp`
-                    private_data_tree_root : fields[112],
-                    nullifier_tree_root : fields[113],
-                    contract_tree_root : fields[114],
-                    l1_to_l2_messages_tree_root : fields[115],
-                    blocks_tree_root : fields[116],
-                    public_data_tree_root: fields[117],
-                    global_variables_hash: fields[118],
+                    private_data_tree_root : fields[113],
+                    nullifier_tree_root : fields[114],
+                    contract_tree_root : fields[115],
+                    l1_to_l2_messages_tree_root : fields[116],
+                    blocks_tree_root : fields[117],
+                    public_data_tree_root: fields[118],
+                    global_variables_hash: fields[119],
                 },
                 contract_deployment_data: ContractDeploymentData {
-                    deployer_public_key: Point::new(fields[119], fields[120]),
-                    constructor_vk_hash : fields[121],
-                    function_tree_root : fields[122],
-                    contract_address_salt : fields[123],
-                    portal_contract_address : fields[124],
+                    deployer_public_key: Point::new(fields[120], fields[121]),
+                    constructor_vk_hash : fields[122],
+                    function_tree_root : fields[123],
+                    contract_address_salt : fields[124],
+                    portal_contract_address : fields[125],
                 },
-                chain_id: fields[125],
-                version: fields[126],
+                chain_id: fields[126],
+                version: fields[127],
             },
-            is_execution_request: fields[127] as bool,
+            is_execution_request: fields[128] as bool,
         };
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);
@@ -358,12 +362,12 @@ impl PrivateContext {
                     msg_sender : fields[5],
                     storage_contract_address : fields[6],
                     portal_contract_address : fields[7],
-                    
-                    is_delegate_call : fields[8] as bool,
-                    is_static_call : fields[9] as bool,
-                    is_contract_deployment: fields[10] as bool,
+                    function_selector: fields[8], // practically same as fields[1]
+                    is_delegate_call : fields[9] as bool,
+                    is_static_call : fields[10] as bool,
+                    is_contract_deployment: fields[11] as bool,
                 },
-                args_hash: fields[11],
+                args_hash: fields[12],
                 return_values: [0; RETURN_VALUES_LENGTH],
                 contract_storage_update_requests: [ContractStorageUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL],
                 contract_storage_read: [ContractStorageRead::empty(); MAX_PUBLIC_DATA_READS_PER_CALL],
@@ -475,6 +479,10 @@ impl PublicContext {
 
     fn version(self) -> Field {
         self.inputs.public_global_variables.version
+    }
+
+    fn selector(self) -> Field {
+        self.inputs.call_context.function_selector
     }
 
     fn block_number(self) -> Field {

@@ -225,7 +225,7 @@ constexpr size_t MAX_NOTES_PER_PAGE = 10;
 // + 2 for EXTRA_DATA: [number_of_return_notes, contract_address]
 constexpr size_t VIEW_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTES_PER_PAGE * (MAX_NOTE_FIELDS_LENGTH + 1) + 2;
 
-constexpr size_t CALL_CONTEXT_LENGTH = 6;
+constexpr size_t CALL_CONTEXT_LENGTH = 7;
 // Must be updated if any data is added into the block hash calculation.
 constexpr size_t HISTORIC_BLOCK_DATA_LENGTH = 7;
 constexpr size_t FUNCTION_DATA_LENGTH = 4;

@@ -82,6 +82,7 @@ export class AcirSimulator {
       msgSender,
       contractAddress,
       portalContractAddress,
+      FunctionSelector.fromNameAndParameters(entryPointABI.name, entryPointABI.parameters),
       false,
       false,
       request.functionData.isConstructor,

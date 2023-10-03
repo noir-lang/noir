@@ -4,7 +4,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { Fr } from './index.js';
+import { Fr, FunctionSelector } from './index.js';
 
 /**
  * Call context.
@@ -32,6 +32,10 @@ export class CallContext {
      */
     portalContractAddress: EthAddress | Fr,
     /**
+     * Function selector of the function being called.
+     */
+    public functionSelector: FunctionSelector,
+    /**
      * Determines whether the call is a delegate call (see Ethereum's delegate call opcode for more information).
      */
     public isDelegateCall: boolean,
@@ -53,11 +57,24 @@ export class CallContext {
    * @returns A new instance of CallContext with zero msg sender, storage contract address and portal contract address.
    */
   public static empty(): CallContext {
-    return new CallContext(AztecAddress.ZERO, AztecAddress.ZERO, Fr.ZERO, false, false, false);
+    return new CallContext(
+      AztecAddress.ZERO,
+      AztecAddress.ZERO,
+      Fr.ZERO,
+      FunctionSelector.empty(),
+      false,
+      false,
+      false,
+    );
   }
 
   isEmpty() {
-    return this.msgSender.isZero() && this.storageContractAddress.isZero() && this.portalContractAddress.isZero();
+    return (
+      this.msgSender.isZero() &&
+      this.storageContractAddress.isZero() &&
+      this.portalContractAddress.isZero() &&
+      this.functionSelector.isEmpty()
+    );
   }
 
   static from(fields: FieldsOf<CallContext>): CallContext {
@@ -69,6 +86,7 @@ export class CallContext {
       fields.msgSender,
       fields.storageContractAddress,
       fields.portalContractAddress,
+      fields.functionSelector,
       fields.isDelegateCall,
       fields.isStaticCall,
       fields.isContractDeployment,
@@ -94,6 +112,7 @@ export class CallContext {
       new AztecAddress(reader.readBytes(32)),
       new AztecAddress(reader.readBytes(32)),
       new EthAddress(reader.readBytes(32)),
+      FunctionSelector.fromBuffer(reader.readBytes(4)),
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readBoolean(),

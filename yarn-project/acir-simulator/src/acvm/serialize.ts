@@ -72,6 +72,7 @@ export function toACVMCallContext(callContext: CallContext): ACVMField[] {
     toACVMField(callContext.msgSender),
     toACVMField(callContext.storageContractAddress),
     toACVMField(callContext.portalContractAddress),
+    toACVMField(callContext.functionSelector.toField()),
     toACVMField(callContext.isDelegateCall),
     toACVMField(callContext.isStaticCall),
     toACVMField(callContext.isContractDeployment),

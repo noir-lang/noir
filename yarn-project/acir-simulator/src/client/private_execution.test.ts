@@ -753,6 +753,7 @@ describe('Private Execution test suite', () => {
           msgSender: parentAddress,
           storageContractAddress: childAddress,
           portalContractAddress: childPortalContractAddress,
+          functionSelector: childSelector,
           isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,

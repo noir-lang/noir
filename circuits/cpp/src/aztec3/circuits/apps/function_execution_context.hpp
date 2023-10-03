@@ -190,6 +190,7 @@ template <typename Builder> class FunctionExecutionContext {
             .msg_sender = oracle.get_this_contract_address(),  // the sender is `this` contract!
             .storage_contract_address = f_contract_address,
             .portal_contract_address = 0,  // TODO
+            .function_selector = f_function_data_ct.selector,
             .is_delegate_call = false,
             .is_static_call = false,
             .is_contract_deployment = false,

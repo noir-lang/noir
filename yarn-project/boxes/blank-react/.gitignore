@@ -22,3 +22,5 @@ dest-ssr
 *.njsproj
 *.sln
 *.sw?
+
+src/contracts/target
