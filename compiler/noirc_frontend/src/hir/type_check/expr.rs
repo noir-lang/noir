@@ -1060,8 +1060,6 @@ impl<'interner> TypeChecker<'interner> {
                 Err(TypeCheckError::InvalidInfixOp { kind: "Tuples", span })
             }
 
-            (Unit, _) | (_, Unit) => Ok(Unit),
-
             // The result of two Fields is always a witness
             (FieldElement, FieldElement) => {
                 if op.is_bitwise() {
@@ -1075,7 +1073,7 @@ impl<'interner> TypeChecker<'interner> {
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
                 expected: lhs.clone(),
                 actual: rhs.clone(),
-                source: Source::BinOp,
+                source: Source::BinOp(op.kind),
                 span,
             }),
         }

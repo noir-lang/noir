@@ -4,7 +4,7 @@ import * as TOML from 'smol-toml';
 
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
-import { acvm, abi, Noir } from '@noir-lang/noir_js';
+import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 import { getFile } from './utils.js';
@@ -12,12 +12,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
-const { default: initACVM } = acvm;
-const { default: newABICoder } = abi;
-
 await newCompiler();
-await newABICoder();
-await initACVM();
 
 compilerLogLevel('INFO');
 
@@ -27,7 +22,7 @@ const test_cases = [
     numPublicInputs: 0,
   },
   {
-    case: 'compiler/integration-tests/test/circuits/main',
+    case: 'compiler/integration-tests/circuits/main',
     numPublicInputs: 1,
   },
 ];
