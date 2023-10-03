@@ -461,7 +461,6 @@ impl<'a> ModCollector<'a> {
         context.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        //let ast = parse_file(&context.file_manager, child_file_id, errors).into_unorder();
         let (ast, parsing_errors) = parse_file(&context.file_manager, child_file_id);
         let ast = ast.into_unorder();
 
