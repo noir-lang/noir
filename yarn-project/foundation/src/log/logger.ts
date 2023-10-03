@@ -2,24 +2,27 @@ import debug from 'debug';
 import isNode from 'detect-node';
 import { isatty } from 'tty';
 
-import { LogFn } from './index.js';
+import { LogData, LogFn } from './index.js';
 
 // Matches a subset of Winston log levels
 const LogLevels = ['silent', 'error', 'warn', 'info', 'verbose', 'debug'] as const;
-const DefaultLogLevel = 'info' as const;
+const DefaultLogLevel = process.env.NODE_ENV === 'test' ? ('silent' as const) : ('info' as const);
 
 /**
  * A valid log severity level.
  */
-type LogLevel = (typeof LogLevels)[number];
+export type LogLevel = (typeof LogLevels)[number];
 
 const envLogLevel = process.env.LOG_LEVEL?.toLowerCase() as LogLevel;
 const currentLevel = LogLevels.includes(envLogLevel) ? envLogLevel : DefaultLogLevel;
 
+/** Log function that accepts an exception object */
+type ErrorLogFn = (msg: string, err?: Error | unknown, data?: LogData) => void;
+
 /**
  * Logger that supports multiple severity levels.
  */
-export type Logger = { [K in LogLevel]: LogFn };
+export type Logger = { [K in LogLevel]: LogFn } & { /** Error log function */ error: ErrorLogFn };
 
 /**
  * Logger that supports multiple severity levels and can be called directly to issue a debug statement.
@@ -40,17 +43,17 @@ export function createDebugLogger(name: string): DebugLogger {
 
   const logger = {
     silent: () => {},
-    error: (...args: any[]) => logWithDebug(debugLogger, 'error', args),
-    warn: (...args: any[]) => logWithDebug(debugLogger, 'warn', args),
-    info: (...args: any[]) => logWithDebug(debugLogger, 'info', args),
-    verbose: (...args: any[]) => logWithDebug(debugLogger, 'verbose', args),
-    debug: (...args: any[]) => logWithDebug(debugLogger, 'debug', args),
+    error: (msg: string, err?: unknown, data?: LogData) => logWithDebug(debugLogger, 'error', fmtErr(msg, err), data),
+    warn: (msg: string, data?: LogData) => logWithDebug(debugLogger, 'warn', msg, data),
+    info: (msg: string, data?: LogData) => logWithDebug(debugLogger, 'info', msg, data),
+    verbose: (msg: string, data?: LogData) => logWithDebug(debugLogger, 'verbose', msg, data),
+    debug: (msg: string, data?: LogData) => logWithDebug(debugLogger, 'debug', msg, data),
   };
-  return Object.assign((...args: any[]) => logWithDebug(debugLogger, 'debug', args), logger);
+  return Object.assign((msg: string, data?: LogData) => logWithDebug(debugLogger, 'debug', msg, data), logger);
 }
 
 /** A callback to capture all logs. */
-export type LogHandler = (level: LogLevel, namespace: string, args: any[]) => void;
+export type LogHandler = (level: LogLevel, namespace: string, msg: string, data?: LogData) => void;
 
 const logHandlers: LogHandler[] = [];
 
@@ -68,14 +71,16 @@ export function onLog(handler: LogHandler) {
  * @param level - Intended log level.
  * @param args - Args to log.
  */
-function logWithDebug(debug: debug.Debugger, level: LogLevel, args: any[]) {
+function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?: LogData) {
   for (const handler of logHandlers) {
-    handler(level, debug.namespace, args);
+    handler(level, debug.namespace, msg, data);
   }
+
+  const msgWithData = data ? `${msg} ${fmtLogData(data)}` : msg;
   if (debug.enabled) {
-    debug(args[0], ...args.slice(1));
-  } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel) && process.env.NODE_ENV !== 'test') {
-    printLog([getPrefix(debug, level), ...args]);
+    debug(msgWithData);
+  } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel)) {
+    printLog(`${getPrefix(debug, level)} ${msgWithData}`);
   }
 }
 
@@ -96,9 +101,30 @@ function getPrefix(debugLogger: debug.Debugger, level: LogLevel) {
 
 /**
  * Outputs to console error.
- * @param args - Args to log.
+ * @param msg - What to log.
  */
-function printLog(args: any[]) {
+function printLog(msg: string) {
   // eslint-disable-next-line no-console
-  console.error(...args);
+  console.error(msg);
+}
+
+/**
+ * Concatenates a log message and an exception.
+ * @param msg - Log message
+ * @param err - Error to log
+ * @returns A string with both the log message and the error message.
+ */
+function fmtErr(msg: string, err?: Error | unknown): string {
+  const errStr = err && [(err as Error).name, (err as Error).message].filter(x => !!x).join(' ');
+  return err ? `${msg}: ${errStr || err}` : msg;
+}
+
+/**
+ * Formats structured log data as a string for console output.
+ * @param data - Optional log data.
+ */
+function fmtLogData(data?: LogData): string {
+  return Object.entries(data ?? {})
+    .map(([key, value]) => `${key}=${value}`)
+    .join(' ');
 }

@@ -19,6 +19,7 @@ import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { Command, Option } from 'commander';
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
+import { format } from 'util';
 import { mnemonicToAccount } from 'viem/accounts';
 
 import { createCompatibleClient } from './client.js';
@@ -440,7 +441,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const client = await createCompatibleClient(options.rpcUrl, debugLogger);
       const from = await getTxSender(client, options.from);
       const result = await client.viewTx(functionName, functionArgs, options.contractAddress, from);
-      log('\nView result: ', result, '\n');
+      log(format('\nView result: ', result, '\n'));
     });
 
   program

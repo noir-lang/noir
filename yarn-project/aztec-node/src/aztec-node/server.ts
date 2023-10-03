@@ -55,19 +55,19 @@ import { openDb } from './db.js';
  */
 export class AztecNodeService implements AztecNode {
   constructor(
-    protected config: AztecNodeConfig,
-    protected p2pClient: P2P,
-    protected blockSource: L2BlockSource,
-    protected encryptedLogsSource: L2LogsSource,
-    protected unencryptedLogsSource: L2LogsSource,
-    protected contractDataSource: ContractDataSource,
-    protected l1ToL2MessageSource: L1ToL2MessageSource,
-    protected worldStateSynchronizer: WorldStateSynchronizer,
-    protected sequencer: SequencerClient,
-    protected chainId: number,
-    protected version: number,
-    protected globalVariableBuilder: GlobalVariableBuilder,
-    protected merkleTreesDb: levelup.LevelUp,
+    protected readonly config: AztecNodeConfig,
+    protected readonly p2pClient: P2P,
+    protected readonly blockSource: L2BlockSource,
+    protected readonly encryptedLogsSource: L2LogsSource,
+    protected readonly unencryptedLogsSource: L2LogsSource,
+    protected readonly contractDataSource: ContractDataSource,
+    protected readonly l1ToL2MessageSource: L1ToL2MessageSource,
+    protected readonly worldStateSynchronizer: WorldStateSynchronizer,
+    protected readonly sequencer: SequencerClient,
+    protected readonly chainId: number,
+    protected readonly version: number,
+    protected readonly globalVariableBuilder: GlobalVariableBuilder,
+    protected readonly merkleTreesDb: levelup.LevelUp,
     private log = createDebugLogger('aztec:node'),
   ) {}
 
@@ -120,6 +120,14 @@ export class AztecNodeService implements AztecNode {
       getGlobalVariableBuilder(config),
       db,
     );
+  }
+
+  /**
+   * Returns the sequencer client instance.
+   * @returns The sequencer client instance.
+   */
+  public getSequencer(): SequencerClient {
+    return this.sequencer;
   }
 
   /**

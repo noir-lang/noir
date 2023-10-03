@@ -1,7 +1,8 @@
-/**
- * A callable logger instance.
- */
-export type LogFn = (...args: any[]) => void;
+/** Structured log data to include with the message. */
+export type LogData = Record<string, string | number | bigint>;
+
+/** A callable logger instance. */
+export type LogFn = (msg: string, data?: LogData) => void;
 
 export * from './console.js';
 export * from './debug.js';

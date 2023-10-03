@@ -9,7 +9,7 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src \"!src/web/main.js\" && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
-    "test": "DEBUG='aztec:*' NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand --passWithNoTests --testTimeout=15000",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand --passWithNoTests --testTimeout=15000",
     "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test:integration:run\" \"anvil\"",
     "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --runInBand --config jest.integration.config.json"
   },
@@ -39,6 +39,7 @@
     "@aztec/world-state": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@noble/curves": "^1.0.0",
+    "@types/fs-extra": "^11.0.2",
     "@types/jest": "^29.5.0",
     "@types/koa": "^2.13.9",
     "@types/koa-static": "^4.0.2",
@@ -65,11 +66,11 @@
     "ts-node": "^10.9.1",
     "tslib": "^2.4.0",
     "typescript": "^5.0.4",
-    "viem": "^1.2.5"
+    "viem": "^1.2.5",
+    "winston": "^3.10.0"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.4",
-    "@types/lodash.compact": "^3.0.7",
     "concurrently": "^7.6.0"
   },
   "files": [

@@ -32,6 +32,19 @@ export class L2BlockL2Logs {
   }
 
   /**
+   * Gets the total number of logs emitted from all the TxL2Logs.
+   */
+  public getTotalLogCount(): number {
+    let count = 0;
+    for (const txLog of this.txLogs) {
+      for (const functionLog of txLog.functionLogs) {
+        count += functionLog.logs.length;
+      }
+    }
+    return count;
+  }
+
+  /**
    * Deserializes logs from a buffer.
    * @param buffer - The buffer containing the serialized logs.
    * @returns A new `L2BlockL2Logs` object.

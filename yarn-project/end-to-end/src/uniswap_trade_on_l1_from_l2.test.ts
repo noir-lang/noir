@@ -64,7 +64,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       wallets,
       logger: logger_,
       cheatCodes,
-    } = await setup(2, dumpedState);
+    } = await setup(2, { stateLoad: dumpedState });
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
 
@@ -272,11 +272,11 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     const wethL2BalanceAfterSwap = await wethCrossChainHarness.getL2PrivateBalanceOf(ownerAddress);
     const daiL2BalanceAfterSwap = await daiCrossChainHarness.getL2PrivateBalanceOf(ownerAddress);
 
-    logger('WETH balance before swap: ', wethL2BalanceBeforeSwap.toString());
-    logger('DAI balance before swap  : ', daiL2BalanceBeforeSwap.toString());
+    logger('WETH balance before swap: ' + wethL2BalanceBeforeSwap.toString());
+    logger('DAI balance before swap  : ' + daiL2BalanceBeforeSwap.toString());
     logger('***** 🧚‍♀️ SWAP L2 assets on L1 Uniswap 🧚‍♀️ *****');
-    logger('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
-    logger('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
+    logger('WETH balance after swap : ' + wethL2BalanceAfterSwap.toString());
+    logger('DAI balance after swap  : ' + daiL2BalanceAfterSwap.toString());
   }, 140_000);
 
   it('should uniswap trade on L1 from L2 funds publicly (swaps WETH -> DAI)', async () => {

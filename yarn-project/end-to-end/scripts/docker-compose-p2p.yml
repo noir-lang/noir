@@ -21,7 +21,8 @@ services:
   end-to-end:
     image: aztecprotocol/end-to-end:latest
     environment:
-      DEBUG: 'aztec:*'
+      BENCHMARK: true
+      DEBUG: ${DEBUG:-'aztec:*'}
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL: 500
@@ -36,3 +37,5 @@ services:
       P2P_ENABLED: 'true'
       BOOTSTRAP_NODES: '/ip4/p2p-bootstrap/tcp/40400/p2p/12D3KooWGBpbC6qQFkaCYphjNeY6sV99o4SnEWyTeBigoVriDn4D'
     command: ${TEST:-./src/e2e_p2p_network.test.ts}
+    volumes:
+      - ../log:/usr/src/yarn-project/end-to-end/log:rw

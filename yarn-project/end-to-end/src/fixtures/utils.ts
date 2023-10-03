@@ -44,6 +44,7 @@ import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@azt
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { L2BlockL2Logs, LogType, PXE, TxStatus, UnencryptedL2Log } from '@aztec/types';
 
+import * as path from 'path';
 import {
   Account,
   Chain,
@@ -60,6 +61,7 @@ import {
 import { mnemonicToAccount } from 'viem/accounts';
 
 import { MNEMONIC, localAnvil } from './fixtures.js';
+import { isMetricsLoggingRequested, setupMetricsLogger } from './logging.js';
 
 const { SANDBOX_URL = '' } = process.env;
 
@@ -218,60 +220,50 @@ async function setupWithSandbox(account: Account, config: AztecNodeConfig, logge
   };
 }
 
+/** Options for the e2e tests setup */
+type SetupOptions = { /** State load */ stateLoad?: string } & Partial<AztecNodeConfig>;
+
+/** Context for an end-to-end test as returned by the `setup` function */
+export type EndToEndContext = {
+  /** The Aztec Node service. */
+  aztecNode: AztecNodeService | undefined;
+  /** The Private eXecution Environment (PXE). */
+  pxe: PXE;
+  /** Return values from deployL1Contracts function. */
+  deployL1ContractsValues: DeployL1Contracts;
+  /** The accounts created by the PXE. */
+  accounts: CompleteAddress[];
+  /** The Aztec Node configuration. */
+  config: AztecNodeConfig;
+  /** The first wallet to be used. */
+  wallet: AccountWallet;
+  /** The wallets to be used. */
+  wallets: AccountWallet[];
+  /** Logger instance named as the current test. */
+  logger: DebugLogger;
+  /** The cheat codes. */
+  cheatCodes: CheatCodes;
+  /** Function to stop the started services. */
+  teardown: () => Promise<void>;
+};
+
 /**
  * Sets up the environment for the end-to-end tests.
  * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
+ * @param opts - Options to pass to the node initialisation and to the setup script.
  */
-export async function setup(
-  numberOfAccounts = 1,
-  stateLoad: string | undefined = undefined,
-): Promise<{
-  /**
-   * The Aztec Node service.
-   */
-  aztecNode: AztecNodeService | undefined;
-  /**
-   * The Private eXecution Environment (PXE).
-   */
-  pxe: PXE;
-  /**
-   * Return values from deployL1Contracts function.
-   */
-  deployL1ContractsValues: DeployL1Contracts;
-  /**
-   * The accounts created by the PXE.
-   */
-  accounts: CompleteAddress[];
-  /**
-   * The Aztec Node configuration.
-   */
-  config: AztecNodeConfig;
-  /**
-   * The first wallet to be used.
-   */
-  wallet: AccountWallet;
-  /**
-   * The wallets to be used.
-   */
-  wallets: AccountWallet[];
-  /**
-   * Logger instance named as the current test.
-   */
-  logger: DebugLogger;
-  /**
-   * The cheat codes.
-   */
-  cheatCodes: CheatCodes;
-  /**
-   * Function to stop the started services.
-   */
-  teardown: () => Promise<void>;
-}> {
-  const config = getConfigEnvVars();
+export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Promise<EndToEndContext> {
+  const config = { ...getConfigEnvVars(), ...opts };
 
-  if (stateLoad) {
+  // Enable logging metrics to a local file named after the test suite
+  if (isMetricsLoggingRequested()) {
+    const filename = path.join('log', getJobName() + '.jsonl');
+    setupMetricsLogger(filename);
+  }
+
+  if (opts.stateLoad) {
     const ethCheatCodes = new EthCheatCodes(config.rpcUrl);
-    await ethCheatCodes.loadChainState(stateLoad);
+    await ethCheatCodes.loadChainState(opts.stateLoad);
   }
 
   const logger = getLogger();
@@ -332,12 +324,17 @@ export async function setNextBlockTimestamp(rpcUrl: string, timestamp: number) {
   });
 }
 
+/** Returns the job name for the current test. */
+function getJobName() {
+  return process.env.JOB_NAME ?? expect.getState().currentTestName?.split(' ')[0].replaceAll('/', '_') ?? 'unknown';
+}
+
 /**
  * Returns a logger instance for the current test.
  * @returns a logger instance for the current test.
  */
 export function getLogger() {
-  const describeBlockName = expect.getState().currentTestName?.split(' ')[0];
+  const describeBlockName = expect.getState().currentTestName?.split(' ')[0].replaceAll('/', ':');
   return createDebugLogger('aztec:' + describeBlockName);
 }
 

@@ -3,6 +3,7 @@
 //  This takes a {foo(): T} and makes {foo(): Promise<T>}
 //  while avoiding Promise of Promise.
 import { RemoteObject } from 'comlink';
+import { format } from 'util';
 
 import { DebugLogger, createDebugLogger } from '../../log/index.js';
 import { NoRetryError, makeBackoff, retry } from '../../retry/index.js';
@@ -29,7 +30,7 @@ export async function defaultFetch(
   useApiEndpoints: boolean,
   noRetry = false,
 ) {
-  debug(`JsonRpcClient.fetch`, host, rpcMethod, '->', body);
+  debug(format(`JsonRpcClient.fetch`, host, rpcMethod, '->', body));
   let resp: Response;
   if (useApiEndpoints) {
     resp = await fetch(`${host}/${rpcMethod}`, {
@@ -104,9 +105,9 @@ export function createJsonRpcClient<T extends object>(
       method,
       params: params.map(param => convertToJsonObj(classConverter, param)),
     };
-    debug(`JsonRpcClient.request`, method, '<-', params);
+    debug(format(`JsonRpcClient.request`, method, '<-', params));
     const res = await fetch(host, method, body, useApiEndpoints);
-    debug(`JsonRpcClient.result`, method, '->', res);
+    debug(format(`JsonRpcClient.result`, method, '->', res));
     if (res.error) {
       throw res.error;
     }
@@ -124,7 +125,7 @@ export function createJsonRpcClient<T extends object>(
       get: (target, rpcMethod: string) => {
         if (['then', 'catch'].includes(rpcMethod)) return Reflect.get(target, rpcMethod);
         return (...params: any[]) => {
-          debug(`JsonRpcClient.constructor`, 'proxy', rpcMethod, '<-', params);
+          debug(format(`JsonRpcClient.constructor`, 'proxy', rpcMethod, '<-', params));
           return request(rpcMethod, params);
         };
       },

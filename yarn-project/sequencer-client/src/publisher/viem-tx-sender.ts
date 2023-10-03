@@ -13,13 +13,19 @@ import {
   createWalletClient,
   getAddress,
   getContract,
+  hexToBytes,
   http,
 } from 'viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
 
 import { TxSenderConfig } from './config.js';
-import { L1PublisherTxSender, MinimalTransactionReceipt, L1ProcessArgs as ProcessTxArgs } from './l1-publisher.js';
+import {
+  L1PublisherTxSender,
+  MinimalTransactionReceipt,
+  L1ProcessArgs as ProcessTxArgs,
+  TransactionStats,
+} from './l1-publisher.js';
 
 /**
  * Pushes transactions to the L1 rollup contract using viem.
@@ -69,6 +75,17 @@ export class ViemTxSender implements L1PublisherTxSender {
     });
   }
 
+  async getTransactionStats(txHash: string): Promise<TransactionStats | undefined> {
+    const tx = await this.publicClient.getTransaction({ hash: txHash as Hex });
+    if (!tx) return undefined;
+    const calldata = hexToBytes(tx.input);
+    return {
+      transactionHash: tx.hash,
+      calldataSize: calldata.length,
+      calldataGas: getCalldataGasUsage(calldata),
+    };
+  }
+
   /**
    * Returns a tx receipt if the tx has been mined.
    * @param txHash - Hash of the tx to look for.
@@ -79,16 +96,16 @@ export class ViemTxSender implements L1PublisherTxSender {
       hash: txHash as Hex,
     });
 
-    // TODO: check for confirmations
-
     if (receipt) {
       return {
         status: receipt.status === 'success',
         transactionHash: txHash,
+        gasUsed: receipt.gasUsed,
+        gasPrice: receipt.effectiveGasPrice,
       };
     }
 
-    this.log('Receipt not found for tx hash', txHash);
+    this.log(`Receipt not found for tx hash ${txHash}`);
     return undefined;
   }
 
@@ -164,4 +181,13 @@ export class ViemTxSender implements L1PublisherTxSender {
 
     throw new Error(`Chain with id ${chainId} not found`);
   }
+}
+
+/**
+ * Returns cost of calldata usage in Ethereum.
+ * @param data - Calldata.
+ * @returns 4 for each zero byte, 16 for each nonzero.
+ */
+function getCalldataGasUsage(data: Uint8Array) {
+  return data.filter(byte => byte === 0).length * 4 + data.filter(byte => byte !== 0).length * 16;
 }

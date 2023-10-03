@@ -132,7 +132,7 @@ export class CrossChainTestHarness {
     this.logger("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
-    this.logger('Generated claim secret: ', secretHash.toString(true));
+    this.logger('Generated claim secret: ' + secretHash.toString(true));
     return [secret, secretHash];
   }
 

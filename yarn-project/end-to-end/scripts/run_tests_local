@@ -19,3 +19,6 @@ done
 
 docker-compose -f $COMPOSE_FILE rm -f
 docker-compose -f $COMPOSE_FILE up --exit-code-from end-to-end
+
+# Upload the logs with metrics to S3
+./scripts/upload_logs_to_s3.sh

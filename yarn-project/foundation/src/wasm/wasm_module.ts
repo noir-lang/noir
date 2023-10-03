@@ -149,9 +149,9 @@ export class WasmModule implements IWasmModule {
    */
   public addLogger(logger: LogFn) {
     const oldDebug = this.debug;
-    this.debug = (...args: any[]) => {
-      logger(...args);
-      oldDebug(...args);
+    this.debug = (msg: string) => {
+      logger(msg);
+      oldDebug(msg);
     };
   }
 

@@ -2,7 +2,6 @@ import { onLog } from '@aztec/foundation/log';
 
 import * as path from 'path';
 import * as process from 'process';
-import * as util from 'util';
 import * as winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
@@ -37,8 +36,8 @@ function createWinstonLogger() {
  */
 export function setupFileDebugLog() {
   const logger = createWinstonLogger();
-  onLog((level, namespace, args) => {
-    logger.log({ level, namespace, message: util.format(...args) });
+  onLog((level, namespace, message, data) => {
+    logger.log({ ...data, level, namespace, message });
   });
   const workdir = process.env.HOST_WORKDIR ?? process.cwd();
   return path.join(workdir, LOG_DIR, CURRENT_LOG_FILE_NAME);

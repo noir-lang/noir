@@ -1,3 +1,5 @@
+import { format } from 'util';
+
 import { createDebugLogger } from '../../log/index.js';
 import { ClassConverter, JsonClassConverterInput, StringClassConverterInput } from '../class_converter.js';
 import { convertFromJsonObj, convertToJsonObj } from '../convert.js';
@@ -25,17 +27,17 @@ export class JsonProxy {
    * @returns The remote result.
    */
   public async call(methodName: string, jsonParams: any[] = []) {
-    debug(`JsonProxy:call`, methodName, jsonParams);
+    debug(format(`JsonProxy:call`, methodName, jsonParams));
     // Get access to our class members
     const proto = Object.getPrototypeOf(this.handler);
     assert(hasOwnProperty(proto, methodName), `JsonProxy: Method ${methodName} not found!`);
     assert(Array.isArray(jsonParams), 'JsonProxy: Params not an array!');
     // convert the params from json representation to classes
     const convertedParams = jsonParams.map(param => convertFromJsonObj(this.classConverter, param));
-    debug('JsonProxy:call', methodName, '<-', convertedParams);
+    debug(format('JsonProxy:call', methodName, '<-', convertedParams));
     const rawRet = await (this.handler as any)[methodName](...convertedParams);
     const ret = convertToJsonObj(this.classConverter, rawRet);
-    debug('JsonProxy:call', methodName, '->', ret);
+    debug(format('JsonProxy:call', methodName, '->', ret));
     return ret;
   }
 }

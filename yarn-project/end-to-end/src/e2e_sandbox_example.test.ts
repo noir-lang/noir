@@ -13,6 +13,8 @@ import {
 import { GrumpkinScalar } from '@aztec/circuits.js';
 import { TokenContract } from '@aztec/noir-contracts/types';
 
+import { format } from 'util';
+
 const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
 // docs:end:imports
 
@@ -29,7 +31,7 @@ describe('e2e_sandbox_example', () => {
 
     const nodeInfo = await pxe.getNodeInfo();
 
-    logger('Aztec Sandbox Info ', nodeInfo);
+    logger(format('Aztec Sandbox Info ', nodeInfo));
     // docs:end:setup
 
     expect(typeof nodeInfo.protocolVersion).toBe('number');

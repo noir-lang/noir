@@ -21,7 +21,7 @@ describe('L1Publisher', () => {
 
     txSender = mock<L1PublisherTxSender>();
     txHash = `0x${Buffer.from('txHash').toString('hex')}`; // random tx hash
-    txReceipt = { transactionHash: txHash, status: true };
+    txReceipt = { transactionHash: txHash, status: true } as MinimalTransactionReceipt;
     txSender.sendProcessTx.mockResolvedValueOnce(txHash);
     txSender.getTransactionReceipt.mockResolvedValueOnce(txReceipt);
 

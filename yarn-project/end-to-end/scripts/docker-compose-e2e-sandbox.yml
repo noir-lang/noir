@@ -31,8 +31,12 @@ services:
   end-to-end:
     image: aztecprotocol/end-to-end:latest
     environment:
+      BENCHMARK: true
+      DEBUG: ${DEBUG:-'aztec:*'}
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       SANDBOX_URL: http://sandbox:8080
       SEARCH_START_BLOCK: ${FORK_BLOCK_NUMBER:-0}
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}
+    volumes:
+      - ../log:/usr/src/yarn-project/end-to-end/log:rw

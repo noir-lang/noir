@@ -434,10 +434,10 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     const wethL2BalanceAfterSwap = await getL2PrivateBalanceOf(ownerAddress, wethL2Contract);
     const daiL2BalanceAfterSwap = await getL2PrivateBalanceOf(ownerAddress, daiL2Contract);
 
-    logger('WETH balance before swap: ', wethL2BalanceBeforeSwap.toString());
-    logger('DAI balance before swap  : ', daiL2BalanceBeforeSwap.toString());
+    logger('WETH balance before swap: ' + wethL2BalanceBeforeSwap.toString());
+    logger('DAI balance before swap  : ' + daiL2BalanceBeforeSwap.toString());
     logger('***** 🧚‍♀️ SWAP L2 assets on L1 Uniswap 🧚‍♀️ *****');
-    logger('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
-    logger('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
+    logger('WETH balance after swap : ' + wethL2BalanceAfterSwap.toString());
+    logger('DAI balance after swap  : ' + daiL2BalanceAfterSwap.toString());
   }, 140_000);
 });

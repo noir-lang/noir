@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import { format } from 'util';
 
 import { createDebugLogger } from '../log/index.js';
 import { EventMessage, ResponseMessage, isEventMessage } from './dispatch/messages.js';
@@ -91,7 +92,7 @@ export class TransportClient<Payload> extends EventEmitter {
     }
     const msgId = this.msgId++;
     const msg = { msgId, payload };
-    debug(`->`, msg);
+    debug(format(`->`, msg));
     return new Promise<any>((resolve, reject) => {
       this.pendingRequests.push({ resolve, reject, msgId });
       this.socket!.send(msg, transfer).catch(reject);
@@ -111,7 +112,7 @@ export class TransportClient<Payload> extends EventEmitter {
       this.close();
       return;
     }
-    debug(`<-`, msg);
+    debug(format(`<-`, msg));
     if (isEventMessage(msg)) {
       this.emit('event_msg', msg.payload);
       return;

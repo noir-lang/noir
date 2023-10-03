@@ -43,7 +43,7 @@ export class L2BlockDownloader {
           await this.jobQueue.put(() => this.collectBlocks());
           await this.interruptableSleep.sleep(this.pollIntervalMS);
         } catch (err) {
-          log.error(err);
+          log.error(`Error downloading L2 block`, err);
           await this.interruptableSleep.sleep(this.pollIntervalMS);
         }
       }

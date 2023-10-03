@@ -2,7 +2,6 @@ import { AztecAddress, CompleteAddress, DebugLogger, Fr, PXE, computeMessageSecr
 import { getProgram } from '@aztec/cli';
 
 import stringArgv from 'string-argv';
-import { format } from 'util';
 
 const INITIAL_BALANCE = 33000;
 const TRANSFER_BALANCE = 3000;
@@ -19,16 +18,16 @@ export const cliTestSuite = (
     let pxe: PXE;
     let existingAccounts: CompleteAddress[];
     let contractAddress: AztecAddress;
-    let log: (...args: any[]) => void;
+    let log: (msg: string) => void;
 
     // All logs emitted by the cli will be collected here, and reset between tests
     const logs: string[] = [];
 
     beforeAll(async () => {
       pxe = await setup();
-      log = (...args: any[]) => {
-        logs.push(format(...args));
-        debug(...args);
+      log = (msg: string) => {
+        logs.push(msg);
+        debug(msg);
       };
     }, 30_000);
 

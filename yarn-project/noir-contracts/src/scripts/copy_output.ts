@@ -12,6 +12,7 @@ import omit from 'lodash.omit';
 import snakeCase from 'lodash.snakecase';
 import upperFirst from 'lodash.upperfirst';
 import { join as pathJoin } from 'path';
+import { format } from 'util';
 
 // const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
 const log = createConsoleLogger('aztec:noir-contracts');
@@ -103,6 +104,6 @@ const main = () => {
 try {
   main();
 } catch (err: unknown) {
-  log(err);
+  log(format(`Error copying build output`, err));
   process.exit(1);
 }

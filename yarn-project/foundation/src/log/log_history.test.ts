@@ -6,7 +6,7 @@ import { LogHistory } from './log_history.js';
 jest.useFakeTimers({ doNotFake: ['performance'] });
 
 describe('log history', () => {
-  let debug: (...any: any) => void;
+  let debug: (msg: string) => void;
   let logHistory: LogHistory;
   const timestemp = new Date().toISOString();
   const name = 'test:a';
@@ -21,18 +21,18 @@ describe('log history', () => {
     logHistory.enable();
     expect(logHistory.getLogs()).toEqual([]);
     debug('0');
-    debug('1', 2);
-    debug('2', { key: ['value'] }, Buffer.alloc(2));
+    debug('1');
+    debug('2');
     expect(logHistory.getLogs()).toEqual([
       [timestemp, name, '0'],
-      [timestemp, name, '1', 2],
-      [timestemp, name, '2', { key: ['value'] }, Buffer.alloc(2)],
+      [timestemp, name, '1'],
+      [timestemp, name, '2'],
     ]);
   });
 
   it('does not keep logs if not enabled', () => {
     debug('0');
-    debug('1', 2);
+    debug('1');
     expect(logHistory.getLogs()).toEqual([]);
   });
 
@@ -59,12 +59,12 @@ describe('log history', () => {
     expect(logHistory.getLogs()).toEqual([[timestemp, name, '0']]);
 
     enableLogs(`${name},${name2}`);
-    debug('1', 2);
-    debug2('one', 3);
+    debug('1');
+    debug2('one');
     expect(logHistory.getLogs()).toEqual([
       [timestemp, name, '0'],
-      [timestemp, name, '1', 2],
-      [timestemp, name2, 'one', 3],
+      [timestemp, name, '1'],
+      [timestemp, name2, 'one'],
     ]);
   });
 

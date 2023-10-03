@@ -8,6 +8,7 @@ import { mplex } from '@libp2p/mplex';
 import { tcp } from '@libp2p/tcp';
 import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
 import { identifyService } from 'libp2p/identify';
+import { format } from 'util';
 
 import { P2PConfig } from '../config.js';
 import { createLibP2PPeerId } from '../index.js';
@@ -74,15 +75,15 @@ export class BootstrapNode {
     });
 
     this.node.addEventListener('peer:discovery', evt => {
-      this.logger('Discovered %s', evt.detail.id.toString()); // Log discovered peer
+      this.logger(format('Discovered %s', evt.detail.id.toString())); // Log discovered peer
     });
 
     this.node.addEventListener('peer:connect', evt => {
-      this.logger('Connected to %s', evt.detail.toString()); // Log connected peer
+      this.logger(format('Connected to %s', evt.detail.toString())); // Log connected peer
     });
 
     this.node.addEventListener('peer:disconnect', evt => {
-      this.logger('Disconnected from %s', evt.detail.toString()); // Log connected peer
+      this.logger(format('Disconnected from %s', evt.detail.toString())); // Log connected peer
     });
   }
 

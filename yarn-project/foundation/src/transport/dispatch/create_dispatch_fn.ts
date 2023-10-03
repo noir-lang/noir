@@ -1,3 +1,5 @@
+import { format } from 'util';
+
 import { createDebugLogger } from '../../log/index.js';
 
 /**
@@ -27,7 +29,7 @@ export interface DispatchMsg {
 export function createDispatchFn(targetFn: () => any, debug = createDebugLogger('aztec:foundation:dispatch')) {
   return async ({ fn, args }: DispatchMsg) => {
     const target = targetFn();
-    debug(`dispatching to ${target}: ${fn}`, args);
+    debug(format(`dispatching to ${target}: ${fn}`, args));
     return await target[fn](...args);
   };
 }

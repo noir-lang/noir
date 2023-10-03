@@ -2,21 +2,36 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { ExtendedContractData, L2Block } from '@aztec/types';
 
+import pick from 'lodash.pick';
+
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
+import { L1PublishStats } from './index.js';
+
+/**
+ * Stats for a sent transaction.
+ */
+export type TransactionStats = {
+  /** Hash of the transaction. */
+  transactionHash: string;
+  /** Size in bytes of the tx calldata */
+  calldataSize: number;
+  /** Gas required to pay for the calldata inclusion (depends on size and number of zeros)  */
+  calldataGas: number;
+};
 
 /**
  * Minimal information from a tx receipt returned by an L1PublisherTxSender.
  */
 export type MinimalTransactionReceipt = {
-  /**
-   * True if the tx was successful, false if reverted.
-   */
+  /** True if the tx was successful, false if reverted. */
   status: boolean;
-  /**
-   * Hash of the transaction.
-   */
+  /** Hash of the transaction. */
   transactionHash: string;
+  /** Effective gas used by the tx */
+  gasUsed: bigint;
+  /** Effective gas price paid by the tx */
+  gasPrice: bigint;
 };
 
 /**
@@ -38,10 +53,7 @@ export interface L1PublisherTxSender {
    * @param publicKeys - The public keys of the deployed contract
    * @param newExtendedContractData - Data to publish.
    * @returns The hash of the mined tx.
-   * @remarks Partial addresses, public keys and contract data has to be in the same order.
-   * @remarks See the link bellow for more info on partial address and public key:
-   * https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
-   * TODO: replace the link above with the link to deployed docs
+   * @remarks Partial addresses, public keys and contract data has to be in the same order. Read more {@link https://docs.aztec.network/concepts/foundation/accounts/keys#addresses-partial-addresses-and-public-keys | here}.
    */
   sendEmitContractDeploymentTx(
     l2BlockNum: number,
@@ -55,6 +67,12 @@ export interface L1PublisherTxSender {
    * @returns Undefined if the tx hasn't been mined yet, the receipt otherwise.
    */
   getTransactionReceipt(txHash: string): Promise<MinimalTransactionReceipt | undefined>;
+
+  /**
+   * Returns info on a tx by calling eth_getTransaction.
+   * @param txHash - Hash of the tx to look for.
+   */
+  getTransactionStats(txHash: string): Promise<TransactionStats | undefined>;
 }
 
 /**
@@ -122,7 +140,22 @@ export class L1Publisher implements L2BlockReceiver {
       if (!receipt) break;
 
       // Tx was mined successfully
-      if (receipt.status) return true;
+      if (receipt.status) {
+        const tx = await this.txSender.getTransactionStats(txHash);
+        const stats: L1PublishStats = {
+          ...pick(receipt, 'gasPrice', 'gasUsed', 'transactionHash'),
+          ...pick(tx!, 'calldataGas', 'calldataSize'),
+          txCount: l2BlockData.numberOfTxs,
+          blockNumber: l2BlockData.number,
+          encryptedLogCount: l2BlockData.newEncryptedLogs?.getTotalLogCount() ?? 0,
+          unencryptedLogCount: l2BlockData.newUnencryptedLogs?.getTotalLogCount() ?? 0,
+          encryptedLogSize: l2BlockData.newEncryptedLogs?.getSerializedLength() ?? 0,
+          unencryptedLogSize: l2BlockData.newUnencryptedLogs?.getSerializedLength() ?? 0,
+          eventName: 'rollup-published-to-l1',
+        };
+        this.log.info(`Published L2 block to L1 rollup contract`, stats);
+        return true;
+      }
 
       // Check if someone else incremented the block number
       if (!(await this.checkNextL2BlockNum(l2BlockData.number))) {
@@ -185,11 +218,16 @@ export class L1Publisher implements L2BlockReceiver {
    * Calling `interrupt` will cause any in progress call to `publishRollup` to return `false` asap.
    * Be warned, the call may return false even if the tx subsequently gets successfully mined.
    * In practice this shouldn't matter, as we'll only ever be calling `interrupt` when we know it's going to fail.
-   * A call to `clearInterrupt` is required before you can continue publishing.
+   * A call to `restart` is required before you can continue publishing.
    */
   public interrupt() {
     this.interrupted = true;
     this.interruptableSleep.interrupt();
+  }
+
+  /** Restarts the publisher after calling `interrupt`. */
+  public restart() {
+    this.interrupted = false;
   }
 
   // TODO: Check fee distributor has at least 0.5 ETH.
@@ -210,7 +248,7 @@ export class L1Publisher implements L2BlockReceiver {
       try {
         return await this.txSender.sendProcessTx(encodedData);
       } catch (err) {
-        this.log(`ROLLUP PUBLISH FAILED`, err);
+        this.log.error(`Rollup publish failed`, err);
         return undefined;
       }
     }

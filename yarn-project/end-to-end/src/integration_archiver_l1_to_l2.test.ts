@@ -81,7 +81,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     const secret = Fr.random();
     const secretHash = await computeMessageSecretHash(secret);
     const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
-    logger('Generated claim secret: ', secretString);
+    logger('Generated claim secret: ' + secretString);
 
     logger('Minting tokens on L1');
     await underlyingERC20.write.mint([ethAccount.toString(), 1000000n], {} as any);

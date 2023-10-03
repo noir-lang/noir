@@ -53,6 +53,7 @@ export class Sequencer {
     if (config.minTxsPerBlock) {
       this.minTxsPerBLock = config.minTxsPerBlock;
     }
+    this.log(`Initialized sequencer with ${this.minTxsPerBLock}-${this.maxTxsPerBlock} txs per block.`);
   }
 
   /**
@@ -82,6 +83,7 @@ export class Sequencer {
    */
   public restart() {
     this.log('Restarting sequencer');
+    this.publisher.restart();
     this.runningPromise!.start();
     this.state = SequencerState.IDLE;
   }
@@ -119,17 +121,16 @@ export class Sequencer {
       // Get txs to build the new block
       const pendingTxs = await this.p2pClient.getTxs();
       if (pendingTxs.length < this.minTxsPerBLock) return;
+      this.log.info(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
       // Filter out invalid txs
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const validTxs = await this.takeValidTxs(pendingTxs);
-      if (validTxs.length < this.minTxsPerBLock) {
-        return;
-      }
+      if (validTxs.length < this.minTxsPerBLock) return;
 
       const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
 
-      this.log.info(`Building block ${blockNumber} with ${validTxs.length} transactions...`);
+      this.log.info(`Building block ${blockNumber} with ${validTxs.length} transactions`);
       this.state = SequencerState.CREATING_BLOCK;
 
       const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
@@ -173,8 +174,7 @@ export class Sequencer {
       await this.publishL2Block(block);
       this.log.info(`Submitted rollup block ${block.number} with ${processedValidTxs.length} transactions`);
     } catch (err) {
-      this.log.error(err);
-      this.log.error(`Rolling back world state DB`);
+      this.log.error(`Rolling back world state DB due to error assembling block`, err);
       await this.worldState.getLatest().rollback();
     }
   }

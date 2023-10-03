@@ -128,7 +128,7 @@ export class Synchronizer {
 
       this.synchedToBlock = latestBlock.block.number;
     } catch (err) {
-      this.log.error(err);
+      this.log.error(`Error in synchronizer work`, err);
       await this.interruptableSleep.sleep(retryInterval);
     }
   }
@@ -182,7 +182,7 @@ export class Synchronizer {
         this.noteProcessors.push(noteProcessor);
       }
     } catch (err) {
-      this.log.error(err);
+      this.log.error(`Error in synchronizer workNoteProcessorCatchUp`, err);
       await this.interruptableSleep.sleep(retryInterval);
     }
   }

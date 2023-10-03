@@ -379,11 +379,11 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@noble/curves": ^1.0.0
     "@rushstack/eslint-patch": ^1.1.4
+    "@types/fs-extra": ^11.0.2
     "@types/jest": ^29.5.0
     "@types/koa": ^2.13.9
     "@types/koa-static": ^4.0.2
     "@types/levelup": ^5.1.2
-    "@types/lodash.compact": ^3.0.7
     "@types/lodash.every": ^4.6.7
     "@types/lodash.times": ^4.3.7
     "@types/lodash.zip": ^4.2.7
@@ -408,6 +408,7 @@ __metadata:
     tslib: ^2.4.0
     typescript: ^5.0.4
     viem: ^1.2.5
+    winston: ^3.10.0
   languageName: unknown
   linkType: soft
 
@@ -4270,6 +4271,16 @@ __metadata:
     "@types/jsonfile": "*"
     "@types/node": "*"
   checksum: 3e930346e5d84f419deb8ced1c582beef8cb20d0bd8a0eb145a37d75bab0572a1895f0e48a0d681d386b3a58b9a992b2d2acecc464bcaec2548f53ea00718651
+  languageName: node
+  linkType: hard
+
+"@types/fs-extra@npm:^11.0.2":
+  version: 11.0.2
+  resolution: "@types/fs-extra@npm:11.0.2"
+  dependencies:
+    "@types/jsonfile": "*"
+    "@types/node": "*"
+  checksum: 5b3e30343ee62d2e393e1029355f13f64bab6f3416226e22492483f99da840e2e53ca22cbfa4ac3749f2f83f7086d19c009005c8fa175da01df0fae59c2d73e1
   languageName: node
   linkType: hard
 
