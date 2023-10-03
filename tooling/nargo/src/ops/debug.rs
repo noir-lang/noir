@@ -7,7 +7,7 @@ use crate::artifacts::debug::DebugArtifact;
 use crate::errors::ExecutionError;
 use crate::NargoError;
 
-use super::foreign_calls::ForeignCall;
+use super::foreign_calls::ForeignCallExecutor;
 
 use std::io::{self, Write};
 
@@ -30,6 +30,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(blackbox_solver, circuit.opcodes, initial_witness);
+    let mut foreign_call_executor = ForeignCallExecutor::default();
 
     'outer: loop {
         show_current_vm_status(&acvm, &debug_artifact);
@@ -43,7 +44,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
         match command {
             Command::Stop => return Err(NargoError::ExecutionError(ExecutionError::Halted)),
             Command::Step => {
-                match step_opcode(&mut acvm, &circuit.assert_messages, show_output)? {
+                match step_opcode(&mut acvm, &circuit.assert_messages, show_output, &mut foreign_call_executor)? {
                     SolveResult::Done => break,
                     SolveResult::Ok => {},
                 }
@@ -51,7 +52,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
             Command::Continue => {
                 println!("(Continuing execution...)");
                 loop {
-                    match step_opcode(&mut acvm, &circuit.assert_messages, show_output)? {
+                    match step_opcode(&mut acvm, &circuit.assert_messages, show_output, &mut foreign_call_executor)? {
                         SolveResult::Done => break 'outer,
                         SolveResult::Ok => {},
                     }
@@ -68,6 +69,7 @@ fn step_opcode<B: BlackBoxFunctionSolver>(
     acvm: &mut ACVM<B>,
     assert_messages: &Vec<(OpcodeLocation, String)>,
     show_output: bool,
+    foreign_call_executor: &mut ForeignCallExecutor,
 ) -> Result<SolveResult, NargoError> {
     // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
     let get_assert_message = |opcode_location| {
@@ -107,7 +109,7 @@ fn step_opcode<B: BlackBoxFunctionSolver>(
             }))
         }
         ACVMStatus::RequiresForeignCall(foreign_call) => {
-            let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;
+            let foreign_call_result = foreign_call_executor.execute(&foreign_call, show_output)?;
             acvm.resolve_pending_foreign_call(foreign_call_result);
             Ok(SolveResult::Ok)
         }
