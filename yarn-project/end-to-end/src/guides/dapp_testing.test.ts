@@ -6,6 +6,7 @@ import {
   L2BlockL2Logs,
   NotePreimage,
   PXE,
+  UnencryptedL2Log,
   computeMessageSecretHash,
   createAccount,
   createPXEClient,
@@ -212,8 +213,8 @@ describe('guides/dapp/testing', () => {
         const value = Fr.fromString('ef'); // Only 1 bytes will make its way in there :( so no larger stuff
         const tx = await testContract.methods.emit_unencrypted(value).send().wait();
         const logs = await pxe.getUnencryptedLogs(tx.blockNumber!, 1);
-        const log = L2BlockL2Logs.unrollLogs(logs)[0];
-        expect(Fr.fromBuffer(log)).toEqual(value);
+        const log = UnencryptedL2Log.fromBuffer(L2BlockL2Logs.unrollLogs(logs)[0]);
+        expect(Fr.fromBuffer(log.data)).toEqual(value);
         // docs:end:unencrypted-logs
       });
 

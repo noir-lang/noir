@@ -42,7 +42,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
-import { L2BlockL2Logs, LogType, PXE, TxStatus } from '@aztec/types';
+import { L2BlockL2Logs, LogType, PXE, TxStatus, UnencryptedL2Log } from '@aztec/types';
 
 import {
   Account,
@@ -554,8 +554,8 @@ export const expectUnencryptedLogsFromLastBlockToBe = async (pxe: PXE, logMessag
   // Get the unencrypted logs from the last block
   const unencryptedLogs = await pxe.getUnencryptedLogs(l2BlockNum, 1);
   // docs:end:get_logs
-  const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
-  const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));
+  const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs).map(log => UnencryptedL2Log.fromBuffer(log));
+  const asciiLogs = unrolledLogs.map(log => log.data.toString('ascii'));
 
   expect(asciiLogs).toStrictEqual(logMessages);
 };

@@ -5,10 +5,8 @@ contract Child {
     use dep::aztec::{
         abi::CallContext,
         context::{PrivateContext, PublicContext, Context},
-        oracle::{
-            logs::emit_unencrypted_log,
-            compute_selector::compute_selector,
-        },
+        oracle::compute_selector::compute_selector,
+        log::emit_unencrypted_log,
         state_vars::public_state::PublicState,
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
     };
@@ -67,7 +65,7 @@ contract Child {
     fn pubSetValue(new_value: Field) -> Field {
         
         storage.current_value.write(new_value);
-        let _hash = emit_unencrypted_log(new_value);
+        emit_unencrypted_log(&mut context, new_value);
         
         new_value
     }
@@ -78,7 +76,7 @@ contract Child {
         
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
-        let _hash = emit_unencrypted_log(new_value);
+        emit_unencrypted_log(&mut context, new_value);
 
         new_value
     }
@@ -90,7 +88,7 @@ contract Child {
         check_sender(inputs.call_context);
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
-        let _hash = emit_unencrypted_log(new_value);
+        emit_unencrypted_log(&mut context, new_value);
         
         new_value
     }
@@ -102,14 +100,14 @@ contract Child {
 
         
         storage.current_value.write(20);
-        let _hash = emit_unencrypted_log(20);
+        emit_unencrypted_log(&mut context, 20);
     }
 
     #[aztec(public)]
     fn setValueTwiceWithNestedLast() {
         
         storage.current_value.write(20);
-        let _hash = emit_unencrypted_log(20);
+        emit_unencrypted_log(&mut context, 20);
 
         let pubSetValueSelector = compute_selector("pubSetValue(Field)");
         let _ret = context.call_public_function(context.this_address(), pubSetValueSelector, [10]);

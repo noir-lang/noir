@@ -15,6 +15,7 @@ export {
   DeployedContract,
   FunctionCall,
   L2BlockL2Logs,
+  UnencryptedL2Log,
   NodeInfo,
   NotePreimage,
   PackedArguments,

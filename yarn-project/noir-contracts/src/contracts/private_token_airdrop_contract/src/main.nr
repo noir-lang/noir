@@ -18,7 +18,7 @@ contract PrivateTokenAirdrop {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        log::emit_unencrypted_log,
+        log::emit_unencrypted_log_from_private,
     };
 
     use crate::claim_note::{ClaimNote, ClaimNoteMethods, CLAIM_NOTE_LEN};
@@ -209,7 +209,7 @@ contract PrivateTokenAirdrop {
         // In this example, we emit the first output note's commitment to ensure that the unencrypted log
         // for each call to this function is distinct. This is done to detect any issues while collecting 
         // logs when building a transaction. See: https://github.com/AztecProtocol/aztec-packages/issues/987
-        emit_unencrypted_log(&mut context, context.new_commitments.storage[0]);
+        emit_unencrypted_log_from_private(&mut context, context.new_commitments.storage[0]);
     }
 
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).

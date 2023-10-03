@@ -3,7 +3,7 @@ import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { CompleteAddress, PublicKey } from '@aztec/types';
+import { CompleteAddress, PublicKey, UnencryptedL2Log } from '@aztec/types';
 
 /**
  * Information about a note needed during execution.
@@ -125,7 +125,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  emitUnencryptedLog(_log: Buffer): void {
+  emitUnencryptedLog(_log: UnencryptedL2Log): void {
     throw new Error('Not available.');
   }
 

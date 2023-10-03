@@ -3,7 +3,7 @@ contract PublicToken {
     use dep::std::option::Option;
 
     // docs:start:unencrypted_import
-    use dep::aztec::oracle::logs::emit_unencrypted_log;
+    use dep::aztec::log::emit_unencrypted_log;
     // docs:end:unencrypted_import
 
     use dep::aztec::{
@@ -53,7 +53,7 @@ contract PublicToken {
         let new_amount = recipient_balance.read() + amount;
         // TODO: Remove return value.
         // docs:start:unencrypted_log
-        let _hash = emit_unencrypted_log("Coins minted");
+        emit_unencrypted_log(&mut context, "Coins minted");
         // docs:end:unencrypted_log
         recipient_balance.write(new_amount);
 
@@ -81,7 +81,7 @@ contract PublicToken {
         if (current_sender_balance as u126 > amount as u126) {
             sender_balance.write(current_sender_balance - amount);
             // TODO: Compiler complains if we don't assign the result of the write to anything
-            let _hash = emit_unencrypted_log("Coins transferred");
+            emit_unencrypted_log(&mut context, "Coins transferred");
             let amount = current_recipient_balance + amount;
             recipient_balance.write(amount);
             return_value = amount;

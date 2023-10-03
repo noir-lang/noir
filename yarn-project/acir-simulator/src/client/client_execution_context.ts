@@ -14,7 +14,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AuthWitness, FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
+import { AuthWitness, FunctionL2Logs, NotePreimage, NoteSpendingInfo, UnencryptedL2Log } from '@aztec/types';
 
 import { NoteData, toACVMWitness } from '../acvm/index.js';
 import { SideEffectCounter } from '../common/index.js';
@@ -49,7 +49,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    */
   private gotNotes: Map<bigint, bigint> = new Map();
   private encryptedLogs: Buffer[] = [];
-  private unencryptedLogs: Buffer[] = [];
+  private unencryptedLogs: UnencryptedL2Log[] = [];
   private nestedExecutions: ExecutionResult[] = [];
   private enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
 
@@ -146,7 +146,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * Return the encrypted logs emitted during this execution.
    */
   public getUnencryptedLogs() {
-    return new FunctionL2Logs(this.unencryptedLogs);
+    return new FunctionL2Logs(this.unencryptedLogs.map(log => log.toBuffer()));
   }
 
   /**
@@ -294,9 +294,9 @@ export class ClientExecutionContext extends ViewDataOracle {
    * Emit an unencrypted log.
    * @param log - The unencrypted log to be emitted.
    */
-  public emitUnencryptedLog(log: Buffer) {
+  public emitUnencryptedLog(log: UnencryptedL2Log) {
     this.unencryptedLogs.push(log);
-    this.log(`Emitted unencrypted log: "${log.toString('ascii')}"`);
+    this.log(`Emitted unencrypted log: "${log.toHumanReadable()}"`);
   }
 
   /**
