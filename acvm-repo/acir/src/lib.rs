@@ -58,7 +58,7 @@ mod reflection {
         let registry = tracer.registry().unwrap();
 
         let data = serde_json::to_vec(&registry).unwrap();
-        write_to_file(&data, &PathBuf::from("./acir.json"));
+        write_to_file(&data, &PathBuf::from("./codegen/acir.json"));
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -67,7 +67,7 @@ mod reflection {
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
-        write_to_file(&source, &PathBuf::from("./acir.cpp"));
+        write_to_file(&source, &PathBuf::from("./codegen/acir.cpp"));
     }
 
     #[test]
@@ -79,7 +79,7 @@ mod reflection {
         let registry = tracer.registry().unwrap();
 
         let data = serde_json::to_vec(&registry).unwrap();
-        write_to_file(&data, &PathBuf::from("./witness.json"));
+        write_to_file(&data, &PathBuf::from("./codegen/witness.json"));
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -88,11 +88,16 @@ mod reflection {
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
-        write_to_file(&source, &PathBuf::from("./witness.cpp"));
+        write_to_file(&source, &PathBuf::from("./codegen/witness.cpp"));
     }
 
-    pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
+    fn write_to_file(bytes: &[u8], path: &Path) -> String {
         let display = path.display();
+
+        let parent_dir = path.parent().unwrap();
+        if !parent_dir.is_dir() {
+            std::fs::create_dir_all(parent_dir).unwrap();
+        }
 
         let mut file = match File::create(path) {
             Err(why) => panic!("couldn't create {display}: {why}"),
