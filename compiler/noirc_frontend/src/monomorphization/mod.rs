@@ -803,11 +803,6 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         let function_type = self.interner.id_type(expr_id);
 
-        // the substitute() here is to replace all internal occurences of the 'Self' typevar
-        // with whatever 'Self' is currently bound to, so we don't lose type information
-        // if we need to rebind the trait.
-        println!("self_type: {self_type} // {self_type:?}");
-
         let trait_impl = self
             .interner
             .get_trait_implementation(&TraitImplKey {

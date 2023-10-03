@@ -1491,8 +1491,10 @@ impl<'a> Resolver<'a> {
         for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
             if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if constraint_path.segments.len() == 1 && path.segments[0] != constraint_path.last_segment() {
-                    continue
+                if constraint_path.segments.len() == 1
+                    && path.segments[0] != constraint_path.last_segment()
+                {
+                    continue;
                 }
 
                 if let Ok(ModuleDefId::TraitId(trait_id)) =
