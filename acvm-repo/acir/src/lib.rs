@@ -82,7 +82,7 @@ mod reflection {
     }
 
     #[test]
-    fn serde_witnessmap_cpp_codegen() {
+    fn serde_witness_map_cpp_codegen() {
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Witness>().unwrap();
         tracer.trace_simple_type::<WitnessMap>().unwrap();
