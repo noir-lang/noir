@@ -934,6 +934,7 @@ fn resolve_impls(
                 functions,
                 Some(self_type.clone()),
                 generics,
+                None,
                 errors,
             );
             if self_type != Type::Error {
@@ -990,8 +991,15 @@ fn resolve_trait_impls(
             trait_impl.methods.clone(),
             Some(self_type.clone()),
             vec![], // TODO
+            maybe_trait_id,
             errors,
         );
+
+        if let Some(trait_id) = maybe_trait_id {
+            for (_, func) in &impl_methods {
+                interner.set_function_trait(*func, self_type.clone(), trait_id);
+            }
+        }
 
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
@@ -1125,6 +1133,7 @@ fn resolve_free_functions(
                 unresolved_functions,
                 self_type.clone(),
                 vec![], // no impl generics
+                None,
                 errors,
             )
         })
@@ -1138,6 +1147,7 @@ fn resolve_function_set(
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
+    trait_id: Option<TraitId>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;
@@ -1156,6 +1166,7 @@ fn resolve_function_set(
         // TypeVariables for the same generic, causing it to instantiate incorrectly.
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
+        resolver.set_trait_id(trait_id);
 
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);

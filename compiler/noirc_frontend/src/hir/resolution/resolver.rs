@@ -37,8 +37,8 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
@@ -78,6 +78,7 @@ pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    trait_id: Option<TraitId>,
     trait_bounds: Vec<UnresolvedTraitConstraint>,
     pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
@@ -121,6 +122,7 @@ impl<'a> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
+            trait_id: None,
             trait_bounds: Vec::new(),
             scopes: ScopeForest::default(),
             interner,
@@ -134,6 +136,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_self_type(&mut self, self_type: Option<Type>) {
         self.self_type = self_type;
+    }
+
+    pub fn set_trait_id(&mut self, trait_id: Option<TraitId>) {
+        self.trait_id = trait_id;
     }
 
     pub fn get_self_type(&mut self) -> Option<&Type> {
@@ -1079,7 +1085,7 @@ impl<'a> Resolver<'a> {
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
-                if let Some(expr) = self.resolve_generic_path(&path) {
+                if let Some(expr) = self.resolve_trait_generic_path(&path) {
                     expr
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -1453,38 +1459,66 @@ impl<'a> Resolver<'a> {
         self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 
-    fn resolve_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
-        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
-            if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
-                // if we're attempting to resolve `T::U::V::some_method` and constraint is `T::U::V: SomeTrait`
-                // we iterate through the Trait's elements.
+    // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<HirExpression> {
+        if let Some(trait_id) = self.trait_id {
+            if path.kind == PathKind::Plain && path.segments.len() == 2 {
+                let name = &path.segments[0].0.contents;
+                let method = &path.segments[1];
 
-                if path.segments.len() == constraint_path.segments.len() + 1 {
-                    let mut is_match = true;
-                    for (idx, ident) in constraint_path.segments.iter().enumerate() {
-                        if *ident != path.segments[idx] {
-                            is_match = false;
-                            break;
-                        }
-                    }
+                if name == SELF_TYPE_NAME {
+                    let the_trait = self.interner.get_trait(trait_id);
 
-                    if is_match {
-                        if let Ok(ModuleDefId::TraitId(trait_id)) =
-                            self.path_resolver.resolve(self.def_maps, trait_bound.trait_path.clone())
-                        {
-                            let the_trait = self.interner.get_trait(trait_id);
-                            if let Some(method) =
-                                the_trait.find_method(path.segments.last().unwrap().clone())
-                            {
-                                let self_type = self.resolve_type(typ.clone());
-                                return Some(HirExpression::TraitMethodReference(self_type, method));
-                            }
-                        }
+                    if let Some(method) = the_trait.find_method(method.clone()) {
+                        let self_type = Type::TypeVariable(
+                            the_trait.self_type_typevar,
+                            crate::TypeVariableKind::Normal,
+                        );
+                        return Some(HirExpression::TraitMethodReference(self_type, method));
                     }
                 }
             }
         }
         None
+    }
+
+    // this resolves a static trait method T::trait_method by iterating over the where clause
+    fn resolve_trait_method_by_named_generic(&mut self, path: &Path) -> Option<HirExpression> {
+        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
+            if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
+                // if we're attempting to resolve `T::U::V::some_method`
+                // we care about constraints of the form `T::U::V: SomeTrait`
+
+                let mut is_match = path.segments.len() == constraint_path.segments.len() + 1;
+                for (idx, ident) in constraint_path.segments.iter().enumerate() {
+                    if *ident != path.segments[idx] {
+                        is_match = false;
+                        break;
+                    }
+                }
+                if !is_match {
+                    continue;
+                }
+
+                if let Ok(ModuleDefId::TraitId(trait_id)) =
+                    self.path_resolver.resolve(self.def_maps, trait_bound.trait_path.clone())
+                {
+                    let the_trait = self.interner.get_trait(trait_id);
+                    if let Some(method) =
+                        the_trait.find_method(path.segments.last().unwrap().clone())
+                    {
+                        let self_type = self.resolve_type(typ.clone());
+                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
+        self.resolve_trait_static_method_by_self(&path)
+            .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {

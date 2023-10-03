@@ -203,6 +203,11 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
+        if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
+            let the_trait = self.interner.get_trait(trait_id);
+            *the_trait.self_type_typevar.borrow_mut() = TypeBinding::Bound(self_type);
+        }
+
         let meta = self.interner.function_meta(&f);
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -801,6 +806,8 @@ impl<'interner> Monomorphizer<'interner> {
         // the substitute() here is to replace all internal occurences of the 'Self' typevar
         // with whatever 'Self' is currently bound to, so we don't lose type information
         // if we need to rebind the trait.
+        println!("self_type: {self_type} // {self_type:?}");
+
         let trait_impl = self
             .interner
             .get_trait_implementation(&TraitImplKey {
