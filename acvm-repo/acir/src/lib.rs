@@ -49,6 +49,15 @@ mod reflection {
 
     #[test]
     fn serde_acir_cpp_codegen() {
+        let path = PathBuf::from("./codegen/acir.cpp");
+
+        let old_hash = if path.is_file() {
+            let old_source = std::fs::read(&path).unwrap();
+            Some(fxhash::hash64(&old_source))
+        } else {
+            None
+        };
+
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Circuit>().unwrap();
         tracer.trace_simple_type::<Opcode>().unwrap();
@@ -67,15 +76,6 @@ mod reflection {
 
         let registry = tracer.registry().unwrap();
 
-        let path = PathBuf::from("./codegen/acir.cpp");
-
-        let old_hash = if path.is_file() {
-            let old_source = std::fs::read(path).unwrap();
-            Some(fxhash::hash64(&old_source))
-        } else {
-            None
-        };
-
         // Create C++ class definitions.
         let mut source = Vec::new();
         let config = serde_generate::CodeGeneratorConfig::new("Circuit".to_string())
@@ -89,25 +89,25 @@ mod reflection {
             assert_eq!(new_hash, old_hash, "Serialization format has changed");
         }
 
-        write_to_file(&source, &PathBuf::from("./codegen/acir.cpp"));
+        write_to_file(&source, &path);
     }
 
     #[test]
     fn serde_witness_map_cpp_codegen() {
+        let path = PathBuf::from("./codegen/witness.cpp");
+
+        let old_hash = if path.is_file() {
+            let old_source = std::fs::read(&path).unwrap();
+            Some(fxhash::hash64(&old_source))
+        } else {
+            None
+        };
+
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Witness>().unwrap();
         tracer.trace_simple_type::<WitnessMap>().unwrap();
 
         let registry = tracer.registry().unwrap();
-
-        let path = PathBuf::from("./codegen/witness.cpp");
-
-        let old_hash = if path.is_file() {
-            let old_source = std::fs::read(path).unwrap();
-            Some(fxhash::hash64(&old_source))
-        } else {
-            None
-        };
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -122,7 +122,7 @@ mod reflection {
             assert_eq!(new_hash, old_hash, "Serialization format has changed");
         }
 
-        write_to_file(&source, &PathBuf::from("./codegen/witness.cpp"));
+        write_to_file(&source, &path);
     }
 
     fn write_to_file(bytes: &[u8], path: &Path) -> String {
