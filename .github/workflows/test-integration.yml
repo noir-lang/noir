@@ -215,7 +215,7 @@ jobs:
 
       - name: Run `integration-tests`
         run: |
-          yarn test
+          yarn test:integration
 
       - name: Alert on nightly test failure
         uses: JasonEtco/create-an-issue@v2
