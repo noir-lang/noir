@@ -4,7 +4,7 @@ use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 
-use crate::{errors::try_to_diagnose_error, NargoError};
+use crate::{errors::try_to_diagnose_runtime_error, NargoError};
 
 use super::execute_circuit;
 
@@ -46,8 +46,7 @@ fn test_status_program_compile_fail(err: RuntimeError, test_function: TestFuncti
         return TestStatus::CompileError(err.into());
     }
 
-    // The test has failed compilation, extract the assertion message if present
-
+    // The test has failed compilation, extract the assertion message if present and check if it's expected.
     if let RuntimeError::FailedConstraint { assert_message: Some(assert_message), .. } = &err {
         let assert_message = assert_message.clone();
         check_expected_failure_message(test_function, &assert_message, Some(err.into()))
@@ -83,7 +82,7 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
-    let diagnostic = try_to_diagnose_error(&circuit_execution_err, &debug);
+    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
         return TestStatus::Fail {

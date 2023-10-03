@@ -62,6 +62,7 @@ pub enum ExecutionError {
     SolvingError(#[from] OpcodeResolutionError),
 }
 
+/// Extracts the opcode locations from a nargo error.
 fn extract_locations_from_error(
     error: &ExecutionError,
     debug: &DebugInfo,
@@ -99,7 +100,11 @@ fn extract_locations_from_error(
     )
 }
 
-pub fn try_to_diagnose_error(nargo_err: &NargoError, debug: &DebugInfo) -> Option<FileDiagnostic> {
+/// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
+pub fn try_to_diagnose_runtime_error(
+    nargo_err: &NargoError,
+    debug: &DebugInfo,
+) -> Option<FileDiagnostic> {
     if let NargoError::ExecutionError(execution_error) = nargo_err {
         if let Some(source_locations) = extract_locations_from_error(execution_error, debug) {
             // The location of the error itself will be the location at the top

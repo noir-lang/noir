@@ -3,7 +3,7 @@ use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::errors::try_to_diagnose_error;
+use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
@@ -116,7 +116,7 @@ pub(crate) fn execute_program(
                 file_map: compiled_program.file_map.clone(),
             };
 
-            if let Some(diagnostic) = try_to_diagnose_error(&err, &compiled_program.debug) {
+            if let Some(diagnostic) = try_to_diagnose_runtime_error(&err, &compiled_program.debug) {
                 diagnostic.report(&debug_artifact, false);
             }
 
