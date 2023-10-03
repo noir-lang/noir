@@ -15,6 +15,16 @@ pub use circuit::black_box_functions::BlackBoxFunc;
 
 #[cfg(test)]
 mod reflection {
+    //! Getting test failures? You've probably changed the ACIR serialization format.
+    //!
+    //! These tests generate C++ deserializers for [`ACIR bytecode`][super::circuit::Circuit]
+    //! and the [`WitnessMap`] structs. These get checked against the C++ files committed to the `codegen` folder
+    //! to see if changes have been to the serialization format. These are almost always a breaking change!
+    //!
+    //! If you want to make a breaking change to the ACIR serialization format, then just comment out the assertions
+    //! that the file hashes must match and rerun the tests. This will overwrite the `codegen` folder with the new
+    //! logic. Make sure to uncomment these lines afterwards and to commit the changes to the `codegen` folder.
+
     use std::{
         fs::File,
         io::Write,
@@ -73,6 +83,7 @@ mod reflection {
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
+        // Comment this out to write updated C++ code to file.
         if let Some(old_hash) = old_hash {
             let new_hash = fxhash::hash64(&source);
             assert_eq!(new_hash, old_hash, "Serialization format has changed");
@@ -105,6 +116,7 @@ mod reflection {
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
+        // Comment this out to write updated C++ code to file.
         if let Some(old_hash) = old_hash {
             let new_hash = fxhash::hash64(&source);
             assert_eq!(new_hash, old_hash, "Serialization format has changed");
