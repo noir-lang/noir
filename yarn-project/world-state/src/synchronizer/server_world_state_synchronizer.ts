@@ -218,7 +218,6 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     const encoded = Buffer.from(hex.length % 2 === 1 ? '0' + hex : hex, 'hex');
 
     await this.db.put(DB_KEY_BLOCK_NUMBER, encoded);
-    this.log.debug(`Committed current L2 block number ${this.currentL2BlockNum} to db`);
   }
 
   private async restoreCurrentL2BlockNumber() {
