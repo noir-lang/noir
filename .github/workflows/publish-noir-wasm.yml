@@ -1,47 +1,25 @@
-name: Publish Noir Wasm
+name: Publish noir_wasm
 
 on:
   workflow_dispatch:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: true
 
 jobs:
-  publish-noir-wasm:
-    runs-on: ubuntu-22.04
-
+  dispatch-nix-publish:
+    name: Dispatch Nix Publish
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - uses: actions/cache@v3
+      - name: Dispatch to publish workflow
+        uses: benc-uk/workflow-dispatch@v1
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: cachix/install-nix-action@v22
-        with:
-          nix_path: nixpkgs=channel:nixos-23.05
-
-      - name: Build with Nix
-        run: nix build .#noir_wasm
-
-      - name: Discover Build Output Path
-        run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
-
-      - name: Copy Build Output to Temporary Directory
-        run: |
-          mkdir temp_publish_dir
-          cp -r ${{ env.BUILD_OUTPUT_PATH }}/* temp_publish_dir/
-          touch temp_publish_dir/yarn.lock
-
-      - name: Authenticate with npm
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
-      - name: Publish to NPM
-        working-directory: ./temp_publish_dir
-        run: yarn npm publish --tag latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          workflow: publish-nix-package.yml
+          repo: noir-lang/noir
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{
+            "noir-ref": "${{ github.event.inputs.noir-ref }}", # This line is fixed
+            "package-name": "noir_wasm"
+          }'
