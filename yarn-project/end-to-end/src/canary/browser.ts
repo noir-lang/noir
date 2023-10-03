@@ -176,13 +176,14 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           }
           const [owner] = await getSandboxAccountsWallets(pxe);
           const ownerAddress = owner.getAddress();
-          const tx = new DeployMethod(accounts[0].publicKey, pxe, TokenContractAbi).send();
+          const tx = new DeployMethod(accounts[0].publicKey, pxe, TokenContractAbi, [
+            owner.getCompleteAddress(),
+          ]).send();
           await tx.wait();
           const receipt = await tx.getReceipt();
           console.log(`Contract Deployed: ${receipt.contractAddress}`);
 
           const token = await Contract.at(receipt.contractAddress!, TokenContractAbi, owner);
-          await token.methods._initialize(ownerAddress).send().wait();
           const secret = Fr.random();
           const secretHash = await computeMessageSecretHash(secret);
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();

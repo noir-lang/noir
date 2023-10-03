@@ -12,17 +12,12 @@ ALICE_PRIVATE_KEY="0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf08
 # docs:start:deploy
 aztec-cli deploy \
   TokenContractAbi \
-  --salt 0
+  --salt 0 \
+  --args $ALICE
 
-aztec-cli check-deploy --contract-address 0x2d23acefa3ce07b3c308caf78d86c064cdf8957bcea48b38753cf58441796c8c
+aztec-cli check-deploy --contract-address 0x2219e810bff6e04abdefce9f91c2d1dd1e4d52fafa602def3c90b77f4331feca
 
-CONTRACT="0x2d23acefa3ce07b3c308caf78d86c064cdf8957bcea48b38753cf58441796c8c"
-
-aztec-cli send _initialize \
-  --args $ALICE \
-  --contract-abi TokenContractAbi \
-  --contract-address $CONTRACT \
-  --private-key $ALICE_PRIVATE_KEY
+CONTRACT="0x2219e810bff6e04abdefce9f91c2d1dd1e4d52fafa602def3c90b77f4331feca"
 # docs:end:deploy
 
 # docs:start:mint-private
@@ -77,7 +72,7 @@ aztec-cli get-logs
 
 # Test end result
 BOB_BALANCE=$(aztec-cli call balance_of_private --args $BOB --contract-abi TokenContractAbi --contract-address $CONTRACT)
-if ! echo $BOB_BALANCE | grep -q 500; then 
+if ! echo $BOB_BALANCE | grep -q 500; then
   echo "Incorrect Bob balance after transaction (expected 500 but got $BOB_BALANCE)"
   exit 1
 fi

@@ -11,8 +11,7 @@ async function main() {
   const pxe = createPXEClient(SANDBOX_URL);
   const [owner] = await getSandboxAccountsWallets(pxe);
 
-  const token = await Contract.deploy(pxe, TokenContractAbi, []).send().deployed();
-  await token.withWallet(owner).methods._initialize(owner.getAddress()).send().wait();
+  const token = await Contract.deploy(pxe, TokenContractAbi, [owner.getCompleteAddress()]).send().deployed();
 
   console.log(`Token deployed at ${token.address.toString()}`);
 

@@ -112,10 +112,9 @@ contract Token {
 
     // docs:start:constructor
     #[aztec(private)]
-    fn constructor() {
-        // Currently not possible to execute public calls from constructor as code not yet available to sequencer.
-        // let selector = compute_selector("_initialize((Field))");
-        // let _callStackItem = context.call_public_function(context.this_address(), selector, [context.msg_sender()]);
+    fn constructor(admin: AztecAddress) {
+        let selector = compute_selector("_initialize((Field))");
+        context.call_public_function(context.this_address(), selector, [admin.address]);
     }
     // docs:end:constructor
 
@@ -334,7 +333,7 @@ contract Token {
         1
     }
     // docs:end:transfer
-    
+
     // docs:start:burn
     #[aztec(private)]
     fn burn(
@@ -359,14 +358,9 @@ contract Token {
     }
     // docs:end:burn
 
-    /// SHOULD BE Internal ///
-
     // docs:start:initialize
-    // We cannot do this from the constructor currently 
-    // Since this should be internal, for now, we ignore the safety checks of it, as they are 
-    // enforced by it being internal and only called from the constructor.
     #[aztec(public)]
-    fn _initialize(
+    internal fn _initialize(
         new_admin: AztecAddress,
     ) {
         storage.admin.write(new_admin);
@@ -398,7 +392,7 @@ contract Token {
     }
     // docs:end:reduce_total_supply
 
-    /// Unconstrained /// 
+    /// Unconstrained ///
 
     // docs:start:admin
     unconstrained fn admin() -> Field {

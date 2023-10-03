@@ -56,13 +56,12 @@ describe('e2e_sandbox_example', () => {
     const initialSupply = 1_000_000n;
 
     logger(`Deploying token contract minting an initial ${initialSupply} tokens to Alice...`);
-    const contract = await TokenContract.deploy(pxe).send().deployed();
+    const contract = await TokenContract.deploy(pxe, alice).send().deployed();
 
     // Create the contract abstraction and link to Alice's wallet for future signing
     const tokenContractAlice = await TokenContract.at(contract.address, accounts[0]);
 
-    // Initialize the contract and add Bob as a minter
-    await tokenContractAlice.methods._initialize(alice).send().wait();
+    // add Bob as a minter
     await tokenContractAlice.methods.set_minter(bob, true).send().wait();
 
     logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);

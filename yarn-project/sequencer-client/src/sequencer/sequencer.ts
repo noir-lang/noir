@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { P2P } from '@aztec/p2p';
-import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx } from '@aztec/types';
+import { ContractDataSource, L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchronizer } from '@aztec/world-state';
 
 import times from 'lodash.times';
@@ -41,6 +41,7 @@ export class Sequencer {
     private blockBuilder: BlockBuilder,
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
+    private contractDataSource: ContractDataSource,
     private publicProcessorFactory: PublicProcessorFactory,
     config: SequencerConfig,
     private log = createDebugLogger('aztec:sequencer'),

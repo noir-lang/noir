@@ -2,7 +2,7 @@ mod util;
 mod token_interface;
 
 // Minimal implementation of the token bridge that can move funds between L1 <> L2.
-// The bridge has a corresponding Portal contract on L1 that it is attached to 
+// The bridge has a corresponding Portal contract on L1 that it is attached to
 // And corresponds to a Token on L2 that uses the `AuthWit` accounts pattern.
 // Bridge has to be set as a minter on the token before it can be used
 
@@ -40,10 +40,9 @@ contract TokenBridge {
 
     // Constructs the contract.
     #[aztec(private)]
-    fn constructor() {
-        // Currently not possible to execute public calls from constructor as code not yet available to sequencer.
-        // let selector = compute_selector("_initialize((Field))");
-        // let _callStackItem = context.call_public_function(context.this_address(), selector, [context.msg_sender()]);
+    fn constructor(token: AztecAddress) {
+        let selector = compute_selector("_initialize((Field))");
+        context.call_public_function(context.this_address(), selector, [token.address]);
     }
 
     // docs:start:claim_public
@@ -60,7 +59,7 @@ contract TokenBridge {
         // Consume message and emit nullifier
         context.consume_l1_to_l2_message(msg_key, content_hash, secret);
 
-        // Mint tokens 
+        // Mint tokens
         Token::at(storage.token.read()).mint_public(context, to.address, amount);
 
         1
@@ -69,7 +68,7 @@ contract TokenBridge {
 
     // docs:start:exit_to_l1_public
     // Burns the appropriate amount of tokens and creates a L2 to L1 withdraw message publicly
-    // Requires `msg.sender` to give approval to the bridge to burn tokens on their behalf using witness signatures 
+    // Requires `msg.sender` to give approval to the bridge to burn tokens on their behalf using witness signatures
     #[aztec(public)]
     fn exit_to_l1_public(
         recipient: EthereumAddress, // ethereum address to withdraw to
@@ -79,11 +78,11 @@ contract TokenBridge {
     ) -> Field {
         // Send an L2 to L1 message
         let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
-        context.message_portal(content);     
+        context.message_portal(content);
 
-        // Burn tokens 
+        // Burn tokens
         Token::at(storage.token.read()).burn_public(context, context.msg_sender(), amount, nonce);
-   
+
         1
     }
     // docs:end:exit_to_l1_public
@@ -102,10 +101,10 @@ contract TokenBridge {
         let content_hash = get_mint_private_content_hash(amount, secret_hash_for_redeeming_minted_notes, canceller.address);
         context.consume_l1_to_l2_message(msg_key, content_hash, secret_for_L1_to_L2_message_consumption);
 
-        // Mint tokens on L2 
-        // `mint_private` on token is public. So we call an internal public function 
+        // Mint tokens on L2
+        // `mint_private` on token is public. So we call an internal public function
         // which then calls the public method on the token contract.
-        // Since the secret_hash is passed, no secret is leaked. 
+        // Since the secret_hash is passed, no secret is leaked.
         context.call_public_function(
             context.this_address(),
             compute_selector("_call_mint_on_token(Field,Field)"),
@@ -117,7 +116,7 @@ contract TokenBridge {
 
     // docs:start:exit_to_l1_private
     // Burns the appropriate amount of tokens and creates a L2 to L1 withdraw message privately
-    // Requires `msg.sender` (caller of the method) to give approval to the bridge to burn tokens on their behalf using witness signatures 
+    // Requires `msg.sender` (caller of the method) to give approval to the bridge to burn tokens on their behalf using witness signatures
     #[aztec(private)]
     fn exit_to_l1_private(
         recipient: EthereumAddress, // ethereum address to withdraw to
@@ -130,7 +129,7 @@ contract TokenBridge {
         let content = get_withdraw_content_hash(recipient.address, amount, callerOnL1.address);
         context.message_portal(content);
 
-        // Assert that user provided token address is same as seen in storage. 
+        // Assert that user provided token address is same as seen in storage.
         context.call_public_function(context.this_address(), compute_selector("_assert_token_is_same(Field)"), [token.address]);
 
         // Burn tokens
@@ -141,25 +140,20 @@ contract TokenBridge {
     /// docs:end:exit_to_l1_private
 
     // View function that is callable by other contracts.
-    // Unconstrained can't be called by others since it isn't safe. 
+    // Unconstrained can't be called by others since it isn't safe.
     #[aztec(public)]
     fn get_token() -> Field {
         storage.token.read()
     }
-    
-    // /// Unconstrained /// 
+
+    // /// Unconstrained ///
 
     unconstrained fn token() -> Field {
         storage.token.read()
     }
 
-    /// SHOULD BE Internal ///
-
-    // We cannot do this from the constructor currently 
-    // Since this should be internal, for now, we ignore the safety checks of it, as they are 
-    // enforced by it being internal and only called from the constructor.
     #[aztec(public)]
-    fn _initialize(token: AztecAddress) {
+    internal fn _initialize(token: AztecAddress) {
         storage.token.write(token.address);
     }
 

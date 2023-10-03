@@ -55,6 +55,7 @@ export class SequencerClient {
       blockBuilder,
       l2BlockSource,
       l1ToL2MessageSource,
+      contractDataSource,
       publicProcessorFactory,
       config,
     );

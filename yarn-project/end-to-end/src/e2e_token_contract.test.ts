@@ -40,7 +40,7 @@ describe('e2e_token_contract', () => {
   beforeAll(async () => {
     ({ teardown, logger, wallets, accounts } = await setup(3));
 
-    asset = await TokenContract.deploy(wallets[0]).send().deployed();
+    asset = await TokenContract.deploy(wallets[0], accounts[0]).send().deployed();
     logger(`Token deployed to ${asset.address}`);
     tokenSim = new TokenSimulator(
       asset,
@@ -48,7 +48,6 @@ describe('e2e_token_contract', () => {
       accounts.map(a => a.address),
     );
 
-    await asset.methods._initialize(accounts[0].address).send().wait();
     expect(await asset.methods.admin().view()).toBe(accounts[0].address.toBigInt());
 
     asset.abi.functions.forEach(fn => {

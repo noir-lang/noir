@@ -10,7 +10,7 @@ describe('guides/up_quick_start', () => {
       `DEBUG="aztec:*" PXE_HOST=\${SANDBOX_URL:-http://localhost:8080} PATH=$PATH:../node_modules/.bin ./src/guides/up_quick_start.sh`,
       {
         shell: '/bin/bash',
-        stdio: 'pipe',
+        stdio: 'inherit',
       },
     );
   }, 90_000);

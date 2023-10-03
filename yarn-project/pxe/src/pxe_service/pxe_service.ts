@@ -548,7 +548,10 @@ export class PXEService implements PXE {
     const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
 
-    const contractData = new ContractData(newContract?.completeAddress.address ?? AztecAddress.ZERO, EthAddress.ZERO);
+    const contractData = new ContractData(
+      newContract?.completeAddress.address ?? AztecAddress.ZERO,
+      newContract?.portalContract ?? EthAddress.ZERO,
+    );
     const extendedContractData = new ExtendedContractData(
       contractData,
       newContractPublicFunctions,

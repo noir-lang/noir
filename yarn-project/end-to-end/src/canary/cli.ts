@@ -118,7 +118,7 @@ export const cliTestSuite = (
       const ownerAddress = AztecAddress.fromString(foundAddress!);
 
       debug('Deploy Token Contract using created account.');
-      await run(`deploy TokenContractAbi --salt 0`);
+      await run(`deploy TokenContractAbi --salt 0 --args ${ownerAddress}`);
       const loggedAddress = findInLogs(/Contract\sdeployed\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
       expect(loggedAddress).toBeDefined();
       contractAddress = AztecAddress.fromString(loggedAddress!);
@@ -130,11 +130,6 @@ export const cliTestSuite = (
       await run(`check-deploy -ca ${loggedAddress}`);
       const checkResult = findInLogs(/Contract\sfound\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
       expect(checkResult).toEqual(deployedContract?.contractAddress.toString());
-
-      debug('Initialize token contract.');
-      await run(
-        `send _initialize --args ${ownerAddress} --contract-abi TokenContractAbi --contract-address ${contractAddress.toString()}  --private-key ${privKey}`,
-      );
 
       const secret = Fr.random();
       const secretHash = await computeMessageSecretHash(secret);

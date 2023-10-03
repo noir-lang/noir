@@ -47,7 +47,8 @@ import { MerkleTreeOperations } from '@aztec/world-state';
 import { getVerificationKeys } from '../index.js';
 import { EmptyPublicProver } from '../prover/empty.js';
 import { PublicProver } from '../prover/index.js';
-import { PublicKernelCircuitSimulator, getPublicExecutor } from '../simulator/index.js';
+import { PublicKernelCircuitSimulator } from '../simulator/index.js';
+import { ContractsDataSourcePublicDB, getPublicExecutor } from '../simulator/public_executor.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { FailedTx, ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 import { getHistoricBlockData } from './utils.js';
@@ -66,6 +67,7 @@ export class PublicProcessorFactory {
    * Creates a new instance of a PublicProcessor.
    * @param prevGlobalVariables - The global variables for the previous block, used to calculate the prev global variables hash.
    * @param globalVariables - The global variables for the block being processed.
+   * @param newContracts - Provides access to contract bytecode for public executions.
    * @returns A new instance of a PublicProcessor.
    */
   public async create(
@@ -73,14 +75,15 @@ export class PublicProcessorFactory {
     globalVariables: GlobalVariables,
   ): Promise<PublicProcessor> {
     const blockData = await getHistoricBlockData(this.merkleTree, prevGlobalVariables);
+    const publicContractsDB = new ContractsDataSourcePublicDB(this.contractDataSource);
     return new PublicProcessor(
       this.merkleTree,
-      getPublicExecutor(this.merkleTree, this.contractDataSource, this.l1Tol2MessagesDataSource, blockData),
+      getPublicExecutor(this.merkleTree, publicContractsDB, this.l1Tol2MessagesDataSource, blockData),
       new WasmPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
-      this.contractDataSource,
       globalVariables,
       blockData,
+      publicContractsDB,
     );
   }
 }
@@ -95,9 +98,9 @@ export class PublicProcessor {
     protected publicExecutor: PublicExecutor,
     protected publicKernel: PublicKernelCircuitSimulator,
     protected publicProver: PublicProver,
-    protected contractDataSource: ContractDataSource,
     protected globalVariables: GlobalVariables,
     protected blockData: HistoricBlockData,
+    protected publicContractsDB: ContractsDataSourcePublicDB,
 
     private log = createDebugLogger('aztec:sequencer:public-processor'),
   ) {}
@@ -116,6 +119,8 @@ export class PublicProcessor {
     for (const tx of txs) {
       this.log(`Processing tx ${await tx.getTxHash()}`);
       try {
+        // add new contracts to the contracts db so that their functions may be found and called
+        await this.publicContractsDB.addNewContracts(tx);
         result.push(await this.processTx(tx));
       } catch (err) {
         this.log.warn(`Error processing tx ${await tx.getTxHash()}: ${err}`);
@@ -123,8 +128,11 @@ export class PublicProcessor {
           tx,
           error: err instanceof Error ? err : new Error('Unknown error'),
         });
+        // remove contracts on failure
+        await this.publicContractsDB.removeNewContracts(tx);
       }
     }
+
     return [result, failed];
   }
 
@@ -405,6 +413,7 @@ export class PublicProcessor {
       PublicDataRead.empty(),
       MAX_PUBLIC_DATA_READS_PER_TX,
     );
+
     // Override kernel output
     publicInputs.end.publicDataUpdateRequests = padArrayEnd(
       [

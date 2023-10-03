@@ -416,7 +416,7 @@ Internal functions are functions that can only be called by this contract. The f
 
 #### `_initialize`
 
-This function is called via the [constructor](#constructor). Note that it is not actually marked `internal` right now--this is because this functionality is still being worked on.
+This function is called via the [constructor](#constructor).
 
 This function sets the creator of the contract (passed as `msg_sender` from the constructor) as the admin and makes them a minter.
 

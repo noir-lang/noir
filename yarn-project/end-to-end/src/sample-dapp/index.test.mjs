@@ -10,8 +10,7 @@ describe('token', () => {
     owner = await createAccount(pxe);
     recipient = await createAccount(pxe);
 
-    token = await Contract.deploy(owner, TokenContractAbi, []).send().deployed();
-    await token.methods._initialize(owner.getAddress()).send().wait();
+    token = await Contract.deploy(owner, TokenContractAbi, [owner.getCompleteAddress()]).send().deployed();
 
     const initialBalance = 20n;
     const secret = Fr.random();

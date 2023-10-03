@@ -27,17 +27,7 @@ import {
   makeSelector,
 } from '@aztec/circuits.js/factories';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import {
-  ContractDataSource,
-  EncodedContractFunction,
-  ExtendedContractData,
-  FunctionCall,
-  FunctionL2Logs,
-  SiblingPath,
-  Tx,
-  TxL2Logs,
-  mockTx,
-} from '@aztec/types';
+import { ExtendedContractData, FunctionCall, FunctionL2Logs, SiblingPath, Tx, TxL2Logs, mockTx } from '@aztec/types';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -45,6 +35,7 @@ import times from 'lodash.times';
 
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
+import { ContractsDataSourcePublicDB } from '../simulator/public_executor.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { PublicProcessor } from './public_processor.js';
 
@@ -52,10 +43,8 @@ describe('public_processor', () => {
   let db: MockProxy<MerkleTreeOperations>;
   let publicExecutor: MockProxy<PublicExecutor>;
   let publicProver: MockProxy<PublicProver>;
-  let contractDataSource: MockProxy<ContractDataSource>;
+  let publicContractsDB: MockProxy<ContractsDataSourcePublicDB>;
 
-  let publicFunction: EncodedContractFunction;
-  let contractData: ExtendedContractData;
   let proof: Proof;
   let root: Buffer;
 
@@ -65,18 +54,14 @@ describe('public_processor', () => {
     db = mock<MerkleTreeOperations>();
     publicExecutor = mock<PublicExecutor>();
     publicProver = mock<PublicProver>();
-    contractDataSource = mock<ContractDataSource>();
+    publicContractsDB = mock<ContractsDataSourcePublicDB>();
 
-    contractData = ExtendedContractData.random();
-    publicFunction = EncodedContractFunction.random();
     proof = makeEmptyProof();
     root = Buffer.alloc(32, 5);
 
     publicProver.getPublicCircuitProof.mockResolvedValue(proof);
     publicProver.getPublicKernelCircuitProof.mockResolvedValue(proof);
     db.getTreeInfo.mockResolvedValue({ root } as TreeInfo);
-    contractDataSource.getExtendedContractData.mockResolvedValue(contractData);
-    contractDataSource.getPublicFunction.mockResolvedValue(publicFunction);
   });
 
   describe('with mock circuits', () => {
@@ -89,9 +74,9 @@ describe('public_processor', () => {
         publicExecutor,
         publicKernel,
         publicProver,
-        contractDataSource,
         GlobalVariables.empty(),
         HistoricBlockData.empty(),
+        publicContractsDB,
       );
     });
 
@@ -145,9 +130,9 @@ describe('public_processor', () => {
         publicExecutor,
         publicKernel,
         publicProver,
-        contractDataSource,
         GlobalVariables.empty(),
         HistoricBlockData.empty(),
+        publicContractsDB,
       );
     });
 
