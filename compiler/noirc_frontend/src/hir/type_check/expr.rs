@@ -174,7 +174,7 @@ impl<'interner> TypeChecker<'interner> {
                         }
 
                         let (function_id, function_call) = method_call.into_function_call(
-                            method_ref,
+                            method_ref.clone(),
                             location,
                             self.interner,
                         );
@@ -291,7 +291,19 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(_) => unreachable!("unexpected TraitMethodReference - they should be added after initial type checking"),
+            HirExpression::TraitMethodReference(_, method) => {
+                let the_trait = self.interner.get_trait(method.trait_id);
+                let method = &the_trait.methods[method.method_index];
+
+                let typ = Type::Function(
+                    method.arguments.clone(),
+                    Box::new(method.return_type.clone()),
+                    Box::new(Type::Unit),
+                );
+                let (typ, bindings) = typ.instantiate(self.interner);
+                self.interner.store_instantiation_bindings(*expr_id, bindings);
+                typ
+            }
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
@@ -498,7 +510,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 (func_meta.typ, param_len)
             }
-            HirMethodReference::TraitMethodId(method) => {
+            HirMethodReference::TraitMethodId(_, method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
 
@@ -863,7 +875,10 @@ impl<'interner> TypeChecker<'interner> {
                             if method.name.0.contents == method_name {
                                 let trait_method =
                                     TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(trait_method));
+                                return Some(HirMethodReference::TraitMethodId(
+                                    object_type.clone(),
+                                    trait_method,
+                                ));
                             }
                         }
                     }
