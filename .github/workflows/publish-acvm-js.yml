@@ -1,9 +1,6 @@
 name: Publish acvm_js
 
 on:
-  push:
-    branches:
-      - jb-fix-publishing
   workflow_dispatch:
     inputs:
       noir-ref:
