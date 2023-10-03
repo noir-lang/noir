@@ -34,9 +34,8 @@ test_cases.forEach((testInfo) => {
 
     const noir_source_path = resolve(`${base_relative_path}/${test_case}/src/main.nr`);
 
-    const compile_output = compile(noir_source_path);
+    const noir_program = compile(noir_source_path);
 
-    const noir_program = { bytecode: compile_output.circuit, abi: compile_output.abi };
     const backend = new BarretenbergBackend(noir_program);
     const program = new Noir(noir_program, backend);
 

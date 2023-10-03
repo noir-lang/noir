@@ -1,14 +1,21 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::Array;
+use nargo::artifacts::{
+    contract::{PreprocessedContract, PreprocessedContractFunction},
+    program::PreprocessedProgram,
+};
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    CompiledContract, CompiledProgram,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use std::path::Path;
 use wasm_bindgen::prelude::*;
 
 use crate::errors::JsCompileError;
+
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 #[wasm_bindgen]
 extern "C" {
@@ -56,7 +63,9 @@ pub fn compile(
             nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
                 .expect("Contract optimization failed");
 
-        Ok(<JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap())
+        let preprocessed_contract = preprocess_contract(optimized_contract);
+
+        Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_contract).unwrap())
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
             .map_err(|_| JsCompileError::new("Failed to compile program".to_string()))?
@@ -66,7 +75,9 @@ pub fn compile(
             nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
                 .expect("Program optimization failed");
 
-        Ok(<JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap())
+        let preprocessed_program = preprocess_program(optimized_program);
+
+        Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_program).unwrap())
     }
 }
 
@@ -95,6 +106,36 @@ fn add_noir_lib(context: &mut Context, library_name: &str) {
             .crate_graph
             .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
             .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
+    }
+}
+
+fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
+    PreprocessedProgram {
+        hash: program.hash,
+        backend: String::from(BACKEND_IDENTIFIER),
+        abi: program.abi,
+        bytecode: program.circuit,
+    }
+}
+
+fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
+    let preprocessed_functions = contract
+        .functions
+        .into_iter()
+        .map(|func| PreprocessedContractFunction {
+            name: func.name,
+            function_type: func.function_type,
+            is_internal: func.is_internal,
+            abi: func.abi,
+            bytecode: func.bytecode,
+        })
+        .collect();
+
+    PreprocessedContract {
+        name: contract.name,
+        backend: String::from(BACKEND_IDENTIFIER),
+        functions: preprocessed_functions,
+        events: contract.events,
     }
 }
 
