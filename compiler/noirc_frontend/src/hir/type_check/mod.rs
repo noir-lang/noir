@@ -325,11 +325,11 @@ mod test {
     fn basic_for_expr() {
         let src = r#"
             fn main(_x : Field) {
-                let _j = for _i in 0..10 {
+                for _i in 0..10 {
                     for _k in 0..100 {
 
                     }
-                };
+                }
             }
 
         "#;

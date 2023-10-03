@@ -22,7 +22,6 @@ pub enum ExpressionKind {
     MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
-    For(Box<ForExpression>),
     If(Box<IfExpression>),
     Variable(Path),
     Tuple(Vec<Expression>),
@@ -179,14 +178,6 @@ impl Expression {
         };
         Expression::new(kind, span)
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ForExpression {
-    pub identifier: Ident,
-    pub start_range: Expression,
-    pub end_range: Expression,
-    pub block: Expression,
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
@@ -469,7 +460,6 @@ impl Display for ExpressionKind {
             MethodCall(call) => call.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
-            For(for_loop) => for_loop.fmt(f),
             If(if_expr) => if_expr.fmt(f),
             Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
@@ -600,16 +590,6 @@ impl Display for BinaryOpKind {
             BinaryOpKind::ShiftRight => write!(f, ">>"),
             BinaryOpKind::Modulo => write!(f, "%"),
         }
-    }
-}
-
-impl Display for ForExpression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "for {} in {} .. {} {}",
-            self.identifier, self.start_range, self.end_range, self.block
-        )
     }
 }
 

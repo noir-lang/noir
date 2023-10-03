@@ -23,6 +23,7 @@ pub enum Statement {
     Constrain(ConstrainStatement),
     Expression(Expression),
     Assign(AssignStatement),
+    For(ForLoopStatement),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -65,13 +66,13 @@ impl Statement {
                 }
                 self
             }
+            // A semicolon on a for loop is optional and does nothing
+            Statement::For(_) => self,
 
             Statement::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
                     // Semicolons are optional for these expressions
-                    (ExpressionKind::Block(_), semi, _)
-                    | (ExpressionKind::For(_), semi, _)
-                    | (ExpressionKind::If(_), semi, _) => {
+                    (ExpressionKind::Block(_), semi, _) | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             Statement::Semi(expr)
                         } else {
@@ -459,6 +460,14 @@ impl LValue {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForLoopStatement {
+    pub identifier: Ident,
+    pub start_range: Expression,
+    pub end_range: Expression,
+    pub block: Expression,
+}
+
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -466,6 +475,7 @@ impl Display for Statement {
             Statement::Constrain(constrain) => constrain.fmt(f),
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
+            Statement::For(for_loop) => for_loop.fmt(f),
             Statement::Semi(semi) => write!(f, "{semi};"),
             Statement::Error => write!(f, "Error"),
         }
@@ -542,5 +552,15 @@ impl Display for Pattern {
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
             }
         }
+    }
+}
+
+impl Display for ForLoopStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "for {} in {} .. {} {}",
+            self.identifier, self.start_range, self.end_range, self.block
+        )
     }
 }
