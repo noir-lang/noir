@@ -646,6 +646,10 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Arithmetic(expr));
     }
 
+    pub(crate) fn assert_eq(&mut self, lhs: Expression, rhs: Expression) {
+        self.push_opcode(AcirOpcode::AssertEq { lhs, rhs });
+    }
+
     /// Returns a `Witness` that is constrained to be:
     /// - `1` if `lhs == rhs`
     /// - `0` otherwise

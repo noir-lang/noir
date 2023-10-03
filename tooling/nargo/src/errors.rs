@@ -41,7 +41,8 @@ impl NargoError {
                 OpcodeResolutionError::IndexOutOfBounds { .. }
                 | OpcodeResolutionError::UnsupportedBlackBoxFunc(_)
                 | OpcodeResolutionError::OpcodeNotSolvable(_)
-                | OpcodeResolutionError::UnsatisfiedConstrain { .. } => None,
+                | OpcodeResolutionError::UnsatisfiedConstrain { .. }
+                | OpcodeResolutionError::AssertFail { .. } => None,
                 OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),
                 OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => Some(reason),
             },

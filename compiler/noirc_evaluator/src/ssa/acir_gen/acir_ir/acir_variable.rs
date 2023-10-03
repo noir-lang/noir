@@ -418,6 +418,21 @@ impl AcirContext {
                 return Ok(());
             } else {
                 // Constraint is always false - this program is unprovable.
+                let assert_message = if let (Some(lhs_const), Some(rhs_const)) =
+                    (lhs_expr.to_const(), rhs_expr.to_const())
+                {
+                    Some(format!(
+                        "(left == right)
+                    left: {},
+                    right: {}: {}",
+                        lhs_const,
+                        rhs_const,
+                        assert_message.unwrap_or_default()
+                    ))
+                } else {
+                    assert_message
+                };
+
                 return Err(RuntimeError::FailedConstraint {
                     lhs: Box::new(lhs_expr),
                     rhs: Box::new(rhs_expr),
@@ -426,11 +441,11 @@ impl AcirContext {
                 });
             };
         }
-
-        self.acir_ir.assert_is_zero(diff_expr);
+        self.acir_ir.assert_eq(lhs_expr, rhs_expr);
         if let Some(message) = assert_message {
             self.acir_ir.assert_messages.insert(self.acir_ir.last_acir_opcode_location(), message);
         }
+        self.acir_ir.assert_is_zero(diff_expr);
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())

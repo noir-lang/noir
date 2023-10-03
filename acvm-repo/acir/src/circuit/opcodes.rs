@@ -31,6 +31,10 @@ pub enum Opcode {
         block_id: BlockId,
         init: Vec<Witness>,
     },
+    AssertEq {
+        lhs: Expression,
+        rhs: Expression,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -59,6 +63,7 @@ impl Opcode {
             Opcode::Brillig(_) => "brillig",
             Opcode::MemoryOp { .. } => "mem",
             Opcode::MemoryInit { .. } => "init memory block",
+            Opcode::AssertEq { .. } => "assert_eq",
         }
     }
 
@@ -167,6 +172,10 @@ impl std::fmt::Display for Opcode {
             Opcode::MemoryInit { block_id, init } => {
                 write!(f, "INIT ")?;
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
+            }
+            Opcode::AssertEq { lhs, rhs } => {
+                write!(f, "ASSERTEQ ")?;
+                write!(f, "(lhs: {}, rhs: {}) ", lhs, rhs)
             }
         }
     }

@@ -33,28 +33,41 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
                 unreachable!("Execution should not stop while in `InProgress` state.")
             }
             ACVMStatus::Failure(error) => {
-                let call_stack = match &error {
+                let mut err = ExecutionError::SolvingError(error.clone());
+                match &error {
                     OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: ErrorLocation::Resolved(opcode_location),
-                    } => Some(vec![*opcode_location]),
-                    OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-                        Some(call_stack.clone())
+                    } => {
+                        if let Some(assert_message) = get_assert_message(opcode_location) {
+                            err = ExecutionError::AssertionFailed(
+                                assert_message,
+                                vec![*opcode_location],
+                            );
+                        }
                     }
-                    _ => None,
-                };
-
-                return Err(NargoError::ExecutionError(match call_stack {
-                    Some(call_stack) => {
+                    OpcodeResolutionError::AssertFail {
+                        opcode_location: ErrorLocation::Resolved(opcode_location),
+                        ..
+                    } => {
+                        if let Some(assert_message) = get_assert_message(opcode_location) {
+                            let assert_message = format!("{}: {}", error, assert_message);
+                            err = ExecutionError::AssertionFailed(
+                                assert_message,
+                                vec![*opcode_location],
+                            );
+                        }
+                    }
+                    OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
                         if let Some(assert_message) = get_assert_message(
                             call_stack.last().expect("Call stacks should not be empty"),
                         ) {
-                            ExecutionError::AssertionFailed(assert_message, call_stack)
-                        } else {
-                            ExecutionError::SolvingError(error)
+                            err =
+                                ExecutionError::AssertionFailed(assert_message, call_stack.clone());
                         }
                     }
-                    None => ExecutionError::SolvingError(error),
-                }));
+                    _ => (),
+                };
+                return Err(NargoError::ExecutionError(err));
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;

@@ -121,6 +121,10 @@ fn extract_opcode_error_from_nargo_error(
         })
         | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: error_location,
+        })
+        | ExecutionError::SolvingError(OpcodeResolutionError::AssertFail {
+            opcode_location: error_location,
+            ..
         }) => match error_location {
             ErrorLocation::Unresolved => {
                 unreachable!("Cannot resolve index for unsatisfied constraint")
@@ -170,6 +174,18 @@ fn report_error_with_opcode_locations(
                 ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
                     ..
                 }) => "Failed constraint".into(),
+                ExecutionError::SolvingError(OpcodeResolutionError::AssertFail {
+                    lhs,
+                    rhs,
+                    ..
+                }) => {
+                    format!(
+                        "(left == right)
+                    left5: {},
+                    right: {}",
+                        lhs, rhs
+                    )
+                }
                 _ => {
                     // All other errors that do not have corresponding opcode locations
                     // should not be reported in this method.

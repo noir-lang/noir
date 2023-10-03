@@ -105,6 +105,12 @@ pub enum OpcodeResolutionError {
     UnsupportedBlackBoxFunc(BlackBoxFunc),
     #[error("Cannot satisfy constraint")]
     UnsatisfiedConstrain { opcode_location: ErrorLocation },
+    #[error(
+        "(left == right)
+    left: {lhs},
+    right: {rhs}"
+    )]
+    AssertFail { opcode_location: ErrorLocation, lhs: FieldElement, rhs: FieldElement },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
     IndexOutOfBounds { opcode_location: ErrorLocation, index: u32, array_size: u32 },
     #[error("Failed to solve blackbox function: {0}, reason: {1}")]
@@ -266,6 +272,39 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
                 ) {
                     Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
                     res => res.map(|_| ()),
+                }
+            }
+            Opcode::AssertEq { lhs, rhs } => {
+                let lhs = ArithmeticSolver::evaluate(lhs, &self.witness_map).to_const().ok_or_else(
+                    || {
+                        OpcodeResolutionError::OpcodeNotSolvable(
+                            OpcodeNotSolvable::ExpressionHasTooManyUnknowns(lhs.clone()),
+                        )
+                    },
+                );
+
+                let rhs = ArithmeticSolver::evaluate(rhs, &self.witness_map).to_const().ok_or_else(
+                    || {
+                        OpcodeResolutionError::OpcodeNotSolvable(
+                            OpcodeNotSolvable::ExpressionHasTooManyUnknowns(rhs.clone()),
+                        )
+                    },
+                );
+                match (lhs, rhs) {
+                    (Ok(lhs), Ok(rhs)) => {
+                        if lhs == rhs {
+                            Ok(())
+                        } else {
+                            Err(OpcodeResolutionError::AssertFail {
+                                opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(
+                                    self.instruction_pointer(),
+                                )),
+                                lhs,
+                                rhs,
+                            })
+                        }
+                    }
+                    (_, Err(e)) | (Err(e), _) => Err(e),
                 }
             }
         };
