@@ -1,15 +1,16 @@
 use acvm::{acir::native_types::WitnessMap, BlackBoxFunctionSolver};
 use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_errors::FileDiagnostic;
+use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
+use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 
-use crate::NargoError;
+use crate::{errors::try_to_diagnose_error, NargoError};
 
 use super::execute_circuit;
 
 pub enum TestStatus {
     Pass,
-    Fail { message: String },
+    Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
     CompileError(FileDiagnostic),
 }
 
@@ -27,9 +28,9 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             // otherwise constraints involving these expressions will not error.
             let circuit_execution =
                 execute_circuit(blackbox_solver, program.circuit, WitnessMap::new(), show_output);
-            test_status_program_compile_pass(test_function, circuit_execution)
+            test_status_program_compile_pass(test_function, program.debug, circuit_execution)
         }
-        Err(diag) => test_status_program_compile_fail(diag, test_function),
+        Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
 
@@ -39,33 +40,20 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
 /// that a constraint was never satisfiable.
 /// An example of this is the program `assert(false)`
 /// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-fn test_status_program_compile_fail(
-    diag: FileDiagnostic,
-    test_function: TestFunction,
-) -> TestStatus {
+fn test_status_program_compile_fail(err: RuntimeError, test_function: TestFunction) -> TestStatus {
     // The test has failed compilation, but it should never fail. Report error.
     if !test_function.should_fail() {
-        return TestStatus::CompileError(diag);
+        return TestStatus::CompileError(err.into());
     }
 
-    // The test has failed compilation, check if it is because the program is never satisfiable.
-    // If it is never satisfiable, then this is the expected behavior.
-    let program_is_never_satisfiable = diag.diagnostic.message.contains("Failed constraint");
-    if !program_is_never_satisfiable {
-        // The test has failed compilation, but its a compilation error. Report error
-        return TestStatus::CompileError(diag);
-    }
+    // The test has failed compilation, extract the assertion message if present
 
-    // Given "Failed constraint: 'reason'"
-    // This method will return "reason"
-    fn extract_constraint_error_message(input: &str) -> Option<String> {
-        input.split(": '").nth(1)?.split('\'').next().map(str::to_string)
+    if let RuntimeError::FailedConstraint { assert_message: Some(assert_message), .. } = &err {
+        let assert_message = assert_message.clone();
+        check_expected_failure_message(test_function, &assert_message, Some(err.into()))
+    } else {
+        TestStatus::CompileError(err.into())
     }
-
-    check_expected_failure_message(
-        test_function,
-        &extract_constraint_error_message(&diag.diagnostic.message).unwrap(),
-    )
 }
 
 /// The test function compiled successfully.
@@ -74,6 +62,7 @@ fn test_status_program_compile_fail(
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: TestFunction,
+    debug: DebugInfo,
     circuit_execution: Result<WitnessMap, NargoError>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
@@ -83,6 +72,7 @@ fn test_status_program_compile_pass(
             if test_function.should_fail() {
                 return TestStatus::Fail {
                     message: "error: Test passed when it should have failed".to_string(),
+                    error_diagnostic: None,
                 };
             }
             return TestStatus::Pass;
@@ -93,18 +83,26 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
+    let diagnostic = try_to_diagnose_error(&circuit_execution_err, &debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
-        return TestStatus::Fail { message: circuit_execution_err.to_string() };
+        return TestStatus::Fail {
+            message: circuit_execution_err.to_string(),
+            error_diagnostic: diagnostic,
+        };
     }
 
-    check_expected_failure_message(
-        test_function,
-        circuit_execution_err.user_defined_failure_message().unwrap_or_default(),
-    )
+    let assertion_message =
+        circuit_execution_err.user_defined_failure_message().unwrap_or_default().to_string();
+
+    check_expected_failure_message(test_function, &assertion_message, diagnostic)
 }
 
-fn check_expected_failure_message(test_function: TestFunction, got_error: &str) -> TestStatus {
+fn check_expected_failure_message(
+    test_function: TestFunction,
+    failed_assertion: &str,
+    error_diagnostic: Option<FileDiagnostic>,
+) -> TestStatus {
     // Extract the expected failure message, if there was one
     //
     // #[test(should_fail)] will not produce any message
@@ -115,7 +113,7 @@ fn check_expected_failure_message(test_function: TestFunction, got_error: &str) 
         None => return TestStatus::Pass,
     };
 
-    let expected_failure_message_matches = got_error == expected_failure_message;
+    let expected_failure_message_matches = failed_assertion == expected_failure_message;
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
@@ -125,7 +123,8 @@ fn check_expected_failure_message(test_function: TestFunction, got_error: &str) 
         message: format!(
             "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
             test_function.failure_reason().unwrap_or_default(),
-            got_error.trim_matches('\'')
+            failed_assertion.trim_matches('\'')
         ),
+        error_diagnostic,
     }
 }

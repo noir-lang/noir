@@ -267,7 +267,7 @@ fn on_test_run_request(
                             result: "pass".to_string(),
                             message: None,
                         },
-                        TestStatus::Fail { message } => NargoTestRunResult {
+                        TestStatus::Fail { message, .. } => NargoTestRunResult {
                             id: params.id.clone(),
                             result: "fail".to_string(),
                             message: Some(message),
