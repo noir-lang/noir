@@ -81,14 +81,6 @@ pub fn compile(
     // Currently the optimizer and reducer are one in the same
     // for CSAT
 
-    // Track original acir opcode positions throughout the transformation passes of the compilation
-    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-
-    // Fallback transformer pass
-    let (acir, acir_opcode_positions) =
-        FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
-
     // General optimizer pass
     let mut opcodes: Vec<Opcode> = Vec::new();
     for opcode in acir.opcodes {
@@ -101,10 +93,18 @@ pub fn compile(
     }
     let acir = Circuit { opcodes, ..acir };
 
+    // Track original acir opcode positions throughout the transformation passes of the compilation
+    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
+    let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir);
-    let (mut acir, acir_opcode_positions) =
+    let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
+
+    // Fallback transformer pass
+    let (mut acir, acir_opcode_positions) =
+        FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
 
     let mut transformer = match &np_language {
         crate::Language::R1CS => {
