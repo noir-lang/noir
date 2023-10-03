@@ -13,6 +13,8 @@ main_dir=$repo_root/compiler/integration-tests/circuits/main
 nargo --program-dir $main_dir codegen-verifier
 
 # Copy compiled contracts from the root of compiler/integration-tests
-src_dir=$self_path/../foundry-project/src
-cp $mul_dir/contract/1_mul/plonk_vk.sol $src_dir/1_mul.sol
-cp $main_dir/contract/main/plonk_vk.sol $src_dir/main.sol
+contracts_dir=$self_path/../contracts
+mkdir $contracts_dir
+
+cp $mul_dir/contract/1_mul/plonk_vk.sol $contracts_dir/1_mul.sol
+cp $main_dir/contract/main/plonk_vk.sol $contracts_dir/main.sol

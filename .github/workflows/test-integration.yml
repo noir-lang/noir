@@ -7,9 +7,6 @@ on:
   schedule:
     - cron: "0 2 * * *" # Run nightly at 2 AM UTC
 
-env:
-  CI: true
-
 jobs:
   build-nargo:
     runs-on: ubuntu-latest
@@ -207,15 +204,6 @@ jobs:
       - name: Install wasm-opt
         run: |
           npm i wasm-opt -g
-
-      - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - name: Deploy verifier contracts to Anvil
-        working-directory: compiler/integration-tests
-        run: bash ./scripts/setup-project.sh
 
       - name: Setup `integration-tests`
         run: |
