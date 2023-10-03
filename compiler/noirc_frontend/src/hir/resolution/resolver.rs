@@ -1514,7 +1514,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
-        self.resolve_trait_static_method_by_self(&path)
+        self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 

@@ -36,6 +36,7 @@ use std::vec;
 pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
+    pub trait_id: Option<TraitId>,
 }
 
 impl UnresolvedFunctions {
@@ -485,7 +486,9 @@ fn collect_trait_impl_methods(
             errors.push((error.into(), trait_impl.file_id));
         }
     }
+
     trait_impl.methods.functions = ordered_methods;
+    trait_impl.methods.trait_id = Some(trait_id);
     errors
 }
 
@@ -934,7 +937,6 @@ fn resolve_impls(
                 functions,
                 Some(self_type.clone()),
                 generics,
-                None,
                 errors,
             );
             if self_type != Type::Error {
@@ -991,7 +993,6 @@ fn resolve_trait_impls(
             trait_impl.methods.clone(),
             Some(self_type.clone()),
             vec![], // TODO
-            maybe_trait_id,
             errors,
         );
 
@@ -1133,7 +1134,6 @@ fn resolve_free_functions(
                 unresolved_functions,
                 self_type.clone(),
                 vec![], // no impl generics
-                None,
                 errors,
             )
         })
@@ -1147,7 +1147,6 @@ fn resolve_function_set(
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
-    trait_id: Option<TraitId>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;
@@ -1166,7 +1165,7 @@ fn resolve_function_set(
         // TypeVariables for the same generic, causing it to instantiate incorrectly.
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
-        resolver.set_trait_id(trait_id);
+        resolver.set_trait_id(unresolved_functions.trait_id);
 
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);
