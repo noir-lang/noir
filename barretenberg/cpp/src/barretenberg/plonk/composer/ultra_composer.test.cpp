@@ -33,6 +33,8 @@ std::vector<uint32_t> add_variables(UltraCircuitBuilder& builder, std::vector<fr
 
 template <typename T> class ultra_plonk_composer : public ::testing::Test {
   public:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+
     void prove_and_verify(UltraCircuitBuilder& builder, UltraComposer& composer, bool expected_result)
     {
         if constexpr (T::use_keccak) {

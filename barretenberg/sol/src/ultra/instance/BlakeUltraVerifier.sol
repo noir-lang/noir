@@ -11,6 +11,6 @@ contract BlakeUltraVerifier is BASE {
     }
 
     function loadVerificationKey(uint256 vk, uint256 _omegaInverseLoc) internal pure virtual override(BASE) {
-        VK.loadVerificationKey(vk, _omegaInverseLoc);
+      VK.loadVerificationKey(vk, _omegaInverseLoc);
     }
 }

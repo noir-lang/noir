@@ -326,6 +326,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
             return (result == pairing_target_field::one());
         }
+        if (builder.contains_recursive_proof && builder.recursive_proof_public_input_indices.size() != 16) {
+            return false;
+        }
         return true;
     }
 

@@ -75,7 +75,7 @@ template <typename FF_> class ECCVMTranscriptRelationBase {
                            const RelationParameters<FF>& /*unused*/,
                            const FF& /*unused*/);
 
-    // TODO(@zac-williamson) find more generic way of doing this?
+    // TODO(@zac-williamson #2609 find more generic way of doing this)
     static constexpr FF get_curve_b()
     {
         if constexpr (FF::modulus == barretenberg::fq::modulus) {

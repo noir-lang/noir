@@ -10,6 +10,11 @@
 namespace acir_format::tests {
 using curve_ct = proof_system::plonk::stdlib::secp256k1<Builder>;
 
+class ECDSASecp256k1 : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+
 size_t generate_ecdsa_constraint(EcdsaSecp256k1Constraint& ecdsa_constraint, WitnessVector& witness_values)
 {
     std::string message_string = "Instructions unclear, ask again later.";
@@ -77,7 +82,7 @@ size_t generate_ecdsa_constraint(EcdsaSecp256k1Constraint& ecdsa_constraint, Wit
     return offset;
 }
 
-TEST(ECDSASecp256k1, TestECDSAConstraintSucceed)
+TEST_F(ECDSASecp256k1, TestECDSAConstraintSucceed)
 {
     EcdsaSecp256k1Constraint ecdsa_k1_constraint;
     WitnessVector witness_values;
@@ -117,7 +122,7 @@ TEST(ECDSASecp256k1, TestECDSAConstraintSucceed)
 // Test that the verifier can create an ECDSA circuit.
 // The ECDSA circuit requires that certain dummy data is valid
 // even though we are just building the circuit.
-TEST(ECDSASecp256k1, TestECDSACompilesForVerifier)
+TEST_F(ECDSASecp256k1, TestECDSACompilesForVerifier)
 {
     EcdsaSecp256k1Constraint ecdsa_k1_constraint;
     WitnessVector witness_values;
@@ -145,7 +150,7 @@ TEST(ECDSASecp256k1, TestECDSACompilesForVerifier)
     auto builder = create_circuit(constraint_system);
 }
 
-TEST(ECDSASecp256k1, TestECDSAConstraintFail)
+TEST_F(ECDSASecp256k1, TestECDSAConstraintFail)
 {
     EcdsaSecp256k1Constraint ecdsa_k1_constraint;
     WitnessVector witness_values;

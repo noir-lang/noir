@@ -8,7 +8,12 @@
 #include "ecdsa_secp256k1.hpp"
 
 namespace acir_format::tests {
-TEST(acir_format, test_a_single_constraint_no_pub_inputs)
+
+class AcirFormatTests : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+TEST_F(AcirFormatTests, TestASingleConstraintNoPubInputs)
 {
 
     poly_triple constraint{
@@ -53,12 +58,12 @@ TEST(acir_format, test_a_single_constraint_no_pub_inputs)
     EXPECT_EQ(verifier.verify_proof(proof), false);
 }
 
-TEST(acir_format, msgpack_logic_constraint)
+TEST_F(AcirFormatTests, MsgpackLogicConstraint)
 {
     auto [actual, expected] = msgpack_roundtrip(LogicConstraint{});
     EXPECT_EQ(actual, expected);
 }
-TEST(acir_format, test_logic_gate_from_noir_circuit)
+TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
 {
     /**
      * constraints produced by Noir program:
@@ -167,7 +172,7 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
-TEST(acir_format, test_schnorr_verify_pass)
+TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
 {
     std::vector<RangeConstraint> range_constraints;
     for (uint32_t i = 0; i < 10; i++) {
@@ -239,7 +244,7 @@ TEST(acir_format, test_schnorr_verify_pass)
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
-TEST(acir_format, test_schnorr_verify_small_range)
+TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
 {
     std::vector<RangeConstraint> range_constraints;
     for (uint32_t i = 0; i < 10; i++) {
@@ -311,7 +316,7 @@ TEST(acir_format, test_schnorr_verify_small_range)
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
 
-TEST(acir_format, test_var_keccak)
+TEST_F(AcirFormatTests, TestVarKeccak)
 {
     HashInput input1;
     input1.witness = 1;

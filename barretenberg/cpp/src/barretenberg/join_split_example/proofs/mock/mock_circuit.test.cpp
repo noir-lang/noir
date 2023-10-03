@@ -9,7 +9,12 @@ namespace rollup {
 namespace proofs {
 namespace mock {
 
-TEST(mock_circuit_tests, test_simple_circuit)
+class MockCircuitTests : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+
+TEST_F(MockCircuitTests, test_simple_circuit)
 {
     // Dummy public inputs
     std::vector<fr> public_inputs;
@@ -17,7 +22,7 @@ TEST(mock_circuit_tests, test_simple_circuit)
         public_inputs.push_back(fr::random_element());
     }
 
-    Composer composer = Composer("../srs_db/ignition");
+    Composer composer = Composer();
     mock_circuit(composer, public_inputs);
 
     auto prover = composer.create_prover();

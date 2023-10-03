@@ -37,11 +37,7 @@ class UltraComposer {
     // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
     static constexpr size_t s_randomness = 3;
 
-    UltraComposer()
-        : UltraComposer("../srs_db/ignition"){};
-
-    UltraComposer(std::string const& crs_path)
-        : UltraComposer(std::make_unique<barretenberg::srs::factories::FileCrsFactory<Curve>>(crs_path)){};
+    UltraComposer() { crs_factory_ = barretenberg::srs::get_crs_factory(); }
 
     explicit UltraComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
         : crs_factory_(std::move(crs_factory))

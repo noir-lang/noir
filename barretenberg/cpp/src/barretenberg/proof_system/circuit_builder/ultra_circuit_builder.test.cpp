@@ -149,27 +149,13 @@ TEST(ultra_circuit_constructor, test_elliptic_gate)
 
     circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, 1, 1 });
 
-    grumpkin::fq beta = grumpkin::fq::cube_root_of_unity();
-    affine_element p2_endo = p2;
-    p2_endo.x *= beta;
-    p3 = affine_element(element(p1) + element(p2_endo));
-    x3 = circuit_constructor.add_variable(p3.x);
-    y3 = circuit_constructor.add_variable(p3.y);
-    circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta, 1 });
-
-    p2_endo.x *= beta;
-    p3 = affine_element(element(p1) - element(p2_endo));
-    x3 = circuit_constructor.add_variable(p3.x);
-    y3 = circuit_constructor.add_variable(p3.y);
-    circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta.sqr(), -1 });
-
     auto saved_state = UltraCircuitBuilder::CircuitDataBackup::store_full_state(circuit_constructor);
     bool result = circuit_constructor.check_circuit();
 
     EXPECT_EQ(result, true);
     EXPECT_TRUE(saved_state.is_same_state(circuit_constructor));
 
-    circuit_constructor.create_ecc_add_gate({ x1 + 1, y1, x2, y2, x3, y3, beta.sqr(), -1 });
+    circuit_constructor.create_ecc_add_gate({ x1 + 1, y1, x2, y2, x3, y3, 1, 1 });
 
     EXPECT_EQ(circuit_constructor.check_circuit(), false);
 }

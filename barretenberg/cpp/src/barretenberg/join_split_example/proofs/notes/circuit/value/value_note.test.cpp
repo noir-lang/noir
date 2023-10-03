@@ -10,7 +10,13 @@ using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;
 using namespace join_split_example::proofs::notes;
 using namespace join_split_example::proofs::notes::circuit::value;
-TEST(value_note, commits)
+
+class ValueNote : public ::testing::Test {
+  protected:
+    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+};
+
+TEST_F(ValueNote, Commits)
 {
     auto user = join_split_example::fixtures::create_user_context();
     auto builder = Builder();
@@ -35,7 +41,7 @@ TEST(value_note, commits)
     auto prover = composer.create_prover(builder);
 
     EXPECT_FALSE(builder.failed());
-    printf("composer gates = %zu\n", builder.get_num_gates());
+    info("composer gates = %zu\n", builder.get_num_gates());
     auto verifier = composer.create_verifier(builder);
 
     plonk::proof proof = prover.construct_proof();
@@ -44,7 +50,7 @@ TEST(value_note, commits)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(value_note, commits_with_0_value)
+TEST_F(ValueNote, CommitsWith0Value)
 {
     auto builder = Builder();
 
@@ -72,7 +78,7 @@ TEST(value_note, commits_with_0_value)
     auto prover = composer.create_prover(builder);
 
     EXPECT_FALSE(builder.failed());
-    printf("composer gates = %zu\n", builder.get_num_gates());
+    info("composer gates = %zu\n", builder.get_num_gates());
     auto verifier = composer.create_verifier(builder);
 
     plonk::proof proof = prover.construct_proof();
@@ -81,7 +87,7 @@ TEST(value_note, commits_with_0_value)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(value_note, commit_with_oversized_asset_id_fails)
+TEST_F(ValueNote, CommitWithOversizedAssetIdFails)
 {
     auto builder = Builder();
 
@@ -106,7 +112,7 @@ TEST(value_note, commit_with_oversized_asset_id_fails)
     auto prover = composer.create_prover(builder);
 
     EXPECT_TRUE(builder.failed());
-    printf("composer gates = %zu\n", builder.get_num_gates());
+    info("composer gates = %zu\n", builder.get_num_gates());
     auto verifier = composer.create_verifier(builder);
 
     plonk::proof proof = prover.construct_proof();

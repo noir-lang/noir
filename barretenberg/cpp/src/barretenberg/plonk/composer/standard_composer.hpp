@@ -28,10 +28,7 @@ class StandardComposer {
 
     bool computed_witness = false;
 
-    StandardComposer()
-        : StandardComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>>(
-              new barretenberg::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition")))
-    {}
+    StandardComposer() { crs_factory_ = barretenberg::srs::get_crs_factory(); }
     StandardComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}

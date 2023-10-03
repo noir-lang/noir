@@ -43,6 +43,7 @@ class join_split_tests : public ::testing::Test {
     static constexpr size_t ACCOUNT_INDEX = 14;
     static void SetUpTestCase()
     {
+        barretenberg::srs::init_crs_factory("../srs_db/ignition");
         auto null_crs_factory = std::make_shared<barretenberg::srs::factories::CrsFactory<curve::BN254>>();
         init_proving_key(null_crs_factory, false);
         auto crs_factory =
@@ -709,7 +710,7 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 
     constexpr uint32_t CIRCUIT_GATE_COUNT = 184517;
     constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 524288;
-    const uint256_t VK_HASH("787c464414a2c2e3332314ff528bd236b13133c269c5704505a0f3a3ad56ad57");
+    const uint256_t VK_HASH("2e1b6e64cd16912f2740d84a0e6c9e01784b35e09b303a026cc58ff5d6a5934d");
 
     auto number_of_gates_js = result.number_of_gates;
     std::cout << get_verification_key()->sha256_hash() << std::endl;
