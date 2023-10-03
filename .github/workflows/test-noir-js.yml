@@ -1,4 +1,4 @@
-name: Noir JS
+name: Test Noir Js
 
 on:
   pull_request:
