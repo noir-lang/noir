@@ -137,8 +137,8 @@ impl Circuit {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
         gz_decoder.read_to_end(&mut buf_d).unwrap();
-        let (circuit, _) =
-            bincode::serde::decode_from_slice(&buf_d, bincode::config::legacy()).unwrap();
+        let circuit =
+            bincode::serde::decode_borrowed_from_slice(&buf_d, bincode::config::legacy()).unwrap();
         Ok(circuit)
     }
 }
