@@ -20,6 +20,6 @@ jobs:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{
-            "noir-ref": "${{ github.event.inputs.noir-ref }}", # This line is fixed
+            "noir-ref": "${{ github.event.inputs.noir-ref }}",
             "package-name": "acvm_js"
           }'
