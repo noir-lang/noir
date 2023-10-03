@@ -22,8 +22,8 @@ await initACVM();
 compilerLogLevel('INFO');
 
 const base_relative_path = '../../../../..';
-const circuit_main = 'compiler/integration-tests/test/circuits/main';
-const circuit_recursion = 'compiler/integration-tests/test/circuits/recursion';
+const circuit_main = 'compiler/integration-tests/circuits/main';
+const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
 async function getCircuit(noirSource: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
