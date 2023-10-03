@@ -30,7 +30,6 @@
         "hardhat": "^2.17.4",
         "prettier": "3.0.3",
         "smol-toml": "^1.1.2",
-        "solidity-coverage": "^0.8.1",
         "toml": "^3.0.0",
         "tslog": "^4.9.2"
     }
