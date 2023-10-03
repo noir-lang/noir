@@ -1453,8 +1453,8 @@ impl<'a> Resolver<'a> {
         self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 
-    fn resolve_generic_path(&self, path: &Path) -> Option<HirExpression> {
-        for UnresolvedTraitConstraint { typ, trait_bound } in &self.trait_bounds {
+    fn resolve_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
+        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
             if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
                 // if we're attempting to resolve `T::U::V::some_method` and constraint is `T::U::V: SomeTrait`
                 // we iterate through the Trait's elements.
@@ -1476,7 +1476,8 @@ impl<'a> Resolver<'a> {
                             if let Some(method) =
                                 the_trait.find_method(path.segments.last().unwrap().clone())
                             {
-                                return Some(HirExpression::TraitMethodReference(method));
+                                let self_type = self.resolve_type(typ.clone());
+                                return Some(HirExpression::TraitMethodReference(self_type, method));
                             }
                         }
                     }

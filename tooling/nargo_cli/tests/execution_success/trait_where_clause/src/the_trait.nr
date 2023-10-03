@@ -3,5 +3,7 @@ trait Asd {
 }
 
 trait StaticTrait {
-    fn static_function(slf: Self) -> Field;
+    fn static_function(slf: Self) -> Field {
+        100
+    }
 }

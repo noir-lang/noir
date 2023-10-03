@@ -378,10 +378,9 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(method) => {
-                if let Type::Function(args, _, _) = self.interner.id_type(expr) {
-                    let self_type = args[0].clone();
-                    self.resolve_trait_method_reference(self_type, expr, method)
+            HirExpression::TraitMethodReference(typ, method) => {
+                if let Type::Function(_, _, _) = self.interner.id_type(expr) {
+                    self.resolve_trait_method_reference(typ, expr, method)
                 } else {
                     unreachable!(
                         "Calling a non-function, this should've been caught in typechecking"
