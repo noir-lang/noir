@@ -1,5 +1,5 @@
 use dep::aztec::types::point::Point;
-use dep::aztec::oracle::auth_witness;
+use dep::authwit::auth_witness;
 
 struct AuthWitness {
     owner: Point,

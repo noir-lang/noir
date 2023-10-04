@@ -6,11 +6,11 @@ contract SchnorrSingleKeyAccount {
         hash::pedersen_with_separator,
         option::Option,
     };
+    use dep::aztec::context::{ PrivateContext, PublicContext, Context };
 
-    use dep::aztec::{
+    use dep::authwit::{
         entrypoint::EntrypointPayload,
         account::AccountActions,
-        context::{ PrivateContext, PublicContext, Context },
     };
 
     use crate::{ util::recover_address, auth_oracle::get_auth_witness };

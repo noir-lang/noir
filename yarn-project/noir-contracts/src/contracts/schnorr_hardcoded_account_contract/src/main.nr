@@ -3,12 +3,15 @@
 contract SchnorrHardcodedAccount {
     use dep::std;
     use dep::aztec::{
-        entrypoint::{ EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE },
         abi::{ PrivateCircuitPublicInputs, PrivateContextInputs, Hasher },
         types::{ vec::BoundedVec, point::Point },
         context::PrivateContext,
+    };
+
+    use dep::authwit:: {
+        entrypoint::{ EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE },
         account::AccountActions,
-        oracle::auth_witness::get_auth_witness,
+        auth_witness::get_auth_witness,
     };
 
     global public_key_x: Field = 0x0ede3d33c920df8fdf43f3e39ed38b0882c25b056620ef52fd016fe811aa2443;

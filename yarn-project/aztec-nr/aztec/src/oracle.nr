@@ -16,4 +16,3 @@ mod notes;
 mod storage;
 mod logs;
 mod compute_selector;
-mod auth_witness;

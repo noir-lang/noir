@@ -1,0 +1,8 @@
+[package]
+name = "auth_wit"
+authors = ["aztec-labs"]
+compiler_version = "0.1"
+type = "lib"
+
+[dependencies]
+aztec = { path = "../aztec" }

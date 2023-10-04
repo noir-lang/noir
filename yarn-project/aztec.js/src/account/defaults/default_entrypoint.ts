@@ -46,7 +46,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
           name: 'payload',
           type: {
             kind: 'struct',
-            path: 'aztec::entrypoint::EntrypointPayload',
+            path: 'authwit::entrypoint::EntrypointPayload',
             fields: [
               {
                 name: 'function_calls',
@@ -55,7 +55,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
                   length: 4,
                   type: {
                     kind: 'struct',
-                    path: 'aztec::entrypoint::FunctionCall',
+                    path: 'authwit::entrypoint::FunctionCall',
                     fields: [
                       {
                         name: 'args_hash',

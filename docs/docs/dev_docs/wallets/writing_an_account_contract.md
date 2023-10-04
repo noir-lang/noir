@@ -34,9 +34,9 @@ Public Key:  0x0ede151adaef1cfcc1b3e152ea39f00c5cda3f3857cef00decb049d283672dc71
 
 The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which uses the `EntrypointPayload` struct:
 
-#include_code entrypoint yarn-project/aztec-nr/aztec/src/account.nr rust
+#include_code entrypoint yarn-project/aztec-nr/authwit/src/account.nr rust
 
-#include_code entrypoint-struct yarn-project/aztec-nr/aztec/src/entrypoint.nr rust
+#include_code entrypoint-struct yarn-project/aztec-nr/authwit/src/entrypoint.nr rust
 
 :::info
 Using the `AccountActions` module and the `EntrypointPayload` struct is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, using these modules can save you a lot of time when writing a new account contract, both in Noir and in Typescript.

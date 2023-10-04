@@ -1,9 +1,9 @@
-use crate::abi;
-use crate::types::vec::BoundedVec;
-use crate::context::PrivateContext;
-use crate::private_call_stack_item::PrivateCallStackItem;
-use crate::public_call_stack_item::PublicCallStackItem;    
-use crate::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
+use dep::aztec::abi;
+use dep::aztec::types::vec::BoundedVec;
+use dep::aztec::context::PrivateContext;
+use dep::aztec::private_call_stack_item::PrivateCallStackItem;
+use dep::aztec::public_call_stack_item::PublicCallStackItem;    
+use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
 use dep::std::hash;
 

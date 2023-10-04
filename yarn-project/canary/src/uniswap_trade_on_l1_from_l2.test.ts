@@ -6,6 +6,7 @@ import {
   NotePreimage,
   TxHash,
   TxStatus,
+  computeAuthWitMessageHash,
   computeMessageSecretHash,
   createDebugLogger,
   createPXEClient,
@@ -14,7 +15,6 @@ import {
   sleep,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { FunctionSelector } from '@aztec/circuits.js';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract, UniswapContract } from '@aztec/noir-contracts/types';
 
@@ -32,7 +32,7 @@ import {
 import { mnemonicToAccount } from 'viem/accounts';
 import { Chain, foundry } from 'viem/chains';
 
-import { deployAndInitializeTokenAndBridgeContracts, deployL1Contract, hashPayload } from './utils.js';
+import { deployAndInitializeTokenAndBridgeContracts, deployL1Contract } from './utils.js';
 
 const logger = createDebugLogger('aztec:canary');
 
@@ -335,15 +335,12 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // 4. Owner gives uniswap approval to unshield funds to self on its behalf
     logger('Approving uniswap to unshield funds to self on my behalf');
     const nonceForWETHUnshieldApproval = new Fr(2n);
-    const unshieldToUniswapMessageHash = await hashPayload([
-      uniswapL2Contract.address.toField(),
-      wethL2Contract.address.toField(),
-      FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)').toField(),
-      ownerAddress.toField(),
-      uniswapL2Contract.address.toField(),
-      new Fr(wethAmountToBridge),
-      nonceForWETHUnshieldApproval,
-    ]);
+    const unshieldToUniswapMessageHash = await computeAuthWitMessageHash(
+      uniswapL2Contract.address,
+      wethL2Contract.methods
+        .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
+        .request(),
+    );
     await ownerWallet.createAuthWitness(Fr.fromBuffer(unshieldToUniswapMessageHash));
 
     // 5. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.

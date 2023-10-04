@@ -1,5 +1,5 @@
-import { AccountWallet, AztecAddress } from '@aztec/aztec.js';
-import { Fr, FunctionSelector } from '@aztec/circuits.js';
+import { AccountWallet, AztecAddress, computeAuthWitMessageHash } from '@aztec/aztec.js';
+import { Fr } from '@aztec/circuits.js';
 import { deployL1Contract } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -10,7 +10,7 @@ import { AztecNode, PXE, TxStatus } from '@aztec/types';
 import { getContract, parseEther } from 'viem';
 
 import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
-import { delay, hashPayload, setup } from './fixtures/utils.js';
+import { delay, setup } from './fixtures/utils.js';
 
 // PSA: This tests works on forked mainnet. There is a dump of the data in `dumpedState` such that we
 // don't need to burn through RPC requests.
@@ -179,15 +179,12 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // 3. Owner gives uniswap approval to unshield funds to self on its behalf
     logger('Approving uniswap to unshield funds to self on my behalf');
     const nonceForWETHUnshieldApproval = new Fr(2n);
-    const unshieldToUniswapMessageHash = await hashPayload([
-      uniswapL2Contract.address.toField(),
-      wethCrossChainHarness.l2Token.address.toField(),
-      FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)').toField(),
-      ownerAddress.toField(),
-      uniswapL2Contract.address.toField(),
-      new Fr(wethAmountToBridge),
-      nonceForWETHUnshieldApproval,
-    ]);
+    const unshieldToUniswapMessageHash = await computeAuthWitMessageHash(
+      uniswapL2Contract.address,
+      wethCrossChainHarness.l2Token.methods
+        .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
+        .request(),
+    );
     await ownerWallet.createAuthWitness(Fr.fromBuffer(unshieldToUniswapMessageHash));
 
     // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
@@ -315,15 +312,12 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     // 3. Owner gives uniswap approval to transfer funds on its behalf
     const nonceForWETHTransferApproval = new Fr(2n);
-    const transferMessageHash = await hashPayload([
-      uniswapL2Contract.address.toField(),
-      wethCrossChainHarness.l2Token.address.toField(),
-      FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)').toField(),
-      ownerAddress.toField(),
-      uniswapL2Contract.address.toField(),
-      new Fr(wethAmountToBridge),
-      nonceForWETHTransferApproval,
-    ]);
+    const transferMessageHash = await computeAuthWitMessageHash(
+      uniswapL2Contract.address,
+      wethCrossChainHarness.l2Token.methods
+        .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
+        .request(),
+    );
     await ownerWallet.setPublicAuth(transferMessageHash, true).send().wait();
 
     // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
@@ -333,30 +327,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     // 4.1 Owner approves user to swap on their behalf:
     const nonceForSwap = new Fr(3n);
-    const swapMessageHash = await hashPayload([
-      sponsorAddress.toField(),
-      uniswapL2Contract.address.toField(),
-      FunctionSelector.fromSignature(
-        'swap_public((Field),(Field),Field,(Field),Field,Field,Field,(Field),Field,Field,(Field),(Field),Field)',
-      ).toField(),
-      ownerAddress.toField(),
-      wethCrossChainHarness.l2Bridge.address.toField(),
-      new Fr(wethAmountToBridge),
-      daiCrossChainHarness.l2Bridge.address.toField(),
-      nonceForWETHTransferApproval,
-      new Fr(uniswapFeeTier),
-      new Fr(minimumOutputAmount),
-      ownerAddress.toField(),
-      secretHashForDepositingSwappedDai,
-      new Fr(deadlineForDepositingSwappedDai),
-      ownerEthAddress.toField(),
-      ownerEthAddress.toField(),
-      nonceForSwap,
-    ]);
-    await ownerWallet.setPublicAuth(swapMessageHash, true).send().wait();
-
-    // 4.2 Call swap_public from user2 on behalf of owner
-    const withdrawReceipt = await uniswapL2Contract
+    const action = uniswapL2Contract
       .withWallet(sponsorWallet)
       .methods.swap_public(
         ownerAddress,
@@ -372,9 +343,12 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         ownerEthAddress,
         ownerEthAddress,
         nonceForSwap,
-      )
-      .send()
-      .wait();
+      );
+    const swapMessageHash = await computeAuthWitMessageHash(sponsorAddress, action.request());
+    await ownerWallet.setPublicAuth(swapMessageHash, true).send().wait();
+
+    // 4.2 Call swap_public from user2 on behalf of owner
+    const withdrawReceipt = await action.send().wait();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
 
     // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
