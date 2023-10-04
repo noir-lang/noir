@@ -3,11 +3,11 @@ trait ATrait {
 
     fn static_method() -> Field {
         Self::static_method_2()
-    };
+    }
 
     fn static_method_2() -> Field {
         100
-    };
+    }
 }
 
 struct Foo {

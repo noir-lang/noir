@@ -394,8 +394,7 @@ fn trait_body() -> impl NoirParser<Vec<TraitItem>> {
     trait_function_declaration()
         .or(trait_type_declaration())
         .or(trait_constant_declaration())
-        .separated_by(just(Token::Semicolon))
-        .allow_trailing()
+        .repeated()
 }
 
 fn optional_default_value() -> impl NoirParser<Option<Expression>> {
@@ -408,18 +407,22 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then_ignore(just(Token::Colon))
         .then(parse_type())
         .then(optional_default_value())
+        .then_ignore(just(Token::Semicolon))
         .map(|((name, typ), default_value)| TraitItem::Constant { name, typ, default_value })
 }
 
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
 fn trait_function_declaration() -> impl NoirParser<TraitItem> {
+    let trait_function_body_or_semicolon =
+        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).map(|_| Option::None));
+
     keyword(Keyword::Fn)
         .ignore_then(ident())
         .then(generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
-        .then(block(fresh_statement()).or_not())
+        .then(trait_function_body_or_semicolon)
         .validate(
             |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
                 validate_where_clause(&generics, &where_clause, span, emit);
@@ -526,7 +529,10 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
 /// trait_type_declaration: 'type' ident generics
 fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type).ignore_then(ident()).map(|name| TraitItem::Type { name })
+    keyword(Keyword::Type)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Semicolon))
+        .map(|name| TraitItem::Type { name })
 }
 
 /// Parses a non-trait implementation, adding a set of methods to a type.
@@ -2078,7 +2084,7 @@ mod test {
                 // for a particular operation. Also known as `tag` or `marker` traits:
                 // https://stackoverflow.com/questions/71895489/what-is-the-purpose-of-defining-empty-impl-in-rust
                 "trait Empty {}",
-                "trait TraitWithDefaultBody { fn foo(self) {}; }",
+                "trait TraitWithDefaultBody { fn foo(self) {} }",
                 "trait TraitAcceptingMutableRef { fn foo(&mut self); }",
                 "trait TraitWithTypeBoundOperation { fn identity() -> Self; }",
                 "trait TraitWithAssociatedType { type Element; fn item(self, index: Field) -> Self::Element; }",
