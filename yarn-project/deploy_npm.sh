@@ -21,7 +21,7 @@ function deploy_package() {
         TAG_ARG="--tag $TAG"
     fi
 
-    PUBLISHED_VERSION=$(npm show . version ${TAG_ARG:-} 2> /dev/null)
+    PUBLISHED_VERSION=$(npm show . version ${TAG_ARG:-} 2> /dev/null) || true
     HIGHER_VERSION=$(npx semver ${VERSION} ${PUBLISHED_VERSION} | tail -1)
 
     # If there is already a published package equal to given version, assume this is a re-run of a deploy, and early out.
