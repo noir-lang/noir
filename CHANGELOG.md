@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.4...aztec-packages-v0.8.5) (2023-10-04)
+
+
+### Bug Fixes
+
+* Ensure resources ignition directory exists ([#2684](https://github.com/AztecProtocol/aztec-packages/issues/2684)) ([f4f2cd0](https://github.com/AztecProtocol/aztec-packages/commit/f4f2cd04523381824c4e930af81cec79cc50eef9))
+* Include resources folder in circuits.js package.json ([#2689](https://github.com/AztecProtocol/aztec-packages/issues/2689)) ([34ed2c2](https://github.com/AztecProtocol/aztec-packages/commit/34ed2c2d4a8e12b649f428dd655a840a1282b69a))
+* Npm publish order ([#2687](https://github.com/AztecProtocol/aztec-packages/issues/2687)) ([876c0b1](https://github.com/AztecProtocol/aztec-packages/commit/876c0b1cccbe69d97964d9e90201ffd26adaca3d))
+
 ## [0.8.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.3...aztec-packages-v0.8.4) (2023-10-04)
 
 
