@@ -6,6 +6,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir_def::expr::{HirExpression, HirLiteral};
 use crate::hir_def::stmt::HirStatement;
+use crate::node_interner::{NodeInterner, StructId};
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
@@ -187,80 +188,9 @@ pub(crate) fn transform(
 //                    Transform Hir Nodes for Aztec
 //
 
-/// Completes the Hir with data gathered from type checking
+/// Completes the Hir with data gathered from type resolution
 pub(crate) fn transform_hir(crate_id: &CrateId, context: &mut Context) {
-    let crate_structs: Vec<_> = context
-        .def_map(crate_id)
-        .expect("ICE: Missing crate in def_map")
-        .modules()
-        .iter()
-        .flat_map(|(_, module)| {
-            module.type_definitions().filter_map(|typ| {
-                if let ModuleDefId::TypeId(struct_id) = typ {
-                    Some(struct_id)
-                } else {
-                    None
-                }
-            })
-        })
-        .collect();
-
-    for struct_id in crate_structs {
-        let attributes = context.def_interner.struct_attributes(&struct_id);
-        let is_event = attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event));
-        if is_event {
-            let selector_id = context.def_interner.lookup_method(struct_id, "selector");
-
-            if let Some(selector_id) = selector_id {
-                let selector = context.def_interner.function(&selector_id);
-                let block = selector.block(&context.def_interner);
-                let find_result = block.statements().iter().find_map(|statement_id| {
-                    let statement = context.def_interner.statement(statement_id);
-                    if let HirStatement::Expression(expression_id) = statement {
-                        if let HirExpression::Call(hir_call_expression) =
-                            context.def_interner.expression(&expression_id)
-                        {
-                            if let Some(first_arg_id) = hir_call_expression.arguments.first() {
-                                if let HirExpression::Literal(HirLiteral::Str(signature)) =
-                                    context.def_interner.expression(first_arg_id)
-                                {
-                                    if signature == SIGNATURE_PLACEHOLDER {
-                                        return Some((*first_arg_id, hir_call_expression.func));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    None
-                });
-                if let Some((selector_literal_id, call_ident_id)) = find_result {
-                    let structure = context.def_interner.get_struct(struct_id);
-                    let signature = compute_signature_from_type(&structure.borrow());
-                    context.def_interner.update_expression(selector_literal_id, |expr| {
-                        *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
-                        println!("Updated expr {:?}", expr);
-                    });
-                    let len = Type::Constant(signature.len() as u64);
-                    let new_typ = Type::String(Box::new(len));
-
-                    context.def_interner.push_expr_type(&selector_literal_id, new_typ);
-                    context.def_interner.push_expr_type(
-                        &call_ident_id,
-                        Type::Function(
-                            vec![Type::String(Box::new(Type::TypeVariable(
-                                Shared::new(TypeBinding::Bound(Type::Constant(
-                                    signature.len() as u64
-                                ))),
-                                TypeVariableKind::Normal,
-                            )))],
-                            Box::new(Type::FieldElement),
-                            Box::new(Type::Unit),
-                        ),
-                    );
-                }
-            }
-        }
-    }
+    transform_events(crate_id, context);
 }
 
 /// Includes an import to the aztec library if it has not been included yet
@@ -390,6 +320,92 @@ fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) 
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 fn transform_unconstrained(func: &mut NoirFunction) {
     func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
+}
+
+fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId> {
+    context
+        .def_map(crate_id)
+        .expect("ICE: Missing crate in def_map")
+        .modules()
+        .iter()
+        .flat_map(|(_, module)| {
+            module.type_definitions().filter_map(|typ| {
+                if let ModuleDefId::TypeId(struct_id) = typ {
+                    Some(struct_id)
+                } else {
+                    None
+                }
+            })
+        })
+        .collect()
+}
+
+fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
+    let selector_id =
+        interner.lookup_method(struct_id, "selector").expect("Selector method not found");
+    let selector_function = interner.function(&selector_id);
+
+    let compute_selector_statement = interner.statement(
+        selector_function
+            .block(interner)
+            .statements()
+            .first()
+            .expect("Compute selector statement not found"),
+    );
+
+    let compute_selector_expression = match compute_selector_statement {
+        HirStatement::Expression(expression_id) => match interner.expression(&expression_id) {
+            HirExpression::Call(hir_call_expression) => Some(hir_call_expression),
+            _ => None,
+        },
+        _ => None,
+    }
+    .expect("Compute selector statement is not a call expression");
+
+    let first_arg_id = compute_selector_expression
+        .arguments
+        .first()
+        .expect("Missing argument for compute selector");
+
+    match interner.expression(first_arg_id) {
+        HirExpression::Literal(HirLiteral::Str(signature))
+            if signature == SIGNATURE_PLACEHOLDER =>
+        {
+            let selector_literal_id = first_arg_id;
+            let compute_selector_call_id = compute_selector_expression.func;
+
+            let structure = interner.get_struct(struct_id);
+            let signature = compute_signature_from_type(&structure.borrow());
+            interner.update_expression(*selector_literal_id, |expr| {
+                *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
+            });
+            let len = Type::Constant(signature.len() as u64);
+            let new_typ = Type::String(Box::new(len));
+
+            interner.push_expr_type(selector_literal_id, new_typ);
+            interner.push_expr_type(
+                &compute_selector_call_id,
+                Type::Function(
+                    vec![Type::String(Box::new(Type::TypeVariable(
+                        Shared::new(TypeBinding::Bound(Type::Constant(signature.len() as u64))),
+                        TypeVariableKind::Normal,
+                    )))],
+                    Box::new(Type::FieldElement),
+                    Box::new(Type::Unit),
+                ),
+            );
+        }
+        _ => unreachable!("Signature placeholder literal does not match"),
+    }
+}
+
+fn transform_events(crate_id: &CrateId, context: &mut Context) {
+    for struct_id in collect_crate_structs(crate_id, context) {
+        let attributes = context.def_interner.struct_attributes(&struct_id);
+        if attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
+            transform_event(struct_id, &mut context.def_interner);
+        }
+    }
 }
 
 const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
