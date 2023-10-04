@@ -23,11 +23,17 @@ jobs:
           repository: "noir-lang/noir"
           ref: ${{ inputs.noir-ref }}
 
+      - name: Install dependencies
+        run: yarn install --immutable
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           registry-url: "https://registry.npmjs.org"
           node-version: 18.15
+
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - uses: actions/cache@v3
         with:
@@ -44,16 +50,8 @@ jobs:
           nix_path: nixpkgs=channel:nixos-23.05
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Authenticate with npm
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
       - name: Build packages
-        run: |
-          yarn
-          yarn build
-
-      - name: Build Nix package
-        run: nix build .#${{ inputs.package-name }}
+        run: yarn prepare:publish
 
       - name: Discover Build Output Path
         run: echo "BUILD_OUTPUT_PATH=$(readlink -f ./result/${{ inputs.package-name }})" >> $GITHUB_ENV
