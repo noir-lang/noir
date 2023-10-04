@@ -340,6 +340,7 @@ fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId>
         .collect()
 }
 
+/// Substitutes the signature literals that were introduced in the AST for the event selector generation
 fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
     let selector_id =
         interner.lookup_method(struct_id, "selector").expect("Selector method not found");
@@ -375,14 +376,16 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
             let compute_selector_call_id = compute_selector_expression.func;
 
             let structure = interner.get_struct(struct_id);
-            let signature = compute_signature_from_type(&structure.borrow());
+            let signature = event_signature(&structure.borrow());
             interner.update_expression(*selector_literal_id, |expr| {
                 *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
             });
-            let len = Type::Constant(signature.len() as u64);
-            let new_typ = Type::String(Box::new(len));
 
-            interner.push_expr_type(selector_literal_id, new_typ);
+            // Also update the type! It might have a different length now than the placeholder.
+            interner.push_expr_type(
+                selector_literal_id,
+                Type::String(Box::new(Type::Constant(signature.len() as u64))),
+            );
             interner.push_expr_type(
                 &compute_selector_call_id,
                 Type::Function(
@@ -416,12 +419,14 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 /// ```noir
 /// impl SomeStruct {
 ///    fn selector() -> Field {
-///       aztec::oracle::compute_selector::compute_selector("SomeStruct(u8, Field)")
+///       aztec::oracle::compute_selector::compute_selector("SIGNATURE_PLACEHOLDER")
 ///    }
 /// }
 /// ```
 ///
 /// This allows developers to emit events without having to write the signature of the event every time they emit it.
+/// The signature cannot be known at this point since types are not resolved yet, so we use a signature placeholder.
+/// It'll get resolved after by transforming the HIR.
 fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
@@ -881,7 +886,8 @@ fn add_cast_to_hasher(identifier: &Ident) -> Statement {
     ))
 }
 
-fn signature_or_resolved_type(typ: &Type) -> String {
+/// Computes the aztec signature for a resolved type.
+fn signature_of_type(typ: &Type) -> String {
     match typ {
         Type::Integer(Signedness::Signed, bit_size) => format!("i{}", bit_size),
         Type::Integer(Signedness::Unsigned, bit_size) => format!("u{}", bit_size),
@@ -889,25 +895,27 @@ fn signature_or_resolved_type(typ: &Type) -> String {
         Type::Bool => "bool".to_owned(),
         Type::Array(len, typ) => {
             if let Type::Constant(len) = **len {
-                format!("[{};{len}]", signature_or_resolved_type(typ))
+                format!("[{};{len}]", signature_of_type(typ))
             } else {
                 unimplemented!("Cannot generate signature for array with length type {:?}", typ)
             }
         }
         Type::Struct(def, args) => {
             let fields = def.borrow().get_fields(args);
-            let fields = vecmap(fields, |(_, typ)| signature_or_resolved_type(&typ));
+            let fields = vecmap(fields, |(_, typ)| signature_of_type(&typ));
             format!("({})", fields.join(","))
         }
         Type::Tuple(types) => {
-            let fields = vecmap(types, signature_or_resolved_type);
+            let fields = vecmap(types, signature_of_type);
             format!("({})", fields.join(","))
         }
         _ => unimplemented!("Cannot generate signature for type {:?}", typ),
     }
 }
 
-fn compute_signature_from_type(structure: &StructType) -> String {
-    let fields = vecmap(structure.get_fields(&[]), |(_, typ)| signature_or_resolved_type(&typ));
-    format!("{}({})", structure.name.0.contents, fields.join(","))
+/// Computes the signature for a resolved event type.
+/// It has the form 'EventName(Field,(Field),[u8;2])'
+fn event_signature(event: &StructType) -> String {
+    let fields = vecmap(event.get_fields(&[]), |(_, typ)| signature_of_type(&typ));
+    format!("{}({})", event.name.0.contents, fields.join(","))
 }
