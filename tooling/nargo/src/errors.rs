@@ -80,6 +80,10 @@ fn extract_locations_from_error(
         })
         | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: error_location,
+        })
+        | ExecutionError::SolvingError(OpcodeResolutionError::AssertFail {
+            opcode_location: error_location,
+            ..
         }) => match error_location {
             ErrorLocation::Unresolved => {
                 unreachable!("Cannot resolve index for unsatisfied constraint")

@@ -122,6 +122,7 @@ impl BackendOpcodeSupport {
             Opcode::BlackBoxFuncCall(func) => {
                 self.black_box_functions.contains(func.get_black_box_func().name())
             }
+            Opcode::AssertEq { .. } => self.opcodes.contains("assert_eq"),
         }
     }
 }
