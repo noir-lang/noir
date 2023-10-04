@@ -1,8 +1,11 @@
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
+use crate::hir_def::expr::{HirExpression, HirLiteral};
+use crate::hir_def::stmt::HirStatement;
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
@@ -12,10 +15,12 @@ use crate::{
     Visibility,
 };
 use crate::{
-    FunctionDefinition, NoirStruct, PrefixExpression, Signedness, TypeImpl, UnaryOp,
-    UnresolvedTypeExpression,
+    FunctionDefinition, NoirStruct, PrefixExpression, Shared, Signedness, StructType, Type,
+    TypeBinding, TypeImpl, TypeVariableKind, UnaryOp,
 };
 use fm::FileId;
+
+use super::ModuleDefId;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -178,6 +183,86 @@ pub(crate) fn transform(
     Ok(ast)
 }
 
+//
+//                    Transform Hir Nodes for Aztec
+//
+
+/// Completes the Hir with data gathered from type checking
+pub(crate) fn transform_hir(crate_id: &CrateId, context: &mut Context) {
+    let crate_structs: Vec<_> = context
+        .def_map(crate_id)
+        .expect("ICE: Missing crate in def_map")
+        .modules()
+        .iter()
+        .flat_map(|(_, module)| {
+            module.type_definitions().filter_map(|typ| {
+                if let ModuleDefId::TypeId(struct_id) = typ {
+                    Some(struct_id)
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
+    for struct_id in crate_structs {
+        let attributes = context.def_interner.struct_attributes(&struct_id);
+        let is_event = attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event));
+        if is_event {
+            let selector_id = context.def_interner.lookup_method(struct_id, "selector");
+
+            if let Some(selector_id) = selector_id {
+                let selector = context.def_interner.function(&selector_id);
+                let block = selector.block(&context.def_interner);
+                let find_result = block.statements().iter().find_map(|statement_id| {
+                    let statement = context.def_interner.statement(statement_id);
+                    if let HirStatement::Expression(expression_id) = statement {
+                        if let HirExpression::Call(hir_call_expression) =
+                            context.def_interner.expression(&expression_id)
+                        {
+                            if let Some(first_arg_id) = hir_call_expression.arguments.first() {
+                                if let HirExpression::Literal(HirLiteral::Str(signature)) =
+                                    context.def_interner.expression(first_arg_id)
+                                {
+                                    if signature == SIGNATURE_PLACEHOLDER {
+                                        return Some((*first_arg_id, hir_call_expression.func));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    None
+                });
+                if let Some((selector_literal_id, call_ident_id)) = find_result {
+                    let structure = context.def_interner.get_struct(struct_id);
+                    let signature = compute_signature_from_type(&structure.borrow());
+                    context.def_interner.update_expression(selector_literal_id, |expr| {
+                        *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
+                        println!("Updated expr {:?}", expr);
+                    });
+                    let len = Type::Constant(signature.len() as u64);
+                    let new_typ = Type::String(Box::new(len));
+
+                    context.def_interner.push_expr_type(&selector_literal_id, new_typ);
+                    context.def_interner.push_expr_type(
+                        &call_ident_id,
+                        Type::Function(
+                            vec![Type::String(Box::new(Type::TypeVariable(
+                                Shared::new(TypeBinding::Bound(Type::Constant(
+                                    signature.len() as u64
+                                ))),
+                                TypeVariableKind::Normal,
+                            )))],
+                            Box::new(Type::FieldElement),
+                            Box::new(Type::Unit),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// Includes an import to the aztec library if it has not been included yet
 fn include_relevant_imports(ast: &mut ParsedModule) {
     // Create the aztec import path using the assumed chained_dep! macro
@@ -218,18 +303,14 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
     }
 }
 
-/// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
-/// If it is, it calls the `transform` function which will perform the required transformations.
-/// Returns true if an annotated function is found, false otherwise
+/// Determines if ast nodes are annotated with aztec attributes.
+/// For annotated functions it calls the `transform` function which will perform the required transformations.
+/// Returns true if an annotated node is found, false otherwise
 fn transform_module(module: &mut ParsedModule, storage_defined: bool) -> bool {
     let mut has_transformed_module = false;
 
     for structure in module.types.iter_mut() {
-        if structure
-            .attributes
-            .iter()
-            .any(|attribute| is_custom_attribute(attribute, "aztec(event)"))
-        {
+        if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
             module.impls.push(generate_selector_impl(structure));
             has_transformed_module = true;
         }
@@ -311,6 +392,8 @@ fn transform_unconstrained(func: &mut NoirFunction) {
     func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
 }
 
+const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
+
 /// Generates the impl for an event selector
 ///
 /// Inserts the following code:
@@ -324,13 +407,11 @@ fn transform_unconstrained(func: &mut NoirFunction) {
 ///
 /// This allows developers to emit events without having to write the signature of the event every time they emit it.
 fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
-    let signature = compute_signature(structure);
-
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
     let selector_fun_body = BlockExpression(vec![Statement::Expression(call(
         variable_path(chained_path!("aztec", "oracle", "compute_selector", "compute_selector")),
-        vec![expression(ExpressionKind::Literal(Literal::Str(signature)))],
+        vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
     ))]);
 
     let mut selector_fn_def = FunctionDefinition::normal(
@@ -784,20 +865,33 @@ fn add_cast_to_hasher(identifier: &Ident) -> Statement {
     ))
 }
 
-fn signature_of_type(ty: &UnresolvedType) -> String {
-    match &ty.typ {
-        UnresolvedTypeData::Integer(Signedness::Signed, bit_size) => format!("i{}", bit_size),
-        UnresolvedTypeData::Integer(Signedness::Unsigned, bit_size) => format!("u{}", bit_size),
-        UnresolvedTypeData::FieldElement => "Field".to_owned(),
-        UnresolvedTypeData::Bool => "bool".to_owned(),
-        UnresolvedTypeData::Array(Some(UnresolvedTypeExpression::Constant(len, _)), typ) => {
-            format!("[{};{len}]", signature_of_type(typ))
+fn signature_or_resolved_type(typ: &Type) -> String {
+    match typ {
+        Type::Integer(Signedness::Signed, bit_size) => format!("i{}", bit_size),
+        Type::Integer(Signedness::Unsigned, bit_size) => format!("u{}", bit_size),
+        Type::FieldElement => "Field".to_owned(),
+        Type::Bool => "bool".to_owned(),
+        Type::Array(len, typ) => {
+            if let Type::Constant(len) = **len {
+                format!("[{};{len}]", signature_or_resolved_type(typ))
+            } else {
+                unimplemented!("Cannot generate signature for array with length type {:?}", typ)
+            }
         }
-        _ => unimplemented!("Cannot generate signature for type {:?}", ty),
+        Type::Struct(def, args) => {
+            let fields = def.borrow().get_fields(args);
+            let fields = vecmap(fields, |(_, typ)| signature_or_resolved_type(&typ));
+            format!("({})", fields.join(","))
+        }
+        Type::Tuple(types) => {
+            let fields = vecmap(types, signature_or_resolved_type);
+            format!("({})", fields.join(","))
+        }
+        _ => unimplemented!("Cannot generate signature for type {:?}", typ),
     }
 }
 
-fn compute_signature(structure: &NoirStruct) -> String {
-    let fields: Vec<_> = structure.fields.iter().map(|(_, ty)| signature_of_type(ty)).collect();
+fn compute_signature_from_type(structure: &StructType) -> String {
+    let fields = vecmap(structure.get_fields(&[]), |(_, typ)| signature_or_resolved_type(&typ));
     format!("{}({})", structure.name.0.contents, fields.join(","))
 }
