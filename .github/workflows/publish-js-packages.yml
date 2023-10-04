@@ -16,8 +16,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          ref: 3611cfc1cd010ac8b772d8c251bfe8012d911a3f
+        # with:
+          # ref: 3611cfc1cd010ac8b772d8c251bfe8012d911a3f
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
