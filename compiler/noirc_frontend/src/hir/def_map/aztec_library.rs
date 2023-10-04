@@ -340,7 +340,7 @@ fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId>
         .collect()
 }
 
-/// Substitutes the signature literals that were introduced in the AST for the event selector generation
+/// Substitutes the signature literal that was introduced in the selector method previously with the actual signature.
 fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
     let selector_id =
         interner.lookup_method(struct_id, "selector").expect("Selector method not found");

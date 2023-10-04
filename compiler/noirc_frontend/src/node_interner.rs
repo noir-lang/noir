@@ -508,6 +508,7 @@ impl NodeInterner {
         }
     }
 
+    /// Updates the interned expression corresponding to `expr_id`
     pub fn update_expression(&mut self, expr_id: ExprId, f: impl FnOnce(&mut HirExpression)) {
         let def =
             self.nodes.get_mut(expr_id.0).expect("ice: all expression ids should have definitions");
