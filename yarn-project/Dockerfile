@@ -26,6 +26,12 @@ WORKDIR /usr/src/yarn-project/circuits.js/resources
 RUN ./download_ignition.sh 0 28 3200027
 RUN ./download_ignition.sh 0 322560092 322560219 true
 
+# Ensure wasm symlink is removed
+RUN rm /usr/src/yarn-project/circuits.js/resources/aztec3-circuits.wasm
+
+# Copy real wasm into yarn-project
+RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/circuits.js/resources/aztec3-circuits.wasm
+
 WORKDIR /usr/src/yarn-project
 
 ENTRYPOINT ["yarn"]
