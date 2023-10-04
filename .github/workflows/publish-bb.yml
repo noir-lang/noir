@@ -51,7 +51,7 @@ jobs:
         run: |
           cd barretenberg/cpp
 
-          cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
+          cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DTARGET_ARCH=westmere
           cmake --build --preset default --target bb
 
       - name: Tar and GZip bb Binary (Ubuntu)

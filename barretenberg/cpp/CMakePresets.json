@@ -16,6 +16,9 @@
         "CC": "clang",
         "CXX": "clang++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "cacheVariables": {
+        "TARGET_ARCH": "skylake"
       }
     },
     {
@@ -51,20 +54,20 @@
         "DISABLE_ASM": "ON"
       }
     },
-    {"name":"asan",
-    "displayName": "Debugging build with address sanitizer on Clang-16",
-  "description": "Build with address sanitizer on clang16 with debugging information",
-  "inherits":"clang16-dbg",
+    {
+      "name": "asan",
+      "displayName": "Debugging build with address sanitizer on Clang-16",
+      "description": "Build with address sanitizer on clang16 with debugging information",
+      "inherits": "clang16-dbg",
       "binaryDir": "build-asan",
-"environment": {
+      "environment": {
         "CMAKE_BUILD_TYPE": "Debug"
       },
       "cacheVariables": {
         "ENABLE_ASAN": "ON",
-        "DISABLE_ASM": "ON" 
+        "DISABLE_ASM": "ON"
       }
-
-},
+    },
     {
       "name": "gcc",
       "displayName": "Build with GCC",
@@ -193,7 +196,8 @@
       "name": "clang16-dbg",
       "inherits": "default",
       "configurePreset": "clang16-dbg"
-    },{
+    },
+    {
       "name": "asan",
       "inherits": "default",
       "configurePreset": "asan"
@@ -218,7 +222,7 @@
       "inherits": "clang16",
       "configurePreset": "fuzzing"
     },
-    { 
+    {
       "name": "smt-verification",
       "inherits": "clang16",
       "configurePreset": "smt-verification"
@@ -278,7 +282,7 @@
       "inherits": "default",
       "configurePreset": "clang16-dbg"
     },
-  {
+    {
       "name": "asan",
       "inherits": "default",
       "configurePreset": "asan"

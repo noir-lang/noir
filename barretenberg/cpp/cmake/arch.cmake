@@ -6,5 +6,6 @@ if(WASM)
 endif()
 
 if(NOT WASM AND NOT APPLE AND NOT ARM)
-    add_compile_options(-march=skylake)
+    message(STATUS "Target architecture: ${TARGET_ARCH}")
+    add_compile_options(-march=${TARGET_ARCH})
 endif()
