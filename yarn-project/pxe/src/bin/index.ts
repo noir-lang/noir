@@ -6,7 +6,7 @@ import { getPXEServiceConfig } from '../config/index.js';
 import { startPXEHttpServer } from '../pxe_http/index.js';
 import { createPXEService } from '../pxe_service/index.js';
 
-const { PXE_PORT = 8081, AZTEC_NODE_URL = 'http://localhost:8079' } = process.env;
+const { PXE_PORT = 8080, AZTEC_NODE_URL = 'http://localhost:8079' } = process.env;
 
 const logger = createDebugLogger('aztec:pxe_service');
 
