@@ -195,6 +195,10 @@ pub(super) fn transform_internal(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode.clone());
             }
+            Opcode::AssertEq { .. } => {
+                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+                transformed_opcodes.push(opcode.clone());
+            }
         }
     }
 
