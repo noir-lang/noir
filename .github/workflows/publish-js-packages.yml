@@ -14,7 +14,6 @@ on:
 jobs:
   build-all-wasm:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -41,12 +40,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          registry-url: "https://registry.npmjs.org"
-          node-version: 18.15
-
       - uses: cachix/install-nix-action@v22
         with:
           nix_path: nixpkgs=channel:nixos-23.05
@@ -63,6 +56,9 @@ jobs:
       - name: Build all ES Packages
         run: yarn prepare:publish
 
+      - name: Authenticate with npm
+        run: echo "npmAuthToken:${{ secrets.NPM_TOKEN }}" > ~/.yarnrc.yml
+        
       - name: Publish All JS PAckages
         run: yarn publish:all
         # env:
