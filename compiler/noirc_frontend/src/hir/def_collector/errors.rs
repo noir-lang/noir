@@ -21,7 +21,6 @@ pub enum DuplicateType {
     TraitAssociatedType,
     TraitAssociatedConst,
     TraitAssociatedFunction,
-    TraitAssociatedItem,
 }
 
 #[derive(Error, Debug, Clone)]
@@ -86,7 +85,6 @@ impl fmt::Display for DuplicateType {
             DuplicateType::TraitAssociatedType => write!(f, "trait associated type"),
             DuplicateType::TraitAssociatedConst => write!(f, "trait associated constant"),
             DuplicateType::TraitAssociatedFunction => write!(f, "trait associated function"),
-            DuplicateType::TraitAssociatedItem => write!(f, "trait associated item"),
         }
     }
 }
