@@ -44,10 +44,6 @@ function deploy_package() {
     done
     fi
 
-    # Filter on whitelist of properties.
-    jq '{name, version, exports, main, homepage, author, type, license, dependencies, description, bin} | with_entries( select( .value != null ) )' \
-    package.json > $TMP && mv $TMP package.json
-
     # Publish
     if [ -n "${COMMIT_TAG:-}" ] ; then 
         npm publish $TAG_ARG --access public
