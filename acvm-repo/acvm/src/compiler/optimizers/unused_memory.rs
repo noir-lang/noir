@@ -8,8 +8,8 @@ pub(crate) struct UnusedMemoryOptimizer {
 }
 
 impl UnusedMemoryOptimizer {
-    /// Creates a new `RangeOptimizer` by collecting all known range
-    /// constraints from `Circuit`.
+    /// Creates a new `UnusedMemoryOptimizer ` by collecting unused memory init
+    /// opcodes from `Circuit`.
     pub(crate) fn new(circuit: Circuit) -> Self {
         let unused_memory_initializations = Self::collect_unused_memory_initializations(&circuit);
         Self { circuit, unused_memory_initializations }
