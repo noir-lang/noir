@@ -14,3 +14,4 @@ nargo.workspace = true
 noirc_printable_type.workspace = true
 thiserror.workspace = true
 reedline-repl-rs = "1.0.7"
+easy-repl = "0.2.1"
