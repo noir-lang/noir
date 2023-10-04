@@ -918,7 +918,7 @@ impl AcirContext {
                     self.brillig_array_input(var_expressions, var)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(FieldElement::from(i as u128));

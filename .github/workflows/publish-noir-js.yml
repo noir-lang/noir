@@ -1,4 +1,4 @@
-name: Release and Publish Noir Js
+name: Publish Noir Js
 
 on:
   workflow_dispatch:
@@ -17,11 +17,13 @@ jobs:
       - name: Install jq
         run: sudo apt-get install jq
 
-      - name: Install cargo and wasm-bindgen
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source $HOME/.cargo/env
-          cargo install -f wasm-bindgen-cli --version 0.2.86
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
 
       - name: Install wasm-opt
         run: |
@@ -33,6 +35,9 @@ jobs:
 
       - name: Build noirc_abi
         run: yarn workspace @noir-lang/noirc_abi build
+
+      - name: Build acvm_js
+        run: yarn workspace @noir-lang/acvm_js build
 
       - name: Build noir_js
         run: yarn workspace @noir-lang/noir_js build

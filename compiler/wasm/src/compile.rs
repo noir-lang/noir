@@ -1,13 +1,20 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
+use nargo::artifacts::{
+    contract::{PreprocessedContract, PreprocessedContractFunction},
+    program::PreprocessedProgram,
+};
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    CompiledContract, CompiledProgram,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use wasm_bindgen::prelude::*;
+
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WASMCompileOptions {
@@ -123,7 +130,9 @@ pub fn compile(args: JsValue) -> JsValue {
             nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
                 .expect("Contract optimization failed");
 
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
+        let preprocessed_contract = preprocess_contract(optimized_contract);
+
+        <JsValue as JsValueSerdeExt>::from_serde(&preprocessed_contract).unwrap()
     } else {
         let compiled_program =
             compile_main(&mut context, crate_id, &options.compile_options, None, true)
@@ -134,7 +143,39 @@ pub fn compile(args: JsValue) -> JsValue {
             nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
                 .expect("Program optimization failed");
 
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
+        let preprocessed_program = preprocess_program(optimized_program);
+
+        <JsValue as JsValueSerdeExt>::from_serde(&preprocessed_program).unwrap()
+    }
+}
+
+fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
+    PreprocessedProgram {
+        hash: program.hash,
+        backend: String::from(BACKEND_IDENTIFIER),
+        abi: program.abi,
+        bytecode: program.circuit,
+    }
+}
+
+fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
+    let preprocessed_functions = contract
+        .functions
+        .into_iter()
+        .map(|func| PreprocessedContractFunction {
+            name: func.name,
+            function_type: func.function_type,
+            is_internal: func.is_internal,
+            abi: func.abi,
+            bytecode: func.bytecode,
+        })
+        .collect();
+
+    PreprocessedContract {
+        name: contract.name,
+        backend: String::from(BACKEND_IDENTIFIER),
+        functions: preprocessed_functions,
+        events: contract.events,
     }
 }
 

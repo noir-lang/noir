@@ -213,6 +213,11 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
+        if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
+            let the_trait = self.interner.get_trait(trait_id);
+            *the_trait.self_type_typevar.borrow_mut() = TypeBinding::Bound(self_type);
+        }
+
         let meta = self.interner.function_meta(&f);
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -388,10 +393,9 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(method) => {
-                if let Type::Function(args, _, _) = self.interner.id_type(expr) {
-                    let self_type = args[0].clone();
-                    self.resolve_trait_method_reference(self_type, expr, method)
+            HirExpression::TraitMethodReference(typ, method) => {
+                if let Type::Function(_, _, _) = self.interner.id_type(expr) {
+                    self.resolve_trait_method_reference(typ, expr, method)
                 } else {
                     unreachable!(
                         "Calling a non-function, this should've been caught in typechecking"
@@ -809,9 +813,6 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         let function_type = self.interner.id_type(expr_id);
 
-        // the substitute() here is to replace all internal occurences of the 'Self' typevar
-        // with whatever 'Self' is currently bound to, so we don't lose type information
-        // if we need to rebind the trait.
         let trait_impl = self
             .interner
             .get_trait_implementation(&TraitImplKey {
