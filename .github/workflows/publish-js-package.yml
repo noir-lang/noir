@@ -1,0 +1,56 @@
+name: Publish Js Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: true
+      package-name:
+        description: The js package name to publish
+        required: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    env:
+      CACHED_PATH: /tmp/nix-cache
+    
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          repository: "noir-lang/noir"
+          ref: ${{ inputs.noir-ref }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: npm i wasm-opt -g
+
+      - name: Install wasm32-unknown-unknwown target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Build packages
+        run: yarn prepare:publish
+
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish to NPM
+        working-directory: ./tooling/${{ inputs.package-name }}
+        run: yarn npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

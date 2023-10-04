@@ -1,4 +1,4 @@
-name: Publish noir_js
+name: Publish noir_js_types
 
 on:
   workflow_dispatch:
@@ -22,5 +22,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{
             "noir-ref": "${{ github.event.inputs.noir-ref }}",
-            "package-name": "noir_js"
+            "package-name": "noir_js_types"
           }'
