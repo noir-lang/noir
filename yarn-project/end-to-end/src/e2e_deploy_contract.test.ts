@@ -1,4 +1,4 @@
-import { AztecAddress, Contract, ContractDeployer, Fr, Wallet, isContractDeployed } from '@aztec/aztec.js';
+import { AztecAddress, Contract, ContractDeployer, EthAddress, Fr, Wallet, isContractDeployed } from '@aztec/aztec.js';
 import { CompleteAddress, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -111,4 +111,21 @@ describe('e2e_deploy_contract', () => {
       );
     }
   }, 30_000);
+
+  it('should deploy a contract connected to a portal contract', async () => {
+    const deployer = new ContractDeployer(TestContractAbi, wallet);
+    const portalContract = EthAddress.random();
+
+    const txReceipt = await deployer.deploy().send({ portalContract }).wait();
+
+    expect(txReceipt.status).toBe(TxStatus.MINED);
+    const contractAddress = txReceipt.contractAddress!;
+
+    expect((await pxe.getContractData(contractAddress))?.portalContractAddress.toString()).toEqual(
+      portalContract.toString(),
+    );
+    expect((await pxe.getExtendedContractData(contractAddress))?.contractData.portalContractAddress.toString()).toEqual(
+      portalContract.toString(),
+    );
+  });
 });
