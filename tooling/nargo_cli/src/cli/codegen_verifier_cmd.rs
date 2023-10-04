@@ -76,6 +76,7 @@ fn smart_contract_for_package(
         workspace,
         package,
         compile_options,
+        false,
         np_language,
         &is_opcode_supported,
     )?;

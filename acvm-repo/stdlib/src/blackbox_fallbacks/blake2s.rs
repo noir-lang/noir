@@ -203,7 +203,7 @@ fn blake2s_compress(
             UInt32::from_witnesses(&mi_bytes, num_witness);
         new_opcodes.extend(extra_opcodes);
         m.push(mi[0]);
-        num_witness = updated_witness_counter
+        num_witness = updated_witness_counter;
     }
 
     for i in 0..8 {

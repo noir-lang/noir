@@ -90,7 +90,7 @@ pub struct NodeInterner {
     //
     // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
     // We'd just lookup their methods as needed through the NodeInterner.
-    traits: HashMap<TraitId, Shared<Trait>>,
+    traits: HashMap<TraitId, Trait>,
 
     // Trait implementation map
     // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
@@ -115,6 +115,9 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+
+    // For trait implementation functions, this is their self type and trait they belong to
+    func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -364,6 +367,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
+            func_id_to_trait: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
@@ -420,9 +424,10 @@ impl NodeInterner {
 
         self.traits.insert(
             type_id,
-            Shared::new(Trait::new(
+            Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
+                typ.crate_id,
                 typ.trait_def.span,
                 vecmap(&typ.trait_def.generics, |_| {
                     // Temporary type variable ids before the trait is resolved to its actual ids.
@@ -434,7 +439,7 @@ impl NodeInterner {
                 }),
                 self_type_typevar_id,
                 self_type_typevar,
-            )),
+            ),
         );
     }
 
@@ -487,8 +492,8 @@ impl NodeInterner {
     }
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let mut value = self.traits.get_mut(&trait_id).unwrap().borrow_mut();
-        f(&mut value);
+        let value = self.traits.get_mut(&trait_id).unwrap();
+        f(value);
     }
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
@@ -627,6 +632,14 @@ impl NodeInterner {
         self.push_definition(name, false, DefinitionKind::Function(func))
     }
 
+    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
+        self.func_id_to_trait.insert(func, (self_type, trait_id));
+    }
+
+    pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {
+        self.func_id_to_trait.get(func).cloned()
+    }
+
     /// Returns the visibility of the given function.
     ///
     /// The underlying function_visibilities map is populated during def collection,
@@ -760,7 +773,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_trait(&self, id: TraitId) -> Shared<Trait> {
+    pub fn get_trait(&self, id: TraitId) -> Trait {
         self.traits[&id].clone()
     }
 

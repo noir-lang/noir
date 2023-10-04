@@ -37,8 +37,8 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
-    Path, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
@@ -78,6 +78,8 @@ pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    trait_id: Option<TraitId>,
+    trait_bounds: Vec<UnresolvedTraitConstraint>,
     pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
     file: FileId,
@@ -105,6 +107,11 @@ struct ResolverMeta {
     warn_if_unused: bool,
 }
 
+pub enum ResolvePathError {
+    WrongKind,
+    NotFound,
+}
+
 impl<'a> Resolver<'a> {
     pub fn new(
         interner: &'a mut NodeInterner,
@@ -115,6 +122,8 @@ impl<'a> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
+            trait_id: None,
+            trait_bounds: Vec::new(),
             scopes: ScopeForest::default(),
             interner,
             self_type: None,
@@ -127,6 +136,10 @@ impl<'a> Resolver<'a> {
 
     pub fn set_self_type(&mut self, self_type: Option<Type>) {
         self.self_type = self_type;
+    }
+
+    pub fn set_trait_id(&mut self, trait_id: Option<TraitId>) {
+        self.trait_id = trait_id;
     }
 
     pub fn get_self_type(&mut self) -> Option<&Type> {
@@ -153,12 +166,14 @@ impl<'a> Resolver<'a> {
         self.resolve_local_globals();
 
         self.add_generics(&func.def.generics);
+        self.trait_bounds = func.def.where_clause.clone();
 
         let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
+        self.trait_bounds.clear();
         (hir_func, func_meta, self.errors)
     }
 
@@ -1070,39 +1085,43 @@ impl<'a> Resolver<'a> {
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
-                // If the Path is being used as an Expression, then it is referring to a global from a separate module
-                // Otherwise, then it is referring to an Identifier
-                // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-                // If the expression is a singular indent, we search the resolver's current scope as normal.
-                let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                if let Some(expr) = self.resolve_trait_generic_path(&path) {
+                    expr
+                } else {
+                    // If the Path is being used as an Expression, then it is referring to a global from a separate module
+                    // Otherwise, then it is referring to an Identifier
+                    // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+                    // If the expression is a singular indent, we search the resolver's current scope as normal.
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
-                if hir_ident.id != DefinitionId::dummy_id() {
-                    match self.interner.definition(hir_ident.id).kind {
-                        DefinitionKind::Function(id) => {
-                            if self.interner.function_visibility(id) == Visibility::Private {
-                                let span = hir_ident.location.span;
-                                self.check_can_reference_private_function(id, span);
+                    if hir_ident.id != DefinitionId::dummy_id() {
+                        match self.interner.definition(hir_ident.id).kind {
+                            DefinitionKind::Function(id) => {
+                                if self.interner.function_visibility(id) == Visibility::Private {
+                                    let span = hir_ident.location.span;
+                                    self.check_can_reference_private_function(id, span);
+                                }
                             }
-                        }
-                        DefinitionKind::Global(_) => {}
-                        DefinitionKind::GenericType(_) => {
-                            // Initialize numeric generics to a polymorphic integer type in case
-                            // they're used in expressions. We must do this here since the type
-                            // checker does not check definition kinds and otherwise expects
-                            // parameters to already be typed.
-                            if self.interner.id_type(hir_ident.id) == Type::Error {
-                                let typ = Type::polymorphic_integer(self.interner);
-                                self.interner.push_definition_type(hir_ident.id, typ);
+                            DefinitionKind::Global(_) => {}
+                            DefinitionKind::GenericType(_) => {
+                                // Initialize numeric generics to a polymorphic integer type in case
+                                // they're used in expressions. We must do this here since the type
+                                // checker does not check definition kinds and otherwise expects
+                                // parameters to already be typed.
+                                if self.interner.id_type(hir_ident.id) == Type::Error {
+                                    let typ = Type::polymorphic_integer(self.interner);
+                                    self.interner.push_definition_type(hir_ident.id, typ);
+                                }
                             }
-                        }
-                        DefinitionKind::Local(_) => {
-                            // only local variables can be captured by closures.
-                            self.resolve_local_variable(hir_ident, var_scope_index);
+                            DefinitionKind::Local(_) => {
+                                // only local variables can be captured by closures.
+                                self.resolve_local_variable(hir_ident, var_scope_index);
+                            }
                         }
                     }
-                }
 
-                HirExpression::Ident(hir_ident)
+                    HirExpression::Ident(hir_ident)
+                }
             }
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
@@ -1370,8 +1389,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
-        self.interner.get_trait(type_id)
+    pub fn get_trait(&self, trait_id: TraitId) -> Trait {
+        self.interner.get_trait(trait_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
@@ -1438,6 +1457,65 @@ impl<'a> Resolver<'a> {
 
     fn lookup_type_alias(&mut self, path: Path) -> Option<&TypeAliasType> {
         self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
+    }
+
+    // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
+    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<HirExpression> {
+        if let Some(trait_id) = self.trait_id {
+            if path.kind == PathKind::Plain && path.segments.len() == 2 {
+                let name = &path.segments[0].0.contents;
+                let method = &path.segments[1];
+
+                if name == SELF_TYPE_NAME {
+                    let the_trait = self.interner.get_trait(trait_id);
+
+                    if let Some(method) = the_trait.find_method(method.clone()) {
+                        let self_type = Type::TypeVariable(
+                            the_trait.self_type_typevar,
+                            crate::TypeVariableKind::Normal,
+                        );
+                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    // this resolves a static trait method T::trait_method by iterating over the where clause
+    fn resolve_trait_method_by_named_generic(&mut self, path: &Path) -> Option<HirExpression> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+
+        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
+            if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
+                // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
+                if constraint_path.segments.len() == 1
+                    && path.segments[0] != constraint_path.last_segment()
+                {
+                    continue;
+                }
+
+                if let Ok(ModuleDefId::TraitId(trait_id)) =
+                    self.path_resolver.resolve(self.def_maps, trait_bound.trait_path.clone())
+                {
+                    let the_trait = self.interner.get_trait(trait_id);
+                    if let Some(method) =
+                        the_trait.find_method(path.segments.last().unwrap().clone())
+                    {
+                        let self_type = self.resolve_type(typ.clone());
+                        return Some(HirExpression::TraitMethodReference(self_type, method));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<HirExpression> {
+        self.resolve_trait_static_method_by_self(path)
+            .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
@@ -1756,7 +1834,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main"]);
 
         // There should only be one error
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 1, "Expected 1 error, got: {errors:?}");
 
         // It should be regarding the unused variable
         match &errors[0] {
@@ -1826,7 +1904,7 @@ mod test {
         "#;
 
         let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
+        assert!(errors.len() == 3, "Expected 3 errors, got: {errors:?}");
 
         // Errors are:
         // `a` is undeclared
@@ -1902,7 +1980,7 @@ mod test {
         "#;
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
+            println!("Unexpected errors: {errors:?}");
             unreachable!("there should be no errors");
         }
     }
@@ -1974,7 +2052,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
+            println!("Unexpected errors: {errors:?}");
             unreachable!("there should be no errors");
         }
 
@@ -2016,7 +2094,7 @@ mod test {
         "#;
 
         let errors = resolve_src_code(src, vec!["main", "println"]);
-        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {errors:?}");
 
         for err in errors {
             match &err {

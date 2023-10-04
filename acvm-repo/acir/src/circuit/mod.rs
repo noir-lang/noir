@@ -126,7 +126,7 @@ impl Circuit {
     }
 
     pub fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode::serialize(&self).unwrap();
+        let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf).unwrap();
         encoder.finish().unwrap();
@@ -167,7 +167,7 @@ impl std::fmt::Display for Circuit {
         write_public_inputs(f, &self.return_values)?;
 
         for opcode in &self.opcodes {
-            writeln!(f, "{opcode}")?
+            writeln!(f, "{opcode}")?;
         }
         Ok(())
     }
@@ -236,7 +236,7 @@ mod tests {
         }
 
         let (circ, got_circ) = read_write(circuit);
-        assert_eq!(circ, got_circ)
+        assert_eq!(circ, got_circ);
     }
 
     #[test]

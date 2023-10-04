@@ -1,9 +1,9 @@
 export const abi = {
   parameters: [
     {
-      name: "foo",
-      type: { kind: "integer", sign: "unsigned", width: 32 },
-      visibility: "private",
+      name: 'foo',
+      type: { kind: 'integer', sign: 'unsigned', width: 32 },
+      visibility: 'private',
     },
   ],
   param_witnesses: { foo: [1] },

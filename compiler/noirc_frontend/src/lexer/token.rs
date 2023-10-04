@@ -384,6 +384,10 @@ impl Attributes {
             .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
     }
 
+    pub fn is_test_function(&self) -> bool {
+        matches!(self.function, Some(FunctionAttribute::Test(_)))
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {
@@ -405,8 +409,8 @@ pub enum Attribute {
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Attribute::Function(attribute) => write!(f, "{}", attribute),
-            Attribute::Secondary(attribute) => write!(f, "{}", attribute),
+            Attribute::Function(attribute) => write!(f, "{attribute}"),
+            Attribute::Secondary(attribute) => write!(f, "{attribute}"),
         }
     }
 }
@@ -527,7 +531,7 @@ impl FunctionAttribute {
 impl fmt::Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionAttribute::Test(scope) => write!(f, "#[test{}]", scope),
+            FunctionAttribute::Test(scope) => write!(f, "#[test{scope}]"),
             FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
@@ -730,7 +734,7 @@ mod keywords {
         for keyword in Keyword::iter() {
             let resolved_token =
                 Keyword::lookup_keyword(&format!("{keyword}")).unwrap_or_else(|| {
-                    panic!("Keyword::lookup_keyword couldn't find Keyword {}", keyword)
+                    panic!("Keyword::lookup_keyword couldn't find Keyword {keyword}")
                 });
 
             assert_eq!(
