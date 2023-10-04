@@ -413,7 +413,7 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
 
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
 fn trait_function_declaration() -> impl NoirParser<TraitItem> {
-    let trait_function_body_or_semicolon = block(expression()).map(|a|Option::from(a)).or(just(Token::Semicolon).map(|_|Option::None));
+    let trait_function_body_or_semicolon = block(expression()).map(Option::from).or(just(Token::Semicolon).map(|_|Option::None));
 
     keyword(Keyword::Fn)
         .ignore_then(ident())
