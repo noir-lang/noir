@@ -215,7 +215,7 @@ mod test {
         let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
         builder.terminate_with_return(vec![v2]);
 
-        let mut ssa = builder.finish();
+        let mut ssa = builder.finish(None);
         let main = ssa.main_mut();
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
@@ -268,7 +268,7 @@ mod test {
         let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
-        let ssa = builder.finish().fold_constants();
+        let ssa = builder.finish(None).fold_constants();
         let main = ssa.main();
         let entry_block_id = main.entry_block();
         let entry_block = &main.dfg[entry_block_id];
@@ -313,7 +313,7 @@ mod test {
         let v2 = builder.insert_cast(v0, Type::unsigned(32));
         builder.insert_constrain(v1, v2, None);
 
-        let mut ssa = builder.finish();
+        let mut ssa = builder.finish(None);
         let main = ssa.main_mut();
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 3);

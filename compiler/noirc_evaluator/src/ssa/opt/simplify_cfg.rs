@@ -189,7 +189,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
         // Expected output:
@@ -245,7 +245,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![two]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
         // Expected output:

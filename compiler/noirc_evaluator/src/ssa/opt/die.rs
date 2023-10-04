@@ -191,7 +191,7 @@ mod test {
         builder.insert_call(assert_constant_id, vec![v8], vec![]);
         builder.terminate_with_return(vec![v9]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         let main = ssa.main();
 
         // The instruction count never includes the terminator instruction

@@ -1838,9 +1838,11 @@ mod tests {
         },
         FieldElement,
     };
+    use noirc_errors::{Location, Span};
 
     use crate::{
         brillig::Brillig,
+        errors::{InternalError, RuntimeError},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{function::RuntimeType, map::Id, types::Type},
@@ -1866,15 +1868,13 @@ mod tests {
 
         builder.terminate_with_return(vec![array]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish(Some(Location::dummy()));
 
         let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
-
-        let expected_opcodes =
-            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.take_opcodes(), expected_opcodes);
-        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
+        let acir = context
+            .convert_ssa(ssa, Brillig::default(), &HashMap::default())
+            .expect_err("Return constant value");
+        assert!(matches!(acir, RuntimeError::InternalError(InternalError::ReturnConstant { .. })));
     }
 }
 //

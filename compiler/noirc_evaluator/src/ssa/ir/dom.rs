@@ -300,7 +300,7 @@ mod tests {
         builder.switch_to_block(block3_id);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         let func = ssa.main();
         let block0_id = func.entry_block();
 
@@ -404,7 +404,7 @@ mod tests {
         builder.switch_to_block(block2_id);
         builder.terminate_with_jmp(block1_id, vec![]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         let func = ssa.main();
         let block0_id = func.entry_block();
 

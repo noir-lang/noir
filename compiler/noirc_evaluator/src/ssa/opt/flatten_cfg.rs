@@ -728,7 +728,7 @@ mod test {
         builder.switch_to_block(b3);
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected output:
@@ -777,7 +777,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
         // Expected output:
@@ -826,7 +826,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
 
         // Expected output:
         // fn main f0 {
@@ -893,7 +893,7 @@ mod test {
         builder.switch_to_block(b3);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
 
         // Expected output:
         // fn main f0 {
@@ -1035,7 +1035,7 @@ mod test {
         let load = builder.insert_load(r1, Type::field());
         builder.terminate_with_return(vec![load]);
 
-        let ssa = builder.finish().flatten_cfg().mem2reg();
+        let ssa = builder.finish(None).flatten_cfg().mem2reg();
 
         // Expected results after mem2reg removes the allocation and each load and store:
         //
@@ -1135,7 +1135,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish().flatten_cfg();
+        let ssa = builder.finish(None).flatten_cfg();
         let main = ssa.main();
 
         // Now assert that there is not a load between the allocate and its first store
@@ -1233,7 +1233,7 @@ mod test {
         builder.insert_constrain(v_false, v_true, None); // should not be removed
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish().flatten_cfg();
+        let ssa = builder.finish(None).flatten_cfg();
         let main = ssa.main();
 
         // Assert we have not incorrectly removed a constraint:
@@ -1316,7 +1316,7 @@ mod test {
         builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish().flatten_cfg();
+        let ssa = builder.finish(None).flatten_cfg();
         let main = ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
@@ -1436,7 +1436,7 @@ mod test {
         builder.switch_to_block(b4);
         builder.terminate_with_jmp(b5, vec![]);
 
-        let ssa = builder.finish().flatten_cfg().mem2reg().fold_constants();
+        let ssa = builder.finish(None).flatten_cfg().mem2reg().fold_constants();
 
         let main = ssa.main();
 

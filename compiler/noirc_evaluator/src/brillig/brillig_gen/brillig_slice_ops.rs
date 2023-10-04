@@ -330,7 +330,7 @@ mod tests {
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext) {
         let builder =
             FunctionBuilder::new("main".to_string(), Id::test_new(0), RuntimeType::Brillig);
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
         let mut brillig_context = create_context();
 
         let function_context = FunctionContext::new(ssa.main(), &mut brillig_context);
