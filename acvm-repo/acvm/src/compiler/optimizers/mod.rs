@@ -2,9 +2,12 @@ use acir::circuit::{Circuit, Opcode};
 
 mod general;
 mod redundant_range;
+mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
+
+use self::unused_memory::UnusedMemoryOptimizer;
 
 use super::AcirTransformationMap;
 
@@ -25,6 +28,11 @@ pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+
+    // Range optimization pass
+    let memory_optimizer = UnusedMemoryOptimizer::new(acir);
+    let (acir, acir_opcode_positions) =
+        memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
 
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir);
