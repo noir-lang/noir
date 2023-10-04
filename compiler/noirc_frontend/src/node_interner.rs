@@ -512,6 +512,19 @@ impl NodeInterner {
         }
     }
 
+    /// Updates the interned expression corresponding to `expr_id`
+    pub fn update_expression(&mut self, expr_id: ExprId, f: impl FnOnce(&mut HirExpression)) {
+        let def =
+            self.nodes.get_mut(expr_id.0).expect("ice: all expression ids should have definitions");
+
+        match def {
+            Node::Expression(expr) => f(expr),
+            _ => {
+                panic!("ice: all expression ids should correspond to a expression in the interner")
+            }
+        }
+    }
+
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);
