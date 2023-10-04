@@ -56,5 +56,5 @@ jobs:
         run: echo "npmAuthToken:${{ secrets.NPM_TOKEN }}" > ~/.yarnrc.yml
         
       - name: Publish ES PAckages
-        run: yarn publish:all
+        run: yarn publish:all --access public
         
