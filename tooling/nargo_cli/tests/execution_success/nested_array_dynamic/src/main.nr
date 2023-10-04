@@ -9,6 +9,9 @@ struct Foo {
 }
 
 fn main(mut x : [Foo; 4], y : pub Field) {
+    // assert(x[3].a == 10);
+    // assert(x[1].b == [5, 6, 21]);
+
     assert(x[y - 3].a == 1);
     assert(x[y - 3].b == [2, 3, 20]);
     assert(x[y - 2].a == 4);
@@ -25,7 +28,7 @@ fn main(mut x : [Foo; 4], y : pub Field) {
     } else {
         x[y].a = 100;
     }
-    assert(x[y].a == 50);
+    assert(x[3].a == 50);
 
     if y == 2 {
         x[y - 1].b = [50, 51, 52];

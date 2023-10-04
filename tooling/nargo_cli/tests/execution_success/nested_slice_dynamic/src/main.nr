@@ -41,11 +41,6 @@ fn main(y :  Field) {
         x[y - 1].b = [100, 101, 102];
     }
     assert(x[2].b == [100, 101, 102]);
-
-    // assert(x[0].bar.inner == [100, 101, 102]);
-    // assert(x[1].bar.inner == [103, 104, 105]);
-    // assert(x[2].bar.inner == [106, 107, 108]);
-    // assert(x[3].bar.inner == [109, 110, 111]);
     
     assert(x[y - 3].bar.inner == [100, 101, 102]);
     assert(x[y - 2].bar.inner == [103, 104, 105]);
