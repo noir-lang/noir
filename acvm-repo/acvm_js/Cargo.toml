@@ -28,7 +28,7 @@ log = "0.4.17"
 wasm-logger = "0.2.0"
 console_error_panic_hook = "0.1.7"
 gloo-utils = { version = "0.1", features = ["serde"] }
-js-sys = "0.3.62"
+js-sys.workspace = true
 const-str = "0.5.5"
 
 [build-dependencies]

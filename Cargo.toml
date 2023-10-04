@@ -80,6 +80,7 @@ tower = "0.4"
 url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
+js-sys = "0.3.62"
 base64 = "0.21.2"
 fxhash = "0.2.1"
 acir = { path = "acvm-repo/acir", default-features = false }
