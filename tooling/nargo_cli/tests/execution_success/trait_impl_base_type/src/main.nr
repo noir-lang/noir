@@ -49,6 +49,28 @@ impl Fieldable for str<6> {
     }
 }
 
+impl Fieldable for () {
+    fn to_field(self) -> Field {
+        0
+    }
+}
+
+type Point2D = [Field; 2];
+type Point2DAlias = Point2D;
+
+impl Fieldable for Point2DAlias {
+    fn to_field(self) -> Field {
+        self[0] + self[1]
+    }
+}
+
+impl Fieldable for fmtstr<14, (Field, Field)> {
+    fn to_field(self) -> Field {
+        52
+    }
+}
+
+
 // x = 15
 fn main(x: u32) {
     assert(x.to_field() == 15);
@@ -66,4 +88,11 @@ fn main(x: u32) {
     assert(k_false.to_field() == 32);
     let m = "String";
     assert(m.to_field() == 6);
+    let unit = ();
+    assert(unit.to_field() == 0);
+    let point: Point2DAlias = [2, 3];
+    assert(point.to_field() == 5);
+    let i: Field = 2;
+    let j: Field = 6;
+    assert(f"i: {i}, j: {j}".to_field() == 52);
 }

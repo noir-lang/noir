@@ -14,8 +14,7 @@ use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
 use crate::node_interner::{
-    allow_trait_impl_for_type, FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey,
-    TypeAliasId,
+    FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
 };
 
 use crate::parser::ParserError;
@@ -551,12 +550,6 @@ fn collect_trait_impl(
                         errors.push((err.into(), trait_impl.file_id));
                     }
                 }
-            } else if !allow_trait_impl_for_type(&typ) {
-                let error = DefCollectorErrorKind::NonStructTraitImpl {
-                    trait_path: trait_impl.trait_path.clone(),
-                    span: trait_impl.trait_path.span(),
-                };
-                errors.push((error.into(), trait_impl.file_id));
             }
         }
     }
@@ -1025,7 +1018,15 @@ fn resolve_trait_impls(
                     trait_id,
                     methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
                 });
-                interner.add_trait_implementation(&key, resolved_trait_impl.clone());
+                if !interner.add_trait_implementation(&key, resolved_trait_impl.clone()) {
+                    // error
+                    // unreachable!("Cannot add a method to the unsupported type '{}'", key.typ)
+                    let error = DefCollectorErrorKind::TraitImplNotAllowedFor {
+                        trait_path: trait_impl.trait_path.clone(),
+                        span: trait_impl.trait_path.span(),
+                    };
+                    errors.push((error.into(), trait_impl.file_id));
+                }
             }
 
             methods.append(&mut impl_methods);

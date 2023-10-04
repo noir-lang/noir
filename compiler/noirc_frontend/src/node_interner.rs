@@ -872,29 +872,45 @@ impl NodeInterner {
         self.trait_implementations.get(key).cloned()
     }
 
-    pub fn add_trait_implementation(&mut self, key: &TraitImplKey, trait_impl: Shared<TraitImpl>) {
+    pub fn add_trait_implementation(
+        &mut self,
+        key: &TraitImplKey,
+        trait_impl: Shared<TraitImpl>,
+    ) -> bool {
         self.trait_implementations.insert(key.clone(), trait_impl.clone());
-        for func_id in &trait_impl.borrow().methods {
-            let method_name = self.function_name(func_id).to_owned();
-            match &key.typ {
-                Type::Struct(struct_type, _generics) => {
+        match &key.typ {
+            Type::Struct(struct_type, _generics) => {
+                for func_id in &trait_impl.borrow().methods {
+                    let method_name = self.function_name(func_id).to_owned();
                     let key = (struct_type.borrow().id, method_name);
                     self.struct_methods.insert(key, *func_id);
                 }
-                Type::FieldElement
-                | Type::Array(..)
-                | Type::Integer(..)
-                | Type::Bool
-                | Type::Tuple(..)
-                | Type::String(..) => {
+                true
+            }
+            Type::FieldElement
+            | Type::Unit
+            | Type::Array(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Tuple(..)
+            | Type::String(..) 
+            | Type::FmtString(..)
+            => {
+                for func_id in &trait_impl.borrow().methods {
+                    let method_name = self.function_name(func_id).to_owned();
                     let key = (key.typ.clone(), method_name);
                     self.primitive_trait_impls.insert(key, *func_id);
                 }
-                Type::Error => {}
-                _ => {
-                    unreachable!("Cannot add a method to the unsupported type '{}'", key.typ)
-                }
+                true
             }
+            Type::TypeVariable(..) |
+            Type::NamedGeneric(..) |
+            Type::Function(..) |
+            Type::MutableReference(..) |
+            Type::Forall(..) |
+            Type::Constant(..) |
+            Type::NotConstant |
+            Type::Error => false,
         }
     }
 
@@ -952,28 +968,5 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::NotConstant
         | Type::Struct(_, _)
         | Type::FmtString(_, _) => None,
-    }
-}
-
-pub fn allow_trait_impl_for_type(typ: &Type) -> bool {
-    match &typ {
-        Type::FieldElement
-        | Type::Array(..)
-        | Type::Integer(..)
-        | Type::Bool
-        | Type::Struct(..)
-        | Type::Tuple(..)
-        | Type::String(..) => true,
-
-        Type::FmtString(..)
-        | Type::Unit
-        | Type::TypeVariable(..)
-        | Type::NamedGeneric(..)
-        | Type::Function(..)
-        | Type::MutableReference(..)
-        | Type::Forall(..)
-        | Type::Constant(..)
-        | Type::NotConstant
-        | Type::Error => false,
     }
 }
