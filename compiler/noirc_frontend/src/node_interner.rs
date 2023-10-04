@@ -118,7 +118,7 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
-    
+
     /// Trait implementations on primitive types
     primitive_trait_impls: HashMap<(Type, String), FuncId>,
 }
@@ -893,9 +893,8 @@ impl NodeInterner {
             | Type::Integer(..)
             | Type::Bool
             | Type::Tuple(..)
-            | Type::String(..) 
-            | Type::FmtString(..)
-            => {
+            | Type::String(..)
+            | Type::FmtString(..) => {
                 for func_id in &trait_impl.borrow().methods {
                     let method_name = self.function_name(func_id).to_owned();
                     let key = (key.typ.clone(), method_name);
@@ -903,14 +902,14 @@ impl NodeInterner {
                 }
                 true
             }
-            Type::TypeVariable(..) |
-            Type::NamedGeneric(..) |
-            Type::Function(..) |
-            Type::MutableReference(..) |
-            Type::Forall(..) |
-            Type::Constant(..) |
-            Type::NotConstant |
-            Type::Error => false,
+            Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::MutableReference(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::NotConstant
+            | Type::Error => false,
         }
     }
 

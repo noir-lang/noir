@@ -972,6 +972,8 @@ fn resolve_trait_impls(
         let path_resolver = StandardPathResolver::new(module_id);
         let trait_definition_ident = trait_impl.trait_path.last_segment();
 
+        let self_type_span = unresolved_type.span.unwrap().clone();
+
         let self_type = {
             let mut resolver =
                 Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
@@ -1019,11 +1021,9 @@ fn resolve_trait_impls(
                     methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
                 });
                 if !interner.add_trait_implementation(&key, resolved_trait_impl.clone()) {
-                    // error
-                    // unreachable!("Cannot add a method to the unsupported type '{}'", key.typ)
                     let error = DefCollectorErrorKind::TraitImplNotAllowedFor {
                         trait_path: trait_impl.trait_path.clone(),
-                        span: trait_impl.trait_path.span(),
+                        span: self_type_span,
                     };
                     errors.push((error.into(), trait_impl.file_id));
                 }
