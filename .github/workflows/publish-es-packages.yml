@@ -48,7 +48,7 @@ jobs:
         run: yarn prepare:publish
 
       - name: Authenticate with npm
-        run: echo "npmAuthToken:${{ secrets.NPM_TOKEN }}" > ~/.yarnrc.yml
+        run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
         
       - name: Publish ES Packages
         run: yarn publish:all --access public
