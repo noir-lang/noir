@@ -6,6 +6,9 @@ on:
       acvm-ref:
         description: The acvm reference to checkout
         required: true
+  push: 
+    branches: 
+      - kh-fix-workspace-build
 
 jobs:
   publish-acvm-js-package:
