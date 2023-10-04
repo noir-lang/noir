@@ -25,6 +25,7 @@ iter-extended.workspace = true
 nargo.workspace = true
 nargo_toml.workspace = true
 noir_lsp.workspace = true
+noir_debugger.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_abi.workspace = true
@@ -36,7 +37,6 @@ serde.workspace = true
 serde_json.workspace = true
 prettytable-rs = "0.10"
 rayon = "1.7.0"
-reedline-repl-rs = "1.0.7"
 thiserror.workspace = true
 tower.workspace = true
 async-lsp = { version = "0.0.5", default-features = false, features = [

@@ -96,7 +96,6 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
-        NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),

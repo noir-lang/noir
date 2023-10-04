@@ -3,14 +3,16 @@ use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::acir::circuit::OpcodeLocation;
 
-use crate::artifacts::debug::DebugArtifact;
-use crate::errors::ExecutionError;
-use crate::NargoError;
+use nargo::artifacts::debug::DebugArtifact;
+use nargo::errors::ExecutionError;
+use nargo::NargoError;
 
-use super::foreign_calls::ForeignCallExecutor;
+use nargo::ops::ForeignCallExecutor;
 
 use std::rc::Rc;
 use std::sync::Mutex;
+
+use thiserror::Error;
 
 use reedline_repl_rs::clap::{
     ArgMatches as ReplArgMatches,
@@ -23,6 +25,17 @@ enum SolveResult {
     Ok,
 }
 
+#[derive(Debug, Error)]
+enum DebuggingError {
+    /// ACIR circuit execution error
+    #[error(transparent)]
+    ExecutionError(#[from] nargo::errors::ExecutionError),
+
+    /// Oracle handling error
+    #[error(transparent)]
+    ForeignCallError(#[from] noirc_printable_type::ForeignCallError),
+}
+
 struct ReplContext<'backend, B: BlackBoxFunctionSolver> {
     acvm: Option<ACVM<'backend, B>>,
     debug_artifact: DebugArtifact,
@@ -32,7 +45,7 @@ struct ReplContext<'backend, B: BlackBoxFunctionSolver> {
 }
 
 impl<'backend, B> ReplContext<'backend, B> where B: BlackBoxFunctionSolver {
-    fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
+    fn step_opcode(&mut self) -> Result<SolveResult, DebuggingError> {
         // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
         let assert_messages = &self.circuit.assert_messages;
         let get_assert_message = |opcode_location| {
@@ -59,7 +72,7 @@ impl<'backend, B> ReplContext<'backend, B> where B: BlackBoxFunctionSolver {
                     _ => None,
                 };
 
-                Err(NargoError::ExecutionError(match call_stack {
+                Err(DebuggingError::ExecutionError(match call_stack {
                     Some(call_stack) => {
                         if let Some(assert_message) = get_assert_message(
                             call_stack.last().expect("Call stacks should not be empty"),
@@ -109,22 +122,20 @@ impl<'backend, B> ReplContext<'backend, B> where B: BlackBoxFunctionSolver {
     }
 }
 
-impl From<reedline_repl_rs::Error> for NargoError {
+impl From<reedline_repl_rs::Error> for DebuggingError {
     fn from(_e: reedline_repl_rs::Error) -> Self {
-        NargoError::CompilationError
+        DebuggingError::ExecutionError(ExecutionError::Halted)
     }
 }
 
-
-// impl fmt::Display for NargoError {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             NargoError::CompilationError => write!(f, "Compilation Error"),
-//             NargoError::ExecutionError(e) => write!(f, "Execution Error: {}", e),
-//             NargoError::ForeignCallError(e) => write!(f, "Foreign call Error: {}", e),
-//         }
-//     }
-// }
+impl From<nargo::errors::NargoError> for DebuggingError {
+    fn from(e: nargo::errors::NargoError) -> Self {
+        match e {
+            NargoError::ForeignCallError(e1) => DebuggingError::ForeignCallError(e1),
+            _ => DebuggingError::ExecutionError(ExecutionError::Halted),
+        }
+    }
+}
 
 pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
@@ -167,7 +178,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     Ok(solved_witness)
 }
 
-fn step_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut Rc<Mutex<ReplContext<B>>>) -> Result<Option<String>, NargoError> {
+fn step_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut Rc<Mutex<ReplContext<B>>>) -> Result<Option<String>, DebuggingError> {
     let mut c = context.lock().unwrap();
     c.show_current_vm_status();
     match c.step_opcode()? {
@@ -176,7 +187,7 @@ fn step_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut 
     }
 }
 
-fn continue_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut Rc<Mutex<ReplContext<B>>>) -> Result<Option<String>, NargoError> {
+fn continue_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut Rc<Mutex<ReplContext<B>>>) -> Result<Option<String>, DebuggingError> {
     let mut c = context.lock().unwrap();
     c.show_current_vm_status();
     println!("(Continuing execution...)");
@@ -189,7 +200,7 @@ fn continue_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &
     Ok(Some("Ok".to_string()))
 }
 
-fn quit_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut Rc<Mutex<ReplContext<B>>>) -> Result<Option<String>, NargoError> {
+fn quit_command<B: BlackBoxFunctionSolver>(_args: ReplArgMatches, context: &mut Rc<Mutex<ReplContext<B>>>) -> Result<Option<String>, DebuggingError> {
     context.lock().unwrap().show_current_vm_status();
-    Err(NargoError::ExecutionError(ExecutionError::Halted))
+    Err(DebuggingError::ExecutionError(ExecutionError::Halted))
 }

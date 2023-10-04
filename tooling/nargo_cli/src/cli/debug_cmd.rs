@@ -10,6 +10,8 @@ use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 
+use noir_debugger;
+
 use super::compile_cmd::compile_bin_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
@@ -105,7 +107,7 @@ pub(crate) fn debug_program(
         file_map: compiled_program.file_map.clone(),
     };
 
-    let solved_witness_err = nargo::ops::debug_circuit(
+    let solved_witness_err = noir_debugger::debug_circuit(
         &blackbox_solver,
         compiled_program.circuit.clone(),
         debug_artifact,

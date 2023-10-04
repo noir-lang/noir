@@ -2323,6 +2323,7 @@ dependencies = [
  "iter-extended",
  "nargo",
  "nargo_toml",
+ "noir_debugger",
  "noir_lsp",
  "noirc_abi",
  "noirc_driver",
@@ -2370,6 +2371,17 @@ dependencies = [
  "cfg-if",
  "libc",
  "static_assertions",
+]
+
+[[package]]
+name = "noir_debugger"
+version = "0.15.0"
+dependencies = [
+ "acvm",
+ "nargo",
+ "noirc_printable_type",
+ "reedline-repl-rs",
+ "thiserror",
 ]
 
 [[package]]
