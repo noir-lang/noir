@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "src/contracts/benchmarking_contract", 
     "src/contracts/card_game_contract", 
     "src/contracts/child_contract", 
     "src/contracts/docs_example_contract",

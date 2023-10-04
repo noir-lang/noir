@@ -2,6 +2,12 @@
 // output with the grouped metrics to be published. This script can probably
 // be replaced by a single call to jq, but I found this easier to write,
 // and pretty much every CI comes with a working version of node.
+//
+// To test this locally, first run the benchmark tests from the yarn-project/end-to-end folder
+// BENCHMARK=1 ROLLUP_SIZES=8 yarn test bench
+//
+// And then run this script from the root of the project:
+// LOGS_DIR=./yarn-project/end-to-end/log/ node ./scripts/ci/aggregate_e2e_benchmark.js 
 
 const fs = require("fs");
 const path = require("path");
@@ -14,6 +20,10 @@ const {
   L2_BLOCK_PROCESSING_TIME,
   L2_BLOCK_SYNCED,
   L2_BLOCK_PUBLISHED_TO_L1,
+  CIRCUIT_SIMULATION_TIME,
+  CIRCUIT_OUTPUT_SIZE,
+  CIRCUIT_INPUT_SIZE,
+  CIRCUIT_SIMULATED,
   ROLLUP_SIZES,
   BENCHMARK_FILE_JSON,
 } = require("./benchmark_shared.js");
@@ -55,6 +65,16 @@ function processRollupBlockSynced(entry, results) {
   append(results, L2_BLOCK_PROCESSING_TIME, bucket, entry.duration);
 }
 
+// Processes an entry with event name 'circuit-simulated' and updates results
+// Buckets are circuit names
+function processCircuitSimulation(entry, results) {
+  const bucket = entry.circuitName;
+  if (!bucket) return;
+  append(results, CIRCUIT_SIMULATION_TIME, bucket, entry.duration);
+  append(results, CIRCUIT_INPUT_SIZE, bucket, entry.inputSize);
+  append(results, CIRCUIT_OUTPUT_SIZE, bucket, entry.outputSize);
+}
+
 // Processes a parsed entry from a logfile and updates results
 function processEntry(entry, results) {
   switch (entry.eventName) {
@@ -62,6 +82,8 @@ function processEntry(entry, results) {
       return processRollupPublished(entry, results);
     case L2_BLOCK_SYNCED:
       return processRollupBlockSynced(entry, results);
+    case CIRCUIT_SIMULATED:
+      return processCircuitSimulation(entry, results);
     default:
       return;
   }

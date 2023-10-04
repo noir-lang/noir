@@ -126,7 +126,7 @@ describe('L1Publisher integration', () => {
 
     builderDb = await MerkleTrees.new(levelup((memdown as any)())).then(t => t.asLatest());
     const vks = getVerificationKeys();
-    const simulator = await WasmRollupCircuitSimulator.new();
+    const simulator = new WasmRollupCircuitSimulator();
     const prover = new EmptyRollupProver();
     builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
 

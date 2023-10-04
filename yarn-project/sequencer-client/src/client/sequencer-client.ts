@@ -41,7 +41,7 @@ export class SequencerClient {
     const blockBuilder = new SoloBlockBuilder(
       merkleTreeDb,
       getVerificationKeys(),
-      await WasmRollupCircuitSimulator.new(),
+      new WasmRollupCircuitSimulator(),
       new EmptyRollupProver(),
     );
 

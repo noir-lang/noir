@@ -16,6 +16,7 @@ import {
 import { siloCommitment } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { elapsed } from '@aztec/foundation/timer';
 
 /**
  * Represents the output of the proof creation process for init and inner private kernel circuit.
@@ -108,15 +109,19 @@ export class KernelProofCreator implements ProofCreator {
 
   public async createProofInit(privateInputs: PrivateKernelInputsInit): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
-    this.log('Executing private kernel simulation init...');
-    const result = privateKernelSimInit(wasm, privateInputs);
+    const [time, result] = await elapsed(() => privateKernelSimInit(wasm, privateInputs));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
+    this.log(`Simulated private kernel init`, {
+      eventName: 'circuit-simulation',
+      circuitName: 'private-kernel-init',
+      duration: time.ms(),
+      inputSize: privateInputs.toBuffer().length,
+      outputSize: result.toBuffer().length,
+    });
     this.log('Skipping private kernel init proving...');
-    // TODO
     const proof = makeEmptyProof();
-    this.log('Kernel Prover Init Completed!');
 
     return {
       publicInputs: result,
@@ -126,15 +131,19 @@ export class KernelProofCreator implements ProofCreator {
 
   public async createProofInner(privateInputs: PrivateKernelInputsInner): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
-    this.log('Executing private kernel simulation inner...');
-    const result = privateKernelSimInner(wasm, privateInputs);
+    const [time, result] = await elapsed(() => privateKernelSimInner(wasm, privateInputs));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
+    this.log(`Simulated private kernel inner`, {
+      eventName: 'circuit-simulation',
+      circuitName: 'private-kernel-inner',
+      duration: time.ms(),
+      inputSize: privateInputs.toBuffer().length,
+      outputSize: result.toBuffer().length,
+    });
     this.log('Skipping private kernel inner proving...');
-    // TODO
     const proof = makeEmptyProof();
-    this.log('Kernel Prover Inner Completed!');
 
     return {
       publicInputs: result,
@@ -145,14 +154,19 @@ export class KernelProofCreator implements ProofCreator {
   public async createProofOrdering(privateInputs: PrivateKernelInputsOrdering): Promise<ProofOutputFinal> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation ordering...');
-    const result = privateKernelSimOrdering(wasm, privateInputs);
+    const [time, result] = await elapsed(() => privateKernelSimOrdering(wasm, privateInputs));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
+    this.log(`Simulated private kernel ordering`, {
+      eventName: 'circuit-simulation',
+      circuitName: 'private-kernel-ordering',
+      duration: time.ms(),
+      inputSize: privateInputs.toBuffer().length,
+      outputSize: result.toBuffer().length,
+    });
     this.log('Skipping private kernel ordering proving...');
-    // TODO
     const proof = makeEmptyProof();
-    this.log('Ordering Kernel Prover Ordering Completed!');
 
     return {
       publicInputs: result,

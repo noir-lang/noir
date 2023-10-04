@@ -291,8 +291,8 @@ describe('sequencer/solo_block_builder', () => {
   });
 
   describe('circuits simulator', () => {
-    beforeEach(async () => {
-      const simulator = await WasmRollupCircuitSimulator.new();
+    beforeEach(() => {
+      const simulator = new WasmRollupCircuitSimulator();
       const prover = new EmptyRollupProver();
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
     });
@@ -388,7 +388,7 @@ describe('sequencer/solo_block_builder', () => {
 
     // This test specifically tests nullifier values which previously caused e2e_private_token test to fail
     it('e2e_private_token edge case regression test on nullifier values', async () => {
-      const simulator = await WasmRollupCircuitSimulator.new();
+      const simulator = new WasmRollupCircuitSimulator();
       const prover = new EmptyRollupProver();
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
       // update the starting tree
