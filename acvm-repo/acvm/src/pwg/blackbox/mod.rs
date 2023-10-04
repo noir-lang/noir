@@ -43,7 +43,10 @@ fn first_missing_assignment(
 }
 
 /// Check if all of the inputs to the function have assignments
-fn contains_all_inputs(witness_assignments: &WitnessMap, inputs: &[FunctionInput]) -> bool {
+pub(crate) fn contains_all_inputs(
+    witness_assignments: &WitnessMap,
+    inputs: &[FunctionInput],
+) -> bool {
     inputs.iter().all(|input| witness_assignments.contains_key(&input.witness))
 }
 
