@@ -13,8 +13,18 @@ REPOSITORY=$2
 [[ "$COMMIT_MESSAGE" == *"[ci rebuild $REPOSITORY]"* ]] && exit 1
 [[ "$COMMIT_MESSAGE" == *"[ci rebuild]"* ]] && exit 1
 
+COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY)
+DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
+
+# If we are deploying, and our Dockerfile uses the COMMIT_TAG arg, we need to rebuild to ensure the latest version
+# number is baked into the image.
+# TODO: This should probably be properly handled by e.g. release-please bumping the version number as part of its PR
+# which would invalidate the content hash, rather than us using Dockerfile ARGS.
+if [ -n "$COMMIT_TAG_VERSION" ] && grep -qE "^ARG COMMIT_TAG=" $DOCKERFILE; then
+  exit 1
+fi
+
+# If the image doesn't exist, we need to rebuild.
 if ! image_exists $REPOSITORY $TAG; then
   exit 1
-else
-  exit 0
 fi

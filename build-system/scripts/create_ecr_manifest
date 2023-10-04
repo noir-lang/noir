@@ -3,24 +3,21 @@
 # 1. Logs into ECR and ensures we have the given repository
 # 2. Computes the image uri of the cached images for the given repository given the list of architectures
 # 3. Creates a manifest list using a platform agnositc image uri, adds each image to it
-# 4. Pushes the manifest list 
+# 4. Pushes the manifest list
 
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
-set -e
+set -eu
 
 REPOSITORY=$1
-FINAL_IMAGE_NAME=$2
-ARCH_LIST=$3
+ARCH_LIST=$2
 
 # Ensure ECR repository exists.
 retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 
-CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
-echo "Content hash: $CONTENT_HASH"
+IMAGE_URI=$(calculate_image_uri $REPOSITORY)
+echo "Image URI: $IMAGE_URI"
 
-FINAL=$ECR_URL/$FINAL_IMAGE_NAME:cache-$CONTENT_HASH
-
-echo "Creating manifest list $FINAL..."
+echo "Creating manifest list..."
 
 export DOCKER_CLI_EXPERIMENTAL=enabled
 
@@ -28,12 +25,11 @@ OLD_IFS=$IFS
 IFS=','
 for A in $ARCH_LIST
 do
-  IMAGE=$ECR_URL/$FINAL_IMAGE_NAME:cache-$CONTENT_HASH-$A
-  echo "Adding image $IMAGE to manifest list"
-  docker manifest create $FINAL \
-  --amend $IMAGE
+  ARCH_IMAGE=$IMAGE_URI-$A
+  echo "Adding image $ARCH_IMAGE to manifest list."
+  docker manifest create $IMAGE_URI --amend $ARCH_IMAGE
 done
 IFS=$OLD_IFS
 unset OLD_IFS
 
-docker manifest push --purge $FINAL
+docker manifest push --purge $IMAGE_URI

@@ -1,6 +1,11 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS builder
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS yarn-project
 
 ARG COMMIT_TAG=""
+
+# Start a new image as we need arch specific.
+FROM node:18-alpine as builder
+RUN apk add jq
+COPY --from=yarn-project /usr/src/ /usr/src/
 
 # Update pxe version if COMMIT_TAG has been used
 WORKDIR /usr/src/yarn-project/pxe
