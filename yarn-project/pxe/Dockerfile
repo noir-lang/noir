@@ -8,18 +8,13 @@ RUN if [[ -n "${COMMIT_TAG}" ]]; then \
   jq --arg v ${COMMIT_TAG} '.version = $v' package.json > _temp && mv _temp package.json; \
   fi
 
-WORKDIR /usr/src/yarn-project/aztec-sandbox
-RUN if [[ -n "${COMMIT_TAG}" ]]; then \
-  jq --arg v ${COMMIT_TAG} '.version = $v' package.json > _temp && mv _temp package.json; \
-  fi
-
 # Productionify. See comment in yarn-project-base/Dockerfile.
 RUN yarn cache clean && yarn workspaces focus --production
 
 # Create final, minimal size image.
 FROM node:18-alpine
 COPY --from=builder /usr/src/ /usr/src/
-WORKDIR /usr/src/yarn-project/aztec-sandbox
+WORKDIR /usr/src/yarn-project/pxe
 ENTRYPOINT ["yarn"]
 CMD [ "start" ]
-EXPOSE 8079 8080
+EXPOSE 8081

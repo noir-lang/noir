@@ -23,8 +23,8 @@ const MINT_AMOUNT = 11n;
 // assumes sandbox is running locally, which this script does not trigger
 // as well as anvil.  anvil can be started with yarn test:integration
 const setupSandbox = async () => {
-  const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
-  const pxe = createPXEClient(SANDBOX_URL);
+  const { PXE_URL = 'http://localhost:8080' } = process.env;
+  const pxe = createPXEClient(PXE_URL);
   await waitForSandbox(pxe);
   return pxe;
 };

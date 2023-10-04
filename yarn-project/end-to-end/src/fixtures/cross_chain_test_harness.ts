@@ -8,7 +8,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { PXEService } from '@aztec/pxe';
-import { NotePreimage, PXE, TxStatus } from '@aztec/types';
+import { AztecNode, NotePreimage, PXE, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
@@ -20,7 +20,7 @@ import { deployAndInitializeTokenAndBridgeContracts } from './utils.js';
  */
 export class CrossChainTestHarness {
   static async new(
-    aztecNode: AztecNodeService | undefined,
+    aztecNode: AztecNode | undefined,
     pxeService: PXE,
     deployL1ContractsValues: DeployL1Contracts,
     accounts: CompleteAddress[],
@@ -89,7 +89,7 @@ export class CrossChainTestHarness {
   }
   constructor(
     /** AztecNode. */
-    public aztecNode: AztecNodeService | undefined,
+    public aztecNode: AztecNode | undefined,
     /** Private eXecution Environment (PXE). */
     public pxeService: PXE,
     /** CheatCodes. */
@@ -351,7 +351,7 @@ export class CrossChainTestHarness {
   }
 
   async stop() {
-    await this.aztecNode?.stop();
+    if (this.aztecNode instanceof AztecNodeService) await this.aztecNode?.stop();
     if (this.pxeService instanceof PXEService) {
       await this.pxeService?.stop();
     }

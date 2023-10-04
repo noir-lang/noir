@@ -36,7 +36,7 @@ Once installed it is invoked via:
 
 ## I have the Sandbox running, now what?
 
-Lets first establish that we are able to communicate with the Sandbox. Most commands will require the url to the Sandbox, which defaults in the CLI to `http://localhost:8080`. You can override this as an option with each command or by setting `PXE_HOST` environment variable.
+Lets first establish that we are able to communicate with the Sandbox. Most commands will require the url to the Sandbox, which defaults in the CLI to `http://localhost:8080`. You can override this as an option with each command or by setting `PXE_URL` environment variable.
 
 To test communication with the Sandbox, let's run the command:
 

@@ -61,7 +61,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program.name('aztec-cli').description('CLI for interacting with Aztec.').version(version);
 
   const pxeOption = new Option('-u, --rpc-url <string>', 'URL of the PXE')
-    .env('PXE_HOST')
+    .env('PXE_URL')
     .default('http://localhost:8080')
     .makeOptionMandatory(true);
 

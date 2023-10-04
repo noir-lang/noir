@@ -20,7 +20,7 @@ const pageLogger = createDebugLogger('aztec:canary_aztec.js:web:page');
  *    3) start anvil: `anvil`,
  *    4) open new terminal and optionally set the more verbose debug level: `DEBUG=aztec:*`,
  *    5) go to the sandbox dir `yarn-project/aztec-sandbox` and run `yarn start`,
- *    6) open new terminal and export the sandbox URL: `export SANDBOX_URL='http://localhost:8080'`,
+ *    6) open new terminal and export the URL of PXE from Sandbox: `export PXE_URL='http://localhost:8080'`,
  *    7) go to `yarn-project/end-to-end` and run the test: `yarn test aztec_js_browser`
  *
  * NOTE: If you see aztec-sandbox logs spammed with unexpected logs there is probably a chrome process with a webpage

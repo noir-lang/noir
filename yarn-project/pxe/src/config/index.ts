@@ -16,10 +16,10 @@ export interface PXEServiceConfig {
  * Creates an instance of PXEServiceConfig out of environment variables using sensible defaults for integration testing if not set.
  */
 export function getPXEServiceConfig(): PXEServiceConfig {
-  const { PXE_SERVICE_BLOCK_POLLING_INTERVAL_MS } = process.env;
+  const { PXE_BLOCK_POLLING_INTERVAL_MS } = process.env;
 
   return {
-    l2BlockPollingIntervalMS: PXE_SERVICE_BLOCK_POLLING_INTERVAL_MS ? +PXE_SERVICE_BLOCK_POLLING_INTERVAL_MS : 1000,
+    l2BlockPollingIntervalMS: PXE_BLOCK_POLLING_INTERVAL_MS ? +PXE_BLOCK_POLLING_INTERVAL_MS : 1000,
   };
 }
 

@@ -762,12 +762,14 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/lodash.clonedeep": ^4.5.7
+    "@types/lodash.isequal": ^4.5.6
     "@types/lodash.times": ^4.3.7
     "@types/node": ^18.7.23
     browserify-cipher: ^1.0.1
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
     lodash.clonedeep: ^4.5.0
+    lodash.isequal: ^4.5.0
     lodash.times: ^4.3.2
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -4606,6 +4608,15 @@ __metadata:
   dependencies:
     "@types/lodash": "*"
   checksum: 2bcccdd30bcb06a400b37a2b731f194f6b11ae49467a98828d86e25dbd10055f8b033c7741755a41de7bc50f49e387ecec952f9871863f77c79582e891945486
+  languageName: node
+  linkType: hard
+
+"@types/lodash.isequal@npm:^4.5.6":
+  version: 4.5.6
+  resolution: "@types/lodash.isequal@npm:4.5.6"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: 0f065989408a9e0584e6c27495be2cd4602e62650f55266aa195812582444463c0c8570c674ae84f947c11748f49ab43fd5b482fa120e08eeee4c23b162edc38
   languageName: node
   linkType: hard
 
@@ -13558,7 +13569,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.isequal@npm:4.5.0":
+"lodash.isequal@npm:4.5.0, lodash.isequal@npm:^4.5.0":
   version: 4.5.0
   resolution: "lodash.isequal@npm:4.5.0"
   checksum: da27515dc5230eb1140ba65ff8de3613649620e8656b19a6270afe4866b7bd461d9ba2ac8a48dcc57f7adac4ee80e1de9f965d89d4d81a0ad52bb3eec2609644

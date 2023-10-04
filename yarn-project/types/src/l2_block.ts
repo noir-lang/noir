@@ -558,9 +558,7 @@ export class L2Block {
     const logFieldName = logType === LogType.ENCRYPTED ? 'newEncryptedLogs' : 'newUnencryptedLogs';
 
     if (this[logFieldName]) {
-      if (this[logFieldName] === logs) {
-        // Comparing objects only by references is enough in this case since this should occur only when exactly
-        // the same object is passed in and not a copy.
+      if (this[logFieldName]?.equals(logs)) {
         L2Block.logger(`${logFieldName} logs already attached`);
         return;
       }

@@ -43,14 +43,14 @@ These options are:
 
 - `PRIVATE_KEY` -> `-k, --private-key` for all commands that require a private key.
 - `PUBLIC_KEY` -> `-k, --public-key` for all commands that require a public key.
-- `PXE_HOST` -> `-u, --rpc-url` for commands that require a PXE
+- `PXE_URL` -> `-u, --rpc-url` for commands that require a PXE
 - `API_KEY` -> `a, --api-key` for `deploy-l1-contracts`.
 - `ETHEREUM_RPC_HOST` -> `-u, --rpc-url` for `deploy-l1-contracts`.
 
 So if for example you are running your Private eXecution Environment (PXE) remotely you can do:
 
 ```shell
-export PXE_HOST=http://external.site/rpc:8080
+export PXE_URL=http://external.site/rpc:8080
 aztec-cli deploy my_contract.json
 ```
 

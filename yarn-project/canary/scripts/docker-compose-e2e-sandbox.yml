@@ -22,7 +22,7 @@ services:
       P2P_BLOCK_CHECK_INTERVAL_MS: 50
       SEQ_TX_POLLING_INTERVAL_MS: 50
       WS_BLOCK_CHECK_INTERVAL_MS: 50
-      PXE_SERVICE_BLOCK_POLLING_INTERVAL_MS: 50
+      PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
       SEARCH_START_BLOCK: ${FORK_BLOCK_NUMBER:-0}
     ports:
@@ -33,6 +33,6 @@ services:
     environment:
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
-      SANDBOX_URL: http://sandbox:8080
+      PXE_URL: http://sandbox:8080
       SEARCH_START_BLOCK: ${FORK_BLOCK_NUMBER:-0}
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}

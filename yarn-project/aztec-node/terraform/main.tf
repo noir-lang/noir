@@ -98,7 +98,7 @@ resource "aws_ecs_task_definition" "aztec-node-1" {
         "value": "production"
       },
       {
-        "name": "SERVER_PORT",
+        "name": "AZTEC_NODE_PORT",
         "value": "80"
       },
       {

@@ -6,7 +6,7 @@ import { BlankContractAbi } from './artifacts/blank.js';
 
 export const contractAbi: ContractAbi = BlankContractAbi;
 
-export const SANDBOX_URL: string = process.env.SANDBOX_URL || 'http://localhost:8080';
-export const pxe: PXE = createPXEClient(SANDBOX_URL);
+export const PXE_URL: string = process.env.PXE_URL || 'http://localhost:8080';
+export const pxe: PXE = createPXEClient(PXE_URL);
 
 export const CONTRACT_ADDRESS_PARAM_NAMES = ['address'];

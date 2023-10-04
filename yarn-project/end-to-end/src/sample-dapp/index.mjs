@@ -10,7 +10,7 @@ import { fileURLToPath } from '@aztec/foundation/url';
 
 import { getToken } from './contracts.mjs';
 
-const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
+const { PXE_URL = 'http://localhost:8080' } = process.env;
 
 async function showAccounts(pxe) {
   // docs:start:showAccounts
@@ -105,7 +105,7 @@ async function mintPublicFunds(pxe) {
 }
 
 async function main() {
-  const pxe = createPXEClient(SANDBOX_URL);
+  const pxe = createPXEClient(PXE_URL);
   const { chainId } = await pxe.getNodeInfo();
   console.log(`Connected to chain ${chainId}`);
 

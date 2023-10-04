@@ -18,7 +18,7 @@ export const INITIAL_SANDBOX_SALTS = [Fr.ZERO, Fr.ZERO, Fr.ZERO];
 
 export const INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI = SchnorrAccountContractAbi;
 
-export const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
+export const { PXE_URL = 'http://localhost:8080' } = process.env;
 
 /**
  * Gets a collection of wallets for the Aztec accounts that are initially stored in the sandbox.
@@ -73,7 +73,7 @@ export async function deployInitialSandboxAccounts(pxe: PXE) {
  * @param pxe - The pxe client connected to the sandbox.
  */
 export async function waitForSandbox(pxe?: PXE) {
-  pxe = pxe ?? createPXEClient(SANDBOX_URL);
+  pxe = pxe ?? createPXEClient(PXE_URL);
   while (true) {
     try {
       await pxe.getNodeInfo();

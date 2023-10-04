@@ -1,8 +1,7 @@
-import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, Contract, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { MultiTransferContract, PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
-import { CompleteAddress } from '@aztec/types';
+import { AztecNode, CompleteAddress } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
@@ -14,7 +13,7 @@ import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/u
 describe('multi-transfer payments', () => {
   const numberOfAccounts = 12;
 
-  let aztecNode: AztecNodeService | undefined;
+  let aztecNode: AztecNode | undefined;
   let wallet: Wallet;
   let logger: DebugLogger;
   let teardown: () => Promise<void>;

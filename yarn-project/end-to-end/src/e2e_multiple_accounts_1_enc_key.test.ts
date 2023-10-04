@@ -1,4 +1,3 @@
-import { AztecNodeService } from '@aztec/aztec-node';
 import {
   AztecAddress,
   NotePreimage,
@@ -10,12 +9,12 @@ import {
 import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
-import { PXE, TxStatus } from '@aztec/types';
+import { AztecNode, PXE, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_multiple_accounts_1_enc_key', () => {
-  let aztecNode: AztecNodeService | undefined;
+  let aztecNode: AztecNode | undefined;
   let pxe: PXE;
   const wallets: Wallet[] = [];
   const accounts: AztecAddress[] = [];

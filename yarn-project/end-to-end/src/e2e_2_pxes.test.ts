@@ -1,24 +1,21 @@
-import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, NotePreimage, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, TokenContract } from '@aztec/noir-contracts/types';
 import { EthAddress, Fr, PXEService } from '@aztec/pxe';
-import { CompleteAddress, PXE, TxStatus } from '@aztec/types';
+import { AztecNode, CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup, setupPXEService } from './fixtures/utils.js';
-
-const { SANDBOX_URL = '' } = process.env;
 
 const TIMEOUT = 60_000;
 
 describe('e2e_2_pxes', () => {
   jest.setTimeout(TIMEOUT);
 
-  let aztecNode: AztecNodeService | undefined;
+  let aztecNode: AztecNode | undefined;
   let pxeA: PXE;
   let pxeB: PXE;
   let walletA: Wallet;
@@ -29,10 +26,6 @@ describe('e2e_2_pxes', () => {
   let teardownA: () => Promise<void>;
 
   beforeEach(async () => {
-    // this test can't be run against the sandbox as it requires 2 PXEs
-    if (SANDBOX_URL) {
-      throw new Error(`Test can't be run against the sandbox as 2 PXEs are required`);
-    }
     let accounts: CompleteAddress[] = [];
     ({
       aztecNode,

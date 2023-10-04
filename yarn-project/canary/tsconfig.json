@@ -20,10 +20,10 @@
   },
   "references": [
     {
-      "path": "../circuits.js"
+      "path": "../aztec.js"
     },
     {
-      "path": "../aztec.js"
+      "path": "../circuits.js"
     },
     {
       "path": "../cli"

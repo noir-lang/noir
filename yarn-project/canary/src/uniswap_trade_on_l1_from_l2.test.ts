@@ -36,7 +36,7 @@ import { deployAndInitializeTokenAndBridgeContracts, deployL1Contract, hashPaylo
 
 const logger = createDebugLogger('aztec:canary');
 
-const { SANDBOX_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
+const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 
 export const MNEMONIC = 'test test test test test test test test test test test junk';
 
@@ -45,7 +45,7 @@ const DAI_ADDRESS = EthAddress.fromString('0x6B175474E89094C44Da98b954EedeAC4952
 
 const EXPECTED_FORKED_BLOCK = 17514288;
 
-const pxeRpcUrl = SANDBOX_URL;
+const pxeRpcUrl = PXE_URL;
 const ethRpcUrl = ETHEREUM_HOST;
 
 const hdAccount = mnemonicToAccount(MNEMONIC);

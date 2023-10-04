@@ -299,7 +299,7 @@ export class AztecNodeService implements AztecNode {
     // todo: #697 - make this one lookup.
     const index = (await this.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey.toBuffer()))!;
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
-    return Promise.resolve({ message, index });
+    return Promise.resolve(new L1ToL2MessageAndIndex(index, message));
   }
 
   /**

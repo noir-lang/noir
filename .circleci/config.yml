@@ -454,7 +454,44 @@ jobs:
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
             force_deploy_build aztec-sandbox false arm64
 
-  aztec-sandbox-ecr-manifest:
+  pxe-base:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: force_deploy_build pxe-base false
+
+  pxe-x86_64:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: force_deploy_build pxe false x86_64
+
+  pxe-arm64:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: arm.large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
+          # out to eu-west2 despite the image being locally tagged, resulting in unauthorised 401. Weird docker bug?
+          command: |
+            echo "export DOCKER_BUILDKIT=" > $BASH_ENV
+            force_deploy_build pxe false arm64
+
+  ecr-manifest:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -463,7 +500,9 @@ jobs:
       - *setup_env
       - run:
           name: "Create ECR manifest"
-          command: create_ecr_manifest aztec-sandbox-base aztec-sandbox x86_64,arm64
+          command: |
+            create_ecr_manifest aztec-sandbox-base aztec-sandbox x86_64,arm64
+            create_ecr_manifest pxe-base pxe x86_64,arm64
 
   boxes-blank-react:
     machine:
@@ -993,7 +1032,7 @@ jobs:
           name: "yarn-project"
           command: yarn-project/deploy_npm.sh
 
-  deploy-dockerhub:
+  deploy-dockerhub-sandbox:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: medium
@@ -1007,6 +1046,21 @@ jobs:
             deploy_dockerhub aztec-sandbox x86_64
             deploy_dockerhub aztec-sandbox arm64
             create_dockerhub_manifest aztec-sandbox x86_64,arm64
+
+  deploy-dockerhub-pxe:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "deploy-pxe"
+          working_directory: pxe
+          command: |
+            deploy_dockerhub pxe x86_64
+            deploy_dockerhub pxe arm64
+            create_dockerhub_manifest pxe x86_64,arm64
 
   deploy-end:
     docker:
@@ -1201,6 +1255,7 @@ workflows:
 
       - end-to-end: *yarn_project
       - aztec-sandbox-base: *yarn_project
+      - pxe-base: *yarn_project
       - canary: *yarn_project
       - build-docs: *yarn_project
 
@@ -1213,10 +1268,21 @@ workflows:
             - aztec-sandbox-base
           <<: *defaults
 
-      - aztec-sandbox-ecr-manifest:
+      - pxe-x86_64:
+          requires:
+            - pxe-base
+          <<: *defaults
+      - pxe-arm64:
+          requires:
+            - pxe-base
+          <<: *defaults
+
+      - ecr-manifest:
           requires:
             - aztec-sandbox-x86_64
             - aztec-sandbox-arm64
+            - pxe-x86_64
+            - pxe-arm64
           <<: *defaults
 
       - boxes-blank-react:
@@ -1237,7 +1303,7 @@ workflows:
       - e2e-join:
           requires:
             - end-to-end
-            - aztec-sandbox-ecr-manifest
+            - ecr-manifest
             - canary
           <<: *defaults
 
@@ -1322,7 +1388,11 @@ workflows:
           <<: *defaults
 
         # Deployment and Canary tests
-      - deploy-dockerhub:
+      - deploy-dockerhub-sandbox:
+          requires:
+            - e2e-end
+          <<: *deploy_defaults
+      - deploy-dockerhub-pxe:
           requires:
             - e2e-end
           <<: *deploy_defaults
@@ -1333,7 +1403,8 @@ workflows:
 
       - deploy-end:
           requires:
-            - deploy-dockerhub
+            - deploy-dockerhub-sandbox
+            - deploy-dockerhub-pxe
             - deploy-npm
           <<: *deploy_defaults
 

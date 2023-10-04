@@ -9,7 +9,8 @@ services:
   aztec:
     image: 'aztecprotocol/aztec-sandbox:${SANDBOX_VERSION:-latest}'
     ports:
-      - '${SANDBOX_RPC_PORT:-8080}:8080'
+      - '${SANDBOX_AZTEC_NODE_PORT:-8079}:8079'
+      - '${SANDBOX_PXE_PORT:-8080}:8080'
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
       HOST_WORKDIR: '${PWD}' # Loaded from the user shell to show log files absolute path in host
@@ -19,7 +20,7 @@ services:
       P2P_BLOCK_CHECK_INTERVAL_MS: 50
       SEQ_TX_POLLING_INTERVAL_MS: 50
       WS_BLOCK_CHECK_INTERVAL_MS: 50
-      PXE_SERVICE_BLOCK_POLLING_INTERVAL_MS: 50
+      PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
     volumes:
       - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw

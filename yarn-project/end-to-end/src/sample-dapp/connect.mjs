@@ -1,10 +1,10 @@
 // docs:start:all
 import { createPXEClient } from '@aztec/aztec.js';
 
-const { SANDBOX_URL = 'http://localhost:8080' } = process.env;
+const { PXE_URL = 'http://localhost:8080' } = process.env;
 
 async function main() {
-  const pxe = createPXEClient(SANDBOX_URL);
+  const pxe = createPXEClient(PXE_URL);
   const { chainId } = await pxe.getNodeInfo();
   console.log(`Connected to chain ${chainId}`);
 }

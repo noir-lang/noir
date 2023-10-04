@@ -6,7 +6,7 @@ import { getPXEServiceConfig } from '../config/index.js';
 import { startPXEHttpServer } from '../pxe_http/index.js';
 import { createPXEService } from '../pxe_service/index.js';
 
-const { SERVER_PORT = 8080, AZTEC_NODE_RPC_URL = '' } = process.env;
+const { PXE_PORT = 8081, AZTEC_NODE_URL = 'http://localhost:8079' } = process.env;
 
 const logger = createDebugLogger('aztec:pxe_service');
 
@@ -17,7 +17,7 @@ async function main() {
   logger.info(`Setting up PXE...`);
 
   const pxeConfig = getPXEServiceConfig();
-  const nodeRpcClient = createAztecNodeRpcClient(AZTEC_NODE_RPC_URL);
+  const nodeRpcClient = createAztecNodeRpcClient(AZTEC_NODE_URL);
   const pxeService = await createPXEService(nodeRpcClient, pxeConfig);
 
   const shutdown = async () => {
@@ -29,8 +29,8 @@ async function main() {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 
-  startPXEHttpServer(pxeService, SERVER_PORT);
-  logger.info(`PXE listening on port ${SERVER_PORT}`);
+  startPXEHttpServer(pxeService, PXE_PORT);
+  logger.info(`PXE listening on port ${PXE_PORT}`);
 }
 
 main().catch(err => {

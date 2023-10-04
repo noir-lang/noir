@@ -1,13 +1,12 @@
-import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
-import { CompleteAddress, TxStatus } from '@aztec/types';
+import { AztecNode, CompleteAddress, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_private_token_contract', () => {
-  let aztecNode: AztecNodeService | undefined;
+  let aztecNode: AztecNode | undefined;
   let wallet: Wallet;
   let logger: DebugLogger;
   let owner: AztecAddress;
