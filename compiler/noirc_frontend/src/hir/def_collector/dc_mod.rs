@@ -117,8 +117,11 @@ impl<'a> ModCollector<'a> {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for r#impl in impls {
-            let mut unresolved_functions =
-                UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+            let mut unresolved_functions = UnresolvedFunctions {
+                file_id: self.file_id,
+                functions: Vec::new(),
+                trait_id: None,
+            };
 
             for method in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
@@ -171,7 +174,7 @@ impl<'a> ModCollector<'a> {
         krate: CrateId,
     ) -> UnresolvedFunctions {
         let mut unresolved_functions =
-            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
 
         let module = ModuleId { krate, local_id: self.module_id };
 
@@ -193,7 +196,7 @@ impl<'a> ModCollector<'a> {
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut unresolved_functions =
-            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
         let mut errors = vec![];
 
         let module = ModuleId { krate, local_id: self.module_id };
@@ -351,8 +354,11 @@ impl<'a> ModCollector<'a> {
             }
 
             // Add all functions that have a default implementation in the trait
-            let mut unresolved_functions =
-                UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+            let mut unresolved_functions = UnresolvedFunctions {
+                file_id: self.file_id,
+                functions: Vec::new(),
+                trait_id: None,
+            };
             for trait_item in &trait_definition.items {
                 // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                 if let TraitItem::Function {

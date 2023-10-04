@@ -11,6 +11,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          registry-url: "https://registry.npmjs.org"
+          node-version: 18.15
+
       - name: Install dependencies
         run: yarn install --immutable
 
