@@ -2,6 +2,10 @@ name: Publish Noir ES Packages
 
 on:
   workflow_dispatch:
+  push: 
+    branches: 
+      - kh-fix-workspace-build
+    
 jobs:
   build-all-wasm:
     runs-on: ubuntu-latest
