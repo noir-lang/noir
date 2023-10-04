@@ -41,14 +41,14 @@ if [[ "$COMMIT_TAG" == *"/"* ]]; then
 fi
 
 # Check it's a valid semver.
-VERSION=$(npx semver "$COMMIT_TAG_VERSION")
-if [[ -z "$VERSION" ]]; then
+SEMVER_REGEX="^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$"
+if ! [[ $COMMIT_TAG_VERSION =~ $SEMVER_REGEX ]]; then
   echo "$COMMIT_TAG_VERSION is not a semantic version." >&2
   if [[ "$ERROR_ON_FAIL" == "true" ]]; then
     exit 1
   else
-    VERSION=""
+    COMMIT_TAG_VERSION=""
   fi
 fi
 
-echo "$VERSION"
+echo "${COMMIT_TAG_VERSION#v}"
