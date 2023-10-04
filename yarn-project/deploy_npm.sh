@@ -9,7 +9,10 @@ echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
 
 function deploy_package() {
     REPOSITORY=$1
-    VERSION=$(extract_tag_version $REPOSITORY false)
+    cd $REPOSITORY
+
+    VERSION=$(extract_tag_version $REPOSITORY true)
+    echo "Deploying $REPOSITORY $VERSION"
 
     # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
     TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
@@ -18,8 +21,8 @@ function deploy_package() {
         TAG_ARG="--tag $TAG"
     fi
 
-    readonly PUBLISHED_VERSION=$(npm show . version ${TAG_ARG:-} 2> /dev/null)
-    readonly HIGHER_VERSION=$(npx semver ${VERSION} ${PUBLISHED_VERSION} | tail -1)
+    PUBLISHED_VERSION=$(npm show . version ${TAG_ARG:-} 2> /dev/null)
+    HIGHER_VERSION=$(npx semver ${VERSION} ${PUBLISHED_VERSION} | tail -1)
 
     # If there is already a published package equal to given version, assume this is a re-run of a deploy, and early out.
     if [ "$VERSION" == "$PUBLISHED_VERSION" ]; then
@@ -50,7 +53,11 @@ function deploy_package() {
     else
         npm publish --dry-run $TAG_ARG --access public
     fi
+
+    # Back to root
+    cd ..
 }
+
 deploy_package foundation
 deploy_package circuits.js
 deploy_package types

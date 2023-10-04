@@ -10,7 +10,7 @@ REPOSITORY="$1"
 ERROR_ON_FAIL="${2:-"false"}"
 
 # Check if there is a commit tag
-if [[ -z "$COMMIT_TAG" ]]; then
+if [[ -z "${COMMIT_TAG:-}" ]]; then
   if [[ "$ERROR_ON_FAIL" == "true" ]]; then
     echo "No commit tag found. Exiting" >&2
     exit 1
