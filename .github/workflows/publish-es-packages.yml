@@ -2,11 +2,6 @@ name: Publish Noir ES Packages
 
 on:
   workflow_dispatch:
-    inputs:
-      acvm-ref:
-        description: The acvm reference to checkout
-        required: true
-
 jobs:
   build-all-wasm:
     runs-on: ubuntu-latest
