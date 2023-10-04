@@ -11,7 +11,7 @@ on:
       - kh-fix-workspace-build
 
 jobs:
-  publish-acvm-js-package:
+  publish-all-packages:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
