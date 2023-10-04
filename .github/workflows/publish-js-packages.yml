@@ -35,6 +35,9 @@ jobs:
           name: barretenberg
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
       - name: Build all ES Packages
         run: yarn prepare:publish
 
