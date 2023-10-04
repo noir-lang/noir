@@ -32,6 +32,7 @@ use acvm::{
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::Location;
 use noirc_frontend::Distinctness;
 
 /// Context struct for the acir generation pass.
@@ -194,7 +195,7 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg, ssa.return_location)?;
 
         Ok(self.acir_context.finish(input_witness.collect()))
     }
@@ -1099,6 +1100,7 @@ impl Context {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
+        return_location: Option<Location>,
     ) -> Result<(), InternalError> {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values } => return_values,
@@ -1109,6 +1111,12 @@ impl Context {
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
         for acir_var in return_acir_vars {
+            if self.acir_context.is_constant(&acir_var) {
+                return Err(InternalError::ReturnConstant {
+                    location: return_location.expect("return expression must have a location"),
+                    call_stack: self.acir_context.get_call_stack(),
+                });
+            }
             self.acir_context.return_var(acir_var)?;
         }
         Ok(())
@@ -1722,7 +1730,7 @@ mod tests {
 
         builder.terminate_with_return(vec![array]);
 
-        let ssa = builder.finish();
+        let ssa = builder.finish(None);
 
         let context = Context::new();
         let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();

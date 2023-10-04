@@ -25,6 +25,7 @@ use super::ir::{function::RuntimeType, instruction::BinaryOp, types::Type, value
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
 pub(crate) fn generate_ssa(program: Program) -> Ssa {
+    let return_location = program.return_location;
     let context = SharedContext::new(program);
 
     let main_id = Program::main_id();
@@ -51,7 +52,7 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
         function_context.codegen_function_body(&function.body);
     }
 
-    function_context.builder.finish()
+    function_context.builder.finish(return_location)
 }
 
 impl<'a> FunctionContext<'a> {

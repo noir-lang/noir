@@ -9,7 +9,7 @@
 //! An Error of the latter is an error in the implementation of the compiler
 use acvm::acir::native_types::Expression;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
 use crate::ssa::ir::dfg::CallStack;
@@ -67,6 +67,8 @@ pub enum InternalError {
     UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
     UnExpected { expected: String, found: String, call_stack: CallStack },
+    #[error("Returning constant value is not allowed")]
+    ReturnConstant { location: Location, call_stack: CallStack },
 }
 
 impl RuntimeError {
@@ -79,7 +81,8 @@ impl RuntimeError {
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
                 | InternalError::UndeclaredAcirVar { call_stack }
-                | InternalError::UnExpected { call_stack, .. },
+                | InternalError::UnExpected { call_stack, .. }
+                | InternalError::ReturnConstant { call_stack, .. },
             )
             | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }
@@ -96,9 +99,13 @@ impl RuntimeError {
 impl From<RuntimeError> for FileDiagnostic {
     fn from(error: RuntimeError) -> FileDiagnostic {
         let call_stack = vecmap(error.call_stack(), |location| *location);
+        let file_id = match error {
+            RuntimeError::InternalError(InternalError::ReturnConstant { location, .. }) => {
+                location.file
+            }
+            _ => call_stack.last().map(|location| location.file).unwrap_or_default(),
+        };
         let diagnostic = error.into_diagnostic();
-        let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
-
         diagnostic.in_file(file_id).with_call_stack(call_stack)
     }
 }
@@ -106,6 +113,9 @@ impl From<RuntimeError> for FileDiagnostic {
 impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
+            RuntimeError::InternalError(InternalError::ReturnConstant { ref location, .. }) => {
+               Diagnostic::simple_error(self.to_string(), "constant value".to_string(), location.span)
+            }
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n

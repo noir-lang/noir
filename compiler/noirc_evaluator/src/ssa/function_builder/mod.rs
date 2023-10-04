@@ -87,9 +87,9 @@ impl FunctionBuilder {
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
-    pub(crate) fn finish(mut self) -> Ssa {
+    pub(crate) fn finish(mut self, return_location: Option<Location>) -> Ssa {
         self.finished_functions.push(self.current_function);
-        Ssa::new(self.finished_functions)
+        Ssa::new(self.finished_functions, return_location)
     }
 
     /// Add a parameter to the current function with the given parameter type.
