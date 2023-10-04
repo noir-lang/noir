@@ -37,8 +37,9 @@ echo "Deploying to dockerhub: $IMAGE_DEPLOY_URI"
 # Login.
 retry ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
 
-# Login to dockerhub.
+# Login to dockerhub and ecr
 dockerhub_login
+ecr_login
 
 echo "Pulling $IMAGE_COMMIT_URI"
 # Pull image.

@@ -37,7 +37,7 @@ function deploy_package() {
     TMP=$(mktemp)
     jq --arg v $VERSION '.version = $v' package.json > $TMP && mv $TMP package.json
 
-    if [ -z "$STANDALONE" ]; then
+    if [ -z "${STANDALONE:-}" ]; then
     # Update each dependent @aztec package version in package.json.
     for PKG in $(jq --raw-output ".dependencies | keys[] | select(contains(\"@aztec/\"))" package.json); do
         jq --arg v $VERSION ".dependencies[\"$PKG\"] = \$v" package.json > $TMP && mv $TMP package.json
@@ -49,7 +49,7 @@ function deploy_package() {
     package.json > $TMP && mv $TMP package.json
 
     # Publish
-    if [ -n "$COMMIT_TAG" ] ; then 
+    if [ -n "${COMMIT_TAG:-}" ] ; then 
         npm publish $TAG_ARG --access public
     else
         npm publish --dry-run $TAG_ARG --access public
