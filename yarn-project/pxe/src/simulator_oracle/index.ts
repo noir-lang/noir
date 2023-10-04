@@ -105,6 +105,10 @@ export class SimulatorOracle implements DBOracle {
     return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, commitment.toBuffer());
   }
 
+  async getNullifierIndex(nullifier: Fr) {
+    return await this.stateInfoProvider.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+  }
+
   /**
    * Retrieve the databases view of the Historic Block Data object.
    * This structure is fed into the circuits simulator and is used to prove against certain historic roots.

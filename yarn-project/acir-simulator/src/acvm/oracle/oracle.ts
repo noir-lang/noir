@@ -123,6 +123,11 @@ export class Oracle {
     return toACVMField(0);
   }
 
+  async checkNullifierExists([innerNullifier]: ACVMField[]): Promise<ACVMField> {
+    const exists = await this.typedOracle.checkNullifierExists(fromACVMField(innerNullifier));
+    return toACVMField(exists);
+  }
+
   async getL1ToL2Message([msgKey]: ACVMField[]): Promise<ACVMField[]> {
     const { root, ...message } = await this.typedOracle.getL1ToL2Message(fromACVMField(msgKey));
     return toAcvmL1ToL2MessageLoadOracleInputs(message, root);

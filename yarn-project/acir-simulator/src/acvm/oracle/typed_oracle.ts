@@ -105,6 +105,10 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
+  checkNullifierExists(_innerNullifier: Fr): Promise<boolean> {
+    throw new Error('Not available.');
+  }
+
   getL1ToL2Message(_msgKey: Fr): Promise<L1ToL2MessageOracleReturnData> {
     throw new Error('Not available.');
   }

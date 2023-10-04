@@ -98,7 +98,11 @@ unconstrained fn get_notes<Note, N, M, S, NS>(
     placeholder_opt_notes
 }
 
-unconstrained fn is_nullifier_emitted(nullifier: Field) -> bool {
-    // TODO
-    nullifier == 0
+#[oracle(checkNullifierExists)]
+fn check_nullifier_exists_oracle(
+    _inner_nullifier: Field,
+) -> Field {}
+
+unconstrained fn check_nullifier_exists(inner_nullifier: Field) -> bool {
+    check_nullifier_exists_oracle(inner_nullifier) == 1
 }

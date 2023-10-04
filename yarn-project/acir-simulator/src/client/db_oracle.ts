@@ -78,6 +78,13 @@ export interface DBOracle extends CommitmentsDB {
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 
   /**
+   * Gets the index of a nullifier in the nullifier tree.
+   * @param nullifier - The nullifier.
+   * @returns - The index of the nullifier. Undefined if it does not exist in the tree.
+   */
+  getNullifierIndex(nullifier: Fr): Promise<bigint | undefined>;
+
+  /**
    * Retrieve the databases view of the Historic Block Data object.
    * This structure is fed into the circuits simulator and is used to prove against certain historic roots.
    *

@@ -1,4 +1,5 @@
-use crate::constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALISATION_NULLIFIER};
+use dep::std::option::Option;
+use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 use crate::context::{PrivateContext, Context};
 use crate::note::{
     lifecycle::create_note,
@@ -6,15 +7,15 @@ use crate::note::{
     note_interface::NoteInterface,
     note_viewer_options::NoteViewerOptions,
 };
-use crate::oracle;
-use dep::std::hash::pedersen_with_separator;
-use dep::std::option::Option;
+use crate::oracle::notes::check_nullifier_exists;
+use crate::state_vars::singleton::compute_singleton_initialization_nullifier;
 
 // docs:start:struct
 struct ImmutableSingleton<Note, N> {
-    context: Context,
+    context: Option<&mut PrivateContext>,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
+    compute_initialization_nullifier: fn (Field, Option<Field>) -> Field,
 }
 // docs:end:struct
 
@@ -27,28 +28,33 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         ImmutableSingleton {
-            context,
+            context: context.private,
             storage_slot,
             note_interface,
+            compute_initialization_nullifier: compute_singleton_initialization_nullifier,
         }
     }
     // docs:end:new
 
-    unconstrained fn is_initialized(self) -> bool {
-        let nullifier = self.compute_initialisation_nullifier();
-        oracle::notes::is_nullifier_emitted(nullifier)
+    // docs:start:is_initialized
+    unconstrained fn is_initialized(self, owner: Option<Field>) -> bool {
+        let compute_initialization_nullifier = self.compute_initialization_nullifier;
+        let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
+        check_nullifier_exists(nullifier)
     }
+    // docs:end:is_initialized
 
     // docs:start:initialize
-    fn initialize(self, note: &mut Note) {
+    fn initialize(self, note: &mut Note, owner: Option<Field>) {
+        let context = self.context.unwrap();
+
         // Nullify the storage slot.
-        let nullifier = self.compute_initialisation_nullifier();
-        self.context.private
-            .unwrap()
-            .push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
+        let compute_initialization_nullifier = self.compute_initialization_nullifier;
+        let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
+        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
 
         create_note(
-            self.context.private.unwrap(),
+            context,
             self.storage_slot,
             note,
             self.note_interface,
@@ -56,17 +62,11 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     }
     // docs:end:initialize
 
-    fn compute_initialisation_nullifier(self) -> Field {
-        pedersen_with_separator(
-            [self.storage_slot],
-            GENERATOR_INDEX__INITIALISATION_NULLIFIER,
-        )[0]
-    }
-
     // docs:start:get_note
     fn get_note(self) -> Note {
+        let context = self.context.unwrap();
         let storage_slot = self.storage_slot;
-        get_note(self.context.private.unwrap(), storage_slot, self.note_interface)
+        get_note(context, storage_slot, self.note_interface)
     }
     // docs:end:get_note
 

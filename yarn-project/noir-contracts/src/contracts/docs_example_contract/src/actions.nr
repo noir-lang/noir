@@ -62,7 +62,7 @@ fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_
 
 // docs:start:state_vars-SingletonInit
 fn init_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
-    state_var.initialize(card);
+    state_var.initialize(card, Option::some(card.owner));
 }
 // docs:end:state_vars-SingletonInit
 
@@ -83,7 +83,7 @@ fn init_game_rules(
     state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
     rules: &mut RulesNote,
 ) {
-    state_var.initialize(rules);
+    state_var.initialize(rules, Option::none());
 }
 // docs:end:state_vars-ImmutableSingletonInit
 
@@ -151,7 +151,7 @@ fn add_new_profile(
     account: Field,
     profile: &mut ProfileNote,
 ) {
-    state_var.at(account).initialize(profile);
+    state_var.at(account).initialize(profile, Option::some(account));
 }
 // docs:end:state_vars-MapAtSingletonInit
 
