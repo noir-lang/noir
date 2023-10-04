@@ -38,17 +38,16 @@ test_cases.forEach((testInfo) => {
 
     const noir_source_path = resolve(`${base_relative_path}/${test_case}/src/main.nr`);
 
-    let compile_output;
+    let noir_program;
     try {
-      compile_output = await getCircuit(noir_source_path);
+      noir_program = await getCircuit(noir_source_path);
 
-      expect(await compile_output, 'Compile output ').to.be.an('object');
+      expect(await noir_program, 'Compile output ').to.be.an('object');
     } catch (e) {
       expect(e, 'Compilation Step').to.not.be.an('error');
       throw e;
     }
 
-    const noir_program = { bytecode: compile_output.circuit, abi: compile_output.abi };
     const backend = new BarretenbergBackend(noir_program);
     const program = new Noir(noir_program, backend);
 

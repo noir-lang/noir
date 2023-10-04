@@ -48,10 +48,9 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
   });
 
   it('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
-    const { circuit: main_circuit, abi: main_abi } = await getCircuit(circuit_main_source);
+    const main_program = await getCircuit(circuit_main_source);
     const main_inputs = TOML.parse(circuit_main_toml);
 
-    const main_program = { bytecode: main_circuit, abi: main_abi };
     const main_backend = new BarretenbergBackend(main_program);
 
     const main_witnessUint8Array = await generateWitness(main_program, main_inputs);
@@ -79,8 +78,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     logger.debug('recursion_inputs', recursion_inputs);
 
-    const { circuit: recursion_circuit, abi: recursion_abi } = await getCircuit(circuit_recursion_source);
-    const recursion_program = { bytecode: recursion_circuit, abi: recursion_abi };
+    const recursion_program = await getCircuit(circuit_recursion_source);
 
     const recursion_backend = new BarretenbergBackend(recursion_program);
 
