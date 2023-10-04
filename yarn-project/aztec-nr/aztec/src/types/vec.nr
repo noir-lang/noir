@@ -14,6 +14,10 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.storage[index]
     }
 
+    fn get_unchecked(mut self: Self, index: Field) -> T {
+        self.storage[index]
+    }
+
     fn push(&mut self, elem: T) {
         assert(self.len as u64 < MaxLen as u64);
 

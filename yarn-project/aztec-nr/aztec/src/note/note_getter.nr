@@ -8,7 +8,7 @@ use crate::constants_gen::{
 };
 use crate::context::PrivateContext;
 use crate::note::{
-    note_getter_options::{NoteGetterOptions, Select, Sort},
+    note_getter_options::{NoteGetterOptions, Select, Sort, SortOrder},
     note_interface::NoteInterface,
     note_viewer_options::NoteViewerOptions,
     utils::compute_note_hash_for_read_or_nullify,
@@ -27,6 +27,29 @@ fn check_note_header<Note, N>(
     let contract_address = context.this_address();
     assert(header.contract_address == contract_address);
     assert(header.storage_slot == storage_slot);
+}
+
+fn check_note_fields<N>(
+    fields: [Field; N],
+    selects: BoundedVec<Option<Select>, N>,
+) {
+    for i in 0..selects.len {
+        let select = selects.get_unchecked(i).unwrap_unchecked();
+        assert(fields[select.field_index] == select.value, "Mismatch return note field.");
+    }
+}
+
+fn check_notes_order<N>(fields_0: [Field; N], fields_1: [Field; N], sorts: BoundedVec<Option<Sort>, N>) {
+    for i in 0..sorts.len {
+        let sort = sorts.get_unchecked(i).unwrap_unchecked();
+        let eq = fields_0[sort.field_index] == fields_1[sort.field_index];
+        let lt = fields_0[sort.field_index] as u120 < fields_1[sort.field_index] as u120;
+        if sort.order == SortOrder.ASC {
+            assert(eq | lt, "Return notes not sorted in ascending order.");
+        } else if !eq {
+            assert(!lt, "Return notes not sorted in descending order.");
+        }
+    }
 }
 
 fn get_note<Note, N>(
@@ -51,18 +74,32 @@ fn get_notes<Note, N, FILTER_ARGS>(
     options: NoteGetterOptions<Note, N, FILTER_ARGS>,
 ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
     let opt_notes = get_notes_internal(storage_slot, note_interface, options);
+    let mut num_notes = 0;
+    let mut prev_fields = [0; N];
     for i in 0..opt_notes.len() {
         let opt_note = opt_notes[i];
         if opt_note.is_some() {
             let note = opt_note.unwrap_unchecked();
+            let serialize = note_interface.serialize;
+            let fields = serialize(note);
             check_note_header(*context, storage_slot, note_interface, note);
+            check_note_fields(fields, options.selects);
+            if i != 0 {
+                check_notes_order(prev_fields, fields, options.sorts);
+            }
+            prev_fields = fields;
 
             let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
             // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
             context.push_read_request(note_hash_for_read_request);
+
+            num_notes += 1;
         };
     };
+    if options.limit != 0 {
+        assert(num_notes <= options.limit, "Invalid number of return notes.");
+    }
     opt_notes
 }
 

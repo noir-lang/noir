@@ -16,13 +16,11 @@ impl Select {
 struct SortOrderEnum {
     DESC: u2,
     ASC: u2,
-    NADA: u2,
 }
 
 global SortOrder = SortOrderEnum {
     DESC: 1,
     ASC: 2,
-    NADA: 0,
 };
 
 struct Sort {
@@ -33,10 +31,6 @@ struct Sort {
 impl Sort {
     fn new(field_index: u8, order: u2) -> Self {
         Sort { field_index, order }
-    }
-
-    fn nada() -> Self {
-        Sort { field_index: 0, order: SortOrder.NADA }
     }
 }
 
