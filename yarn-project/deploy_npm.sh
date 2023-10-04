@@ -74,4 +74,3 @@ deploy_package world-state
 deploy_package key-store
 deploy_package aztec-node
 deploy_package aztec-sandbox
-

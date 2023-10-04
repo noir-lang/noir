@@ -44,7 +44,8 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/circuits-wasm-linux-clang as c
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
 
 FROM node:18-alpine
-RUN apk update && apk add --no-cache bash jq
+RUN apk update && apk add --no-cache bash jq curl
+
 WORKDIR /usr/src/yarn-project
 
 # The dockerignore file ensures the context only contains package.json and tsconfig.json files.
@@ -68,6 +69,9 @@ RUN yarn prepare:check
 
 # Bring in circuits wasms.
 COPY --from=circuits /usr/src/circuits/cpp/build-wasm/bin /usr/src/circuits/cpp/build-wasm/bin
+
+# Copy ignition download script.
+COPY --from=circuits /usr/src/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/barretenberg/cpp/srs_db/download_ignition.sh
 
 # Generate L1 contract TypeScript artifacts.
 COPY --from=contracts /usr/src/l1-contracts/out /usr/src/l1-contracts/out
