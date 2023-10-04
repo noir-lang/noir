@@ -71,6 +71,7 @@
   "files": [
     "dest",
     "src",
+    "resources",
     "!*.test.*"
   ],
   "types": "./dest/index.d.ts",
