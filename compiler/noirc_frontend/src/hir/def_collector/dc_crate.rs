@@ -535,7 +535,7 @@ fn collect_trait_impl(
 
             if let Some(struct_type) = get_struct_type(&typ) {
                 errors.extend(take_errors(trait_impl.file_id, resolver));
-                let current_def_map = def_maps.get_mut(&crate_id).unwrap();
+                let current_def_map = def_maps.get_mut(&struct_type.borrow().id.krate()).unwrap();
                 match add_method_to_struct_namespace(
                     current_def_map,
                     struct_type,
