@@ -138,11 +138,6 @@ export class KernelProver {
       );
 
       if (firstIteration) {
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/778): remove historic root
-        // from app circuit public inputs and add it to PrivateCallData
-        privateCallData.callStackItem.publicInputs.historicBlockData.privateDataTreeRoot =
-          await this.oracle.getPrivateDataRoot();
-
         output = await this.proofCreator.createProofInit(new PrivateKernelInputsInit(txRequest, privateCallData));
       } else {
         const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(previousVerificationKey);

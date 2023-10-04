@@ -27,10 +27,6 @@ void initialise_end_values(PrivateKernelInputsInit<NT> const& private_inputs,
     auto const& private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
     auto const constants = CombinedConstantData<NT>{
         .block_data = private_call_public_inputs.historic_block_data,
-        // TODO(dbanks12): remove historic root from app circuit public inputs and
-        // add it to PrivateCallData: https://github.com/AztecProtocol/aztec-packages/issues/778
-        // Then use this:
-        // .private_data_tree_root = private_inputs.private_call.historic_private_data_tree_root,
         .tx_context = private_inputs.tx_request.tx_context,
     };
 
