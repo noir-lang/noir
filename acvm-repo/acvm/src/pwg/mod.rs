@@ -11,7 +11,7 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
 use self::{
-    arithmetic::ArithmeticSolver, brillig::BrilligSolver, directives::solve_directives,
+    arithmetic::ArithmeticSolver, brillig::{BrilligSolver, BrilligSolverStatus}, directives::solve_directives,
     memory_op::MemoryOpSolver,
 };
 use crate::{BlackBoxFunctionSolver, Language};
@@ -258,13 +258,22 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
                 solver.solve_memory_op(op, &mut self.witness_map, predicate)
             }
             Opcode::Brillig(brillig) => {
-                match BrilligSolver::solve(
+                let result = BrilligSolver::build_or_skip(
                     &mut self.witness_map,
                     brillig,
                     self.backend,
                     self.instruction_pointer,
-                ) {
-                    Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
+                );
+                match result {
+                    Ok(Some(mut solver)) => {
+                        match solver.solve() {
+                            Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) =>
+                                return self.wait_for_foreign_call(foreign_call),
+                            Ok(BrilligSolverStatus::InProgress) =>
+                                unreachable!("Brillig solver still in progress"),
+                            res => res.map(|_| ()),
+                        }
+                    }
                     res => res.map(|_| ()),
                 }
             }

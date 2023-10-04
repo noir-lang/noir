@@ -112,6 +112,10 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
         status
     }
 
+    pub fn get_status(&self) -> VMStatus {
+        self.status.clone()
+    }
+
     /// Sets the current status of the VM to Finished (completed execution).
     fn finish(&mut self) -> VMStatus {
         self.status(VMStatus::Finished)
