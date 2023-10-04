@@ -2406,6 +2406,7 @@ dependencies = [
  "fm",
  "getrandom",
  "gloo-utils",
+ "js-sys",
  "log",
  "nargo",
  "noirc_driver",
