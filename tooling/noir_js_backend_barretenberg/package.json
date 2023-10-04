@@ -16,6 +16,10 @@
     "default": "./lib/esm/index.js"
   },
   "types": "lib/esm/index.d.ts",
+  "files": [
+    "lib",
+    "package.json"
+  ],
   "scripts": {
     "dev": "tsc --watch",
     "generate:package": "bash ./fixup.sh",
