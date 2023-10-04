@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{FuncId, TraitId, StmtId, TypeAliasId},
+    node_interner::{FuncId, StmtId, TraitId, TypeAliasId},
     parser::SubModule,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, ParsedModule, TraitImplItem, TraitItem, TypeImpl,
