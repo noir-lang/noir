@@ -11,13 +11,8 @@ use nargo::ops::ForeignCallExecutor;
 
 use thiserror::Error;
 
-use easy_repl::{Repl, CommandStatus, command};
-
-// use reedline_repl_rs::clap::{
-//     ArgMatches as ReplArgMatches,
-//     Command as ReplCommand,
-// };
-// use reedline_repl_rs::Repl;
+use easy_repl::{Repl, CommandStatus, command, Critical};
+use std::cell::RefCell;
 
 enum SolveResult {
     Done,
@@ -35,7 +30,7 @@ enum DebuggingError {
     ForeignCallError(#[from] noirc_printable_type::ForeignCallError),
 }
 
-struct ReplContext<'backend, B: BlackBoxFunctionSolver> {
+struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     acvm: Option<ACVM<'backend, B>>,
     debug_artifact: DebugArtifact,
     foreign_call_executor: ForeignCallExecutor,
@@ -43,81 +38,85 @@ struct ReplContext<'backend, B: BlackBoxFunctionSolver> {
     show_output: bool,
 }
 
-fn step_opcode<'backend, B: BlackBoxFunctionSolver>(acvm: &mut ACVM<'backend, B>, circuit: Circuit, foreign_call_executor: &mut ForeignCallExecutor, show_output: bool) -> Result<SolveResult, DebuggingError> {
-    // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
-    let assert_messages = circuit.assert_messages;
-    let get_assert_message = |opcode_location| {
-        assert_messages
-            .iter()
-            .find(|(loc, _)| loc == opcode_location)
-            .map(|(_, message)| message.clone())
-    };
+impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
+    fn step_opcode(&mut self) -> Result<SolveResult, DebuggingError> {
+        // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
+        let assert_messages = &self.circuit.assert_messages;
+        let get_assert_message = |opcode_location| {
+            assert_messages
+                .iter()
+                .find(|(loc, _)| loc == opcode_location)
+                .map(|(_, message)| message.clone())
+        };
 
-    // let acvm = self.acvm.as_mut().unwrap();
-    let solver_status = acvm.solve_opcode();
+        let solver_status = self.acvm.as_mut().unwrap().solve_opcode();
 
-    match solver_status {
-        ACVMStatus::Solved => Ok(SolveResult::Done),
-        ACVMStatus::InProgress => Ok(SolveResult::Ok),
-        ACVMStatus::Failure(error) => {
-            let call_stack = match &error {
-                OpcodeResolutionError::UnsatisfiedConstrain {
-                    opcode_location: ErrorLocation::Resolved(opcode_location),
-                } => Some(vec![*opcode_location]),
-                OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-                    Some(call_stack.clone())
-                }
-                _ => None,
-            };
-
-            Err(DebuggingError::ExecutionError(match call_stack {
-                Some(call_stack) => {
-                    if let Some(assert_message) = get_assert_message(
-                        call_stack.last().expect("Call stacks should not be empty"),
-                    ) {
-                        ExecutionError::AssertionFailed(assert_message, call_stack)
-                    } else {
-                        ExecutionError::SolvingError(error)
+        match solver_status {
+            ACVMStatus::Solved => Ok(SolveResult::Done),
+            ACVMStatus::InProgress => Ok(SolveResult::Ok),
+            ACVMStatus::Failure(error) => {
+                let call_stack = match &error {
+                    OpcodeResolutionError::UnsatisfiedConstrain {
+                        opcode_location: ErrorLocation::Resolved(opcode_location),
+                    } => Some(vec![*opcode_location]),
+                    OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
+                        Some(call_stack.clone())
                     }
-                }
-                None => ExecutionError::SolvingError(error),
-            }))
-        }
-        ACVMStatus::RequiresForeignCall(foreign_call) => {
-            let foreign_call_result = foreign_call_executor.execute(&foreign_call, show_output)?;
-            acvm.resolve_pending_foreign_call(foreign_call_result);
-            Ok(SolveResult::Ok)
-        }
-    }
-}
+                    _ => None,
+                };
 
-fn show_current_vm_status<'backend, B: BlackBoxFunctionSolver>(acvm: &mut ACVM<'backend, B>, debug_artifact: DebugArtifact) {
-    let ip = acvm.instruction_pointer();
-    println!("Stopped at opcode {}: {}", ip, acvm.opcodes()[ip]);
-    show_source_code_location(&OpcodeLocation::Acir(ip), debug_artifact);
-}
-
-fn show_source_code_location(location: &OpcodeLocation, debug_artifact: DebugArtifact) {
-    let locations = debug_artifact.debug_symbols[0].opcode_location(&location);
-    match locations {
-        Some(locations) => {
-            for loc in locations {
-                let file = &debug_artifact.file_map[&loc.file];
-                let source = &file.source.as_str();
-                let start = loc.span.start() as usize;
-                let end = loc.span.end() as usize;
-                println!("At {}:{start}-{end}", file.path.as_path().display());
-                println!("\n{}\n", &source[start..end]);
+                Err(DebuggingError::ExecutionError(match call_stack {
+                    Some(call_stack) => {
+                        if let Some(assert_message) = get_assert_message(
+                            call_stack.last().expect("Call stacks should not be empty"),
+                        ) {
+                            ExecutionError::AssertionFailed(assert_message, call_stack)
+                        } else {
+                            ExecutionError::SolvingError(error)
+                        }
+                    }
+                    None => ExecutionError::SolvingError(error),
+                }))
             }
-        },
-        None => {}
+            ACVMStatus::RequiresForeignCall(foreign_call) => {
+                let foreign_call_result = self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
+                self.acvm.as_mut().unwrap().resolve_pending_foreign_call(foreign_call_result);
+                Ok(SolveResult::Ok)
+            }
+        }
     }
-}
 
+    fn show_current_vm_status(&self) {
+        let ip = self.acvm.as_ref().unwrap().instruction_pointer();
+        println!("Stopped at opcode {}: {}", ip, self.acvm.as_ref().unwrap().opcodes()[ip]);
+        Self::show_source_code_location(&OpcodeLocation::Acir(ip), &self.debug_artifact);
+    }
 
-impl From<reedline_repl_rs::Error> for DebuggingError {
-    fn from(_e: reedline_repl_rs::Error) -> Self {
-        DebuggingError::ExecutionError(ExecutionError::Halted)
+    fn show_source_code_location(location: &OpcodeLocation, debug_artifact: &DebugArtifact) {
+        let locations = debug_artifact.debug_symbols[0].opcode_location(&location);
+        match locations {
+            Some(locations) => {
+                for loc in locations {
+                    let file = &debug_artifact.file_map[&loc.file];
+                    let source = &file.source.as_str();
+                    let start = loc.span.start() as usize;
+                    let end = loc.span.end() as usize;
+                    println!("At {}:{start}-{end}", file.path.as_path().display());
+                    println!("\n{}\n", &source[start..end]);
+                }
+            },
+            None => {}
+        }
+    }
+
+    fn cont(&mut self) -> Result<SolveResult, DebuggingError> {
+        loop {
+            match self.step_opcode()? {
+                SolveResult::Done => break,
+                SolveResult::Ok => {},
+            }
+        }
+        Ok(SolveResult::Done)
     }
 }
 
@@ -130,6 +129,13 @@ impl From<nargo::errors::NargoError> for DebuggingError {
     }
 }
 
+fn map_command_status(result: SolveResult) -> CommandStatus {
+    match result {
+        SolveResult::Ok => CommandStatus::Done,
+        SolveResult::Done => CommandStatus::Quit
+    }
+}
+
 pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
     circuit: Circuit,
@@ -138,78 +144,56 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
     let opcodes = circuit.opcodes.clone();
-    let mut acvm = ACVM::new(blackbox_solver, opcodes, initial_witness);
-    let mut foreign_call_executor = ForeignCallExecutor::default();
+
+    let context = RefCell::new(DebugContext {
+        acvm: Some(ACVM::new(blackbox_solver, opcodes, initial_witness)),
+        foreign_call_executor: ForeignCallExecutor::default(),
+        circuit,
+        debug_artifact,
+        show_output,
+    });
+    let ref_step = &context;
+    let ref_cont = &context;
+
+    let solved = RefCell::new(false);
+
+    context.borrow().show_current_vm_status();
+
+    let handle_result = |result| {
+        solved.replace(match result {
+            SolveResult::Done => true,
+            _ => false,
+        });
+        Ok(map_command_status(result))
+    };
 
     let mut repl = Repl::builder()
         .add("s", command! {
             "step to the next opcode",
             () => || {
-                step_command(&mut acvm, debug_artifact, circuit, &mut foreign_call_executor, show_output);
-                Ok(CommandStatus::Done)
-            } 
+                let result = ref_step.borrow_mut().step_opcode().into_critical()?;
+                ref_step.borrow().show_current_vm_status();
+                handle_result(result)
+            }
         })
         .add("c", command! {
             "continue execution until the end of the program",
             () => || {
-                continue_command(&mut acvm, debug_artifact, circuit, &mut foreign_call_executor, show_output);
-                Ok(CommandStatus::Quit)
+                println!("(Continuing execution...)");
+                let result = ref_cont.borrow_mut().cont().into_critical()?;
+                handle_result(result)
             }
         })
-        .add("q", command! {
-            "quit the debugger",
-            () => || {
-                quit_command(&mut acvm, debug_artifact);
-                Ok(CommandStatus::Quit)
-            }
-        }).build().expect("Failed to initialize debugger repl");
-        repl.run().expect("Critical debugger error");
+        .build()
+        .expect("Failed to initialize debugger repl");
 
-    // // let mut repl = Repl::new(repl_context.clone())
-    // //     .with_name("debug")
-    // //     .with_version(env!["CARGO_PKG_VERSION"])
-    // //     .with_command(
-    // //         ReplCommand::new("s")
-    // //             .about("step to the next opcode"),
-    // //         step_command,
-    // //     )
-    // //     .with_command(
-    // //         ReplCommand::new("c")
-    // //             .about("continue execution until the end of the program"),
-    // //         continue_command,
-    // //     )
-    // //     .with_command(
-    // //         ReplCommand::new("q")
-    // //             .about("quit the debugger"),
-    // //         quit_command,
-    // //     );
-    // // repl.run().unwrap();
-    
-    let solved_witness = acvm.finalize();
-    Ok(solved_witness)
-}
+    repl.run().expect("Debugger error");
 
-fn step_command<'backend, B: BlackBoxFunctionSolver>(acvm: &mut ACVM<'backend, B>, debug_artifact: DebugArtifact, circuit: Circuit, foreign_call_executor: &mut ForeignCallExecutor, show_output: bool) -> Result<Option<String>, DebuggingError> {
-    show_current_vm_status(acvm, debug_artifact);
-    match step_opcode(acvm, circuit, foreign_call_executor, show_output)? {
-        SolveResult::Done => Ok(Some("Done".to_string())),
-        SolveResult::Ok => Ok(Some("Ok".to_string())),
+    let acvm = context.borrow_mut().acvm.take().unwrap();
+    if *solved.borrow() {
+        let solved_witness = acvm.finalize();
+        Ok(solved_witness)
+    } else {
+        Err(NargoError::ExecutionError(ExecutionError::Halted))
     }
-}
-
-fn continue_command<'backend, B: BlackBoxFunctionSolver>(acvm: &mut ACVM<'backend, B>, debug_artifact: DebugArtifact, circuit: Circuit, foreign_call_executor: &mut ForeignCallExecutor, show_output: bool) -> Result<Option<String>, DebuggingError> {
-    show_current_vm_status(acvm, debug_artifact);
-    println!("(Continuing execution...)");
-    loop {
-        match step_opcode(acvm, circuit, foreign_call_executor, show_output)? {
-            SolveResult::Done => break,
-            SolveResult::Ok => {},
-        }
-    }
-    Ok(Some("Ok".to_string()))
-}
-
-fn quit_command<'backend, B: BlackBoxFunctionSolver>(acvm: &mut ACVM<'backend, B>, debug_artifact: DebugArtifact) -> Result<Option<String>, DebuggingError> {
-    show_current_vm_status(acvm, debug_artifact);
-    Err(DebuggingError::ExecutionError(ExecutionError::Halted))
 }
