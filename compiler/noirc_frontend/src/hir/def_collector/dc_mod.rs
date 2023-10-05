@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{StmtId, TraitId, TypeAliasId},
+    node_interner::{TraitId, TypeAliasId},
     parser::SubModule,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, ParsedModule, TraitImplItem, TraitItem, TypeImpl,
@@ -395,9 +395,11 @@ impl<'a> ModCollector<'a> {
                         }
                     }
                     TraitItem::Constant { name, .. } => {
+                        let stmt_id = context.def_interner.push_empty_global();
+
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [id.0.local_id.0]
-                            .declare_global(name.clone(), StmtId::dummy_id())
+                            .declare_global(name.clone(), stmt_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedConst,
