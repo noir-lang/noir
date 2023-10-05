@@ -31,6 +31,13 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Setup Nix
+        uses: ./.github/actions/nix
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
+          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
       - name: Install Yarn dependencies
         run: yarn install
 
