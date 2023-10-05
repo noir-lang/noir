@@ -809,7 +809,7 @@ impl Context {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
         // TODO: this is not possible
-        // let res_size = self.flattened_slice_size(results[0], dfg);
+        // let res_size = self.flattened_slice_size_only_ssa(results[0], dfg);
         // dbg!(res_size);
 
         // let acir_val = self.convert_value(results[0], dfg);
@@ -1378,6 +1378,46 @@ impl Context {
             Value::Instruction { .. } => {
                 let array_acir_value = self.convert_value(array_id, dfg);
                 size += Self::flattened_value_size(&array_acir_value);
+            }
+            Value::Param { .. } => {
+                let array_acir_value = self.convert_value(array_id, dfg);
+                size += Self::flattened_value_size(&array_acir_value); 
+            }
+            _ => {
+                dbg!(&dfg[array_id]);
+                unreachable!("ICE: Unexpected SSA value when computing the slice size");
+            }
+        }
+        size
+    }
+
+    fn flattened_slice_size_only_ssa(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
+        let mut size = 0;
+        match &dfg[array_id] {
+            Value::Array { array, .. } => {
+                // The array is going to be the flattened outer array
+                // Flattened slice size from SSA value does not need to be multiplied by the len
+                for value in array {
+                    size += self.flattened_slice_size(*value, dfg);
+                }
+            }
+            Value::NumericConstant { .. } => {
+                size += 1;
+            }
+            Value::Instruction { instruction, .. } => {
+                match &dfg[*instruction] {
+                    Instruction::ArrayGet { array, .. } => {
+                        size += self.flattened_slice_size_only_ssa(*array, dfg);
+                    }
+                    Instruction::ArraySet { array, .. } => {
+                        size += self.flattened_slice_size_only_ssa(*array, dfg);
+                    }
+                    _ => {
+                        panic!("ICE: ahh unexpected instr");
+                    }
+                }
+                // let array_acir_value = self.convert_value(array_id, dfg);
+                // size += Self::flattened_value_size(&array_acir_value);
             }
             Value::Param { .. } => {
                 let array_acir_value = self.convert_value(array_id, dfg);
