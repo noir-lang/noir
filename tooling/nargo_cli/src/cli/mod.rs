@@ -53,6 +53,7 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Backend(backend_cmd::BackendCommand),
     Check(check_cmd::CheckCommand),
+    #[command(hide = true)] // Hidden while the feature has not been extensively tested
     Fmt(fmt_cmd::FormatCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     #[command(alias = "build")]
