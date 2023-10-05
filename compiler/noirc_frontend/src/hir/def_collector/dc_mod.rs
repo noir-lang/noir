@@ -410,6 +410,7 @@ impl<'a> ModCollector<'a> {
                         }
                     }
                     TraitItem::Type { name } => {
+                        // TODO(nickysn or alexvitkov): implement context.def_interner.push_empty_type_alias and get an id, instead of using TypeAliasId::dummy_id()
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [id.0.local_id.0]
                             .declare_type_alias(name.clone(), TypeAliasId::dummy_id())
