@@ -2,9 +2,6 @@ name: Publish Noir ES Packages
 
 on:
   workflow_dispatch:
-  push: 
-    branches: 
-      - kh-fix-workspace-build
     
 jobs:
   build-noir_wasm:
@@ -83,4 +80,3 @@ jobs:
         
       - name: Publish ES Packages
         run: yarn publish:all --access public
-        
