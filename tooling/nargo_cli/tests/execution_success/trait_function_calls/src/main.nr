@@ -30,7 +30,7 @@
 trait Trait1a {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 7892 - self.vl
-    };
+    }
     fn trait_method2(self) -> Field {
         43278
     }
@@ -42,7 +42,7 @@ impl Trait1a for Struct1a { }
 trait Trait1b {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 2832 - self.vl
-    };
+    }
     fn trait_method2(self) -> Field {
         9323
     }
@@ -58,7 +58,7 @@ impl Trait1b for Struct1b {
 trait Trait1c {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 7635 - self.vl
-    };
+    }
     fn trait_method2(self) -> Field;
 }
 struct Struct1c { vl: Field }
@@ -72,7 +72,7 @@ impl Trait1c for Struct1c {
 trait Trait1d {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 2825 - self.vl
-    };
+    }
     fn trait_method2(self) -> Field {
         29341
     }
@@ -88,7 +88,7 @@ impl Trait1d for Struct1d {
 trait Trait1e {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 85465 - self.vl
-    };
+    }
     fn trait_method2(self) -> Field {
         2381
     }
@@ -107,7 +107,7 @@ impl Trait1e for Struct1e {
 trait Trait1f {
     fn trait_method1(self) -> Field {
         self.trait_method2() * 43257 - self.vl
-    };
+    }
     fn trait_method2(self) -> Field;
 }
 struct Struct1f { vl: Field }

@@ -110,6 +110,9 @@ impl CrateDefMap {
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
+        #[cfg(feature = "aztec")]
+        aztec_library::transform_hir(&crate_id, context);
+
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
         );

@@ -23,7 +23,7 @@ pub(crate) fn on_test_run_request(
 }
 
 fn on_test_run_request_inner(
-    state: &mut LspState,
+    state: &LspState,
     params: NargoTestRunParams,
 ) -> Result<NargoTestRunResult, ResponseError> {
     let root_path = state.root_path.as_deref().ok_or_else(|| {
