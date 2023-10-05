@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
+    BlockExpression, ExpressionKind, ForLoopStatement, Ident, IndexExpression, LetStatement,
     MethodCallExpression, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind,
     Pattern, Recoverable, Statement, StatementKind, TypeImpl, UnresolvedType, UseTree,
 };
@@ -428,15 +428,10 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
-    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
+    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> StatementKind {
         match self {
             ForRange::Range(start_range, end_range) => {
-                ExpressionKind::For(Box::new(ForExpression {
-                    identifier,
-                    start_range,
-                    end_range,
-                    block,
-                }))
+                StatementKind::For(ForLoopStatement { identifier, start_range, end_range, block })
             }
             ForRange::Array(array) => {
                 let array_span = array.span;
@@ -500,20 +495,18 @@ impl ForRange {
                     Statement { kind: StatementKind::Expression(block), span: block_span },
                 ]);
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
-                let for_loop = ExpressionKind::For(Box::new(ForExpression {
-                    identifier: fresh_identifier,
-                    start_range,
-                    end_range,
-                    block: new_block,
-                }));
+                let for_loop = Statement {
+                    kind: StatementKind::For(ForLoopStatement {
+                        identifier: fresh_identifier,
+                        start_range,
+                        end_range,
+                        block: new_block,
+                    }),
+                    span: for_loop_span,
+                };
 
-                ExpressionKind::Block(BlockExpression(vec![
-                    let_array,
-                    Statement {
-                        kind: StatementKind::Expression(Expression::new(for_loop, for_loop_span)),
-                        span: for_loop_span,
-                    },
-                ]))
+                let block = ExpressionKind::Block(BlockExpression(vec![let_array, for_loop]));
+                StatementKind::Expression(Expression::new(block, for_loop_span))
             }
         }
     }

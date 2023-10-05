@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    Shared, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -193,40 +193,6 @@ impl<'interner> TypeChecker<'interner> {
                 let lhs_type = self.check_expression(&cast_expr.lhs);
                 let span = self.interner.expr_span(expr_id);
                 self.check_cast(lhs_type, cast_expr.r#type, span)
-            }
-            HirExpression::For(for_expr) => {
-                let start_range_type = self.check_expression(&for_expr.start_range);
-                let end_range_type = self.check_expression(&for_expr.end_range);
-
-                let start_span = self.interner.expr_span(&for_expr.start_range);
-                let end_span = self.interner.expr_span(&for_expr.end_range);
-
-                // Check that start range and end range have the same types
-                let range_span = start_span.merge(end_span);
-                self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: start_range_type.to_string(),
-                    expr_typ: end_range_type.to_string(),
-                    expr_span: range_span,
-                });
-
-                let fresh_id = self.interner.next_type_variable_id();
-                let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
-                let expected_type =
-                    Type::TypeVariable(type_variable, TypeVariableKind::IntegerOrField);
-
-                self.unify(&start_range_type, &expected_type, || {
-                    TypeCheckError::TypeCannotBeUsed {
-                        typ: start_range_type.clone(),
-                        place: "for loop",
-                        span: range_span,
-                    }
-                    .add_context("The range of a loop must be known at compile-time")
-                });
-
-                self.interner.push_definition_type(for_expr.identifier.id, start_range_type);
-
-                self.check_expression(&for_expr.block);
-                Type::Unit
             }
             HirExpression::Block(block_expr) => {
                 let mut block_type = Type::Unit;
