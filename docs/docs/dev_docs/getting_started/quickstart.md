@@ -32,6 +32,14 @@ With the help of Aztec.js you will be able to:
 
 This quickstart walks you through installing the Sandbox, deploying your first Noir contract, and verifying its execution!
 
+## Sandbox Contents
+
+The sandbox contains a local ethereum instance running [Anvil](https://book.getfoundry.sh/anvil/), a local instance of the Aztec rollup, an aztec private execution client for handling user transactions and state, and, if using Docker, an [Otterscan](https://github.com/otterscan/otterscan) block explorer for the local ethereum network.
+
+These provide a self contained environment which deploys Aztec on a local (empty) ethereum network, creates 3 smart contract wallet accounts on the rollup, and allows transactions to be processed on the local Aztec sequencer.
+
+The current sandbox does not generate or verify proofs, but provides a working end to end developer flow for writing and interacting with Aztec.nr smart contracts.
+
 ## Requirements
 
 - Node.js >= v18 (recommend installing with [nvm](https://github.com/nvm-sh/nvm))
@@ -57,7 +65,9 @@ To install a specific version of the sandbox, you can set the environment variab
 SANDBOX_VERSION=<version> /bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
 ```
 
-NOTE: If `SANDBOX_VERSION` is not defined, the script will pull the latest release of the sandbox.
+NOTE: If `SANDBOX_VERSION` is not defined, the script will pull the latest release of the sandbox. The sandbox version should be the same as your `@aztec/cli` package to ensure compatibility.
+
+Once docker is up, you can see ethereum layer 1 activity through the local [otterscan](http://localhost:5100). This is especially useful for dapps that use L1-L2 messaging through [portal contracts](../contracts/portals/main.md).
 
 ### With npm
 

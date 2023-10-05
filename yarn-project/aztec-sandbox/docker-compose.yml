@@ -1,7 +1,7 @@
 version: '3'
 services:
   ethereum:
-    image: ghcr.io/foundry-rs/foundry:v1.0.0
+    image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
     command: '"anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337"'
     ports:
       - '${SANDBOX_ANVIL_PORT:-8545}:8545'
@@ -24,3 +24,14 @@ services:
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
     volumes:
       - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw
+
+  otterscan:
+    image: otterscan/otterscan:develop
+    # platform: linux/amd64
+    ports:
+      - "5100:80"
+    container_name: otterscan
+    environment:
+    # otterscan env var is hardcoded to support erigon client
+    # but it also works for anvil
+      - ERIGON_URL=http://127.0.0.1:${SANDBOX_ANVIL_PORT:-8545}
