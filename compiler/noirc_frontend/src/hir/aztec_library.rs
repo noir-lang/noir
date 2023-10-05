@@ -10,14 +10,13 @@ use crate::node_interner::{NodeInterner, StructId};
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement, IndexExpression,
-    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction,
-    ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData,
-    Visibility,
+    ExpressionKind, FunctionReturnType, Ident, ImportStatement, IndexExpression, LetStatement,
+    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, ParsedModule, Path,
+    PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    FunctionDefinition, NoirStruct, PrefixExpression, Signedness, StructType, Type, TypeImpl,
-    UnaryOp,
+    ForLoopStatement, FunctionDefinition, NoirStruct, PrefixExpression, Signedness, StructType,
+    Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
@@ -819,14 +818,14 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
 
     // `for i in 0..{ident}.len()`
-    Statement::Expression(expression(ExpressionKind::For(Box::new(ForExpression {
+    Statement::For(ForLoopStatement {
         identifier: ident("i"),
         start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
             i128::from(0),
         )))),
         end_range: end_range_expression,
         block: for_loop_block,
-    }))))
+    })
 }
 
 fn add_array_to_hasher(identifier: &Ident) -> Statement {
