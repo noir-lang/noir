@@ -1,4 +1,4 @@
-fn main(a: u32, mut c: [u32; 4]){
+fn main(a: u32, mut c: [u32; 4]) {
     // Regression for issue #661:
     let mut c_661 :[u32;1]=[0];
     if a > 5 {
@@ -15,7 +15,6 @@ fn test5(a : u32) {
         assert(q == 2);
     }
 }
-
 
 fn issue_661_foo(array: [u32;4], b:u32) ->[u32;1] {
     [array[0]+b]

@@ -2,7 +2,7 @@ struct MyStruct {
     operation: fn (u32) -> u32,
 }
 
-fn main(x: u32)  {
+fn main(x: u32) {
     assert(wrapper(increment, x) == x + 1);
     assert(wrapper(increment_acir, x) == x + 1);
     assert(wrapper(decrement, x) == x - 1);

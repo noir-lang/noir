@@ -11,7 +11,7 @@ fn main(x: u64) {
 	assert(x << 1 == 128);
 	assert(x >> 2 == 16);
 
-	regression_2250();
+    regression_2250();
 }
 
 fn regression_2250() {

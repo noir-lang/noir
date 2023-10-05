@@ -46,7 +46,7 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      let q = multiplyByM(3);
      assert(q == 96);
 
-     arrays_neq(a, b);
+    arrays_neq(a, b);
 
      let t: [Field; T_LEN] = [N, M];
      assert(t[1] == 32);
@@ -65,12 +65,12 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      let arr: [Field; mysubmodule::N] = [N; 10];
      assert((arr[0] == 5) & (arr[9] == 5));
 
-     foo::from_foo(d);
-     baz::from_baz(c);
+    foo::from_foo(d);
+    baz::from_baz(c);
 }
 
 fn multiplyByM(x: Field) -> Field {
-     x * M
+    x * M
 }
 
 fn arrays_neq(a: [Field; M], b: [Field; M]) {

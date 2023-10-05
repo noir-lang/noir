@@ -7,6 +7,5 @@ fn main(arr: [Field; ARRAY_LEN], x: u32) -> pub Field {
     value += arr[0 as u32];
     value += arr[1 as Field];
 
-    value + (x as Field)
-
+    value + x as Field
 }

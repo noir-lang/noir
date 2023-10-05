@@ -1,11 +1,11 @@
-//Tests for function calling 
+//Tests for function calling
 fn f1(mut x: Field) -> Field {
     x = x + 1;
     x = f2(x);
     x
 }
 
-fn f2(mut x: Field) -> Field{
+fn f2(mut x: Field) -> Field {
     x += 2;
     x
 }
@@ -78,14 +78,11 @@ fn test_multiple5(a: (u32, u32)) {
     assert(a.0 == a.1+2);
 }
 
-
 fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     test_multiple4(a.aa);
     test_multiple5((b.a, b.b));
     assert(c.0.aa.a == c.1.a);
 }
-
-
 
 fn foo<N>(a: [Field; N]) -> [Field; N] {
     a
@@ -112,7 +109,7 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
         (x,ab)
     };
     assert(my_block.1 == 4);
-    
+
     test0(a);
     test1(a);
     test2(x as Field, y);

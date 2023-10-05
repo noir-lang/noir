@@ -1,6 +1,5 @@
 use dep::std;
 
-
 fn main() {
   
     //Regression for to_le_bits() constant evaluation 
@@ -26,7 +25,5 @@ fn main() {
         }
     }
     assert(c1 == 1);
-
-   
 }
 

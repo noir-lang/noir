@@ -13,12 +13,11 @@ fn sort(mut a: [u32; 4]) -> [u32; 4] {
     a
 }
 
-
 fn must_be_zero(x: u8) {
     assert(x == 0);
 }
 
-fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
+fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
   
     //Test case for short-circuit
     let mut data = [0 as u32; 32];
@@ -96,5 +95,4 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
     assert(x == 0);
-
 }
