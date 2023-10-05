@@ -166,7 +166,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(where_clause())
-        .then(spanned(block(expression())))
+        .then(spanned(block(fresh_statement())))
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
@@ -414,7 +414,7 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
 fn trait_function_declaration() -> impl NoirParser<TraitItem> {
     let trait_function_body_or_semicolon =
-        block(expression()).map(Option::from).or(just(Token::Semicolon).map(|_| Option::None));
+        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).map(|_| Option::None));
 
     keyword(Keyword::Fn)
         .ignore_then(ident())
@@ -638,19 +638,13 @@ fn trait_bound() -> impl NoirParser<TraitBound> {
     })
 }
 
-fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
-where
-    P: ExprParser + 'a,
-{
-    block(expr_parser).map(ExpressionKind::Block).map_with_span(Expression::new)
+fn block_expr<'a>(statement: impl NoirParser<Statement> + 'a) -> impl NoirParser<Expression> + 'a {
+    block(statement).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
-fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
-where
-    P: ExprParser + 'a,
-{
+fn block<'a>(statement: impl NoirParser<Statement> + 'a) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
-    statement(expr_parser)
+    statement
         .recover_via(statement_recovery())
         .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
         .repeated()
@@ -761,19 +755,27 @@ fn ident() -> impl NoirParser<Ident> {
     token_kind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
-fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+fn statement<'a, P, P2>(expr_parser: P, expr_no_constructors: P2) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
-    choice((
-        constrain(expr_parser.clone()),
-        assertion(expr_parser.clone()),
-        assertion_eq(expr_parser.clone()),
-        declaration(expr_parser.clone()),
-        assignment(expr_parser.clone()),
-        return_statement(expr_parser.clone()),
-        expr_parser.map(Statement::Expression),
-    ))
+    recursive(|statement| {
+        choice((
+            constrain(expr_parser.clone()),
+            assertion(expr_parser.clone()),
+            assertion_eq(expr_parser.clone()),
+            declaration(expr_parser.clone()),
+            assignment(expr_parser.clone()),
+            for_loop(expr_no_constructors, statement),
+            return_statement(expr_parser.clone()),
+            expr_parser.map(Statement::Expression),
+        ))
+    })
+}
+
+fn fresh_statement() -> impl NoirParser<Statement> {
+    statement(expression(), expression_no_constructors())
 }
 
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -1099,6 +1101,7 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
             Precedence::lowest_type_precedence(),
             expr,
             nothing(),
+            nothing(),
             true,
             false,
         )
@@ -1159,8 +1162,9 @@ fn expression() -> impl ExprParser {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::Lowest,
-            expr,
+            expr.clone(),
             expression_no_constructors(),
+            statement(expr, expression_no_constructors()),
             false,
             true,
         )
@@ -1170,7 +1174,14 @@ fn expression() -> impl ExprParser {
 
 fn expression_no_constructors() -> impl ExprParser {
     recursive(|expr| {
-        expression_with_precedence(Precedence::Lowest, expr.clone(), expr, false, false)
+        expression_with_precedence(
+            Precedence::Lowest,
+            expr.clone(),
+            expr.clone(),
+            statement(expr.clone(), expr),
+            false,
+            false,
+        )
     })
     .labelled(ParsingRuleLabel::Expression)
 }
@@ -1190,10 +1201,11 @@ where
 // An expression is a single term followed by 0 or more (OP subexpression)*
 // where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
-fn expression_with_precedence<'a, P, P2>(
+fn expression_with_precedence<'a, P, P2, S>(
     precedence: Precedence,
     expr_parser: P,
     expr_no_constructors: P2,
+    statement: S,
     // True if we should only parse the restricted subset of operators valid within type expressions
     is_type_expression: bool,
     // True if we should also parse constructors `Foo { field1: value1, ... }` as an expression.
@@ -1204,12 +1216,13 @@ fn expression_with_precedence<'a, P, P2>(
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
+    S: NoirParser<Statement> + 'a,
 {
     if precedence == Precedence::Highest {
         if is_type_expression {
             type_expression_term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
         } else {
-            term(expr_parser, expr_no_constructors, allow_constructors)
+            term(expr_parser, expr_no_constructors, statement, allow_constructors)
                 .boxed()
                 .labelled(ParsingRuleLabel::Term)
         }
@@ -1221,6 +1234,7 @@ where
             next_precedence,
             expr_parser,
             expr_no_constructors,
+            statement,
             is_type_expression,
             allow_constructors,
         );
@@ -1260,14 +1274,16 @@ fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<B
         })
 }
 
-fn term<'a, P, P2>(
+fn term<'a, P, P2, S>(
     expr_parser: P,
     expr_no_constructors: P2,
+    statement: S,
     allow_constructors: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
+    S: NoirParser<Statement> + 'a,
 {
     recursive(move |term_parser| {
         choice((
@@ -1280,7 +1296,12 @@ where
         // right-unary operators like a[0] or a.f bind more tightly than left-unary
         // operators like  - or !, so that !a[0] is parsed as !(a[0]). This is a bit
         // awkward for casts so -a as i32 actually binds as -(a as i32).
-        .or(atom_or_right_unary(expr_parser, expr_no_constructors, allow_constructors))
+        .or(atom_or_right_unary(
+            expr_parser,
+            expr_no_constructors,
+            statement,
+            allow_constructors,
+        ))
     })
 }
 
@@ -1295,14 +1316,16 @@ where
     })
 }
 
-fn atom_or_right_unary<'a, P, P2>(
+fn atom_or_right_unary<'a, P, P2, S>(
     expr_parser: P,
     expr_no_constructors: P2,
+    statement: S,
     allow_constructors: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
+    S: NoirParser<Statement> + 'a,
 {
     enum UnaryRhs {
         Call(Vec<Expression>),
@@ -1336,7 +1359,7 @@ where
     let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
 
     foldl_with_span(
-        atom(expr_parser, expr_no_constructors, allow_constructors),
+        atom(expr_parser, expr_no_constructors, statement, allow_constructors),
         rhs,
         |lhs, rhs, span| match rhs {
             UnaryRhs::Call(args) => Expression::call(lhs, args, span),
@@ -1349,25 +1372,21 @@ where
     )
 }
 
-fn if_expr<'a, P1, P2>(
-    expr_parser: P1,
-    expr_no_constructors: P2,
-) -> impl NoirParser<ExpressionKind> + 'a
+fn if_expr<'a, P, S>(expr_no_constructors: P, statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
-    P1: ExprParser + 'a,
-    P2: ExprParser + 'a,
+    P: ExprParser + 'a,
+    S: NoirParser<Statement> + 'a,
 {
     recursive(|if_parser| {
-        let if_block = block_expr(expr_parser.clone());
+        let if_block = block_expr(statement.clone());
         // The else block could also be an `else if` block, in which case we must recursively parse it.
-        let else_block =
-            block_expr(expr_parser.clone()).or(if_parser.map_with_span(|kind, span| {
-                // Wrap the inner `if` expression in a block expression.
-                // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
-                let if_expression = Expression::new(kind, span);
-                let desugared_else = BlockExpression(vec![Statement::Expression(if_expression)]);
-                Expression::new(ExpressionKind::Block(desugared_else), span)
-            }));
+        let else_block = block_expr(statement).or(if_parser.map_with_span(|kind, span| {
+            // Wrap the inner `if` expression in a block expression.
+            // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
+            let if_expression = Expression::new(kind, span);
+            let desugared_else = BlockExpression(vec![Statement::Expression(if_expression)]);
+            Expression::new(ExpressionKind::Block(desugared_else), span)
+        }));
 
         keyword(Keyword::If)
             .ignore_then(expr_no_constructors)
@@ -1391,19 +1410,16 @@ fn lambda<'a>(
         })
 }
 
-fn for_expr<'a, P, P2>(
-    expr_parser: P,
-    expr_no_constructors: P2,
-) -> impl NoirParser<ExpressionKind> + 'a
+fn for_loop<'a, P, S>(expr_no_constructors: P, statement: S) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
-    P2: ExprParser + 'a,
+    S: NoirParser<Statement> + 'a,
 {
     keyword(Keyword::For)
         .ignore_then(ident())
         .then_ignore(keyword(Keyword::In))
         .then(for_range(expr_no_constructors))
-        .then(block_expr(expr_parser))
+        .then(block_expr(statement))
         .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
 }
 
@@ -1494,18 +1510,19 @@ where
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
 /// Certain constructs like `if` and `for` disallow constructor expressions when a
 /// block may be expected.
-fn atom<'a, P, P2>(
+fn atom<'a, P, P2, S>(
     expr_parser: P,
     expr_no_constructors: P2,
+    statement: S,
     allow_constructors: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
+    S: NoirParser<Statement> + 'a,
 {
     choice((
-        if_expr(expr_parser.clone(), expr_no_constructors.clone()),
-        for_expr(expr_parser.clone(), expr_no_constructors),
+        if_expr(expr_no_constructors, statement.clone()),
         array_expr(expr_parser.clone()),
         if allow_constructors {
             constructor(expr_parser.clone()).boxed()
@@ -1513,7 +1530,7 @@ where
             nothing().boxed()
         },
         lambda(expr_parser.clone()),
-        block(expr_parser.clone()).map(ExpressionKind::Block),
+        block(statement).map(ExpressionKind::Block),
         variable(),
         literal(),
     ))
@@ -1722,11 +1739,21 @@ mod test {
     #[test]
     fn parse_cast() {
         parse_all(
-            atom_or_right_unary(expression(), expression_no_constructors(), true),
+            atom_or_right_unary(
+                expression(),
+                expression_no_constructors(),
+                fresh_statement(),
+                true,
+            ),
             vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
-            atom_or_right_unary(expression(), expression_no_constructors(), true),
+            atom_or_right_unary(
+                expression(),
+                expression_no_constructors(),
+                fresh_statement(),
+                true,
+            ),
             vec!["x as pub u8"],
         );
     }
@@ -1740,7 +1767,15 @@ mod test {
             "baz[bar]",
             "foo.bar[3] as Field .baz as u32 [7]",
         ];
-        parse_all(atom_or_right_unary(expression(), expression_no_constructors(), true), valid);
+        parse_all(
+            atom_or_right_unary(
+                expression(),
+                expression_no_constructors(),
+                fresh_statement(),
+                true,
+            ),
+            valid,
+        );
     }
 
     fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
@@ -1794,10 +1829,11 @@ mod test {
 
     #[test]
     fn parse_block() {
-        parse_with(block(expression()), "{ [0,1,2,3,4] }").unwrap();
+        parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
 
         // Regression for #1310: this should be parsed as a block and not a function call
-        let res = parse_with(block(expression()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
+        let res =
+            parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
         match unwrap_expr(res.0.last().unwrap()) {
             // The `if` followed by a tuple is currently creates a block around both in case
             // there was none to start with, so there is an extra block here.
@@ -1810,7 +1846,7 @@ mod test {
         }
 
         parse_all_failing(
-            block(expression()),
+            block(fresh_statement()),
             vec![
                 "[0,1,2,3,4] }",
                 "{ [0,1,2,3,4]",
@@ -1967,18 +2003,18 @@ mod test {
     #[test]
     fn parse_invalid_pub() {
         // pub cannot be used to declare a statement
-        parse_all_failing(statement(expression()), vec!["pub x = y", "pub x : pub Field = y"]);
+        parse_all_failing(fresh_statement(), vec!["pub x = y", "pub x : pub Field = y"]);
     }
 
     #[test]
     fn parse_for_loop() {
         parse_all(
-            for_expr(expression(), expression_no_constructors()),
+            for_loop(expression_no_constructors(), fresh_statement()),
             vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
         );
 
         parse_all_failing(
-            for_expr(expression(), expression_no_constructors()),
+            for_loop(expression_no_constructors(), fresh_statement()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
                 "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
@@ -2073,11 +2109,11 @@ mod test {
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(
-            atom(expression(), expression_no_constructors(), true),
+            atom(expression(), expression_no_constructors(), fresh_statement(), true),
             vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
         );
         parse_all_failing(
-            atom(expression(), expression_no_constructors(), true),
+            atom(expression(), expression_no_constructors(), fresh_statement(), true),
             vec!["(x+a", "((x+a)", "(,)"],
         );
     }
@@ -2090,12 +2126,12 @@ mod test {
     #[test]
     fn parse_if_expr() {
         parse_all(
-            if_expr(expression(), expression_no_constructors()),
+            if_expr(expression_no_constructors(), fresh_statement()),
             vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
         );
 
         parse_all_failing(
-            if_expr(expression(), expression_no_constructors()),
+            if_expr(expression_no_constructors(), fresh_statement()),
             vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
     }
@@ -2189,11 +2225,11 @@ mod test {
     #[test]
     fn parse_unary() {
         parse_all(
-            term(expression(), expression_no_constructors(), true),
+            term(expression(), expression_no_constructors(), fresh_statement(), true),
             vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
         );
         parse_all_failing(
-            term(expression(), expression_no_constructors(), true),
+            term(expression(), expression_no_constructors(), fresh_statement(), true),
             vec!["+hello", "/hello"],
         );
     }
@@ -2290,7 +2326,7 @@ mod test {
             "{ expr1; expr2 }",
             "{ expr1; expr2; }",
         ];
-        parse_all(block(expression()), cases);
+        parse_all(block(fresh_statement()), cases);
 
         let failing = vec![
             // We disallow multiple semicolons after a statement unlike rust where it is a warning
@@ -2299,7 +2335,7 @@ mod test {
             "{ let x = 2 }",
             "{ expr1 expr2 }",
         ];
-        parse_all_failing(block(expression()), failing);
+        parse_all_failing(block(fresh_statement()), failing);
     }
 
     #[test]
@@ -2324,7 +2360,7 @@ mod test {
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
 
         for (src, expected_errors, expected_result) in cases {
-            let (opt, errors) = parse_recover(statement(expression()), src);
+            let (opt, errors) = parse_recover(fresh_statement(), src);
             let actual = opt.map(|ast| ast.to_string());
             let actual = if let Some(s) = &actual { s } else { "(none)" };
 
@@ -2352,7 +2388,7 @@ mod test {
         let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
 
         let results = vecmap(&cases, |&(src, expected_errors, expected_result)| {
-            let (opt, errors) = parse_recover(block(expression()), src);
+            let (opt, errors) = parse_recover(block(fresh_statement()), src);
             let actual = opt.map(|ast| ast.to_string());
             let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
 
