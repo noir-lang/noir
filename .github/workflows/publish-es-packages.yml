@@ -13,9 +13,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: check space
-        run: df -ih
-
       - name: Setup Nix
         uses: ./.github/actions/nix
         with:
@@ -23,13 +20,18 @@ jobs:
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
 
-      - name: check space
-        run: df -ih
-        
       - name: Build wasm package
         run: |
-          nix build -L .#all_wasm
+          nix build -L .#noir_wasm
 
+      - name: Build wasm package
+        run: |
+          nix build -L .#noirc_abi_wasm
+
+      - name: Build wasm package
+        run: |
+          nix build -L .#acvm_js
+          
   publish-es-packages:
     runs-on: ubuntu-latest
     needs: [build-all-wasm]
