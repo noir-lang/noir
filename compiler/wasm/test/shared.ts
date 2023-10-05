@@ -15,15 +15,17 @@ export async function compileNoirSource(noir_source: string): Promise<any> {
 
     if (typeof source === 'undefined') {
       throw Error(`Could not resolve source for '${id}'`);
-    } else if (id !== '/main.nr') {
-      throw Error(`Unexpected id: '${id}'`);
-    } else {
+    } else if (id === '/main.nr') {
       return source;
+    } else if (id === '/hyphenated-name/src/lib.nr') {
+      return '';
+    } else {
+      throw Error(`Unexpected id: '${id}'`);
     }
   });
 
   try {
-    const compiled_noir = compile('main.nr');
+    const compiled_noir = compile('main.nr', false, [{ name: 'foo', package_root: './hyphenated-name' }]);
 
     console.log('Noir source compilation done.');
 

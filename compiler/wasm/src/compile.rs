@@ -9,26 +9,47 @@ use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
     CompiledContract, CompiledProgram,
 };
-use noirc_frontend::{graph::CrateGraph, hir::Context};
-use std::path::Path;
+use noirc_frontend::{
+    graph::{CrateGraph, CrateName},
+    hir::Context,
+};
+use serde::Deserialize;
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use wasm_bindgen::prelude::*;
 
 use crate::errors::JsCompileError;
 
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
+#[derive(Deserialize)]
+struct Dependency {
+    name: String,
+    package_root: PathBuf,
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const DEPENDENCY_TYPE: &'static str = r#"
+export type Dependency = {
+    name: string,
+    package_root: string
+}
+"#;
+
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(extends = Array, js_name = "StringArray", typescript_type = "string[]")]
+    #[wasm_bindgen(extends = Array, js_name = "DependencyArray", typescript_type = "Dependency[]")]
     #[derive(Clone, Debug, PartialEq, Eq)]
-    pub type StringArray;
+    pub type DependencyArray;
 }
 
 #[wasm_bindgen]
 pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
-    dependencies: Option<StringArray>,
+    dependencies: Option<DependencyArray>,
 ) -> Result<JsValue, JsCompileError> {
     console_error_panic_hook::set_once();
 
@@ -40,11 +61,19 @@ pub fn compile(
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
 
-    let dependencies: Vec<String> = dependencies
-        .map(|array| array.iter().map(|element| element.as_string().unwrap()).collect())
+    let dependencies: Vec<Dependency> = dependencies
+        .map(|array| {
+            array
+                .iter()
+                .map(|dep| {
+                    JsValueSerdeExt::into_serde(&dep)
+                        .expect("Could not deserialize dependency argument")
+                })
+                .collect()
+        })
         .unwrap_or_default();
     for dependency in dependencies {
-        add_noir_lib(&mut context, dependency.as_str());
+        add_noir_lib(&mut context, dependency);
     }
 
     let compile_options = CompileOptions::default();
@@ -81,11 +110,12 @@ pub fn compile(
     }
 }
 
-fn add_noir_lib(context: &mut Context, library_name: &str) {
-    let path_to_lib = Path::new(&library_name).join("lib.nr");
+fn add_noir_lib(context: &mut Context, library: Dependency) {
+    let path_to_lib = library.package_root.join("src/lib.nr");
     let library_crate_id = prepare_dependency(context, &path_to_lib);
 
-    add_dep(context, *context.root_crate_id(), library_crate_id, library_name.parse().unwrap());
+    let library_name = CrateName::from_str(&library.name).unwrap();
+    add_dep(context, *context.root_crate_id(), library_crate_id, library_name.clone());
 
     // TODO: Remove this code that attaches every crate to every other crate as a dependency
     let root_crate_id = context.root_crate_id();
@@ -104,7 +134,7 @@ fn add_noir_lib(context: &mut Context, library_name: &str) {
     for crate_id in other_crate_ids {
         context
             .crate_graph
-            .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
+            .add_dep(crate_id, library_name.clone(), library_crate_id)
             .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
     }
 }
