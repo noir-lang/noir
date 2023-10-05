@@ -384,6 +384,10 @@ impl Attributes {
             .any(|attribute| attribute == &SecondaryAttribute::ContractLibraryMethod)
     }
 
+    pub fn is_test_function(&self) -> bool {
+        matches!(self.function, Some(FunctionAttribute::Test(_)))
+    }
+
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
         self.secondary.iter().find_map(|attr| match attr {

@@ -1,0 +1,7 @@
+[package]
+name = "slice_remove_failure"
+type = "bin"
+authors = [""]
+compiler_version = "0.12.0"
+
+[dependencies]

@@ -4,7 +4,8 @@ import { compile } from '@noir-lang/noir_wasm';
 export const noirSourcePath = '../../noir-script/src/main.nr';
 export const nargoArtifactPath = '../../noir-script/target/noir_wasm_testing.json';
 
-export async function compileNoirSource(noir_source: string): Promise<unknown> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function compileNoirSource(noir_source: string): Promise<any> {
   console.log('Compiling Noir source...');
 
   initializeResolver((id: string) => {
@@ -14,17 +15,19 @@ export async function compileNoirSource(noir_source: string): Promise<unknown> {
 
     if (typeof source === 'undefined') {
       throw Error(`Could not resolve source for '${id}'`);
+    } else if (id !== '/main.nr') {
+      throw Error(`Unexpected id: '${id}'`);
     } else {
       return source;
     }
   });
 
   try {
-    const compiled_noir = compile({});
+    const compiled_noir = compile('main.nr');
 
     console.log('Noir source compilation done.');
 
-    return compiled_noir.circuit;
+    return compiled_noir;
   } catch (e) {
     console.log('Error while compiling:', e);
   }

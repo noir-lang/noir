@@ -1,5 +1,5 @@
 use acir::{
-    brillig::{RegisterIndex, Value},
+    brillig::{ForeignCallParam, RegisterIndex, Value},
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
         OpcodeLocation,
@@ -159,5 +159,5 @@ pub struct ForeignCallWaitInfo {
     /// An identifier interpreted by the caller process
     pub function: String,
     /// Resolved inputs to a foreign call computed in the previous steps of a Brillig VM process
-    pub inputs: Vec<Vec<Value>>,
+    pub inputs: Vec<ForeignCallParam>,
 }

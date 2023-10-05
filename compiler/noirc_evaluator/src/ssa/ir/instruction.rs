@@ -178,9 +178,7 @@ pub(crate) enum Instruction {
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
-    ///
-    /// An optional length can be provided to enable handling of dynamic slice indices.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, length: Option<ValueId> },
+    ArraySet { array: ValueId, index: ValueId, value: ValueId },
 }
 
 impl Instruction {
@@ -306,12 +304,9 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value, length } => Instruction::ArraySet {
-                array: f(*array),
-                index: f(*index),
-                value: f(*value),
-                length: length.map(f),
-            },
+            Instruction::ArraySet { array, index, value } => {
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
+            }
         }
     }
 
@@ -348,11 +343,10 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, length } => {
+            Instruction::ArraySet { array, index, value } => {
                 f(*array);
                 f(*index);
                 f(*value);
-                length.map(&mut f);
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);

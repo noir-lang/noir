@@ -97,7 +97,7 @@ impl TryFrom<&[u8]> for WitnessMap {
         let mut deflater = GzDecoder::new(bytes);
         let mut buf_d = Vec::new();
         deflater.read_to_end(&mut buf_d).map_err(|err| WitnessMapError(err.into()))?;
-        let witness_map = bincode::deserialize(buf_d.as_slice()).unwrap();
+        let witness_map = bincode::deserialize(&buf_d).unwrap();
         Ok(Self(witness_map))
     }
 }

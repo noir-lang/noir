@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/source-resolver",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "license": "MIT",
   "main": "./lib-node/index_node.js",
   "types": "./types/index_node.d.ts",

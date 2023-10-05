@@ -26,10 +26,10 @@ impl Default for Foo {
 
 trait F {
     fn f1(self) -> Field;
-    fn f2(self) -> Field { 2 };
-    fn f3(self) -> Field { 3 };
-    fn f4(self) -> Field { 4 };
-    fn f5(self) -> Field { 5 };
+    fn f2(self) -> Field { 2 }
+    fn f3(self) -> Field { 3 }
+    fn f4(self) -> Field { 4 }
+    fn f5(self) -> Field { 5 }
 }
 
 struct Bar {}

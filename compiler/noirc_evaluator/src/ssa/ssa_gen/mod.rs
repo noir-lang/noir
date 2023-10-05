@@ -12,7 +12,7 @@ use noirc_frontend::{
     BinaryOpKind,
 };
 
-use crate::ssa::ir::types::NumericType;
+use crate::ssa::ir::{instruction::Intrinsic, types::NumericType};
 
 use self::{
     context::FunctionContext,
@@ -346,7 +346,11 @@ impl<'a> FunctionContext<'a> {
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
-        self.builder.insert_constrain(is_offset_out_of_bounds, true_const, None);
+        self.builder.insert_constrain(
+            is_offset_out_of_bounds,
+            true_const,
+            Some("Index out of bounds".to_owned()),
+        );
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
@@ -496,9 +500,39 @@ impl<'a> FunctionContext<'a> {
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
-            .collect();
+            .collect::<Vec<_>>();
+
+        self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
         self.insert_call(function, arguments, &call.return_type, call.location)
+    }
+
+    fn codegen_intrinsic_call_checks(
+        &mut self,
+        function: ValueId,
+        arguments: &[ValueId],
+        location: Location,
+    ) {
+        if let Some(intrinsic) =
+            self.builder.set_location(location).get_intrinsic_from_value(function)
+        {
+            match intrinsic {
+                Intrinsic::SliceInsert => {
+                    let one = self.builder.numeric_constant(1u128, Type::field());
+                    // We add one here in the case of a slice insert as a slice insert at the length of the slice
+                    // can be converted to a slice push back
+                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+
+                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                }
+                Intrinsic::SliceRemove => {
+                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                }
+                _ => {
+                    // Do nothing as the other intrinsics do not require checks
+                }
+            }
+        }
     }
 
     /// Generate SSA for the given variable.
