@@ -128,8 +128,8 @@ yarn add @aztec/aztec.js @aztec/noir-contracts typescript @types/node
     "start": "yarn build && DEBUG='token' node ./dest/index.js"
   },
   "dependencies": {
-    "@aztec/aztec.js": "^0.7.10",
-    "@aztec/noir-contracts": "^0.7.10",
+    "@aztec/aztec.js": "^#include_aztec_version",
+    "@aztec/noir-contracts": "^#include_aztec_version",
     "@types/node": "^20.6.3",
     "typescript": "^5.2.2"
   }
