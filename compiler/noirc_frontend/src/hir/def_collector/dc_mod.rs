@@ -353,9 +353,22 @@ impl<'a> ModCollector<'a> {
                 errors.push((error.into(), self.file_id));
             }
 
+            // Add all functions that have a default implementation in the trait
+            let mut unresolved_functions = UnresolvedFunctions {
+                file_id: self.file_id,
+                functions: Vec::new(),
+                trait_id: None,
+            };
             for trait_item in &trait_definition.items {
                 match trait_item {
-                    TraitItem::Function { name, .. } => {
+                    TraitItem::Function {
+                        name,
+                        generics,
+                        parameters,
+                        return_type,
+                        where_clause,
+                        body,
+                    } => {
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [id.0.local_id.0]
                             .declare_function(name.clone(), FuncId::dummy_id())
@@ -366,6 +379,20 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        }
+                        // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
+                        if let Some(body) = body {
+                            let func_id = context.def_interner.push_empty_fn();
+
+                            let impl_method = NoirFunction::normal(FunctionDefinition::normal(
+                                name,
+                                generics,
+                                parameters,
+                                body,
+                                where_clause,
+                                return_type,
+                            ));
+                            unresolved_functions.push_fn(self.module_id, func_id, impl_method);
                         }
                     }
                     TraitItem::Constant { name, .. } => {
@@ -394,37 +421,6 @@ impl<'a> ModCollector<'a> {
                             errors.push((error.into(), self.file_id));
                         }
                     }
-                }
-            }
-
-            // Add all functions that have a default implementation in the trait
-            let mut unresolved_functions = UnresolvedFunctions {
-                file_id: self.file_id,
-                functions: Vec::new(),
-                trait_id: None,
-            };
-            for trait_item in &trait_definition.items {
-                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-                if let TraitItem::Function {
-                    name,
-                    generics,
-                    parameters,
-                    return_type,
-                    where_clause,
-                    body: Some(body),
-                } = trait_item
-                {
-                    let func_id = context.def_interner.push_empty_fn();
-
-                    let impl_method = NoirFunction::normal(FunctionDefinition::normal(
-                        name,
-                        generics,
-                        parameters,
-                        body,
-                        where_clause,
-                        return_type,
-                    ));
-                    unresolved_functions.push_fn(self.module_id, func_id, impl_method);
                 }
             }
 
