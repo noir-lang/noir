@@ -1,5 +1,13 @@
 name: Setup Nix
 description: Installs and setups Nix components
+inputs:
+  nix-cache-name:  
+    description: 'Name of the Cachix cache to use'
+    required: true
+  cachix-auth-token:  
+    description: 'Name of the Cachix cache to use'
+    required: true
+
 
 runs:
   using: composite
@@ -11,5 +19,5 @@ runs:
 
     - uses: cachix/cachix-action@v12
       with:
-        name: ${{ vars.NIX_CACHE_NAME }}
-        authToken: "${{ secrets.CACHIXAUTHTOKEN }}"
+        name: ${{ inputs.nix-cache-name }}
+        authToken: ${{ inputs.cachix-auth-token }}
