@@ -1224,10 +1224,7 @@ impl Context {
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
         for acir_var in return_acir_vars {
             if self.acir_context.is_constant(&acir_var) {
-                return Err(InternalError::ReturnConstant {
-                    location: *call_stack.last().unwrap(),
-                    call_stack: call_stack.clone(),
-                });
+                return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
             }
             self.acir_context.return_var(acir_var)?;
         }
