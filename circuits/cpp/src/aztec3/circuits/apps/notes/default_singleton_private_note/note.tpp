@@ -5,6 +5,7 @@
 #include "../../state_vars/state_var_base.hpp"
 #include "../note_interface.hpp"
 
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -19,8 +20,6 @@ using aztec3::circuits::apps::state_vars::StateVar;
 namespace aztec3::circuits::apps::notes {
 
 using aztec3::GeneratorIndex;
-
-using crypto::generators::generator_index_t;
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -62,23 +61,6 @@ typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::comp
 
     grumpkin_point const storage_slot_point = state_var->storage_slot_point;
 
-    std::vector<fr> const inputs;
-    std::vector<generator_index_t> const generators;
-
-    auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
-        if (!input) {
-            throw_or_abort("Cannot commit to a partial preimage.");
-        }
-        return std::make_pair((*input).to_field(), generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
-    };
-
-    auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
-        if (!input) {
-            throw_or_abort("Cannot commit to a partial preimage.");
-        }
-        return std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
-    };
-
     if (!note_preimage.salt) {
         note_preimage.salt = get_oracle().generate_random_element();
     }
@@ -86,12 +68,14 @@ typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::comp
     const auto& [value, owner, salt, nonce] = note_preimage;
 
     const grumpkin_point commitment_point =
-        storage_slot_point + CT::commit({
-                                 gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-                                 gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
-                                 gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-                                 gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
-                             });
+        storage_slot_point + CT::commit(
+                                 {
+                                     *value,              /*PrivateStateNoteGeneratorIndex::VALUE*/
+                                     (*owner).to_field(), /*PrivateStateNoteGeneratorIndex::OWNER*/
+                                     *salt,               /*PrivateStateNoteGeneratorIndex::SALT*/
+                                     *nonce,              /*PrivateStateNoteGeneratorIndex::NONCE*/
+                                 },
+                                 GeneratorIndex::COMMITMENT);
 
     commitment = commitment_point.x;
 

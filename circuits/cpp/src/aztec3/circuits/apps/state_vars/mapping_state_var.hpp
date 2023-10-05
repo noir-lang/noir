@@ -64,7 +64,6 @@ template <typename Builder, typename V> class MappingStateVar : public StateVar<
     V& at(std::optional<fr> const& key);
 
     static std::tuple<NT::grumpkin_point, bool> compute_slot_point_at_mapping_key(NT::fr const& start_slot,
-                                                                                  size_t level_of_container_nesting,
                                                                                   std::optional<NT::fr> const& key);
 
     std::tuple<grumpkin_point, bool> compute_slot_point_at_mapping_key(std::optional<fr> const& key);

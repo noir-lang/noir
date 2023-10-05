@@ -10,7 +10,6 @@ namespace aztec3::circuits::apps::notes {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using crypto::generators::generator_index_t;
 
 template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
     using fr = typename NCT::fr;
