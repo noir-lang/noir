@@ -17,7 +17,13 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AuthWitness, FunctionL2Logs, NotePreimage, NoteSpendingInfo, UnencryptedL2Log } from '@aztec/types';
 
-import { NoteData, toACVMWitness } from '../acvm/index.js';
+import {
+  NoteData,
+  toACVMCallContext,
+  toACVMContractDeploymentData,
+  toACVMHistoricBlockData,
+  toACVMWitness,
+} from '../acvm/index.js';
 import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { DBOracle } from './db_oracle.js';
@@ -83,22 +89,9 @@ export class ClientExecutionContext extends ViewDataOracle {
     const contractDeploymentData = this.txContext.contractDeploymentData;
 
     const fields = [
-      this.callContext.msgSender,
-      this.callContext.storageContractAddress,
-      this.callContext.portalContractAddress,
-      this.callContext.functionSelector.toField(),
-      this.callContext.isDelegateCall,
-      this.callContext.isStaticCall,
-      this.callContext.isContractDeployment,
-
-      ...this.historicBlockData.toArray(),
-
-      contractDeploymentData.deployerPublicKey.x,
-      contractDeploymentData.deployerPublicKey.y,
-      contractDeploymentData.constructorVkHash,
-      contractDeploymentData.functionTreeRoot,
-      contractDeploymentData.contractAddressSalt,
-      contractDeploymentData.portalContractAddress,
+      ...toACVMCallContext(this.callContext),
+      ...toACVMHistoricBlockData(this.historicBlockData),
+      ...toACVMContractDeploymentData(contractDeploymentData),
 
       this.txContext.chainId,
       this.txContext.version,

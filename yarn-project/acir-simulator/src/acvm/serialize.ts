@@ -2,6 +2,7 @@ import {
   CallContext,
   ContractDeploymentData,
   FunctionData,
+  GlobalVariables,
   HistoricBlockData,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
@@ -33,12 +34,16 @@ function adaptBufferSize(originalBuf: Buffer) {
  * @param value - The value to convert.
  * @returns The ACVM field.
  */
-export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number | bigint): ACVMField {
+export function toACVMField(
+  value: AztecAddress | EthAddress | Fr | Buffer | boolean | number | bigint | ACVMField,
+): ACVMField {
   let buffer;
   if (Buffer.isBuffer(value)) {
     buffer = value;
   } else if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'bigint') {
     buffer = new Fr(value).toBuffer();
+  } else if (typeof value === 'string') {
+    buffer = Fr.fromString(value).toBuffer();
   } else {
     buffer = value.toBuffer();
   }
@@ -109,6 +114,20 @@ export function toACVMHistoricBlockData(historicBlockData: HistoricBlockData): A
     toACVMField(historicBlockData.blocksTreeRoot),
     toACVMField(historicBlockData.publicDataTreeRoot),
     toACVMField(historicBlockData.globalVariablesHash),
+  ];
+}
+
+/**
+ * Converts global variables into ACVM fields
+ * @param globalVariables - The global variables object to convert.
+ * @returns The ACVM fields
+ */
+export function toACVMGlobalVariables(globalVariables: GlobalVariables): ACVMField[] {
+  return [
+    toACVMField(globalVariables.chainId),
+    toACVMField(globalVariables.version),
+    toACVMField(globalVariables.blockNumber),
+    toACVMField(globalVariables.timestamp),
   ];
 }
 

@@ -5,7 +5,13 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { FunctionL2Logs, UnencryptedL2Log } from '@aztec/types';
 
-import { TypedOracle, toACVMWitness } from '../acvm/index.js';
+import {
+  TypedOracle,
+  toACVMCallContext,
+  toACVMGlobalVariables,
+  toACVMHistoricBlockData,
+  toACVMWitness,
+} from '../acvm/index.js';
 import { PackedArgsCache, SideEffectCounter } from '../common/index.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
@@ -50,20 +56,9 @@ export class PublicExecutionContext extends TypedOracle {
   public getInitialWitness(witnessStartIndex = 1) {
     const { callContext, args } = this.execution;
     const fields = [
-      callContext.msgSender,
-      callContext.storageContractAddress,
-      callContext.portalContractAddress,
-      callContext.functionSelector.toField(),
-      callContext.isDelegateCall,
-      callContext.isStaticCall,
-      callContext.isContractDeployment,
-
-      ...this.historicBlockData.toArray(),
-
-      this.globalVariables.chainId,
-      this.globalVariables.version,
-      this.globalVariables.blockNumber,
-      this.globalVariables.timestamp,
+      ...toACVMCallContext(callContext),
+      ...toACVMHistoricBlockData(this.historicBlockData),
+      ...toACVMGlobalVariables(this.globalVariables),
 
       ...args,
     ];
