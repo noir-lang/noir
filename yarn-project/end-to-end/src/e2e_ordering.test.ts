@@ -1,7 +1,8 @@
 // Test suite for testing proper ordering of side effects
 import { Wallet } from '@aztec/aztec.js';
-import { Fr, FunctionSelector } from '@aztec/circuits.js';
+import { FunctionSelector } from '@aztec/circuits.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { Fr } from '@aztec/foundation/fields';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
 import { L2BlockL2Logs, PXE, TxStatus, UnencryptedL2Log } from '@aztec/types';

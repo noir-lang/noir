@@ -1,9 +1,9 @@
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import { privateKernelDummyPreviousKernel } from '../../cbind/circuits.gen.js';
 import { CircuitsWasm, VK_TREE_HEIGHT, makeTuple } from '../../index.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
-import { Fr } from '../index.js';
 import { Proof, makeEmptyProof } from '../proof.js';
 import { UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';

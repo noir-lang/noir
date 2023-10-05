@@ -1,6 +1,6 @@
-import { Fr } from '@aztec/circuits.js';
 import { Ecdsa } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress } from '@aztec/types';
 
 import EcdsaAccountContractAbi from '../../abis/ecdsa_account_contract.json' assert { type: 'json' };

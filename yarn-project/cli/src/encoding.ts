@@ -1,5 +1,5 @@
-import { Fr } from '@aztec/aztec.js';
 import { ABIParameter, ABIType, StructType } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Parses a hex string into an ABI struct type.

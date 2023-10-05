@@ -6,7 +6,7 @@ import {
   generatePublicKey,
   getSchnorrAccount,
 } from '@aztec/aztec.js';
-import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/types';
 import { AztecNode, PXE, TxStatus } from '@aztec/types';

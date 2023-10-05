@@ -1,7 +1,7 @@
 import { AccountWallet, AztecAddress, computeAuthWitMessageHash } from '@aztec/aztec.js';
-import { Fr } from '@aztec/circuits.js';
 import { deployL1Contract } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContract } from '@aztec/noir-contracts/types';

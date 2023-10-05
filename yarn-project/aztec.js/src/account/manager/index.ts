@@ -1,4 +1,5 @@
-import { Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
 import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/types';
 
 import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../../index.js';

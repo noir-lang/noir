@@ -1,6 +1,6 @@
 import { AccountWallet, AztecAddress, computeAuthWitMessageHash } from '@aztec/aztec.js';
-import { Fr } from '@aztec/circuits.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';

@@ -1,5 +1,6 @@
 import { CompleteAddress, NotePreimage, TxHash, Wallet } from '@aztec/aztec.js';
-import { Fr, MAX_NEW_COMMITMENTS_PER_CALL } from '@aztec/circuits.js';
+import { MAX_NEW_COMMITMENTS_PER_CALL } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
 

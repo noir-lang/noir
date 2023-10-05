@@ -1,6 +1,6 @@
-import { Fr } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
 import SchnorrAccountContractAbi from '../../abis/schnorr_account_contract.json' assert { type: 'json' };
