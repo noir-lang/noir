@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{FuncId, StmtId, TraitId, TypeAliasId},
+    node_interner::{StmtId, TraitId, TypeAliasId},
     parser::SubModule,
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, ParsedModule, TraitImplItem, TraitItem, TypeImpl,
@@ -369,9 +369,10 @@ impl<'a> ModCollector<'a> {
                         where_clause,
                         body,
                     } => {
+                        let func_id = context.def_interner.push_empty_fn();
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [id.0.local_id.0]
-                            .declare_function(name.clone(), FuncId::dummy_id())
+                            .declare_function(name.clone(), func_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedFunction,
@@ -382,8 +383,6 @@ impl<'a> ModCollector<'a> {
                         }
                         // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                         if let Some(body) = body {
-                            let func_id = context.def_interner.push_empty_fn();
-
                             let impl_method = NoirFunction::normal(FunctionDefinition::normal(
                                 name,
                                 generics,
