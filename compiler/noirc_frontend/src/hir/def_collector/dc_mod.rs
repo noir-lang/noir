@@ -370,28 +370,36 @@ impl<'a> ModCollector<'a> {
                         body,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
-                        if let Err((first_def, second_def)) = self.def_collector.def_map.modules
-                            [id.0.local_id.0]
+                        match self.def_collector.def_map.modules[id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
                         {
-                            let error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedFunction,
-                                first_def,
-                                second_def,
-                            };
-                            errors.push((error.into(), self.file_id));
-                        }
-                        // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-                        if let Some(body) = body {
-                            let impl_method = NoirFunction::normal(FunctionDefinition::normal(
-                                name,
-                                generics,
-                                parameters,
-                                body,
-                                where_clause,
-                                return_type,
-                            ));
-                            unresolved_functions.push_fn(self.module_id, func_id, impl_method);
+                            Ok(()) => {
+                                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
+                                if let Some(body) = body {
+                                    let impl_method =
+                                        NoirFunction::normal(FunctionDefinition::normal(
+                                            name,
+                                            generics,
+                                            parameters,
+                                            body,
+                                            where_clause,
+                                            return_type,
+                                        ));
+                                    unresolved_functions.push_fn(
+                                        self.module_id,
+                                        func_id,
+                                        impl_method,
+                                    );
+                                }
+                            }
+                            Err((first_def, second_def)) => {
+                                let error = DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::TraitAssociatedFunction,
+                                    first_def,
+                                    second_def,
+                                };
+                                errors.push((error.into(), self.file_id));
+                            }
                         }
                     }
                     TraitItem::Constant { name, .. } => {
