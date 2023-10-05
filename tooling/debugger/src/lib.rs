@@ -1,7 +1,7 @@
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
-use acvm::acir::circuit::OpcodeLocation;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::errors::ExecutionError;
@@ -11,7 +11,7 @@ use nargo::ops::ForeignCallExecutor;
 
 use thiserror::Error;
 
-use easy_repl::{Repl, CommandStatus, command, Critical};
+use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::RefCell;
 
 enum SolveResult {
@@ -79,7 +79,8 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 }))
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let foreign_call_result = self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
+                let foreign_call_result =
+                    self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
                 self.acvm.as_mut().unwrap().resolve_pending_foreign_call(foreign_call_result);
                 Ok(SolveResult::Ok)
             }
@@ -104,7 +105,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                     println!("At {}:{start}-{end}", file.path.as_path().display());
                     println!("\n{}\n", &source[start..end]);
                 }
-            },
+            }
             None => {}
         }
     }
@@ -113,7 +114,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         loop {
             match self.step_opcode()? {
                 SolveResult::Done => break,
-                SolveResult::Ok => {},
+                SolveResult::Ok => {}
             }
         }
         Ok(SolveResult::Done)
@@ -132,7 +133,7 @@ impl From<nargo::errors::NargoError> for DebuggingError {
 fn map_command_status(result: SolveResult) -> CommandStatus {
     match result {
         SolveResult::Ok => CommandStatus::Done,
-        SolveResult::Done => CommandStatus::Quit
+        SolveResult::Done => CommandStatus::Quit,
     }
 }
 
@@ -168,22 +169,28 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     };
 
     let mut repl = Repl::builder()
-        .add("s", command! {
-            "step to the next opcode",
-            () => || {
-                let result = ref_step.borrow_mut().step_opcode().into_critical()?;
-                ref_step.borrow().show_current_vm_status();
-                handle_result(result)
-            }
-        })
-        .add("c", command! {
-            "continue execution until the end of the program",
-            () => || {
-                println!("(Continuing execution...)");
-                let result = ref_cont.borrow_mut().cont().into_critical()?;
-                handle_result(result)
-            }
-        })
+        .add(
+            "s",
+            command! {
+                "step to the next opcode",
+                () => || {
+                    let result = ref_step.borrow_mut().step_opcode().into_critical()?;
+                    ref_step.borrow().show_current_vm_status();
+                    handle_result(result)
+                }
+            },
+        )
+        .add(
+            "c",
+            command! {
+                "continue execution until the end of the program",
+                () => || {
+                    println!("(Continuing execution...)");
+                    let result = ref_cont.borrow_mut().cont().into_critical()?;
+                    handle_result(result)
+                }
+            },
+        )
         .build()
         .expect("Failed to initialize debugger repl");
 

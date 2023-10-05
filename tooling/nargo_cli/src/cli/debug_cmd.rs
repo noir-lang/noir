@@ -1,9 +1,9 @@
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
+use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
-use nargo::artifacts::debug::DebugArtifact;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
@@ -116,8 +116,6 @@ pub(crate) fn debug_program(
     );
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
-        Err(err) => {
-            Err(crate::errors::CliError::NargoError(err))
-        }
+        Err(err) => Err(crate::errors::CliError::NargoError(err)),
     }
 }
