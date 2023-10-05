@@ -25,7 +25,9 @@ impl FmtVisitor<'_> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
-            // TODO:
+            ExpressionKind::Cast(cast) => {
+                format!("{} as {}", self.format_expr(cast.lhs), cast.r#type)
+            }
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
     }
