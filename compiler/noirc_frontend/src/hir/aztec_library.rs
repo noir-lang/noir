@@ -16,12 +16,12 @@ use crate::{
     Visibility,
 };
 use crate::{
-    FunctionDefinition, NoirStruct, PrefixExpression, Shared, Signedness, StructType, Type,
-    TypeBinding, TypeImpl, TypeVariableKind, UnaryOp,
+    FunctionDefinition, NoirStruct, PrefixExpression, Signedness, StructType, Type, TypeImpl,
+    UnaryOp,
 };
 use fm::FileId;
 
-use super::ModuleDefId;
+use super::def_map::ModuleDefId;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -373,7 +373,6 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
             if signature == SIGNATURE_PLACEHOLDER =>
         {
             let selector_literal_id = first_arg_id;
-            let compute_selector_call_id = compute_selector_expression.func;
 
             let structure = interner.get_struct(struct_id);
             let signature = event_signature(&structure.borrow());
@@ -385,17 +384,6 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
             interner.push_expr_type(
                 selector_literal_id,
                 Type::String(Box::new(Type::Constant(signature.len() as u64))),
-            );
-            interner.push_expr_type(
-                &compute_selector_call_id,
-                Type::Function(
-                    vec![Type::String(Box::new(Type::TypeVariable(
-                        Shared::new(TypeBinding::Bound(Type::Constant(signature.len() as u64))),
-                        TypeVariableKind::Normal,
-                    )))],
-                    Box::new(Type::FieldElement),
-                    Box::new(Type::Unit),
-                ),
             );
         }
         _ => unreachable!("Signature placeholder literal does not match"),
@@ -431,7 +419,7 @@ fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
     let selector_fun_body = BlockExpression(vec![Statement::Expression(call(
-        variable_path(chained_path!("aztec", "oracle", "compute_selector", "compute_selector")),
+        variable_path(chained_path!("aztec", "selector", "compute_selector")),
         vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
     ))]);
 
