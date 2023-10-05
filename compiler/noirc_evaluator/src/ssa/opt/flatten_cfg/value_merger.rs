@@ -205,8 +205,8 @@ impl<'a> ValueMerger<'a> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_usize {
-                        println!("current array: {array}");
-                        dbg!(&self.dfg[array]);
+                        // println!("current array: {array}");
+                        // dbg!(&self.dfg[array]);
                         // Do I need to check the dfg for the internal elements of the slice
                         // to match which one we are on? 
                         // Am I going to have to do something similar to get_slice_length or can I store it 
@@ -221,6 +221,7 @@ impl<'a> ValueMerger<'a> {
                         //         panic!("ahhh got something other than array");
                         //     }
                         // }
+                        dbg!(index_usize);
                         self.make_slice_dummy_data(element_type, len)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
@@ -351,13 +352,16 @@ impl<'a> ValueMerger<'a> {
                 self.dfg.make_array(array, typ.clone())
             }
             Type::Slice(element_types) => {
-                let mut array = im::Vector::new();
-                for _ in 0..len {
-                    for typ in element_types.iter() {
-                        array.push_back(self.make_slice_dummy_data(typ, len));
-                    }
-                }
-                self.dfg.make_array(array, typ.clone())
+                // let mut array = im::Vector::new();
+                // dbg!(len);
+                // for _ in 0..len {
+                //     for typ in element_types.iter() {
+                //         array.push_back(self.make_slice_dummy_data(typ, len));
+                //     }
+                // }
+                // self.dfg.make_array(array, typ.clone())
+                let zero = FieldElement::zero();
+                self.dfg.make_constant(zero, Type::field())
                 // dbg!(self.slice_sizes.clone());
                 // unreachable!("ICE: Slices of slice is unsupported")
             }

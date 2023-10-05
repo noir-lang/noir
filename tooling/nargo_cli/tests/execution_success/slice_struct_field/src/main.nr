@@ -93,16 +93,35 @@ fn main(y : pub Field) {
 
     // Check dynamic array set 
     if y != 2 {
+        // dep::std::println("inside if case");
+        // dep::std::println(x[y].a);
         x[y].a = 50;
+        // dep::std::println(x[y].a);
     } else {
         x[y].a = 100;
     }
     assert(x[3].a == 50);
 
+    // dep::std::println(x[3].a);
+    // TODO: get this assert to pass
+
     // assert(struct_slice())
 
     // for i in 0..4 {
     //     dep::std::println(x[i].a);
+    //     if i < 2 as u64 {
+    //         let struct_slice = x[i].b;
+    //         for i in 0..4 {
+    //             dep::std::println(struct_slice[i]);
+
+    //         }
+    //     } else {
+    //         let struct_slice = x[i].b;
+    //         for i in 0..3 {
+    //             dep::std::println(struct_slice[i]);
+    //         } 
+    //     }
+    //     dep::std::println(x[i].bar.inner);
     // }
 
     // dep::std::println(x[y - 3].a);

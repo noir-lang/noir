@@ -338,8 +338,8 @@ impl Context {
     /// of non-homogenous arrays.
     fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
         if let Some(block_id) = self.internal_memory_blocks.get(value) {
-            dbg!("already seen internal mem block");
-            dbg!(block_id.0);
+            // dbg!("already seen internal mem block");
+            // dbg!(block_id.0);
             return *block_id;
         }
         let block_id = BlockId(self.max_block_id);
@@ -712,8 +712,8 @@ impl Context {
         store_value: Option<ValueId>,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let (array_id, array_typ, block_id) = self.check_array_is_initialized(array, dfg)?;
-        dbg!("convert_array_operation_inputs");
-        dbg!(array_id);
+        // dbg!("convert_array_operation_inputs");
+        // dbg!(array_id);
         let index_var = self.convert_numeric_value(index, dfg)?;
         let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
@@ -731,15 +731,25 @@ impl Context {
 
                 let mut dummy_predicate_index = predicate_index;
                 dbg!("about to construct dummy value");
-                dbg!(store_type.clone());
                 let dummy = if !store_type.contains_slice_element() {
                     self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?
                 } else {
-                    // self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?
                     let flat_slice_size = self.flattened_slice_size(store, dfg);
-                    dbg!(flat_slice_size);
+                    // This forces us to read the entire array
+                    // Our store_value and dummy value will match in size if we have flatten just use the size of the array
+                    // to construct its dummy slice 
                     self.array_get_value_with_slices(&store_type, block_id, &mut dummy_predicate_index, Some(flat_slice_size))?
                 };
+
+                // let mut temp_predicate_index = predicate_index;
+                // let new_store_value = if store_type.contains_slice_element() {
+                //     store_value
+                // } else {
+                //     let flat_slice_size = self.flattened_slice_size(store, dfg);
+                //     self.array_get_value_with_slices(&store_type, block_id, &mut temp_predicate_index, Some(flat_slice_size))?
+                // };
+                // Some(self.convert_array_set_store_value(&store_value, &dummy)?)
+
                 // We must setup the dummy value to match the type of the value we wish to store
                 // let dummy =
                     // self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
@@ -817,17 +827,17 @@ impl Context {
         // dbg!(res_typ.clone());
 
         let flat_slice_size = self.flattened_slice_size(array_id, dfg);
-        dbg!(flat_slice_size);
+        // dbg!(flat_slice_size);
         // let acir_val = self.convert_value(results[0], dfg);
         // dbg!(self.flattened_slice_size(results[0], dfg));
         // dbg!(res_typ.contains_slice_element());
         let new_value = if !res_typ.contains_slice_element() {
             // dbg!("got here")
             // dbg!(res_typ.clone());
-            dbg!("call array_get_value");
+            // dbg!("call array_get_value");
             self.array_get_value(&res_typ, block_id, &mut var_index)?
         } else {
-            dbg!("call array_get_value_with_slices");
+            // dbg!("call array_get_value_with_slices");
             self.array_get_value_with_slices(&res_typ, block_id, &mut var_index, Some(flat_slice_size))?
         };
         self.define_result(dfg, instruction, new_value.clone());
@@ -1004,10 +1014,18 @@ impl Context {
         } else {
             // Initialize the new array with the values from the old array
             result_block_id = self.block_id(result_id);
+            dbg!(block_id.0);
+            dbg!(result_block_id.0);
             self.copy_dynamic_array(block_id, result_block_id, array_len)?;
         }
 
-        self.array_set_value(store_value, result_block_id, &mut var_index)?;
+        if !array_typ.contains_slice_element() {
+            dbg!("call array_set_value");
+            self.array_set_value(store_value, result_block_id, &mut var_index)?;
+        } else {
+            dbg!("call array_set_value_with_slices");
+            self.array_set_value_with_slices(store_value, result_block_id, &mut var_index, array_len)?;
+        }
 
         // dbg!("just called array_set_value");
         // println!("array_id: {array_id}");
@@ -1050,6 +1068,57 @@ impl Context {
         Ok(())
     }
 
+    fn array_set_value_with_slices(
+        &mut self,
+        value: AcirValue,
+        block_id: BlockId,
+        var_index: &mut AcirVar,
+        value_size: usize,
+    ) -> Result<(), RuntimeError> {
+        // dbg!(block_id.0);
+        // if block_id.0 == 6 {
+            // dbg!(value_size);
+        // }
+        let one = self.acir_context.add_constant(FieldElement::one());
+        match value {
+            AcirValue::Var(store_var, _) => {
+                // This is necessary for accurately fetching a slice value
+                // We read the entire array if there is a slice, so we need to check if we are going
+                // out of bounds
+                let flat_slice_size_var =
+                self.acir_context.add_constant(FieldElement::from(value_size as u128));
+                let predicate = self.acir_context.less_than_var(
+                    *var_index,
+                    flat_slice_size_var,
+                    32,
+                    self.current_side_effects_enabled_var,
+                )?;
+                let true_pred = self.acir_context.mul_var(*var_index, predicate)?;
+                // let one = self.acir_context.add_constant(FieldElement::one());
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                let false_pred = self.acir_context.mul_var(not_pred, zero)?;
+                *var_index = self.acir_context.add_var(true_pred, false_pred)?;
+
+                // Write the new value into the new array at the specified index
+                self.acir_context.write_to_memory(block_id, var_index, &store_var)?;
+                // Incremement the var_index in case of a nested array
+                *var_index = self.acir_context.add_var(*var_index, one)?;
+            }
+            AcirValue::Array(values) => {
+                dbg!(values.len());
+                for value in values {
+                    self.array_set_value_with_slices(value, block_id, var_index, value_size)?;
+                    // self.array_set_value(value, block_id, var_index)?;
+                }
+            }
+            AcirValue::DynamicArray(_) => {
+                unimplemented!("ICE: setting a dynamic array not supported");
+            }
+        }
+        Ok(())
+    }
+
     fn check_array_is_initialized(
         &mut self,
         array: ValueId,
@@ -1082,7 +1151,7 @@ impl Context {
                 Value::Instruction { .. } => {
                     // dbg!("got instr for array to init");
                     let value = self.convert_value(array_id, dfg);
-                    dbg!(value.clone()); 
+                    // dbg!(value.clone()); 
                     match &value {
                         AcirValue::Array(values) => {
                             self.initialize_array(block_id, values.len(), Some(value))?;
@@ -1131,27 +1200,6 @@ impl Context {
         let mut flat_elem_type_sizes = Vec::new();
         flat_elem_type_sizes.push(0);
         match array_typ {
-            // Type::Array(element_types, _) => {
-            //     // dbg!("trying to get flat array size");
-            //     // TODO: clean this whole method up to better interop slices and arrays
-            //     for (i, typ) in element_types.as_ref().iter().enumerate() {
-            //         if !typ.contains_slice_element() {
-            //             flat_elem_type_sizes.push(typ.flattened_size() + flat_elem_type_sizes[i]);
-            //         } else {
-            //             match &dfg[array_id] {
-            //                 Value::Array { array, .. } => {
-            //                     flat_elem_type_sizes.push(
-            //                         self.flattened_slice_size(array[i], dfg) + flat_elem_type_sizes[i],
-            //                     );
-            //                 }
-            //                 _ => {
-            //                     panic!("ICE: ahhh unexpected");
-            //                 }
-            //             }
-            //         }
-            //         // flat_elem_type_sizes.push(typ.flattened_size() + flat_elem_type_sizes[i]);
-            //     }
-            // }
             Type::Array(_, _) | Type::Slice(_) => {
                 // dbg!(&dfg[array_id]);
                 match &dfg[array_id] {
@@ -1214,7 +1262,7 @@ impl Context {
                             }
                             AcirValue::Array(values) => {
                                 // TODO: update this
-                                dbg!("GOT HERE AcirValue::Array");
+                                // dbg!("GOT HERE AcirValue::Array");
                                 // for i in 0..element_types.len() {
                                     // flat_elem_type_sizes.push(
                                     //     Self::flattened_value_size(&values[i])
@@ -1249,69 +1297,6 @@ impl Context {
                     }
                 };
             }
-            // Type::Slice(element_types) => {
-            //     match &dfg[array_id] {
-            //         Value::Array { array, .. } => {
-            //             for i in 0..element_types.len() {
-            //                 flat_elem_type_sizes.push(
-            //                     self.flattened_slice_size(array[i], dfg) + flat_elem_type_sizes[i],
-            //                 );
-            //             }
-            //         }
-            //         Value::Instruction { .. } => {
-            //             // An instruction representing the slice means it has been processed previously during ACIR gen.
-            //             // Use the previously defined result of an array operation to fetch the internal type information.
-            //             let array_acir_value = self.convert_value(array_id, dfg);
-            //             match array_acir_value {
-            //                 AcirValue::DynamicArray(AcirDynamicArray {
-            //                     element_type_sizes: inner_elem_type_sizes,
-            //                     ..
-            //                 }) => {
-            //                     if self.initialized_arrays.contains(&inner_elem_type_sizes) {
-            //                         self.copy_dynamic_array(
-            //                             inner_elem_type_sizes,
-            //                             element_type_sizes,
-            //                             element_types.len() + 1,
-            //                         )?;
-            //                         return Ok(element_type_sizes);
-            //                     } else {
-            //                         return Err(InternalError::General {
-            //                             message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
-            //                             call_stack: self.acir_context.get_call_stack(),
-            //                         }
-            //                         .into());
-            //                     }
-            //                 }
-            //                 AcirValue::Array(values) => {
-            //                     for i in 0..element_types.len() {
-            //                         flat_elem_type_sizes.push(
-            //                             Self::flattened_value_size(&values[i])
-            //                                 + flat_elem_type_sizes[i],
-            //                         );
-            //                     }
-            //                 }
-            //                 _ => {
-            //                     return Err(InternalError::UnExpected {
-            //                         expected: "AcirValue::DynamicArray or AcirValue::Array"
-            //                             .to_owned(),
-            //                         found: format!("{:?}", array_acir_value),
-            //                         call_stack: self.acir_context.get_call_stack(),
-            //                     }
-            //                     .into())
-            //                 }
-            //             }
-            //         }
-            //         _ => {
-            //             return Err(InternalError::UnExpected {
-            //                 expected: "array or instruction".to_owned(),
-            //                 found: format!("{:?}", &dfg[array_id]),
-            //                 call_stack: self.acir_context.get_call_stack(),
-            //             }
-            //             .into())
-            //         }
-            //     };
-            // }
-            
             _ => {
                 return Err(InternalError::UnExpected {
                     expected: "array or slice".to_owned(),

@@ -1,3 +1,4 @@
+use acvm::acir::circuit::Opcode;
 use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 
@@ -97,6 +98,8 @@ pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
+    // let only_mem_ops = compiled_program.circuit.opcodes.clone().into_iter().filter(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })).collect::<Vec<_>>();
+    // dbg!(only_mem_ops.clone());
     #[allow(deprecated)]
     let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
 
