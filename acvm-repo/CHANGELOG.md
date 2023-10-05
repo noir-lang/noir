@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0](https://github.com/noir-lang/noir/compare/v0.27.4...v0.28.0) (2023-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Maintain shape of foreign call arguments ([#2935](https://github.com/noir-lang/noir/issues/2935))
+
+### Features
+
+* **acvm_js:** Export black box solver functions ([#2812](https://github.com/noir-lang/noir/issues/2812)) ([da8a98e](https://github.com/noir-lang/noir/commit/da8a98ed312fe69cb0bdb8f9d0a70ee7a981398f))
+* Maintain shape of foreign call arguments ([#2935](https://github.com/noir-lang/noir/issues/2935)) ([f7869e6](https://github.com/noir-lang/noir/commit/f7869e6fb492b617e776e538ac4babfa56261d26))
+
+
+### Bug Fixes
+
+* **acvm:** Return false rather than panicking on invalid ECDSA signatures ([#2783](https://github.com/noir-lang/noir/issues/2783)) ([155abc0](https://github.com/noir-lang/noir/commit/155abc0d99fff41c79163c16bf297d41e5dff0fa))
+
 ## [0.27.4](https://github.com/noir-lang/noir/compare/v0.27.3...v0.27.4) (2023-09-28)
 
 

@@ -115,6 +115,9 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+
+    // For trait implementation functions, this is their self type and trait they belong to
+    func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -364,6 +367,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
+            func_id_to_trait: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
@@ -508,6 +512,19 @@ impl NodeInterner {
         }
     }
 
+    /// Updates the interned expression corresponding to `expr_id`
+    pub fn update_expression(&mut self, expr_id: ExprId, f: impl FnOnce(&mut HirExpression)) {
+        let def =
+            self.nodes.get_mut(expr_id.0).expect("ice: all expression ids should have definitions");
+
+        match def {
+            Node::Expression(expr) => f(expr),
+            _ => {
+                panic!("ice: all expression ids should correspond to a expression in the interner")
+            }
+        }
+    }
+
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);
@@ -626,6 +643,14 @@ impl NodeInterner {
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
         self.push_definition(name, false, DefinitionKind::Function(func))
+    }
+
+    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
+        self.func_id_to_trait.insert(func, (self_type, trait_id));
+    }
+
+    pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {
+        self.func_id_to_trait.get(func).cloned()
     }
 
     /// Returns the visibility of the given function.

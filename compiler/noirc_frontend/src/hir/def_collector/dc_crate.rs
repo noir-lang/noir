@@ -35,6 +35,7 @@ use std::vec;
 pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
+    pub trait_id: Option<TraitId>,
 }
 
 impl UnresolvedFunctions {
@@ -484,7 +485,9 @@ fn collect_trait_impl_methods(
             errors.push((error.into(), trait_impl.file_id));
         }
     }
+
     trait_impl.methods.functions = ordered_methods;
+    trait_impl.methods.trait_id = Some(trait_id);
     errors
 }
 
@@ -992,6 +995,12 @@ fn resolve_trait_impls(
             errors,
         );
 
+        if let Some(trait_id) = maybe_trait_id {
+            for (_, func) in &impl_methods {
+                interner.set_function_trait(*func, self_type.clone(), trait_id);
+            }
+        }
+
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
         new_resolver.set_self_type(Some(self_type.clone()));
@@ -1155,6 +1164,7 @@ fn resolve_function_set(
         // TypeVariables for the same generic, causing it to instantiate incorrectly.
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
+        resolver.set_trait_id(unresolved_functions.trait_id);
 
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);

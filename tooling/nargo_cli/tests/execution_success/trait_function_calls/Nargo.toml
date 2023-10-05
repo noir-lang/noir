@@ -1,0 +1,7 @@
+[package]
+name = "trait_function_calls"
+type = "bin"
+authors = [""]
+compiler_version = "0.15.0"
+
+[dependencies]

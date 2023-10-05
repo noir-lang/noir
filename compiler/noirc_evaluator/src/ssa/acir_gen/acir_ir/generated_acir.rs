@@ -440,10 +440,9 @@ impl GeneratedAcir {
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        let rhs_is_zero = self.is_equal(&Expression::zero(), rhs);
-        let rhs_is_not_zero = &self.mul_with_witness(&rhs_is_zero.into(), predicate)
-            - &self.mul_with_witness(&Expression::zero(), predicate);
-        self.push_opcode(AcirOpcode::Arithmetic(rhs_is_not_zero));
+        let rhs_is_zero = self.is_zero(rhs);
+        let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
+        self.assert_is_zero(rhs_is_not_zero);
 
         // maximum bit size for q and for [r and rhs]
         let mut max_q_bits = max_bit_size;
@@ -649,23 +648,26 @@ impl GeneratedAcir {
     /// Returns a `Witness` that is constrained to be:
     /// - `1` if `lhs == rhs`
     /// - `0` otherwise
+    pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
+        let t = lhs - rhs;
+
+        self.is_zero(&t)
+    }
+
+    /// Returns a `Witness` that is constrained to be:
+    /// - `1` if `t == 0`
+    /// - `0` otherwise
     ///
-    /// Intuition: the equality of two Expressions is linked to whether
-    /// their difference has an inverse; `a == b` implies that `a - b == 0`
-    /// which implies that a - b has no inverse. So if two variables are equal,
-    /// their difference will have no inverse.
+    /// # Proof
     ///
-    /// First, lets create a new variable that is equal to the difference
-    /// of the two expressions: `t = lhs - rhs` (constraint has been applied)
-    ///
-    /// Next lets create a new variable `y` which will be the Witness that we will ultimately
-    /// return indicating whether `lhs == rhs`.
+    /// First, let's create a new variable `y` which will be the Witness that we will ultimately
+    /// return indicating whether `t == 0`.
     /// Note: During this process we need to apply constraints that ensure that it is a boolean.
     /// But right now with no constraints applied to it, it is essentially a free variable.
     ///
     /// Next we apply the following constraint `y * t == 0`.
     /// This implies that either `y` or `t` or both is `0`.
-    /// - If `t == 0`, then this means that `lhs == rhs`.
+    /// - If `t == 0`, then by definition `t == 0`.
     /// - If `y == 0`, this does not mean anything at this point in time, due to it having no
     /// constraints.
     ///
@@ -673,44 +675,46 @@ impl GeneratedAcir {
     /// This along with the previous `y * t == 0` constraint means that
     /// `y` or `t` needs to be zero, but they both cannot be zero.
     ///
-    /// This equation however falls short when lhs != rhs because then `t`
+    /// This equation however falls short when `t != 0` because then `t`
     /// may not be `1`. If `t` is non-zero, then `y` is also non-zero due to
     /// `y == 1 - t` and the equation `y * t == 0` fails.  
     ///
     /// To fix, we introduce another free variable called `z` and apply the following
     /// constraint instead: `y == 1 - t * z`.
     ///
-    /// When `lhs == rhs`, `t` is `0` and so `y` is `1`.
-    /// When `lhs != rhs`, `t` is non-zero, however the prover can set `z = 1/t`
-    /// which will make `y = 1 - t * 1/t = 0`.
+    /// When `t == 0`, `y` is `1`.
+    /// When `t != 0`, the prover can set `z = 1/t` which will make `y = 1 - t * 1/t = 0`.
     ///
-    /// We now arrive at the conclusion that when `lhs == rhs`, `y` is `1` and when
-    /// `lhs != rhs`, then `y` is `0`.
+    /// We now arrive at the conclusion that when `t == 0`, `y` is `1` and when
+    /// `t != 0`, then `y` is `0`.
     ///  
-    /// Bringing it all together, We introduce three variables `y`, `t` and `z`,
+    /// Bringing it all together, We introduce two variables `y` and `z`,
     /// With the following equations:
-    /// - `t == lhs - rhs`
     /// - `y == 1 - tz` (`z` is a value that is chosen to be the inverse of `t` by the prover)
     /// - `y * t == 0`
     ///
     /// Lets convince ourselves that the prover cannot prove an untrue statement.
     ///
-    /// Assume that `lhs == rhs`, can the prover return `y == 0`?
+    /// ---
+    /// Assume that `t == 0`, can the prover return `y == 0`?
     ///
-    /// When `lhs == rhs`, `t` is 0. There is no way to make `y` be zero
-    /// since `y = 1 - 0 * z = 1`.
+    /// When `t == 0`, there is no way to make `y` be zero since `y = 1 - 0 * z = 1`.
     ///
-    /// Assume that `lhs != rhs`, can the prover return `y == 1`?
+    /// ---
+    /// Assume that `t != 0`, can the prover return `y == 1`?
     ///
-    /// When `lhs != rhs`, then `t` is non-zero.
     /// By setting `z` to be `0`, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
-    pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
-        let t = lhs - rhs;
-        // We avoid passing the expression to `self.brillig_inverse` directly because we need
-        // the `Witness` representation for constructing `y_is_boolean_constraint`.
-        let t_witness = self.get_or_create_witness(&t);
+    fn is_zero(&mut self, t_expr: &Expression) -> Witness {
+        // We're checking for equality with zero so we can negate the expression without changing the result.
+        // This is useful as it will sometimes allow us to simplify an expression down to a witness.
+        let t_witness = if let Some(witness) = t_expr.to_witness() {
+            witness
+        } else {
+            let negated_expr = t_expr * -FieldElement::one();
+            self.get_or_create_witness(&negated_expr)
+        };
 
         // Call the inversion directive, since we do not apply a constraint
         // the prover can choose anything here.

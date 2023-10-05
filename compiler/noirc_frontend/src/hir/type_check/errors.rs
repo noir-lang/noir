@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::BinaryOpKind;
 use crate::FunctionReturnType;
 use crate::Signedness;
 
@@ -23,8 +24,8 @@ pub enum Source {
     StringLen,
     #[error("Comparison")]
     Comparison,
-    #[error("BinOp")]
-    BinOp,
+    #[error("{0}")]
+    BinOp(BinaryOpKind),
     #[error("Return")]
     Return(FunctionReturnType, Span),
 }
@@ -218,7 +219,7 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
-                    Source::BinOp => format!("Unsupported types for binary operation: {expected} and {actual}"),
+                    Source::BinOp(kind) => format!("Unsupported types for operator `{kind}`: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
                             FunctionReturnType::Default(span) => span,
