@@ -15,7 +15,7 @@ contract TokenBridge {
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
         types::address::{AztecAddress, EthereumAddress},
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
     };
 
     use crate::token_interface::Token;

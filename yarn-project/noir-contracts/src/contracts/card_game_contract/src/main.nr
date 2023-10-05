@@ -30,7 +30,7 @@ contract CardGame {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        oracle::compute_selector::compute_selector
+        selector::compute_selector
     };
 
     use crate::cards::{

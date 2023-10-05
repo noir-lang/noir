@@ -13,7 +13,7 @@ contract Benchmarking {
     use dep::aztec::{
         context::{Context},
         note::note_getter_options::NoteGetterOptions,
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
         log::emit_unencrypted_log,
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},

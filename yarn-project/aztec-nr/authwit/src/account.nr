@@ -2,7 +2,7 @@ mod entrypoint;
 mod auth;
 
 use dep::aztec::context::{PrivateContext, PublicContext, Context};
-use dep::aztec::oracle::compute_selector::compute_selector;
+use dep::aztec::selector::compute_selector;
 use dep::aztec::state_vars::{map::Map, public_state::PublicState};
 use dep::aztec::types::type_serialization::bool_serialization::{BoolSerializationMethods,BOOL_SERIALIZED_LEN};
 

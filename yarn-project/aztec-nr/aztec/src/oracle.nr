@@ -15,4 +15,3 @@ mod public_call;
 mod notes;
 mod storage;
 mod logs;
-mod compute_selector;

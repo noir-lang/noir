@@ -1,6 +1,6 @@
 use dep::aztec::{
   context::{ PrivateContext, PublicContext, Context },
-  oracle::compute_selector::compute_selector,
+  selector::compute_selector,
   types::address::AztecAddress,
 };
 

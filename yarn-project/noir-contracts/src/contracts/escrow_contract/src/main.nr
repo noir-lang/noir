@@ -13,7 +13,7 @@ contract Escrow {
             utils as note_utils,
         },
         oracle::get_public_key::get_public_key,
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
         state_vars::set::Set,
     };
 

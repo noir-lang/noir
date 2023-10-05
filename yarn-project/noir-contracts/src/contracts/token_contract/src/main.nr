@@ -30,7 +30,7 @@ contract Token {
             aztec_address_serialization::{AztecAddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
         types::address::{AztecAddress},
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
     };
 
     use dep::authwit::{

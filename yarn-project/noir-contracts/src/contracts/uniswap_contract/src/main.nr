@@ -7,7 +7,7 @@ mod util;
 contract Uniswap {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
-        oracle::{compute_selector::compute_selector, context::get_portal_address},
+        oracle::{context::get_portal_address},
         state_vars::{map::Map, public_state::PublicState},
         types::address::{AztecAddress, EthereumAddress},
         types::type_serialization::bool_serialization::{
@@ -16,6 +16,7 @@ contract Uniswap {
         types::type_serialization::field_serialization::{
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
+        selector::compute_selector,
     };
 
     use dep::authwit::auth::{IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_authwit_message_hash};

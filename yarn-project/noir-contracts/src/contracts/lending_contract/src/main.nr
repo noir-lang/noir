@@ -15,7 +15,7 @@ contract Lending {
     use dep::std::option::Option;
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
         state_vars::{
             map::Map,
             public_state::PublicState,

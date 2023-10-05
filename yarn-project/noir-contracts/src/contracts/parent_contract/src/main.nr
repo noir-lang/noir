@@ -1,6 +1,6 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
-    use dep::aztec::oracle::compute_selector::compute_selector;
+    use dep::aztec::selector::compute_selector;
 
     #[aztec(private)]
     fn constructor() {}

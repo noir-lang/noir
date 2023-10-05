@@ -5,7 +5,7 @@ contract Child {
     use dep::aztec::{
         abi::CallContext,
         context::{PrivateContext, PublicContext, Context},
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
         log::emit_unencrypted_log,
         state_vars::public_state::PublicState,
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},

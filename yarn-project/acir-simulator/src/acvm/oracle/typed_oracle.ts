@@ -60,10 +60,6 @@ export interface L1ToL2MessageOracleReturnData extends MessageLoadOracleInputs {
  * and are unavailable by default.
  */
 export abstract class TypedOracle {
-  computeSelector(signature: string): Fr {
-    return FunctionSelector.fromSignature(signature).toField();
-  }
-
   getRandomField(): Fr {
     return Fr.random();
   }

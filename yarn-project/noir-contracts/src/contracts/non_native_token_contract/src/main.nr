@@ -39,7 +39,7 @@ contract NonNativeToken {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        oracle::compute_selector::compute_selector,
+        selector::compute_selector,
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::field_serialization::{
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,

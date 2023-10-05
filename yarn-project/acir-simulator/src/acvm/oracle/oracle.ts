@@ -23,12 +23,6 @@ import { TypedOracle } from './typed_oracle.js';
 export class Oracle {
   constructor(private typedOracle: TypedOracle, private log = createDebugLogger('aztec:simulator:oracle')) {}
 
-  computeSelector(...args: ACVMField[][]): ACVMField {
-    const signature = oracleDebugCallToFormattedStr(args);
-    const selector = this.typedOracle.computeSelector(signature);
-    return toACVMField(selector);
-  }
-
   getRandomField(): ACVMField {
     const val = this.typedOracle.getRandomField();
     return toACVMField(val);
