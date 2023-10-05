@@ -893,7 +893,11 @@ impl<'interner> TypeChecker<'interner> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self.lookup_method(element, method_name, expr_id),
+            Type::MutableReference(element) => self
+                .interner
+                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .map(HirMethodReference::FuncId)
+                .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,

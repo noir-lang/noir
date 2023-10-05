@@ -972,7 +972,7 @@ fn resolve_trait_impls(
         let path_resolver = StandardPathResolver::new(module_id);
         let trait_definition_ident = trait_impl.trait_path.last_segment();
 
-        let self_type_span = unresolved_type.span.unwrap().clone();
+        let self_type_span = unresolved_type.span;
 
         let self_type = {
             let mut resolver =
@@ -1023,7 +1023,7 @@ fn resolve_trait_impls(
                 if !interner.add_trait_implementation(&key, resolved_trait_impl.clone()) {
                     let error = DefCollectorErrorKind::TraitImplNotAllowedFor {
                         trait_path: trait_impl.trait_path.clone(),
-                        span: self_type_span,
+                        span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
                     };
                     errors.push((error.into(), trait_impl.file_id));
                 }

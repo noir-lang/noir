@@ -70,6 +70,42 @@ impl Fieldable for fmtstr<14, (Field, Field)> {
     }
 }
 
+impl Fieldable for fn(u32) -> u32 {
+    fn to_field(self) -> Field {
+        self(10) as Field
+    }
+}
+
+fn some_func(x: u32) -> u32 {
+    x * 2 - 3
+}
+
+
+trait MutFieldable {
+    fn mut_to_field(self) -> Field;
+}
+
+impl MutFieldable for &mut u64 {
+    fn mut_to_field(self) -> Field {
+        1337 as Field
+    }
+}
+
+fn a(y: &mut u64) -> Field {
+    y.mut_to_field()
+}
+
+impl Fieldable for &mut u64 {
+    fn to_field(self) -> Field {
+        777 as Field
+    }
+}
+
+impl Fieldable for u64 {
+    fn to_field(self) -> Field {
+        66 as Field
+    }
+}
 
 // x = 15
 fn main(x: u32) {
@@ -95,4 +131,11 @@ fn main(x: u32) {
     let i: Field = 2;
     let j: Field = 6;
     assert(f"i: {i}, j: {j}".to_field() == 52);
+    assert(some_func.to_field() == 17);
+
+    let mut y = 0 as u64;
+    assert(a(&mut y) == 1337);
+    assert((&mut y).mut_to_field() == 1337);
+    assert((&mut y).to_field() == 777);
+    assert(y.to_field() == 66);
 }

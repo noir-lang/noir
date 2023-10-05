@@ -894,7 +894,9 @@ impl NodeInterner {
             | Type::Bool
             | Type::Tuple(..)
             | Type::String(..)
-            | Type::FmtString(..) => {
+            | Type::FmtString(..)
+            | Type::Function(..)
+            | Type::MutableReference(..) => {
                 for func_id in &trait_impl.borrow().methods {
                     let method_name = self.function_name(func_id).to_owned();
                     let key = (key.typ.clone(), method_name);
@@ -902,13 +904,16 @@ impl NodeInterner {
                 }
                 true
             }
+            // We should allow implementing traits NamedGenerics will also eventually be possible once we support generics
+            // impl<T> Foo for T
+            // but it's fine not to include these until we do.
+            Type::NamedGeneric(..) => false,
+            // prohibited are internal types (like NotConstant, TypeVariable, Forall, and Error) that
+            // aren't possible for users to write anyway
             Type::TypeVariable(..)
-            | Type::NamedGeneric(..)
-            | Type::Function(..)
-            | Type::MutableReference(..)
             | Type::Forall(..)
-            | Type::Constant(..)
             | Type::NotConstant
+            | Type::Constant(..)
             | Type::Error => false,
         }
     }
@@ -926,6 +931,16 @@ impl NodeInterner {
 
     pub fn lookup_primitive_trait_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         self.primitive_trait_impls.get(&(typ.clone(), method_name.to_string())).copied()
+    }
+
+    pub fn lookup_mut_primitive_trait_method(
+        &self,
+        typ: &Type,
+        method_name: &str,
+    ) -> Option<FuncId> {
+        self.primitive_trait_impls
+            .get(&(Type::MutableReference(Box::new(typ.clone())), method_name.to_string()))
+            .copied()
     }
 }
 
