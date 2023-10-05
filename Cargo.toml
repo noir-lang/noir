@@ -20,6 +20,7 @@ members = [
     "tooling/nargo_toml",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
+    "tooling/noirc_dbg",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",

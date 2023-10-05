@@ -1,0 +1,21 @@
+[package]
+name = "noirc_dbg"
+description = "Debugger for Noir"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+acvm = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+barretenberg_blackbox_solver = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+fm = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+noirc_evaluator = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+noirc_errors = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+noirc_frontend = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+noirc_driver = { git = "https://github.com/dmvict/noir", branch = "alt_compiler", features = [ "brillig" ] }
+dap = "0.4.1-alpha1"
+anyhow = "~1.0"
+serde_json.workspace = true
+crossbeam = "0.8.2"
+lazy_static = "1.4.0"
