@@ -7,7 +7,7 @@ use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
-    parser::{SubModule, SortedModule},
+    parser::{SortedModule, SubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
