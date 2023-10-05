@@ -554,12 +554,6 @@ fn collect_trait_impl(
                         errors.push((err.into(), trait_impl.file_id));
                     }
                 }
-            } else {
-                let error = DefCollectorErrorKind::NonStructTraitImpl {
-                    trait_path: trait_impl.trait_path.clone(),
-                    span: trait_impl.trait_path.span(),
-                };
-                errors.push((error.into(), trait_impl.file_id));
             }
         }
     }
@@ -978,6 +972,8 @@ fn resolve_trait_impls(
         let path_resolver = StandardPathResolver::new(module_id);
         let trait_definition_ident = trait_impl.trait_path.last_segment();
 
+        let self_type_span = unresolved_type.span;
+
         let self_type = {
             let mut resolver =
                 Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
@@ -1024,7 +1020,13 @@ fn resolve_trait_impls(
                     trait_id,
                     methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
                 });
-                interner.add_trait_implementation(&key, resolved_trait_impl.clone());
+                if !interner.add_trait_implementation(&key, resolved_trait_impl.clone()) {
+                    let error = DefCollectorErrorKind::TraitImplNotAllowedFor {
+                        trait_path: trait_impl.trait_path.clone(),
+                        span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
+                    };
+                    errors.push((error.into(), trait_impl.file_id));
+                }
             }
 
             methods.append(&mut impl_methods);
