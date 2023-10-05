@@ -218,7 +218,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
 }
 
 #[derive(Default)]
-pub struct UnorderParsedModule {
+pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
@@ -242,8 +242,8 @@ pub struct ParsedModule {
 }
 
 impl ParsedModule {
-    pub fn into_unorder(self) -> UnorderParsedModule {
-        let mut module = UnorderParsedModule::default();
+    pub fn into_sorted(self) -> SortedModule {
+        let mut module = SortedModule::default();
 
         for item in self.items {
             match item.kind {
@@ -293,7 +293,7 @@ pub struct SubModule {
     pub is_contract: bool,
 }
 
-impl UnorderParsedModule {
+impl SortedModule {
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
@@ -539,37 +539,37 @@ impl std::fmt::Display for TopLevelStatement {
 
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let legacy = self.clone().into_unorder();
+        let module = self.clone().into_sorted();
 
-        for decl in &legacy.module_decls {
+        for decl in &module.module_decls {
             writeln!(f, "mod {decl};")?;
         }
 
-        for import in &legacy.imports {
+        for import in &module.imports {
             write!(f, "{import}")?;
         }
 
-        for global_const in &legacy.globals {
+        for global_const in &module.globals {
             write!(f, "{global_const}")?;
         }
 
-        for type_ in &legacy.types {
+        for type_ in &module.types {
             write!(f, "{type_}")?;
         }
 
-        for function in &legacy.functions {
+        for function in &module.functions {
             write!(f, "{function}")?;
         }
 
-        for impl_ in &legacy.impls {
+        for impl_ in &module.impls {
             write!(f, "{impl_}")?;
         }
 
-        for type_alias in &legacy.type_aliases {
+        for type_alias in &module.type_aliases {
             write!(f, "{type_alias}")?;
         }
 
-        for submodule in &legacy.submodules {
+        for submodule in &module.submodules {
             write!(f, "{submodule}")?;
         }
 

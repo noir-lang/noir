@@ -7,7 +7,7 @@ use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::TraitId,
-    parser::{SubModule, UnorderParsedModule},
+    parser::{SubModule, SortedModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -35,7 +35,7 @@ struct ModCollector<'a> {
 /// This performs the entirety of the definition collection phase of the name resolution pass.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
-    ast: UnorderParsedModule,
+    ast: SortedModule,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
@@ -404,7 +404,7 @@ impl<'a> ModCollector<'a> {
                 Ok(child) => {
                     errors.extend(collect_defs(
                         self.def_collector,
-                        submodule.contents.into_unorder(),
+                        submodule.contents.into_sorted(),
                         file_id,
                         child,
                         crate_id,
@@ -462,7 +462,7 @@ impl<'a> ModCollector<'a> {
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let (ast, parsing_errors) = parse_file(&context.file_manager, child_file_id);
-        let ast = ast.into_unorder();
+        let ast = ast.into_sorted();
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), child_file_id)).collect::<Vec<_>>(),
