@@ -87,9 +87,9 @@ impl FunctionBuilder {
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
-    pub(crate) fn finish(mut self, return_location: Option<Location>) -> Ssa {
+    pub(crate) fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
-        Ssa::new(self.finished_functions, return_location)
+        Ssa::new(self.finished_functions)
     }
 
     /// Add a parameter to the current function with the given parameter type.
@@ -316,7 +316,8 @@ impl FunctionBuilder {
 
     /// Terminate the current block with a return instruction
     pub(crate) fn terminate_with_return(&mut self, return_values: Vec<ValueId>) {
-        self.terminate_block_with(TerminatorInstruction::Return { return_values });
+        let call_stack = self.call_stack.clone();
+        self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
     /// Returns a ValueId pointing to the given function or imports the function

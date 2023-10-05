@@ -189,7 +189,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
         // Expected output:
@@ -202,7 +202,7 @@ mod test {
         assert_eq!(main.reachable_blocks().len(), 1);
 
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 assert_eq!(return_values.len(), 1);
                 let return_value = main
                     .dfg
@@ -245,7 +245,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![two]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
         // Expected output:
@@ -258,7 +258,7 @@ mod test {
         assert_eq!(main.reachable_blocks().len(), 1);
 
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 assert_eq!(return_values.len(), 1);
                 let return_value = main
                     .dfg

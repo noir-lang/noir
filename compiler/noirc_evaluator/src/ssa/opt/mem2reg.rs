@@ -385,7 +385,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, .. } => {
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
@@ -440,7 +440,7 @@ mod tests {
         let v2 = builder.insert_array_get(v1, one, Type::field());
         builder.terminate_with_return(vec![v2]);
 
-        let ssa = builder.finish(None).mem2reg().fold_constants();
+        let ssa = builder.finish().mem2reg().fold_constants();
 
         let func = ssa.main();
         let block_id = func.entry_block();
@@ -449,7 +449,7 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 0);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
@@ -476,7 +476,7 @@ mod tests {
         builder.insert_call(f0, vec![v0], vec![]);
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish(None).mem2reg();
+        let ssa = builder.finish().mem2reg();
 
         let func = ssa.main();
         let block_id = func.entry_block();
@@ -485,7 +485,7 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 1);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
@@ -507,7 +507,7 @@ mod tests {
         builder.insert_store(v0, const_one);
         builder.terminate_with_return(vec![v0]);
 
-        let ssa = builder.finish(None).mem2reg();
+        let ssa = builder.finish().mem2reg();
 
         let func = ssa.main();
         let block_id = func.entry_block();
@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(instructions.len(), 2);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => *return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
 
@@ -581,7 +581,7 @@ mod tests {
 
         builder.terminate_with_return(vec![v2, v3, v4]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 2);
 
         // Expected result:
@@ -668,7 +668,7 @@ mod tests {
 
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 2);
 
         // Expected result:

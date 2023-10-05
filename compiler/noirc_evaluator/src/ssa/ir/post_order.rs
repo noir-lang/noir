@@ -146,7 +146,7 @@ mod tests {
         builder.switch_to_block(block_c_id);
         builder.terminate_with_jmp(block_f_id, vec![]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         let block_a_id = func.entry_block();

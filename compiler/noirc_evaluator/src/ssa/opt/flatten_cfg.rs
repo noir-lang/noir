@@ -325,11 +325,13 @@ impl<'f> Context<'f> {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
                 self.inline_block(destination, &arguments)
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                let call_stack = call_stack.clone();
                 let return_values =
                     vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let new_return = TerminatorInstruction::Return { return_values, call_stack };
                 let entry = self.inserter.function.entry_block();
-                let new_return = TerminatorInstruction::Return { return_values };
+
                 self.inserter.function.dfg.set_block_terminator(entry, new_return);
                 block
             }
@@ -728,7 +730,7 @@ mod test {
         builder.switch_to_block(b3);
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected output:
@@ -777,7 +779,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
         // Expected output:
@@ -826,7 +828,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
 
         // Expected output:
         // fn main f0 {
@@ -893,7 +895,7 @@ mod test {
         builder.switch_to_block(b3);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
 
         // Expected output:
         // fn main f0 {
@@ -1035,7 +1037,7 @@ mod test {
         let load = builder.insert_load(r1, Type::field());
         builder.terminate_with_return(vec![load]);
 
-        let ssa = builder.finish(None).flatten_cfg().mem2reg();
+        let ssa = builder.finish().flatten_cfg().mem2reg();
 
         // Expected results after mem2reg removes the allocation and each load and store:
         //
@@ -1079,7 +1081,7 @@ mod test {
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => return_values[0],
+            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
             _ => unreachable!(),
         };
 
@@ -1135,7 +1137,7 @@ mod test {
         builder.switch_to_block(b2);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None).flatten_cfg();
+        let ssa = builder.finish().flatten_cfg();
         let main = ssa.main();
 
         // Now assert that there is not a load between the allocate and its first store
@@ -1233,7 +1235,7 @@ mod test {
         builder.insert_constrain(v_false, v_true, None); // should not be removed
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None).flatten_cfg();
+        let ssa = builder.finish().flatten_cfg();
         let main = ssa.main();
 
         // Assert we have not incorrectly removed a constraint:
@@ -1316,7 +1318,7 @@ mod test {
         builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish(None).flatten_cfg();
+        let ssa = builder.finish().flatten_cfg();
         let main = ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
@@ -1436,13 +1438,13 @@ mod test {
         builder.switch_to_block(b4);
         builder.terminate_with_jmp(b5, vec![]);
 
-        let ssa = builder.finish(None).flatten_cfg().mem2reg().fold_constants();
+        let ssa = builder.finish().flatten_cfg().mem2reg().fold_constants();
 
         let main = ssa.main();
 
         // The return value should be 200, not 310
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 match main.dfg.get_numeric_constant(return_values[0]) {
                     Some(constant) => {
                         let value = constant.to_u128();

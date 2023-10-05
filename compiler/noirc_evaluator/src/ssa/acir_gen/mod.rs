@@ -32,7 +32,6 @@ use acvm::{
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
 use noirc_frontend::Distinctness;
 
 /// Context struct for the acir generation pass.
@@ -202,7 +201,7 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg, ssa.return_location)?;
+        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
         Ok(self.acir_context.finish(input_witness.collect()))
     }
@@ -1212,10 +1211,11 @@ impl Context {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-        return_location: Option<Location>,
     ) -> Result<(), InternalError> {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values } => return_values,
+        let (return_values, call_stack) = match terminator {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                (return_values, call_stack)
+            }
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
@@ -1225,8 +1225,8 @@ impl Context {
         for acir_var in return_acir_vars {
             if self.acir_context.is_constant(&acir_var) {
                 return Err(InternalError::ReturnConstant {
-                    location: return_location.expect("return expression must have a location"),
-                    call_stack: self.acir_context.get_call_stack(),
+                    location: *call_stack.last().unwrap(),
+                    call_stack: call_stack.clone(),
                 });
             }
             self.acir_context.return_var(acir_var)?;
@@ -1838,7 +1838,6 @@ mod tests {
         },
         FieldElement,
     };
-    use noirc_errors::{Location, Span};
 
     use crate::{
         brillig::Brillig,
@@ -1868,7 +1867,7 @@ mod tests {
 
         builder.terminate_with_return(vec![array]);
 
-        let ssa = builder.finish(Some(Location::dummy()));
+        let ssa = builder.finish();
 
         let context = Context::new();
         let acir = context

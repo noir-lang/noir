@@ -67,7 +67,7 @@ pub enum InternalError {
     UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
     UnExpected { expected: String, found: String, call_stack: CallStack },
-    #[error("Returning constant value is not allowed")]
+    #[error("Returning a constant value is not allowed")]
     ReturnConstant { location: Location, call_stack: CallStack },
 }
 

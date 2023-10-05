@@ -536,7 +536,7 @@ pub(crate) enum TerminatorInstruction {
     /// unconditionally jump to a single exit block with the return values
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
-    Return { return_values: Vec<ValueId> },
+    Return { return_values: Vec<ValueId>, call_stack: CallStack },
 }
 
 impl TerminatorInstruction {
@@ -557,9 +557,10 @@ impl TerminatorInstruction {
                 arguments: vecmap(arguments, |value| f(*value)),
                 call_stack: call_stack.clone(),
             },
-            Return { return_values } => {
-                Return { return_values: vecmap(return_values, |value| f(*value)) }
-            }
+            Return { return_values, call_stack } => Return {
+                return_values: vecmap(return_values, |value| f(*value)),
+                call_stack: call_stack.clone(),
+            },
         }
     }
 
@@ -575,7 +576,7 @@ impl TerminatorInstruction {
                     *argument = f(*argument);
                 }
             }
-            Return { return_values } => {
+            Return { return_values, .. } => {
                 for return_value in return_values {
                     *return_value = f(*return_value);
                 }
@@ -595,7 +596,7 @@ impl TerminatorInstruction {
                     f(*argument);
                 }
             }
-            Return { return_values } => {
+            Return { return_values, .. } => {
                 for return_value in return_values {
                     f(*return_value);
                 }

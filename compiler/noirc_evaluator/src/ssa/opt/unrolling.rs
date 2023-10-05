@@ -553,7 +553,7 @@ mod tests {
         let v7 = builder.insert_binary(v0, BinaryOp::Add, one);
         builder.terminate_with_jmp(b1, vec![v7]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 7);
 
         // Expected output:
@@ -629,7 +629,7 @@ mod tests {
         let zero = builder.field_constant(0u128);
         builder.terminate_with_return(vec![zero]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected that we failed to unroll the loop

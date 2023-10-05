@@ -141,7 +141,7 @@ impl InlineContext {
         context.inline_blocks(ssa);
 
         // Finally, we should have 1 function left representing the inlined version of the target function.
-        let mut new_ssa = self.builder.finish(ssa.return_location);
+        let mut new_ssa = self.builder.finish();
         assert_eq!(new_ssa.functions.len(), 1);
         new_ssa.functions.pop_first().unwrap().1
     }
@@ -480,10 +480,15 @@ impl<'function> PerFunctionContext<'function> {
                 }
                 None
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, call_stack } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
                 if self.inlining_entry {
-                    self.context.builder.terminate_with_return(return_values.clone());
+                    let mut new_call_stack = self.context.call_stack.clone();
+                    new_call_stack.append(call_stack.clone());
+                    self.context
+                        .builder
+                        .set_call_stack(new_call_stack)
+                        .terminate_with_return(return_values.clone());
                 }
                 // Note that `translate_block` would take us back to the point at which the
                 // inlining of this source block began. Since additional blocks may have been
@@ -535,7 +540,7 @@ mod test {
         let seventy_two = builder.field_constant(expected_return);
         builder.terminate_with_return(vec![seventy_two]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 2);
 
         let inlined = ssa.inline_functions();
@@ -601,7 +606,7 @@ mod test {
         builder.terminate_with_return(vec![id2_v0]);
 
         // Done, now we test that we can successfully inline all functions.
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 4);
 
         let inlined = ssa.inline_functions();
@@ -657,7 +662,7 @@ mod test {
         let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
         builder.terminate_with_return(vec![v4]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         assert_eq!(ssa.functions.len(), 2);
 
         // Expected SSA:
@@ -686,7 +691,7 @@ mod test {
         let b6 = &main.dfg[b6_id];
 
         match b6.terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 assert_eq!(return_values.len(), 1);
                 let value = main
                     .dfg
@@ -761,7 +766,7 @@ mod test {
         builder.switch_to_block(join_block);
         builder.terminate_with_return(vec![join_param]);
 
-        let ssa = builder.finish(None).inline_functions();
+        let ssa = builder.finish().inline_functions();
         // Expected result:
         // fn main f3 {
         //   b0(v0: u1):

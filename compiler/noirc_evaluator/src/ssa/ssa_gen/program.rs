@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, fmt::Display};
 
 use iter_extended::btree_map;
-use noirc_errors::Location;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId},
@@ -13,13 +12,12 @@ pub(crate) struct Ssa {
     pub(crate) functions: BTreeMap<FunctionId, Function>,
     pub(crate) main_id: FunctionId,
     pub(crate) next_id: AtomicCounter<Function>,
-    pub(crate) return_location: Option<Location>,
 }
 
 impl Ssa {
     /// Create a new Ssa object from the given SSA functions.
     /// The first function in this vector is expected to be the main function.
-    pub(crate) fn new(functions: Vec<Function>, return_location: Option<Location>) -> Self {
+    pub(crate) fn new(functions: Vec<Function>) -> Self {
         let main_id = functions.first().expect("Expected at least 1 SSA function").id();
         let mut max_id = main_id;
 
@@ -28,7 +26,7 @@ impl Ssa {
             (f.id(), f)
         });
 
-        Self { functions, main_id, next_id: AtomicCounter::starting_after(max_id), return_location }
+        Self { functions, main_id, next_id: AtomicCounter::starting_after(max_id) }
     }
 
     /// Returns the entry-point function of the program

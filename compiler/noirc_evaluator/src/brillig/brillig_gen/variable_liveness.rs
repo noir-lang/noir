@@ -362,7 +362,7 @@ mod test {
 
         builder.terminate_with_return(vec![v8]);
 
-        let ssa = builder.finish(None);
+        let ssa = builder.finish();
         let func = ssa.main();
         let liveness = VariableLiveness::from_function(func);
 
