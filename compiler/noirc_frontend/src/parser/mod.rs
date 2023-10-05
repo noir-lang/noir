@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
+    BlockExpression, ExpressionKind, ForLoopStatement, Ident, IndexExpression, LetStatement,
     MethodCallExpression, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind,
     Pattern, Recoverable, Statement, TypeImpl, UnresolvedType, UseTree,
 };
@@ -380,15 +380,10 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
-    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
+    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> Statement {
         match self {
             ForRange::Range(start_range, end_range) => {
-                ExpressionKind::For(Box::new(ForExpression {
-                    identifier,
-                    start_range,
-                    end_range,
-                    block,
-                }))
+                Statement::For(ForLoopStatement { identifier, start_range, end_range, block })
             }
             ForRange::Array(array) => {
                 let array_span = array.span;
@@ -443,17 +438,15 @@ impl ForRange {
                 let block_span = block.span;
                 let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
-                let for_loop = ExpressionKind::For(Box::new(ForExpression {
+                let for_loop = Statement::For(ForLoopStatement {
                     identifier: fresh_identifier,
                     start_range,
                     end_range,
                     block: new_block,
-                }));
+                });
 
-                ExpressionKind::Block(BlockExpression(vec![
-                    let_array,
-                    Statement::Expression(Expression::new(for_loop, for_loop_span)),
-                ]))
+                let block = ExpressionKind::Block(BlockExpression(vec![let_array, for_loop]));
+                Statement::Expression(Expression::new(block, for_loop_span))
             }
         }
     }
