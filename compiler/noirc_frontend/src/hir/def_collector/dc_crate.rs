@@ -17,12 +17,11 @@ use crate::node_interner::{
     FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
 };
 
-use crate::parser::ParserError;
-
+use crate::parser::{ParserError, SortedModule};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, ParsedModule, Path, Shared, StructType, TraitItem, Type, TypeBinding,
-    TypeVariableKind, UnresolvedGenerics, UnresolvedType,
+    NoirTypeAlias, Path, Shared, StructType, TraitItem, Type, TypeBinding, TypeVariableKind,
+    UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -195,7 +194,7 @@ impl DefCollector {
     pub fn collect(
         mut def_map: CrateDefMap,
         context: &mut Context,
-        ast: ParsedModule,
+        ast: SortedModule,
         root_file_id: FileId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -336,6 +335,11 @@ impl DefCollector {
         );
 
         errors.extend(resolved_globals.errors);
+
+        // We run hir transformations before type checks
+        #[cfg(feature = "aztec")]
+        crate::hir::aztec_library::transform_hir(&crate_id, context);
+
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
         // Type check all of the functions in the crate

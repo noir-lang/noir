@@ -13,9 +13,9 @@
 // XXX: Resolver does not check for unused functions
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
-    HirCastExpression, HirConstructorExpression, HirExpression, HirForExpression, HirIdent,
-    HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-    HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+    HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
+    HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
+    HirMethodCallExpression, HirPrefixExpression,
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -26,14 +26,14 @@ use std::rc::Rc;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
-use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
+use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    Statement,
+    StatementKind,
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
@@ -933,9 +933,9 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn resolve_stmt(&mut self, stmt: Statement) -> HirStatement {
+    pub fn resolve_stmt(&mut self, stmt: StatementKind) -> HirStatement {
         match stmt {
-            Statement::Let(let_stmt) => {
+            StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
                 let definition = DefinitionKind::Local(Some(expression));
                 HirStatement::Let(HirLetStatement {
@@ -944,24 +944,45 @@ impl<'a> Resolver<'a> {
                     expression,
                 })
             }
-            Statement::Constrain(constrain_stmt) => {
+            StatementKind::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
                 let assert_message = constrain_stmt.1;
                 HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, assert_message))
             }
-            Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
-            Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
-            Statement::Assign(assign_stmt) => {
+            StatementKind::Expression(expr) => {
+                HirStatement::Expression(self.resolve_expression(expr))
+            }
+            StatementKind::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
+            StatementKind::Assign(assign_stmt) => {
                 let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement { lvalue: identifier, expression };
                 HirStatement::Assign(stmt)
             }
-            Statement::Error => HirStatement::Error,
+            StatementKind::For(for_loop) => {
+                let start_range = self.resolve_expression(for_loop.start_range);
+                let end_range = self.resolve_expression(for_loop.end_range);
+                let (identifier, block) = (for_loop.identifier, for_loop.block);
+
+                // TODO: For loop variables are currently mutable by default since we haven't
+                //       yet implemented syntax for them to be optionally mutable.
+                let (identifier, block) = self.in_new_scope(|this| {
+                    let decl = this.add_variable_decl(
+                        identifier,
+                        false,
+                        true,
+                        DefinitionKind::Local(None),
+                    );
+                    (decl, this.resolve_expression(block))
+                });
+
+                HirStatement::For(HirForStatement { start_range, end_range, block, identifier })
+            }
+            StatementKind::Error => HirStatement::Error,
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+    pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt);
         self.interner.push_stmt(hir_stmt)
     }
@@ -1169,30 +1190,6 @@ impl<'a> Resolver<'a> {
                 lhs: self.resolve_expression(cast_expr.lhs),
                 r#type: self.resolve_type(cast_expr.r#type),
             }),
-            ExpressionKind::For(for_expr) => {
-                let start_range = self.resolve_expression(for_expr.start_range);
-                let end_range = self.resolve_expression(for_expr.end_range);
-                let (identifier, block) = (for_expr.identifier, for_expr.block);
-
-                // TODO: For loop variables are currently mutable by default since we haven't
-                //       yet implemented syntax for them to be optionally mutable.
-                let (identifier, block_id) = self.in_new_scope(|this| {
-                    let decl = this.add_variable_decl(
-                        identifier,
-                        false,
-                        true,
-                        DefinitionKind::Local(None),
-                    );
-                    (decl, this.resolve_expression(block))
-                });
-
-                HirExpression::For(HirForExpression {
-                    start_range,
-                    end_range,
-                    block: block_id,
-                    identifier,
-                })
-            }
             ExpressionKind::If(if_expr) => HirExpression::If(HirIfExpression {
                 condition: self.resolve_expression(if_expr.condition),
                 consequence: self.resolve_expression(if_expr.consequence),
@@ -1524,7 +1521,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt.kind)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
@@ -1713,7 +1710,7 @@ mod test {
         }
 
         let mut errors = Vec::new();
-        for func in program.functions {
+        for func in program.into_sorted().functions {
             let id = interner.push_test_function_definition(func.name().to_string());
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
@@ -1729,7 +1726,7 @@ mod test {
             init_src_code_resolution(src);
 
         let mut all_captures: Vec<Vec<String>> = Vec::new();
-        for func in program.functions {
+        for func in program.into_sorted().functions {
             let name = func.name().to_string();
             let id = interner.push_test_function_definition(name);
             path_resolver.insert_func(func.name().to_owned(), id);
@@ -1738,7 +1735,7 @@ mod test {
             let (hir_func, _, _) = resolver.resolve_function(func, id);
 
             // Iterate over function statements and apply filtering function
-            parse_statement_blocks(
+            find_lambda_captures(
                 hir_func.block(&interner).statements(),
                 &interner,
                 &mut all_captures,
@@ -1747,33 +1744,23 @@ mod test {
         all_captures
     }
 
-    fn parse_statement_blocks(
+    fn find_lambda_captures(
         stmts: &[StmtId],
         interner: &NodeInterner,
         result: &mut Vec<Vec<String>>,
     ) {
-        let mut expr: HirExpression;
-
         for stmt_id in stmts.iter() {
             let hir_stmt = interner.statement(stmt_id);
-            match hir_stmt {
-                HirStatement::Expression(expr_id) => {
-                    expr = interner.expression(&expr_id);
-                }
-                HirStatement::Let(let_stmt) => {
-                    expr = interner.expression(&let_stmt.expression);
-                }
-                HirStatement::Assign(assign_stmt) => {
-                    expr = interner.expression(&assign_stmt.expression);
-                }
-                HirStatement::Constrain(constr_stmt) => {
-                    expr = interner.expression(&constr_stmt.0);
-                }
-                HirStatement::Semi(semi_expr) => {
-                    expr = interner.expression(&semi_expr);
-                }
+            let expr_id = match hir_stmt {
+                HirStatement::Expression(expr_id) => expr_id,
+                HirStatement::Let(let_stmt) => let_stmt.expression,
+                HirStatement::Assign(assign_stmt) => assign_stmt.expression,
+                HirStatement::Constrain(constr_stmt) => constr_stmt.0,
+                HirStatement::Semi(semi_expr) => semi_expr,
+                HirStatement::For(for_loop) => for_loop.block,
                 HirStatement::Error => panic!("Invalid HirStatement!"),
-            }
+            };
+            let expr = interner.expression(&expr_id);
             get_lambda_captures(expr, interner, result); // TODO: dyn filter function as parameter
         }
     }
@@ -1794,7 +1781,7 @@ mod test {
             // Check for other captures recursively within the lambda body
             let hir_body_expr = interner.expression(&lambda_expr.body);
             if let HirExpression::Block(block_expr) = hir_body_expr {
-                parse_statement_blocks(block_expr.statements(), interner, result);
+                find_lambda_captures(block_expr.statements(), interner, result);
             }
         }
     }

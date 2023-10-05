@@ -10,18 +10,17 @@ use crate::node_interner::{NodeInterner, StructId};
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement, IndexExpression,
-    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction,
-    ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData,
-    Visibility,
+    ExpressionKind, FunctionReturnType, Ident, ImportStatement, IndexExpression, LetStatement,
+    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, ParsedModule, Path,
+    PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    FunctionDefinition, NoirStruct, PrefixExpression, Shared, Signedness, StructType, Type,
-    TypeBinding, TypeImpl, TypeVariableKind, UnaryOp,
+    ForLoopStatement, FunctionDefinition, NoirStruct, PrefixExpression, Signedness, StructType,
+    Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
-use super::ModuleDefId;
+use super::def_map::ModuleDefId;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -373,7 +372,6 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
             if signature == SIGNATURE_PLACEHOLDER =>
         {
             let selector_literal_id = first_arg_id;
-            let compute_selector_call_id = compute_selector_expression.func;
 
             let structure = interner.get_struct(struct_id);
             let signature = event_signature(&structure.borrow());
@@ -385,17 +383,6 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
             interner.push_expr_type(
                 selector_literal_id,
                 Type::String(Box::new(Type::Constant(signature.len() as u64))),
-            );
-            interner.push_expr_type(
-                &compute_selector_call_id,
-                Type::Function(
-                    vec![Type::String(Box::new(Type::TypeVariable(
-                        Shared::new(TypeBinding::Bound(Type::Constant(signature.len() as u64))),
-                        TypeVariableKind::Normal,
-                    )))],
-                    Box::new(Type::FieldElement),
-                    Box::new(Type::Unit),
-                ),
             );
         }
         _ => unreachable!("Signature placeholder literal does not match"),
@@ -431,7 +418,7 @@ fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
     let selector_fun_body = BlockExpression(vec![Statement::Expression(call(
-        variable_path(chained_path!("aztec", "oracle", "compute_selector", "compute_selector")),
+        variable_path(chained_path!("aztec", "selector", "compute_selector")),
         vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
     ))]);
 
@@ -831,14 +818,14 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
 
     // `for i in 0..{ident}.len()`
-    Statement::Expression(expression(ExpressionKind::For(Box::new(ForExpression {
+    Statement::For(ForLoopStatement {
         identifier: ident("i"),
         start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
             i128::from(0),
         )))),
         end_range: end_range_expression,
         block: for_loop_block,
-    }))))
+    })
 }
 
 fn add_array_to_hasher(identifier: &Ident) -> Statement {

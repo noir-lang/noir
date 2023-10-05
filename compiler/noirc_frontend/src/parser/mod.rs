@@ -16,9 +16,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
+    BlockExpression, ExpressionKind, ForLoopStatement, Ident, IndexExpression, LetStatement,
     MethodCallExpression, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind,
-    Pattern, Recoverable, Statement, TypeImpl, UnresolvedType, UseTree,
+    Pattern, Recoverable, Statement, StatementKind, TypeImpl, UnresolvedType, UseTree,
 };
 
 use acvm::FieldElement;
@@ -190,7 +190,7 @@ where
 
 /// Recovery strategy for statements: If a statement fails to parse skip until the next ';' or fail
 /// if we find a '}' first.
-fn statement_recovery() -> impl NoirParser<Statement> {
+fn statement_recovery() -> impl NoirParser<StatementKind> {
     use Token::*;
     try_skip_until([Semicolon, RightBrace], RightBrace)
 }
@@ -217,9 +217,8 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
-/// A ParsedModule contains an entire Ast for one file.
-#[derive(Clone, Debug, Default)]
-pub struct ParsedModule {
+#[derive(Default)]
+pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
@@ -236,6 +235,55 @@ pub struct ParsedModule {
     pub submodules: Vec<SubModule>,
 }
 
+/// A ParsedModule contains an entire Ast for one file.
+#[derive(Clone, Debug, Default)]
+pub struct ParsedModule {
+    pub items: Vec<Item>,
+}
+
+impl ParsedModule {
+    pub fn into_sorted(self) -> SortedModule {
+        let mut module = SortedModule::default();
+
+        for item in self.items {
+            match item.kind {
+                ItemKind::Import(import) => module.push_import(import),
+                ItemKind::Function(func) => module.push_function(func),
+                ItemKind::Struct(typ) => module.push_type(typ),
+                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
+                ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
+                ItemKind::Impl(r#impl) => module.push_impl(r#impl),
+                ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
+                ItemKind::Global(global) => module.push_global(global),
+                ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
+                ItemKind::Submodules(submodule) => module.push_submodule(submodule),
+            }
+        }
+
+        module
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Item {
+    pub kind: ItemKind,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum ItemKind {
+    Import(UseTree),
+    Function(NoirFunction),
+    Struct(NoirStruct),
+    Trait(NoirTrait),
+    TraitImpl(NoirTraitImpl),
+    Impl(TypeImpl),
+    TypeAlias(NoirTypeAlias),
+    Global(LetStatement),
+    ModuleDecl(Ident),
+    Submodules(SubModule),
+}
+
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
@@ -245,7 +293,7 @@ pub struct SubModule {
     pub is_contract: bool,
 }
 
-impl ParsedModule {
+impl SortedModule {
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
@@ -380,15 +428,10 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
-    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
+    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> StatementKind {
         match self {
             ForRange::Range(start_range, end_range) => {
-                ExpressionKind::For(Box::new(ForExpression {
-                    identifier,
-                    start_range,
-                    end_range,
-                    block,
-                }))
+                StatementKind::For(ForLoopStatement { identifier, start_range, end_range, block })
             }
             ForRange::Array(array) => {
                 let array_span = array.span;
@@ -401,11 +444,14 @@ impl ForRange {
                 let array_ident = Ident::new(array_name, array_span);
 
                 // let fresh1 = array;
-                let let_array = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(array_ident.clone()),
-                    r#type: UnresolvedType::unspecified(),
-                    expression: array,
-                });
+                let let_array = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(array_ident.clone()),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: array,
+                    }),
+                    span: array_span,
+                };
 
                 // array.len()
                 let segments = vec![array_ident];
@@ -434,26 +480,33 @@ impl ForRange {
                 }));
 
                 // let elem = array[i];
-                let let_elem = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(identifier),
-                    r#type: UnresolvedType::unspecified(),
-                    expression: Expression::new(loop_element, array_span),
-                });
+                let let_elem = Statement {
+                    kind: StatementKind::Let(LetStatement {
+                        pattern: Pattern::Identifier(identifier),
+                        r#type: UnresolvedType::unspecified(),
+                        expression: Expression::new(loop_element, array_span),
+                    }),
+                    span: array_span,
+                };
 
                 let block_span = block.span;
-                let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
+                let new_block = BlockExpression(vec![
+                    let_elem,
+                    Statement { kind: StatementKind::Expression(block), span: block_span },
+                ]);
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
-                let for_loop = ExpressionKind::For(Box::new(ForExpression {
-                    identifier: fresh_identifier,
-                    start_range,
-                    end_range,
-                    block: new_block,
-                }));
+                let for_loop = Statement {
+                    kind: StatementKind::For(ForLoopStatement {
+                        identifier: fresh_identifier,
+                        start_range,
+                        end_range,
+                        block: new_block,
+                    }),
+                    span: for_loop_span,
+                };
 
-                ExpressionKind::Block(BlockExpression(vec![
-                    let_array,
-                    Statement::Expression(Expression::new(for_loop, for_loop_span)),
-                ]))
+                let block = ExpressionKind::Block(BlockExpression(vec![let_array, for_loop]));
+                StatementKind::Expression(Expression::new(block, for_loop_span))
             }
         }
     }
@@ -479,35 +532,37 @@ impl std::fmt::Display for TopLevelStatement {
 
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for decl in &self.module_decls {
+        let module = self.clone().into_sorted();
+
+        for decl in &module.module_decls {
             writeln!(f, "mod {decl};")?;
         }
 
-        for import in &self.imports {
+        for import in &module.imports {
             write!(f, "{import}")?;
         }
 
-        for global_const in &self.globals {
+        for global_const in &module.globals {
             write!(f, "{global_const}")?;
         }
 
-        for type_ in &self.types {
+        for type_ in &module.types {
             write!(f, "{type_}")?;
         }
 
-        for function in &self.functions {
+        for function in &module.functions {
             write!(f, "{function}")?;
         }
 
-        for impl_ in &self.impls {
+        for impl_ in &module.impls {
             write!(f, "{impl_}")?;
         }
 
-        for type_alias in &self.type_aliases {
+        for type_alias in &module.type_aliases {
             write!(f, "{type_alias}")?;
         }
 
-        for submodule in &self.submodules {
+        for submodule in &module.submodules {
             write!(f, "{submodule}")?;
         }
 
