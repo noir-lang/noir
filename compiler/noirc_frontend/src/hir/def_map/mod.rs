@@ -17,9 +17,6 @@ pub use module_data::*;
 mod namespace;
 pub use namespace::*;
 
-#[cfg(feature = "aztec")]
-mod aztec_library;
-
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
 
@@ -88,7 +85,7 @@ impl CrateDefMap {
         let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
 
         #[cfg(feature = "aztec")]
-        let ast = match aztec_library::transform(ast, &crate_id, context) {
+        let ast = match super::aztec_library::transform(ast, &crate_id, context) {
             Ok(ast) => ast,
             Err((error, file_id)) => {
                 errors.push((error.into(), file_id));
@@ -110,8 +107,6 @@ impl CrateDefMap {
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect(def_map, context, ast, root_file_id));
-        #[cfg(feature = "aztec")]
-        aztec_library::transform_hir(&crate_id, context);
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),

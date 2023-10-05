@@ -336,6 +336,11 @@ impl DefCollector {
         );
 
         errors.extend(resolved_globals.errors);
+
+        // We run hir transformations before type checks
+        #[cfg(feature = "aztec")]
+        crate::hir::aztec_library::transform_hir(&crate_id, context);
+
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
         // Type check all of the functions in the crate
