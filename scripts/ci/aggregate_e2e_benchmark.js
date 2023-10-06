@@ -24,6 +24,9 @@ const {
   CIRCUIT_OUTPUT_SIZE,
   CIRCUIT_INPUT_SIZE,
   CIRCUIT_SIMULATED,
+  NOTE_SUCCESSFUL_DECRYPTING_TIME,
+  NOTE_TRIAL_DECRYPTING_TIME,
+  NOTE_PROCESSOR_CAUGHT_UP,
   ROLLUP_SIZES,
   BENCHMARK_FILE_JSON,
 } = require("./benchmark_shared.js");
@@ -75,6 +78,16 @@ function processCircuitSimulation(entry, results) {
   append(results, CIRCUIT_OUTPUT_SIZE, bucket, entry.outputSize);
 }
 
+// Processes an entry with event name 'note-processor-caught-up' and updates results
+// Buckets are rollup sizes
+function processNoteProcessorCaughtUp(entry, results) {
+  const { seen, decrypted } = entry;
+  if (ROLLUP_SIZES.includes(decrypted))
+    append(results, NOTE_SUCCESSFUL_DECRYPTING_TIME, decrypted, entry.duration);
+  if (ROLLUP_SIZES.includes(seen) && decrypted === 0)
+    append(results, NOTE_TRIAL_DECRYPTING_TIME, seen, entry.duration);
+}
+
 // Processes a parsed entry from a logfile and updates results
 function processEntry(entry, results) {
   switch (entry.eventName) {
@@ -84,6 +97,8 @@ function processEntry(entry, results) {
       return processRollupBlockSynced(entry, results);
     case CIRCUIT_SIMULATED:
       return processCircuitSimulation(entry, results);
+    case NOTE_PROCESSOR_CAUGHT_UP:
+      return processNoteProcessorCaughtUp(entry, results);
     default:
       return;
   }

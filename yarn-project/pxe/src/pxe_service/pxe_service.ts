@@ -32,7 +32,6 @@ import {
   DeployedContract,
   ExtendedContractData,
   FunctionCall,
-  INITIAL_L2_BLOCK_NUM,
   KeyStore,
   L2Block,
   L2BlockL2Logs,
@@ -93,7 +92,8 @@ export class PXEService implements PXE {
    * @returns A promise that resolves when the server has started successfully.
    */
   public async start() {
-    await this.synchronizer.start(INITIAL_L2_BLOCK_NUM, 1, this.config.l2BlockPollingIntervalMS);
+    const { l2BlockPollingIntervalMS, l2StartingBlock } = this.config;
+    await this.synchronizer.start(l2StartingBlock, 1, l2BlockPollingIntervalMS);
     const info = await this.getNodeInfo();
     this.log.info(`Started PXE connected to chain ${info.chainId} version ${info.protocolVersion}`);
   }
@@ -114,17 +114,18 @@ export class PXEService implements PXE {
     return this.db.addAuthWitness(witness.requestHash, witness.witness);
   }
 
-  public async registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress) {
+  public async registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress> {
     const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(privKey, partialAddress);
     const wasAdded = await this.db.addCompleteAddress(completeAddress);
     if (wasAdded) {
       const pubKey = this.keyStore.addAccount(privKey);
-      this.synchronizer.addAccount(pubKey, this.keyStore);
+      this.synchronizer.addAccount(pubKey, this.keyStore, this.config.l2StartingBlock);
       this.log.info(`Registered account ${completeAddress.address.toString()}`);
       this.log.debug(`Registered account\n ${completeAddress.toReadableString()}`);
     } else {
       this.log.info(`Account:\n "${completeAddress.address.toString()}"\n already registered.`);
     }
+    return completeAddress;
   }
 
   public async getRegisteredAccounts(): Promise<CompleteAddress[]> {
@@ -646,5 +647,9 @@ export class PXEService implements PXE {
 
   public getSyncStatus() {
     return Promise.resolve(this.synchronizer.getSyncStatus());
+  }
+
+  public getKeyStore() {
+    return this.keyStore;
   }
 }

@@ -32,7 +32,7 @@ export abstract class BaseWallet implements Wallet {
 
   abstract createAuthWitness(message: Fr): Promise<AuthWitness>;
 
-  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void> {
+  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress> {
     return this.pxe.registerAccount(privKey, partialAddress);
   }
   registerRecipient(account: CompleteAddress): Promise<void> {

@@ -1,6 +1,6 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
-  AccountWallet,
+  AccountWalletWithPrivateKey,
   AztecAddress,
   CheatCodes,
   CompleteAddress,
@@ -156,7 +156,7 @@ export async function setupPXEService(
   /**
    * The wallets to be used.
    */
-  wallets: AccountWallet[];
+  wallets: AccountWalletWithPrivateKey[];
   /**
    * Logger instance named as the current test.
    */
@@ -242,9 +242,9 @@ export type EndToEndContext = {
   /** The Aztec Node configuration. */
   config: AztecNodeConfig;
   /** The first wallet to be used. */
-  wallet: AccountWallet;
+  wallet: AccountWalletWithPrivateKey;
   /** The wallets to be used. */
-  wallets: AccountWallet[];
+  wallets: AccountWalletWithPrivateKey[];
   /** Logger instance named as the current test. */
   logger: DebugLogger;
   /** The cheat codes. */

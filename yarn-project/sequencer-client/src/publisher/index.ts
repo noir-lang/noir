@@ -24,13 +24,13 @@ export type L1PublishStats = {
   /** Number of the L2 block. */
   blockNumber: number;
   /** Number of encrypted logs. */
-  encryptedLogCount: number;
+  encryptedLogCount?: number;
   /** Number of unencrypted logs. */
-  unencryptedLogCount: number;
+  unencryptedLogCount?: number;
   /** Serialised size of encrypted logs. */
-  encryptedLogSize: number;
+  encryptedLogSize?: number;
   /** Serialised size of unencrypted logs. */
-  unencryptedLogSize: number;
+  unencryptedLogSize?: number;
 };
 
 /**

@@ -42,13 +42,14 @@ export interface PXE {
   /**
    * Registers a user account in PXE given its master encryption private key.
    * Once a new account is registered, the PXE Service will trial-decrypt all published notes on
-   * the chain and store those that correspond to the registered account.
+   * the chain and store those that correspond to the registered account. Will do nothing if the
+   * account is already registered.
    *
    * @param privKey - Private key of the corresponding user master public key.
    * @param partialAddress - The partial address of the account contract corresponding to the account being registered.
-   * @throws If the account is already registered.
+   * @returns The complete address of the account.
    */
-  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<void>;
+  registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress>;
 
   /**
    * Registers a recipient in PXE. This is required when sending encrypted notes to

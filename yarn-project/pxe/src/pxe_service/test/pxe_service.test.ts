@@ -2,7 +2,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecNode, L2Tx, PXE, mockTx } from '@aztec/types';
+import { AztecNode, INITIAL_L2_BLOCK_NUM, L2Tx, PXE, mockTx } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
@@ -15,9 +15,7 @@ async function createPXEService(): Promise<PXE> {
   const keyStore = new TestKeyStore(await Grumpkin.new());
   const node = mock<AztecNode>();
   const db = new MemoryDB();
-  const config: PXEServiceConfig = {
-    l2BlockPollingIntervalMS: 100,
-  };
+  const config: PXEServiceConfig = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };
 
   // Setup the relevant mocks
   node.getBlockNumber.mockResolvedValue(2);
@@ -48,9 +46,7 @@ describe('PXEService', () => {
     keyStore = new TestKeyStore(await Grumpkin.new());
     node = mock<AztecNode>();
     db = new MemoryDB();
-    config = {
-      l2BlockPollingIntervalMS: 100,
-    };
+    config = { l2BlockPollingIntervalMS: 100, l2StartingBlock: INITIAL_L2_BLOCK_NUM };
   });
 
   it('throws when submitting a tx with a nullifier of already settled tx', async () => {

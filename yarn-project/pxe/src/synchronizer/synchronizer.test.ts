@@ -1,7 +1,7 @@
 import { CompleteAddress, Fr, GrumpkinScalar, HistoricBlockData } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecNode, L2Block, MerkleTreeId } from '@aztec/types';
+import { AztecNode, INITIAL_L2_BLOCK_NUM, L2Block, MerkleTreeId } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import omit from 'lodash.omit';
@@ -109,7 +109,7 @@ describe('Synchronizer', () => {
     await database.addCompleteAddress(completeAddress);
 
     // Add the account which will add the note processor to the synchronizer
-    synchronizer.addAccount(completeAddress.publicKey, keyStore);
+    synchronizer.addAccount(completeAddress.publicKey, keyStore, INITIAL_L2_BLOCK_NUM);
 
     await synchronizer.workNoteProcessorCatchUp();
 

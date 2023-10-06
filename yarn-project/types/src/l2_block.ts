@@ -500,7 +500,7 @@ export class L2Block {
       throw new Error(`Trying to attach different ${logFieldName} logs to block ${this.number}.`);
     }
 
-    L2Block.logger(`Attaching ${logFieldName} logs`);
+    L2Block.logger(`Attaching ${logFieldName} ${logs.getTotalLogCount()} logs to block ${this.number}`);
 
     const numTxs = this.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX;
 
@@ -747,13 +747,19 @@ export class L2Block {
    * @returns Stats on tx count, number, and log size and count.
    */
   getStats() {
+    const encryptedLogsStats = this.newEncryptedLogs && {
+      encryptedLogCount: this.newEncryptedLogs?.getTotalLogCount() ?? 0,
+      encryptedLogSize: this.newEncryptedLogs?.getSerializedLength() ?? 0,
+    };
+    const unencryptedLogsStats = this.newUnencryptedLogs && {
+      unencryptedLogCount: this.newUnencryptedLogs?.getTotalLogCount() ?? 0,
+      unencryptedLogSize: this.newUnencryptedLogs?.getSerializedLength() ?? 0,
+    };
     return {
       txCount: this.numberOfTxs,
       blockNumber: this.number,
-      encryptedLogCount: this.newEncryptedLogs?.getTotalLogCount() ?? 0,
-      unencryptedLogCount: this.newUnencryptedLogs?.getTotalLogCount() ?? 0,
-      encryptedLogSize: this.newEncryptedLogs?.getSerializedLength() ?? 0,
-      unencryptedLogSize: this.newUnencryptedLogs?.getSerializedLength() ?? 0,
+      ...encryptedLogsStats,
+      ...unencryptedLogsStats,
     };
   }
 

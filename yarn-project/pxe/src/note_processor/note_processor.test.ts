@@ -6,6 +6,7 @@ import { ConstantKeyPair } from '@aztec/key-store';
 import {
   AztecNode,
   FunctionL2Logs,
+  INITIAL_L2_BLOCK_NUM,
   KeyPair,
   KeyStore,
   L2Block,
@@ -125,7 +126,14 @@ describe('Note Processor', () => {
     keyStore = mock<KeyStore>();
     simulator = mock<AcirSimulator>();
     keyStore.getAccountPrivateKey.mockResolvedValue(owner.getPrivateKey());
-    noteProcessor = new NoteProcessor(owner.getPublicKey(), keyStore, database, aztecNode, simulator);
+    noteProcessor = new NoteProcessor(
+      owner.getPublicKey(),
+      keyStore,
+      database,
+      aztecNode,
+      INITIAL_L2_BLOCK_NUM,
+      simulator,
+    );
 
     simulator.computeNoteHashAndNullifier.mockImplementation((...args) =>
       Promise.resolve({

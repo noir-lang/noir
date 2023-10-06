@@ -2,7 +2,13 @@ import { PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/types';
 
-import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../../index.js';
+import {
+  AccountWalletWithPrivateKey,
+  ContractDeployer,
+  DeployMethod,
+  WaitOpts,
+  generatePublicKey,
+} from '../../index.js';
 import { AccountContract, Salt } from '../index.js';
 import { AccountInterface } from '../interface.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
@@ -73,9 +79,9 @@ export class AccountManager {
    * instances to be interacted with from this account.
    * @returns A Wallet instance.
    */
-  public async getWallet(): Promise<AccountWallet> {
+  public async getWallet(): Promise<AccountWalletWithPrivateKey> {
     const entrypoint = await this.getAccount();
-    return new AccountWallet(this.pxe, entrypoint);
+    return new AccountWalletWithPrivateKey(this.pxe, entrypoint, this.encryptionPrivateKey);
   }
 
   /**
@@ -84,7 +90,7 @@ export class AccountManager {
    * Use the returned wallet to create Contract instances to be interacted with from this account.
    * @returns A Wallet instance.
    */
-  public async register(): Promise<AccountWallet> {
+  public async register(): Promise<AccountWalletWithPrivateKey> {
     const completeAddress = await this.getCompleteAddress();
     await this.pxe.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
     return this.getWallet();
@@ -132,7 +138,7 @@ export class AccountManager {
    * @param opts - Options to wait for the tx to be mined.
    * @returns A Wallet instance.
    */
-  public async waitDeploy(opts: WaitOpts = {}): Promise<AccountWallet> {
+  public async waitDeploy(opts: WaitOpts = {}): Promise<AccountWalletWithPrivateKey> {
     await this.deploy().then(tx => tx.wait(opts));
     return this.getWallet();
   }
