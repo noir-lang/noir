@@ -4,10 +4,12 @@
 import {
   AztecAddress,
   CompleteAddress,
+  Contract,
   ContractBase,
   ContractFunctionInteraction,
   ContractMethod,
   DeployMethod,
+  EthAddress,
   FieldLike,
   AztecAddressLike,
   EthAddressLike,
@@ -23,13 +25,8 @@ export const BlankContractAbi = BlankContractAbiJson as ContractAbi;
  * Type-safe interface for contract Blank;
  */
 export class BlankContract extends ContractBase {
-  private constructor(
-    /** The deployed contract's complete address. */
-    completeAddress: CompleteAddress,
-    /** The wallet. */
-    wallet: Wallet,
-  ) {
-    super(completeAddress, BlankContractAbi, wallet);
+  private constructor(completeAddress: CompleteAddress, wallet: Wallet, portalContract = EthAddress.ZERO) {
+    super(completeAddress, BlankContractAbi, wallet, portalContract);
   }
 
   /**
@@ -38,17 +35,8 @@ export class BlankContract extends ContractBase {
    * @param wallet - The wallet to use when interacting with the contract.
    * @returns A promise that resolves to a new Contract instance.
    */
-  public static async at(
-    /** The deployed contract's address. */
-    address: AztecAddress,
-    /** The wallet. */
-    wallet: Wallet,
-  ) {
-    const extendedContractData = await wallet.getExtendedContractData(address);
-    if (extendedContractData === undefined) {
-      throw new Error('Contract ' + address.toString() + ' is not deployed');
-    }
-    return new BlankContract(extendedContractData.getCompleteAddress(), wallet);
+  public static async at(address: AztecAddress, wallet: Wallet) {
+    return Contract.at(address, BlankContract.abi, wallet) as Promise<BlankContract>;
   }
 
   /**

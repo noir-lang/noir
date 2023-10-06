@@ -19,7 +19,7 @@ export type DeployTxReceipt<TContract extends ContractBase = Contract> = FieldsO
 /**
  * A contract deployment transaction sent to the network, extending SentTx with methods to create a contract instance.
  */
-export class DeploySentTx<TContract extends ContractBase = Contract> extends SentTx {
+export class DeploySentTx<TContract extends Contract = Contract> extends SentTx {
   constructor(private abi: ContractAbi, wallet: PXE | Wallet, txHashPromise: Promise<TxHash>) {
     super(wallet, txHashPromise);
   }

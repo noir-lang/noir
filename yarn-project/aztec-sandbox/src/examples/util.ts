@@ -46,13 +46,9 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   });
 
   // deploy l2 contract and attach to portal
-  const tx = NonNativeTokenContract.deploy(wallet, initialBalance, owner).send({
-    portalContract: tokenPortalAddress,
-  });
-  await tx.isMined({ interval: 0.1 });
-  const receipt = await tx.getReceipt();
-  const l2Contract = await NonNativeTokenContract.at(receipt.contractAddress!, wallet);
-  await l2Contract.attach(tokenPortalAddress);
+  const l2Contract = await NonNativeTokenContract.deploy(wallet, initialBalance, owner)
+    .send({ portalContract: tokenPortalAddress })
+    .deployed();
   const l2TokenAddress = l2Contract.address.toString() as `0x${string}`;
 
   // initialize portal

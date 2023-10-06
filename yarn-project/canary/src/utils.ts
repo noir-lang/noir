@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr, TxStatus, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, EthAddress, TxStatus, Wallet } from '@aztec/aztec.js';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 
@@ -72,15 +72,10 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   const token = await TokenContract.at(deployReceipt.contractAddress!, wallet);
 
   // deploy l2 token bridge and attach to the portal
-  const bridgeTx = TokenBridgeContract.deploy(wallet, token.address).send({
-    portalContract: tokenPortalAddress,
-    contractAddressSalt: Fr.random(),
-  });
-
-  const bridgeReceipt = await bridgeTx.wait();
-  const bridge = await TokenBridgeContract.at(bridgeReceipt.contractAddress!, wallet);
-  await bridge.attach(tokenPortalAddress);
-  const bridgeAddress = bridge.address.toString() as `0x${string}`;
+  const bridge = await TokenBridgeContract.deploy(wallet, token.address)
+    .send({ portalContract: tokenPortalAddress })
+    .deployed();
+  const bridgeAddress = bridge.address.toString();
 
   // now we wait for the txs to be mined. This way we send all tx in the same rollup.
   if ((await token.methods.admin().view()) !== owner.toBigInt()) throw new Error(`Token admin is not ${owner}`);

@@ -124,7 +124,6 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     uniswapL2Contract = await UniswapContract.deploy(ownerWallet)
       .send({ portalContract: uniswapPortalAddress })
       .deployed();
-    await uniswapL2Contract.attach(uniswapPortalAddress);
 
     await uniswapPortal.write.initialize(
       [deployL1ContractsValues!.l1ContractAddresses.registryAddress!.toString(), uniswapL2Contract.address.toString()],

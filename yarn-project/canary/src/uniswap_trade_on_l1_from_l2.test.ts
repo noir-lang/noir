@@ -115,7 +115,6 @@ async function deployAllContracts(
   const uniswapL2Contract = await UniswapContract.deploy(ownerWallet)
     .send({ portalContract: uniswapPortalAddress })
     .deployed();
-  await uniswapL2Contract.attach(uniswapPortalAddress);
 
   await uniswapPortal.write.initialize(
     [l1ContractsAddresses!.registryAddress.toString(), uniswapL2Contract.address.toString()],
