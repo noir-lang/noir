@@ -3,7 +3,7 @@ description: Installs and setups Nix components
 
 inputs:
   github-token:  
-    description: 'Name of the Cachix cache to use'
+    description: 'Github Access Token'
     required: true
   nix-cache-name:  
     description: 'Name of the Cachix cache to use'
