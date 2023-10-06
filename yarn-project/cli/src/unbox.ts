@@ -103,7 +103,7 @@ async function downloadContractAndBoxFromGithub(
   // small string conversion, in the ABI the contract name looks like PrivateToken
   // but in the repostory it looks like private_token
 
-  log(`Downloading @aztex/boxes/${contractName} to ${outputPath}...`);
+  log(`Downloading @aztex/boxes/${contractName}/ to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
   const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tag}.zip`;
   const response = await fetch(url);
@@ -116,7 +116,7 @@ async function downloadContractAndBoxFromGithub(
   // this is currently only implemented for `blank` and `private-token` under 'boxes/{box-name}/'
   const repoDirectoryPrefix = `${GITHUB_REPO}-${tag}`;
 
-  const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${contractName}`;
+  const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${contractName}/`;
   await copyFolderFromGithub(data, boxPath, outputPath, log);
 
   // the expected noir version is contained in
