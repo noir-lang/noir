@@ -238,7 +238,6 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 /// Returns true if an annotated node is found, false otherwise
 fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
     let mut has_transformed_module = false;
-    println!("Transforming module, is storage defined? {}", storage_defined);
 
     for structure in module.types.iter() {
         if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
