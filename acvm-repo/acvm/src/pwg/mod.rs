@@ -11,7 +11,9 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
 use self::{
-    arithmetic::ArithmeticSolver, brillig::{BrilligSolver, BrilligSolverStatus}, directives::solve_directives,
+    arithmetic::ArithmeticSolver,
+    brillig::{BrilligSolver, BrilligSolverStatus},
+    directives::solve_directives,
     memory_op::MemoryOpSolver,
 };
 use crate::{BlackBoxFunctionSolver, Language};
@@ -140,6 +142,8 @@ pub struct ACVM<'backend, B: BlackBoxFunctionSolver> {
     instruction_pointer: usize,
 
     witness_map: WitnessMap,
+
+    brillig_solver: Option<BrilligSolver<'backend, B>>,
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
@@ -152,6 +156,7 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
             opcodes,
             instruction_pointer: 0,
             witness_map: initial_witness,
+            brillig_solver: None,
         }
     }
 
@@ -216,12 +221,8 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
             panic!("ACVM is not expecting a foreign call response as no call was made");
         }
 
-        // We want to inject the foreign call result into the brillig opcode which initiated the call.
-        let opcode = &mut self.opcodes[self.instruction_pointer];
-        let Opcode::Brillig(brillig) = opcode else {
-            unreachable!("ACVM can only enter `RequiresForeignCall` state on a Brillig opcode");
-        };
-        brillig.foreign_call_results.push(foreign_call_result);
+        let brillig_solver = self.brillig_solver.as_mut().expect("No active Brillig solver");
+        brillig_solver.resolve_pending_foreign_call(foreign_call_result);
 
         // Now that the foreign call has been resolved then we can resume execution.
         self.status(ACVMStatus::InProgress);
@@ -258,22 +259,36 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
                 solver.solve_memory_op(op, &mut self.witness_map, predicate)
             }
             Opcode::Brillig(brillig) => {
-                let result = BrilligSolver::build_or_skip(
-                    &mut self.witness_map,
-                    brillig,
-                    self.backend,
-                    self.instruction_pointer,
-                );
-                match result {
-                    Ok(Some(mut solver)) => {
-                        match solver.solve() {
-                            Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) =>
-                                return self.wait_for_foreign_call(foreign_call),
-                            Ok(BrilligSolverStatus::InProgress) =>
-                                unreachable!("Brillig solver still in progress"),
-                            res => res.map(|_| ()),
+                let witness = &mut self.witness_map;
+                // get the active Brillig solver, or try to build one if necessary
+                // (Brillig execution maybe bypassed by constraints)
+                let maybe_solver = match self.brillig_solver.as_mut() {
+                    Some(solver) => Ok(Some(solver)),
+                    None => BrilligSolver::build_or_skip(
+                        witness,
+                        brillig,
+                        self.backend,
+                        self.instruction_pointer,
+                    )
+                    .and_then(|optional_solver| {
+                        Ok(optional_solver
+                            .and_then(|solver| Some(self.brillig_solver.insert(solver))))
+                    }),
+                };
+                match maybe_solver {
+                    Ok(Some(solver)) => match solver.solve() {
+                        Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) => {
+                            return self.wait_for_foreign_call(foreign_call);
                         }
-                    }
+                        Ok(BrilligSolverStatus::InProgress) => {
+                            unreachable!("Brillig solver still in progress")
+                        }
+                        Ok(BrilligSolverStatus::Finished) => {
+                            // clear active Brillig solver and write execution outputs
+                            self.brillig_solver.take().unwrap().finalize(witness, brillig)
+                        }
+                        res => res.map(|_| ()),
+                    },
                     res => res.map(|_| ()),
                 }
             }

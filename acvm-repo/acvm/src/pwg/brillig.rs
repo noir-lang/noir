@@ -1,5 +1,5 @@
 use acir::{
-    brillig::{ForeignCallParam, RegisterIndex, Value},
+    brillig::{ForeignCallParam, ForeignCallResult, RegisterIndex, Value},
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
         OpcodeLocation,
@@ -21,16 +21,17 @@ pub(super) enum BrilligSolverStatus {
 }
 
 pub(super) struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
-    witness: &'b mut WitnessMap,
-    brillig: &'b Brillig,
-    acir_index: usize,
     vm: VM<'b, B>,
+    acir_index: usize,
 }
 
 impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
-    pub(super) fn build_or_skip(
-        initial_witness: &'b mut WitnessMap,
-        brillig: &'b Brillig,
+    /// Constructs a solver for a Brillig block given the bytecode and initial
+    /// witness. If the block should be skipped entirely because its predicate
+    /// evaluates to false, zero out the block outputs and return Ok(None).
+    pub(super) fn build_or_skip<'w>(
+        initial_witness: &'w mut WitnessMap,
+        brillig: &'w Brillig,
         bb_solver: &'b B,
         acir_index: usize,
     ) -> Result<Option<Self>, OpcodeResolutionError> {
@@ -39,18 +40,11 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
             return Ok(None);
         }
 
-        let vm = Self::setup_vm(initial_witness, brillig, bb_solver)?;
-        Ok(Some(
-            Self {
-                witness: initial_witness,
-                brillig,
-                acir_index,
-                vm,
-            }
-        ))
+        let vm = Self::build_vm(initial_witness, brillig, bb_solver)?;
+        Ok(Some(Self { vm, acir_index }))
     }
 
-    fn should_skip(witness: &mut WitnessMap, brillig: &Brillig) -> Result<bool, OpcodeResolutionError> {
+    fn should_skip(witness: &WitnessMap, brillig: &Brillig) -> Result<bool, OpcodeResolutionError> {
         // If the predicate is `None`, then we simply return the value 1
         // If the predicate is `Some` but we cannot find a value, then we return stalled
         let pred_value = match &brillig.predicate {
@@ -82,8 +76,8 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(())
     }
 
-    fn setup_vm(
-        witness: &mut WitnessMap,
+    fn build_vm(
+        witness: &WitnessMap,
         brillig: &Brillig,
         bb_solver: &'b B,
     ) -> Result<VM<'b, B>, OpcodeResolutionError> {
@@ -137,24 +131,21 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     }
 
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
-        // Run the Brillig VM on these inputs, bytecode, etc!
-        while matches!(self.vm.process_opcode(), VMStatus::InProgress) {}
-
-        self.finish_execution()
+        let status = self.vm.process_opcodes();
+        self.handle_vm_status(status)
     }
 
-    pub(super) fn finish_execution(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
-        // Check the status of the Brillig VM.
+    fn handle_vm_status(
+        &self,
+        vm_status: VMStatus,
+    ) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+        // Check the status of the Brillig VM and return a resolution.
         // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
         // Return the "resolution" to the caller who may choose to make subsequent calls
         // (when it gets foreign call results for example).
-        let vm_status = self.vm.get_status();
         match vm_status {
-            VMStatus::Finished => {
-                self.write_brillig_outputs()?;
-                Ok(BrilligSolverStatus::Finished)
-            }
-            VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
+            VMStatus::Finished => Ok(BrilligSolverStatus::Finished),
+            VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
             VMStatus::Failure { message, call_stack } => {
                 Err(OpcodeResolutionError::BrilligFunctionFailed {
                     message,
@@ -173,24 +164,51 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         }
     }
 
-    fn write_brillig_outputs(&mut self) -> Result<(), OpcodeResolutionError> {
+    pub(super) fn finalize(
+        self,
+        witness: &mut WitnessMap,
+        brillig: &Brillig,
+    ) -> Result<(), OpcodeResolutionError> {
+        // Finish the Brillig execution by writing the outputs to the witness map
+        let vm_status = self.vm.get_status();
+        match vm_status {
+            VMStatus::Finished => {
+                self.write_brillig_outputs(witness, brillig)?;
+                Ok(())
+            }
+            _ => panic!("Brillig VM has not completed execution"),
+        }
+    }
+
+    fn write_brillig_outputs(
+        &self,
+        witness_map: &mut WitnessMap,
+        brillig: &Brillig,
+    ) -> Result<(), OpcodeResolutionError> {
         // Write VM execution results into the witness map
-        for (i, output) in self.brillig.outputs.iter().enumerate() {
+        for (i, output) in brillig.outputs.iter().enumerate() {
             let register_value = self.vm.get_registers().get(RegisterIndex::from(i));
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, register_value.to_field(), self.witness)?;
+                    insert_value(witness, register_value.to_field(), witness_map)?;
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     // Treat the register value as a pointer to memory
                     for (i, witness) in witness_arr.iter().enumerate() {
                         let value = &self.vm.get_memory()[register_value.to_usize() + i];
-                        insert_value(witness, value.to_field(), self.witness)?;
+                        insert_value(witness, value.to_field(), witness_map)?;
                     }
                 }
             }
         }
         Ok(())
+    }
+
+    pub(super) fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
+        match self.vm.get_status() {
+            VMStatus::ForeignCallWait { .. } => self.vm.resolve_foreign_call(foreign_call_result),
+            _ => unreachable!("Brillig VM is not waiting for a foreign call"),
+        }
     }
 }
 
