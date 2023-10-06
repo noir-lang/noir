@@ -76,11 +76,12 @@ function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?
     handler(level, debug.namespace, msg, data);
   }
 
-  const msgWithData = data ? `${msg} ${fmtLogData(data)}` : msg;
+  msg = data ? `${msg} ${fmtLogData(data)}` : msg;
   if (debug.enabled) {
-    debug(msgWithData);
+    if (level !== 'debug') msg = `${level.toUpperCase()} ${msg}`;
+    debug(msg);
   } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel)) {
-    printLog(`${getPrefix(debug, level)} ${msgWithData}`);
+    printLog(`${getPrefix(debug, level)} ${msg}`);
   }
 }
 
