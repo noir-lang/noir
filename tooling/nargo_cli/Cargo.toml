@@ -23,6 +23,7 @@ clap.workspace = true
 fm.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
+nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noir_lsp.workspace = true
 noirc_driver.workspace = true
