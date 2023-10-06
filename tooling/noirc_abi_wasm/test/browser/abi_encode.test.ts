@@ -9,7 +9,7 @@ beforeEach(async () => {
 it('recovers original inputs when abi encoding and decoding', async () => {
   const { abi, inputs } = await import('../shared/abi_encode');
 
-  const initial_witness: WitnessMap = abiEncode(abi, inputs, null);
+  const initial_witness: WitnessMap = abiEncode(abi, inputs);
   const decoded_inputs: DecodedInputs = abiDecode(abi, initial_witness);
 
   const foo: Field = inputs.foo as Field;

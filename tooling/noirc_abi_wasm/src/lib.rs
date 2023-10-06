@@ -36,6 +36,13 @@ extern "C" {
     pub type JsInputMap;
 }
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "InputValue", typescript_type = "InputValue")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsInputValue;
+}
+
 #[wasm_bindgen(typescript_custom_section)]
 const ABI: &'static str = r#"
 export type Visibility = "public" | "private";
@@ -74,25 +81,24 @@ extern "C" {
 pub fn abi_encode(
     abi: JsAbi,
     inputs: JsInputMap,
-    return_value: JsValue,
+    return_value: Option<JsInputValue>,
 ) -> Result<JsWitnessMap, JsAbiError> {
     console_error_panic_hook::set_once();
     let abi: Abi =
         JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
     let inputs: BTreeMap<String, JsonTypes> =
         JsValueSerdeExt::into_serde(&JsValue::from(inputs)).map_err(|err| err.to_string())?;
-    let return_value: Option<InputValue> = if return_value.is_undefined() || return_value.is_null()
-    {
-        None
-    } else {
-        let toml_return_value =
-            JsValueSerdeExt::into_serde(&return_value).expect("could not decode return value");
-        Some(input_value_from_json_type(
-            toml_return_value,
-            abi.return_type.as_ref().unwrap(),
-            MAIN_RETURN_NAME,
-        )?)
-    };
+    let return_value: Option<InputValue> = return_value
+        .map(|return_value| {
+            let toml_return_value = JsValueSerdeExt::into_serde(&JsValue::from(return_value))
+                .expect("could not decode return value");
+            input_value_from_json_type(
+                toml_return_value,
+                abi.return_type.as_ref().unwrap(),
+                MAIN_RETURN_NAME,
+            )
+        })
+        .transpose()?;
 
     let abi_map = abi.to_btree_map();
     let parsed_inputs: BTreeMap<String, InputValue> =
