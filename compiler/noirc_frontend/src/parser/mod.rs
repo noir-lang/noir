@@ -44,7 +44,7 @@ pub(crate) enum TopLevelStatement {
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    SubModule(SubModule),
+    SubModule(ParsedSubModule),
     Global(LetStatement),
     Error,
 }
@@ -232,7 +232,45 @@ pub struct SortedModule {
     pub module_decls: Vec<Ident>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
-    pub submodules: Vec<SubModule>,
+    pub submodules: Vec<SortedSubModule>,
+}
+
+impl std::fmt::Display for SortedModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for decl in &self.module_decls {
+            writeln!(f, "mod {decl};")?;
+        }
+
+        for import in &self.imports {
+            write!(f, "{import}")?;
+        }
+
+        for global_const in &self.globals {
+            write!(f, "{global_const}")?;
+        }
+
+        for type_ in &self.types {
+            write!(f, "{type_}")?;
+        }
+
+        for function in &self.functions {
+            write!(f, "{function}")?;
+        }
+
+        for impl_ in &self.impls {
+            write!(f, "{impl_}")?;
+        }
+
+        for type_alias in &self.type_aliases {
+            write!(f, "{type_alias}")?;
+        }
+
+        for submodule in &self.submodules {
+            write!(f, "{submodule}")?;
+        }
+
+        Ok(())
+    }
 }
 
 /// A ParsedModule contains an entire Ast for one file.
@@ -256,7 +294,7 @@ impl ParsedModule {
                 ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
                 ItemKind::Global(global) => module.push_global(global),
                 ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
-                ItemKind::Submodules(submodule) => module.push_submodule(submodule),
+                ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
             }
         }
 
@@ -281,15 +319,43 @@ pub enum ItemKind {
     TypeAlias(NoirTypeAlias),
     Global(LetStatement),
     ModuleDecl(Ident),
-    Submodules(SubModule),
+    Submodules(ParsedSubModule),
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
-pub struct SubModule {
+pub struct ParsedSubModule {
     pub name: Ident,
     pub contents: ParsedModule,
+    pub is_contract: bool,
+}
+
+impl ParsedSubModule {
+    pub fn into_sorted(self) -> SortedSubModule {
+        SortedSubModule {
+            name: self.name,
+            contents: self.contents.into_sorted(),
+            is_contract: self.is_contract,
+        }
+    }
+}
+
+impl std::fmt::Display for SortedSubModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "mod {} {{", self.name)?;
+
+        for line in self.contents.to_string().lines() {
+            write!(f, "\n    {line}")?;
+        }
+
+        write!(f, "\n}}")
+    }
+}
+
+pub struct SortedSubModule {
+    pub name: Ident,
+    pub contents: SortedModule,
     pub is_contract: bool,
 }
 
@@ -326,7 +392,7 @@ impl SortedModule {
         self.module_decls.push(mod_name);
     }
 
-    fn push_submodule(&mut self, submodule: SubModule) {
+    fn push_submodule(&mut self, submodule: SortedSubModule) {
         self.submodules.push(submodule);
     }
 
@@ -532,52 +598,12 @@ impl std::fmt::Display for TopLevelStatement {
 
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let module = self.clone().into_sorted();
-
-        for decl in &module.module_decls {
-            writeln!(f, "mod {decl};")?;
-        }
-
-        for import in &module.imports {
-            write!(f, "{import}")?;
-        }
-
-        for global_const in &module.globals {
-            write!(f, "{global_const}")?;
-        }
-
-        for type_ in &module.types {
-            write!(f, "{type_}")?;
-        }
-
-        for function in &module.functions {
-            write!(f, "{function}")?;
-        }
-
-        for impl_ in &module.impls {
-            write!(f, "{impl_}")?;
-        }
-
-        for type_alias in &module.type_aliases {
-            write!(f, "{type_alias}")?;
-        }
-
-        for submodule in &module.submodules {
-            write!(f, "{submodule}")?;
-        }
-
-        Ok(())
+        self.clone().into_sorted().fmt(f)
     }
 }
 
-impl std::fmt::Display for SubModule {
+impl std::fmt::Display for ParsedSubModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "mod {} {{", self.name)?;
-
-        for line in self.contents.to_string().lines() {
-            write!(f, "\n    {line}")?;
-        }
-
-        write!(f, "\n}}")
+        self.clone().into_sorted().fmt(f)
     }
 }
