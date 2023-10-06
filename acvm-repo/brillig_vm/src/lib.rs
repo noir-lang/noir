@@ -131,6 +131,14 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
+    pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
+        if self.foreign_call_counter < self.foreign_call_results.len() {
+            panic!("No unresolved foreign calls");
+        }
+        self.foreign_call_results.push(foreign_call_result);
+        self.status(VMStatus::InProgress);
+    }
+
     /// Sets the current status of the VM to `fail`.
     /// Indicating that the VM encountered a `Trap` Opcode
     /// or an invalid state.
@@ -933,7 +941,7 @@ mod tests {
         );
 
         // Push result we're waiting for
-        vm.foreign_call_results.push(
+        vm.resolve_foreign_call(
             Value::from(10u128).into(), // Result of doubling 5u128
         );
 
@@ -994,7 +1002,7 @@ mod tests {
         );
 
         // Push result we're waiting for
-        vm.foreign_call_results.push(expected_result.clone().into());
+        vm.resolve_foreign_call(expected_result.clone().into());
 
         // Resume VM
         brillig_execute(&mut vm);
@@ -1067,7 +1075,7 @@ mod tests {
         );
 
         // Push result we're waiting for
-        vm.foreign_call_results.push(ForeignCallResult {
+        vm.resolve_foreign_call(ForeignCallResult {
             values: vec![ForeignCallParam::Array(output_string.clone())],
         });
 
@@ -1129,7 +1137,7 @@ mod tests {
         );
 
         // Push result we're waiting for
-        vm.foreign_call_results.push(expected_result.clone().into());
+        vm.resolve_foreign_call(expected_result.clone().into());
 
         // Resume VM
         brillig_execute(&mut vm);
@@ -1214,7 +1222,7 @@ mod tests {
         );
 
         // Push result we're waiting for
-        vm.foreign_call_results.push(expected_result.clone().into());
+        vm.resolve_foreign_call(expected_result.clone().into());
 
         // Resume VM
         brillig_execute(&mut vm);
