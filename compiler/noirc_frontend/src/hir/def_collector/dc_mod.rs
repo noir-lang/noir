@@ -7,7 +7,7 @@ use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{TraitId, TypeAliasId},
-    parser::{SortedModule, SubModule},
+    parser::{SortedModule, SortedSubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -451,7 +451,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         crate_id: CrateId,
-        submodules: Vec<SubModule>,
+        submodules: Vec<SortedSubModule>,
         file_id: FileId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -460,7 +460,7 @@ impl<'a> ModCollector<'a> {
                 Ok(child) => {
                     errors.extend(collect_defs(
                         self.def_collector,
-                        submodule.contents.into_sorted(),
+                        submodule.contents,
                         file_id,
                         child,
                         crate_id,

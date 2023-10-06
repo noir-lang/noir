@@ -7,16 +7,17 @@ use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir_def::expr::{HirExpression, HirLiteral};
 use crate::hir_def::stmt::HirStatement;
 use crate::node_interner::{NodeInterner, StructId};
+use crate::parser::SortedModule;
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, FunctionReturnType, Ident, ImportStatement, IndexExpression, LetStatement,
-    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, ParsedModule, Path,
-    PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+    ExpressionKind, FunctionReturnType, Ident, IndexExpression, LetStatement, Literal,
+    MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern, Statement,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::{
-    ForLoopStatement, FunctionDefinition, NoirStruct, PrefixExpression, Signedness, StructType,
-    Type, TypeImpl, UnaryOp,
+    ForLoopStatement, FunctionDefinition, ImportStatement, NoirStruct, PrefixExpression,
+    Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
 };
 use fm::FileId;
 
@@ -74,11 +75,11 @@ fn mutable(name: &str) -> Pattern {
 }
 
 fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
-    Statement::Let(LetStatement {
+    make_statement(StatementKind::Let(LetStatement {
         pattern: mutable(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
-    })
+    }))
 }
 
 fn mutable_reference(variable_name: &str) -> Expression {
@@ -89,11 +90,11 @@ fn mutable_reference(variable_name: &str) -> Expression {
 }
 
 fn assignment(name: &str, assigned_to: Expression) -> Statement {
-    Statement::Let(LetStatement {
+    make_statement(StatementKind::Let(LetStatement {
         pattern: pattern(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
-    })
+    }))
 }
 
 fn member_access(lhs: &str, rhs: &str) -> Expression {
@@ -161,10 +162,10 @@ fn import(path: Path) -> ImportStatement {
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
 pub(crate) fn transform(
-    mut ast: ParsedModule,
+    mut ast: SortedModule,
     crate_id: &CrateId,
     context: &Context,
-) -> Result<ParsedModule, (DefCollectorErrorKind, FileId)> {
+) -> Result<SortedModule, (DefCollectorErrorKind, FileId)> {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
@@ -193,7 +194,7 @@ pub(crate) fn transform_hir(crate_id: &CrateId, context: &mut Context) {
 }
 
 /// Includes an import to the aztec library if it has not been included yet
-fn include_relevant_imports(ast: &mut ParsedModule) {
+fn include_relevant_imports(ast: &mut SortedModule) {
     // Create the aztec import path using the assumed chained_dep! macro
     let aztec_import_path = import(chained_dep!("aztec"));
 
@@ -219,7 +220,7 @@ fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<(
 }
 
 // Check to see if the user has defined a storage struct
-fn check_for_storage_definition(module: &ParsedModule) -> bool {
+fn check_for_storage_definition(module: &SortedModule) -> bool {
     module.types.iter().any(|function| function.name.0.contents == "Storage")
 }
 
@@ -235,10 +236,11 @@ fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool 
 /// Determines if ast nodes are annotated with aztec attributes.
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
-fn transform_module(module: &mut ParsedModule, storage_defined: bool) -> bool {
+fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
     let mut has_transformed_module = false;
+    println!("Transforming module, is storage defined? {}", storage_defined);
 
-    for structure in module.types.iter_mut() {
+    for structure in module.types.iter() {
         if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
             module.impls.push(generate_selector_impl(structure));
             has_transformed_module = true;
@@ -414,13 +416,13 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 /// This allows developers to emit events without having to write the signature of the event every time they emit it.
 /// The signature cannot be known at this point since types are not resolved yet, so we use a signature placeholder.
 /// It'll get resolved after by transforming the HIR.
-fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
+fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
-    let selector_fun_body = BlockExpression(vec![Statement::Expression(call(
+    let selector_fun_body = BlockExpression(vec![make_statement(StatementKind::Expression(call(
         variable_path(chained_path!("aztec", "selector", "compute_selector")),
         vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
-    ))]);
+    )))]);
 
     let mut selector_fn_def = FunctionDefinition::normal(
         &ident("selector"),
@@ -595,17 +597,19 @@ fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
 
     // Check if the return type is an expression, if it is, we can handle it
     match last_statement {
-        Statement::Expression(expression) => match current_return_type {
-            // Call serialize on structs, push the whole array, calling push_array
-            UnresolvedTypeData::Named(..) => Some(make_struct_return_type(expression.clone())),
-            UnresolvedTypeData::Array(..) => Some(make_array_return_type(expression.clone())),
-            // Cast these types to a field before pushing
-            UnresolvedTypeData::Bool | UnresolvedTypeData::Integer(..) => {
-                Some(make_castable_return_type(expression.clone()))
+        Statement { kind: StatementKind::Expression(expression), .. } => {
+            match current_return_type {
+                // Call serialize on structs, push the whole array, calling push_array
+                UnresolvedTypeData::Named(..) => Some(make_struct_return_type(expression.clone())),
+                UnresolvedTypeData::Array(..) => Some(make_array_return_type(expression.clone())),
+                // Cast these types to a field before pushing
+                UnresolvedTypeData::Bool | UnresolvedTypeData::Integer(..) => {
+                    Some(make_castable_return_type(expression.clone()))
+                }
+                UnresolvedTypeData::FieldElement => Some(make_return_push(expression.clone())),
+                _ => None,
             }
-            UnresolvedTypeData::FieldElement => Some(make_return_push(expression.clone())),
-            _ => None,
-        },
+        }
         _ => None,
     }
 }
@@ -665,12 +669,20 @@ fn context_return_values() -> Expression {
     member_access("context", "return_values")
 }
 
+fn make_statement(kind: StatementKind) -> Statement {
+    Statement { span: Span::default(), kind }
+}
+
 /// Make return Push
 ///
 /// Translates to:
 /// `context.return_values.push({push_value})`
 fn make_return_push(push_value: Expression) -> Statement {
-    Statement::Semi(method_call(context_return_values(), "push", vec![push_value]))
+    make_statement(StatementKind::Semi(method_call(
+        context_return_values(),
+        "push",
+        vec![push_value],
+    )))
 }
 
 /// Make Return push array
@@ -678,7 +690,11 @@ fn make_return_push(push_value: Expression) -> Statement {
 /// Translates to:
 /// `context.return_values.push_array({push_value})`
 fn make_return_push_array(push_value: Expression) -> Statement {
-    Statement::Semi(method_call(context_return_values(), "push_array", vec![push_value]))
+    make_statement(StatementKind::Semi(method_call(
+        context_return_values(),
+        "push_array",
+        vec![push_value],
+    )))
 }
 
 /// Make struct return type
@@ -706,11 +722,11 @@ fn make_struct_return_type(expression: Expression) -> Statement {
 fn make_array_return_type(expression: Expression) -> Statement {
     let inner_cast_expression =
         cast(index_array_variable(expression.clone(), "i"), UnresolvedTypeData::FieldElement);
-    let assignment = Statement::Semi(method_call(
+    let assignment = make_statement(StatementKind::Semi(method_call(
         context_return_values(), // variable
         "push",                  // method name
         vec![inner_cast_expression],
-    ));
+    )));
 
     create_loop_over(expression, vec![assignment])
 }
@@ -780,7 +796,7 @@ pub(crate) fn create_context_finish() -> Statement {
         "finish",            // method name
         vec![],              // args
     );
-    Statement::Expression(method_call)
+    make_statement(StatementKind::Expression(method_call))
 }
 
 //
@@ -795,11 +811,11 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
         vec![],                                  // args
     );
 
-    Statement::Semi(method_call(
+    make_statement(StatementKind::Semi(method_call(
         variable("hasher"),    // variable
         "add_multiple",        // method name
         vec![serialized_call], // args
-    ))
+    )))
 }
 
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
@@ -818,14 +834,14 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
 
     // `for i in 0..{ident}.len()`
-    Statement::For(ForLoopStatement {
+    make_statement(StatementKind::For(ForLoopStatement {
         identifier: ident("i"),
         start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
             i128::from(0),
         )))),
         end_range: end_range_expression,
         block: for_loop_block,
-    })
+    }))
 }
 
 fn add_array_to_hasher(identifier: &Ident) -> Statement {
@@ -838,11 +854,11 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
         index_array(identifier.clone(), "i"), // lhs - `ident[i]`
         UnresolvedTypeData::FieldElement,     // cast to - `as Field`
     );
-    let block_statement = Statement::Semi(method_call(
+    let block_statement = make_statement(StatementKind::Semi(method_call(
         variable("hasher"), // variable
         "add",              // method name
         vec![cast_expression],
-    ));
+    )));
 
     create_loop_over(variable_ident(identifier.clone()), vec![block_statement])
 }
@@ -850,11 +866,11 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
 fn add_field_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident})`
     let iden = variable_path(path(identifier.clone()));
-    Statement::Semi(method_call(
+    make_statement(StatementKind::Semi(method_call(
         variable("hasher"), // variable
         "add",              // method name
         vec![iden],         // args
-    ))
+    )))
 }
 
 fn add_cast_to_hasher(identifier: &Ident) -> Statement {
@@ -866,11 +882,11 @@ fn add_cast_to_hasher(identifier: &Ident) -> Statement {
     );
 
     // `hasher.add({ident} as Field)`
-    Statement::Semi(method_call(
+    make_statement(StatementKind::Semi(method_call(
         variable("hasher"),   // variable
         "add",                // method name
         vec![cast_operation], // args
-    ))
+    )))
 }
 
 /// Computes the aztec signature for a resolved type.
