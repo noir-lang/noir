@@ -471,6 +471,42 @@ fn simple_reduction_smoke_test() {
 }
 
 #[test]
+fn intermediate_variable_reuse() {
+    let a = Witness(0);
+    let b = Witness(1);
+    let c = Witness(2);
+    let d = Witness(3);
+
+    // a = b + c + d;
+    let opcode_a = Expression {
+        mul_terms: vec![],
+        linear_combinations: vec![
+            (FieldElement::one(), a),
+            (-FieldElement::one(), b),
+            (-FieldElement::one(), c),
+            (-FieldElement::one(), d),
+        ],
+        q_c: FieldElement::zero(),
+    };
+
+    let mut optimizer = CSatTransformer::new(3);
+    optimizer.mark_solvable(b);
+    optimizer.mark_solvable(c);
+    optimizer.mark_solvable(d);
+
+    let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
+    let mut num_witness = 4;
+    let _ = optimizer.transform(opcode_a.clone(), &mut intermediate_variables, &mut num_witness);
+
+    assert_eq!(intermediate_variables.len(), 1);
+
+    // Passing in the same opcode should result in no additional intermediate variables,
+    // as we can reuse those created before.
+    let _ = optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+    assert_eq!(intermediate_variables.len(), 1);
+}
+
+#[test]
 fn stepwise_reduction_test() {
     let a = Witness(0);
     let b = Witness(1);
