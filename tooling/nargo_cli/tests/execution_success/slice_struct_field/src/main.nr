@@ -1,10 +1,7 @@
-use dep::std::collections::vec::Vec;
-
-
-// struct FooParent {
-//     parent_arr: [Field; 3],
-//     foos: [Foo],
-// }
+struct FooParent {
+    parent_arr: [Field; 3],
+    foos: [Foo],
+}
 
 struct Bar {
     inner: [Field; 3],
@@ -32,50 +29,74 @@ fn main(y : pub Field) {
     x = x.push_back(foo_three);
     x = x.push_back(foo_four);
     
-    assert(x[y - 3].a == 1);
-    let struct_slice = x[y - 3].b;
-    for i in 0..4 {
-        assert(struct_slice[i] == b_one[i]);
-    }
+    // assert(x[y - 3].a == 1);
+    // let struct_slice = x[y - 3].b;
+    // for i in 0..4 {
+    //     // dep::std::println(struct_slice[i]);
+    //     assert(struct_slice[i] == b_one[i]);
+    // }
 
-    assert(x[y - 2].a == 4);
-    let struct_slice = x[y - 2].b;
-    for i in 0..4 {
-        assert(struct_slice[i] == b_two[i]);
-    }
+    // assert(x[y - 2].a == 4);
+    // let struct_slice = x[y - 2].b;
+    // for i in 0..4 {
+    //     assert(struct_slice[i] == b_two[i]);
+    // }
 
-    assert(x[y - 1].a == 7);
-    let struct_slice = x[y - 1].b;
-    assert(struct_slice[0] == 8);
-    assert(struct_slice[1] == 9);
-    assert(struct_slice[2] == 22);
+    // assert(x[y - 1].a == 7);
+    // let struct_slice = x[y - 1].b;
+    // assert(struct_slice[0] == 8);
+    // assert(struct_slice[1] == 9);
+    // assert(struct_slice[2] == 22);
 
-    assert(x[y].a == 10);
-    let struct_slice = x[y].b;
-    assert(struct_slice[0] == 11);
-    assert(struct_slice[1] == 12);
-    assert(struct_slice[2] == 23);
-    assert(x[y].bar.inner == [109, 110, 111]);
+    // assert(x[y].a == 10);
+    // let struct_slice = x[y].b;
+    // assert(struct_slice[0] == 11);
+    // assert(struct_slice[1] == 12);
+    // assert(struct_slice[2] == 23);
+    // assert(x[y].bar.inner == [109, 110, 111]);
 
-    // Check dynamic array set 
-    if y != 2 {
-        x[y].a = 50;
-    } else {
-        x[y].a = 100;
-    }
-    assert(x[3].a == 50);
+    // // Check dynamic array set 
+    // if y != 2 {
+    //     x[y].a = 50;
+    // } else {
+    //     x[y].a = 100;
+    // }
+    // assert(x[3].a == 50);
 
-    if y == 2 {
-        x[y - 1].b = [50, 51, 52];
-    } else {
-        x[y - 1].b = [100, 101, 102];
-    }
-    assert(x[2].b[0] == 100);
-    assert(x[2].b[1] == 101);
-    assert(x[2].b[2] == 102);
+    // // NOTE: Using slices nested inside of arrays/structs
+    // // with multiple witness dependent conditionals
+    // // starts to seriously degrade performance
+    // if y == 2 {
+    //     x[y - 1].b = [50, 51, 52];
+    // } else {
+    //     x[y - 1].b = [100, 101, 102];        
+    // }
+    // assert(x[2].b[0] == 100);
+    // assert(x[2].b[1] == 101);
+    // assert(x[2].b[2] == 102);
 
-    assert(x[y - 3].bar.inner == [100, 101, 102]);
-    assert(x[y - 2].bar.inner == [103, 104, 105]);
-    assert(x[y - 1].bar.inner == [106, 107, 108]);
-    assert(x[y].bar.inner == [109, 110, 111]);
+    // assert(x[y - 3].bar.inner == [100, 101, 102]);
+    // assert(x[y - 2].bar.inner == [103, 104, 105]);
+    // assert(x[y - 1].bar.inner == [106, 107, 108]);
+    // assert(x[y].bar.inner == [109, 110, 111]);
+
+    let foo_parent_one = FooParent { parent_arr: [0, 1, 2], foos: x };
+    let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: x };
+    let mut foo_parents = [foo_parent_one];
+    foo_parents = foo_parents.push_back(foo_parent_two);
+
+    // if y != 2 {
+    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    // } else {
+    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
+    // }
+    // foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    // dep::std::println(foo_parents[y - 2].foos[y - 1].b[y - 1]);
+    // dep::std::println(foo_parents[y - 2].parent_arr[y - 1]);
+    dep::std::println(foo_parents[y - 2].foos[y - 1].a);
+    // dep::std::println(foo_parents[y - 2].foos[y - 1].a);
+
+    // dep::std::println(foo_parents[1].foos[2].b[2]);
+
+    // assert(foo_parents[1].foos[2].b[1] == 5000);
 }

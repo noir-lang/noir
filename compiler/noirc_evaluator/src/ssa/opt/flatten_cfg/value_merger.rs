@@ -205,23 +205,6 @@ impl<'a> ValueMerger<'a> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_usize {
-                        // println!("current array: {array}");
-                        // dbg!(&self.dfg[array]);
-                        // Do I need to check the dfg for the internal elements of the slice
-                        // to match which one we are on? 
-                        // Am I going to have to do something similar to get_slice_length or can I store it 
-                        // during get_slice_length?
-                        // match &self.dfg[array] {
-                        //     Value::Array { array, .. } => {
-                        //         dbg!(len);
-                        //         dbg!(index_usize);
-                        //         dbg!(array[index_usize - 1]);
-                        //     }
-                        //     _ => {
-                        //         panic!("ahhh got something other than array");
-                        //     }
-                        // }
-                        dbg!(index_usize);
                         self.make_slice_dummy_data(element_type, len)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
@@ -354,6 +337,9 @@ impl<'a> ValueMerger<'a> {
             Type::Slice(element_types) => {
                 // let mut array = im::Vector::new();
                 // // dbg!(len);
+                // if len == 16 {
+                //     dbg!("ahhh");
+                // }
                 // for _ in 0..len {
                 //     for typ in element_types.iter() {
                 //         array.push_back(self.make_slice_dummy_data(typ, len));

@@ -108,21 +108,6 @@ impl MemoryOpSolver {
                 }
                 res?
             };
-            // if block_id.0 == 6 && value_in_array.to_u128() == 50u128 {
-            //     dbg!("READING BLOCK ID 6");
-            //     // dbg!(self.block_value.clone());
-            //     dbg!(memory_index);
-            //     dbg!(value_in_array);
-            //     dbg!(&op.index.to_witness());
-
-            // }
-            // if block_id.0 == 6 && value_in_array.to_u128() == 10u128 {
-            //     // dbg!(self.block_value.clone());
-            //     dbg!("READING BLOCK ID 6");
-            //     dbg!(memory_index);
-            //     dbg!(value_in_array);
-            //     dbg!(&op.index.to_witness());
-            // }
             insert_value(&value_read_witness, value_in_array, initial_witness)
         } else {
             // `arr[memory_index] = value_write`
@@ -138,26 +123,7 @@ impl MemoryOpSolver {
                 Ok(())
             } else {
                 let value_to_write = get_value(&value_write, initial_witness)?;
-                // if block_id.0 == 6 && value_to_write.to_u128() == 50u128 {
-                //     dbg!(self.block_value.clone());
-                //     dbg!(memory_index);
-                //     dbg!(value_to_write);
-                // }
                 let res = self.write_memory_index(memory_index, value_to_write);
-                // if block_id.0 == 6 && value_to_write.to_u128() == 50u128 {
-                //     dbg!("WRITING BLOCK ID 6");
-                //     // dbg!(self.block_value.clone());
-                //     dbg!(memory_index);
-                //     dbg!(value_to_write);
-                //     dbg!(&op.index.to_witness());
-                // }
-                // if block_id.0 == 6 && value_to_write.to_u128() == 10u128 {
-                //     dbg!("WRITING BLOCK ID 6");
-                //     // dbg!(self.block_value.clone());
-                //     dbg!(memory_index);
-                //     dbg!(value_to_write);
-                //     dbg!(&op.index.to_witness());
-                // }
                 if res.is_err() {
                     dbg!("GOT WRITE OUT OF BOUNDS");
                     dbg!(block_id.0);
