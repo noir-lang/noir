@@ -1,5 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import initNoirAbi, { abiEncode, abiDecode, WitnessMap } from '@noir-lang/noirc_abi';
+import initNoirAbi, { abiEncode, abiDecode, WitnessMap, Field } from '@noir-lang/noirc_abi';
 import { DecodedInputs } from '../types';
 
 beforeEach(async () => {
@@ -12,8 +12,10 @@ it('recovers original inputs when abi encoding and decoding', async () => {
   const initial_witness: WitnessMap = abiEncode(abi, inputs, null);
   const decoded_inputs: DecodedInputs = abiDecode(abi, initial_witness);
 
-  expect(BigInt(decoded_inputs.inputs.foo)).to.be.equal(BigInt(inputs.foo));
-  expect(BigInt(decoded_inputs.inputs.bar[0])).to.be.equal(BigInt(inputs.bar[0]));
-  expect(BigInt(decoded_inputs.inputs.bar[1])).to.be.equal(BigInt(inputs.bar[1]));
+  const foo: Field = inputs.foo as Field;
+  const bar: Field[] = inputs.foo as Field[];
+  expect(BigInt(decoded_inputs.inputs.foo)).to.be.equal(BigInt(foo));
+  expect(BigInt(decoded_inputs.inputs.bar[0])).to.be.equal(BigInt(bar[0]));
+  expect(BigInt(decoded_inputs.inputs.bar[1])).to.be.equal(BigInt(bar[1]));
   expect(decoded_inputs.return_value).to.be.null;
 });
