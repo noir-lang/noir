@@ -1,6 +1,6 @@
 import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
-import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
 
@@ -22,8 +22,8 @@ export class FunctionL2Logs {
    *          the resulting buffer is prefixed with 4 bytes for its total length.
    */
   public toBuffer(): Buffer {
-    const serializedLogs = this.logs.map(buffer => serializeBufferToVector(buffer));
-    return serializeBufferToVector(Buffer.concat(serializedLogs));
+    const serializedLogs = this.logs.map(buffer => prefixBufferWithLength(buffer));
+    return prefixBufferWithLength(Buffer.concat(serializedLogs));
   }
 
   /**

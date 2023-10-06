@@ -1,4 +1,4 @@
-import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import isEqual from 'lodash.isequal';
 
@@ -22,7 +22,7 @@ export class L2BlockL2Logs {
   public toBuffer(): Buffer {
     const serializedTxLogs = this.txLogs.map(logs => logs.toBuffer());
     // Concatenate all serialized function logs into a single buffer and prefix it with 4 bytes for its total length.
-    return serializeBufferToVector(Buffer.concat(serializedTxLogs));
+    return prefixBufferWithLength(Buffer.concat(serializedTxLogs));
   }
 
   /**

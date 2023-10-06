@@ -1,5 +1,5 @@
 import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
-import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
 
@@ -35,7 +35,7 @@ export class UnencryptedL2Log {
     return Buffer.concat([
       this.contractAddress.toBuffer(),
       this.selector.toBuffer(),
-      serializeBufferToVector(this.data),
+      prefixBufferWithLength(this.data),
     ]);
   }
 

@@ -1,4 +1,4 @@
-import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { FunctionL2Logs } from './function_l2_logs.js';
 
@@ -20,7 +20,7 @@ export class TxL2Logs {
   public toBuffer(): Buffer {
     const serializedFunctionLogs = this.functionLogs.map(logs => logs.toBuffer());
     // Concatenate all serialized function logs into a single buffer and prefix it with 4 bytes for its total length.
-    return serializeBufferToVector(Buffer.concat(serializedFunctionLogs));
+    return prefixBufferWithLength(Buffer.concat(serializedFunctionLogs));
   }
 
   /**
