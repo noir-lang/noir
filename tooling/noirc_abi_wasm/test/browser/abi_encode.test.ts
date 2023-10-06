@@ -13,7 +13,7 @@ it('recovers original inputs when abi encoding and decoding', async () => {
   const decoded_inputs: DecodedInputs = abiDecode(abi, initial_witness);
 
   const foo: Field = inputs.foo as Field;
-  const bar: Field[] = inputs.foo as Field[];
+  const bar: Field[] = inputs.bar as Field[];
   expect(BigInt(decoded_inputs.inputs.foo)).to.be.equal(BigInt(foo));
   expect(BigInt(decoded_inputs.inputs.bar[0])).to.be.equal(BigInt(bar[0]));
   expect(BigInt(decoded_inputs.inputs.bar[1])).to.be.equal(BigInt(bar[1]));
