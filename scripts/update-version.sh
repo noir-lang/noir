@@ -37,8 +37,7 @@ for package_location in $packages; do
     # Extract the SemVer compatible part using a regex match
     semverPart=$(echo "$currentVersion" | grep -oP '^\d+\.\d+\.\d+')
     
-    # Append the newVersion to the SemVer part
-    appendedVersion="$semverPart-$tag_name"
+    appendedVersion="$semverPart"
     
     # Update the version in package.json
     jq --arg appendedVersion "$appendedVersion" '.version = $appendedVersion' "$packagePath" > "$packagePath.tmp" && mv "$packagePath.tmp" "$packagePath"

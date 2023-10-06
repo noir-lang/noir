@@ -24,8 +24,8 @@ for package_location in $packages; do
     continue
   fi
   
-  # Publish the package with the constructed tag name
-  npm publish --tag dev --access public
+  # Publish the package
+  npm publish --access public
   
   cd -
 done

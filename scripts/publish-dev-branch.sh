@@ -6,9 +6,6 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
-# Change the scope to @kevaundray so I can publish to my account for now
-bash ./scripts/change-scope.sh || { echo "Changing scope script failed"; exit 1; }
-
 # Run yarn and yarn build so that the built artifacts are up to date;
 # They should now reference the changed scope package names 
 yarn && yarn build
