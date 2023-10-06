@@ -1,5 +1,3 @@
-mod auth_oracle;
-
 use dep::std::{schnorr::verify_signature};
 use dep::aztec::address::compute_address;
 use crate::auth_oracle::{AuthWitness};

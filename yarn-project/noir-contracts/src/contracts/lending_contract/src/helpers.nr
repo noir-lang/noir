@@ -1,4 +1,3 @@
-mod interest_math;
 use crate::interest_math::compute_multiplier;
 use dep::std::hash::pedersen;
 use dep::safe_math::SafeU120;
