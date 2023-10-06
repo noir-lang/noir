@@ -24,6 +24,8 @@ const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "Run Test";
 const COMPILE_COMMAND: &str = "nargo.compile";
 const COMPILE_CODELENS_TITLE: &str = "Compile";
+const INFO_COMMAND: &str = "nargo.info";
+const INFO_CODELENS_TITLE: &str = "Info";
 const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
 
@@ -148,6 +150,16 @@ fn on_code_lens_request_inner(
 
                 lenses.push(compile_lens);
 
+                let info_command = Command {
+                    title: INFO_CODELENS_TITLE.to_string(),
+                    command: INFO_COMMAND.into(),
+                    arguments: Some(package_selection_args(&workspace, package)),
+                };
+
+                let info_lens = CodeLens { range, command: Some(info_command), data: None };
+
+                lenses.push(info_lens);
+
                 let execute_command = Command {
                     title: EXECUTE_CODELENS_TITLE.to_string(),
                     command: EXECUTE_COMMAND.into(),
@@ -186,6 +198,16 @@ fn on_code_lens_request_inner(
                 let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
 
                 lenses.push(compile_lens);
+
+                let info_command = Command {
+                    title: INFO_CODELENS_TITLE.to_string(),
+                    command: INFO_COMMAND.into(),
+                    arguments: Some(package_selection_args(&workspace, package)),
+                };
+
+                let info_lens = CodeLens { range, command: Some(info_command), data: None };
+
+                lenses.push(info_lens);
             }
         }
     }

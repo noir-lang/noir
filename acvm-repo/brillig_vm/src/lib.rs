@@ -313,7 +313,7 @@ impl<'bb_solver, B: BlackBoxFunctionSolver> VM<'bb_solver, B> {
     }
 
     /// Returns the current value of the program counter.
-    pub fn program_counter(self) -> usize {
+    pub fn program_counter(&self) -> usize {
         self.program_counter
     }
 

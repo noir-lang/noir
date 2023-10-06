@@ -1,18 +1,27 @@
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
+use crate::hir_def::expr::{HirExpression, HirLiteral};
+use crate::hir_def::stmt::HirStatement;
+use crate::node_interner::{NodeInterner, StructId};
+use crate::parser::SortedModule;
 use crate::token::SecondaryAttribute;
 use crate::{
     hir::Context, BlockExpression, CallExpression, CastExpression, Distinctness, Expression,
-    ExpressionKind, ForExpression, FunctionReturnType, Ident, ImportStatement, IndexExpression,
-    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction,
-    ParsedModule, Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData,
-    Visibility,
+    ExpressionKind, FunctionReturnType, Ident, IndexExpression, LetStatement, Literal,
+    MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind, Pattern, Statement,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
-use crate::{PrefixExpression, UnaryOp};
+use crate::{
+    ForLoopStatement, FunctionDefinition, ImportStatement, NoirStruct, PrefixExpression,
+    Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
+};
 use fm::FileId;
+
+use super::def_map::ModuleDefId;
 
 //
 //             Helper macros for creating noir ast nodes
@@ -66,11 +75,11 @@ fn mutable(name: &str) -> Pattern {
 }
 
 fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
-    Statement::Let(LetStatement {
+    make_statement(StatementKind::Let(LetStatement {
         pattern: mutable(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
-    })
+    }))
 }
 
 fn mutable_reference(variable_name: &str) -> Expression {
@@ -81,11 +90,11 @@ fn mutable_reference(variable_name: &str) -> Expression {
 }
 
 fn assignment(name: &str, assigned_to: Expression) -> Statement {
-    Statement::Let(LetStatement {
+    make_statement(StatementKind::Let(LetStatement {
         pattern: pattern(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
-    })
+    }))
 }
 
 fn member_access(lhs: &str, rhs: &str) -> Expression {
@@ -153,17 +162,17 @@ fn import(path: Path) -> ImportStatement {
 /// Traverses every function in the ast, calling `transform_function` which
 /// determines if further processing is required
 pub(crate) fn transform(
-    mut ast: ParsedModule,
+    mut ast: SortedModule,
     crate_id: &CrateId,
     context: &Context,
-) -> Result<ParsedModule, (DefCollectorErrorKind, FileId)> {
+) -> Result<SortedModule, (DefCollectorErrorKind, FileId)> {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
         let storage_defined = check_for_storage_definition(&submodule.contents);
 
-        if transform_module(&mut submodule.contents.functions, storage_defined) {
+        if transform_module(&mut submodule.contents, storage_defined) {
             match check_for_aztec_dependency(crate_id, context) {
                 Ok(()) => include_relevant_imports(&mut submodule.contents),
                 Err(file_id) => {
@@ -175,8 +184,17 @@ pub(crate) fn transform(
     Ok(ast)
 }
 
+//
+//                    Transform Hir Nodes for Aztec
+//
+
+/// Completes the Hir with data gathered from type resolution
+pub(crate) fn transform_hir(crate_id: &CrateId, context: &mut Context) {
+    transform_events(crate_id, context);
+}
+
 /// Includes an import to the aztec library if it has not been included yet
-fn include_relevant_imports(ast: &mut ParsedModule) {
+fn include_relevant_imports(ast: &mut SortedModule) {
     // Create the aztec import path using the assumed chained_dep! macro
     let aztec_import_path = import(chained_dep!("aztec"));
 
@@ -202,38 +220,49 @@ fn check_for_aztec_dependency(crate_id: &CrateId, context: &Context) -> Result<(
 }
 
 // Check to see if the user has defined a storage struct
-fn check_for_storage_definition(module: &ParsedModule) -> bool {
+fn check_for_storage_definition(module: &SortedModule) -> bool {
     module.types.iter().any(|function| function.name.0.contents == "Storage")
 }
 
-/// Determines if the function is annotated with `aztec(private)` or `aztec(public)`
-/// If it is, it calls the `transform` function which will perform the required transformations.
-/// Returns true if an annotated function is found, false otherwise
-fn transform_module(functions: &mut [NoirFunction], storage_defined: bool) -> bool {
-    let mut has_annotated_functions = false;
-    for func in functions.iter_mut() {
+/// Checks if an attribute is a custom attribute with a specific name
+fn is_custom_attribute(attr: &SecondaryAttribute, attribute_name: &str) -> bool {
+    if let SecondaryAttribute::Custom(custom_attr) = attr {
+        custom_attr.as_str() == attribute_name
+    } else {
+        false
+    }
+}
+
+/// Determines if ast nodes are annotated with aztec attributes.
+/// For annotated functions it calls the `transform` function which will perform the required transformations.
+/// Returns true if an annotated node is found, false otherwise
+fn transform_module(module: &mut SortedModule, storage_defined: bool) -> bool {
+    let mut has_transformed_module = false;
+
+    for structure in module.types.iter() {
+        if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
+            module.impls.push(generate_selector_impl(structure));
+            has_transformed_module = true;
+        }
+    }
+
+    for func in module.functions.iter_mut() {
         for secondary_attribute in func.def.attributes.secondary.clone() {
-            if let SecondaryAttribute::Custom(custom_attribute) = secondary_attribute {
-                match custom_attribute.as_str() {
-                    "aztec(private)" => {
-                        transform_function("Private", func, storage_defined);
-                        has_annotated_functions = true;
-                    }
-                    "aztec(public)" => {
-                        transform_function("Public", func, storage_defined);
-                        has_annotated_functions = true;
-                    }
-                    _ => continue,
-                }
+            if is_custom_attribute(&secondary_attribute, "aztec(private)") {
+                transform_function("Private", func, storage_defined);
+                has_transformed_module = true;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
+                transform_function("Public", func, storage_defined);
+                has_transformed_module = true;
             }
         }
         // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
         if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
-            has_annotated_functions = true;
+            has_transformed_module = true;
         }
     }
-    has_annotated_functions
+    has_transformed_module
 }
 
 /// If it does, it will insert the following things:
@@ -291,6 +320,129 @@ fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) 
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 fn transform_unconstrained(func: &mut NoirFunction) {
     func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
+}
+
+fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId> {
+    context
+        .def_map(crate_id)
+        .expect("ICE: Missing crate in def_map")
+        .modules()
+        .iter()
+        .flat_map(|(_, module)| {
+            module.type_definitions().filter_map(|typ| {
+                if let ModuleDefId::TypeId(struct_id) = typ {
+                    Some(struct_id)
+                } else {
+                    None
+                }
+            })
+        })
+        .collect()
+}
+
+/// Substitutes the signature literal that was introduced in the selector method previously with the actual signature.
+fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
+    let selector_id =
+        interner.lookup_method(struct_id, "selector").expect("Selector method not found");
+    let selector_function = interner.function(&selector_id);
+
+    let compute_selector_statement = interner.statement(
+        selector_function
+            .block(interner)
+            .statements()
+            .first()
+            .expect("Compute selector statement not found"),
+    );
+
+    let compute_selector_expression = match compute_selector_statement {
+        HirStatement::Expression(expression_id) => match interner.expression(&expression_id) {
+            HirExpression::Call(hir_call_expression) => Some(hir_call_expression),
+            _ => None,
+        },
+        _ => None,
+    }
+    .expect("Compute selector statement is not a call expression");
+
+    let first_arg_id = compute_selector_expression
+        .arguments
+        .first()
+        .expect("Missing argument for compute selector");
+
+    match interner.expression(first_arg_id) {
+        HirExpression::Literal(HirLiteral::Str(signature))
+            if signature == SIGNATURE_PLACEHOLDER =>
+        {
+            let selector_literal_id = first_arg_id;
+
+            let structure = interner.get_struct(struct_id);
+            let signature = event_signature(&structure.borrow());
+            interner.update_expression(*selector_literal_id, |expr| {
+                *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
+            });
+
+            // Also update the type! It might have a different length now than the placeholder.
+            interner.push_expr_type(
+                selector_literal_id,
+                Type::String(Box::new(Type::Constant(signature.len() as u64))),
+            );
+        }
+        _ => unreachable!("Signature placeholder literal does not match"),
+    }
+}
+
+fn transform_events(crate_id: &CrateId, context: &mut Context) {
+    for struct_id in collect_crate_structs(crate_id, context) {
+        let attributes = context.def_interner.struct_attributes(&struct_id);
+        if attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
+            transform_event(struct_id, &mut context.def_interner);
+        }
+    }
+}
+
+const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
+
+/// Generates the impl for an event selector
+///
+/// Inserts the following code:
+/// ```noir
+/// impl SomeStruct {
+///    fn selector() -> Field {
+///       aztec::oracle::compute_selector::compute_selector("SIGNATURE_PLACEHOLDER")
+///    }
+/// }
+/// ```
+///
+/// This allows developers to emit events without having to write the signature of the event every time they emit it.
+/// The signature cannot be known at this point since types are not resolved yet, so we use a signature placeholder.
+/// It'll get resolved after by transforming the HIR.
+fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
+    let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
+
+    let selector_fun_body = BlockExpression(vec![make_statement(StatementKind::Expression(call(
+        variable_path(chained_path!("aztec", "selector", "compute_selector")),
+        vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
+    )))]);
+
+    let mut selector_fn_def = FunctionDefinition::normal(
+        &ident("selector"),
+        &vec![],
+        &[],
+        &selector_fun_body,
+        &[],
+        &FunctionReturnType::Ty(make_type(UnresolvedTypeData::FieldElement)),
+    );
+
+    selector_fn_def.is_public = true;
+
+    // Seems to be necessary on contract modules
+    selector_fn_def.return_visibility = Visibility::Public;
+
+    TypeImpl {
+        object_type: struct_type,
+        type_span: structure.span,
+        generics: vec![],
+        methods: vec![NoirFunction::normal(selector_fn_def)],
+    }
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -444,17 +596,19 @@ fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
 
     // Check if the return type is an expression, if it is, we can handle it
     match last_statement {
-        Statement::Expression(expression) => match current_return_type {
-            // Call serialize on structs, push the whole array, calling push_array
-            UnresolvedTypeData::Named(..) => Some(make_struct_return_type(expression.clone())),
-            UnresolvedTypeData::Array(..) => Some(make_array_return_type(expression.clone())),
-            // Cast these types to a field before pushing
-            UnresolvedTypeData::Bool | UnresolvedTypeData::Integer(..) => {
-                Some(make_castable_return_type(expression.clone()))
+        Statement { kind: StatementKind::Expression(expression), .. } => {
+            match current_return_type {
+                // Call serialize on structs, push the whole array, calling push_array
+                UnresolvedTypeData::Named(..) => Some(make_struct_return_type(expression.clone())),
+                UnresolvedTypeData::Array(..) => Some(make_array_return_type(expression.clone())),
+                // Cast these types to a field before pushing
+                UnresolvedTypeData::Bool | UnresolvedTypeData::Integer(..) => {
+                    Some(make_castable_return_type(expression.clone()))
+                }
+                UnresolvedTypeData::FieldElement => Some(make_return_push(expression.clone())),
+                _ => None,
             }
-            UnresolvedTypeData::FieldElement => Some(make_return_push(expression.clone())),
-            _ => None,
-        },
+        }
         _ => None,
     }
 }
@@ -514,12 +668,20 @@ fn context_return_values() -> Expression {
     member_access("context", "return_values")
 }
 
+fn make_statement(kind: StatementKind) -> Statement {
+    Statement { span: Span::default(), kind }
+}
+
 /// Make return Push
 ///
 /// Translates to:
 /// `context.return_values.push({push_value})`
 fn make_return_push(push_value: Expression) -> Statement {
-    Statement::Semi(method_call(context_return_values(), "push", vec![push_value]))
+    make_statement(StatementKind::Semi(method_call(
+        context_return_values(),
+        "push",
+        vec![push_value],
+    )))
 }
 
 /// Make Return push array
@@ -527,7 +689,11 @@ fn make_return_push(push_value: Expression) -> Statement {
 /// Translates to:
 /// `context.return_values.push_array({push_value})`
 fn make_return_push_array(push_value: Expression) -> Statement {
-    Statement::Semi(method_call(context_return_values(), "push_array", vec![push_value]))
+    make_statement(StatementKind::Semi(method_call(
+        context_return_values(),
+        "push_array",
+        vec![push_value],
+    )))
 }
 
 /// Make struct return type
@@ -537,9 +703,9 @@ fn make_return_push_array(push_value: Expression) -> Statement {
 /// `context.return_values.push_array({push_value}.serialize())`
 fn make_struct_return_type(expression: Expression) -> Statement {
     let serialized_call = method_call(
-        expression.clone(), // variable
-        "serialize",        // method name
-        vec![],             // args
+        expression,  // variable
+        "serialize", // method name
+        vec![],      // args
     );
     make_return_push_array(serialized_call)
 }
@@ -555,13 +721,13 @@ fn make_struct_return_type(expression: Expression) -> Statement {
 fn make_array_return_type(expression: Expression) -> Statement {
     let inner_cast_expression =
         cast(index_array_variable(expression.clone(), "i"), UnresolvedTypeData::FieldElement);
-    let assignment = Statement::Semi(method_call(
+    let assignment = make_statement(StatementKind::Semi(method_call(
         context_return_values(), // variable
         "push",                  // method name
         vec![inner_cast_expression],
-    ));
+    )));
 
-    create_loop_over(expression.clone(), vec![assignment])
+    create_loop_over(expression, vec![assignment])
 }
 
 /// Castable return type
@@ -572,7 +738,7 @@ fn make_array_return_type(expression: Expression) -> Statement {
 /// ```
 fn make_castable_return_type(expression: Expression) -> Statement {
     // Cast these types to a field before pushing
-    let cast_expression = cast(expression.clone(), UnresolvedTypeData::FieldElement);
+    let cast_expression = cast(expression, UnresolvedTypeData::FieldElement);
     make_return_push(cast_expression)
 }
 
@@ -629,7 +795,7 @@ pub(crate) fn create_context_finish() -> Statement {
         "finish",            // method name
         vec![],              // args
     );
-    Statement::Expression(method_call)
+    make_statement(StatementKind::Expression(method_call))
 }
 
 //
@@ -644,11 +810,11 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
         vec![],                                  // args
     );
 
-    Statement::Semi(method_call(
+    make_statement(StatementKind::Semi(method_call(
         variable("hasher"),    // variable
         "add_multiple",        // method name
         vec![serialized_call], // args
-    ))
+    )))
 }
 
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
@@ -657,9 +823,9 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // `array.len()`
     let end_range_expression = method_call(
-        var.clone(), // variable
-        "len",       // method name
-        vec![],      // args
+        var,    // variable
+        "len",  // method name
+        vec![], // args
     );
 
     // What will be looped over
@@ -667,14 +833,14 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
 
     // `for i in 0..{ident}.len()`
-    Statement::Expression(expression(ExpressionKind::For(Box::new(ForExpression {
+    make_statement(StatementKind::For(ForLoopStatement {
         identifier: ident("i"),
         start_range: expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(
             i128::from(0),
         )))),
         end_range: end_range_expression,
         block: for_loop_block,
-    }))))
+    }))
 }
 
 fn add_array_to_hasher(identifier: &Ident) -> Statement {
@@ -687,11 +853,11 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
         index_array(identifier.clone(), "i"), // lhs - `ident[i]`
         UnresolvedTypeData::FieldElement,     // cast to - `as Field`
     );
-    let block_statement = Statement::Semi(method_call(
+    let block_statement = make_statement(StatementKind::Semi(method_call(
         variable("hasher"), // variable
         "add",              // method name
         vec![cast_expression],
-    ));
+    )));
 
     create_loop_over(variable_ident(identifier.clone()), vec![block_statement])
 }
@@ -699,11 +865,11 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
 fn add_field_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident})`
     let iden = variable_path(path(identifier.clone()));
-    Statement::Semi(method_call(
+    make_statement(StatementKind::Semi(method_call(
         variable("hasher"), // variable
         "add",              // method name
         vec![iden],         // args
-    ))
+    )))
 }
 
 fn add_cast_to_hasher(identifier: &Ident) -> Statement {
@@ -715,9 +881,43 @@ fn add_cast_to_hasher(identifier: &Ident) -> Statement {
     );
 
     // `hasher.add({ident} as Field)`
-    Statement::Semi(method_call(
+    make_statement(StatementKind::Semi(method_call(
         variable("hasher"),   // variable
         "add",                // method name
         vec![cast_operation], // args
-    ))
+    )))
+}
+
+/// Computes the aztec signature for a resolved type.
+fn signature_of_type(typ: &Type) -> String {
+    match typ {
+        Type::Integer(Signedness::Signed, bit_size) => format!("i{}", bit_size),
+        Type::Integer(Signedness::Unsigned, bit_size) => format!("u{}", bit_size),
+        Type::FieldElement => "Field".to_owned(),
+        Type::Bool => "bool".to_owned(),
+        Type::Array(len, typ) => {
+            if let Type::Constant(len) = **len {
+                format!("[{};{len}]", signature_of_type(typ))
+            } else {
+                unimplemented!("Cannot generate signature for array with length type {:?}", typ)
+            }
+        }
+        Type::Struct(def, args) => {
+            let fields = def.borrow().get_fields(args);
+            let fields = vecmap(fields, |(_, typ)| signature_of_type(&typ));
+            format!("({})", fields.join(","))
+        }
+        Type::Tuple(types) => {
+            let fields = vecmap(types, signature_of_type);
+            format!("({})", fields.join(","))
+        }
+        _ => unimplemented!("Cannot generate signature for type {:?}", typ),
+    }
+}
+
+/// Computes the signature for a resolved event type.
+/// It has the form 'EventName(Field,(Field),[u8;2])'
+fn event_signature(event: &StructType) -> String {
+    let fields = vecmap(event.get_fields(&[]), |(_, typ)| signature_of_type(&typ));
+    format!("{}({})", event.name.0.contents, fields.join(","))
 }

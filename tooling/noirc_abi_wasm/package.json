@@ -25,7 +25,8 @@
     "build": "bash ./build.sh",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
-    "clean": "chmod u+w web nodejs && rm -rf ./nodejs ./web ./target ./result",
+    "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "devDependencies": {
@@ -33,7 +34,6 @@
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
-    "@web/test-runner-webdriver": "^0.7.0",
     "eslint": "^8.50.0",
     "mocha": "^10.2.0"
   }

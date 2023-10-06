@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Put these package.json files in the cjs and
 # mjs directory respectively, so that 
 # tools can recognise that the .js files are either
