@@ -1046,6 +1046,9 @@ impl<'interner> TypeChecker<'interner> {
                 if op.is_bitwise() {
                     return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
                 }
+                if op.is_modulo() {
+                    return Err(TypeCheckError::FieldModulo { span });
+                }
                 Ok(FieldElement)
             }
 

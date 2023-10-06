@@ -78,6 +78,8 @@ pub enum TypeCheckError {
     IntegerTypeMismatch { typ: Type, span: Span },
     #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
     IntegerAndFieldBinaryOperation { span: Span },
+    #[error("Cannot do modulo on Fields, try casting to an integer first")]
+    FieldModulo { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
     #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
@@ -195,7 +197,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
-            | TypeCheckError::OverflowingAssignment { span, .. } => {
+            | TypeCheckError::OverflowingAssignment { span, .. }
+            | TypeCheckError::FieldModulo { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(

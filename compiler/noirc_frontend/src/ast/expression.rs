@@ -273,6 +273,10 @@ impl BinaryOpKind {
     pub fn is_bit_shift(&self) -> bool {
         matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
     }
+
+    pub fn is_modulo(&self) -> bool {
+        matches!(self, BinaryOpKind::Modulo)
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
