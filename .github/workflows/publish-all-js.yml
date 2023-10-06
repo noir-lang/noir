@@ -1,0 +1,40 @@
+name: Publish all Javascript packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-all-js:
+    name: Release and Publish all Javascript packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
+      - name: Install wasm32-unknown-unknwown target
+        run: |
+          rustup target add wasm32-unknown-unknown
+
+      - name: Authenticate with npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Build and publish packages
+        run: ./scripts/publish-dev-branch.sh
