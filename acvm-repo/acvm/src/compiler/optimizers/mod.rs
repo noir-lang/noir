@@ -9,7 +9,7 @@ pub(crate) use redundant_range::RangeOptimizer;
 
 use self::unused_memory::UnusedMemoryOptimizer;
 
-use super::AcirTransformationMap;
+use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
@@ -36,10 +36,12 @@ pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
 
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir);
-    let (acir, acir_opcode_positions) =
+    let (mut acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
     let transformation_map = AcirTransformationMap { acir_opcode_positions };
+
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
     (acir, transformation_map)
 }
