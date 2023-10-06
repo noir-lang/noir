@@ -1,5 +1,13 @@
 trait ATrait {
     fn asd() -> Self;
+
+    fn static_method() -> Field {
+        Self::static_method_2()
+    }
+
+    fn static_method_2() -> Field {
+        100
+    }
 }
 
 struct Foo {
@@ -21,7 +29,13 @@ impl ATrait for Bar {
     fn asd() -> Bar {
         Bar{x: 100}
     }
+
+    fn static_method_2() -> Field {
+        200
+    }
 }
 
 fn main() {
+    assert(Foo::static_method() == 100);
+    assert(Bar::static_method() == 200);
 }

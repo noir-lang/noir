@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    Shared, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -174,7 +174,7 @@ impl<'interner> TypeChecker<'interner> {
                         }
 
                         let (function_id, function_call) = method_call.into_function_call(
-                            method_ref,
+                            method_ref.clone(),
                             location,
                             self.interner,
                         );
@@ -193,40 +193,6 @@ impl<'interner> TypeChecker<'interner> {
                 let lhs_type = self.check_expression(&cast_expr.lhs);
                 let span = self.interner.expr_span(expr_id);
                 self.check_cast(lhs_type, cast_expr.r#type, span)
-            }
-            HirExpression::For(for_expr) => {
-                let start_range_type = self.check_expression(&for_expr.start_range);
-                let end_range_type = self.check_expression(&for_expr.end_range);
-
-                let start_span = self.interner.expr_span(&for_expr.start_range);
-                let end_span = self.interner.expr_span(&for_expr.end_range);
-
-                // Check that start range and end range have the same types
-                let range_span = start_span.merge(end_span);
-                self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: start_range_type.to_string(),
-                    expr_typ: end_range_type.to_string(),
-                    expr_span: range_span,
-                });
-
-                let fresh_id = self.interner.next_type_variable_id();
-                let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
-                let expected_type =
-                    Type::TypeVariable(type_variable, TypeVariableKind::IntegerOrField);
-
-                self.unify(&start_range_type, &expected_type, || {
-                    TypeCheckError::TypeCannotBeUsed {
-                        typ: start_range_type.clone(),
-                        place: "for loop",
-                        span: range_span,
-                    }
-                    .add_context("The range of a loop must be known at compile-time")
-                });
-
-                self.interner.push_definition_type(for_expr.identifier.id, start_range_type);
-
-                self.check_expression(&for_expr.block);
-                Type::Unit
             }
             HirExpression::Block(block_expr) => {
                 let mut block_type = Type::Unit;
@@ -291,7 +257,19 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(_) => unreachable!("unexpected TraitMethodReference - they should be added after initial type checking"),
+            HirExpression::TraitMethodReference(_, method) => {
+                let the_trait = self.interner.get_trait(method.trait_id);
+                let method = &the_trait.methods[method.method_index];
+
+                let typ = Type::Function(
+                    method.arguments.clone(),
+                    Box::new(method.return_type.clone()),
+                    Box::new(Type::Unit),
+                );
+                let (typ, bindings) = typ.instantiate(self.interner);
+                self.interner.store_instantiation_bindings(*expr_id, bindings);
+                typ
+            }
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
@@ -498,7 +476,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 (func_meta.typ, param_len)
             }
-            HirMethodReference::TraitMethodId(method) => {
+            HirMethodReference::TraitMethodId(_, method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
 
@@ -863,7 +841,10 @@ impl<'interner> TypeChecker<'interner> {
                             if method.name.0.contents == method_name {
                                 let trait_method =
                                     TraitMethodId { trait_id: constraint.trait_id, method_index };
-                                return Some(HirMethodReference::TraitMethodId(trait_method));
+                                return Some(HirMethodReference::TraitMethodId(
+                                    object_type.clone(),
+                                    trait_method,
+                                ));
                             }
                         }
                     }
@@ -878,14 +859,22 @@ impl<'interner> TypeChecker<'interner> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self.lookup_method(element, method_name, expr_id),
+            Type::MutableReference(element) => self
+                .interner
+                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .map(HirMethodReference::FuncId)
+                .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
             // In the future we could support methods for non-struct types if we have a context
             // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self.interner.lookup_primitive_method(other, method_name) {
+            other => match self
+                .interner
+                .lookup_primitive_method(other, method_name)
+                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {

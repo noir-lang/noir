@@ -1,0 +1,7 @@
+[package]
+name = "dup_trait_items_6"
+type = "bin"
+authors = [""]
+compiler_version = "0.15.0"
+
+[dependencies]

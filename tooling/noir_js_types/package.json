@@ -4,7 +4,7 @@
     "The Noir Team <team@noir-lang.org>"
   ],
   "packageManager": "yarn@3.5.1",
-  "version": "0.14.1",
+  "version": "0.16.0",
   "license": "(MIT OR Apache-2.0)",
   "files": [
     "lib",
@@ -17,6 +17,7 @@
     "build:esm": "tsc",
     "build:cjs": "tsc --module CommonJS --outDir lib/cjs",
     "build": "yarn run build:cjs && yarn run build:esm",
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "exports": {
