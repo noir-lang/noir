@@ -1,14 +1,11 @@
 import { expect } from 'chai';
-import { compileNoirSource, nargoArtifactPath, noirSourcePath } from '../shared';
+import { nargoArtifactPath, noirSourcePath } from '../shared';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { compile } from '@noir-lang/noir_wasm';
 
 async function getFileContent(path: string): Promise<string> {
   return readFileSync(join(__dirname, path)).toString();
-}
-
-async function getSource(): Promise<string> {
-  return getFileContent(noirSourcePath);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,10 +16,7 @@ async function getPrecompiledSource(): Promise<any> {
 
 describe('noir wasm compilation', () => {
   it('matches nargos compilation', async () => {
-    const source = await getSource();
-
-    const wasmCircuit = await compileNoirSource(source);
-
+    const wasmCircuit = await compile(noirSourcePath);
     const cliCircuit = await getPrecompiledSource();
 
     // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
