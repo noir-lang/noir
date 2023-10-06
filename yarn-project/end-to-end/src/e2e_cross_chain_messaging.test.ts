@@ -209,4 +209,37 @@ describe('e2e_cross_chain_messaging', () => {
         .simulate(),
     ).rejects.toThrowError(`Unknown auth witness for message hash 0x${expectedBurnMessageHash.toString('hex')}`);
   });
+
+  it("Can't claim funds publicly if they were deposited privately", async () => {
+    // 1. Mint tokens on L1
+    const bridgeAmount = 100n;
+    await crossChainTestHarness.mintTokensOnL1(bridgeAmount);
+
+    // 2. Deposit tokens to the TokenPortal privately
+    const [secretForL2MessageConsumption, secretHashForL2MessageConsumption] =
+      await crossChainTestHarness.generateClaimSecret();
+
+    const messageKey = await crossChainTestHarness.sendTokensToPortalPrivate(
+      bridgeAmount,
+      secretHashForL2MessageConsumption,
+      Fr.random(),
+    );
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(0n);
+
+    // Wait for the archiver to process the message
+    await delay(5000); /// waiting 5 seconds.
+
+    // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
+    await crossChainTestHarness.performL2Transfer(0n);
+
+    // 3. Consume L1-> L2 message and try to mint publicly on L2  - should fail
+    await expect(
+      l2Bridge
+        .withWallet(user2Wallet)
+        .methods.claim_public(ownerAddress, bridgeAmount, ethAccount, messageKey, secretForL2MessageConsumption)
+        .simulate(),
+    ).rejects.toThrowError(
+      "Failed to solve brillig function, reason: explicit trap hit in brillig 'l1_to_l2_message_data.message.content == content'",
+    );
+  });
 });

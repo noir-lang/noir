@@ -201,6 +201,13 @@ export class CrossChainTestHarness {
     expect(receipt.status).toBe(TxStatus.MINED);
   }
 
+  async mintTokensPrivateOnL2(amount: bigint, secretHash: Fr) {
+    const tx = this.l2Token.methods.mint_private(amount, secretHash).send();
+    const receipt = await tx.wait();
+    expect(receipt.status).toBe(TxStatus.MINED);
+    await this.addPendingShieldNoteToPXE(amount, secretHash, receipt.txHash);
+  }
+
   async performL2Transfer(transferAmount: bigint) {
     // send a transfer tx to force through rollup with the message included
     const transferTx = this.l2Token.methods.transfer_public(this.ownerAddress, this.receiver, transferAmount, 0).send();

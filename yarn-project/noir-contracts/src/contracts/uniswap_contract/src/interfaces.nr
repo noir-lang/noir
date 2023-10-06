@@ -39,9 +39,9 @@ impl TokenBridge {
     Self { address }
   }
 
-  fn token(self: Self, context: PublicContext) -> Field {
+  fn token(self: Self, context: PublicContext) -> AztecAddress {
     let return_values = context.call_public_function(self.address, compute_selector("get_token()"), []);
-    return_values[0]
+    AztecAddress::new(return_values[0])
   }
 
   fn claim_public(self: Self, context: PublicContext, to: Field, amount: Field, canceller: Field, msg_key: Field, secret: Field) {
