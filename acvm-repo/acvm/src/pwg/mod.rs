@@ -270,9 +270,8 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
                         self.backend,
                         self.instruction_pointer,
                     )
-                    .and_then(|optional_solver| {
-                        Ok(optional_solver
-                            .and_then(|solver| Some(self.brillig_solver.insert(solver))))
+                    .map(|optional_solver| {
+                        optional_solver.map(|solver| self.brillig_solver.insert(solver))
                     }),
                 };
                 match maybe_solver {
