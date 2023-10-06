@@ -12,7 +12,7 @@ use nargo::ops::ForeignCallExecutor;
 use thiserror::Error;
 
 use easy_repl::{command, CommandStatus, Critical, Repl};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 enum SolveResult {
     Done,
@@ -88,9 +88,15 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     }
 
     fn show_current_vm_status(&self) {
-        let ip = self.acvm.as_ref().unwrap().instruction_pointer();
-        println!("Stopped at opcode {}: {}", ip, self.acvm.as_ref().unwrap().opcodes()[ip]);
-        Self::show_source_code_location(&OpcodeLocation::Acir(ip), &self.debug_artifact);
+        let acvm = self.acvm.as_ref().unwrap();
+        let ip = acvm.instruction_pointer();
+        let opcodes = acvm.opcodes();
+        if ip >= opcodes.len() {
+            println!("Finished execution");
+        } else {
+            println!("Stopped at opcode {}: {}", ip, opcodes[ip]);
+            Self::show_source_code_location(&OpcodeLocation::Acir(ip), &self.debug_artifact);
+        }
     }
 
     fn show_source_code_location(location: &OpcodeLocation, debug_artifact: &DebugArtifact) {
@@ -118,6 +124,10 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
             }
         }
         Ok(SolveResult::Done)
+    }
+
+    fn finalize(&mut self) -> WitnessMap {
+        self.acvm.take().unwrap().finalize()
     }
 }
 
@@ -156,12 +166,12 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     let ref_step = &context;
     let ref_cont = &context;
 
-    let solved = RefCell::new(false);
+    let solved = Cell::new(false);
 
     context.borrow().show_current_vm_status();
 
     let handle_result = |result| {
-        solved.replace(match result {
+        solved.set(match result {
             SolveResult::Done => true,
             _ => false,
         });
@@ -196,9 +206,8 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
 
     repl.run().expect("Debugger error");
 
-    let acvm = context.borrow_mut().acvm.take().unwrap();
-    if *solved.borrow() {
-        let solved_witness = acvm.finalize();
+    if solved.get() {
+        let solved_witness = context.borrow_mut().finalize();
         Ok(solved_witness)
     } else {
         Err(NargoError::ExecutionError(ExecutionError::Halted))
