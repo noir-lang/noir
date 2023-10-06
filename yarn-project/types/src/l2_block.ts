@@ -341,14 +341,12 @@ export class L2Block {
   }
 
   /**
-   * Encode the L2 block data into a buffer that can be pushed to the rollup contract.
-   * @returns The encoded L2 block data.
+   * Serializes a block without logs to a buffer.
+   * @remarks This is used when the block is being served via JSON-RPC because the logs are expected to be served
+   * separately.
+   * @returns A serialized L2 block without logs.
    */
-  encode(): Buffer {
-    if (this.newEncryptedLogs === undefined || this.newUnencryptedLogs === undefined) {
-      throw new Error('newEncryptedLogs and newUnencryptedLogs must be defined when encoding L2BlockData');
-    }
-
+  toBuffer() {
     return serializeToBuffer(
       this.globalVariables,
       this.startPrivateDataTreeSnapshot,
@@ -376,65 +374,41 @@ export class L2Block {
       this.newContractData,
       this.newL1ToL2Messages.length,
       this.newL1ToL2Messages,
-      this.newEncryptedLogs,
-      this.newUnencryptedLogs,
     );
   }
 
   /**
-   * Alias for encode.
-   * @returns The encoded L2 block data.
+   * Serializes a block with logs to a buffer.
+   * @remarks This is used when the block is being submitted on L1.
+   * @returns A serialized L2 block with logs.
    */
-  toBuffer() {
-    return this.encode();
+  toBufferWithLogs(): Buffer {
+    if (this.newEncryptedLogs === undefined || this.newUnencryptedLogs === undefined) {
+      throw new Error(
+        `newEncryptedLogs and newUnencryptedLogs must be defined when encoding L2BlockData (block ${this.number})`,
+      );
+    }
+
+    return serializeToBuffer(this.toBuffer(), this.newEncryptedLogs, this.newUnencryptedLogs);
   }
 
   /**
-   * Encodes the block as a hex string
-   * @returns The encoded L2 block data as a hex string.
+   * Serializes a block without logs to a string.
+   * @remarks This is used when the block is being served via JSON-RPC because the logs are expected to be served
+   * separately.
+   * @returns A serialized L2 block without logs.
    */
-  toString() {
+  toString(): string {
     return this.toBuffer().toString(STRING_ENCODING);
   }
 
   /**
-   * Encodes the block as a JSON object.
-   * @returns The L2 block encoded as a JSON object.
+   * Deserializes L2 block without logs from a buffer.
+   * @param buf - A serialized L2 block.
+   * @returns Deserialized L2 block.
    */
-  toJSON() {
-    return {
-      globalVariables: this.globalVariables.toJSON(),
-      startPrivateDataTreeSnapshot: this.startPrivateDataTreeSnapshot.toString(),
-      startNullifierTreeSnapshot: this.startNullifierTreeSnapshot.toString(),
-      startContractTreeSnapshot: this.startContractTreeSnapshot.toString(),
-      startPublicDataTreeRoot: this.startPublicDataTreeRoot.toString(),
-      startL1ToL2MessagesTreeSnapshot: this.startL1ToL2MessagesTreeSnapshot.toString(),
-      startHistoricBlocksTreeSnapshot: this.startHistoricBlocksTreeSnapshot.toString(),
-      endPrivateDataTreeSnapshot: this.endPrivateDataTreeSnapshot.toString(),
-      endNullifierTreeSnapshot: this.endNullifierTreeSnapshot.toString(),
-      endContractTreeSnapshot: this.endContractTreeSnapshot.toString(),
-      endPublicDataTreeRoot: this.endPublicDataTreeRoot.toString(),
-      endL1ToL2MessagesTreeSnapshot: this.endL1ToL2MessagesTreeSnapshot.toString(),
-      endHistoricBlocksTreeSnapshot: this.endHistoricBlocksTreeSnapshot.toString(),
-      newCommitments: this.newCommitments.map(c => c.toString()),
-      newNullifiers: this.newNullifiers.map(n => n.toString()),
-      newPublicDataWrites: this.newPublicDataWrites.map(p => p.toString()),
-      newL2ToL1Msgs: this.newL2ToL1Msgs.map(m => m.toString()),
-      newContracts: this.newContracts.map(c => c.toString()),
-      newContractData: this.newContractData.map(c => c.toString()),
-      newL1ToL2Messages: this.newL1ToL2Messages.map(m => m.toString()),
-      newEncryptedLogs: this.newEncryptedLogs?.toJSON() ?? null,
-      newUnencryptedLogs: this.newUnencryptedLogs?.toJSON() ?? null,
-    };
-  }
-
-  /**
-   * Decode the L2 block data from a buffer.
-   * @param encoded - The encoded L2 block data.
-   * @returns The decoded L2 block data.
-   */
-  static decode(encoded: Buffer | BufferReader) {
-    const reader = BufferReader.asReader(encoded);
+  static fromBuffer(buf: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buf);
     const globalVariables = reader.readObject(GlobalVariables);
     const number = Number(globalVariables.blockNumber.value);
     const startPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
@@ -457,8 +431,6 @@ export class L2Block {
     const newContractData = reader.readArray(newContracts.length, ContractData);
     // TODO(sean): could an optimisation of this be that it is encoded such that zeros are assumed
     const newL1ToL2Messages = reader.readVector(Fr);
-    const newEncryptedLogs = reader.readObject(L2BlockL2Logs);
-    const newUnencryptedLogs = reader.readObject(L2BlockL2Logs);
 
     return L2Block.fromFields({
       number,
@@ -482,70 +454,33 @@ export class L2Block {
       newContracts,
       newContractData,
       newL1ToL2Messages,
-      newEncryptedLogs,
-      newUnencryptedLogs,
     });
   }
 
   /**
-   * Decode the L2 block from a string
-   * @param str - The serialised L2 block
-   * @returns An L2 block
+   * Deserializes L2 block with logs from a buffer.
+   * @param buf - A serialized L2 block.
+   * @returns Deserialized L2 block.
    */
-  static fromString(str: string): L2Block {
-    return L2Block.decode(Buffer.from(str, STRING_ENCODING));
+  static fromBufferWithLogs(buf: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buf);
+    const block = L2Block.fromBuffer(reader);
+    const newEncryptedLogs = reader.readObject(L2BlockL2Logs);
+    const newUnencryptedLogs = reader.readObject(L2BlockL2Logs);
+
+    block.attachLogs(newEncryptedLogs, LogType.ENCRYPTED);
+    block.attachLogs(newUnencryptedLogs, LogType.UNENCRYPTED);
+
+    return block;
   }
 
-  static fromJSON(_obj: any): L2Block {
-    const globalVariables = GlobalVariables.fromJSON(_obj.globalVariables);
-    const number = Number(globalVariables.blockNumber.value);
-    const startPrivateDataTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startPrivateDataTreeSnapshot);
-    const startNullifierTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startNullifierTreeSnapshot);
-    const startContractTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startContractTreeSnapshot);
-    const startPublicDataTreeRoot = Fr.fromString(_obj.startPublicDataTreeRoot);
-    const startL1ToL2MessagesTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startL1ToL2MessagesTreeSnapshot);
-    const startHistoricBlocksTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.startHistoricBlocksTreeSnapshot);
-    const endPrivateDataTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endPrivateDataTreeSnapshot);
-    const endNullifierTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endNullifierTreeSnapshot);
-    const endContractTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endContractTreeSnapshot);
-    const endPublicDataTreeRoot = Fr.fromString(_obj.endPublicDataTreeRoot);
-    const endL1ToL2MessagesTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endL1ToL2MessagesTreeSnapshot);
-    const endHistoricBlocksTreeSnapshot = AppendOnlyTreeSnapshot.fromString(_obj.endHistoricBlocksTreeSnapshot);
-    const newCommitments = _obj.newCommitments.map((c: string) => Fr.fromString(c));
-    const newNullifiers = _obj.newNullifiers.map((n: string) => Fr.fromString(n));
-    const newPublicDataWrites = _obj.newPublicDataWrites.map((p: any) => PublicDataWrite.fromString(p));
-    const newL2ToL1Msgs = _obj.newL2ToL1Msgs.map((m: string) => Fr.fromString(m));
-    const newContracts = _obj.newContracts.map((c: string) => Fr.fromString(c));
-    const newContractData = _obj.newContractData.map((c: any) => ContractData.fromString(c));
-    const newL1ToL2Messages = _obj.newL1ToL2Messages.map((m: string) => Fr.fromString(m));
-    const newEncryptedLogs = _obj.newEncryptedLogs ? L2BlockL2Logs.fromJSON(_obj.newEncryptedLogs) : undefined;
-    const newUnencryptedLogs = _obj.newUnencryptedLogs ? L2BlockL2Logs.fromJSON(_obj.newUnencryptedLogs) : undefined;
-
-    return L2Block.fromFields({
-      number,
-      globalVariables,
-      startPrivateDataTreeSnapshot,
-      startNullifierTreeSnapshot,
-      startContractTreeSnapshot,
-      startPublicDataTreeRoot,
-      startL1ToL2MessagesTreeSnapshot,
-      startHistoricBlocksTreeSnapshot,
-      endPrivateDataTreeSnapshot,
-      endNullifierTreeSnapshot,
-      endContractTreeSnapshot,
-      endPublicDataTreeRoot,
-      endL1ToL2MessagesTreeSnapshot,
-      endHistoricBlocksTreeSnapshot,
-      newCommitments,
-      newNullifiers,
-      newPublicDataWrites,
-      newL2ToL1Msgs,
-      newContracts,
-      newContractData,
-      newL1ToL2Messages,
-      newEncryptedLogs,
-      newUnencryptedLogs,
-    });
+  /**
+   * Deserializes L2 block without logs from a buffer.
+   * @param str - A serialized L2 block.
+   * @returns Deserialized L2 block.
+   */
+  static fromString(str: string): L2Block {
+    return L2Block.fromBuffer(Buffer.from(str, STRING_ENCODING));
   }
 
   /**
@@ -584,7 +519,7 @@ export class L2Block {
    */
   public getBlockHash(): Buffer {
     if (!this.blockHash) {
-      this.blockHash = keccak(this.encode());
+      this.blockHash = keccak(this.toBufferWithLogs());
     }
     return this.blockHash;
   }

@@ -104,7 +104,7 @@ async function getBlockFromCallData(
   });
   if (functionName !== 'process') throw new Error(`Unexpected method called ${functionName}`);
   const [, l2BlockHex] = args! as [Hex, Hex];
-  const block = L2Block.decode(Buffer.from(hexToBytes(l2BlockHex)));
+  const block = L2Block.fromBufferWithLogs(Buffer.from(hexToBytes(l2BlockHex)));
   if (BigInt(block.number) !== l2BlockNum) {
     throw new Error(`Block number mismatch: expected ${l2BlockNum} but got ${block.number}`);
   }

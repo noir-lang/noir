@@ -29,9 +29,9 @@ services:
     image: otterscan/otterscan:develop
     # platform: linux/amd64
     ports:
-      - "5100:80"
+      - '5100:80'
     container_name: otterscan
     environment:
-    # otterscan env var is hardcoded to support erigon client
-    # but it also works for anvil
+      # otterscan env var is hardcoded to support erigon client
+      # but it also works for anvil
       - ERIGON_URL=http://127.0.0.1:${SANDBOX_ANVIL_PORT:-8545}

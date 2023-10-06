@@ -315,11 +315,11 @@ describe('L1Publisher integration', () => {
       const expectedData = encodeFunctionData({
         abi: RollupAbi,
         functionName: 'process',
-        args: [`0x${l2Proof.toString('hex')}`, `0x${block.encode().toString('hex')}`],
+        args: [`0x${l2Proof.toString('hex')}`, `0x${block.toBufferWithLogs().toString('hex')}`],
       });
       expect(ethTx.input).toEqual(expectedData);
 
-      const decoderArgs = [`0x${block.encode().toString('hex')}`] as const;
+      const decoderArgs = [`0x${block.toBufferWithLogs().toString('hex')}`] as const;
       const decodedHashes = await decoderHelper.read.computeDiffRootAndMessagesHash(decoderArgs);
       const decodedRes = await decoderHelper.read.decode(decoderArgs);
       const stateInRollup = await rollup.read.rollupStateHash();
@@ -387,11 +387,11 @@ describe('L1Publisher integration', () => {
       const expectedData = encodeFunctionData({
         abi: RollupAbi,
         functionName: 'process',
-        args: [`0x${l2Proof.toString('hex')}`, `0x${block.encode().toString('hex')}`],
+        args: [`0x${l2Proof.toString('hex')}`, `0x${block.toBufferWithLogs().toString('hex')}`],
       });
       expect(ethTx.input).toEqual(expectedData);
 
-      const decoderArgs = [`0x${block.encode().toString('hex')}`] as const;
+      const decoderArgs = [`0x${block.toBufferWithLogs().toString('hex')}`] as const;
       const decodedHashes = await decoderHelper.read.computeDiffRootAndMessagesHash(decoderArgs);
       const decodedRes = await decoderHelper.read.decode(decoderArgs);
       const stateInRollup = await rollup.read.rollupStateHash();

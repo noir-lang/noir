@@ -57,9 +57,9 @@ export async function defaultFetch(
   }
   if (!resp.ok) {
     if (noRetry) {
-      throw new NoRetryError(responseJson.error.message);
+      throw new NoRetryError('(JSON-RPC PROPAGATED) ' + responseJson.error.message);
     } else {
-      throw new Error(responseJson.error.message);
+      throw new Error('(JSON-RPC PROPAGATED) ' + responseJson.error.message);
     }
   }
 

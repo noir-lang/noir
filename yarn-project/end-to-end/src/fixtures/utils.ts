@@ -133,7 +133,7 @@ export const setupL1Contracts = async (
 /**
  * Sets up Private eXecution Environment (PXE).
  * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
- * @param aztecNode - The instance of an aztec node, if one is required
+ * @param aztecNode - An instance of Aztec Node.
  * @param firstPrivKey - The private key of the first account to be created.
  * @param logger - The logger to be used.
  * @param useLogSuffix - Whether to add a randomly generated suffix to the PXE debug logs.

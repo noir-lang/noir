@@ -124,7 +124,7 @@ export class L1Publisher implements L2BlockReceiver {
    */
   public async processL2Block(l2BlockData: L2Block): Promise<boolean> {
     const proof = Buffer.alloc(0);
-    const txData = { proof, inputs: l2BlockData.encode() };
+    const txData = { proof, inputs: l2BlockData.toBufferWithLogs() };
 
     while (!this.interrupted) {
       if (!(await this.checkFeeDistributorBalance())) {
