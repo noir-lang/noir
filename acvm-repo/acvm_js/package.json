@@ -27,7 +27,8 @@
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
-    "clean": "chmod u+w web nodejs && rm -rf web nodejs"
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
+    "clean": "chmod u+w web nodejs || true && rm -rf web nodejs"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
