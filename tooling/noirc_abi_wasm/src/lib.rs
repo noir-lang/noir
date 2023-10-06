@@ -31,7 +31,7 @@ export type InputMap = { [key: string]: InputValue };
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(extends = Object, js_name = "InputMap", typescript_type = "InputMap")]
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "InputMap", typescript_type = "InputMap")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsInputMap;
 }
@@ -65,7 +65,7 @@ export type Abi = {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(extends = Object, js_name = "Abi", typescript_type = "Abi")]
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "Abi", typescript_type = "Abi")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsAbi;
 }
