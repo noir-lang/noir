@@ -93,8 +93,8 @@ impl ParserError {
         self.span
     }
 
-    pub fn reason(&self) -> Option<ParserErrorReason> {
-        self.reason.clone()
+    pub fn reason(&self) -> Option<&ParserErrorReason> {
+        self.reason.as_ref()
     }
 }
 
