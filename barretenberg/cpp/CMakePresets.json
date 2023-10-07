@@ -89,6 +89,15 @@
       }
     },
     {
+      "name": "gcc13",
+      "displayName": "Build with GCC-13",
+      "description": "Build with globally installed GCC-13",
+      "inherits": "default",
+      "environment": {
+        "CC": "gcc-13",
+        "CXX": "g++-13"
+      }
+    },    {
       "name": "bench",
       "displayName": "Build benchmarks",
       "description": "Build default preset but with a special benchmark directory",
@@ -213,6 +222,11 @@
       "configurePreset": "gcc10"
     },
     {
+      "name": "gcc13",
+      "inherits": "default",
+      "configurePreset": "gcc13"
+    },
+    {
       "name": "bench",
       "inherits": "clang16",
       "configurePreset": "bench"
@@ -296,6 +310,11 @@
       "name": "gcc10",
       "inherits": "default",
       "configurePreset": "gcc10"
+    },
+    {
+      "name": "gcc13",
+      "inherits": "default",
+      "configurePreset": "gcc13"
     },
     {
       "name": "bench",
