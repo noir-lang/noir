@@ -4,9 +4,6 @@
 //   *) method (has self parameter) vs function (no self parameter)
 //   *) default vs overriden vs overriden (no default)
 
-// TODO: function calls via `Self::` are not yet implemented
-// Once this is implemented, this test should be updated.
-
 // test order is:
 // 1) trait method -> trait method
 // 1a) trait default method -> trait default method
