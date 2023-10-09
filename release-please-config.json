@@ -16,12 +16,12 @@
         "flake.nix",
         {
           "type": "json",
-          "path": "compiler/wasm/package.json",
+          "path": "compiler/source-resolver/package.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": "tooling/noirc_abi_wasm/package.json",
+          "path": "compiler/wasm/package.json",
           "jsonpath": "$.version"
         },
         {
@@ -31,7 +31,17 @@
         },
         {
           "type": "json",
-          "path": "compiler/source-resolver/package.json",
+          "path": "tooling/noir_js_backend_barretenberg/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noir_js_types/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "tooling/noirc_abi_wasm/package.json",
           "jsonpath": "$.version"
         }
       ]
