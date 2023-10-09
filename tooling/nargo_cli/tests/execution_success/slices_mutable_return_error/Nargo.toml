@@ -1,0 +1,7 @@
+[package]
+name = "slices_mutable_return_error"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
