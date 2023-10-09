@@ -14,20 +14,22 @@ use super::{transform_assert_messages, AcirTransformationMap};
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
     // General optimizer pass
-    let mut opcodes: Vec<Opcode> = Vec::new();
-    for opcode in acir.opcodes {
-        match opcode {
-            Opcode::Arithmetic(arith_expr) => {
-                opcodes.push(Opcode::Arithmetic(GeneralOptimizer::optimize(arith_expr)));
+    let opcodes: Vec<Opcode> = acir
+        .opcodes
+        .into_iter()
+        .map(|opcode| {
+            if let Opcode::Arithmetic(arith_expr) = opcode {
+                Opcode::Arithmetic(GeneralOptimizer::optimize(arith_expr))
+            } else {
+                opcode
             }
-            other_opcode => opcodes.push(other_opcode),
-        };
-    }
+        })
+        .collect();
     let acir = Circuit { opcodes, ..acir };
 
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+    let acir_opcode_positions = (0..acir.opcodes.len()).collect();
 
     // Unused memory optimization pass
     let memory_optimizer = UnusedMemoryOptimizer::new(acir);
