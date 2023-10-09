@@ -325,11 +325,11 @@ mod test {
     fn basic_for_expr() {
         let src = r#"
             fn main(_x : Field) {
-                let _j = for _i in 0..10 {
+                for _i in 0..10 {
                     for _k in 0..100 {
 
                     }
-                };
+                }
             }
 
         "#;
@@ -446,7 +446,7 @@ mod test {
             },
         );
 
-        let func_meta = vecmap(program.functions, |nf| {
+        let func_meta = vecmap(program.into_sorted().functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);

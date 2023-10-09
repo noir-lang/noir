@@ -51,7 +51,12 @@ pub(crate) fn run(
 fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<(), CompileError> {
     let (mut context, crate_id) =
         prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
-    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
+    check_crate_and_report_errors(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
@@ -171,7 +176,13 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
+    silence_warnings: bool,
 ) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, deny_warnings);
-    super::compile_cmd::report_errors(result, &context.file_manager, deny_warnings)
+    super::compile_cmd::report_errors(
+        result,
+        &context.file_manager,
+        deny_warnings,
+        silence_warnings,
+    )
 }

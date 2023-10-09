@@ -8,7 +8,6 @@ import toml from 'toml';
 import { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
-import { separatePublicInputsFromProof } from '../shared/proof';
 
 compilerLogLevel('INFO');
 
@@ -44,19 +43,18 @@ test_cases.forEach((testInfo) => {
     const prover_toml = readFileSync(resolve(`${base_relative_path}/${test_case}/Prover.toml`)).toString();
     const inputs = toml.parse(prover_toml);
 
-    const proofWithPublicInputs = await program.generateFinalProof(inputs);
+    const proofData = await program.generateFinalProof(inputs);
 
     // JS verification
 
-    const verified = await program.verifyFinalProof(proofWithPublicInputs);
+    const verified = await program.verifyFinalProof(proofData);
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
     // Smart contract verification
 
     const contract = await ethers.deployContract(testInfo.compiled, [], {});
 
-    const { proof, publicInputs } = separatePublicInputsFromProof(proofWithPublicInputs, testInfo.numPublicInputs);
-    const result = await contract.verify(proof, publicInputs);
+    const result = await contract.verify(proofData.proof, proofData.publicInputs);
 
     expect(result).to.be.true;
   });

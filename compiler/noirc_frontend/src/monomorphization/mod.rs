@@ -351,28 +351,6 @@ impl<'interner> Monomorphizer<'interner> {
                 location: self.interner.expr_location(&expr),
             }),
 
-            HirExpression::For(for_expr) => {
-                self.is_range_loop = true;
-                let start = self.expr(for_expr.start_range);
-                let end = self.expr(for_expr.end_range);
-                self.is_range_loop = false;
-                let index_variable = self.next_local_id();
-                self.define_local(for_expr.identifier.id, index_variable);
-
-                let block = Box::new(self.expr(for_expr.block));
-
-                ast::Expression::For(ast::For {
-                    index_variable,
-                    index_name: self.interner.definition_name(for_expr.identifier.id).to_owned(),
-                    index_type: self.convert_type(&self.interner.id_type(for_expr.start_range)),
-                    start_range: Box::new(start),
-                    end_range: Box::new(end),
-                    start_range_location: self.interner.expr_location(&for_expr.start_range),
-                    end_range_location: self.interner.expr_location(&for_expr.end_range),
-                    block,
-                })
-            }
-
             HirExpression::If(if_expr) => {
                 let cond = self.expr(if_expr.condition);
                 let then = self.expr(if_expr.consequence);
@@ -455,6 +433,27 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Constrain(Box::new(expr), location, constrain.2)
             }
             HirStatement::Assign(assign) => self.assign(assign),
+            HirStatement::For(for_loop) => {
+                self.is_range_loop = true;
+                let start = self.expr(for_loop.start_range);
+                let end = self.expr(for_loop.end_range);
+                self.is_range_loop = false;
+                let index_variable = self.next_local_id();
+                self.define_local(for_loop.identifier.id, index_variable);
+
+                let block = Box::new(self.expr(for_loop.block));
+
+                ast::Expression::For(ast::For {
+                    index_variable,
+                    index_name: self.interner.definition_name(for_loop.identifier.id).to_owned(),
+                    index_type: self.convert_type(&self.interner.id_type(for_loop.start_range)),
+                    start_range: Box::new(start),
+                    end_range: Box::new(end),
+                    start_range_location: self.interner.expr_location(&for_loop.start_range),
+                    end_range_location: self.interner.expr_location(&for_loop.end_range),
+                    block,
+                })
+            }
             HirStatement::Expression(expr) => self.expr(expr),
             HirStatement::Semi(expr) => ast::Expression::Semi(Box::new(self.expr(expr))),
             HirStatement::Error => unreachable!(),
