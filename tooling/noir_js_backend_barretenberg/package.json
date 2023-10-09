@@ -16,12 +16,18 @@
     "default": "./lib/esm/index.js"
   },
   "types": "lib/esm/index.d.ts",
+  "files": [
+    "lib",
+    "package.json"
+  ],
   "scripts": {
     "dev": "tsc --watch",
-    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && ./fixup.sh",
+    "generate:package": "bash ./fixup.sh",
+    "build": "yarn clean && tsc && tsc -p ./tsconfig.cjs.json && yarn generate:package",
     "clean": "rm -rf ./lib",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {

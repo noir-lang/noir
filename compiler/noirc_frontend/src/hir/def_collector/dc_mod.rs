@@ -6,8 +6,8 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::TraitId,
-    parser::{SortedModule, SubModule},
+    node_interner::{TraitId, TypeAliasId},
+    parser::{SortedModule, SortedSubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -360,27 +360,77 @@ impl<'a> ModCollector<'a> {
                 trait_id: None,
             };
             for trait_item in &trait_definition.items {
-                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-                if let TraitItem::Function {
-                    name,
-                    generics,
-                    parameters,
-                    return_type,
-                    where_clause,
-                    body: Some(body),
-                } = trait_item
-                {
-                    let func_id = context.def_interner.push_empty_fn();
-
-                    let impl_method = NoirFunction::normal(FunctionDefinition::normal(
+                match trait_item {
+                    TraitItem::Function {
                         name,
                         generics,
                         parameters,
-                        body,
-                        where_clause,
                         return_type,
-                    ));
-                    unresolved_functions.push_fn(self.module_id, func_id, impl_method);
+                        where_clause,
+                        body,
+                    } => {
+                        let func_id = context.def_interner.push_empty_fn();
+                        match self.def_collector.def_map.modules[id.0.local_id.0]
+                            .declare_function(name.clone(), func_id)
+                        {
+                            Ok(()) => {
+                                // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
+                                if let Some(body) = body {
+                                    let impl_method =
+                                        NoirFunction::normal(FunctionDefinition::normal(
+                                            name,
+                                            generics,
+                                            parameters,
+                                            body,
+                                            where_clause,
+                                            return_type,
+                                        ));
+                                    unresolved_functions.push_fn(
+                                        self.module_id,
+                                        func_id,
+                                        impl_method,
+                                    );
+                                }
+                            }
+                            Err((first_def, second_def)) => {
+                                let error = DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::TraitAssociatedFunction,
+                                    first_def,
+                                    second_def,
+                                };
+                                errors.push((error.into(), self.file_id));
+                            }
+                        }
+                    }
+                    TraitItem::Constant { name, .. } => {
+                        let stmt_id = context.def_interner.push_empty_global();
+
+                        if let Err((first_def, second_def)) = self.def_collector.def_map.modules
+                            [id.0.local_id.0]
+                            .declare_global(name.clone(), stmt_id)
+                        {
+                            let error = DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::TraitAssociatedConst,
+                                first_def,
+                                second_def,
+                            };
+                            errors.push((error.into(), self.file_id));
+                        }
+                    }
+                    TraitItem::Type { name } => {
+                        // TODO(nickysn or alexvitkov): implement context.def_interner.push_empty_type_alias and get an id, instead of using TypeAliasId::dummy_id()
+                        if let Err((first_def, second_def)) = self.def_collector.def_map.modules
+                            [id.0.local_id.0]
+                            .declare_type_alias(name.clone(), TypeAliasId::dummy_id())
+                        {
+                            let error = DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::TraitAssociatedType,
+                                first_def,
+                                second_def,
+                            };
+                            errors.push((error.into(), self.file_id));
+                        }
+                    }
                 }
             }
 
@@ -401,7 +451,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         crate_id: CrateId,
-        submodules: Vec<SubModule>,
+        submodules: Vec<SortedSubModule>,
         file_id: FileId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -410,7 +460,7 @@ impl<'a> ModCollector<'a> {
                 Ok(child) => {
                     errors.extend(collect_defs(
                         self.def_collector,
-                        submodule.contents.into_sorted(),
+                        submodule.contents,
                         file_id,
                         child,
                         crate_id,

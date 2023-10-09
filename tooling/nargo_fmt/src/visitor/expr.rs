@@ -1,4 +1,6 @@
-use noirc_frontend::{hir::resolution::errors::Span, BlockExpression, Expression, ExpressionKind};
+use noirc_frontend::{
+    hir::resolution::errors::Span, BlockExpression, Expression, ExpressionKind, Statement,
+};
 
 use super::FmtVisitor;
 
@@ -25,6 +27,14 @@ impl FmtVisitor<'_> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
+            ExpressionKind::Infix(infix) => {
+                format!(
+                    "{} {} {}",
+                    self.format_expr(infix.lhs),
+                    infix.operator.contents.as_string(),
+                    self.format_expr(infix.rhs)
+                )
+            }
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
@@ -44,6 +54,8 @@ impl FmtVisitor<'_> {
         self.last_position = block_span.start() + 1; // `{`
         self.push_str("{");
 
+        self.trim_spaces_after_opening_brace(&block.0);
+
         self.with_indent(|this| {
             this.visit_stmts(block.0);
         });
@@ -58,6 +70,15 @@ impl FmtVisitor<'_> {
             self.push_str(&self.block_indent.to_string());
         }
         self.push_str("}");
+    }
+
+    fn trim_spaces_after_opening_brace(&mut self, block: &[Statement]) {
+        if let Some(first_stmt) = block.first() {
+            let slice = slice!(self, self.last_position, first_stmt.span.start());
+            let len =
+                slice.chars().take_while(|ch| ch.is_whitespace()).collect::<String>().rfind('\n');
+            self.last_position += len.unwrap_or(0) as u32;
+        }
     }
 
     fn visit_empty_block(&mut self, block_span: Span, should_indent: bool) {
