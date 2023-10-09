@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      NIGHTLY_RELEASE: ${{ inputs.tag == "" }}
+      NIGHTLY_RELEASE: ${{ inputs.tag == '' }}
     strategy:
       fail-fast: false
       matrix:
