@@ -4,10 +4,6 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![warn(unused_qualifications, clippy::use_self)]
 
-// False positives for dev-dependencies with unused_crate_dependencies lint.
-#[cfg(test)]
-use similar_asserts as _;
-
 /// A Rust code formatting utility designed to manage and format untouched fragments of source code,
 /// including comments, whitespace, and other characters. While the module doesn't directly address comments,
 /// it treats them as unchanged fragments, ensuring their original placement and content remain preserved.
