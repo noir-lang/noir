@@ -42,8 +42,12 @@ pub struct CompileOptions {
     pub print_acir: bool,
 
     /// Treat all warnings as errors
-    #[arg(long)]
+    #[arg(long, conflicts_with = "silence_warnings")]
     pub deny_warnings: bool,
+
+    /// Suppress warnings
+    #[arg(long, conflicts_with = "deny_warnings")]
+    pub silence_warnings: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
