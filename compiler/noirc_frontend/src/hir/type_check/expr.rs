@@ -409,7 +409,7 @@ impl<'interner> TypeChecker<'interner> {
         });
 
         let lhs_type = self.check_expression(&index_expr.collection);
-        match lhs_type {
+        match lhs_type.follow_bindings() {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
