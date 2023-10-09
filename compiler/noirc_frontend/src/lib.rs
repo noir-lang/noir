@@ -31,3 +31,6 @@ pub use ast::*;
 
 // Type API
 pub use hir_def::types::*;
+
+// Unit tests that involve all modules
+pub mod tests;
