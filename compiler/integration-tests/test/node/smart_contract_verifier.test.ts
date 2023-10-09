@@ -36,7 +36,7 @@ test_cases.forEach((testInfo) => {
     const noir_program = compile(noir_source_path);
 
     const backend = new BarretenbergBackend(noir_program);
-    const program = new Noir(noir_program, backend);
+    const program = new Noir(backend);
 
     // JS Proving
 

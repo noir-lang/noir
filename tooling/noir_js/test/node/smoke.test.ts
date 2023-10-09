@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { generateWitness } from '../../src/index.js';
+import { generateWitness } from '../../src/witness_generation.js';
 
 it('generates witnesses successfully', async () => {
   const inputs = {

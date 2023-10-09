@@ -14,7 +14,6 @@ export class Noir {
     if (typeof initAbi === 'function') {
       await Promise.all([initAbi(), initACVM()]);
     }
-    await this.backend.instantiate();
   }
 
   async destroy(): Promise<void> {

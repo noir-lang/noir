@@ -4,16 +4,14 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
-import { acvm, abi, generateWitness } from '@noir-lang/noir_js';
+import newABICoder from '@noir-lang/noirc_abi';
+import initACVM from '@noir-lang/acvm_js';
 
 import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
-import { getFile } from './utils.js';
+import { getFile, generateWitness } from './utils.js';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
-
-const { default: initACVM } = acvm;
-const { default: newABICoder } = abi;
 
 await newCompiler();
 await newABICoder();

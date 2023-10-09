@@ -61,7 +61,7 @@ test_cases.forEach((testInfo) => {
     }
 
     const backend = new BarretenbergBackend(noir_program);
-    const program = new Noir(noir_program, backend);
+    const program = new Noir(backend);
 
     const prover_toml = await getFile(`${base_relative_path}/${test_case}/Prover.toml`);
     const inputs = TOML.parse(prover_toml);
