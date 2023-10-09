@@ -122,6 +122,7 @@ pub struct DefCollector {
     pub(crate) collected_traits_impls: Vec<UnresolvedTraitImpl>,
 }
 
+#[derive(Debug, Clone)]
 pub enum CompilationError {
     ParseError(ParserError),
     DefinitionError(DefCollectorErrorKind),
@@ -506,7 +507,11 @@ fn add_method_to_struct_namespace(
     let type_module = struct_type.id.local_module_id();
     let module = &mut current_def_map.modules[type_module.0];
     module.declare_function(name_ident.clone(), func_id).map_err(|(first_def, second_def)| {
-        DefCollectorErrorKind::Duplicate { typ: DuplicateType::Function, first_def, second_def }
+        DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::TraitImplementation,
+            first_def,
+            second_def,
+        }
     })
 }
 
