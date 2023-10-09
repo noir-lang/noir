@@ -16,12 +16,12 @@ struct Foo {
 fn main(y : pub Field) {
     let mut b_one = [2, 3, 20];
     b_one = b_one.push_back(20);
-    // let b_one = Vec::from_slice([2, 3, 20]);
     let foo_one = Foo { a: 1, b: b_one, bar: Bar { inner: [100, 101, 102] } };
+    
     let mut b_two = [5, 6, 21];
     b_two = b_two.push_back(21);
-    // let b_two = Vec::from_slice([5, 6, 21]);
     let foo_two = Foo { a: 4, b: b_two, bar: Bar { inner: [103, 104, 105] } };
+    
     let foo_three = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };
     let foo_four = Foo { a: 10, b: [11, 12, 23], bar: Bar { inner: [109, 110, 111] } };
 
@@ -85,15 +85,26 @@ fn main(y : pub Field) {
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
 
-    // if y != 2 {
-    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
-    // } else {
-    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
-    // }
+    if y != 2 {
+        foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    } else {
+        foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
+    }
+    // foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    // dep::std::println(foo_parents[y - 2].foos[y - 3].a);
+    // dep::std::println(foo_parents[y - 2].foos[y - 2].a);
+    dep::std::println(foo_parents[y - 2].foos[y - 1].a);
+    // dep::std::println(foo_parents[y - 2].foos[y].a);
+
     // foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
     // dep::std::println(foo_parents[y - 2].foos[y - 1].b[y - 1]);
+
     // dep::std::println(foo_parents[y - 2].parent_arr[y - 1]);
-    dep::std::println(foo_parents[y - 2].foos[y - 1].a);
+    // dep::std::println(foo_parents[y - 2].foos[y - 3].b[0]);
+    // dep::std::println(foo_parents[y - 2].foos[y - 2].b[0]);
+    // dep::std::println(foo_parents[y - 2].foos[y - 1].b[0]);
+    // dep::std::println(foo_parents[y - 2].foos[y].b[0]);
+
     // dep::std::println(foo_parents[y - 2].foos[y - 1].a);
 
     // dep::std::println(foo_parents[1].foos[2].b[2]);

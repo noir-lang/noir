@@ -101,7 +101,7 @@ pub(crate) fn execute_program(
     let only_mem_ops = compiled_program.circuit.opcodes.clone().into_iter().filter(|opcode| {
        match opcode {
             Opcode::MemoryInit { block_id, .. } | Opcode::MemoryOp { block_id, .. } => {
-                if block_id.0 == 24 {
+                if block_id.0 == 21 {
                     true
                 } else {
                     false
@@ -110,7 +110,8 @@ pub(crate) fn execute_program(
             _ => false
         }
     }).collect::<Vec<_>>();
-    dbg!(only_mem_ops.clone());
+    // dbg!(only_mem_ops.clone());
+    dbg!(only_mem_ops.len());
     #[allow(deprecated)]
     let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
 

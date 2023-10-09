@@ -1,3 +1,8 @@
+struct FooParent {
+    parent_arr: [Field; 3],
+    foos: [Foo; 4],
+}
+
 struct Bar {
     inner: [Field; 3],
 }
@@ -41,5 +46,17 @@ fn main(mut x : [Foo; 4], y : pub Field) {
     assert(x[y - 2].bar.inner == [103, 104, 105]);
     assert(x[y - 1].bar.inner == [106, 107, 108]);
     assert(x[y].bar.inner == [109, 110, 111]);
+
+    let foo_parent_one = FooParent { parent_arr: [0, 1, 2], foos: x };
+    let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: x };
+    let mut foo_parents: [FooParent; 2] = [foo_parent_one, foo_parent_two];
+
+    if y != 2 {
+        foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    } else {
+        foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
+    }
+    let b_y_minus_one = foo_parents[y - 2].foos[y - 1].b[y - 1];
+    assert(b_y_minus_one == 5000);
 }
 
