@@ -1,28 +1,28 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 import { acirToUint8Array } from './serialize.js';
-import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { Backend, BackendOptions, CompiledCircuit, ProofData } from '@noir-lang/types';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
 
 export class BarretenbergBackend implements Backend {
-  // These type assertions are used so that we don't
-  // have to initialize `api` and `acirComposer` in the constructor.
-  // These are initialized asynchronously in the `init` function,
-  // constructors cannot be asynchronous which is why we do this.
   private api: any;
   private acirComposer: any;
   private acirUncompressedBytecode: Uint8Array;
   private numberOfThreads = 1;
 
-  constructor(acirCircuit: CompiledCircuit, numberOfThreads = 1) {
-    const acirBytecodeBase64 = acirCircuit.bytecode;
-    this.numberOfThreads = numberOfThreads;
-    this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
+  public circuit: CompiledCircuit;
+  public options: BackendOptions;
+
+  constructor(circuit: CompiledCircuit, options: BackendOptions = { numOfThreads: 1 }) {
+    this.circuit = circuit;
+    this.options = options;
+    this.numberOfThreads = options.numOfThreads;
+    this.acirUncompressedBytecode = acirToUint8Array(this.circuit.bytecode);
   }
 
-  private async instantiate(): Promise<void> {
+  async instantiate(): Promise<void> {
     if (!this.api) {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
