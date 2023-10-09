@@ -712,7 +712,7 @@ struct BrilligOutputs {
     static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
 };
 
-struct ForeignCallOutput {
+struct ForeignCallParam {
 
     struct Single {
         Circuit::Value value;
@@ -732,13 +732,13 @@ struct ForeignCallOutput {
 
     std::variant<Single, Array> value;
 
-    friend bool operator==(const ForeignCallOutput&, const ForeignCallOutput&);
+    friend bool operator==(const ForeignCallParam&, const ForeignCallParam&);
     std::vector<uint8_t> bincodeSerialize() const;
-    static ForeignCallOutput bincodeDeserialize(std::vector<uint8_t>);
+    static ForeignCallParam bincodeDeserialize(std::vector<uint8_t>);
 };
 
 struct ForeignCallResult {
-    std::vector<Circuit::ForeignCallOutput> values;
+    std::vector<Circuit::ForeignCallParam> values;
 
     friend bool operator==(const ForeignCallResult&, const ForeignCallResult&);
     std::vector<uint8_t> bincodeSerialize() const;
@@ -4758,7 +4758,7 @@ Circuit::Expression serde::Deserializable<Circuit::Expression>::deserialize(Dese
 
 namespace Circuit {
 
-inline bool operator==(const ForeignCallOutput& lhs, const ForeignCallOutput& rhs)
+inline bool operator==(const ForeignCallParam& lhs, const ForeignCallParam& rhs)
 {
     if (!(lhs.value == rhs.value)) {
         return false;
@@ -4766,17 +4766,17 @@ inline bool operator==(const ForeignCallOutput& lhs, const ForeignCallOutput& rh
     return true;
 }
 
-inline std::vector<uint8_t> ForeignCallOutput::bincodeSerialize() const
+inline std::vector<uint8_t> ForeignCallParam::bincodeSerialize() const
 {
     auto serializer = serde::BincodeSerializer();
-    serde::Serializable<ForeignCallOutput>::serialize(*this, serializer);
+    serde::Serializable<ForeignCallParam>::serialize(*this, serializer);
     return std::move(serializer).bytes();
 }
 
-inline ForeignCallOutput ForeignCallOutput::bincodeDeserialize(std::vector<uint8_t> input)
+inline ForeignCallParam ForeignCallParam::bincodeDeserialize(std::vector<uint8_t> input)
 {
     auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<ForeignCallOutput>::deserialize(deserializer);
+    auto value = serde::Deserializable<ForeignCallParam>::deserialize(deserializer);
     if (deserializer.get_buffer_offset() < input.size()) {
         throw_or_abort("Some input bytes were not read");
     }
@@ -4787,8 +4787,8 @@ inline ForeignCallOutput ForeignCallOutput::bincodeDeserialize(std::vector<uint8
 
 template <>
 template <typename Serializer>
-void serde::Serializable<Circuit::ForeignCallOutput>::serialize(const Circuit::ForeignCallOutput& obj,
-                                                                Serializer& serializer)
+void serde::Serializable<Circuit::ForeignCallParam>::serialize(const Circuit::ForeignCallParam& obj,
+                                                               Serializer& serializer)
 {
     serializer.increase_container_depth();
     serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
@@ -4797,10 +4797,10 @@ void serde::Serializable<Circuit::ForeignCallOutput>::serialize(const Circuit::F
 
 template <>
 template <typename Deserializer>
-Circuit::ForeignCallOutput serde::Deserializable<Circuit::ForeignCallOutput>::deserialize(Deserializer& deserializer)
+Circuit::ForeignCallParam serde::Deserializable<Circuit::ForeignCallParam>::deserialize(Deserializer& deserializer)
 {
     deserializer.increase_container_depth();
-    Circuit::ForeignCallOutput obj;
+    Circuit::ForeignCallParam obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
@@ -4808,7 +4808,7 @@ Circuit::ForeignCallOutput serde::Deserializable<Circuit::ForeignCallOutput>::de
 
 namespace Circuit {
 
-inline bool operator==(const ForeignCallOutput::Single& lhs, const ForeignCallOutput::Single& rhs)
+inline bool operator==(const ForeignCallParam::Single& lhs, const ForeignCallParam::Single& rhs)
 {
     if (!(lhs.value == rhs.value)) {
         return false;
@@ -4816,17 +4816,17 @@ inline bool operator==(const ForeignCallOutput::Single& lhs, const ForeignCallOu
     return true;
 }
 
-inline std::vector<uint8_t> ForeignCallOutput::Single::bincodeSerialize() const
+inline std::vector<uint8_t> ForeignCallParam::Single::bincodeSerialize() const
 {
     auto serializer = serde::BincodeSerializer();
-    serde::Serializable<ForeignCallOutput::Single>::serialize(*this, serializer);
+    serde::Serializable<ForeignCallParam::Single>::serialize(*this, serializer);
     return std::move(serializer).bytes();
 }
 
-inline ForeignCallOutput::Single ForeignCallOutput::Single::bincodeDeserialize(std::vector<uint8_t> input)
+inline ForeignCallParam::Single ForeignCallParam::Single::bincodeDeserialize(std::vector<uint8_t> input)
 {
     auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<ForeignCallOutput::Single>::deserialize(deserializer);
+    auto value = serde::Deserializable<ForeignCallParam::Single>::deserialize(deserializer);
     if (deserializer.get_buffer_offset() < input.size()) {
         throw_or_abort("Some input bytes were not read");
     }
@@ -4837,54 +4837,7 @@ inline ForeignCallOutput::Single ForeignCallOutput::Single::bincodeDeserialize(s
 
 template <>
 template <typename Serializer>
-void serde::Serializable<Circuit::ForeignCallOutput::Single>::serialize(const Circuit::ForeignCallOutput::Single& obj,
-                                                                        Serializer& serializer)
-{
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Circuit::ForeignCallOutput::Single serde::Deserializable<Circuit::ForeignCallOutput::Single>::deserialize(
-    Deserializer& deserializer)
-{
-    Circuit::ForeignCallOutput::Single obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Circuit {
-
-inline bool operator==(const ForeignCallOutput::Array& lhs, const ForeignCallOutput::Array& rhs)
-{
-    if (!(lhs.value == rhs.value)) {
-        return false;
-    }
-    return true;
-}
-
-inline std::vector<uint8_t> ForeignCallOutput::Array::bincodeSerialize() const
-{
-    auto serializer = serde::BincodeSerializer();
-    serde::Serializable<ForeignCallOutput::Array>::serialize(*this, serializer);
-    return std::move(serializer).bytes();
-}
-
-inline ForeignCallOutput::Array ForeignCallOutput::Array::bincodeDeserialize(std::vector<uint8_t> input)
-{
-    auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<ForeignCallOutput::Array>::deserialize(deserializer);
-    if (deserializer.get_buffer_offset() < input.size()) {
-        throw_or_abort("Some input bytes were not read");
-    }
-    return value;
-}
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::ForeignCallOutput::Array>::serialize(const Circuit::ForeignCallOutput::Array& obj,
+void serde::Serializable<Circuit::ForeignCallParam::Single>::serialize(const Circuit::ForeignCallParam::Single& obj,
                                                                        Serializer& serializer)
 {
     serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
@@ -4892,10 +4845,57 @@ void serde::Serializable<Circuit::ForeignCallOutput::Array>::serialize(const Cir
 
 template <>
 template <typename Deserializer>
-Circuit::ForeignCallOutput::Array serde::Deserializable<Circuit::ForeignCallOutput::Array>::deserialize(
+Circuit::ForeignCallParam::Single serde::Deserializable<Circuit::ForeignCallParam::Single>::deserialize(
     Deserializer& deserializer)
 {
-    Circuit::ForeignCallOutput::Array obj;
+    Circuit::ForeignCallParam::Single obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+inline bool operator==(const ForeignCallParam::Array& lhs, const ForeignCallParam::Array& rhs)
+{
+    if (!(lhs.value == rhs.value)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> ForeignCallParam::Array::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<ForeignCallParam::Array>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline ForeignCallParam::Array ForeignCallParam::Array::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<ForeignCallParam::Array>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::ForeignCallParam::Array>::serialize(const Circuit::ForeignCallParam::Array& obj,
+                                                                      Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::ForeignCallParam::Array serde::Deserializable<Circuit::ForeignCallParam::Array>::deserialize(
+    Deserializer& deserializer)
+{
+    Circuit::ForeignCallParam::Array obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
