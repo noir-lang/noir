@@ -59,7 +59,7 @@ fn format_{test_name}() {{
     let fmt_text = nargo_fmt::format(&input, parsed_module, &config);
 
 
-    assert_eq!(fmt_text, expected_output);
+    similar_asserts::assert_eq!(fmt_text, expected_output);
 }}
             "##
         )
