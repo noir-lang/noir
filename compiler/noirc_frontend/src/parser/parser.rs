@@ -228,14 +228,15 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace)).recover_with(
-        nested_delimiters(
+    let fields = struct_fields()
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ),
-    );
+        ))
+        .or(just(Semicolon).map(|_| Vec::new()));
 
     attributes()
         .or_not()
@@ -2281,6 +2282,7 @@ mod test {
     #[test]
     fn parse_structs() {
         let cases = vec![
+            "struct Foo;",
             "struct Foo { }",
             "struct Bar { ident: Field, }",
             "struct Baz { ident: Field, other: Field }",
@@ -2315,12 +2317,13 @@ mod test {
     #[test]
     fn parse_constructor() {
         let cases = vec![
+            "Baz",
             "Bar { ident: 32 }",
             "Baz { other: 2 + 42, ident: foo() + 1 }",
             "Baz { other, ident: foo() + 1, foo }",
         ];
-        parse_all(expression(), cases);
 
+        parse_all(expression(), cases);
         parse_with(expression(), "Foo { a + b }").unwrap_err();
     }
 
