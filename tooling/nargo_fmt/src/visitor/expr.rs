@@ -1,5 +1,6 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, BlockExpression, Expression, ExpressionKind, Statement,
+    hir::resolution::errors::Span, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
+    Literal, Statement,
 };
 
 use super::FmtVisitor;
@@ -38,6 +39,22 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::Literal(literal) => match literal {
+                Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
+                Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
+                    format!("[{}; {length}]", self.format_expr(*repeated_element))
+                }
+                // TODO: Handle line breaks when array gets too long.
+                Literal::Array(ArrayLiteral::Standard(exprs)) => {
+                    let contents: Vec<String> =
+                        exprs.into_iter().map(|expr| self.format_expr(expr)).collect();
+                    format!("[{}]", contents.join(", "))
+                }
+
+                Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::Unit => {
+                    literal.to_string()
+                }
+            },
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
