@@ -2,12 +2,12 @@
 impl Field {
     pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
-        self.to_le_bits(bit_size)
+        self.__to_le_bits(bit_size)
     }
     
     pub fn to_be_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
-        self.to_be_bits(bit_size)
+        self.__to_be_bits(bit_size)
     }
 
     #[builtin(to_le_bits)]
