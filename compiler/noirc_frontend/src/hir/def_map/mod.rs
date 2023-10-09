@@ -83,6 +83,7 @@ impl CrateDefMap {
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
+        let ast = ast.into_sorted();
 
         #[cfg(feature = "aztec")]
         let ast = match super::aztec_library::transform(ast, &crate_id, context) {

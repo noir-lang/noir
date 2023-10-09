@@ -52,7 +52,11 @@ fn get_dog() -> Animal {
     dog
 }
 
+struct Unit;
+
 fn main(x: Field, y: Field) {
+    let unit = Unit {};
+
     let first = Foo::default(x,y);
     let p = Pair { first, second: 1 };
 

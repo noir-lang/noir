@@ -33,7 +33,7 @@ use crate::node_interner::{
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    Statement,
+    StatementKind,
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
@@ -933,9 +933,9 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn resolve_stmt(&mut self, stmt: Statement) -> HirStatement {
+    pub fn resolve_stmt(&mut self, stmt: StatementKind) -> HirStatement {
         match stmt {
-            Statement::Let(let_stmt) => {
+            StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
                 let definition = DefinitionKind::Local(Some(expression));
                 HirStatement::Let(HirLetStatement {
@@ -944,20 +944,22 @@ impl<'a> Resolver<'a> {
                     expression,
                 })
             }
-            Statement::Constrain(constrain_stmt) => {
+            StatementKind::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
                 let assert_message = constrain_stmt.1;
                 HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, assert_message))
             }
-            Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
-            Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
-            Statement::Assign(assign_stmt) => {
+            StatementKind::Expression(expr) => {
+                HirStatement::Expression(self.resolve_expression(expr))
+            }
+            StatementKind::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
+            StatementKind::Assign(assign_stmt) => {
                 let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement { lvalue: identifier, expression };
                 HirStatement::Assign(stmt)
             }
-            Statement::For(for_loop) => {
+            StatementKind::For(for_loop) => {
                 let start_range = self.resolve_expression(for_loop.start_range);
                 let end_range = self.resolve_expression(for_loop.end_range);
                 let (identifier, block) = (for_loop.identifier, for_loop.block);
@@ -976,11 +978,11 @@ impl<'a> Resolver<'a> {
 
                 HirStatement::For(HirForStatement { start_range, end_range, block, identifier })
             }
-            Statement::Error => HirStatement::Error,
+            StatementKind::Error => HirStatement::Error,
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+    pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt);
         self.interner.push_stmt(hir_stmt)
     }
@@ -1519,7 +1521,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt.kind)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
@@ -1708,7 +1710,7 @@ mod test {
         }
 
         let mut errors = Vec::new();
-        for func in program.functions {
+        for func in program.into_sorted().functions {
             let id = interner.push_test_function_definition(func.name().to_string());
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
@@ -1724,7 +1726,7 @@ mod test {
             init_src_code_resolution(src);
 
         let mut all_captures: Vec<Vec<String>> = Vec::new();
-        for func in program.functions {
+        for func in program.into_sorted().functions {
             let name = func.name().to_string();
             let id = interner.push_test_function_definition(name);
             path_resolver.insert_func(func.name().to_owned(), id);

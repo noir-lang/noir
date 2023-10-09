@@ -11,6 +11,7 @@ mod optimizers;
 mod transformers;
 
 pub use optimizers::optimize;
+use optimizers::optimize_internal;
 pub use transformers::transform;
 use transformers::transform_internal;
 
@@ -73,7 +74,12 @@ pub fn compile(
     np_language: Language,
     is_opcode_supported: impl Fn(&Opcode) -> bool,
 ) -> Result<(Circuit, AcirTransformationMap), CompileError> {
-    let (acir, AcirTransformationMap { acir_opcode_positions }) = optimize(acir);
+    let (acir, AcirTransformationMap { acir_opcode_positions }) = optimize_internal(acir);
 
-    transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)
+    let (mut acir, transformation_map) =
+        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
+
+    Ok((acir, transformation_map))
 }
