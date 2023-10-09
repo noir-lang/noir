@@ -10,12 +10,14 @@ license.workspace = true
 acvm = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 barretenberg_blackbox_solver = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 fm = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
+nargo.workspace = true
 noirc_evaluator = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 noirc_errors = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 noirc_frontend = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 noirc_driver = { git = "https://github.com/dmvict/noir", branch = "alt_compiler", features = [ "brillig" ] }
-dap = "0.4.1-alpha1"
-anyhow = "~1.0"
+noirc_printable_type = { git = "https://github.com/dmvict/noir", branch = "alt_compiler" }
 serde_json.workspace = true
+thiserror.workspace = true
+
 crossbeam = "0.8.2"
-lazy_static = "1.4.0"
+dap = "0.4.1-alpha1"

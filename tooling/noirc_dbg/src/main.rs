@@ -11,6 +11,7 @@
 mod app;
 mod compile;
 mod dap_server;
+mod error;
 mod vm;
 
 use app::{App, State};

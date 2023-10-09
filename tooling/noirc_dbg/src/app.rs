@@ -3,13 +3,12 @@ use dap::events::*;
 use dap::requests::*;
 use dap::responses::*;
 use dap::types::{
-    Capabilities, Scope, ScopePresentationhint, SourceBreakpoint, StoppedEventReason, Thread, Variable
+    Capabilities, Scope, ScopePresentationhint, SourceBreakpoint, StoppedEventReason, Thread,
+    Variable,
 };
 use serde_json::Value;
 
-use crate::{compile, dap_server, vm};
-
-use anyhow::{Context, Result};
+use crate::{compile, dap_server::Dap, error::DebuggingError, vm};
 
 use acvm::brillig_vm::VM;
 #[allow(deprecated)]
@@ -40,8 +39,8 @@ impl UninitializedState {
         Self
     }
 
-    pub(crate) fn run(&mut self) -> Result<Option<State>> {
-        let request = match dap_server::read() {
+    pub(crate) fn run(&mut self, server: &Dap) -> Result<Option<State>, DebuggingError> {
+        let request = match server.read() {
             Some(req) => req,
             None => return Ok(None),
         };
@@ -54,30 +53,43 @@ impl UninitializedState {
                     ..Default::default()
                 }));
 
-                dap_server::write(Sendable::Response(rsp));
+                server.write(Sendable::Response(rsp));
             }
 
             Command::Launch(ref arguments) => {
                 let mut path = None;
+                let mut vm_type = None;
                 let additional_data = arguments.additional_data.clone();
                 let resp = if let Some(Value::Object(data)) = &additional_data {
                     path = data
                         .get("src_path")
-                        .context("Missing source file")?
-                        .as_str()
-                        .context("Source file is not a string")
+                        .ok_or(DebuggingError::CustomError("Missing source file".to_owned()))
+                        .map(|v| {
+                            v.as_str().ok_or(DebuggingError::CustomError(
+                                "Source file is not a string".to_owned(),
+                            ))
+                        })?
                         .ok();
-                    dap_server::write(Sendable::Event(Event::Initialized));
+                    vm_type = data
+                        .get("vm")
+                        .ok_or(DebuggingError::CustomError("Missing source file".to_owned()))
+                        .map(|v| {
+                            v.as_str().ok_or(DebuggingError::CustomError(
+                                "Source file is not a string".to_owned(),
+                            ))
+                        })?
+                        .ok();
+                    server.write(Sendable::Event(Event::Initialized));
                     request.ack()?
                 } else {
                     request.error("Source file is not provided")
                 };
 
-                dap_server::write(Sendable::Response(resp));
+                server.write(Sendable::Response(resp));
 
                 if let Some(src_path) = path {
-                    let mut running_state = RunningState::new(src_path)?;
-                    running_state.init()?;
+                    let mut running_state = RunningState::new(src_path, vm_type)?;
+                    running_state.init(server)?;
                     return Ok(Some(State::Running(running_state)));
                 }
             }
@@ -88,15 +100,52 @@ impl UninitializedState {
         Ok(None)
     }
 }
+
 #[allow(deprecated)]
+enum VMType {
+    Brillig(VM<'static, BarretenbergSolver>),
+    #[allow(dead_code)]
+    Acvm(VM<'static, BarretenbergSolver>),
+}
+
+impl VMType {
+    fn program_counter(&self) -> usize {
+        match self {
+            VMType::Brillig(vm) => vm.program_counter(),
+            _ => unimplemented!(),
+        }
+    }
+    fn process_opcode(&mut self) {
+        match self {
+            VMType::Brillig(vm) => vm.process_opcode(),
+            _ => unimplemented!(),
+        };
+    }
+    fn get_memory(&self) -> &Vec<acvm::acir::brillig::Value> {
+        match self {
+            VMType::Brillig(vm) => vm.get_memory(),
+            _ => unimplemented!(),
+        }
+    }
+    fn get_registers(&self) -> &Vec<acvm::acir::brillig::Value> {
+        match self {
+            VMType::Brillig(vm) => {
+                let registers = vm.get_registers();
+                &registers.inner
+            }
+            _ => unimplemented!(),
+        }
+    }
+}
+
 pub(crate) struct RunningState {
     breakpoints: Vec<Breakpoint>,
     running: bool,
-    vm: VM<'static, BarretenbergSolver>,
+    vm: VMType,
 }
 
 impl RunningState {
-    pub(crate) fn new(src_path: &str) -> Result<Self> {
+    pub(crate) fn new(src_path: &str, _vm_type: Option<&str>) -> Result<Self, DebuggingError> {
         let program =
             compile(std::env::current_dir().unwrap().join(src_path).as_path().to_str().unwrap())
                 .unwrap();
@@ -104,18 +153,18 @@ impl RunningState {
         #[allow(deprecated)]
         let solver = Box::leak(Box::new(BarretenbergSolver::new()));
         let vm = vm::new(program, solver);
-        Ok(RunningState { breakpoints: Vec::new(), running: false, vm })
+        Ok(RunningState { breakpoints: Vec::new(), running: false, vm: VMType::Brillig(vm) })
     }
 
-    pub(crate) fn init(&mut self) -> Result<()> {
-        self.stop(StoppedEventReason::Entry)
+    pub(crate) fn init(&mut self, server: &Dap) -> Result<(), DebuggingError> {
+        self.stop(server, StoppedEventReason::Entry)
     }
 
     fn clear_breakpoints(&mut self) {
         self.breakpoints = vec![];
     }
 
-    fn stop(&mut self, reason: StoppedEventReason) -> Result<()> {
+    fn stop(&mut self, server: &Dap, reason: StoppedEventReason) -> Result<(), DebuggingError> {
         let description = format!("{:?}", &reason);
         let stop_event = Event::Stopped(StoppedEventBody {
             reason,
@@ -127,25 +176,24 @@ impl RunningState {
             hit_breakpoint_ids: None,
         });
 
-        dap_server::write(Sendable::Event(stop_event));
+        server.write(Sendable::Event(stop_event));
         self.running = false;
 
         Ok(())
     }
 
     fn get_current_instruction(&self) -> usize {
-        0
-        // self.vm.program_counter()
+        self.vm.program_counter()
     }
 
-    pub(crate) fn run(&mut self) -> Result<Option<State>> {
+    pub(crate) fn run(&mut self, server: &Dap) -> Result<Option<State>, DebuggingError> {
         if self.running {
             let current_instruction = self.get_current_instruction();
             if self.breakpoints.iter().any(|b| b.instruction == current_instruction) {
-                self.stop(StoppedEventReason::Breakpoint)?;
+                self.stop(server, StoppedEventReason::Breakpoint)?;
             }
         }
-        let request = match dap_server::read() {
+        let request = match server.read() {
             Some(req) => req,
             None => return Ok(None),
         };
@@ -153,22 +201,22 @@ impl RunningState {
         match request.command {
             Command::Next(_) | Command::StepIn(_) | Command::StepOut(_) => {
                 self.vm.process_opcode();
-                dap_server::write(Sendable::Response(request.ack()?));
-                self.stop(StoppedEventReason::Step)?;
+                server.write(Sendable::Response(request.ack()?));
+                self.stop(server, StoppedEventReason::Step)?;
             }
             Command::Pause(_) => {
                 self.running = false;
-                dap_server::write(Sendable::Response(request.ack()?));
-                self.stop(StoppedEventReason::Pause)?;
+                server.write(Sendable::Response(request.ack()?));
+                self.stop(server, StoppedEventReason::Pause)?;
             }
             Command::Continue(_) => {
                 self.running = true;
-                dap_server::write(Sendable::Response(request.success(ResponseBody::Continue(
+                server.write(Sendable::Response(request.success(ResponseBody::Continue(
                     ContinueResponse { all_threads_continued: Some(true) },
                 ))));
             }
             Command::Threads => {
-                dap_server::write(Sendable::Response(request.success(ResponseBody::Threads(
+                server.write(Sendable::Response(request.success(ResponseBody::Threads(
                     ThreadsResponse { threads: vec![Thread { id: 0, name: "main".to_string() }] },
                 ))));
             }
@@ -183,12 +231,12 @@ impl RunningState {
                         line: Some(self.get_current_instruction() as i64),
                         ..Default::default()
                     };
-                    dap_server::write(Sendable::Response(
-                        request
-                            .success(ResponseBody::Scopes(ScopesResponse { scopes: vec![scope] })),
-                    ));
+                    server
+                        .write(Sendable::Response(request.success(ResponseBody::Scopes(
+                            ScopesResponse { scopes: vec![scope] },
+                        ))));
                 } else {
-                    dap_server::write(Sendable::Response(
+                    server.write(Sendable::Response(
                         request
                             .success(ResponseBody::Scopes(ScopesResponse { scopes: Vec::new() })),
                     ));
@@ -196,33 +244,32 @@ impl RunningState {
             }
             Command::Variables(_) => {
                 let registers = self.vm.get_registers();
-                let variables = registers.inner.iter().enumerate().map(|(i, r)|{
-                    Variable {
+                let variables = registers
+                    .iter()
+                    .enumerate()
+                    .map(|(i, r)| Variable {
                         name: format!("Register {i}"),
                         value: format!("{}", r.to_u128()),
                         ..Default::default()
-                    }
-                }).collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
 
-                dap_server::write(Sendable::Response(request.success(
-                    ResponseBody::Variables(VariablesResponse { variables }),
-                )));
+                server.write(Sendable::Response(
+                    request.success(ResponseBody::Variables(VariablesResponse { variables })),
+                ));
             }
             Command::ReadMemory(_) => {
                 let memory = self.vm.get_memory();
-                let memory = memory.iter().map(|v|{
-                    format!("{}", v.to_u128())
-                }).collect::<Vec<_>>();
+                let memory = memory.iter().map(|v| format!("{}", v.to_u128())).collect::<Vec<_>>();
                 let memory_string = memory.join(".");
 
-                dap_server::write(Sendable::Response(request.success(
-                    ResponseBody::ReadMemory(
-                        ReadMemoryResponse {
-                            address: "Memory".to_string(),
-                            unreadable_bytes: None,
-                            data: Some(memory_string),
-                        })
-                )));
+                server.write(Sendable::Response(request.success(ResponseBody::ReadMemory(
+                    ReadMemoryResponse {
+                        address: "Memory".to_string(),
+                        unreadable_bytes: None,
+                        data: Some(memory_string),
+                    },
+                ))));
             }
             Command::SetBreakpoints(ref args) => {
                 self.clear_breakpoints();
@@ -232,7 +279,7 @@ impl RunningState {
                 }
             }
             Command::Disconnect(_) => {
-                dap_server::write(Sendable::Response(request.ack()?));
+                server.write(Sendable::Response(request.ack()?));
                 return Ok(Some(State::Exit));
             }
 
@@ -245,17 +292,18 @@ impl RunningState {
 
 pub(crate) struct App {
     pub(crate) state: State,
+    pub(crate) server: Dap,
 }
 
 impl App {
     pub(crate) fn initialize() -> Self {
-        App { state: State::Uninitialized(UninitializedState::new()) }
+        App { state: State::Uninitialized(UninitializedState::new()), server: Dap::new() }
     }
 
-    pub(crate) fn run(&mut self) -> Result<()> {
+    pub(crate) fn run(&mut self) -> Result<(), DebuggingError> {
         let res = match self.state {
-            State::Uninitialized(ref mut s) => s.run()?,
-            State::Running(ref mut s) => s.run()?,
+            State::Uninitialized(ref mut s) => s.run(&self.server)?,
+            State::Running(ref mut s) => s.run(&self.server)?,
             State::Exit => return Ok(()),
         };
 

@@ -9,20 +9,12 @@ use dap::base_message::*;
 use dap::requests::*;
 use dap::server::*;
 
-use lazy_static::lazy_static;
-
-type StdServer = Server<Stdin, Stdout>;
-
-lazy_static! {
-    static ref SERVER: DapServer = DapServer::new();
+pub(crate) struct Dap {
+    output: Mutex<Server<Stdin, Stdout>>,
+    input: Receiver<Request>,
 }
 
-struct DapServer {
-    outgoing: Mutex<StdServer>,
-    incoming: Receiver<Request>,
-}
-
-impl DapServer {
+impl Dap {
     pub(crate) fn new() -> Self {
         let (tx, rx) = unbounded::<Request>();
         spawn(move || {
@@ -40,18 +32,18 @@ impl DapServer {
         });
 
         let server = Server::new(BufReader::new(stdin()), BufWriter::new(stdout()));
-        DapServer { outgoing: Mutex::new(server), incoming: rx }
+        Dap { output: Mutex::new(server), input: rx }
     }
-}
 
-pub(crate) fn read() -> Option<Request> {
-    match SERVER.incoming.try_recv() {
-        Ok(req) => Some(req),
-        Err(TryRecvError::Disconnected) => None,
-        Err(TryRecvError::Empty) => None,
+    pub(crate) fn read(&self) -> Option<Request> {
+        match self.input.try_recv() {
+            Ok(req) => Some(req),
+            Err(TryRecvError::Disconnected) => None,
+            Err(TryRecvError::Empty) => None,
+        }
     }
-}
 
-pub(crate) fn write(message: Sendable) {
-    SERVER.outgoing.lock().unwrap().send(message).unwrap();
+    pub(crate) fn write(&self, message: Sendable) {
+        self.output.lock().unwrap().send(message).unwrap();
+    }
 }
