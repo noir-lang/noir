@@ -12,7 +12,7 @@ struct RulesNote {
 }
 
 impl RulesNote {
-    fn new(min_points: u8, max_points: u8) -> Self {
+    pub fn new(min_points: u8, max_points: u8) -> Self {
         RulesNote {
             min_points,
             max_points,
@@ -20,11 +20,11 @@ impl RulesNote {
         }
     }
 
-    fn serialize(self) -> [Field; RULES_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; RULES_NOTE_LEN] {
         [self.min_points as Field, self.max_points as Field]
     }
 
-    fn deserialize(preimage: [Field; RULES_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; RULES_NOTE_LEN]) -> Self {
         RulesNote {
             min_points: preimage[0] as u8,
             max_points: preimage[1] as u8,
@@ -32,19 +32,19 @@ impl RulesNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         dep::std::hash::pedersen([
             self.min_points as Field, 
             self.max_points as Field, 
         ])[0]
     }
 
-    fn compute_nullifier(_self: Self) -> Field {
+    pub fn compute_nullifier(_self: Self) -> Field {
         // Not used
         0
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

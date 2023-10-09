@@ -9,11 +9,11 @@ struct Token {
 }
 
 impl Token {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
     Self { address }
   }
 
-  fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
+  pub fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
     let _transfer_return_values = context.call_public_function(
       self.address,
       compute_selector("transfer_public((Field),(Field),Field,Field)"),
@@ -21,7 +21,7 @@ impl Token {
     );
   }
 
-  fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field,  amount: Field, nonce: Field) {
+  pub fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field,  amount: Field, nonce: Field) {
     let _return_values = context.call_private_function(
       self.address,
       compute_selector("unshield((Field),(Field),Field,Field)"),
@@ -35,16 +35,16 @@ struct TokenBridge {
 }
 
 impl TokenBridge {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
     Self { address }
   }
 
-  fn token(self: Self, context: PublicContext) -> AztecAddress {
+  pub fn token(self: Self, context: PublicContext) -> AztecAddress {
     let return_values = context.call_public_function(self.address, compute_selector("get_token()"), []);
     AztecAddress::new(return_values[0])
   }
 
-  fn claim_public(self: Self, context: PublicContext, to: Field, amount: Field, canceller: Field, msg_key: Field, secret: Field) {
+  pub fn claim_public(self: Self, context: PublicContext, to: Field, amount: Field, canceller: Field, msg_key: Field, secret: Field) {
     let _return_values = context.call_public_function(
       self.address,
       compute_selector("claim_public((Field),Field,Field,Field,Field)"),
@@ -52,7 +52,7 @@ impl TokenBridge {
     );
   }
 
-  fn exit_to_l1_public(self: Self, context: PublicContext, recipient: Field, amount: Field, callerOnL1: Field, nonce: Field) {
+  pub fn exit_to_l1_public(self: Self, context: PublicContext, recipient: Field, amount: Field, callerOnL1: Field, nonce: Field) {
     let _return_values = context.call_public_function(
       self.address,
       compute_selector("exit_to_l1_public((Field),Field,(Field),Field)"),

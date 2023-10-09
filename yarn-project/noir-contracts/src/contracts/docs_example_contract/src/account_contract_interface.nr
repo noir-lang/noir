@@ -3,9 +3,9 @@ struct AccountContractInterface {
 }
 
 impl AccountContractInterface {
-    fn at(address: Field) -> Self {
+    pub fn at(address: Field) -> Self {
         AccountContractInterface { address }
     }
 
-    fn send_rewards(_self: Self, _rewards: u8) {}
+    pub fn send_rewards(_self: Self, _rewards: u8) {}
 }

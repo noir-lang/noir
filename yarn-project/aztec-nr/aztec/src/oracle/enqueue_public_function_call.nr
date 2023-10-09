@@ -13,7 +13,7 @@ fn enqueue_public_function_call_oracle(
     _args_hash: Field,
 ) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {}
 
-unconstrained fn enqueue_public_function_call_internal(
+unconstrained pub fn enqueue_public_function_call_internal(
     contract_address: Field, 
     function_selector: Field,
     args_hash: Field

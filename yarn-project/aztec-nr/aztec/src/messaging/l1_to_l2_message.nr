@@ -19,7 +19,7 @@ struct L1ToL2Message {
 }
 
 impl L1ToL2Message {
-    fn deserialize(
+    pub fn deserialize(
         fields: [Field; L1_TO_L2_MESSAGE_LENGTH],
         secret: Field,
         tree_index: Field
@@ -38,7 +38,7 @@ impl L1ToL2Message {
         }
     }
 
-    fn validate_message_secret(self: Self) {
+    pub fn validate_message_secret(self: Self) {
         let recomputed_hash = dep::std::hash::pedersen_with_separator([self.secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET)[0];
         assert(self.secret_hash == recomputed_hash);
     }
@@ -71,7 +71,7 @@ impl L1ToL2Message {
 
     // The nullifier of a l1 to l2 message is the hash of the message salted with the secret and tree index
     // docs:start:l1_to_l2_message_compute_nullifier
-    fn compute_nullifier(self: Self) -> Field {
+    pub fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.message_hash();
         dep::std::hash::pedersen_with_separator([message_hash, self.secret, self.tree_index], GENERATOR_INDEX__NULLIFIER)[0]
     }

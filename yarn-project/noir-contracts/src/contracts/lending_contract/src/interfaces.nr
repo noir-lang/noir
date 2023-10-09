@@ -12,11 +12,11 @@ struct PriceFeed {
 }
 
 impl PriceFeed {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
     Self { address }
   }
 
-  fn get_price(self: Self, context: PublicContext) -> u120 {
+  pub fn get_price(self: Self, context: PublicContext) -> u120 {
     let return_values = context.call_public_function(
       self.address, 
       compute_selector("get_price(Field)"),
@@ -32,11 +32,11 @@ struct Token {
 }
 
 impl Token {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
     Self { address }
   }
 
-  fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
+  pub fn transfer_public(self: Self, context: PublicContext, from: Field, to: Field, amount: Field, nonce: Field) {
     let _transfer_return_values = context.call_public_function(
       self.address,
       compute_selector("transfer_public((Field),(Field),Field,Field)"),
@@ -44,7 +44,7 @@ impl Token {
     );
   }
 
-  fn mint_public(self: Self, context: PublicContext, to: Field, amount: Field) {
+  pub fn mint_public(self: Self, context: PublicContext, to: Field, amount: Field) {
     let _return_values = context.call_public_function(
       self.address,
       compute_selector("mint_public((Field),Field)"),
@@ -52,7 +52,7 @@ impl Token {
     );
   }
 
-  fn burn_public(self: Self, context: PublicContext, from: Field, amount: Field, nonce: Field){
+  pub fn burn_public(self: Self, context: PublicContext, from: Field, amount: Field, nonce: Field){
     let _return_values = context.call_public_function(
       self.address,
       compute_selector("burn_public((Field),Field,Field)"),
@@ -61,7 +61,7 @@ impl Token {
   }
 
   // Private
-  fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
+  pub fn unshield(self: Self, context: &mut PrivateContext, from: Field, to: Field, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
     context.call_private_function(
       self.address,
       compute_selector("unshield((Field),(Field),Field,Field)"),
@@ -69,7 +69,7 @@ impl Token {
     )
   }
 
-  fn burn(self: Self, context: &mut PrivateContext, from: Field, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
+  pub fn burn(self: Self, context: &mut PrivateContext, from: Field, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
     context.call_private_function(
       self.address,
       compute_selector("burn((Field),Field,Field)"),
@@ -83,11 +83,11 @@ struct Lending {
 }
 
 impl Lending {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
     Self { address }
   }
 
-  fn update_accumulator(self: Self, context: PublicContext) -> Asset {
+  pub fn update_accumulator(self: Self, context: PublicContext) -> Asset {
     let return_values = context.call_public_function_no_args(
       self.address,
       compute_selector("update_accumulator()"),

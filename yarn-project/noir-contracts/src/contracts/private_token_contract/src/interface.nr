@@ -12,13 +12,13 @@ struct PrivateTokenPrivateContextInterface {
 }
 
 impl PrivateTokenPrivateContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }
   }
   
-  fn mint(
+  pub fn mint(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -32,7 +32,7 @@ impl PrivateTokenPrivateContextInterface {
   }
   
 
-  fn transfer(
+  pub fn transfer(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -56,7 +56,7 @@ struct PrivateTokenPublicContextInterface {
 }
 
 impl PrivateTokenPublicContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }

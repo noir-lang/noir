@@ -15,13 +15,13 @@ use crate::{
 
 // Sort the note values (0th field) in descending order.
 // Pick the fewest notes whose sum is equal to or greater than `amount`.
-fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteGetterOptions<ValueNote, VALUE_NOTE_LEN, Field> {
+pub fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteGetterOptions<ValueNote, VALUE_NOTE_LEN, Field> {
     NoteGetterOptions::with_filter(filter_notes_min_sum, amount).sort(0, SortOrder.DESC)
 }
 
 // Creates a new note for the recipient.
 // Inserts it to the recipient's set of notes.
-fn increment(
+pub fn increment(
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
     recipient: Field,
@@ -39,7 +39,7 @@ fn increment(
 // Remove those notes.
 // If the value of the removed notes exceeds the requested `amount`, create a new note containing the excess value, so that exactly `amount` is removed.
 // Fail if the sum of the selected notes is less than the amount.
-fn decrement(
+pub fn decrement(
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
     owner: Field,
@@ -56,7 +56,7 @@ fn decrement(
 // equal `amount`.
 //
 // It returns the decremented amount, which should be less than or equal to max_amount.
-fn decrement_by_at_most(
+pub fn decrement_by_at_most(
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     max_amount: Field,
     owner: Field,
@@ -82,7 +82,7 @@ fn decrement_by_at_most(
     decremented
 }
 
-fn create_note(
+pub fn create_note(
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     owner: Field,
     note: &mut ValueNote,
@@ -113,7 +113,7 @@ fn create_note(
 
 // Removes the note from the owner's set of notes.
 // Returns the value of the destroyed note.
-fn destroy_note(
+pub fn destroy_note(
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     owner: Field,
     note: ValueNote,

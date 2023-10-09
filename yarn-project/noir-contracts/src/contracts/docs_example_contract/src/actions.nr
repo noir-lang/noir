@@ -17,28 +17,28 @@ use crate::types::{
 };
 
 // docs:start:state_vars-PublicStateRead
-fn is_locked(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) -> bool {
+pub fn is_locked(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) -> bool {
     state_var.read()
 }
 // docs:end:state_vars-PublicStateRead
 
 // docs:start:state_vars-PublicStateWrite
-fn lock(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) {
+pub fn lock(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) {
     state_var.write(true);
 }
 // docs:end:state_vars-PublicStateWrite
 
-fn unlock(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) {
+pub fn unlock(state_var: PublicState<bool, BOOL_SERIALIZED_LEN>) {
     state_var.write(false);
 }
 
 // docs:start:state_vars-PublicStateReadCustom
-fn get_current_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>) -> Queen {
+pub fn get_current_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>) -> Queen {
     state_var.read()
 }
 // docs:end:state_vars-PublicStateReadCustom
 
-fn can_replace_queen(
+pub fn can_replace_queen(
     state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>,
     new_queen: Queen,
 ) -> bool {
@@ -47,13 +47,13 @@ fn can_replace_queen(
 }
 
 // docs:start:state_vars-PublicStateWriteCustom
-fn replace_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_queen: Queen) {
+pub fn replace_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_queen: Queen) {
     state_var.write(new_queen);
 }
 // docs:end:state_vars-PublicStateWriteCustom
 
 // docs:start:state_vars-PublicStateReadWriteCustom
-fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_points: u8) {
+pub fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_points: u8) {
     let mut queen = state_var.read();
     queen.points += new_points;
     state_var.write(queen);
@@ -61,25 +61,25 @@ fn add_points_to_queen(state_var: PublicState<Queen, QUEEN_SERIALIZED_LEN>, new_
 // docs:end:state_vars-PublicStateReadWriteCustom
 
 // docs:start:state_vars-SingletonInit
-fn init_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
+pub fn init_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
     state_var.initialize(card, Option::some(card.owner));
 }
 // docs:end:state_vars-SingletonInit
 
 // docs:start:state_vars-SingletonReplace
-fn update_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
+pub fn update_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
     state_var.replace(card);
 }
 // docs:end:state_vars-SingletonReplace
 
 // docs:start:state_vars-SingletonGet
-fn get_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>) -> CardNote {
+pub fn get_legendary_card(state_var: Singleton<CardNote, CARD_NOTE_LEN>) -> CardNote {
     state_var.get_note()
 }
 // docs:end:state_vars-SingletonGet
 
 // docs:start:state_vars-ImmutableSingletonInit
-fn init_game_rules(
+pub fn init_game_rules(
     state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>,
     rules: &mut RulesNote,
 ) {
@@ -88,26 +88,26 @@ fn init_game_rules(
 // docs:end:state_vars-ImmutableSingletonInit
 
 // docs:start:state_vars-ImmutableSingletonGet
-fn is_valid_card(state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>, card: CardNote) -> bool {
+pub fn is_valid_card(state_var: ImmutableSingleton<RulesNote, RULES_NOTE_LEN>, card: CardNote) -> bool {
     let rules = state_var.get_note();
     card.points >= rules.min_points & card.points <= rules.max_points
 }
 // docs:end:state_vars-ImmutableSingletonGet
 
 // docs:start:state_vars-SetInsert
-fn add_new_card(state_var: Set<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
+pub fn add_new_card(state_var: Set<CardNote, CARD_NOTE_LEN>, card: &mut CardNote) {
     state_var.insert(card);
 }
 // docs:end:state_vars-SetInsert
 
 // docs:start:state_vars-SetRemove
-fn remove_card(state_var: Set<CardNote, CARD_NOTE_LEN>, card: CardNote) {
+pub fn remove_card(state_var: Set<CardNote, CARD_NOTE_LEN>, card: CardNote) {
     state_var.remove(card);
 }
 // docs:end:state_vars-SetRemove
 
 // docs:start:state_vars-SetGet
-fn get_cards<FILTER_PARAMS>(
+pub fn get_cards<FILTER_PARAMS>(
     state_var: Set<CardNote, CARD_NOTE_LEN>,
     options: NoteGetterOptions<CardNote, CARD_NOTE_LEN, FILTER_PARAMS>,
 ) -> [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL] {
@@ -116,7 +116,7 @@ fn get_cards<FILTER_PARAMS>(
 // docs:end:state_vars-SetGet
 
 // docs:start:state_vars-SetView
-unconstrained  fn view_cards(
+unconstrained pub fn view_cards(
     state_var: Set<CardNote, CARD_NOTE_LEN>,
     options: NoteViewerOptions<CardNote, CARD_NOTE_LEN>,
 ) -> [Option<CardNote>; MAX_NOTES_PER_PAGE] {
@@ -124,7 +124,7 @@ unconstrained  fn view_cards(
 }
 // docs:end:state_vars-SetView
 
-unconstrained fn get_total_points(
+unconstrained pub fn get_total_points(
     state_var: Set<CardNote, CARD_NOTE_LEN>,
     account: Field,
     offset: u32,
@@ -146,7 +146,7 @@ unconstrained fn get_total_points(
 }
 
 // docs:start:state_vars-MapAtSingletonInit
-fn add_new_profile(
+pub fn add_new_profile(
     state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     account: Field,
     profile: &mut ProfileNote,
@@ -156,7 +156,7 @@ fn add_new_profile(
 // docs:end:state_vars-MapAtSingletonInit
 
 // docs:start:state_vars-MapAtSingletonGet
-fn get_profile(
+pub fn get_profile(
     state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     account: Field,
 ) -> ProfileNote {

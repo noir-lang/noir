@@ -13,7 +13,7 @@ struct PublicState<T, T_SERIALIZED_LEN> {
 
 impl<T, T_SERIALIZED_LEN> PublicState<T, T_SERIALIZED_LEN> {
     // docs:start:public_state_struct_new
-    fn new(
+    pub fn new(
         // Note: Passing the contexts to new(...) just to have an interface compatible with a Map.
         _: Context,
         storage_slot: Field,
@@ -28,13 +28,13 @@ impl<T, T_SERIALIZED_LEN> PublicState<T, T_SERIALIZED_LEN> {
     // docs:end:public_state_struct_new
 
     // docs:start:public_state_struct_read
-    fn read(self) -> T {
+    pub fn read(self) -> T {
         storage_read(self.storage_slot, self.serialization_methods.deserialize)
     }
     // docs:end:public_state_struct_read
 
     // docs:start:public_state_struct_write
-    fn write(self, value: T) {
+    pub fn write(self, value: T) {
         let serialize = self.serialization_methods.serialize;
         let fields = serialize(value);
         storage_write(self.storage_slot, fields);

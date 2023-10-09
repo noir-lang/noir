@@ -15,7 +15,7 @@ struct EcdsaPublicKeyNote {
 }
 
 impl EcdsaPublicKeyNote {
-    fn new(x: [u8; 32], y: [u8; 32], owner: Field) -> Self {
+    pub fn new(x: [u8; 32], y: [u8; 32], owner: Field) -> Self {
         EcdsaPublicKeyNote {
             x,
             y,
@@ -30,7 +30,7 @@ impl EcdsaPublicKeyNote {
     // [2] = y[0..31]
     // [3] = y[31]
     // [4] = owner
-    fn serialize(self) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
         let mut x: Field = 0;
         let mut y: Field = 0;
         let mut mul: Field = 1;
@@ -50,7 +50,7 @@ impl EcdsaPublicKeyNote {
         res
     }
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(EcdsaPublicKeyNoteInterface, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
@@ -61,7 +61,7 @@ impl EcdsaPublicKeyNote {
         ])[0]
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

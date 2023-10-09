@@ -4,7 +4,7 @@ use dep::aztec::hash::{sha256_to_field};
 
 // Computes a content hash of a deposit/mint_public message.
 // Refer TokenPortal.sol for reference on L1.
-fn get_mint_public_content_hash(owner_address: Field, amount: Field, canceller: Field) -> Field {
+pub fn get_mint_public_content_hash(owner_address: Field, amount: Field, canceller: Field) -> Field {
     
     let mut hash_bytes: [u8; 100] = [0; 100];
     let amount_bytes = amount.to_be_bytes(32);
@@ -30,7 +30,7 @@ fn get_mint_public_content_hash(owner_address: Field, amount: Field, canceller: 
 
 // Computes a content hash of a deposit/mint_private message.
 // Refer TokenPortal.sol for reference on L1.
-fn get_mint_private_content_hash(amount: Field, secret_hash_for_redeeming_minted_notes: Field, canceller: Field) -> Field {
+pub fn get_mint_private_content_hash(amount: Field, secret_hash_for_redeeming_minted_notes: Field, canceller: Field) -> Field {
     let mut hash_bytes: [u8; 100] = [0; 100];
     let amount_bytes = amount.to_be_bytes(32);
     let secret_hash_bytes = secret_hash_for_redeeming_minted_notes.to_be_bytes(32);
@@ -53,7 +53,7 @@ fn get_mint_private_content_hash(amount: Field, secret_hash_for_redeeming_minted
 }
 
 // Computes a content hash of a withdraw message.
-fn get_withdraw_content_hash(recipient: Field, amount: Field, callerOnL1: Field) -> Field {
+pub fn get_withdraw_content_hash(recipient: Field, amount: Field, callerOnL1: Field) -> Field {
     // Compute the content hash
     // Compute sha256(selector || amount || recipient)
     // then convert to a single field element

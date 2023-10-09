@@ -8,11 +8,11 @@ struct NoteHeader {
 }
 
 impl NoteHeader {
-    fn new(contract_address: Field, nonce: Field, storage_slot: Field) -> Self {
+    pub fn new(contract_address: Field, nonce: Field, storage_slot: Field) -> Self {
         NoteHeader { contract_address, nonce, storage_slot, is_transient: false }
     }
 
-    fn empty() -> Self {
+    pub fn empty() -> Self {
         NoteHeader { contract_address: 0, nonce: 0, storage_slot: 0, is_transient: false }
     }
 }

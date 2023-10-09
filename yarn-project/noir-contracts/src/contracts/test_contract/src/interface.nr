@@ -33,13 +33,13 @@ struct TestPrivateContextInterface {
 }
 
 impl TestPrivateContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }
   }
   
-  fn createL2ToL1MessagePublic(
+  pub fn createL2ToL1MessagePublic(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -53,7 +53,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn createNullifierPublic(
+  pub fn createNullifierPublic(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -67,7 +67,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn emit_nullifier(
+  pub fn emit_nullifier(
     self,
     context: &mut PrivateContext,
     nullifier: Field
@@ -79,7 +79,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn emit_unencrypted(
+  pub fn emit_unencrypted(
     self,
     context: &mut PrivateContext,
     value: Field
@@ -91,7 +91,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn getPortalContractAddress(
+  pub fn getPortalContractAddress(
     self,
     context: &mut PrivateContext,
     aztec_address: Field
@@ -103,7 +103,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn getPublicKey(
+  pub fn getPublicKey(
     self,
     context: &mut PrivateContext,
     address: Field
@@ -115,7 +115,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn getThisAddress(
+  pub fn getThisAddress(
     self,
     context: &mut PrivateContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
@@ -125,7 +125,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn getThisPortalAddress(
+  pub fn getThisPortalAddress(
     self,
     context: &mut PrivateContext
   ) -> [Field; RETURN_VALUES_LENGTH] {
@@ -135,7 +135,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn isTimeEqual(
+  pub fn isTimeEqual(
     self,
     context: &mut PrivateContext,
     time: Field
@@ -147,7 +147,7 @@ impl TestPrivateContextInterface {
   }
   
 
-  fn testCodeGen(
+  pub fn testCodeGen(
     self,
     context: &mut PrivateContext,
     aField: Field,
@@ -190,13 +190,13 @@ struct TestPublicContextInterface {
 }
 
 impl TestPublicContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }
   }
   
-  fn createL2ToL1MessagePublic(
+  pub fn createL2ToL1MessagePublic(
     self,
     context: PublicContext,
     amount: Field,
@@ -210,7 +210,7 @@ impl TestPublicContextInterface {
   }
   
 
-  fn createNullifierPublic(
+  pub fn createNullifierPublic(
     self,
     context: PublicContext,
     amount: Field,
@@ -224,7 +224,7 @@ impl TestPublicContextInterface {
   }
   
 
-  fn emit_unencrypted(
+  pub fn emit_unencrypted(
     self,
     context: PublicContext,
     value: Field
@@ -236,7 +236,7 @@ impl TestPublicContextInterface {
   }
   
 
-  fn isTimeEqual(
+  pub fn isTimeEqual(
     self,
     context: PublicContext,
     time: Field

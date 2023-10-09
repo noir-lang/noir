@@ -12,13 +12,13 @@ struct PrivateTokenAirdropPrivateContextInterface {
 }
 
 impl PrivateTokenAirdropPrivateContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }
   }
   
-  fn batchTransfer(
+  pub fn batchTransfer(
     self,
     context: &mut PrivateContext,
     sender: Field,
@@ -40,7 +40,7 @@ impl PrivateTokenAirdropPrivateContextInterface {
   }
   
 
-  fn burn(
+  pub fn burn(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -54,7 +54,7 @@ impl PrivateTokenAirdropPrivateContextInterface {
   }
   
 
-  fn claim(
+  pub fn claim(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -68,7 +68,7 @@ impl PrivateTokenAirdropPrivateContextInterface {
   }
   
 
-  fn createClaims(
+  pub fn createClaims(
     self,
     context: &mut PrivateContext,
     amounts: [Field;16],
@@ -112,7 +112,7 @@ impl PrivateTokenAirdropPrivateContextInterface {
   }
   
 
-  fn mint(
+  pub fn mint(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -126,7 +126,7 @@ impl PrivateTokenAirdropPrivateContextInterface {
   }
   
 
-  fn transfer(
+  pub fn transfer(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -150,7 +150,7 @@ struct PrivateTokenAirdropPublicContextInterface {
 }
 
 impl PrivateTokenAirdropPublicContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }

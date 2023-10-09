@@ -9,7 +9,7 @@ struct BalancesMap {
 }
 
 impl BalancesMap {
-    fn new(
+    pub fn new(
         context: Context,
         storage_slot: Field,
     ) -> Self {
@@ -20,7 +20,7 @@ impl BalancesMap {
         }
     }
 
-    fn at(self, owner: AztecAddress) -> BalanceSet {
+    pub fn at(self, owner: AztecAddress) -> BalanceSet {
         let derived_storage_slot = dep::std::hash::pedersen([self.storage_slot, owner.address])[0];
         BalanceSet::new(self.context, owner, derived_storage_slot)
     }

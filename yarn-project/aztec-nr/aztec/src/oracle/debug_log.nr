@@ -15,7 +15,7 @@ fn debug_log_array_with_prefix_oracle<S, T, N>(_prefix: S, _arbitrary_array: [T;
 /// NOTE: call this with a str<N> msg of length > 1
 /// Example:
 /// `debug_log("blah blah this is a debug string");`
-unconstrained fn debug_log<T>(msg: T) {
+unconstrained pub fn debug_log<T>(msg: T) {
     assert(debug_log_oracle(msg, 0) == 0);
 }
 
@@ -25,13 +25,13 @@ unconstrained fn debug_log<T>(msg: T) {
 /// into the string in the simulator.
 /// Example:
 /// debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, note0_hash, note1_hash]);
-unconstrained fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
+unconstrained pub fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
     assert(debug_log_format_oracle(msg, args, args.len()) == 0);
 }
 
 /// Example:
 /// `debug_log_field(my_field);`
-unconstrained fn debug_log_field(field: Field) {
+unconstrained pub fn debug_log_field(field: Field) {
     assert(debug_log_field_oracle(field) == 0);
 }
 
@@ -43,6 +43,6 @@ unconstrained fn debug_log_array<T, N>(arbitrary_array: [T; N]) {
 
 /// Example:
 /// `debug_log_array_with_prefix("Prefix", my_array);`
-unconstrained fn debug_log_array_with_prefix<S, T, N>(prefix: S, arbitrary_array: [T; N]) {
+unconstrained pub fn debug_log_array_with_prefix<S, T, N>(prefix: S, arbitrary_array: [T; N]) {
     assert(debug_log_array_with_prefix_oracle(prefix, arbitrary_array) == 0);
 }

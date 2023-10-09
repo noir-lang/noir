@@ -13,7 +13,7 @@ use crate::oracle::{
 };
 use dep::std::hash::pedersen_with_separator;
 
-fn compute_singleton_initialization_nullifier(storage_slot: Field, owner: Option<Field>) -> Field {
+pub fn compute_singleton_initialization_nullifier(storage_slot: Field, owner: Option<Field>) -> Field {
     if owner.is_some() {
         let secret = get_secret_key(owner.unwrap_unchecked());
         pedersen_with_separator(
@@ -39,7 +39,7 @@ struct Singleton<Note, N> {
 
 impl<Note, N> Singleton<Note, N> {
     // docs:start:new
-    fn new(
+    pub fn new(
         context: Context,
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
@@ -55,7 +55,7 @@ impl<Note, N> Singleton<Note, N> {
     // docs:end:new
 
     // docs:start:is_initialized
-    unconstrained fn is_initialized(self, owner: Option<Field>) -> bool {
+    unconstrained pub fn is_initialized(self, owner: Option<Field>) -> bool {
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
         let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
         check_nullifier_exists(nullifier)
@@ -63,7 +63,7 @@ impl<Note, N> Singleton<Note, N> {
     // docs:end:is_initialized
 
     // docs:start:initialize
-    fn initialize(self, note: &mut Note, owner: Option<Field>) {
+    pub fn initialize(self, note: &mut Note, owner: Option<Field>) {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
@@ -76,7 +76,7 @@ impl<Note, N> Singleton<Note, N> {
     // docs:end:initialize
 
     // docs:start:replace
-    fn replace(self, new_note: &mut Note) {
+    pub fn replace(self, new_note: &mut Note) {
         let context = self.context.unwrap();
         let prev_note = get_note(context, self.storage_slot, self.note_interface);
 
@@ -89,7 +89,7 @@ impl<Note, N> Singleton<Note, N> {
     // docs:end:replace
 
     // docs:start:get_note
-    fn get_note(self) -> Note {
+    pub fn get_note(self) -> Note {
         let context = self.context.unwrap();
         let mut note = get_note(context, self.storage_slot, self.note_interface);
 
@@ -104,7 +104,7 @@ impl<Note, N> Singleton<Note, N> {
     }
     // docs:end:get_note
 
-    unconstrained fn view_note(self) -> Note {
+    unconstrained pub fn view_note(self) -> Note {
         let options = NoteViewerOptions::new().set_limit(1);
         view_notes(self.storage_slot, self.note_interface, options)[0].unwrap()
     }

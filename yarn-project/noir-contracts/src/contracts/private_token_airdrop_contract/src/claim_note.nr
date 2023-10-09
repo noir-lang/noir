@@ -14,7 +14,7 @@ struct ClaimNote {
 }
 
 impl ClaimNote {
-    fn new(value: Field, secret_hash: Field) -> Self {
+    pub fn new(value: Field, secret_hash: Field) -> Self {
         ClaimNote {
             value,
             secret_hash,
@@ -22,11 +22,11 @@ impl ClaimNote {
         }
     }
 
-    fn serialize(self) -> [Field; CLAIM_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; CLAIM_NOTE_LEN] {
         [self.value, self.secret_hash]
     }
 
-    fn deserialize(preimage: [Field; CLAIM_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; CLAIM_NOTE_LEN]) -> Self {
         ClaimNote {
             value: preimage[0],
             secret_hash: preimage[1],
@@ -34,7 +34,7 @@ impl ClaimNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             self.value, 
@@ -42,7 +42,7 @@ impl ClaimNote {
         ])[0]
     }
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(ClaimNoteMethods, self);
         // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
@@ -51,7 +51,7 @@ impl ClaimNote {
         ])[0]
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

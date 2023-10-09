@@ -3,19 +3,19 @@ struct SafeU120 {
 }
 
 impl SafeU120 {
-    fn min() -> Self {
+    pub fn min() -> Self {
         Self {
             value: 0
         }
     }
 
-    fn max() -> Self {
+    pub fn max() -> Self {
         Self {
             value: 0xffffffffffffffffffffffffffffff
         }
     }
 
-    fn new(
+    pub fn new(
         value: Field,
     ) -> Self {
         // Check that it actually will fit. Spending a lot of constraints here :grimacing:
@@ -28,36 +28,36 @@ impl SafeU120 {
         }
     }
 
-    fn is_zero(
+    pub fn is_zero(
         self: Self,
     ) -> bool {
         self.value == 0
     }
 
-    fn eq(
+    pub fn eq(
         self: Self,
         other: Self
     ) -> bool {
         self.value == other.value
     }
 
-    fn lt(self: Self, other: Self) -> bool {
+    pub fn lt(self: Self, other: Self) -> bool {
         self.value < other.value
     }
 
-    fn le(self: Self, other: Self) -> bool {
+    pub fn le(self: Self, other: Self) -> bool {
         self.value <= other.value
     }
 
-    fn gt(self: Self, other: Self) -> bool {
+    pub fn gt(self: Self, other: Self) -> bool {
         self.value > other.value
     }
 
-    fn ge(self: Self, other: Self) -> bool {
+    pub fn ge(self: Self, other: Self) -> bool {
         self.value >= other.value
     }
 
-    fn sub(
+    pub fn sub(
       self: Self,
       b: Self,
     ) -> Self {
@@ -67,7 +67,7 @@ impl SafeU120 {
         }
     }
 
-    fn add(
+    pub fn add(
         self: Self,
         b: Self,
     ) -> Self {
@@ -78,7 +78,7 @@ impl SafeU120 {
         }
     }
 
-    fn mul(
+    pub fn mul(
         self: Self,
         b: Self,
     ) -> Self {
@@ -91,7 +91,7 @@ impl SafeU120 {
         }
     }
 
-    fn div(
+    pub fn div(
         self: Self,
         b: Self,
     ) -> Self {
@@ -101,7 +101,7 @@ impl SafeU120 {
         }
     }
 
-    fn mul_div(
+    pub fn mul_div(
         self: Self,
         b: Self,
         divisor: Self
@@ -109,7 +109,7 @@ impl SafeU120 {
         self.mul(b).div(divisor)
     }
 
-     fn mul_div_up(
+    pub fn mul_div_up(
         self: Self,
         b: Self,
         divisor: Self

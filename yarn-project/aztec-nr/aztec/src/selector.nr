@@ -2,7 +2,7 @@ use crate::utils::field_from_bytes;
 
 global SELECTOR_SIZE = 4;
 
-fn compute_selector<N>(signature: str<N>) -> Field {
+pub fn compute_selector<N>(signature: str<N>) -> Field {
     let bytes = signature.as_bytes();
     let hash = dep::std::hash::keccak256(bytes, bytes.len() as u32);
     

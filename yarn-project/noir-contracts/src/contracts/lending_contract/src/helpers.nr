@@ -6,7 +6,7 @@ use dep::safe_math::SafeU120;
 // Utility used to easily get a "id" for a private user that sits in the same
 // "space" as the public users.
 // It help us to have a single mapping for collateral that have both public and private users.
-fn compute_identifier(
+pub fn compute_identifier(
     secret: Field,
     on_behalf_of: Field,
     self: Field,
@@ -20,7 +20,7 @@ fn compute_identifier(
     }
 }
 
-fn covered_by_collateral(
+pub fn covered_by_collateral(
     price: u120,
     loan_to_value: u120,
     collateral: u120,
@@ -45,7 +45,7 @@ struct DebtReturn {
     static_debt: u120,
 }
 
-fn debt_updates(
+pub fn debt_updates(
     interest_accumulator: u120,
     static_debt: u120,
     increase: u120,
@@ -78,7 +78,7 @@ fn debt_updates(
     }
 }
 
-fn debt_value(
+pub fn debt_value(
     static_debt: u120,
     interest_accumulator: u120,
 ) -> u120 {

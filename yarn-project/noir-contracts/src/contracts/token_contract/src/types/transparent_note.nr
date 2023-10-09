@@ -24,7 +24,7 @@ impl TransparentNote {
 
     // CONSTRUCTORS
 
-    fn new(amount: Field, secret_hash: Field) -> Self {
+    pub fn new(amount: Field, secret_hash: Field) -> Self {
         TransparentNote {
             amount: amount,
             secret_hash: secret_hash,
@@ -35,7 +35,7 @@ impl TransparentNote {
 
     // new oracle call primitive
     // get me the secret corresponding to this hash
-    fn new_from_secret(amount: Field, secret: Field) -> Self {
+    pub fn new_from_secret(amount: Field, secret: Field) -> Self {
         TransparentNote {
             amount: amount,
             secret_hash: compute_secret_hash(secret),
@@ -47,11 +47,11 @@ impl TransparentNote {
 
     // STANDARD NOTE_INTERFACE FUNCTIONS
 
-    fn serialize(self) -> [Field; TRANSPARENT_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; TRANSPARENT_NOTE_LEN] {
         [self.amount, self.secret_hash]
     }
 
-    fn deserialize(preimage: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
         TransparentNote {
             amount: preimage[0],
             secret_hash: preimage[1],
@@ -60,7 +60,7 @@ impl TransparentNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             self.amount,
@@ -68,21 +68,21 @@ impl TransparentNote {
         ])[0]
     }
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         // TODO(#1386): should use `compute_note_hash_for_read_or_nullify` once public functions inject nonce!
         let siloed_note_hash = compute_siloed_note_hash(TransparentNoteMethods, self);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen([self.secret, siloed_note_hash])[0]
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 
 
     // CUSTOM FUNCTIONS FOR THIS NOTE TYPE
 
-    fn knows_secret(self, secret: Field) {
+    pub fn knows_secret(self, secret: Field) {
         let hash = compute_secret_hash(secret);
         assert(self.secret_hash == hash);
     }

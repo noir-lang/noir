@@ -35,7 +35,7 @@ struct BalanceSet {
 }
 
 impl BalanceSet {
-  fn new(context: Context, owner: AztecAddress, storage_slot: Field) -> Self {
+  pub fn new(context: Context, owner: AztecAddress, storage_slot: Field) -> Self {
     assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
     let set = Set {
         context,
@@ -49,11 +49,11 @@ impl BalanceSet {
     }
   }
 
-  unconstrained fn balance_of(self: Self) -> SafeU120 {
+  unconstrained pub fn balance_of(self: Self) -> SafeU120 {
     self.balance_of_with_offset(0)
   }
 
-  unconstrained fn balance_of_with_offset(self: Self, offset: u32) -> SafeU120 {
+  unconstrained pub fn balance_of_with_offset(self: Self, offset: u32) -> SafeU120 {
       // Same as SafeU120::new(0), but fewer constraints because no check. 
       let mut balance = SafeU120::min();
       // docs:start:view_notes
@@ -73,7 +73,7 @@ impl BalanceSet {
       balance
   }
 
-    fn add(self: Self, addend: SafeU120) {
+    pub fn add(self: Self, addend: SafeU120) {
         let mut addend_note = TokenNote::new(addend, self.owner);
 
         // docs:start:insert
@@ -86,7 +86,7 @@ impl BalanceSet {
         );
     }
 
-     fn sub(self: Self, subtrahend: SafeU120) {
+    pub fn sub(self: Self, subtrahend: SafeU120) {
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend);
         let maybe_notes = self.set.get_notes(options);
@@ -118,7 +118,7 @@ impl BalanceSet {
     }
 }
 
-fn filter_notes_min_sum(notes: [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL], min_sum: SafeU120) -> [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL] {
+pub fn filter_notes_min_sum(notes: [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL], min_sum: SafeU120) -> [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL] {
     let mut selected = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let mut sum = SafeU120::min();
     for i in 0..notes.len() {

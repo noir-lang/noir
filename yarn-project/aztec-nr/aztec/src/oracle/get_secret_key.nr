@@ -11,7 +11,7 @@ unconstrained fn get_secret_key_internal(owner_public_key: Point) -> dep::std::g
     dep::std::grumpkin_scalar::deserialize_grumpkin_scalar(get_secret_key_oracle(owner_public_key))
 }
 
-fn get_secret_key(owner: Field) -> dep::std::grumpkin_scalar::GrumpkinScalar {
+pub fn get_secret_key(owner: Field) -> dep::std::grumpkin_scalar::GrumpkinScalar {
     let owner_public_key = get_public_key(owner);
     let secret = get_secret_key_internal(owner_public_key);
 

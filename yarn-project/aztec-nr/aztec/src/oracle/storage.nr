@@ -9,7 +9,7 @@ unconstrained fn storage_read_oracle_wrapper<N>(_storage_slot: Field)-> [Field; 
     storage_read_oracle(_storage_slot, N)
 }
 
-fn storage_read<T, N>(
+pub fn storage_read<T, N>(
     storage_slot: Field,
     deserialize: fn ([Field; N]) -> T,
 ) -> T {
@@ -24,7 +24,7 @@ fn storage_write_oracle<N>(
 ) -> [Field; N] {}
 
 // TODO: Remove return value.
-unconstrained fn storage_write<N>(
+unconstrained pub fn storage_write<N>(
     storage_slot: Field,
     fields: [Field; N]
 ) {

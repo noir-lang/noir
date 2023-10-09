@@ -12,7 +12,7 @@ struct ProfileNote {
 }
 
 impl ProfileNote {
-    fn new(avatar: Field, xp: Field) -> Self {
+    pub fn new(avatar: Field, xp: Field) -> Self {
         ProfileNote {
             avatar,
             xp,
@@ -20,11 +20,11 @@ impl ProfileNote {
         }
     }
 
-    fn serialize(self) -> [Field; PROFILE_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; PROFILE_NOTE_LEN] {
         [self.avatar, self.xp]
     }
 
-    fn deserialize(preimage: [Field; PROFILE_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; PROFILE_NOTE_LEN]) -> Self {
         ProfileNote {
             avatar: preimage[1],
             xp: preimage[0],
@@ -32,19 +32,19 @@ impl ProfileNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         dep::std::hash::pedersen([
             self.avatar, 
             self.xp,
         ])[0]
     }
 
-    fn compute_nullifier(_self: Self) -> Field {
+    pub fn compute_nullifier(_self: Self) -> Field {
         assert(false); // Not allowed.
         0
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

@@ -20,7 +20,7 @@ struct ValueNote {
 // docs:end:value-note-def
 
 impl ValueNote {
-    fn new(value: Field, owner: Field) -> Self {
+    pub fn new(value: Field, owner: Field) -> Self {
         let randomness = rand();
         let header = NoteHeader::empty();
         ValueNote {
@@ -31,11 +31,11 @@ impl ValueNote {
         }
     }
 
-    fn serialize(self) -> [Field; VALUE_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; VALUE_NOTE_LEN] {
         [self.value, self.owner, self.randomness]
     }
 
-    fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; VALUE_NOTE_LEN]) -> Self {
         ValueNote {
             value: preimage[0],
             owner: preimage[1],
@@ -44,7 +44,7 @@ impl ValueNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             self.value, 
@@ -55,7 +55,7 @@ impl ValueNote {
 
     // docs:start:nullifier
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(ValueNoteMethods, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
@@ -68,7 +68,7 @@ impl ValueNote {
 
     // docs:end:nullifier
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

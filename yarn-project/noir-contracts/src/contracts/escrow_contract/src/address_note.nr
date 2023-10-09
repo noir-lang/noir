@@ -13,7 +13,7 @@ struct AddressNote {
 }
 
 impl AddressNote {
-    fn new(address: Field, owner: Field) -> Self {
+    pub fn new(address: Field, owner: Field) -> Self {
         AddressNote {
             address,
             owner,
@@ -21,11 +21,11 @@ impl AddressNote {
         }
     }
 
-    fn serialize(self) -> [Field; ADDRESS_NOTE_LEN]{
+    pub fn serialize(self) -> [Field; ADDRESS_NOTE_LEN]{
         [self.address, self.owner]
     }
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let siloed_note_hash = compute_siloed_note_hash(AddressNoteMethods, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
@@ -36,7 +36,7 @@ impl AddressNote {
         ])[0]
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

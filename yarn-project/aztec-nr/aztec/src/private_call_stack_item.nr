@@ -10,7 +10,7 @@ struct PrivateCallStackItem {
 }
 
 impl PrivateCallStackItem {
-    fn hash(self) -> Field {
+    pub fn hash(self) -> Field {
         dep::std::hash::pedersen_with_separator([
             self.contract_address,
             self.function_data.hash(),

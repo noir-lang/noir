@@ -151,7 +151,7 @@ function generateFunctionInterface(functionData: FunctionAbi, kind: 'private' | 
   const retType = isSync ? `-> [Field; RETURN_VALUES_LENGTH] ` : ``;
 
   return `
-  fn ${name}(
+  pub fn ${name}(
     ${allParams.join(',\n    ')}
   ) ${retType}{
 ${serialization}
@@ -203,7 +203,7 @@ struct ${generateContractStructName(contractName, kind)} {
  */
 function generateContractInterfaceImpl(contractName: string, kind: 'private' | 'public', functions: string[]) {
   return `impl ${generateContractStructName(contractName, kind)} {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }

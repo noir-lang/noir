@@ -12,13 +12,13 @@ struct NonNativeTokenPrivateContextInterface {
 }
 
 impl NonNativeTokenPrivateContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }
   }
   
-  fn addUnshieldedBalance(
+  pub fn addUnshieldedBalance(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -32,7 +32,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn mint(
+  pub fn mint(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -52,7 +52,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn mintPublic(
+  pub fn mintPublic(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -72,7 +72,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn redeemShield(
+  pub fn redeemShield(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -88,7 +88,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn shield(
+  pub fn shield(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -102,7 +102,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn transfer(
+  pub fn transfer(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -116,7 +116,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn unshieldTokens(
+  pub fn unshieldTokens(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -130,7 +130,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn withdraw(
+  pub fn withdraw(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -148,7 +148,7 @@ impl NonNativeTokenPrivateContextInterface {
   }
   
 
-  fn withdrawPublic(
+  pub fn withdrawPublic(
     self,
     context: &mut PrivateContext,
     amount: Field,
@@ -174,13 +174,13 @@ struct NonNativeTokenPublicContextInterface {
 }
 
 impl NonNativeTokenPublicContextInterface {
-  fn at(address: Field) -> Self {
+  pub fn at(address: Field) -> Self {
       Self {
           address,
       }
   }
   
-  fn addUnshieldedBalance(
+  pub fn addUnshieldedBalance(
     self,
     context: PublicContext,
     amount: Field,
@@ -194,7 +194,7 @@ impl NonNativeTokenPublicContextInterface {
   }
   
 
-  fn mintPublic(
+  pub fn mintPublic(
     self,
     context: PublicContext,
     amount: Field,
@@ -214,7 +214,7 @@ impl NonNativeTokenPublicContextInterface {
   }
   
 
-  fn shield(
+  pub fn shield(
     self,
     context: PublicContext,
     amount: Field,
@@ -228,7 +228,7 @@ impl NonNativeTokenPublicContextInterface {
   }
   
 
-  fn withdrawPublic(
+  pub fn withdrawPublic(
     self,
     context: PublicContext,
     amount: Field,

@@ -7,7 +7,7 @@ use dep::safe_math::SafeU120;
 // dividing with 31536000 (seconds per year).
 // rate must be measured with higher precision than 10^9.
 // we use e18, and rates >= 4% yearly. Otherwise need more precision
-fn compute_multiplier(
+pub fn compute_multiplier(
     rate_per_second: u120,
     dt: SafeU120,
 ) -> SafeU120 {

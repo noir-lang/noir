@@ -1,4 +1,4 @@
-fn arr_copy_slice<T, N, M>(
+pub fn arr_copy_slice<T, N, M>(
     src: [T; N],
     mut dst: [T; M],
     offset: Field,
@@ -9,7 +9,7 @@ fn arr_copy_slice<T, N, M>(
     dst
 }
 
-fn field_from_bytes<N>(bytes: [u8; N], big_endian: bool) -> Field {
+pub fn field_from_bytes<N>(bytes: [u8; N], big_endian: bool) -> Field {
     assert(bytes.len() as u32 < 32, "field_from_bytes: N must be less than 32");
     let mut as_field = 0;
     let mut offset = 1;

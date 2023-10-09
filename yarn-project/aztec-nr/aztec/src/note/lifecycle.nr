@@ -12,7 +12,7 @@ use crate::note::{
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 
-fn create_note<Note, N>(
+pub fn create_note<Note, N>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note: &mut Note,
@@ -32,7 +32,7 @@ fn create_note<Note, N>(
     context.push_new_note_hash(inner_note_hash);
 }
 
-fn create_note_hash_from_public<Note, N>(
+pub fn create_note_hash_from_public<Note, N>(
     context: &mut PublicContext,
     storage_slot: Field,
     note: &mut Note,
@@ -48,7 +48,7 @@ fn create_note_hash_from_public<Note, N>(
     context.push_new_note_hash(inner_note_hash);
 }
 
-fn destroy_note<Note, N>(
+pub fn destroy_note<Note, N>(
     context: &mut PrivateContext,
     note: Note,
     note_interface: NoteInterface<Note, N>,

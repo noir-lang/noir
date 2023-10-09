@@ -4,7 +4,7 @@ use crate::constants_gen::{
   GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,
 };
 
-fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
+pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
   let sha256_hashed = sha256(bytes_to_hash);
 
   // Convert it to a field element
@@ -24,7 +24,7 @@ fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
   hash_in_a_field
 }
 
-fn compute_secret_hash(secret: Field) -> Field {
+pub fn compute_secret_hash(secret: Field) -> Field {
   // TODO(#1205) This is probably not the right index to use
   pedersen_with_separator([secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET)[0]
 }

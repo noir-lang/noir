@@ -13,7 +13,7 @@ struct NoteViewerOptions<Note, N> {
 // docs:end:NoteViewerOptions
 
 impl<Note, N> NoteViewerOptions<Note, N> {
-    fn new() -> NoteViewerOptions<Note, N> {
+    pub fn new() -> NoteViewerOptions<Note, N> {
         NoteViewerOptions {
             selects: BoundedVec::new(Option::none()),
             sorts: BoundedVec::new(Option::none()),
@@ -22,23 +22,23 @@ impl<Note, N> NoteViewerOptions<Note, N> {
         }
     }
 
-   fn select(&mut self, field_index: u8, value: Field) -> Self {
+    pub fn select(&mut self, field_index: u8, value: Field) -> Self {
         self.selects.push(Option::some(Select::new(field_index, value)));
         *self
     }
 
-    fn sort(&mut self, field_index: u8, order: u2) -> Self {
+    pub fn sort(&mut self, field_index: u8, order: u2) -> Self {
         self.sorts.push(Option::some(Sort::new(field_index, order)));
         *self
     }
 
-    fn set_limit(&mut self, limit: u32) -> Self {
+    pub fn set_limit(&mut self, limit: u32) -> Self {
         assert(limit <= MAX_NOTES_PER_PAGE as u32);
         self.limit = limit;
         *self
     }
 
-    fn set_offset(&mut self, offset: u32) -> Self {
+    pub fn set_offset(&mut self, offset: u32) -> Self {
         self.offset = offset;
         *self
     }

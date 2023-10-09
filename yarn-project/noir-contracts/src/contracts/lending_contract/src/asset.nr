@@ -35,7 +35,7 @@ fn serializeAsset(asset: Asset) -> [Field; ASSET_SERIALIZED_LEN] {
 }
 
 impl Asset {
-    fn serialize(self: Self) -> [Field; ASSET_SERIALIZED_LEN] {
+    pub fn serialize(self: Self) -> [Field; ASSET_SERIALIZED_LEN] {
         serializeAsset(self)
     }
 }

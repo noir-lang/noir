@@ -5,27 +5,27 @@ struct BoundedVec<T, MaxLen> {
 }
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
-    fn new(initial_value: T) -> Self {
+    pub fn new(initial_value: T) -> Self {
         BoundedVec { storage: [initial_value; MaxLen], len: 0 }
     }
 
-    fn get(mut self: Self, index: Field) -> T {
+    pub fn get(mut self: Self, index: Field) -> T {
         assert(index as u64 < self.len as u64);
         self.storage[index]
     }
 
-    fn get_unchecked(mut self: Self, index: Field) -> T {
+    pub fn get_unchecked(mut self: Self, index: Field) -> T {
         self.storage[index]
     }
 
-    fn push(&mut self, elem: T) {
+    pub fn push(&mut self, elem: T) {
         assert(self.len as u64 < MaxLen as u64);
 
         self.storage[self.len] = elem;
         self.len += 1;
     }
 
-    fn push_array<Len>(&mut self, array: [T; Len]) {
+    pub fn push_array<Len>(&mut self, array: [T; Len]) {
         let newLen = self.len + array.len();
         assert(newLen as u64 <= MaxLen as u64);
         for i in 0..array.len() {
@@ -34,7 +34,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len = newLen;
     }
 
-    fn pop(&mut self) -> T {
+    pub fn pop(&mut self) -> T {
         assert(self.len as u64 > 0);
 
         let elem = self.storage[self.len - 1];
@@ -42,7 +42,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         elem
     }
 
-    fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
+    pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
         let mut exceeded_len = false;
         for i in 0..MaxLen {

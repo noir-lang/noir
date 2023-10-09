@@ -8,7 +8,7 @@ use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
 
 
 // Returns the nullifier for the message
-fn process_l1_to_l2_message(l1_to_l2_root: Field, storage_contract_address: Field, msg_key: Field, content: Field, secret: Field) -> Field{
+pub fn process_l1_to_l2_message(l1_to_l2_root: Field, storage_contract_address: Field, msg_key: Field, content: Field, secret: Field) -> Field{
 
     let returned_message = get_l1_to_l2_message_call(msg_key);
     let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);

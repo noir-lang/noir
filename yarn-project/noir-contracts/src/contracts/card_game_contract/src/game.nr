@@ -11,7 +11,7 @@ struct PlayerEntry {
 }
 
 impl PlayerEntry {
-    fn is_initialized(self) -> bool {
+    pub fn is_initialized(self) -> bool {
         self.address != 0
     }
 }
@@ -79,11 +79,11 @@ fn serializeGame(game: Game) -> [Field; GAME_SERIALIZED_LEN] {
 }
 
 impl Game {
-    fn serialize(self: Self) -> [Field; GAME_SERIALIZED_LEN] {
+    pub fn serialize(self: Self) -> [Field; GAME_SERIALIZED_LEN] {
         serializeGame(self)
     }
 
-    fn add_player(&mut self, player_entry: PlayerEntry) -> bool {
+    pub fn add_player(&mut self, player_entry: PlayerEntry) -> bool {
         let mut added = false;
 
         for i in 0..NUMBER_OF_PLAYERS {
@@ -99,7 +99,7 @@ impl Game {
         added
     }
 
-    fn start_game(&mut self) {
+    pub fn start_game(&mut self) {
         assert(!self.started, "Game already started");
         for i in 0..NUMBER_OF_PLAYERS {
             let entry = self.players[i];
@@ -110,13 +110,13 @@ impl Game {
         self.started = true;
     }
 
-    fn current_player(self) -> PlayerEntry {
+    pub fn current_player(self) -> PlayerEntry {
         assert(self.started, "Game not started");
         assert(!self.finished, "Game finished");
         self.players[self.current_player]
     }
 
-    fn winner(self) -> PlayerEntry {
+    pub fn winner(self) -> PlayerEntry {
         assert(self.finished, "Game not finished");
         let mut winner = self.players[0];
         for i in 1..NUMBER_OF_PLAYERS {
@@ -128,7 +128,7 @@ impl Game {
         winner
     }
 
-    fn play_card(&mut self, card: Card) {
+    pub fn play_card(&mut self, card: Card) {
         assert(self.started, "Game not started");
         assert(!self.finished, "Game finished");
 

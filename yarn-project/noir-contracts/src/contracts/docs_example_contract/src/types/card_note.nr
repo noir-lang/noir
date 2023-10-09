@@ -19,7 +19,7 @@ struct CardNote {
 // docs:end:state_vars-CardNote
 
 impl CardNote {
-    fn new(points: u8, secret: Field, owner: Field) -> Self {
+    pub fn new(points: u8, secret: Field, owner: Field) -> Self {
         CardNote {
             points,
             secret,
@@ -28,11 +28,11 @@ impl CardNote {
         }
     }
 
-    fn serialize(self) -> [Field; CARD_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; CARD_NOTE_LEN] {
         [self.points as Field, self.secret, self.owner]
     }
 
-    fn deserialize(preimage: [Field; CARD_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; CARD_NOTE_LEN]) -> Self {
         CardNote {
             points: preimage[0] as u8,
             secret: preimage[1],
@@ -41,7 +41,7 @@ impl CardNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         dep::std::hash::pedersen([
             self.points as Field, 
             self.secret,
@@ -49,7 +49,7 @@ impl CardNote {
         ])[0]
     }
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(CardNoteMethods, self);
         let secret = get_secret_key(self.owner);
         dep::std::hash::pedersen([
@@ -59,7 +59,7 @@ impl CardNote {
         ])[0]
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

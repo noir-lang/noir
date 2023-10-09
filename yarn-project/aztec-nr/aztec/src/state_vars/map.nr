@@ -11,7 +11,7 @@ struct Map<V> {
 
 impl<V> Map<V> {
     // docs:start:new
-    fn new(
+    pub fn new(
         context: Context,
         storage_slot: Field,
         state_var_constructor: fn(Context, Field) -> V,
@@ -26,7 +26,7 @@ impl<V> Map<V> {
     // docs:end:new
 
     // docs:start:at
-    fn at(self, key: Field) -> V {
+    pub fn at(self, key: Field) -> V {
         // TODO(#1204): use a generator index for the storage slot
         let derived_storage_slot = dep::std::hash::pedersen([self.storage_slot, key])[0];
 

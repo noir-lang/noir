@@ -19,7 +19,7 @@ struct EasyPrivateUint {
 }
 
 impl EasyPrivateUint {
-    fn new(
+    pub fn new(
         context: Context,
         storage_slot: Field,
     ) -> Self {
@@ -37,7 +37,7 @@ impl EasyPrivateUint {
     }
 
     // Very similar to `value_note::utils::increment`.
-    fn add(self, addend: u120, owner: Field) {
+    pub fn add(self, addend: u120, owner: Field) {
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner);
 
@@ -59,7 +59,7 @@ impl EasyPrivateUint {
     }
 
     // Very similar to `value_note::utils::decrement`.
-    fn sub(self, subtrahend: u120, owner: Field) {
+    pub fn sub(self, subtrahend: u120, owner: Field) {
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
         let maybe_notes = self.set.get_notes(options);

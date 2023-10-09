@@ -5,7 +5,7 @@ use crate::note::{
 };
 use crate::utils::arr_copy_slice;
 
-fn compute_inner_note_hash<Note, N>(
+pub fn compute_inner_note_hash<Note, N>(
     note_interface: NoteInterface<Note, N>,
     note: Note,
 ) -> Field {
@@ -18,7 +18,7 @@ fn compute_inner_note_hash<Note, N>(
     compute_inner_hash(header.storage_slot, note_hash)
 }
 
-fn compute_siloed_note_hash<Note, N>(
+pub fn compute_siloed_note_hash<Note, N>(
     note_interface: NoteInterface<Note, N>,
     note_with_header: Note,
 ) -> Field {
@@ -30,7 +30,7 @@ fn compute_siloed_note_hash<Note, N>(
     compute_siloed_hash(header.contract_address, inner_note_hash)
 }
 
-fn compute_unique_siloed_note_hash<Note, N>(
+pub fn compute_unique_siloed_note_hash<Note, N>(
     note_interface: NoteInterface<Note, N>,
     note_with_header: Note,
 ) -> Field {
@@ -42,7 +42,7 @@ fn compute_unique_siloed_note_hash<Note, N>(
     compute_unique_hash(header.nonce, siloed_note_hash)
 }
 
-fn compute_note_hash_for_read_or_nullify<Note, N>(
+pub fn compute_note_hash_for_read_or_nullify<Note, N>(
     note_interface: NoteInterface<Note, N>,
     note_with_header: Note,
 ) -> Field {
@@ -66,7 +66,7 @@ fn compute_note_hash_for_read_or_nullify<Note, N>(
 
 }
 
-fn compute_note_hash_and_nullifier<Note, N, S>(
+pub fn compute_note_hash_and_nullifier<Note, N, S>(
     note_interface: NoteInterface<Note, N>,
     note_header: NoteHeader,
     preimage: [Field; S],

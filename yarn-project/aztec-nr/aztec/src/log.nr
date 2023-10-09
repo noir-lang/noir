@@ -2,7 +2,7 @@ use crate::context::{PrivateContext, PublicContext};
 use crate::oracle;
 use crate::types::point::Point;
 
-fn emit_encrypted_log<N>(
+pub fn emit_encrypted_log<N>(
     context: &mut PrivateContext,
     contract_address: Field,
     storage_slot: Field,
@@ -13,7 +13,7 @@ fn emit_encrypted_log<N>(
     context.accumulate_encrypted_logs(log);
 }
 
-fn emit_unencrypted_log<T>(
+pub fn emit_unencrypted_log<T>(
     context: &mut PublicContext,
     log: T,
 ) {
@@ -27,7 +27,7 @@ fn emit_unencrypted_log<T>(
 // --> might be a better approach to force devs to make a public function call that emits the log if needed then
 // it would be less easy to accidentally leak information.
 // If we decide to keep this function around would make sense to wait for traits and then merge it with emit_unencrypted_log.
-fn emit_unencrypted_log_from_private<T>(
+pub fn emit_unencrypted_log_from_private<T>(
     context: &mut PrivateContext,
     log: T,
 ) {

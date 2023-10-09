@@ -76,7 +76,7 @@ struct PrivateContext {
 }
 
 impl PrivateContext {
-    fn new(inputs: abi::PrivateContextInputs, args_hash: Field) -> PrivateContext {
+    pub fn new(inputs: abi::PrivateContextInputs, args_hash: Field) -> PrivateContext {
         PrivateContext {
             inputs: inputs,
 
@@ -101,31 +101,31 @@ impl PrivateContext {
         }
     }
 
-    fn msg_sender(self) -> Field {
+    pub fn msg_sender(self) -> Field {
         self.inputs.call_context.msg_sender
     }
 
-    fn this_address(self) -> Field {
+    pub fn this_address(self) -> Field {
         self.inputs.call_context.storage_contract_address
     }
 
-    fn this_portal_address(self) -> Field {
+    pub fn this_portal_address(self) -> Field {
         self.inputs.call_context.portal_contract_address
     }
 
-    fn chain_id(self) -> Field {
+    pub fn chain_id(self) -> Field {
         self.inputs.private_global_variables.chain_id
     }
 
-    fn version(self) -> Field {
+    pub fn version(self) -> Field {
         self.inputs.private_global_variables.version
     }
 
-    fn selector(self) -> Field {
+    pub fn selector(self) -> Field {
         self.inputs.call_context.function_selector
     }
 
-    fn finish(self) -> abi::PrivateCircuitPublicInputs {
+    pub fn finish(self) -> abi::PrivateCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
         let encrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
         let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
@@ -155,18 +155,18 @@ impl PrivateContext {
         priv_circuit_pub_inputs
     }
 
-    fn push_read_request(&mut self, read_request: Field) {
+    pub fn push_read_request(&mut self, read_request: Field) {
         self.read_requests.push(read_request);
     }
 
-    fn push_new_note_hash(&mut self, note_hash: Field) {
+    pub fn push_new_note_hash(&mut self, note_hash: Field) {
         self.new_commitments.push(note_hash);
     }
 
     // We never push a zero nullified_commitment as zero is used to indicate the end
     // of a field array in private kernel. This routine transparently replaces a
     // zero value into the special placeholder: EMPTY_NULLIFIED_COMMITMENT.
-    fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field) {
+    pub fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field) {
         self.new_nullifiers.push(nullifier);
         let mut non_zero_nullified = nullified_commitment;
         if (non_zero_nullified == 0) {
@@ -176,7 +176,7 @@ impl PrivateContext {
     }
 
     // docs:start:context_message_portal
-    fn message_portal(&mut self, content: Field) 
+    pub fn message_portal(&mut self, content: Field) 
     // docs:end:context_message_portal
     {
         self.new_l2_to_l1_msgs.push(content);
@@ -186,7 +186,7 @@ impl PrivateContext {
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     // docs:start:context_consume_l1_to_l2_message
     // docs:start:consume_l1_to_l2_message
-    fn consume_l1_to_l2_message(
+    pub fn consume_l1_to_l2_message(
         &mut self,
         msg_key: Field,
         content: Field,
@@ -201,19 +201,19 @@ impl PrivateContext {
     }
     // docs:end:consume_l1_to_l2_message
 
-    fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
+    pub fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
         let _void1 = self.inputs;
         let _void2 = log;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
-    fn accumulate_unencrypted_logs<T>(&mut self, log: T) {
+    pub fn accumulate_unencrypted_logs<T>(&mut self, log: T) {
         let _void1 = self.inputs;
         let _void2 = log;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
-    fn call_private_function<ARGS_COUNT>(
+    pub fn call_private_function<ARGS_COUNT>(
         &mut self,
         contract_address: Field, 
         function_selector: Field, 
@@ -224,7 +224,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, args_hash)
     }
 
-    fn call_private_function_no_args(
+    pub fn call_private_function_no_args(
         &mut self,
         contract_address: Field, 
         function_selector: Field, 
@@ -232,7 +232,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, 0)
     }
 
-    fn call_private_function_with_packed_args(
+    pub fn call_private_function_with_packed_args(
         &mut self,
         contract_address: Field,
         function_selector: Field,
@@ -319,7 +319,7 @@ impl PrivateContext {
         item.public_inputs.return_values
     }
 
-    fn call_public_function<ARGS_COUNT>(
+    pub fn call_public_function<ARGS_COUNT>(
         &mut self,
         contract_address: Field, 
         function_selector: Field, 
@@ -330,7 +330,7 @@ impl PrivateContext {
         self.call_public_function_with_packed_args(contract_address, function_selector, args_hash)
     }
 
-    fn call_public_function_no_args(
+    pub fn call_public_function_no_args(
         &mut self,
         contract_address: Field, 
         function_selector: Field,
@@ -338,7 +338,7 @@ impl PrivateContext {
         self.call_public_function_with_packed_args(contract_address, function_selector, 0)
     }
 
-    fn call_public_function_with_packed_args(
+    pub fn call_public_function_with_packed_args(
         &mut self,
         contract_address: Field,
         function_selector: Field,
@@ -430,7 +430,7 @@ struct PublicContext {
 }
 
 impl PublicContext {
-    fn new(inputs: abi::PublicContextInputs, args_hash: Field) -> PublicContext {
+    pub fn new(inputs: abi::PublicContextInputs, args_hash: Field) -> PublicContext {
         let empty_storage_read = ContractStorageRead::empty();
         let empty_storage_update = ContractStorageUpdateRequest::empty();
         PublicContext {
@@ -461,39 +461,39 @@ impl PublicContext {
         }
     }
 
-    fn msg_sender(self) -> Field {
+    pub fn msg_sender(self) -> Field {
         self.inputs.call_context.msg_sender
     }
 
-    fn this_address(self) -> Field {
+    pub fn this_address(self) -> Field {
         self.inputs.call_context.storage_contract_address
     }
 
-    fn this_portal_address(self) -> Field {
+    pub fn this_portal_address(self) -> Field {
         self.inputs.call_context.portal_contract_address
     }
 
-    fn chain_id(self) -> Field {
+    pub fn chain_id(self) -> Field {
         self.inputs.public_global_variables.chain_id
     }
 
-    fn version(self) -> Field {
+    pub fn version(self) -> Field {
         self.inputs.public_global_variables.version
     }
 
-    fn selector(self) -> Field {
+    pub fn selector(self) -> Field {
         self.inputs.call_context.function_selector
     }
 
-    fn block_number(self) -> Field {
+    pub fn block_number(self) -> Field {
         self.inputs.public_global_variables.block_number
     }
 
-    fn timestamp(self) -> Field {
+    pub fn timestamp(self) -> Field {
         self.inputs.public_global_variables.timestamp
     }
 
-    fn finish(self) -> abi::PublicCircuitPublicInputs {
+    pub fn finish(self) -> abi::PublicCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
         let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
         let unencrypted_log_preimages_length = 0;
@@ -518,21 +518,21 @@ impl PublicContext {
         pub_circuit_pub_inputs
     }
 
-    fn push_new_note_hash(&mut self, note_hash: Field) {
+    pub fn push_new_note_hash(&mut self, note_hash: Field) {
         self.new_commitments.push(note_hash);
     }
 
-    fn push_new_nullifier(&mut self, nullifier: Field, _nullified_commitment: Field) {
+    pub fn push_new_nullifier(&mut self, nullifier: Field, _nullified_commitment: Field) {
         self.new_nullifiers.push(nullifier);
     }
 
-    fn message_portal(&mut self, content: Field) {
+    pub fn message_portal(&mut self, content: Field) {
         self.new_l2_to_l1_msgs.push(content);
     }
 
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
-    fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {
+    pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {
         let this = (*self).this_address();
         let nullifier = process_l1_to_l2_message(self.block_data.l1_to_l2_messages_tree_root, this, msg_key, content, secret);
 
@@ -540,19 +540,19 @@ impl PublicContext {
         self.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT)
     }
 
-    fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
+    pub fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {
         let _void1 = self;
         let _void2 = log;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
-    fn accumulate_unencrypted_logs<T>(&mut self, log: T) {
+    pub fn accumulate_unencrypted_logs<T>(&mut self, log: T) {
         let _void1 = self;
         let _void2 = log;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     }
 
-    fn call_public_function<ARGS_COUNT>(
+    pub fn call_public_function<ARGS_COUNT>(
         _self: Self,
         contract_address: Field, 
         function_selector: Field,
@@ -567,7 +567,7 @@ impl PublicContext {
         )
     }
 
-    fn call_public_function_no_args(
+    pub fn call_public_function_no_args(
         _self: Self,
         contract_address: Field, 
         function_selector: Field,
@@ -587,21 +587,21 @@ struct Context {
 }
 
 impl Context {
-    fn private(context: &mut PrivateContext) -> Context {
+    pub fn private(context: &mut PrivateContext) -> Context {
         Context {
             private: Option::some(context),
             public: Option::none()
         }
     }
 
-    fn public(context: &mut PublicContext) -> Context {
+    pub fn public(context: &mut PublicContext) -> Context {
         Context {
             public: Option::some(context),
             private: Option::none()
         }
     }
 
-    fn none() -> Context {
+    pub fn none() -> Context {
         Context {
             public: Option::none(),
             private: Option::none()

@@ -52,7 +52,7 @@ fn check_notes_order<N>(fields_0: [Field; N], fields_1: [Field; N], sorts: Bound
     }
 }
 
-fn get_note<Note, N>(
+pub fn get_note<Note, N>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
@@ -67,7 +67,7 @@ fn get_note<Note, N>(
     note
 }
 
-fn get_notes<Note, N, FILTER_ARGS>(
+pub fn get_notes<Note, N, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
@@ -151,7 +151,7 @@ unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
     filter(opt_notes, filter_args)
 }
 
-unconstrained fn view_notes<Note, N>(
+unconstrained pub fn view_notes<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     options: NoteViewerOptions<Note, N>,

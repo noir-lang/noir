@@ -7,7 +7,7 @@ fn call_public_function_oracle(
     _args_hash: Field
 ) -> [Field; RETURN_VALUES_LENGTH] {}
 
-unconstrained fn call_public_function_internal(
+unconstrained pub fn call_public_function_internal(
     contract_address: Field, 
     function_selector: Field,
     args_hash: Field

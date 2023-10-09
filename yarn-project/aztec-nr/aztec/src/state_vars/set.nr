@@ -22,7 +22,7 @@ struct Set<Note, N> {
 
 impl<Note, N> Set<Note, N> {
     // docs:start:new
-    fn new(
+    pub fn new(
         context: Context,
         storage_slot: Field,
         note_interface: NoteInterface<Note, N>,
@@ -37,7 +37,7 @@ impl<Note, N> Set<Note, N> {
     // docs:end:new
 
     // docs:start:insert
-    fn insert(self, note: &mut Note) {
+    pub fn insert(self, note: &mut Note) {
         create_note(
             self.context.private.unwrap(),
             self.storage_slot,
@@ -48,7 +48,7 @@ impl<Note, N> Set<Note, N> {
     // docs:end:insert
 
     // docs:start:insert_from_public
-    fn insert_from_public(self, note: &mut Note) {
+    pub fn insert_from_public(self, note: &mut Note) {
         create_note_hash_from_public(
             self.context.public.unwrap(),
             self.storage_slot,
@@ -69,7 +69,7 @@ impl<Note, N> Set<Note, N> {
     }
 
     // docs:start:remove
-    fn remove(self, note: Note) {
+    pub fn remove(self, note: Note) {
         let context = self.context.private.unwrap();
         let note_hash = compute_note_hash_for_read_or_nullify(self.note_interface, note);
         let has_been_read = context.read_requests.any(|r| r == note_hash);
@@ -84,7 +84,7 @@ impl<Note, N> Set<Note, N> {
     // docs:end:remove
 
     // docs:start:get_notes
-    fn get_notes<FILTER_ARGS>(
+    pub fn get_notes<FILTER_ARGS>(
         self,
         options: NoteGetterOptions<Note, N, FILTER_ARGS>,
     ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
@@ -100,7 +100,7 @@ impl<Note, N> Set<Note, N> {
     // docs:end:get_notes
 
     // docs:start:view_notes
-    unconstrained fn view_notes(
+    unconstrained pub fn view_notes(
         self,
         options: NoteViewerOptions<Note, N>,
     ) -> [Option<Note>; MAX_NOTES_PER_PAGE] {

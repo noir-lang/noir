@@ -15,7 +15,7 @@ struct PublicKeyNote {
 }
 
 impl PublicKeyNote {
-    fn new(x: Field, y: Field, owner: Field) -> Self {
+    pub fn new(x: Field, y: Field, owner: Field) -> Self {
         PublicKeyNote {
             x,
             y,
@@ -25,11 +25,11 @@ impl PublicKeyNote {
     }
 
     // serialize the note as 3 fields
-    fn serialize(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
         [self.x, self.y, self.owner]
     }
 
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(PublicKeyNoteMethods, self);
         let secret = get_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
@@ -40,7 +40,7 @@ impl PublicKeyNote {
         ])[0]
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 }

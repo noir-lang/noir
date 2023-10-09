@@ -36,7 +36,7 @@ struct TokenNote {
 }
 
 impl TokenNote {
-    fn new(amount: SafeU120, owner: AztecAddress) -> Self {
+    pub fn new(amount: SafeU120, owner: AztecAddress) -> Self {
         Self {
             amount,
             owner,
@@ -45,11 +45,11 @@ impl TokenNote {
         }
     }
 
-    fn serialize(self) -> [Field; TOKEN_NOTE_LEN] {
+    pub fn serialize(self) -> [Field; TOKEN_NOTE_LEN] {
         [self.amount.value as Field, self.owner.address, self.randomness]
     }
 
-    fn deserialize(preimage: [Field; TOKEN_NOTE_LEN]) -> Self {
+    pub fn deserialize(preimage: [Field; TOKEN_NOTE_LEN]) -> Self {
         Self {
             amount: SafeU120::new(preimage[0]),
             owner: AztecAddress::new(preimage[1]),
@@ -58,7 +58,7 @@ impl TokenNote {
         }
     }
 
-    fn compute_note_hash(self) -> Field {
+    pub fn compute_note_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             self.amount.value as Field, 
@@ -68,7 +68,7 @@ impl TokenNote {
     }
 
     // docs:start:nullifier
-    fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(TokenNoteMethods, self);
         let secret = get_secret_key(self.owner.address);
         // TODO(#1205) Should use a non-zero generator index.
@@ -80,12 +80,12 @@ impl TokenNote {
     }
     // docs:end:nullifier
 
-    fn set_header(&mut self, header: NoteHeader) {
+    pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 
 
-  fn emit_encrypted(
+  pub fn emit_encrypted(
       self: &mut Self,
       context: &mut PrivateContext,
       storage_slot: Field,

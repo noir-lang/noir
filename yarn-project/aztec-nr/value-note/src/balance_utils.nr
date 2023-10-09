@@ -5,11 +5,11 @@ use dep::aztec::note::{
 use dep::aztec::state_vars::set::Set;
 use crate::value_note::{VALUE_NOTE_LEN, ValueNote};
 
-unconstrained fn get_balance(set: Set<ValueNote, VALUE_NOTE_LEN>) -> Field {
+unconstrained pub fn get_balance(set: Set<ValueNote, VALUE_NOTE_LEN>) -> Field {
     get_balance_with_offset(set, 0)
 }
 
-unconstrained fn get_balance_with_offset(set: Set<ValueNote, VALUE_NOTE_LEN>, offset: u32) -> Field {
+unconstrained pub fn get_balance_with_offset(set: Set<ValueNote, VALUE_NOTE_LEN>, offset: u32) -> Field {
     let mut balance = 0;
     // docs:start:view_notes
     let options = NoteViewerOptions::new().set_offset(offset);

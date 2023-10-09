@@ -8,7 +8,7 @@ unconstrained fn get_public_key_internal(address: Field) -> [Field; 3] {
   get_public_key_oracle(address)
 }
 
-fn get_public_key(address: Field) -> Point {
+pub fn get_public_key(address: Field) -> Point {
   let result = get_public_key_internal(address);
   let pub_key_x = result[0];
   let pub_key_y = result[1];

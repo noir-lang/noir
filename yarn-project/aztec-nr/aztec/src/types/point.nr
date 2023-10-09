@@ -6,7 +6,7 @@ struct Point {
 }
 
 impl Point {
-    fn new(x: Field, y: Field) -> Self {
+    pub fn new(x: Field, y: Field) -> Self {
         Point { x, y }
     } 
 }
