@@ -997,7 +997,6 @@ impl Context {
                     self.initialize_array(block_id, len, Some(value))?;
                 }
                 _ => {
-                    dbg!(value.clone());
                     return Err(InternalError::General {
                         message: format!("Array {array_id} should be initialized"),
                         call_stack: self.acir_context.get_call_stack(),
