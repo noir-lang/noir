@@ -13,7 +13,6 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
-    #[clap(long)]
     name: Option<CrateName>,
 
     /// Use a library template
