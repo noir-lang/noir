@@ -2,7 +2,7 @@ import { defaultReporter } from '@web/test-runner';
 import { summaryReporter } from '@web/test-runner';
 import { fileURLToPath } from 'url';
 import { esbuildPlugin } from '@web/dev-server-esbuild';
-import { webdriverLauncher } from '@web/test-runner-webdriver';
+import { playwrightLauncher } from "@web/test-runner-playwright";
 
 let reporter = summaryReporter();
 const debugPlugins = [];
@@ -21,15 +21,9 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
 
 export default {
   browsers: [
-    webdriverLauncher({
-      automationProtocol: 'webdriver',
-      capabilities: {
-        browserName: 'firefox',
-        'moz:firefoxOptions': {
-          args: ['-headless'],
-        },
-      },
-    }),
+    playwrightLauncher({ product: "chromium" }),
+    // playwrightLauncher({ product: "webkit" }),
+    // playwrightLauncher({ product: "firefox" }),
   ],
   plugins: [
     esbuildPlugin({

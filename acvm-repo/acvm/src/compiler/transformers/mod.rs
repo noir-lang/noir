@@ -27,7 +27,12 @@ pub fn transform(
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)
+    let (mut acir, transformation_map) =
+        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
+
+    Ok((acir, transformation_map))
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
@@ -40,14 +45,12 @@ pub(super) fn transform_internal(
     acir_opcode_positions: Vec<usize>,
 ) -> Result<(Circuit, AcirTransformationMap), CompileError> {
     // Fallback transformer pass
-    let (mut acir, acir_opcode_positions) =
+    let (acir, acir_opcode_positions) =
         FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
 
     let mut transformer = match &np_language {
         crate::Language::R1CS => {
             let transformation_map = AcirTransformationMap { acir_opcode_positions };
-            acir.assert_messages =
-                transform_assert_messages(acir.assert_messages, &transformation_map);
             let transformer = R1CSTransformer::new(acir);
             return Ok((transformer.transform(), transformation_map));
         }
@@ -73,13 +76,13 @@ pub(super) fn transform_internal(
     // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
     // the 'norm' is simply the value of the first non zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
     let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
-    for (index, opcode) in acir.opcodes.iter().enumerate() {
+    for (index, opcode) in acir.opcodes.into_iter().enumerate() {
         match opcode {
             Opcode::Arithmetic(arith_expr) => {
                 let len = intermediate_variables.len();
 
                 let arith_expr = transformer.transform(
-                    arith_expr.clone(),
+                    arith_expr,
                     &mut intermediate_variables,
                     &mut next_witness_index,
                 );
@@ -101,7 +104,7 @@ pub(super) fn transform_internal(
                     transformed_opcodes.push(Opcode::Arithmetic(opcode));
                 }
             }
-            Opcode::BlackBoxFuncCall(func) => {
+            Opcode::BlackBoxFuncCall(ref func) => {
                 match func {
                     acir::circuit::opcodes::BlackBoxFuncCall::AND { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
@@ -143,9 +146,9 @@ pub(super) fn transform_internal(
                 }
 
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
-            Opcode::Directive(directive) => {
+            Opcode::Directive(ref directive) => {
                 match directive {
                     Directive::Quotient(quotient_directive) => {
                         transformer.mark_solvable(quotient_directive.q);
@@ -163,14 +166,14 @@ pub(super) fn transform_internal(
                     }
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
             Opcode::MemoryInit { .. } => {
                 // `MemoryInit` does not write values to the `WitnessMap`
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
-            Opcode::MemoryOp { op, .. } => {
+            Opcode::MemoryOp { ref op, .. } => {
                 for (_, witness1, witness2) in &op.value.mul_terms {
                     transformer.mark_solvable(*witness1);
                     transformer.mark_solvable(*witness2);
@@ -179,9 +182,9 @@ pub(super) fn transform_internal(
                     transformer.mark_solvable(*witness);
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
-            Opcode::Brillig(brillig) => {
+            Opcode::Brillig(ref brillig) => {
                 for output in &brillig.outputs {
                     match output {
                         BrilligOutputs::Simple(w) => transformer.mark_solvable(*w),
@@ -193,25 +196,22 @@ pub(super) fn transform_internal(
                     }
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
-                transformed_opcodes.push(opcode.clone());
+                transformed_opcodes.push(opcode);
             }
         }
     }
 
     let current_witness_index = next_witness_index - 1;
 
-    let transformation_map =
-        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
-
     let acir = Circuit {
         current_witness_index,
         opcodes: transformed_opcodes,
-        // The optimizer does not add new public inputs
-        private_parameters: acir.private_parameters,
-        public_parameters: acir.public_parameters,
-        return_values: acir.return_values,
-        assert_messages: transform_assert_messages(acir.assert_messages, &transformation_map),
+        // The transformer does not add new public inputs
+        ..acir
     };
+
+    let transformation_map =
+        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
 
     Ok((acir, transformation_map))
 }

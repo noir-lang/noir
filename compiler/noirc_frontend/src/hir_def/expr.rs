@@ -26,7 +26,6 @@ pub enum HirExpression {
     Call(HirCallExpression),
     MethodCall(HirMethodCallExpression),
     Cast(HirCastExpression),
-    For(HirForExpression),
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
@@ -46,14 +45,6 @@ impl HirExpression {
 pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirForExpression {
-    pub identifier: HirIdent,
-    pub start_range: ExprId,
-    pub end_range: ExprId,
-    pub block: ExprId,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -76,6 +67,10 @@ impl HirBinaryOp {
 
     pub fn is_bit_shift(&self) -> bool {
         self.kind.is_bit_shift()
+    }
+
+    pub fn is_modulo(&self) -> bool {
+        self.kind.is_modulo()
     }
 }
 

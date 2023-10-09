@@ -787,6 +787,36 @@ impl Context {
 
                 Ok(AcirValue::Array(elements))
             }
+            (
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::Array(dummy_values),
+            ) => {
+                let dummy_values = dummy_values
+                    .into_iter()
+                    .flat_map(|val| val.clone().flatten())
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<Vec<_>>();
+
+                assert_eq!(
+                    *len,
+                    dummy_values.len(),
+                    "ICE: The store value and dummy must have the same number of inner values"
+                );
+
+                let values = try_vecmap(0..*len, |i| {
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+
+                let mut elements = im::Vector::new();
+                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                    elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
+                }
+
+                Ok(AcirValue::Array(elements))
+            }
             (AcirValue::DynamicArray(_), AcirValue::DynamicArray(_)) => {
                 unimplemented!("ICE: setting a dynamic array not supported");
             }
@@ -1043,8 +1073,14 @@ impl Context {
                     self.array_set_value(value, block_id, var_index)?;
                 }
             }
-            AcirValue::DynamicArray(_) => {
-                unimplemented!("ICE: setting a dynamic array not supported");
+            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
+                let values = try_vecmap(0..len, |i| {
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let read = self.acir_context.read_from_memory(inner_block_id, &index_var)?;
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+                self.array_set_value(AcirValue::Array(values.into()), block_id, var_index)?;
             }
         }
         Ok(())
@@ -1116,8 +1152,7 @@ impl Context {
         if !already_initialized {
             let value = &dfg[array_id];
             match value {
-                Value::Array { .. } => {
-                    // dbg!("got array which is uninitialized");
+                Value::Array { .. } | Value::Instruction { .. } => {
                     let value = self.convert_value(array_id, dfg);
                     let len = if !array_typ.contains_slice_element() {
                         array_typ.flattened_size()
@@ -1125,19 +1160,6 @@ impl Context {
                         self.flattened_slice_size(array_id, dfg)
                     };
                     self.initialize_array(block_id, len, Some(value))?;
-                }
-                Value::Instruction { .. } => {
-                    // dbg!("got instr for array to init");
-                    let value = self.convert_value(array_id, dfg);
-                    // dbg!(value.clone()); 
-                    match &value {
-                        AcirValue::Array(values) => {
-                            self.initialize_array(block_id, values.len(), Some(value))?;
-                        }
-                        _ => {
-                            panic!("ICE: expected array")
-                        }
-                    }
                 }
                 _ => {
                     dbg!("got here");
@@ -1148,7 +1170,7 @@ impl Context {
                         message: format!("Array {array_id} should be initialized"),
                         call_stack: self.acir_context.get_call_stack(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }

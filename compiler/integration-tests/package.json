@@ -1,6 +1,5 @@
 {
     "name": "integration-tests",
-    "version": "1.0.0",
     "license": "(MIT OR Apache-2.0)",
     "main": "index.js",
     "private": true,
@@ -22,7 +21,7 @@
         "@nomicfoundation/hardhat-ethers": "^3.0.0",
         "@web/dev-server-esbuild": "^0.3.6",
         "@web/test-runner": "^0.15.3",
-        "@web/test-runner-webdriver": "^0.7.0",
+        "@web/test-runner-playwright": "^0.10.0",
         "eslint": "^8.50.0",
         "eslint-plugin-prettier": "^5.0.0",
         "ethers": "^6.7.1",
