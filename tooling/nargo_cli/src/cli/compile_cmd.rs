@@ -130,13 +130,23 @@ pub(super) fn compile_workspace(
     let compiled_programs: Vec<CompiledProgram> = program_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
-            report_errors(compilation_result, &file_manager, compile_options.deny_warnings)
+            report_errors(
+                compilation_result,
+                &file_manager,
+                compile_options.deny_warnings,
+                compile_options.silence_warnings,
+            )
         })
         .collect::<Result<_, _>>()?;
     let compiled_contracts: Vec<CompiledContract> = contract_results
         .into_iter()
         .map(|(file_manager, compilation_result)| {
-            report_errors(compilation_result, &file_manager, compile_options.deny_warnings)
+            report_errors(
+                compilation_result,
+                &file_manager,
+                compile_options.deny_warnings,
+                compile_options.silence_warnings,
+            )
         })
         .collect::<Result<_, _>>()?;
 
@@ -164,7 +174,12 @@ pub(crate) fn compile_bin_package(
         &is_opcode_supported,
     );
 
-    let program = report_errors(compilation_result, &file_manager, compile_options.deny_warnings)?;
+    let program = report_errors(
+        compilation_result,
+        &file_manager,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
 
     Ok(program)
 }
@@ -323,11 +338,23 @@ pub(crate) fn report_errors<T>(
     result: CompilationResult<T>,
     file_manager: &FileManager,
     deny_warnings: bool,
+    silence_warnings: bool,
 ) -> Result<T, CompileError> {
     let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(file_manager.as_file_map(), &errors, deny_warnings)
+        noirc_errors::reporter::report_all(
+            file_manager.as_file_map(),
+            &errors,
+            deny_warnings,
+            silence_warnings,
+        )
     })?;
 
-    noirc_errors::reporter::report_all(file_manager.as_file_map(), &warnings, deny_warnings);
+    noirc_errors::reporter::report_all(
+        file_manager.as_file_map(),
+        &warnings,
+        deny_warnings,
+        silence_warnings,
+    );
+
     Ok(t)
 }

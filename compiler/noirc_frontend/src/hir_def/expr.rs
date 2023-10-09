@@ -68,6 +68,10 @@ impl HirBinaryOp {
     pub fn is_bit_shift(&self) -> bool {
         self.kind.is_bit_shift()
     }
+
+    pub fn is_modulo(&self) -> bool {
+        self.kind.is_modulo()
+    }
 }
 
 #[derive(Debug, Clone)]
