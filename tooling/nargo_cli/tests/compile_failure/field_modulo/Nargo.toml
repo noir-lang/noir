@@ -1,5 +1,5 @@
 [package]
-name = "dup_trait_declaration"
+name = "field_modulo"
 type = "bin"
 authors = [""]
 compiler_version = "0.9.0"

@@ -37,7 +37,12 @@ pub(crate) fn run(_args: FormatCommand, config: NargoConfig) -> Result<(), CliEr
                     })
                     .collect();
 
-                let _ = super::compile_cmd::report_errors::<()>(Err(errors), &file_manager, false);
+                let _ = super::compile_cmd::report_errors::<()>(
+                    Err(errors),
+                    &file_manager,
+                    false,
+                    false,
+                );
                 return Ok(());
             }
 
