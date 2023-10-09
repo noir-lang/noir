@@ -26,7 +26,7 @@ jobs:
     runs-on: macos-latest
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      NIGHTLY_RELEASE: ${{ inputs.tag == "" }}
+      NIGHTLY_RELEASE: ${{ inputs.tag == '' }}
     strategy:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
