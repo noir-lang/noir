@@ -26,8 +26,8 @@
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
-    ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
-    TopLevelStatement,
+    ForRange, NoirParser, ParsedModule, ParsedSubModule, ParserError, ParserErrorReason,
+    Precedence, TopLevelStatement,
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
@@ -140,7 +140,7 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
         .map(|(name, contents)| {
-            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: false })
+            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: false })
         })
 }
 
@@ -152,7 +152,7 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
         .map(|(name, contents)| {
-            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: true })
+            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: true })
         })
 }
 
@@ -228,14 +228,15 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace)).recover_with(
-        nested_delimiters(
+    let fields = struct_fields()
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ),
-    );
+        ))
+        .or(just(Semicolon).map(|_| Vec::new()));
 
     attributes()
         .or_not()
@@ -2281,6 +2282,7 @@ mod test {
     #[test]
     fn parse_structs() {
         let cases = vec![
+            "struct Foo;",
             "struct Foo { }",
             "struct Bar { ident: Field, }",
             "struct Baz { ident: Field, other: Field }",
@@ -2315,12 +2317,13 @@ mod test {
     #[test]
     fn parse_constructor() {
         let cases = vec![
+            "Baz",
             "Bar { ident: 32 }",
             "Baz { other: 2 + 42, ident: foo() + 1 }",
             "Baz { other, ident: foo() + 1, foo }",
         ];
-        parse_all(expression(), cases);
 
+        parse_all(expression(), cases);
         parse_with(expression(), "Foo { a + b }").unwrap_err();
     }
 

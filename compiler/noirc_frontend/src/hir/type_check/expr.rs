@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -859,14 +859,22 @@ impl<'interner> TypeChecker<'interner> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self.lookup_method(element, method_name, expr_id),
+            Type::MutableReference(element) => self
+                .interner
+                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .map(HirMethodReference::FuncId)
+                .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
             // In the future we could support methods for non-struct types if we have a context
             // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self.interner.lookup_primitive_method(other, method_name) {
+            other => match self
+                .interner
+                .lookup_primitive_method(other, method_name)
+                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -966,8 +974,8 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
-                if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
+                if (op.is_modulo() || op.is_bitwise()) && (other.is_bindable() || other.is_field())
+                {
                     let other = other.follow_bindings();
                     let kind = op.kind;
                     // This will be an error if these types later resolve to a Field, or stay
@@ -975,7 +983,11 @@ impl<'interner> TypeChecker<'interner> {
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
                     self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
-                            Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            if kind == BinaryOpKind::Modulo {
+                                Err(TypeCheckError::FieldModulo { span })
+                            } else {
+                                Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            }
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
                         } else if kind.is_bit_shift() && other.is_signed() {
@@ -1045,6 +1057,9 @@ impl<'interner> TypeChecker<'interner> {
             (FieldElement, FieldElement) => {
                 if op.is_bitwise() {
                     return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                }
+                if op.is_modulo() {
+                    return Err(TypeCheckError::FieldModulo { span });
                 }
                 Ok(FieldElement)
             }
