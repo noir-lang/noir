@@ -14,4 +14,4 @@ fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field ) {
     let hash = std::hash::pedersen([state]);
     assert(std::hash::pedersen([43])[0] == hash[0]);
 }
-    
+

@@ -1,5 +1,4 @@
-
-fn main(x: Field, y: Field) -> pub Field  {
+fn main(x: Field, y: Field) -> pub Field {
     let notes = create_notes(x, y);
     sum_x(notes, x, y)
 }
