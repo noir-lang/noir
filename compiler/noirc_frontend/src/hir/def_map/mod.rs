@@ -260,9 +260,7 @@ pub struct Contract {
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.source());
-
-    (program, errors)
+    parse_program(file.source())
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {
