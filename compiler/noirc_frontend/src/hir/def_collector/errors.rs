@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use std::fmt;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DuplicateType {
     Function,
     Module,

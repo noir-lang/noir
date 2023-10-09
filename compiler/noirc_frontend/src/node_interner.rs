@@ -582,6 +582,13 @@ impl NodeInterner {
         *func = hir_func;
     }
 
+    pub fn find_function(&self, function_name: &str) -> Option<FuncId> {
+        self.func_meta
+            .iter()
+            .find(|(func_id, _func_meta)| self.function_name(func_id) == function_name)
+            .map(|(func_id, _meta)| *func_id)
+    }
+
     ///Interns a function's metadata.
     ///
     /// Note that the FuncId has been created already.
