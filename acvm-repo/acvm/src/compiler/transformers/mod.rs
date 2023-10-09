@@ -27,7 +27,12 @@ pub fn transform(
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)
+    let (mut acir, transformation_map) =
+        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
+
+    Ok((acir, transformation_map))
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
@@ -40,14 +45,12 @@ pub(super) fn transform_internal(
     acir_opcode_positions: Vec<usize>,
 ) -> Result<(Circuit, AcirTransformationMap), CompileError> {
     // Fallback transformer pass
-    let (mut acir, acir_opcode_positions) =
+    let (acir, acir_opcode_positions) =
         FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
 
     let mut transformer = match &np_language {
         crate::Language::R1CS => {
             let transformation_map = AcirTransformationMap { acir_opcode_positions };
-            acir.assert_messages =
-                transform_assert_messages(acir.assert_messages, &transformation_map);
             let transformer = R1CSTransformer::new(acir);
             return Ok((transformer.transform(), transformation_map));
         }
@@ -200,18 +203,15 @@ pub(super) fn transform_internal(
 
     let current_witness_index = next_witness_index - 1;
 
-    let transformation_map =
-        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
-
     let acir = Circuit {
         current_witness_index,
         opcodes: transformed_opcodes,
-        // The optimizer does not add new public inputs
-        private_parameters: acir.private_parameters,
-        public_parameters: acir.public_parameters,
-        return_values: acir.return_values,
-        assert_messages: transform_assert_messages(acir.assert_messages, &transformation_map),
+        // The transformer does not add new public inputs
+        ..acir
     };
+
+    let transformation_map =
+        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
 
     Ok((acir, transformation_map))
 }
