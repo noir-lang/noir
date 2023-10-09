@@ -241,8 +241,8 @@ impl Instruction {
         use Instruction::*;
 
         match self {
-            Binary(_)
-            | Cast(_, _)
+            Binary(binary) => matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod),
+            Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | Allocate
