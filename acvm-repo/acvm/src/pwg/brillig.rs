@@ -80,7 +80,7 @@ impl BrilligSolver {
         let mut vm = VM::new(
             input_registers,
             input_memory,
-            brillig.bytecode.clone(),
+            &brillig.bytecode,
             foreign_call_results.to_vec(),
             bb_solver,
         );
