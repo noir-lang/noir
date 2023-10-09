@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.8](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.8.7...barretenberg-v0.8.8) (2023-10-09)
+
+
+### Features
+
+* GCC 13 preset ([#2623](https://github.com/AztecProtocol/aztec-packages/issues/2623)) ([4881414](https://github.com/AztecProtocol/aztec-packages/commit/4881414ceb30590674c244ef9bc4c8416eacd6bc))
+
+
+### Bug Fixes
+
+* Challenge generation update ([#2628](https://github.com/AztecProtocol/aztec-packages/issues/2628)) ([68c1fab](https://github.com/AztecProtocol/aztec-packages/commit/68c1fab51e3a339032b719ce966ed34787f33dab))
+
+
+### Miscellaneous
+
+* Bump ACIR deserializer ([#2675](https://github.com/AztecProtocol/aztec-packages/issues/2675)) ([502ee87](https://github.com/AztecProtocol/aztec-packages/commit/502ee872d6360bf4bc5b83c672eeb64c58944073))
+
 ## [0.8.7](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.8.6...barretenberg-v0.8.7) (2023-10-04)
 
 
