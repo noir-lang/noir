@@ -1,5 +1,6 @@
 use std::vec;
 
+use acvm::acir::acir_field::FieldOptions;
 use fm::FileId;
 use noirc_errors::Location;
 
@@ -8,6 +9,7 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
+    token::{FunctionAttribute, SecondaryAttribute},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
@@ -202,6 +204,13 @@ impl<'a> ModCollector<'a> {
         let module = ModuleId { krate, local_id: self.module_id };
 
         for function in functions {
+            // check if optional field attribute is compatible with native field
+            if let Some(field) = function.attributes().get_field_attribute() {
+                if !FieldOptions::is_native_field(&field) {
+                    continue;
+                }
+            }
+
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
 
