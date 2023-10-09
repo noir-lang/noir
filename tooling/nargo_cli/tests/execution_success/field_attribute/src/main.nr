@@ -1,6 +1,6 @@
 // Test integer addition: 3 + 4 = 7
 fn main(mut x: u32) {
-    assert(x> foo());
+    assert(x > foo());
 }
 
 #[field(bn254)]
