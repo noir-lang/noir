@@ -1,3 +1,4 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi from '@noir-lang/noirc_abi';
