@@ -42,11 +42,9 @@ describe('Outer proofs', () => {
 
 describe('Inner proofs', () => {
   let backend: Backend;
-  let noir: Noir;
 
   before(() => {
     backend = new Backend(assert_lt_json, { numOfThreads: 4 });
-    noir = new Noir(backend);
   });
 
   it('Creates and verifies end-to-end inner proofs with underlying backend API', async () => {
