@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -966,8 +966,8 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
-                if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
+                if (op.is_modulo() || op.is_bitwise()) && (other.is_bindable() || other.is_field())
+                {
                     let other = other.follow_bindings();
                     let kind = op.kind;
                     // This will be an error if these types later resolve to a Field, or stay
@@ -975,7 +975,11 @@ impl<'interner> TypeChecker<'interner> {
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
                     self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
-                            Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            if kind == BinaryOpKind::Modulo {
+                                Err(TypeCheckError::FieldModulo { span })
+                            } else {
+                                Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            }
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
                         } else if kind.is_bit_shift() && other.is_signed() {
