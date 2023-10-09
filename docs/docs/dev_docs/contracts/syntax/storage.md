@@ -2,14 +2,14 @@
 title: Storage
 ---
 
-In an Aztec.nr contract, storage is to be defined as a single struct, that contains both public and private state variables.
+In an Aztec.nr contract, storage is contained in a single struct that contains both public and private state variables.
 
-As their name indicates, public state variables can be read by anyone, while private state variables can only be read by their owner, or people whom the owner has shared the data with.
+Public state variables can be read by anyone, while private state variables can only be read by their owner (or people whom the owner has shared the decrypted data/note viewing key with).
 
-As mentioned earlier in the foundational concepts ([state model](./../../../concepts/foundation/state_model.md) and [private/public execution](./../../../concepts/foundation/communication/public_private_calls.md)) private state follows a UTXO model. Where note pre-images are only known to those able to decrypt them.
+Public state follows the ethereum style account model, where each contract has its own key-value datastore. Private state follows a UTXO model, where note contents (pre-images) are only known by the sender and those able to decrypt them - see ([state model](./../../../concepts/foundation/state_model.md) and [private/public execution](./../../../concepts/foundation/communication/public_private_calls.md)) for more background.
 
 :::info
-The struct **must** be called `Storage` for the Aztec.nr library to properly handle it (will be fixed in the future to support more flexibility).
+The struct **must** be called `Storage` for the Aztec.nr library to properly handle it (this will be relaxed in the future).
 :::
 
 ```rust
@@ -20,10 +20,10 @@ struct Storage {
 ```
 
 :::info
-If your storage includes private state variables it must include a `compute_note_hash_and_nullifier` function to allow the RPC to process encrypted events, see [encrypted events](./events.md#processing-encrypted-events) for more.
+If your contract storage includes private state variables, it must include a `compute_note_hash_and_nullifier` function to allow the RPC to process encrypted events. See [encrypted events](./events.md#processing-encrypted-events) for more.
 :::
 
-Since Aztec.nr is written in Noir, which on its own is state-less, we need to specify how the storage struct should be initialized to read and write data correctly. This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. This `init` function should declare the storage struct with an actual instantiation defining how variables are accessed and manipulated. The function MUST be called `init` for the Aztec.nr library to properly handle it (will be fixed in the future to support more flexibility).
+Since Aztec.nr is written in Noir, which on its own is state-less, we need to specify how the storage struct should be initialized to read and write data correctly. This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. This `init` function must declare the storage struct with an instantiation defining how variables are accessed and manipulated. The function MUST be called `init` for the Aztec.nr library to properly handle it (this will be relaxed in the future).
 
 ```rust
 impl Storage {
@@ -39,12 +39,36 @@ impl Storage {
 If you have defined a `Storage` struct following this naming scheme, then it will be made available to you through the reserved `storage` keyword within your contract functions.
 
 :::warning Using slot `0` is not supported!
-No storage values should be initialized at slot `0`. This is a known issue that will be fixed in the future.
+No storage values should be initialized at slot `0` - storage slots begin at `1`. This is a known issue that will be fixed in the future.
 :::
+
+## Storage Slots
+
+Public state in Aztec is implemented as a single global merkle tree of depth 254, with each contract's internal storage slot combined with its contract address to generate its position in the global tree as `global_storage_slot = pedersen_hash(contract_storage_slot, contract_address)`.
+
+A contract's state is represented by mapping its own storage slots to each variable. For now, storage slot positions for each variable must be explicitly assigned inside the `Storage impl`. Although variables can be arrays or structs that are stored internally as contiguous blocks, each variable in the storage definition takes just 1 block, so you can increment the storage slot by 1 each time you add another variable, whether it is public or private.
+
+When assigning contract storage slots, `Map`s are also treated as occupying only 1 storage slot (its "base_slot"), because the actual values in the global state tree are stored in derived slots calculated as `map_value_storage_slot = pedersen_hash(base_slot, key)`.
+
+Private state is stored in a separate UTXO tree, but each private variable is still assigned a storage slot to track the meaning of the note. Each private variable's storage slot is contained in a contract's bytecode, but they do not appear at all in the global storage tree. Each contract private variable can be associated with 0, 1, or multiple notes in the UTXO tree (and some of those may have already been spent, if their nullifier is already present in the nullifier tree).
+The position of each note in the UTXO tree does not matter - the relationship to contract state is contained entirely in its note header.
+
+:::info
+Private variables only require one single slot, because all notes are linked their contract variable through the `storage slot` attribute in their note header (which also contains the contract address and nonce). :::
+
+We currently do not support any "bit packing" type optimizations as in most EVM languages.
+
+Note: The choice of hash function for global slot position is subject to change in later versions.
 
 ## Map
 
-A `map` is a state variable that "maps" a key to a value. In Aztec.nr, keys are `Field`s (or values that are convertible to Fields) and values can be any type - even other maps. The map is a struct defined as follows:
+A `map` is a state variable that "maps" a key to a value.
+
+:::info
+In Aztec.nr, keys are always `Field`s (or types that can be serialized as Fields) and values can be any type - even other maps.
+:::
+
+The map is a struct defined as follows:
 
 #include_code map /yarn-project/aztec-nr/aztec/src/state_vars/map.nr rust
 
@@ -113,15 +137,15 @@ When declaring the storage for `T` as a persistent public storage variable, we u
 
 #### Single value example
 
-Say that we wish to add `admin` public state variable into our storage struct. In the struct we can add it as follows:
+Say that we wish to add `admin` public state variable into our storage struct. In the struct we can define it as:
 
 #include_code storage_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-And then when initializing it in the `Storage::init` function we can do it as follows:
+And then when initializing it in the `Storage::init` function we can do:
 
 #include_code storage_admin_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
 
-In this case, specifying that we are dealing with a Field, and that it should be put at slot 1. This is just a single value, and would be similar to the following in solidity:
+We have specified that we are storing a `Field` that should be placed in storage slot `1`. This is just a single value, and is similar to the following in solidity:
 
 ```solidity
 address internal admin;
