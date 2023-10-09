@@ -1,0 +1,7 @@
+[package]
+name = "mutability_regression_3008"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]
