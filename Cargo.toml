@@ -17,6 +17,7 @@ members = [
     "tooling/lsp",
     "tooling/debugger",
     "tooling/nargo",
+    "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
     "tooling/noirc_abi",
@@ -50,6 +51,7 @@ arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
 iter-extended = { path = "compiler/utils/iter-extended" }
 nargo = { path = "tooling/nargo" }
+nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }

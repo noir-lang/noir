@@ -9,10 +9,19 @@ pub(crate) use redundant_range::RangeOptimizer;
 
 use self::unused_memory::UnusedMemoryOptimizer;
 
-use super::AcirTransformationMap;
+use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
+    let (mut acir, transformation_map) = optimize_internal(acir);
+
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
+
+    (acir, transformation_map)
+}
+
+/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
+pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, AcirTransformationMap) {
     // General optimizer pass
     let mut opcodes: Vec<Opcode> = Vec::new();
     for opcode in acir.opcodes {
