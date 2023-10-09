@@ -574,8 +574,6 @@ name = "brillig"
 version = "0.28.0"
 dependencies = [
  "acir_field",
- "num-bigint",
- "num-traits",
  "serde",
 ]
 

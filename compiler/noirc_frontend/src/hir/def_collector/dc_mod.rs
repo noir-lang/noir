@@ -9,7 +9,6 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    token::{FunctionAttribute, SecondaryAttribute},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };

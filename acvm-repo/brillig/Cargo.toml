@@ -15,8 +15,6 @@ repository.workspace = true
 [dependencies]
 acir_field.workspace = true
 serde.workspace = true
-num-bigint.workspace = true
-num-traits.workspace = true
 
 [features]
 default = ["bn254"]

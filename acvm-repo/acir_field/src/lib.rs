@@ -41,10 +41,10 @@ impl FieldOptions {
         } else {
             BigUint::from_str_radix(str, 10)
         };
-        if big_num.is_err() {
-            CHOSEN_FIELD.to_string() == str
+        if let Ok(big_num) = big_num {
+            big_num == FieldElement::modulus()
         } else {
-            big_num.unwrap() == FieldElement::modulus()
+            CHOSEN_FIELD.to_string() == str
         }
     }
 }
