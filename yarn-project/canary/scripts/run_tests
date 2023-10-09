@@ -7,8 +7,9 @@ set -eu
 export TEST=$1
 export IMAGE=${2:-canary}
 export COMPOSE_FILE=${3:-./scripts/docker-compose.yml}
-
-if [ "$TEST" = "uniswap_trade_on_l1_from_l2.test.ts" ]; then
+:
+# if test name ends with uniswap_trade_on_l1_from_l2.test.ts, use the forked mainnet
+if [[ "$TEST" == *"uniswap_trade_on_l1_from_l2.test.ts" ]]; then
   export FORK_URL=https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c
   export FORK_BLOCK_NUMBER=17514288
 fi
