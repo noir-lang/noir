@@ -26,8 +26,8 @@
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
-    ForRange, NoirParser, ParsedModule, ParserError, ParserErrorReason, Precedence, SubModule,
-    TopLevelStatement,
+    ForRange, NoirParser, ParsedModule, ParsedSubModule, ParserError, ParserErrorReason,
+    Precedence, TopLevelStatement,
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
@@ -140,7 +140,7 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
         .map(|(name, contents)| {
-            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: false })
+            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: false })
         })
 }
 
@@ -152,7 +152,7 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
         .map(|(name, contents)| {
-            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: true })
+            TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: true })
         })
 }
 
