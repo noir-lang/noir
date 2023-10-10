@@ -53,11 +53,11 @@ acir_format::acir_format get_constraint_system(std::string const& bytecode_path)
  */
 bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessPath, bool recursive)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
-    auto proof = acir_composer->create_proof(srs::get_crs_factory(), constraint_system, witness, recursive);
-    auto verified = acir_composer->verify_proof(proof, recursive);
+    auto proof = acir_composer.create_proof(constraint_system, witness, recursive);
+    auto verified = acir_composer.verify_proof(proof, recursive);
 
     vinfo("verified: ", verified);
     return verified;
@@ -80,10 +80,10 @@ void prove(const std::string& bytecodePath,
            bool recursive,
            const std::string& outputPath)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
-    auto proof = acir_composer->create_proof(srs::get_crs_factory(), constraint_system, witness, recursive);
+    auto proof = acir_composer.create_proof(constraint_system, witness, recursive);
 
     if (outputPath == "-") {
         writeRawBytesToStdout(proof);
@@ -104,10 +104,10 @@ void prove(const std::string& bytecodePath,
  */
 void gateCount(const std::string& bytecodePath)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
-    acir_composer->create_circuit(constraint_system);
-    auto gate_count = acir_composer->get_total_circuit_size();
+    acir_composer.create_circuit(constraint_system);
+    auto gate_count = acir_composer.get_total_circuit_size();
 
     writeUint64AsRawBytesToStdout(static_cast<uint64_t>(gate_count));
     vinfo("gate count: ", gate_count);
@@ -131,10 +131,10 @@ void gateCount(const std::string& bytecodePath)
  */
 bool verify(const std::string& proof_path, bool recursive, const std::string& vk_path)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
-    acir_composer->load_verification_key(barretenberg::srs::get_crs_factory(), std::move(vk_data));
-    auto verified = acir_composer->verify_proof(read_file(proof_path), recursive);
+    acir_composer.load_verification_key(std::move(vk_data));
+    auto verified = acir_composer.verify_proof(read_file(proof_path), recursive);
 
     vinfo("verified: ", verified);
 
@@ -153,10 +153,10 @@ bool verify(const std::string& proof_path, bool recursive, const std::string& vk
  */
 void writeVk(const std::string& bytecodePath, const std::string& outputPath)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
-    acir_composer->init_proving_key(srs::get_crs_factory(), constraint_system);
-    auto vk = acir_composer->init_verification_key();
+    acir_composer.init_proving_key(constraint_system);
+    auto vk = acir_composer.init_verification_key();
     auto serialized_vk = to_buffer(*vk);
     if (outputPath == "-") {
         writeRawBytesToStdout(serialized_vk);
@@ -182,10 +182,10 @@ void writeVk(const std::string& bytecodePath, const std::string& outputPath)
  */
 void contract(const std::string& output_path, const std::string& vk_path)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
-    acir_composer->load_verification_key(barretenberg::srs::get_crs_factory(), std::move(vk_data));
-    auto contract = acir_composer->get_solidity_verifier();
+    acir_composer.load_verification_key(std::move(vk_data));
+    auto contract = acir_composer.get_solidity_verifier();
 
     if (output_path == "-") {
         writeStringToStdout(contract);
@@ -223,9 +223,9 @@ void contract(const std::string& output_path, const std::string& vk_path)
  */
 void proofAsFields(const std::string& proof_path, std::string const& vk_path, const std::string& output_path)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
-    auto data = acir_composer->serialize_proof_into_fields(read_file(proof_path), vk_data.num_public_inputs);
+    auto data = acir_composer.serialize_proof_into_fields(read_file(proof_path), vk_data.num_public_inputs);
     auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
 
     if (output_path == "-") {
@@ -252,10 +252,10 @@ void proofAsFields(const std::string& proof_path, std::string const& vk_path, co
  */
 void vkAsFields(const std::string& vk_path, const std::string& output_path)
 {
-    auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
+    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
-    acir_composer->load_verification_key(barretenberg::srs::get_crs_factory(), std::move(vk_data));
-    auto data = acir_composer->serialize_verification_key_into_fields();
+    acir_composer.load_verification_key(std::move(vk_data));
+    auto data = acir_composer.serialize_verification_key_into_fields();
 
     // We need to move vk_hash to the front...
     std::rotate(data.begin(), data.end() - 1, data.end());

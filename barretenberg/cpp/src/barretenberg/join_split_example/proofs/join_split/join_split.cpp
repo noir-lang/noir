@@ -14,8 +14,7 @@ using namespace proof_system::plonk::stdlib::merkle_tree;
 static std::shared_ptr<plonk::proving_key> proving_key;
 static std::shared_ptr<plonk::verification_key> verification_key;
 
-void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
-                      bool mock)
+void init_proving_key(bool mock)
 {
     if (proving_key) {
         return;
@@ -27,12 +26,12 @@ void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory<c
     if (!mock) {
         Builder builder;
         join_split_circuit(builder, tx);
-        Composer composer(crs_factory);
+        Composer composer;
         proving_key = composer.compute_proving_key(builder);
     } else {
         Builder builder;
         join_split_circuit(builder, tx);
-        Composer composer(crs_factory);
+        Composer composer;
         join_split_example::proofs::mock::mock_circuit(builder, builder.get_public_inputs());
         proving_key = composer.compute_proving_key(builder);
     }
@@ -43,16 +42,14 @@ void release_proving_key()
     proving_key.reset();
 }
 
-void init_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory)
+void init_verification_key()
 {
     if (!proving_key) {
         std::abort();
     }
-    // Patch the 'nothing' reference string fed to init_proving_key.
-    proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size + 1);
 
     verification_key =
-        proof_system::plonk::compute_verification_key_common(proving_key, crs_factory->get_verifier_crs());
+        proof_system::plonk::compute_verification_key_common(proving_key, srs::get_crs_factory()->get_verifier_crs());
 }
 
 Prover new_join_split_prover(join_split_tx const& tx, bool mock)

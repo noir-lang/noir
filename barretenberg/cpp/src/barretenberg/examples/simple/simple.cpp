@@ -19,8 +19,7 @@ void build_circuit(Builder& builder)
     }
 }
 
-BuilderComposerPtrs create_builder_and_composer(
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory)
+BuilderComposerPtrs create_builder_and_composer()
 {
     // WARNING: Size hint is essential to perform 512k circuits!
     auto builder = std::make_unique<Builder>(CIRCUIT_SIZE);
@@ -36,7 +35,7 @@ BuilderComposerPtrs create_builder_and_composer(
     info("composer gates: ", builder->get_num_gates());
 
     info("computing proving key...");
-    auto composer = std::make_unique<Composer>(crs_factory);
+    auto composer = std::make_unique<Composer>();
     auto pk = composer->compute_proving_key(*builder);
 
     return { builder.release(), composer.release() };

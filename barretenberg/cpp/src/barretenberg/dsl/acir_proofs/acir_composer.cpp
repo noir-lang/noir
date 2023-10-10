@@ -31,9 +31,7 @@ void AcirComposer::create_circuit(acir_format::acir_format& constraint_system)
     size_hint_ = circuit_subgroup_size_;
 }
 
-void AcirComposer::init_proving_key(
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
-    acir_format::acir_format& constraint_system)
+void AcirComposer::init_proving_key(acir_format::acir_format& constraint_system)
 {
     vinfo("building circuit... ", size_hint_);
     builder_ = acir_format::Builder(size_hint_);
@@ -47,16 +45,14 @@ void AcirComposer::init_proving_key(
     total_circuit_size_ = builder_.get_total_circuit_size();
     circuit_subgroup_size_ = builder_.get_circuit_subgroup_size(total_circuit_size_);
 
-    composer_ = acir_format::Composer(crs_factory);
+    composer_ = acir_format::Composer();
     vinfo("computing proving key...");
     proving_key_ = composer_.compute_proving_key(builder_);
 }
 
-std::vector<uint8_t> AcirComposer::create_proof(
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
-    acir_format::acir_format& constraint_system,
-    acir_format::WitnessVector& witness,
-    bool is_recursive)
+std::vector<uint8_t> AcirComposer::create_proof(acir_format::acir_format& constraint_system,
+                                                acir_format::WitnessVector& witness,
+                                                bool is_recursive)
 {
     // Release prior memory first.
     composer_ = acir_format::Composer(/*p_key=*/0, /*v_key=*/0);
@@ -67,12 +63,10 @@ std::vector<uint8_t> AcirComposer::create_proof(
 
     composer_ = [&]() {
         if (proving_key_) {
-            auto composer = acir_format::Composer(proving_key_, verification_key_);
-            // You can't produce the verification key unless you manually set the crs. Which seems like a bug.
-            composer_.crs_factory_ = crs_factory;
+            auto composer = acir_format::Composer(proving_key_, nullptr);
             return composer;
         } else {
-            return acir_format::Composer(crs_factory);
+            return acir_format::Composer();
         }
     }();
     if (!proving_key_) {
@@ -108,12 +102,10 @@ std::shared_ptr<proof_system::plonk::verification_key> AcirComposer::init_verifi
     return verification_key_;
 }
 
-void AcirComposer::load_verification_key(
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
-    proof_system::plonk::verification_key_data&& data)
+void AcirComposer::load_verification_key(proof_system::plonk::verification_key_data&& data)
 {
-    verification_key_ =
-        std::make_shared<proof_system::plonk::verification_key>(std::move(data), crs_factory->get_verifier_crs());
+    verification_key_ = std::make_shared<proof_system::plonk::verification_key>(
+        std::move(data), srs::get_crs_factory()->get_verifier_crs());
     composer_ = acir_format::Composer(proving_key_, verification_key_);
 }
 

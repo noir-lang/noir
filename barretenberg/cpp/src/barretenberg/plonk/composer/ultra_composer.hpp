@@ -27,7 +27,6 @@ class UltraComposer {
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory_;
 
     bool computed_witness = false;
 
@@ -37,11 +36,7 @@ class UltraComposer {
     // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
     static constexpr size_t s_randomness = 3;
 
-    UltraComposer() { crs_factory_ = barretenberg::srs::get_crs_factory(); }
-
-    explicit UltraComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
-        : crs_factory_(std::move(crs_factory))
-    {}
+    UltraComposer() = default;
 
     UltraComposer(std::shared_ptr<proving_key> p_key, std::shared_ptr<verification_key> v_key)
         : circuit_proving_key(std::move(p_key))

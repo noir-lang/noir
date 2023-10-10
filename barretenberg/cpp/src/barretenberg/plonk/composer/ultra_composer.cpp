@@ -375,10 +375,11 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
 
     const size_t minimum_circuit_size = tables_size + lookups_size;
     const size_t num_randomized_gates = NUM_RESERVED_GATES;
+    auto crs_factory = srs::get_crs_factory();
     // Initialize circuit_proving_key
     // TODO(#392)(Kesha): replace composer types.
     circuit_proving_key = initialize_proving_key(
-        circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, CircuitType::ULTRA);
+        circuit_constructor, crs_factory.get(), minimum_circuit_size, num_randomized_gates, CircuitType::ULTRA);
 
     construct_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
 
@@ -491,10 +492,12 @@ std::shared_ptr<plonk::verification_key> UltraComposer::compute_verification_key
         return circuit_verification_key;
     }
 
+    auto crs_factory = srs::get_crs_factory();
+
     if (!circuit_proving_key) {
         compute_proving_key(circuit_constructor);
     }
-    circuit_verification_key = compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
+    circuit_verification_key = compute_verification_key_common(circuit_proving_key, crs_factory->get_verifier_crs());
 
     circuit_verification_key->circuit_type = CircuitType::ULTRA;
 

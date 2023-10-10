@@ -56,9 +56,9 @@ circuit_data get_circuit_data(std::string const& name,
     circuit_data data;
     data.srs = srs;
     data.mock = mock;
-    Composer composer(srs);
+    Composer composer;
     Builder builder;
-    Composer mock_proof_composer(srs);
+    Composer mock_proof_composer;
     Builder mock_builder;
     BenchmarkInfoCollator benchmark_collator;
 
