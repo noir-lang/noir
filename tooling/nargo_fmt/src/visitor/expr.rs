@@ -35,6 +35,22 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::Literal(literal) => {
+                match literal {
+                    Literal::Array(ArrayLiteral::Standard(contents)) => {
+                        format!("[{}]", contents.iter().map(|expr| self.format_expr(*expr)).collect::<Vec<_>>().join(", "))
+                    },
+                    Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
+                        format!("[{}; {}]", self.format_expr(*repeated_element), self.format_expr(*length))
+                    },
+                    Literal::Integer(field_element) => {
+                        field_element.to_string()
+                    },
+                    Literal::Bool(b) => b.to_string(),
+                    Literal::Str(s) => format!("\"{}\"", s),
+                    Literal::FmtStr(s) => format!("\"{}\"", s),
+                }
+            },
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
