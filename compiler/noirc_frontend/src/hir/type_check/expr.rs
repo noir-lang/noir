@@ -816,7 +816,7 @@ impl<'interner> TypeChecker<'interner> {
     ) -> Option<HirMethodReference> {
         match object_type {
             Type::Struct(typ, _args) => {
-                match self.interner.lookup_method(typ.borrow().id, method_name) {
+                match self.interner.lookup_method(object_type, typ.borrow().id, method_name) {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.errors.push(TypeCheckError::UnresolvedMethodCall {
