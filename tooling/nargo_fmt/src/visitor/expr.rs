@@ -43,7 +43,7 @@ impl FmtVisitor<'_> {
                 let formatted_collection = self.format_expr(index_expr.collection);
                 let formatted_index = self.format_expr(index_expr.index);
                 format!("{}[{}]", formatted_collection, formatted_index)
-            },  
+            }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
@@ -59,7 +59,72 @@ impl FmtVisitor<'_> {
                 Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::Unit => {
                     literal.to_string()
                 }
-            },
+            }
+            ExpressionKind::Call(call_expr) => {
+                let formatted_func = self.format_expr(*call_expr.func);
+                let formatted_args = call_expr.arguments
+                    .iter()
+                    .map(|arg| self.format_expr(arg.clone()))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({})", formatted_func, formatted_args)
+            }
+            ExpressionKind::MethodCall(method_call_expr) => {
+                let formatted_object = self.format_expr(method_call_expr.object);
+                let formatted_args = method_call_expr.arguments
+                    .iter()
+                    .map(|arg| self.format_expr(arg.clone()))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}.{}({})", formatted_object, method_call_expr.method_name, formatted_args)
+            }
+            ExpressionKind::Constructor(constructor_expr) => {
+                let type_str = constructor_expr.type_name.to_string();
+                let formatted_fields = constructor_expr.fields
+                    .iter()
+                    .map(|(field_ident, field_value)| format!("{}: {}", field_ident, self.format_expr(field_value.clone())))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{} {{ {} }}", type_str, formatted_fields)
+            }
+            ExpressionKind::MemberAccess(member_access_expr) => {
+                let lhs_str = self.format_expr(member_access_expr.lhs);
+                format!("{}.{}", lhs_str, member_access_expr.rhs)
+            }
+            ExpressionKind::Infix(infix_expr) => {
+                let lhs_str = self.format_expr(infix_expr.lhs);
+                let rhs_str = self.format_expr(infix_expr.rhs);
+                format!("{} {} {}", lhs_str, infix_expr.operator, rhs_str)
+            }
+            ExpressionKind::If(if_expr) => {
+                let condition_str = self.format_expr(if_expr.condition);
+                let consequence_str = self.format_expr(if_expr.consequence);
+                
+                if let Some(alternative_expr) = &if_expr.alternative {
+                    let alternative_str = self.format_expr(alternative_expr.clone());
+                    format!("if {} {{ {} }} else {{ {} }}", condition_str, consequence_str, alternative_str)
+                } else {
+                    format!("if {} {{ {} }}", condition_str, consequence_str)
+                }
+            }
+            ExpressionKind::Variable(path) => path.to_string()
+            ExpressionKind::Lambda(lambda) => {
+                let formatted_params = lambda.params
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let formatted_body = self.format_expr(*lambda.body);
+                format!("|{}| -> {}", formatted_params, formatted_body)
+            }
+            ExpressionKind::Tuple(elements) => {
+                let formatted_elements = elements
+                    .iter()
+                    .map(|e| self.format_expr(e.clone()))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({})", formatted_elements)
+            }
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
