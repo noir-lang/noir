@@ -385,7 +385,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, .. } => {
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
@@ -449,7 +449,7 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 0);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
@@ -485,7 +485,7 @@ mod tests {
         assert_eq!(count_stores(block_id, &func.dfg), 1);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
             _ => unreachable!(),
         };
         assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(instructions.len(), 2);
 
         let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values } => *return_values.first().unwrap(),
+            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
             _ => unreachable!(),
         };
 

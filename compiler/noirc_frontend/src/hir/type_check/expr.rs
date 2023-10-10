@@ -128,7 +128,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Error
                     })
             }
-            HirExpression::Index(index_expr) => self.check_index_expression(index_expr),
+            HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
 
@@ -396,7 +396,11 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn check_index_expression(&mut self, index_expr: expr::HirIndexExpression) -> Type {
+    fn check_index_expression(
+        &mut self,
+        id: &ExprId,
+        mut index_expr: expr::HirIndexExpression,
+    ) -> Type {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
@@ -408,14 +412,20 @@ impl<'interner> TypeChecker<'interner> {
             }
         });
 
+        // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
+        // times as needed to get the underlying array.
         let lhs_type = self.check_expression(&index_expr.collection);
+        let (new_lhs, lhs_type) = self.insert_auto_dereferences(index_expr.collection, lhs_type);
+        index_expr.collection = new_lhs;
+        self.interner.replace_expr(id, HirExpression::Index(index_expr));
+
         match lhs_type.follow_bindings() {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
-                let span = self.interner.expr_span(&index_expr.collection);
+                let span = self.interner.expr_span(&new_lhs);
                 self.errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
