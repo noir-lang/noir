@@ -30,6 +30,7 @@ dependencies = [
  "cfg-if",
  "hex",
  "num-bigint",
+ "num-traits",
  "serde",
 ]
 

@@ -395,6 +395,15 @@ impl Attributes {
             _ => None,
         })
     }
+
+    pub fn get_field_attribute(&self) -> Option<String> {
+        for secondary in &self.secondary {
+            if let SecondaryAttribute::Field(field) = secondary {
+                return Some(field.to_lowercase());
+            }
+        }
+        None
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -465,6 +474,10 @@ impl Attribute {
                     Some(scope) => Attribute::Function(FunctionAttribute::Test(scope)),
                     None => return Err(malformed_scope),
                 }
+            }
+            ["field", name] => {
+                validate(name)?;
+                Attribute::Secondary(SecondaryAttribute::Field(name.to_string()))
             }
             // Secondary attributes
             ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
@@ -550,6 +563,7 @@ pub enum SecondaryAttribute {
     // the entry point.
     ContractLibraryMethod,
     Event,
+    Field(String),
     Custom(String),
 }
 
@@ -563,6 +577,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Event => write!(f, "#[event]"),
+            SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
         }
     }
 }
@@ -583,7 +598,7 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) => string,
+            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Event => "",
         }

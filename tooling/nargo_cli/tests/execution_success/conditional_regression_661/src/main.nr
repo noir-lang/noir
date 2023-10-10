@@ -18,7 +18,7 @@ fn test5(a : u32) {
 
 
 fn issue_661_foo(array: [u32;4], b:u32) ->[u32;1] {
-    [array[0]+b]
+    [array[0] + b]
 }
 
 fn issue_661_bar(a : [u32;4]) ->[u32;4] {
