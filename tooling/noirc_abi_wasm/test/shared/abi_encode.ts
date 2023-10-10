@@ -1,6 +1,6 @@
-import { Abi, InputMap } from '@noir-lang/noirc_abi';
+// TODO: Add type definitions for these
 
-export const abi: Abi = {
+export const abi = {
   parameters: [
     { name: 'foo', type: { kind: 'field' }, visibility: 'private' },
     {
@@ -14,7 +14,7 @@ export const abi: Abi = {
   return_witnesses: [],
 };
 
-export const inputs: InputMap = {
+export const inputs = {
   foo: '1',
   bar: ['1', '2'],
 };
