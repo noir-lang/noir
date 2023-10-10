@@ -248,10 +248,20 @@ impl<'interner> TypeChecker<'interner> {
                     },
                 );
 
-                let (array_type, array, mutable) = self.check_lvalue(array, assign_span);
-                let array = Box::new(array);
+                let (mut lvalue_type, mut lvalue, mut mutable) =
+                    self.check_lvalue(array, assign_span);
 
-                let typ = match array_type.follow_bindings() {
+                // Before we check that the lvalue is an array, try to dereference it as many times
+                // as needed to unwrap any &mut wrappers.
+                while let Type::MutableReference(element) = lvalue_type.follow_bindings() {
+                    let element_type = element.as_ref().clone();
+                    lvalue = HirLValue::Dereference { lvalue: Box::new(lvalue), element_type };
+                    lvalue_type = *element;
+                    // We know this value to be mutable now since we found an `&mut`
+                    mutable = true;
+                }
+
+                let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     other => {
@@ -265,6 +275,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 };
 
+                let array = Box::new(lvalue);
                 (typ.clone(), HirLValue::Index { array, index: *index, typ }, mutable)
             }
             HirLValue::Dereference { lvalue, element_type: _ } => {
