@@ -159,6 +159,7 @@ const config = {
           content: "aztec, noir, privacy, encrypted, ethereum, blockchain",
         },
       ],
+      image: "img/docs-preview-image.png",
       algolia: {
         appId: "CL4NK79B0W",
         apiKey: "21d89dadaa37a4d1b6bf4b17978dcf7f",
