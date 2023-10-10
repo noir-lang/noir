@@ -949,29 +949,34 @@ enum LValueRhs {
     Index(Expression),
 }
 
-fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue>
+fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
 where
     P: ExprParser + 'a,
 {
-    let l_ident = ident().map(LValue::Ident);
+    recursive(|lvalue| {
+        let l_ident = ident().map(LValue::Ident);
 
-    let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+        let dereferences = just(Token::Star)
+            .ignore_then(lvalue.clone())
+            .map(|lvalue| LValue::Dereference(Box::new(lvalue)));
 
-    let l_index = expr_parser
-        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(LValueRhs::Index);
+        let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
-    let dereferences = just(Token::Star).repeated();
+        let term = choice((parenthesized, dereferences, l_ident));
 
-    let lvalues =
-        l_ident.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
+        let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+
+        let l_index = expr_parser
+            .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+            .map(LValueRhs::Index);
+
+        term.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
             LValueRhs::MemberAccess(field_name) => {
                 LValue::MemberAccess { object: Box::new(lvalue), field_name }
             }
             LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
-        });
-
-    dereferences.then(lvalues).foldr(|_, lvalue| LValue::Dereference(Box::new(lvalue)))
+        })
+    })
 }
 
 fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {

@@ -1,5 +1,6 @@
 use std::vec;
 
+use acvm::acir::acir_field::FieldOptions;
 use fm::FileId;
 use noirc_errors::Location;
 
@@ -202,6 +203,13 @@ impl<'a> ModCollector<'a> {
         let module = ModuleId { krate, local_id: self.module_id };
 
         for function in functions {
+            // check if optional field attribute is compatible with native field
+            if let Some(field) = function.attributes().get_field_attribute() {
+                if !FieldOptions::is_native_field(&field) {
+                    continue;
+                }
+            }
+
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
 
