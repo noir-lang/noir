@@ -141,7 +141,6 @@
 
       noir_wasm = craneLib.buildPackage (wasmConfig // {
         pname = "noir_wasm";
-        features = "";
 
         inherit GIT_COMMIT GIT_DIRTY;
 
