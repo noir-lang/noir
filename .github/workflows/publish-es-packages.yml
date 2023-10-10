@@ -11,6 +11,8 @@ on:
         required: false
         default: 'nightly'
 
+run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-tag }} tag.
+
 jobs:
   build-noir_wasm:
     runs-on: ubuntu-latest
@@ -102,7 +104,7 @@ jobs:
         run: yarn prepare:publish
 
       - name: Prepare nightly version
-        if: ${{ inputs.npm-tag == 'nightly' }}
+        if: ${{ inputs.npm-tag != 'latest' }}
         run: |
           sudo apt-get install jq
           yarn nightly:version

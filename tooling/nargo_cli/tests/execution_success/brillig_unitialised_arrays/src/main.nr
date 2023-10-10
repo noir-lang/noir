@@ -9,5 +9,5 @@ fn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {
 }
 
 unconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {
-    [x,y]
+    [x, y]
 }

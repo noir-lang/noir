@@ -31,6 +31,7 @@
         "build:noir_js": "yarn workspace @noir-lang/noir_js run build",
         "build:js:only": "yarn build:types && yarn build:source-resolver && yarn build:backend_barretenberg && yarn build:noir_js",
         "prepare:publish": "yarn clean && yarn install:from:nix && yarn build:js:only",
+        "nightly:version": "yarn workspaces foreach run nightly:version",
         "publish:all": "yarn install && yarn workspaces foreach run publish"
     },
     "devDependencies": {
