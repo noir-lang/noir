@@ -1,6 +1,5 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { generateWitness } from '../../src/witness_generation.js';
 import { Noir } from '../../src/index.js';
 import { BarretenbergBackend as Backend } from '@noir-lang/backend_barretenberg';
 
@@ -20,7 +19,7 @@ describe('Outer proofs', () => {
 
   it('Creates and verifies end-to-end outer proofs with underlying backend API', async () => {
     // Noir.Js part
-    const serializedWitness = await generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
 
     // BackendBarretenberg part
     const prover = new Backend(assert_lt_json, { numOfThreads: 4 });
@@ -42,9 +41,11 @@ describe('Outer proofs', () => {
 
 describe('Inner proofs', () => {
   let backend: Backend;
+  let noir: Noir;
 
   before(() => {
     backend = new Backend(assert_lt_json, { numOfThreads: 4 });
+    noir = new Noir(); // backendless noir;
   });
 
   it('Creates and verifies end-to-end inner proofs with underlying backend API', async () => {
@@ -53,7 +54,7 @@ describe('Inner proofs', () => {
       x: '2',
       y: '3',
     };
-    const serializedWitness = await generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
 
     // bb.js part
     //
@@ -78,7 +79,7 @@ describe('Inner proofs', () => {
   //
   // If its not fixable, we can leave it in as documentation of this behavior.
   it('Expects the "null function or function signature mismatch" if using different instance', async () => {
-    const serializedWitness = await generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
 
     // bb.js part
     const proof = await backend.generateFinalProof(serializedWitness);
@@ -103,7 +104,7 @@ describe('Inner proofs', () => {
   //
   // If we do not create an inner proof, then this will work as expected.
   it('Expects the "null function or function signature mismatch" when mixing different proof types', async () => {
-    const serializedWitness = await generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
 
     // bb.js part
     //

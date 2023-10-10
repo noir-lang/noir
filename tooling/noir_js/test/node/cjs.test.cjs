@@ -2,14 +2,16 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const chai = require('chai');
 const assert_lt_json = require('../noir_compiled_examples/assert_lt/target/assert_lt.json');
-const { generateWitness } = require('../../lib/witness_generation.cjs');
+const { Noir } = require('../../lib/index.cjs');
+
+const noir = new Noir(); // backendless noir
 
 it('generates witnesses successfully', async () => {
   const inputs = {
     x: '2',
     y: '3',
   };
-  const _solvedWitness = await generateWitness(assert_lt_json, inputs);
+  const _solvedWitness = await noir.generateWitness(assert_lt_json, inputs);
 });
 
 it('string input and number input are the same', async () => {
@@ -21,8 +23,8 @@ it('string input and number input are the same', async () => {
     x: 2,
     y: 3,
   };
-  const solvedWitnessString = await generateWitness(assert_lt_json, inputsString);
-  const solvedWitnessNumber = await generateWitness(assert_lt_json, inputsNumber);
+  const solvedWitnessString = await noir.generateWitness(assert_lt_json, inputsString);
+  const solvedWitnessNumber = await noir.generateWitness(assert_lt_json, inputsNumber);
   chai.expect(solvedWitnessString).to.deep.equal(solvedWitnessNumber);
 });
 
@@ -36,8 +38,8 @@ it('string input and number input are the same', async () => {
     y: 3,
   };
 
-  const solvedWitnessString = await generateWitness(assert_lt_json, inputsString);
-  const solvedWitnessNumber = await generateWitness(assert_lt_json, inputsNumber);
+  const solvedWitnessString = await noir.generateWitness(assert_lt_json, inputsString);
+  const solvedWitnessNumber = await noir.generateWitness(assert_lt_json, inputsNumber);
   chai.expect(solvedWitnessString).to.deep.equal(solvedWitnessNumber);
 });
 
@@ -48,7 +50,7 @@ it('0x prefixed string input for inputs will throw', async () => {
   };
 
   try {
-    await generateWitness(assert_lt_json, inputsHexPrefix);
+    await noir.generateWitness(assert_lt_json, inputsHexPrefix);
     chai.expect.fail(
       'Expected generatedWitness to throw, due to inputs being prefixed with 0x. Currently not supported',
     );
@@ -66,7 +68,7 @@ describe('input validation', () => {
     };
 
     try {
-      await generateWitness(assert_lt_json, inputs);
+      await noir.generateWitness(assert_lt_json, inputs);
       chai.expect.fail('Expected generatedWitness to throw, due to x not being convertible to a uint64');
     } catch (error) {
       const knownError = error;
