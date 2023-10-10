@@ -325,11 +325,13 @@ impl<'f> Context<'f> {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
                 self.inline_block(destination, &arguments)
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                let call_stack = call_stack.clone();
                 let return_values =
                     vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let new_return = TerminatorInstruction::Return { return_values, call_stack };
                 let entry = self.inserter.function.entry_block();
-                let new_return = TerminatorInstruction::Return { return_values };
+
                 self.inserter.function.dfg.set_block_terminator(entry, new_return);
                 block
             }
@@ -1079,7 +1081,7 @@ mod test {
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => return_values[0],
+            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
             _ => unreachable!(),
         };
 
@@ -1442,7 +1444,7 @@ mod test {
 
         // The return value should be 200, not 310
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 match main.dfg.get_numeric_constant(return_values[0]) {
                     Some(constant) => {
                         let value = constant.to_u128();

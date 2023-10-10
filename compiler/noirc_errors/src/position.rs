@@ -119,4 +119,8 @@ impl Location {
     pub fn new(span: Span, file: FileId) -> Self {
         Self { span, file }
     }
+
+    pub fn dummy() -> Self {
+        Self { span: Span::single_char(0), file: FileId::dummy() }
+    }
 }

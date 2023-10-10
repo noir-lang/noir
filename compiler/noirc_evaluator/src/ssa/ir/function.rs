@@ -93,7 +93,7 @@ impl Function {
         let mut function_return_values = None;
         for block in blocks {
             let terminator = self.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
                 function_return_values = Some(return_values);
                 break;
             }

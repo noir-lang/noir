@@ -1248,8 +1248,10 @@ impl Context {
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) -> Result<(), InternalError> {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values } => return_values,
+        let (return_values, call_stack) = match terminator {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                (return_values, call_stack)
+            }
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
@@ -1257,6 +1259,9 @@ impl Context {
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
         for acir_var in return_acir_vars {
+            if self.acir_context.is_constant(&acir_var) {
+                return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
+            }
             self.acir_context.return_var(acir_var)?;
         }
         Ok(())
@@ -1869,6 +1874,7 @@ mod tests {
 
     use crate::{
         brillig::Brillig,
+        errors::{InternalError, RuntimeError},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{function::RuntimeType, map::Id, types::Type},
@@ -1897,12 +1903,10 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
-
-        let expected_opcodes =
-            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.take_opcodes(), expected_opcodes);
-        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
+        let acir = context
+            .convert_ssa(ssa, Brillig::default(), &HashMap::default())
+            .expect_err("Return constant value");
+        assert!(matches!(acir, RuntimeError::InternalError(InternalError::ReturnConstant { .. })));
     }
 }
 //
