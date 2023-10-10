@@ -106,10 +106,9 @@ jobs:
       - name: Prepare nightly version
         if: ${{ inputs.npm-tag != 'latest' }}
         run: |
-          sudo apt-get install jq
           yarn nightly:version
 
-      - name: Update Version as specific
+      - name: Update Version as specific tag
         run: |
           jq '.version = .version + "-${{ inputs.npm-tag }}"' package.json > package-tmp.json && mv package-tmp.json package.json
 
