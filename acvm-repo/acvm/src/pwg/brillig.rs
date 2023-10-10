@@ -26,38 +26,21 @@ pub(super) struct BrilligSolver<'b, B: BlackBoxFunctionSolver> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
-    /// Constructs a solver for a Brillig block given the bytecode and initial
-    /// witness. If the block should be skipped entirely because its predicate
-    /// evaluates to false, zero out the block outputs and return Ok(None).
-    pub(super) fn build_or_skip<'w>(
-        initial_witness: &'w mut WitnessMap,
-        brillig: &'w Brillig,
-        bb_solver: &'b B,
-        acir_index: usize,
-    ) -> Result<Option<Self>, OpcodeResolutionError> {
-        if Self::should_skip(initial_witness, brillig)? {
-            Self::zero_out_brillig_outputs(initial_witness, brillig)?;
-            return Ok(None);
-        }
-
-        let vm = Self::build_vm(initial_witness, brillig, bb_solver)?;
-        Ok(Some(Self { vm, acir_index }))
-    }
-
-    fn should_skip(witness: &WitnessMap, brillig: &Brillig) -> Result<bool, OpcodeResolutionError> {
-        // If the predicate is `None`, then we simply return the value 1
+    /// Evaluates if the Brillig block should be skipped entirely
+    pub(super) fn should_skip(
+        witness: &WitnessMap,
+        brillig: &Brillig,
+    ) -> Result<bool, OpcodeResolutionError> {
+        // If the predicate is `None`, the block should never be skipped
         // If the predicate is `Some` but we cannot find a value, then we return stalled
-        let pred_value = match &brillig.predicate {
-            Some(pred) => get_value(pred, witness),
-            None => Ok(FieldElement::one()),
-        }?;
-
-        // A zero predicate indicates the oracle should be skipped, and its outputs zeroed.
-        Ok(pred_value.is_zero())
+        match &brillig.predicate {
+            Some(pred) => Ok(get_value(pred, witness)?.is_zero()),
+            None => Ok(false),
+        }
     }
 
     /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
-    fn zero_out_brillig_outputs(
+    pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap,
         brillig: &Brillig,
     ) -> Result<(), OpcodeResolutionError> {
@@ -76,11 +59,14 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(())
     }
 
-    fn build_vm(
-        witness: &WitnessMap,
+    /// Constructs a solver for a Brillig block given the bytecode and initial
+    /// witness.
+    pub(super) fn new(
+        initial_witness: &mut WitnessMap,
         brillig: &Brillig,
         bb_solver: &'b B,
-    ) -> Result<VM<'b, B>, OpcodeResolutionError> {
+        acir_index: usize,
+    ) -> Result<Self, OpcodeResolutionError> {
         // Set input values
         let mut input_register_values: Vec<Value> = Vec::new();
         let mut input_memory: Vec<Value> = Vec::new();
@@ -90,7 +76,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         // If a certain expression is not solvable, we stall the ACVM and do not proceed with Brillig VM execution.
         for input in &brillig.inputs {
             match input {
-                BrilligInputs::Single(expr) => match get_value(expr, witness) {
+                BrilligInputs::Single(expr) => match get_value(expr, initial_witness) {
                     Ok(value) => input_register_values.push(value.into()),
                     Err(_) => {
                         return Err(OpcodeResolutionError::OpcodeNotSolvable(
@@ -102,7 +88,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                     // Attempt to fetch all array input values
                     let memory_pointer = input_memory.len();
                     for expr in expr_arr.iter() {
-                        match get_value(expr, witness) {
+                        match get_value(expr, initial_witness) {
                             Ok(value) => input_memory.push(value.into()),
                             Err(_) => {
                                 return Err(OpcodeResolutionError::OpcodeNotSolvable(
@@ -121,13 +107,14 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         // Instantiate a Brillig VM given the solved input registers and memory
         // along with the Brillig bytecode, and any present foreign call results.
         let input_registers = Registers::load(input_register_values);
-        Ok(VM::new(
+        let vm = VM::new(
             input_registers,
             input_memory,
             brillig.bytecode.clone(),
             brillig.foreign_call_results.clone(),
             bb_solver,
-        ))
+        );
+        Ok(Self { vm, acir_index })
     }
 
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
