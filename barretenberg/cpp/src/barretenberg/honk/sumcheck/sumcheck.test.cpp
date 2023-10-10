@@ -143,6 +143,16 @@ TEST_F(SumcheckTests, PolynomialNormalization)
                               l_6 * full_polynomials[i][6] + l_7 * full_polynomials[i][7];
         EXPECT_EQ(hand_computed_value, sumcheck.partially_evaluated_polynomials[i][0]);
     }
+
+    // We can also check the correctness of the multilinear evaluations produced by Sumcheck by directly evaluating the
+    // full polynomials at challenge u via the evaluate_mle() function
+    std::vector<FF> u_challenge = { u_0, u_1, u_2 };
+    for (size_t i = 0; i < NUM_POLYNOMIALS; i++) {
+        barretenberg::Polynomial<FF> poly(full_polynomials[i]);
+        auto v_expected = poly.evaluate_mle(u_challenge);
+        auto v_result = output.claimed_evaluations[i];
+        EXPECT_EQ(v_expected, v_result);
+    }
 }
 
 TEST_F(SumcheckTests, Prover)

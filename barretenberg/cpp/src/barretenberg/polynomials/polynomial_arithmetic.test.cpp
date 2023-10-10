@@ -1095,6 +1095,43 @@ TYPED_TEST(PolynomialTests, evaluate_mle)
     test_case(2);
 }
 
+/**
+ * @brief Test the function for partially evaluating MLE polynomials
+ *
+ */
+TYPED_TEST(PolynomialTests, partial_evaluate_mle)
+{
+    // Initialize a random polynomial
+    using FF = TypeParam;
+    size_t N = 32;
+    Polynomial<FF> poly(N);
+    for (auto& coeff : poly) {
+        coeff = FF::random_element();
+    }
+
+    // Define a random multivariate evaluation point u = (u_0, u_1, u_2, u_3, u_4)
+    auto u_0 = FF::random_element();
+    auto u_1 = FF::random_element();
+    auto u_2 = FF::random_element();
+    auto u_3 = FF::random_element();
+    auto u_4 = FF::random_element();
+    std::vector<FF> u_challenge = { u_0, u_1, u_2, u_3, u_4 };
+
+    // Show that directly computing v = p(u_0,...,u_4) yields the same result as first computing the partial evaluation
+    // in the last 3 variables g(X_0,X_1) = p(X_0,X_1,u_2,u_3,u_4), then v = g(u_0,u_1)
+
+    // Compute v = p(u_0,...,u_4)
+    auto v_expected = poly.evaluate_mle(u_challenge);
+
+    // Compute g(X_0,X_1) = p(X_0,X_1,u_2,u_3,u_4), then v = g(u_0,u_1)
+    std::vector<FF> u_part_1 = { u_0, u_1 };
+    std::vector<FF> u_part_2 = { u_2, u_3, u_4 };
+    auto partial_evaluated_poly = poly.partial_evaluate_mle(u_part_2);
+    auto v_result = partial_evaluated_poly.evaluate_mle(u_part_1);
+
+    EXPECT_EQ(v_result, v_expected);
+}
+
 TYPED_TEST(PolynomialTests, factor_roots)
 {
     using FF = TypeParam;
