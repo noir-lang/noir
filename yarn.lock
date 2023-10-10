@@ -1020,6 +1020,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
+    "@noir-lang/noirc_abi": "workspace:*"
     "@types/prettier": ^3
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0

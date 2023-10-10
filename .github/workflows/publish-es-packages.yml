@@ -2,13 +2,24 @@ name: Publish Noir ES Packages
 
 on:
   workflow_dispatch:
-    
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: false
+      nightly:
+        description: Indicates this is a nightly release
+        required: false
+        type: boolean
+        default: true
+
 jobs:
   build-noir_wasm:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -26,6 +37,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -43,6 +56,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -61,6 +76,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -75,8 +92,14 @@ jobs:
       - name: Build ES Packages
         run: yarn prepare:publish
 
+      - name: Prepare nightly version
+        if: ${{ inputs.nightly }}
+        run: |
+          sudo apt-get install jq
+          yarn nightly:version
+
       - name: Authenticate with npm
         run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
-        
+
       - name: Publish ES Packages
-        run: yarn publish:all --access public
+        run: yarn publish:all --access public ${{ inputs.nightly && ' --tag nightly' }}

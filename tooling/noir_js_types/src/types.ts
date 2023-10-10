@@ -1,3 +1,5 @@
+import { Abi } from '@noir-lang/noirc_abi';
+
 export interface Backend {
   // Generate an outer proof. This is the proof for the circuit which will verify
   // inner proofs and or can be seen as the proof created for regular circuits.
@@ -19,5 +21,5 @@ export type ProofData = {
 
 export type CompiledCircuit = {
   bytecode: string;
-  abi: object;
+  abi: Abi;
 };

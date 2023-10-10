@@ -115,11 +115,15 @@ pub fn report_all<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
+    silence_warnings: bool,
 ) -> ReportedErrors {
     // Report warnings before any errors
-    let (mut diagnostics, mut errors): (Vec<_>, _) =
+    let (warnings, mut errors): (Vec<_>, _) =
         diagnostics.iter().partition(|item| item.diagnostic.is_warning());
+
+    let mut diagnostics = if silence_warnings { Vec::new() } else { warnings };
     diagnostics.append(&mut errors);
+
     let error_count =
         diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
 
