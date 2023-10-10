@@ -159,16 +159,6 @@
         doCheck = false;
       });
 
-      # this will be nicer once Configurable Derivations exist
-      # https://github.com/NixOS/nix/pull/6583
-      noir_wasm_aztec = noir_wasm.overrideAttrs (finalAttrs: prevAttrs: {
-        name = "noir_wasm_aztec";
-        features = "noirc_frontend/aztec";
-        # build metadata is ignored by npm
-        # to ensure aztec and non-aztec builds don't get mixed up, use a pre-release tag
-        SEMVER_PRE_RELEASE = "aztec";
-      });
-
       noirc_abi_wasm = craneLib.buildPackage (wasmConfig // rec {
         pname = "noirc_abi_wasm";
 
@@ -249,7 +239,6 @@
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
         inherit noir_wasm;
-        inherit noir_wasm_aztec;
         inherit noirc_abi_wasm;
         inherit acvm_js;
 
