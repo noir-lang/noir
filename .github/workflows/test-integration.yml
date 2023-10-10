@@ -75,7 +75,7 @@ jobs:
 
       - name: Setup `integration-tests`
         run: |
-          yarn install:from:nix"
+          yarn install:from:nix
 
       - name: Run `integration-tests`
         run: |
