@@ -1,5 +1,5 @@
 [package]
-name = "slices_mutable_return_error"
+name = "field_attribute"
 type = "bin"
 authors = [""]
 compiler_version = "0.1"
