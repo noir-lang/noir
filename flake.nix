@@ -139,14 +139,12 @@
         doCheck = false;
       });
 
-      noir_wasm = craneLib.buildPackage (wasmConfig // rec {
+      noir_wasm = craneLib.buildPackage (wasmConfig // {
         pname = "noir_wasm";
 
         inherit GIT_COMMIT GIT_DIRTY;
 
         cargoArtifacts = noir-wasm-cargo-artifacts;
-
-        cargoExtraArgs = "--package ${pname} --target wasm32-unknown-unknown";
 
         buildPhaseCargoCommand = ''
           bash compiler/wasm/buildPhaseCargoCommand.sh release

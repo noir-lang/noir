@@ -23,4 +23,4 @@ jobs:
         with:
           workflow: publish-es-packages.yml
           token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: "{ \"noir-ref\": \"${{ env.GITHUB_REF }}\", \"nightly\": true }"
+          inputs: "{ \"noir-ref\": \"${{ env.GITHUB_REF }}\", \"npm-tag\": \"nightly\" }"
