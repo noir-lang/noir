@@ -1,5 +1,5 @@
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { Noir } from '../../src/program.js';
+import { Noir } from '@noir-lang/noir_js';
 import { CompiledCircuit } from '@noir-lang/types';
 import { expect } from 'chai';
 
