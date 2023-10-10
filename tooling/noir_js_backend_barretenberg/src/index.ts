@@ -22,7 +22,7 @@ export class BarretenbergBackend implements Backend {
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
-  private async instantiate(): Promise<void> {
+  async instantiate(): Promise<void> {
     if (!this.api) {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
