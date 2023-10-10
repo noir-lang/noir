@@ -899,50 +899,99 @@ impl Context {
         // let acir_val = self.convert_value(results[0], dfg);
         // dbg!(self.flattened_slice_size(results[0], dfg));
         // dbg!(res_typ.contains_slice_element());
-
+        dbg!(array_id);
+        dbg!(results[0]);
+        dbg!(self.array_max_slice_sizes.clone());
         let value = if !array_typ.contains_slice_element() {
-            if block_id.0 == 21 {
-                dbg!("ABOUT TO READ 21");
-                dbg!(array_id);
-                dbg!(results[0]);
-                dbg!(res_typ.clone());
-            }
+            // if block_id.0 == 21 {
+            //     dbg!("ABOUT TO READ 21");
+            //     dbg!(array_id);
+            //     dbg!(results[0]);
+            //     dbg!(res_typ.clone());
+            // }
             self.array_get_value(&res_typ, block_id, &mut var_index)?
         } else {
-            if block_id.0 == 21 {
-                dbg!("ABOUT TO READ 21");
-                dbg!(array_id);
-                dbg!(results[0]);
-                dbg!(res_typ.clone());
-                // dbg!(array_typ.clone());
-                let array = &dfg[array_id];
-                dbg!(array.clone());
-                match array {
-                    Value::Array { array, .. } => {
-                        for value in array {
-                            // dbg!(&dfg[*value]);
-                        }
-                    }
-                    _ => {
-                        dbg!("GOT not array");
-                    }
-                }
-            }
+            // if block_id.0 == 21 {
+            //     dbg!("ABOUT TO READ 21");
+            //     dbg!(array_id);
+            //     dbg!(results[0]);
+            //     dbg!(res_typ.clone());
+            // }
             let full_flat_size = self.flattened_slice_size(array_id, dfg);
             // dbg!(full_flat_size);
             // dbg!(self.array_max_slice_sizes.clone());
             // dbg!(array_id);
             // TODO: fix this so we have the smaller slice size
-            // let slice_size = *self.array_max_slice_sizes.get(&array_id).expect("ICE: should have a max slice size");
-            self.array_get_value_with_slices(&res_typ, block_id, &mut var_index, 32, 76)?
+            let slice_size = *self.array_max_slice_sizes.get(&array_id).expect("ICE: should have a max slice size");
+            dbg!(slice_size);
+            self.array_get_value_with_slices(&res_typ, block_id, &mut var_index, slice_size, full_flat_size)?
         };
+
+        if res_typ.contains_slice_element() {
+            dbg!("GOT INTO res_typ.contains_slice_element()");
+            let mut inner_slice_vals = Vec::new();
+            match &dfg[array_id] {
+                Value::Array { array, .. } => {
+                    for value in array {
+                        let typ = dfg.type_of_value(*value);
+                        // dbg!(typ.clone());
+                        // dbg!(value);
+                        match typ {
+                            Type::Slice(_) => {
+                                inner_slice_vals.push(value);
+                            }
+                            _ => {}
+                        }
+                    }
+                }   
+                _ => {
+                    panic!("handle acir value structures");
+                }
+            }
+            let mut inner_slice_len = 0;
+            dbg!(inner_slice_vals.clone());
+            for val in inner_slice_vals {
+                match &dfg[array_id] {
+                    Value::Array { array, .. } => {
+                        for value in array {
+                            let val_typ = dfg.type_of_value(*value);
+                            match val_typ {
+                                Type::Slice(_) => {
+                                    dbg!(value);
+                                    let slice_size = *self.array_max_slice_sizes.get(value).expect("ICE: should have a max slice size");
+                                    if slice_size > inner_slice_len {
+                                        inner_slice_len = slice_size;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            // let slice_size = *self.array_max_slice_sizes.get(value).expect("ICE: should have a max slice size");
+                            // if slice_size > inner_slice_len {
+                            //     inner_slice_len = slice_size;
+                            // }
+                            // let slice_size = self.flattened_slice_size(*value, dfg);
+                            // dbg!(slice_size);
+                            // if let Some(size) = self.array_max_slice_sizes.get(&array_id) {
+                            //     if *size < slice_size {
+                            //         self.array_max_slice_sizes.insert(array_id, slice_size); 
+                            //     }
+                            // } else {
+                            //     self.array_max_slice_sizes.insert(array_id, slice_size);
+                            // }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            dbg!(inner_slice_len);
+            self.array_max_slice_sizes.insert(results[0], inner_slice_len);
+        }
 
         // if res_typ.contains_slice_element() {
         //     // dbg!("RES TYP HAS SLICE ELEM");
-
         //     let results = dfg.instruction_results(instruction);
         //     let slice_size = *self.array_max_slice_sizes.get(&array_id).expect("ICE: expected max slice size");
-        //     self.array_max_slice_sizes.insert(results[0], slice_size);
+            // self.array_max_slice_sizes.insert(results[0], slice_size);
         // }
 
         self.define_result(dfg, instruction, value.clone());
@@ -1019,13 +1068,10 @@ impl Context {
     //             let zero = self.acir_context.add_constant(FieldElement::zero());
     //             let false_pred = self.acir_context.mul_var(not_pred, zero)?;
     //             *var_index = self.acir_context.add_var(true_pred, false_pred)?;
-
     //             // Read the value from the array at the specified index
     //             let read = self.acir_context.read_from_memory(block_id, var_index)?;
-
     //             // Incremement the var_index in case of a nested array
     //             *var_index = self.acir_context.add_var(*var_index, one)?;
-
     //             let typ = AcirType::NumericType(numeric_type);
     //             Ok(AcirValue::Var(read, typ))
     //         }
@@ -1043,7 +1089,6 @@ impl Context {
     //             let value_size = self.slice_sizes.get(&value);
     //             let value_size = value_size.expect("ICE: expect value size");
     //             for _ in 0..value_size {
-
     //             }
     //         }
     //     }
@@ -1101,12 +1146,12 @@ impl Context {
             Type::Slice(element_types) => {
                 let mut values = Vector::new();
                 for _ in 0..value_size {
-                    // values.push_back(self.array_get_value_with_slices(typ, block_id, var_index, value_size, full_flat_size)?);
+                    values.push_back(self.array_get_value_with_slices(&Type::field(), block_id, var_index, value_size, full_flat_size)?);
                     // It is not enough to do this and simply pass the size from the definition,
                     // I need the internal size in case of a nested slice
                     // We should not use the element types for slices as we already have a flattened structure
                     // in the values
-                    for typ in element_types.as_ref() {
+                    // for typ in element_types.as_ref() {
                         // dbg!(typ.clone());
                         // match typ {
                         //     Type::Slice(_) => {
@@ -1117,8 +1162,8 @@ impl Context {
                         //     _ => {} 
                         // }
                         // TODO: how are we supposed to get an internal value size 
-                        values.push_back(self.array_get_value_with_slices(typ, block_id, var_index, value_size, full_flat_size)?);
-                    }
+                        // values.push_back(self.array_get_value_with_slices(typ, block_id, var_index, value_size, full_flat_size)?);
+                    // }
                 }
                 Ok(AcirValue::Array(values))
             }
@@ -1213,16 +1258,6 @@ impl Context {
             self.array_set_value_with_slices(store_value, result_block_id, &mut var_index, 76)?;
         }
         let results = dfg.instruction_results(instruction);
-        // if array_len == 1326 {
-        //     dbg!(array_id);
-        //     dbg!(array_typ.clone());
-        //     dbg!(results[0]);
-        //     dbg!("GOT 1326");
-        // }
-        if block_id.0 == 21 {
-            dbg!(array_len);
-            dbg!("ABOUT TO SET 24");
-        }
         let new_elem_type_sizes = self.init_element_type_sizes_array(&array_typ, array_id, dfg)?;
         // let new_elem_type_sizes = self.internal_block_id(&array_id);
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
@@ -1409,6 +1444,8 @@ impl Context {
         Ok((array_id, array_typ, block_id))
     }
 
+    // I think this was a dumb idea I need flat length for each slice
+    // But I need all of them to match the structure in SSA
     fn compute_slice_sizes(
         &mut self,
         array_id: ValueId,
@@ -1436,6 +1473,55 @@ impl Context {
         }
     }
 
+    fn compute_inner_sizes(
+        &mut self,
+        array_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) {
+        let typ = dfg.type_of_value(array_id);
+        dbg!(array_id);
+        // match typ {
+        //     Type::Slice(_) => {
+        //         let slice_size = self.flattened_slice_size(array_id, dfg);
+        //         // dbg!(slice_size);
+        //         if let Some(size) = self.array_max_slice_sizes.get(&array_id) {
+        //             if *size < slice_size {
+        //                 self.array_max_slice_sizes.insert(array_id, slice_size); 
+        //             }
+        //         } else {
+        //             self.array_max_slice_sizes.insert(array_id, slice_size);
+        //         }
+        //     }
+        //     _ => {}
+        // }
+        match &dfg[array_id] {
+            Value::Array { array, .. } => {
+                // dbg!(array.len());
+                for (i, value) in array.iter().enumerate() {
+                    let typ = dfg.type_of_value(*value);
+                    // dbg!(typ.clone());
+                    match typ {
+                        Type::Slice(_) => {
+                            // dbg!(value);
+                            let slice_size = self.flattened_slice_size(*value, dfg);
+                            // dbg!(slice_size);
+                            if let Some(size) = self.array_max_slice_sizes.get(&array_id) {
+                                if *size < slice_size {
+                                    self.array_max_slice_sizes.insert(array_id, slice_size); 
+                                }
+                            } else {
+                                self.array_max_slice_sizes.insert(array_id, slice_size);
+                            }
+                        }
+                        _ => ()
+                    }
+                    self.compute_inner_sizes(*value, dfg);
+                }
+            }
+            _ => (),
+        }
+    }
+
     fn init_element_type_sizes_array(
         &mut self,
         array_typ: &Type,
@@ -1450,10 +1536,6 @@ impl Context {
             return Ok(element_type_sizes);
         }
 
-        // if element_type_sizes.0 == 25 {
-        //     dbg!(&dfg[array_id]);
-        // }
-
         let mut flat_elem_type_sizes = Vec::new();
         flat_elem_type_sizes.push(0);
         match array_typ {
@@ -1465,35 +1547,37 @@ impl Context {
                     // TODO: might have to do the full flat element types array and not reconstruct
                     // the offset when looking for the type size
                     Value::Array { array, .. } => {
-                        self.compute_slice_sizes(array_id, dfg);
+                        // self.compute_slice_sizes(array_id, dfg);
+                        self.compute_inner_sizes(array_id, dfg);
                         // self.slice_sizes.insert(array_id, array.len());
                         for (i, value) in array.iter().enumerate() {
                             // TODO: need to check this value recursively
-                            let value_typ = dfg.type_of_value(*value);
-                            match value_typ {
-                                Type::Slice(_) => {
-                                    dbg!(array_id);
-                                    dbg!(array.len());
-                                    let slice_size = self.flattened_slice_size(*value, dfg);
-                                    if let Some(size) = self.array_max_slice_sizes.get(&array_id) {
-                                        if *size < slice_size {
-                                            if slice_size > 200 {
-                                                dbg!("GOT BIG SLIZE SIZE");
-                                                dbg!(slice_size);
-                                                dbg!(size);
-                                            }
-                                            self.array_max_slice_sizes.insert(array_id, slice_size); 
-                                        }
-                                    } else {
-                                        if slice_size > 200 {
-                                            dbg!("GOT BIG SLIZE SIZE");
-                                            dbg!(slice_size);
-                                        }
-                                        self.array_max_slice_sizes.insert(array_id, slice_size);
-                                    }
-                                }
-                                _ => {}
-                            }
+                            // let value_typ = dfg.type_of_value(*value);
+                            // match value_typ {
+                            //     Type::Slice(_) => {
+                            //         dbg!(array_id);
+                            //         dbg!(array.len());
+                            //         let slice_size = self.flattened_slice_size(*value, dfg);
+                            //         if let Some(size) = self.array_max_slice_sizes.get(&array_id) {
+                            //             if *size < slice_size {
+                            //                 if slice_size > 200 {
+                            //                     dbg!("GOT BIG SLIZE SIZE");
+                            //                     dbg!(slice_size);
+                            //                     dbg!(size);
+                            //                 }
+                            //                 self.array_max_slice_sizes.insert(array_id, slice_size); 
+                            //             }
+                            //         } else {
+                            //             if slice_size > 200 {
+                            //                 dbg!("GOT BIG SLIZE SIZE");
+                            //                 dbg!(slice_size);
+                            //             }
+                            //             self.array_max_slice_sizes.insert(array_id, slice_size);
+                            //         }
+                            //     }
+                            //     _ => {}
+                            // }
+                            
                             flat_elem_type_sizes.push(
                                 self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
                             );
@@ -1509,9 +1593,6 @@ impl Context {
                                 len,
                                 ..
                             }) => {
-                                if element_type_sizes.0 == 25 {
-                                    dbg!(len);
-                                }
                                 if self.initialized_arrays.contains(&inner_elem_type_sizes) {
                                     let type_sizes_array_len = if let Some(len) = self.internal_mem_block_lengths.get(&inner_elem_type_sizes) {
                                         *len
@@ -1538,9 +1619,9 @@ impl Context {
                                 }
                             }
                             AcirValue::Array(values) => {
-                                if element_type_sizes.0 == 25 {
-                                    dbg!(values.len());
-                                }
+                                // TODO: this alone gives an invalid type elem
+                                // structure when we return a flattened AcirValue
+                                // for any slice type as we then have a mismatch with the SSA array get indices
                                 for (i, value) in values.iter().enumerate() {
                                     flat_elem_type_sizes.push(
                                         Self::flattened_value_size(value)

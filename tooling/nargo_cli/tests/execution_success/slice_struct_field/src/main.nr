@@ -85,11 +85,11 @@ fn main(y : pub Field) {
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
 
-    if y != 2 {
-        foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
-    } else {
-        foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
-    }
+    // if y != 2 {
+    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    // } else {
+    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
+    // }
     // foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
     // dep::std::println(foo_parents[y - 2].foos[y - 3].a);
     // dep::std::println(foo_parents[y - 2].foos[y - 2].a);
