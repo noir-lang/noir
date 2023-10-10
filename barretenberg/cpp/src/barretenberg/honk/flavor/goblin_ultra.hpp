@@ -288,8 +288,6 @@ class GoblinUltra {
 
         size_t num_ecc_op_gates; // needed to determine public input offset
 
-        std::shared_ptr<ECCOpQueue> op_queue;
-
         // The plookup wires that store plookup read data.
         std::array<PolynomialHandle, 3> get_table_column_wires() { return { w_l, w_r, w_o }; };
     };

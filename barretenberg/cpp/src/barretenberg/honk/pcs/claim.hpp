@@ -20,6 +20,20 @@ template <typename Curve> class OpeningPair {
 };
 
 /**
+ * @brief Polynomial p and an opening pair (r,v) such that p(r) = v
+ *
+ * @tparam Params for the given commitment scheme
+ */
+template <typename Curve> class ProverOpeningClaim {
+    using Fr = typename Curve::ScalarField;
+    using Polynomial = barretenberg::Polynomial<Fr>;
+
+  public:
+    Polynomial polynomial;           // p
+    OpeningPair<Curve> opening_pair; // (challenge r, evaluation v = p(r))
+};
+
+/**
  * @brief Unverified claim (C,r,v) for some witness polynomial p(X) such that
  *  - C = Commit(p(X))
  *  - p(r) = v

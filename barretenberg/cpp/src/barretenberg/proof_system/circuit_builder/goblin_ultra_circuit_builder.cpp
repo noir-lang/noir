@@ -10,9 +10,6 @@ namespace proof_system {
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 {
     UltraCircuitBuilder_<FF>::finalize_circuit();
-
-    // Set internally the current and previous size of the aggregate op queue transcript
-    op_queue->set_size_data();
 }
 
 /**

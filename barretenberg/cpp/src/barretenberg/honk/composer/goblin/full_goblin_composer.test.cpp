@@ -101,13 +101,56 @@ class FullGoblinComposerTests : public ::testing::Test {
         // Store the commitment data for use by the prover of the next circuit
         op_queue->set_commitment_data(op_queue_commitments);
     }
+
+    /**
+     * @brief Construct and a verify a Honk proof
+     *
+     */
+    bool construct_and_verify_honk_proof(auto& composer, auto& builder)
+    {
+        auto instance = composer.create_instance(builder);
+        auto prover = composer.create_prover(instance);
+        auto verifier = composer.create_verifier(instance);
+        auto proof = prover.construct_proof();
+        bool verified = verifier.verify_proof(proof);
+
+        return verified;
+    }
+
+    /**
+     * @brief Construct and verify a Goblin ECC op queue merge proof
+     *
+     */
+    bool construct_and_verify_merge_proof(auto& composer, auto& op_queue)
+    {
+        auto merge_prover = composer.create_merge_prover(op_queue);
+        auto merge_verifier = composer.create_merge_verifier(10);
+        auto merge_proof = merge_prover.construct_proof();
+        bool verified = merge_verifier.verify_proof(merge_proof);
+
+        return verified;
+    }
+
+    /**
+     * @brief Construct and verify a Goblin ECC op queue merge proof
+     *
+     */
+    bool construct_and_verify_eccvm_proof(auto& composer, auto& builder)
+    {
+        auto prover = composer.create_prover(builder);
+        auto proof = prover.construct_proof();
+        auto verifier = composer.create_verifier(builder);
+        bool verified = verifier.verify_proof(proof);
+
+        return verified;
+    }
 };
 
 /**
  * @brief Test proof construction/verification for a circuit with ECC op gates, public inputs, and basic arithmetic
  * gates
  * @note We simulate op queue interactions with a previous circuit so the actual circuit under test utilizes an op queue
- * with non-empty 'previous' data. This avoid complications with zero-commitments etc.
+ * with non-empty 'previous' data. This avoids complications with zero-commitments etc.
  *
  */
 TEST_F(FullGoblinComposerTests, SimpleCircuit)
@@ -124,13 +167,16 @@ TEST_F(FullGoblinComposerTests, SimpleCircuit)
 
         generate_test_circuit(builder);
 
+        // The same composer is used to manage Honk and Merge prover/verifier
         auto composer = GoblinUltraComposer();
-        auto instance = composer.create_instance(builder);
-        auto prover = composer.create_prover(instance);
-        auto verifier = composer.create_verifier(instance);
-        auto proof = prover.construct_proof();
-        bool verified = verifier.verify_proof(proof);
-        EXPECT_EQ(verified, true);
+
+        // Construct and verify Ultra Goblin Honk proof
+        auto honk_verified = construct_and_verify_honk_proof(composer, builder);
+        EXPECT_TRUE(honk_verified);
+
+        // Construct and verify op queue merge proof
+        auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
+        EXPECT_TRUE(merge_verified);
     }
 
     // Construct an ECCVM circuit then generate and verify its proof
@@ -138,15 +184,10 @@ TEST_F(FullGoblinComposerTests, SimpleCircuit)
         // Instantiate an ECCVM builder with the vm ops stored in the op queue
         auto builder = ECCVMBuilder(op_queue->raw_ops);
 
-        // // Can fiddle with one of the operands to trigger a failure
-        // builder.vm_operations[0].z1 *= 2;
-
+        // Construct and verify ECCVM proof
         auto composer = ECCVMComposer();
-        auto prover = composer.create_prover(builder);
-        auto proof = prover.construct_proof();
-        auto verifier = composer.create_verifier(builder);
-        bool verified = verifier.verify_proof(proof);
-        ASSERT_TRUE(verified);
+        auto eccvm_verified = construct_and_verify_eccvm_proof(composer, builder);
+        EXPECT_TRUE(eccvm_verified);
     }
 }
 
@@ -168,13 +209,16 @@ TEST_F(FullGoblinComposerTests, SimpleCircuitFailureCase)
 
         generate_test_circuit(builder);
 
+        // The same composer is used to manage Honk and Merge prover/verifier
         auto composer = GoblinUltraComposer();
-        auto instance = composer.create_instance(builder);
-        auto prover = composer.create_prover(instance);
-        auto verifier = composer.create_verifier(instance);
-        auto proof = prover.construct_proof();
-        bool verified = verifier.verify_proof(proof);
-        EXPECT_EQ(verified, true);
+
+        // Construct and verify Ultra Goblin Honk proof
+        auto honk_verified = construct_and_verify_honk_proof(composer, builder);
+        EXPECT_TRUE(honk_verified);
+
+        // Construct and verify op queue merge proof
+        auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
+        EXPECT_TRUE(merge_verified);
     }
 
     // Construct an ECCVM circuit then generate and verify its proof
@@ -185,12 +229,10 @@ TEST_F(FullGoblinComposerTests, SimpleCircuitFailureCase)
         // Fiddle with one of the operands to trigger a failure
         builder.vm_operations[0].z1 += 1;
 
+        // Construct and verify ECCVM proof
         auto composer = ECCVMComposer();
-        auto prover = composer.create_prover(builder);
-        auto proof = prover.construct_proof();
-        auto verifier = composer.create_verifier(builder);
-        bool verified = verifier.verify_proof(proof);
-        EXPECT_EQ(verified, false);
+        auto eccvm_verified = construct_and_verify_eccvm_proof(composer, builder);
+        EXPECT_FALSE(eccvm_verified);
     }
 }
 

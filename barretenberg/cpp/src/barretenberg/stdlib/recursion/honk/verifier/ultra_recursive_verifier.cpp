@@ -30,7 +30,6 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationParams = ::proof_system::RelationParameters<FF>;
-    using UnivariateClaim = ::proof_system::honk::pcs::OpeningClaim<Curve>;
 
     RelationParams relation_parameters;
 
@@ -183,56 +182,6 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
          builder->get_num_gates(),
          ")");
     prev_num_gates = builder->get_num_gates();
-
-    // Perform ECC op queue transcript aggregation protocol
-    if constexpr (IsGoblinFlavor<Flavor>) {
-        // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
-        std::array<Commitment, Flavor::NUM_WIRES> prev_agg_op_queue_commitments;
-        std::array<Commitment, Flavor::NUM_WIRES> shifted_op_wire_commitments;
-        std::array<Commitment, Flavor::NUM_WIRES> agg_op_queue_commitments;
-        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            std::string suffix = std::to_string(idx + 1);
-            prev_agg_op_queue_commitments[idx] =
-                transcript.template receive_from_prover<Commitment>("PREV_AGG_OP_QUEUE_" + suffix);
-            shifted_op_wire_commitments[idx] =
-                transcript.template receive_from_prover<Commitment>("SHIFTED_OP_WIRE_" + suffix);
-            agg_op_queue_commitments[idx] =
-                transcript.template receive_from_prover<Commitment>("AGG_OP_QUEUE_" + suffix);
-        }
-
-        // Receive claimed evaluations of t_i^{shift}, T_{i-1}, and T_i
-        FF kappa = transcript.get_challenge("kappa");
-        std::array<FF, Flavor::NUM_WIRES> prev_agg_op_queue_evals;
-        std::array<FF, Flavor::NUM_WIRES> shifted_op_wire_evals;
-        std::array<FF, Flavor::NUM_WIRES> agg_op_queue_evals;
-        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            std::string suffix = std::to_string(idx + 1);
-            prev_agg_op_queue_evals[idx] =
-                transcript.template receive_from_prover<FF>("prev_agg_op_queue_eval_" + suffix);
-            shifted_op_wire_evals[idx] = transcript.template receive_from_prover<FF>("op_wire_eval_" + suffix);
-            agg_op_queue_evals[idx] = transcript.template receive_from_prover<FF>("agg_op_queue_eval_" + suffix);
-
-            ASSERT(agg_op_queue_evals[idx].get_value() ==
-                   prev_agg_op_queue_evals[idx].get_value() + shifted_op_wire_evals[idx].get_value());
-
-            // Check the identity T_i(\kappa) = T_{i-1}(\kappa) + t_i^{shift}(\kappa).
-            agg_op_queue_evals[idx].assert_equal(prev_agg_op_queue_evals[idx] + shifted_op_wire_evals[idx]);
-        }
-
-        // Add corresponding univariate opening claims {(\kappa, p(\kappa), [p(X)]}
-        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            univariate_opening_claims.emplace_back(
-                UnivariateClaim{ { kappa, prev_agg_op_queue_evals[idx] }, prev_agg_op_queue_commitments[idx] });
-        }
-        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            univariate_opening_claims.emplace_back(
-                UnivariateClaim{ { kappa, shifted_op_wire_evals[idx] }, shifted_op_wire_commitments[idx] });
-        }
-        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            univariate_opening_claims.emplace_back(
-                UnivariateClaim{ { kappa, agg_op_queue_evals[idx] }, agg_op_queue_commitments[idx] });
-        }
-    }
 
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
     auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, univariate_opening_claims, transcript);
