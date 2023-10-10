@@ -13,15 +13,16 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 use crate::hir_def::traits::{Trait, TraitConstant, TraitFunction, TraitImpl, TraitType};
+use crate::lint::LintDiagnostic;
 use crate::node_interner::{
     FuncId, NodeInterner, StmtId, StructId, TraitId, TraitImplKey, TypeAliasId,
 };
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, Shared, StructType, TraitItem, Type, TypeBinding, TypeVariableKind,
-    UnresolvedGenerics, UnresolvedType,
+    lint, ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, Shared, StructType, TraitItem, Type, TypeBinding,
+    TypeVariableKind, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -128,6 +129,7 @@ pub enum CompilationError {
     DefinitionError(DefCollectorErrorKind),
     ResolveError(ResolverError),
     TypeError(TypeCheckError),
+    Linter(LintDiagnostic),
 }
 
 impl From<CompilationError> for CustomDiagnostic {
@@ -137,6 +139,7 @@ impl From<CompilationError> for CustomDiagnostic {
             CompilationError::DefinitionError(error) => error.into(),
             CompilationError::ResolveError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
+            CompilationError::Linter(error) => error.into(),
         }
     }
 }
@@ -161,6 +164,12 @@ impl From<ResolverError> for CompilationError {
 impl From<TypeCheckError> for CompilationError {
     fn from(value: TypeCheckError) -> Self {
         CompilationError::TypeError(value)
+    }
+}
+
+impl From<LintDiagnostic> for CompilationError {
+    fn from(value: LintDiagnostic) -> Self {
+        CompilationError::Linter(value)
     }
 }
 
@@ -344,9 +353,14 @@ impl DefCollector {
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
         // Type check all of the functions in the crate
-        errors.extend(type_check_functions(&mut context.def_interner, file_func_ids));
-        errors.extend(type_check_functions(&mut context.def_interner, file_method_ids));
-        errors.extend(type_check_functions(&mut context.def_interner, file_trait_impls_ids));
+        errors.extend(type_check_functions(&mut context.def_interner, &file_func_ids));
+        errors.extend(type_check_functions(&mut context.def_interner, &file_method_ids));
+        errors.extend(type_check_functions(&mut context.def_interner, &file_trait_impls_ids));
+
+        errors.extend(lint::functions(&context.def_interner, &file_func_ids));
+        errors.extend(lint::functions(&context.def_interner, &file_method_ids));
+        errors.extend(lint::functions(&context.def_interner, &file_trait_impls_ids));
+
         errors
     }
 }
@@ -700,7 +714,7 @@ fn type_check_globals(
 
 fn type_check_functions(
     interner: &mut NodeInterner,
-    file_func_ids: Vec<(FileId, FuncId)>,
+    file_func_ids: &[(FileId, FuncId)],
 ) -> Vec<(CompilationError, fm::FileId)> {
     file_func_ids
         .iter()

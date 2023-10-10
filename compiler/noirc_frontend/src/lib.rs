@@ -19,6 +19,7 @@ pub mod parser;
 
 pub mod hir;
 pub mod hir_def;
+mod lint;
 
 // Lexer API
 pub use lexer::token;
