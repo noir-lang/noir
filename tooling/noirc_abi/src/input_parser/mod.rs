@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::errors::InputParserError;
 use crate::{Abi, AbiType};
 
-mod json;
+pub mod json;
 mod toml;
 
 /// This is what all formats eventually transform into
