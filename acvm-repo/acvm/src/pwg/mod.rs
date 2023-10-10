@@ -299,9 +299,8 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
     fn solve_brillig_opcode(
         &mut self,
     ) -> Result<Option<ForeignCallWaitInfo>, OpcodeResolutionError> {
-        let brillig = match &self.opcodes[self.instruction_pointer] {
-            Opcode::Brillig(brillig) => brillig,
-            _ => unreachable!("Not executing a Brillig opcode"),
+        let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
+            unreachable!("Not executing a Brillig opcode");
         };
         let witness = &mut self.witness_map;
         if BrilligSolver::<B>::should_skip(witness, brillig)? {
