@@ -9,6 +9,7 @@ use std::process::Command;
 use assert_fs::prelude::{FileWriteStr, PathAssert, PathChild};
 
 #[test]
+#[serial_test::serial(bbjs)]
 fn hello_world_example() {
     let test_dir = assert_fs::TempDir::new().unwrap();
     std::env::set_current_dir(&test_dir).unwrap();

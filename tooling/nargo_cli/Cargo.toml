@@ -74,6 +74,7 @@ pprof = { version = "0.12", features = [
 ] }
 iai = "0.1.1"
 test-binary = "3.0.1"
+serial_test = "2.0.0"
 
 [[bench]]
 name = "criterion"

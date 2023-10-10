@@ -8,6 +8,7 @@ use std::process::Command;
 use assert_fs::prelude::{PathAssert, PathChild};
 
 #[test]
+#[serial_test::serial(bbjs)]
 fn simple_verifier_codegen() {
     let test_dir = assert_fs::TempDir::new().unwrap();
     std::env::set_current_dir(&test_dir).unwrap();
