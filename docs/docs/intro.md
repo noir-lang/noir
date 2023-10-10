@@ -2,6 +2,7 @@
 slug: "/"
 id: "intro"
 title: What is Aztec?
+description: "Aztec introduces a privacy-centric zkRollup solution for Ethereum, enhancing confidentiality and scalability within the Ethereum ecosystem."
 ---
 
 # Aztec: Ethereum, encrypted
