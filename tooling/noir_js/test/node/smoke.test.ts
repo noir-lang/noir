@@ -10,7 +10,7 @@ it('generates witnesses successfully', async () => {
     x: '2',
     y: '3',
   };
-  expect(() => generateWitness(assert_lt_program, inputs)).to.not.throw;
+  expect(() => generateWitness(assert_lt_json, inputs)).to.not.throw;
 });
 
 it('string input and number input are the same', async () => {
@@ -22,8 +22,8 @@ it('string input and number input are the same', async () => {
     x: 2,
     y: 3,
   };
-  const solvedWitnessString = await generateWitness(assert_lt_program, inputsString);
-  const solvedWitnessNumber = await generateWitness(assert_lt_program, inputsNumber);
+  const solvedWitnessString = await generateWitness(assert_lt_json, inputsString);
+  const solvedWitnessNumber = await generateWitness(assert_lt_json, inputsNumber);
   expect(solvedWitnessString).to.deep.equal(solvedWitnessNumber);
 });
 
@@ -37,8 +37,8 @@ it('string input and number input are the same', async () => {
     y: 3,
   };
 
-  const solvedWitnessString = await generateWitness(assert_lt_program, inputsString);
-  const solvedWitnessNumber = await generateWitness(assert_lt_program, inputsNumber);
+  const solvedWitnessString = await generateWitness(assert_lt_json, inputsString);
+  const solvedWitnessNumber = await generateWitness(assert_lt_json, inputsNumber);
   expect(solvedWitnessString).to.deep.equal(solvedWitnessNumber);
 });
 
@@ -49,7 +49,7 @@ it('0x prefixed string input for inputs will throw', async () => {
   };
 
   try {
-    await generateWitness(assert_lt_program, inputsHexPrefix);
+    await generateWitness(assert_lt_json, inputsHexPrefix);
     expect.fail('Expected generatedWitness to throw, due to inputs being prefixed with 0x. Currently not supported');
   } catch (error) {
     // Successfully errored due to 0x not being supported. Update this test once/if we choose
@@ -65,7 +65,7 @@ describe('input validation', () => {
     };
 
     try {
-      await generateWitness(assert_lt_program, inputs);
+      await generateWitness(assert_lt_json, inputs);
       expect.fail('Expected generatedWitness to throw, due to x not being convertible to a uint64');
     } catch (error) {
       const knownError = error as Error;

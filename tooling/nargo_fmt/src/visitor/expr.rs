@@ -28,9 +28,6 @@ impl FmtVisitor<'_> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
-            ExpressionKind::Cast(cast) => {
-                format!("{} as {}", self.format_expr(cast.lhs), cast.r#type)
-            }
             ExpressionKind::Infix(infix) => {
                 format!(
                     "{} {} {}",

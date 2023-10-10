@@ -257,7 +257,7 @@ impl<'interner> TypeChecker<'interner> {
                     other => {
                         // TODO: Need a better span here
                         self.errors.push(TypeCheckError::TypeMismatch {
-                            expected_typ: "array".to_string(),
+                            expected_typ: "an array".to_string(),
                             expr_typ: other.to_string(),
                             expr_span: assign_span,
                         });
@@ -273,7 +273,6 @@ impl<'interner> TypeChecker<'interner> {
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
                 let expected_type = Type::MutableReference(Box::new(element_type.clone()));
-
                 self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
                     expr_typ: reference_type.to_string(),

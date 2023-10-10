@@ -42,16 +42,16 @@ impl UnusedMemoryOptimizer {
     ) -> (Circuit, Vec<usize>) {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
-        for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
+        for (idx, opcode) in self.circuit.opcodes.iter().enumerate() {
             match opcode {
                 Opcode::MemoryInit { block_id, .. }
-                    if self.unused_memory_initializations.contains(&block_id) =>
+                    if self.unused_memory_initializations.contains(block_id) =>
                 {
                     // Drop opcode
                 }
                 _ => {
                     new_order_list.push(order_list[idx]);
-                    optimized_opcodes.push(opcode);
+                    optimized_opcodes.push(opcode.clone());
                 }
             }
         }

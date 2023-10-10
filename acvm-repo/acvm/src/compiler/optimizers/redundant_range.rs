@@ -74,13 +74,13 @@ impl RangeOptimizer {
 
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
-        for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = match extract_range_opcode(&opcode) {
+        for (idx, opcode) in self.circuit.opcodes.iter().enumerate() {
+            let (witness, num_bits) = match extract_range_opcode(opcode) {
                 Some(range_opcode) => range_opcode,
                 None => {
                     // If its not the range opcode, add it to the opcode
                     // list and continue;
-                    optimized_opcodes.push(opcode);
+                    optimized_opcodes.push(opcode.clone());
                     new_order_list.push(order_list[idx]);
                     continue;
                 }
@@ -101,11 +101,18 @@ impl RangeOptimizer {
             if is_lowest_bit_size {
                 already_seen_witness.insert(witness);
                 new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode);
+                optimized_opcodes.push(opcode.clone());
             }
         }
 
-        (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
+        (
+            Circuit {
+                current_witness_index: self.circuit.current_witness_index,
+                opcodes: optimized_opcodes,
+                ..self.circuit
+            },
+            new_order_list,
+        )
     }
 }
 
