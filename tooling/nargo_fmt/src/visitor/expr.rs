@@ -103,11 +103,6 @@ impl FmtVisitor<'_> {
                 }
             }
             ExpressionKind::Variable(path) => path.to_string(),
-            ExpressionKind::Infix(infix_expr) => {
-                let lhs_str = self.format_expr(infix_expr.lhs);
-                let rhs_str = self.format_expr(infix_expr.rhs);
-                format!("{} {:?} {}", lhs_str, infix_expr.operator, rhs_str)
-            }
             ExpressionKind::Lambda(lambda) => {
                 let formatted_params = lambda.parameters.iter()
                     .map(|(pattern, unresolved_type)| {
