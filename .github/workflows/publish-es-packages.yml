@@ -87,7 +87,7 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
 
       - name: Install Yarn dependencies
-        run: yarn install
+        run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
 
       - name: Build ES Packages
         run: yarn prepare:publish
