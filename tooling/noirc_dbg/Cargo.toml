@@ -21,3 +21,6 @@ thiserror.workspace = true
 
 crossbeam = "0.8.2"
 dap = "0.4.1-alpha1"
+
+[features]
+dap = []

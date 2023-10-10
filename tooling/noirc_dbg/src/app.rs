@@ -8,9 +8,9 @@ use dap::types::{
 };
 use serde_json::Value;
 
-use crate::{compile, dap_server::Dap, error::DebuggingError, vm};
+use crate::{compile, dap_server::Dap, error::DebuggingError, vm, vm::VMType};
 
-use acvm::brillig_vm::VM;
+use acvm::brillig_vm::VMStatus;
 #[allow(deprecated)]
 use barretenberg_blackbox_solver::BarretenbergSolver;
 
@@ -39,7 +39,7 @@ impl UninitializedState {
         Self
     }
 
-    pub(crate) fn run(&mut self, server: &Dap) -> Result<Option<State>, DebuggingError> {
+    pub(crate) fn run(&mut self, server: &mut Dap) -> Result<Option<State>, DebuggingError> {
         let request = match server.read() {
             Some(req) => req,
             None => return Ok(None),
@@ -101,43 +101,6 @@ impl UninitializedState {
     }
 }
 
-#[allow(deprecated)]
-enum VMType {
-    Brillig(VM<'static, BarretenbergSolver>),
-    #[allow(dead_code)]
-    Acvm(VM<'static, BarretenbergSolver>),
-}
-
-impl VMType {
-    fn program_counter(&self) -> usize {
-        match self {
-            VMType::Brillig(vm) => vm.program_counter(),
-            _ => unimplemented!(),
-        }
-    }
-    fn process_opcode(&mut self) {
-        match self {
-            VMType::Brillig(vm) => vm.process_opcode(),
-            _ => unimplemented!(),
-        };
-    }
-    fn get_memory(&self) -> &Vec<acvm::acir::brillig::Value> {
-        match self {
-            VMType::Brillig(vm) => vm.get_memory(),
-            _ => unimplemented!(),
-        }
-    }
-    fn get_registers(&self) -> &Vec<acvm::acir::brillig::Value> {
-        match self {
-            VMType::Brillig(vm) => {
-                let registers = vm.get_registers();
-                &registers.inner
-            }
-            _ => unimplemented!(),
-        }
-    }
-}
-
 pub(crate) struct RunningState {
     breakpoints: Vec<Breakpoint>,
     running: bool,
@@ -186,7 +149,7 @@ impl RunningState {
         self.vm.program_counter()
     }
 
-    pub(crate) fn run(&mut self, server: &Dap) -> Result<Option<State>, DebuggingError> {
+    pub(crate) fn run(&mut self, server: &mut Dap) -> Result<Option<State>, DebuggingError> {
         if self.running {
             let current_instruction = self.get_current_instruction();
             if self.breakpoints.iter().any(|b| b.instruction == current_instruction) {
@@ -200,9 +163,30 @@ impl RunningState {
 
         match request.command {
             Command::Next(_) | Command::StepIn(_) | Command::StepOut(_) => {
-                self.vm.process_opcode();
-                server.write(Sendable::Response(request.ack()?));
-                self.stop(server, StoppedEventReason::Step)?;
+                match self.vm.process_opcode() {
+                    VMStatus::InProgress => {
+                        server.write(Sendable::Response(request.ack()?));
+                        self.stop(server, StoppedEventReason::Step)?;
+                    }
+                    // TODO: improve
+                    VMStatus::Finished => {
+                        server.write(Sendable::Response(Response {
+                            request_seq: request.seq,
+                            body: Some(ResponseBody::Terminate),
+                            success: true,
+                            message: None,
+                            error: None,
+                        }));
+                        return Ok(Some(State::Exit));
+                    }
+                    VMStatus::Failure { message, call_stack: _ } => {
+                        return Err(DebuggingError::CustomError(message));
+                    }
+                    _ => {
+                        server.write(Sendable::Response(request.ack()?));
+                        return Ok(Some(State::Exit));
+                    }
+                }
             }
             Command::Pause(_) => {
                 self.running = false;
@@ -211,9 +195,33 @@ impl RunningState {
             }
             Command::Continue(_) => {
                 self.running = true;
+                let seq = request.seq;
                 server.write(Sendable::Response(request.success(ResponseBody::Continue(
                     ContinueResponse { all_threads_continued: Some(true) },
                 ))));
+                loop {
+                    match self.vm.process_opcode() {
+                        VMStatus::InProgress | VMStatus::ForeignCallWait { .. } => {}
+                        VMStatus::Finished => {
+                            server.write(Sendable::Response(Response {
+                                request_seq: self.get_current_instruction() as i64 + seq,
+                                body: Some(ResponseBody::Terminate),
+                                success: true,
+                                message: None,
+                                error: None,
+                            }));
+                            return Ok(Some(State::Exit));
+                        }
+                        VMStatus::Failure { message, call_stack: _ } => {
+                            return Err(DebuggingError::CustomError(message));
+                        }
+                    }
+                    let current_instruction = self.get_current_instruction();
+                    if self.breakpoints.iter().any(|b| b.instruction == current_instruction) {
+                        self.stop(server, StoppedEventReason::Breakpoint)?;
+                        break;
+                    }
+                }
             }
             Command::Threads => {
                 server.write(Sendable::Response(request.success(ResponseBody::Threads(
@@ -274,7 +282,7 @@ impl RunningState {
             Command::SetBreakpoints(ref args) => {
                 self.clear_breakpoints();
                 if let Some(new_breakpoints) = &args.breakpoints {
-                    let breakpoints = new_breakpoints.iter().filter_map(|b| Breakpoint::new(b));
+                    let breakpoints = new_breakpoints.iter().filter_map(Breakpoint::new);
                     self.breakpoints.extend(breakpoints);
                 }
             }
@@ -302,8 +310,8 @@ impl App {
 
     pub(crate) fn run(&mut self) -> Result<(), DebuggingError> {
         let res = match self.state {
-            State::Uninitialized(ref mut s) => s.run(&self.server)?,
-            State::Running(ref mut s) => s.run(&self.server)?,
+            State::Uninitialized(ref mut s) => s.run(&mut self.server)?,
+            State::Running(ref mut s) => s.run(&mut self.server)?,
             State::Exit => return Ok(()),
         };
 
