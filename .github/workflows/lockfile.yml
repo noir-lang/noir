@@ -1,4 +1,4 @@
-name: yarn.lock check
+name: Lockfile check
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  yarn:
+  yarn-lock:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     
