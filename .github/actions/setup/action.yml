@@ -10,7 +10,7 @@ runs:
       with:
         path: "**/node_modules"
         key: yarn-v1-${{ hashFiles('**/yarn.lock') }}
-    # We run this step unconditionally to validate that the yarn.lock file is accurate
     - name: Install
       run: yarn --immutable
       shell: bash
+      if: steps.cache.outputs.cache-hit != 'true'
