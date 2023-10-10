@@ -7,7 +7,11 @@ use getrandom as _;
 
 use acvm::acir::native_types::WitnessMap;
 use iter_extended::try_btree_map;
-use noirc_abi::{errors::InputParserError, input_parser::InputValue, Abi, MAIN_RETURN_NAME};
+use noirc_abi::{
+    errors::InputParserError,
+    input_parser::{json::JsonTypes, InputValue},
+    Abi, MAIN_RETURN_NAME,
+};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -16,11 +20,9 @@ use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 mod errors;
 mod js_witness_map;
-mod temp;
 
 use errors::JsAbiError;
 use js_witness_map::JsWitnessMap;
-use temp::{input_value_from_json_type, JsonTypes};
 
 #[wasm_bindgen(typescript_custom_section)]
 const INPUT_MAP: &'static str = r#"
@@ -92,7 +94,7 @@ pub fn abi_encode(
         .map(|return_value| {
             let toml_return_value = JsValueSerdeExt::into_serde(&JsValue::from(return_value))
                 .expect("could not decode return value");
-            input_value_from_json_type(
+            InputValue::try_from_json(
                 toml_return_value,
                 abi.return_type.as_ref().unwrap(),
                 MAIN_RETURN_NAME,
@@ -107,7 +109,7 @@ pub fn abi_encode(
             let value = inputs
                 .get(&arg_name)
                 .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
-            input_value_from_json_type(value.clone(), &abi_type, &arg_name)
+            InputValue::try_from_json(value.clone(), &abi_type, &arg_name)
                 .map(|input_value| (arg_name, input_value))
         })?;
 

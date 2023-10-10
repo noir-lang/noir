@@ -34,11 +34,8 @@ mod test {
     use arena::Arena;
     use fm::FileManager;
 
-    pub(crate) fn has_parser_error(errors: &Vec<(CompilationError, FileId)>) -> bool {
-        errors.iter().any(|(e, _f)| match e {
-            CompilationError::ParseError(_) => true,
-            _ => false,
-        })
+    pub(crate) fn has_parser_error(errors: &[(CompilationError, FileId)]) -> bool {
+        errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
     }
 
     pub(crate) fn remove_experimental_feature_warnings(
@@ -47,10 +44,10 @@ mod test {
         errors
             .iter()
             .filter(|(e, _f)| match e.clone() {
-                CompilationError::ParseError(parser_error) => match parser_error.reason() {
-                    Some(ParserErrorReason::ExperimentalFeature(_)) => false,
-                    _ => true,
-                },
+                CompilationError::ParseError(parser_error) => !matches!(
+                    parser_error.reason(),
+                    Some(ParserErrorReason::ExperimentalFeature(_))
+                ),
                 _ => true,
             })
             .cloned()
@@ -98,10 +95,10 @@ mod test {
         errors
             .iter()
             .filter(|(e, _f)| match e.clone() {
-                CompilationError::ParseError(parser_error) => match parser_error.reason() {
-                    Some(ParserErrorReason::ExperimentalFeature(_)) => false,
-                    _ => true,
-                },
+                CompilationError::ParseError(parser_error) => !matches!(
+                    parser_error.reason(),
+                    Some(ParserErrorReason::ExperimentalFeature(_))
+                ),
                 _ => true,
             })
             .cloned()
@@ -149,7 +146,7 @@ mod test {
                     assert_eq!(second_def, "default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -189,7 +186,7 @@ mod test {
                     assert_eq!(expr_typ, "Field");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -230,7 +227,7 @@ mod test {
                     assert_eq!(expr_typ, "Field");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -275,7 +272,7 @@ mod test {
                     assert_eq!(method_name, "method2");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -311,7 +308,7 @@ mod test {
                     assert_eq!(trait_path.as_string(), "Default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -355,7 +352,7 @@ mod test {
                     assert_eq!(impl_method, "doesnt_exist");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -398,7 +395,7 @@ mod test {
                     assert_eq!(actual_typ, "u32");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -442,7 +439,7 @@ mod test {
                     assert_eq!(actual_typ, "Foo");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -465,17 +462,12 @@ mod test {
         for (err, _file_id) in errors {
             match &err {
                 CompilationError::ResolveError(ResolverError::PathResolutionError(
-                    path_solution_error,
-                )) => match path_solution_error {
-                    PathResolutionError::Unresolved(ident) => {
-                        assert_eq!(ident, "NotAType");
-                    }
-                    _ => {
-                        assert!(false, "No other errors are expected! Found = {:?}", err);
-                    }
-                },
+                    PathResolutionError::Unresolved(ident),
+                )) => {
+                    assert_eq!(ident, "NotAType");
+                }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -516,17 +508,13 @@ mod test {
                         ..
                     },
                 ) => {
-                    assert_eq!(actual_num_parameters, &(1 as usize));
-                    assert_eq!(expected_num_parameters, &(2 as usize));
+                    assert_eq!(actual_num_parameters, &1_usize);
+                    assert_eq!(expected_num_parameters, &2_usize);
                     assert_eq!(method_name, "default");
                     assert_eq!(trait_name, "Default");
                 }
                 _ => {
-                    assert!(
-                        false,
-                        "No other errors are expected in this test case! Found = {:?}",
-                        err
-                    );
+                    panic!("No other errors are expected in this test case! Found = {:?}", err);
                 }
             };
         }
@@ -559,7 +547,7 @@ mod test {
                     assert_eq!(trait_path.as_string(), "Default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -600,7 +588,7 @@ mod test {
                     assert_eq!(not_a_trait_name.to_string(), "plain::Default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -646,7 +634,7 @@ mod test {
                     assert_eq!(second_def, "Default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -683,7 +671,7 @@ mod test {
                     assert_eq!(second_def, "Default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -724,7 +712,7 @@ mod test {
                     assert_eq!(second_def, "Default");
                 }
                 _ => {
-                    assert!(false, "No other errors are expected! Found = {:?}", err);
+                    panic!("No other errors are expected! Found = {:?}", err);
                 }
             };
         }
@@ -735,7 +723,7 @@ mod test {
         let interner = context.def_interner;
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.into_sorted().functions {
-            let func_id = interner.find_function(&func.name().to_string()).unwrap();
+            let func_id = interner.find_function(func.name()).unwrap();
             let hir_func = interner.function(&func_id);
             // Iterate over function statements and apply filtering function
             find_lambda_captures(
