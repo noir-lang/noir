@@ -128,8 +128,8 @@ yarn add @aztec/aztec.js @aztec/noir-contracts typescript @types/node
     "start": "yarn build && DEBUG='token' node ./dest/index.js"
   },
   "dependencies": {
-    "@aztec/aztec.js": "^0.8.7",
-    "@aztec/noir-contracts": "^0.8.7",
+    "@aztec/aztec.js": "latest",
+    "@aztec/noir-contracts": "latest",
     "@types/node": "^20.6.3",
     "typescript": "^5.2.2"
   }
@@ -264,6 +264,7 @@ In this section, we created 2 instances of the `TokenContract` contract abstract
 We can see that each account has the expected balance of tokens.
 
 ### Diagram of calling an unconstrained (view) function
+
 <img src="/img/sandbox_unconstrained_function.svg" alt="Unconstrained function call" />
 
 ## Creating and submitting transactions
@@ -354,6 +355,7 @@ That's it! We have successfully deployed a private token contract to an instance
 You can find the [complete tutorial code here](https://github.com/AztecProtocol/dev-rel/tree/main/tutorials/sandbox-tutorial/token).
 
 ### Diagram of sending a transaction
+
 <img src="/img/sandbox_sending_a_tx.svg" alt="Sending a transaction" />
 
 ## Next Steps

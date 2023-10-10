@@ -84,7 +84,6 @@ const sidebars = {
         },
         "concepts/foundation/contracts",
         "concepts/foundation/transactions",
-        // "concepts/foundation/blocks",
         // "concepts/foundation/globals",
         {
           label: "Communication",
@@ -98,19 +97,19 @@ const sidebars = {
             "concepts/foundation/communication/cross_chain_calls",
           ],
         },
-        // {
-        //   label: "Nodes and Clients",
-        //   type: "category",
-        //   link: {
-        //     type: "doc",
-        //     id: "concepts/foundation/nodes_clients/main",
-        //   },
-        //   items: [
-        //     "concepts/foundation/nodes_clients/execution_client",
-        //     "concepts/foundation/nodes_clients/prover_client",
-        //     "concepts/foundation/nodes_clients/sequencer_client",
-        //   ],
-        // },
+        {
+          label: "Nodes and Clients",
+          type: "category",
+          // link: {
+          //   type: "doc",
+          //   id: "concepts/foundation/nodes_clients/main",
+          // },
+          items: [
+            // "concepts/foundation/nodes_clients/execution_client",
+            // "concepts/foundation/nodes_clients/prover_client",
+            "concepts/foundation/nodes_clients/sequencer",
+          ],
+        },
         // "concepts/foundation/block_production",
         // "concepts/foundation/upgrade_mechanism",
       ],
@@ -169,6 +168,8 @@ const sidebars = {
         },
         "concepts/advanced/public_vm",
         "concepts/advanced/contract_creation",
+        "concepts/advanced/sequencer_selection",
+        "concepts/advanced/acir_simulator",
       ],
     },
 
