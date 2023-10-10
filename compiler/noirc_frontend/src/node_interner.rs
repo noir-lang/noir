@@ -951,6 +951,12 @@ impl NodeInterner {
     pub fn lookup_method(&self, typ: &Type, id: StructId, method_name: &str) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()))?;
 
+        // If there is only one method, just return it immediately.
+        // It will still be typechecked later.
+        if methods.len() == 1 {
+            return Some(methods[0]);
+        }
+
         // When adding methods we always check they do not overlap, so there should be
         // at most 1 matching method in this list.
         for method in methods {
