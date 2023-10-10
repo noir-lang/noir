@@ -1,8 +1,10 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { generateWitness } from '../../src/index.js';
-import { Noir } from '../../src/program.js';
+import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend as Backend } from '@noir-lang/backend_barretenberg';
+import { CompiledCircuit } from '@noir-lang/types';
+
+const assert_lt_program = assert_lt_json as CompiledCircuit;
 
 it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
@@ -10,13 +12,16 @@ it('end-to-end proof creation and verification (outer)', async () => {
     x: '2',
     y: '3',
   };
-  const serializedWitness = await generateWitness(assert_lt_json, inputs);
+
+  const program = new Noir(assert_lt_program);
+
+  const { witness } = await program.execute(inputs);
 
   // bb.js part
   //
   // Proof creation
-  const prover = new Backend(assert_lt_json);
-  const proof = await prover.generateFinalProof(serializedWitness);
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateFinalProof(witness);
 
   // Proof verification
   const isValid = await prover.verifyFinalProof(proof);
@@ -31,9 +36,9 @@ it('end-to-end proof creation and verification (outer) -- Program API', async ()
   };
 
   // Initialize backend
-  const backend = new Backend(assert_lt_json);
+  const backend = new Backend(assert_lt_program);
   // Initialize program
-  const program = new Noir(assert_lt_json, backend);
+  const program = new Noir(assert_lt_program, backend);
   // Generate proof
   const proof = await program.generateFinalProof(inputs);
 
@@ -48,13 +53,16 @@ it('end-to-end proof creation and verification (inner)', async () => {
     x: '2',
     y: '3',
   };
-  const serializedWitness = await generateWitness(assert_lt_json, inputs);
+
+  const program = new Noir(assert_lt_program);
+
+  const { witness } = await program.execute(inputs);
 
   // bb.js part
   //
   // Proof creation
-  const prover = new Backend(assert_lt_json);
-  const proof = await prover.generateIntermediateProof(serializedWitness);
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateIntermediateProof(witness);
 
   // Proof verification
   const isValid = await prover.verifyIntermediateProof(proof);
@@ -79,15 +87,18 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
     x: '2',
     y: '3',
   };
-  const serializedWitness = await generateWitness(assert_lt_json, inputs);
+
+  const program = new Noir(assert_lt_program);
+
+  const { witness } = await program.execute(inputs);
 
   // bb.js part
-  const prover = new Backend(assert_lt_json);
+  const prover = new Backend(assert_lt_program);
 
-  const proof = await prover.generateFinalProof(serializedWitness);
+  const proof = await prover.generateFinalProof(witness);
 
   try {
-    const verifier = new Backend(assert_lt_json);
+    const verifier = new Backend(assert_lt_program);
     await verifier.verifyFinalProof(proof);
     expect.fail(
       'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
@@ -111,17 +122,20 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
     x: '2',
     y: '3',
   };
-  const serializedWitness = await generateWitness(assert_lt_json, inputs);
+
+  const program = new Noir(assert_lt_program);
+
+  const { witness } = await program.execute(inputs);
 
   // bb.js part
   //
   // Proof creation
   //
-  const prover = new Backend(assert_lt_json);
+  const prover = new Backend(assert_lt_program);
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
-  const proofOuter = await prover.generateFinalProof(serializedWitness);
-  const _proofInner = await prover.generateIntermediateProof(serializedWitness);
+  const proofOuter = await prover.generateFinalProof(witness);
+  const _proofInner = await prover.generateIntermediateProof(witness);
 
   // Proof verification
   //
