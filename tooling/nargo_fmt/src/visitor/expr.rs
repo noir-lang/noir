@@ -91,11 +91,6 @@ impl FmtVisitor<'_> {
                 let lhs_str = self.format_expr(member_access_expr.lhs);
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
             }
-            ExpressionKind::Infix(infix_expr) => {
-                let lhs_str = self.format_expr(infix_expr.lhs);
-                let rhs_str = self.format_expr(infix_expr.rhs);
-                format!("{} {} {}", lhs_str, infix_expr.operator, rhs_str)
-            }
             ExpressionKind::If(if_expr) => {
                 let condition_str = self.format_expr(if_expr.condition);
                 let consequence_str = self.format_expr(if_expr.consequence);
@@ -107,14 +102,19 @@ impl FmtVisitor<'_> {
                     format!("if {} {{ {} }}", condition_str, consequence_str)
                 }
             }
-            ExpressionKind::Variable(path) => path.to_string()
+            ExpressionKind::Variable(path) => path.to_string(),
+            ExpressionKind::Infix(infix_expr) => {
+                let lhs_str = self.format_expr(infix_expr.lhs);
+                let rhs_str = self.format_expr(infix_expr.rhs);
+                format!("{} {:?} {}", lhs_str, infix_expr.operator, rhs_str)
+            }
             ExpressionKind::Lambda(lambda) => {
-                let formatted_params = lambda.params
+                let formatted_params = lambda.parameters
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", ");
-                let formatted_body = self.format_expr(*lambda.body);
+                let formatted_body = self.format_expr(lambda.body);
                 format!("|{}| -> {}", formatted_params, formatted_body)
             }
             ExpressionKind::Tuple(elements) => {
