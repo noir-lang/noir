@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.9](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.8...aztec-packages-v0.8.9) (2023-10-10)
+
+
+### Features
+
+* Auto-recompile the boxes and fix broken frontend CompleteAddress import ([#2727](https://github.com/AztecProtocol/aztec-packages/issues/2727)) ([4ec4ea0](https://github.com/AztecProtocol/aztec-packages/commit/4ec4ea061e2d003da905d6c2026608b41cdca044))
+
+
+### Bug Fixes
+
+* Default export in noir-version ([#2757](https://github.com/AztecProtocol/aztec-packages/issues/2757)) ([6ff7bed](https://github.com/AztecProtocol/aztec-packages/commit/6ff7bed1722f8e7afa4b4c495216ca20ea47f42a))
+
+
+### Documentation
+
+* Add preview image ([#2759](https://github.com/AztecProtocol/aztec-packages/issues/2759)) ([45597af](https://github.com/AztecProtocol/aztec-packages/commit/45597af2a75ffeb8ecd91028f30f159910821673))
+
 ## [0.8.8](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.7...aztec-packages-v0.8.8) (2023-10-09)
 
 
