@@ -38,9 +38,9 @@ class Noir {
     return this.backend.verifyFinalProof(proofData);
   }
 
-  async generateWitness(circuit: CompiledCircuit, inputs: unknown) {
+  async generateWitness(circuit: CompiledCircuit, inputs: abi.InputMap) {
     // Throws on ABI encoding error
-    const witnessMap = abi.abiEncode(circuit.abi, inputs, null);
+    const witnessMap = abi.abiEncode(circuit.abi, inputs);
 
     // Execute the circuit to generate the rest of the witnesses and serialize
     // them into a Uint8Array.

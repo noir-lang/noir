@@ -1069,14 +1069,12 @@ pub(crate) mod tests {
     pub(crate) fn create_and_run_vm(
         memory: Vec<Value>,
         param_registers: Vec<Value>,
-        context: BrilligContext,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
-    ) -> VM<'static, DummyBlackBoxSolver> {
+        bytecode: &[BrilligOpcode],
+    ) -> VM<'_, DummyBlackBoxSolver> {
         let mut vm = VM::new(
             Registers { inner: param_registers },
             memory,
-            create_entry_point_bytecode(context, arguments, returns).byte_code,
+            bytecode,
             vec![],
             &DummyBlackBoxSolver,
         );
@@ -1132,7 +1130,7 @@ pub(crate) mod tests {
         let mut vm = VM::new(
             Registers { inner: vec![] },
             vec![],
-            bytecode,
+            &bytecode,
             vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
         );

@@ -2,6 +2,9 @@ import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { Noir } from '../../src/index.js';
 import { BarretenbergBackend as Backend } from '@noir-lang/backend_barretenberg';
+import { CompiledCircuit } from '@noir-lang/types';
+
+const assert_lt_program = assert_lt_json as CompiledCircuit;
 
 const inputs = {
   x: '2',
@@ -13,16 +16,16 @@ describe('Outer proofs', () => {
   let noir: Noir;
 
   before(() => {
-    backend = new Backend(assert_lt_json, { numOfThreads: 4 });
+    backend = new Backend(assert_lt_program, { numOfThreads: 4 });
     noir = new Noir(backend);
   });
 
   it('Creates and verifies end-to-end outer proofs with underlying backend API', async () => {
     // Noir.Js part
-    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
 
     // BackendBarretenberg part
-    const prover = new Backend(assert_lt_json, { numOfThreads: 4 });
+    const prover = new Backend(assert_lt_program, { numOfThreads: 4 });
     const proof = await prover.generateFinalProof(serializedWitness);
     const isValid = await prover.verifyFinalProof(proof);
 
@@ -44,7 +47,7 @@ describe('Inner proofs', () => {
   let noir: Noir;
 
   before(() => {
-    backend = new Backend(assert_lt_json, { numOfThreads: 4 });
+    backend = new Backend(assert_lt_program, { numOfThreads: 4 });
     noir = new Noir(); // backendless noir;
   });
 
@@ -54,7 +57,7 @@ describe('Inner proofs', () => {
       x: '2',
       y: '3',
     };
-    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
 
     // bb.js part
     //
@@ -79,13 +82,13 @@ describe('Inner proofs', () => {
   //
   // If its not fixable, we can leave it in as documentation of this behavior.
   it('Expects the "null function or function signature mismatch" if using different instance', async () => {
-    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
 
     // bb.js part
     const proof = await backend.generateFinalProof(serializedWitness);
 
     try {
-      const verifier = new Backend(assert_lt_json);
+      const verifier = new Backend(assert_lt_program);
       await verifier.verifyFinalProof(proof);
       expect.fail(
         'bb.js currently returns a bug when we try to verify a proof with a different Barretenberg instance that created it.',
@@ -104,13 +107,13 @@ describe('Inner proofs', () => {
   //
   // If we do not create an inner proof, then this will work as expected.
   it('Expects the "null function or function signature mismatch" when mixing different proof types', async () => {
-    const serializedWitness = await noir.generateWitness(assert_lt_json, inputs);
+    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
 
     // bb.js part
     //
     // Proof creation
     //
-    const prover = new Backend(assert_lt_json);
+    const prover = new Backend(assert_lt_program);
     // Create a proof using both proving systems, the majority of the time
     // one would only use outer proofs.
     const proofOuter = await prover.generateFinalProof(serializedWitness);

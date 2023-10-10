@@ -228,14 +228,15 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace)).recover_with(
-        nested_delimiters(
+    let fields = struct_fields()
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ),
-    );
+        ))
+        .or(just(Semicolon).map(|_| Vec::new()));
 
     attributes()
         .or_not()
@@ -948,29 +949,34 @@ enum LValueRhs {
     Index(Expression),
 }
 
-fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue>
+fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
 where
     P: ExprParser + 'a,
 {
-    let l_ident = ident().map(LValue::Ident);
+    recursive(|lvalue| {
+        let l_ident = ident().map(LValue::Ident);
 
-    let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+        let dereferences = just(Token::Star)
+            .ignore_then(lvalue.clone())
+            .map(|lvalue| LValue::Dereference(Box::new(lvalue)));
 
-    let l_index = expr_parser
-        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(LValueRhs::Index);
+        let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
-    let dereferences = just(Token::Star).repeated();
+        let term = choice((parenthesized, dereferences, l_ident));
 
-    let lvalues =
-        l_ident.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
+        let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+
+        let l_index = expr_parser
+            .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+            .map(LValueRhs::Index);
+
+        term.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
             LValueRhs::MemberAccess(field_name) => {
                 LValue::MemberAccess { object: Box::new(lvalue), field_name }
             }
             LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
-        });
-
-    dereferences.then(lvalues).foldr(|_, lvalue| LValue::Dereference(Box::new(lvalue)))
+        })
+    })
 }
 
 fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
@@ -2281,6 +2287,7 @@ mod test {
     #[test]
     fn parse_structs() {
         let cases = vec![
+            "struct Foo;",
             "struct Foo { }",
             "struct Bar { ident: Field, }",
             "struct Baz { ident: Field, other: Field }",
@@ -2315,12 +2322,13 @@ mod test {
     #[test]
     fn parse_constructor() {
         let cases = vec![
+            "Baz",
             "Bar { ident: 32 }",
             "Baz { other: 2 + 42, ident: foo() + 1 }",
             "Baz { other, ident: foo() + 1, foo }",
         ];
-        parse_all(expression(), cases);
 
+        parse_all(expression(), cases);
         parse_with(expression(), "Foo { a + b }").unwrap_err();
     }
 
