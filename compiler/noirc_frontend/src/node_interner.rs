@@ -957,7 +957,7 @@ impl NodeInterner {
             match self.function_meta(method).typ.instantiate(self).0 {
                 Type::Function(args, _, _) => {
                     if let Some(object) = args.get(0) {
-                        // TODO: This is dangerous! try_unify may commit type bindings even on failure
+                        // TODO #3089: This is dangerous! try_unify may commit type bindings even on failure
                         if object.try_unify(typ).is_ok() {
                             return Some(*method);
                         }
