@@ -17,6 +17,7 @@ fm.workspace = true
 nargo.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
+noirc_errors.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true
 js-sys.workspace = true
