@@ -7,7 +7,7 @@ import initACVM from '@noir-lang/acvm_js';
 export class Noir {
   constructor(
     private circuit: CompiledCircuit,
-    private backend: Backend,
+    private backend?: Backend,
   ) {}
 
   async init(): Promise<void> {
@@ -19,14 +19,19 @@ export class Noir {
     }
   }
 
+  private getBackend(): Backend {
+    if (this.backend === undefined) throw new Error('Operation requires a backend but none was provided');
+    return this.backend;
+  }
+
   // Initial inputs to your program
   async generateFinalProof(inputs: any): Promise<ProofData> {
     await this.init();
     const serializedWitness = await generateWitness(this.circuit, inputs);
-    return this.backend.generateFinalProof(serializedWitness);
+    return this.getBackend().generateFinalProof(serializedWitness);
   }
 
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
-    return this.backend.verifyFinalProof(proofData);
+    return this.getBackend().verifyFinalProof(proofData);
   }
 }
