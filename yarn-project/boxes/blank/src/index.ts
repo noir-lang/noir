@@ -12,7 +12,7 @@ import {
 } from '@aztec/aztec.js';
 import { ContractAbi, FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import { FieldsOf } from '@aztec/foundation/types';
-import { BlankContractAbi } from './artifacts/blank.js';
+import { BlankContractAbi } from './artifacts/Blank.js';
 export const contractAbi: ContractAbi = BlankContractAbi;
 
 export const PXE_URL: string = process.env.PXE_URL || 'http://localhost:8080';

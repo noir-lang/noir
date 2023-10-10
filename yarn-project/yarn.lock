@@ -6981,7 +6981,6 @@ __metadata:
     "@aztec/aztec-ui": ^0.1.14
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
-    "@aztec/cli": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@types/node": ^20.5.9
@@ -7031,7 +7030,6 @@ __metadata:
     "@aztec/aztec-ui": ^0.1.14
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
-    "@aztec/cli": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@typescript-eslint/eslint-plugin": ^6.0.0
     "@typescript-eslint/parser": ^6.0.0
@@ -15598,7 +15596,6 @@ __metadata:
     "@aztec/aztec-ui": ^0.1.14
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
-    "@aztec/cli": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
     "@types/node": ^20.5.9

@@ -157,19 +157,33 @@ async function updatePackagingConfigurations(
 }
 
 /**
- * adjust the contract Nargo.toml file to use the same repository version as the npm packages
+ * Adjust the contract Nargo.toml file for copied box:
+ * change the dependency paths from pointing within the monorepo
+ * to the github tagged version matching the installed `aztec-cli --version`
  * @param packageVersion - CLI npm version, which determines what npm version to grab
  * @param outputPath - relative path where we are copying everything
  * @param log - logger
  */
 async function updateNargoToml(tag: string, outputPath: string, log: LogFn): Promise<void> {
+  const SUPPORTED_DEPS = ['aztec', 'value_note'];
+
   const nargoTomlPath = path.join(outputPath, 'src', 'contracts', 'Nargo.toml');
   const fileContent = await fs.readFile(nargoTomlPath, 'utf-8');
   const lines = fileContent.split('\n');
-  const updatedLines = lines.map(line => line.replace(/tag="master"/g, `tag="${tag}"`));
+  const updatedLines = lines.map(line => {
+    // Check if the line starts with one of the deps
+    const key: string | undefined = SUPPORTED_DEPS.find(dependencyName =>
+      line.trim().startsWith(`${dependencyName} =`),
+    );
+    if (key) {
+      // Replace the line
+      return `${key} = { git="https://github.com/AztecProtocol/aztec-packages", tag="${tag}", directory="yarn-project/aztec-nr/${key}" }`;
+    }
+    return line;
+  });
   const updatedContent = updatedLines.join('\n');
   await fs.writeFile(nargoTomlPath, updatedContent);
-  log(`Updated Nargo.toml to point to the compatible version of aztec noir libs.`);
+  log(`Updated Nargo.toml to point to version ${tag} of aztec-noir libs in github.`);
 }
 
 /**

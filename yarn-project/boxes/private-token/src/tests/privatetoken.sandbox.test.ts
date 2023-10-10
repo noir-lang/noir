@@ -1,18 +1,18 @@
-import { PrivateTokenContract } from '../artifacts/private_token.js';
-import { pxe } from '../config.js';
-import { callContractFunction, deployContract, getWallet, viewContractFunction } from '../scripts/index.js';
 import {
   AccountWallet,
   AztecAddress,
-  PXE,
   CompleteAddress,
   Contract,
   Fr,
+  PXE,
   Wallet,
   createPXEClient,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { PrivateTokenContract } from '../artifacts/PrivateToken.js';
+import { pxe } from '../config.js';
+import { callContractFunction, deployContract, getWallet, viewContractFunction } from '../scripts/index.js';
 
 const logger = createDebugLogger('aztec:private-token-box-sandbox-test');
 

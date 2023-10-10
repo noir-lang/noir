@@ -18,7 +18,7 @@ import {
 import { Fr, Point } from '@aztec/foundation/fields';
 import { PXE, PublicKey } from '@aztec/types';
 import { ContractAbi } from '@aztec/foundation/abi';
-import BlankContractAbiJson from './blank_contract.json' assert { type: 'json' };
+import BlankContractAbiJson from './Blank.json' assert { type: 'json' };
 export const BlankContractAbi = BlankContractAbiJson as ContractAbi;
 
 /**

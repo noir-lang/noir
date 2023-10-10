@@ -1,6 +1,7 @@
+import { Fr, Point } from '@aztec/foundation/fields';
 import { IWasmModule } from '@aztec/foundation/wasm';
 
-import { CircuitsWasm, Fr, GrumpkinScalar, Point } from '../../../index.js';
+import { CircuitsWasm, GrumpkinScalar } from '../../../index.js';
 
 /**
  * Grumpkin elliptic curve operations.

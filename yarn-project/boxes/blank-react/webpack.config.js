@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 export default (_, argv) => ({
   target: 'web',
   mode: 'production',
-  devtool: false,
+  devtool: 'source-map',
   entry: {
     main: './src/app/index.tsx',
   },

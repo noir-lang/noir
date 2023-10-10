@@ -29,6 +29,7 @@ yarn --cwd circuits.js remake-bindings
 yarn --cwd circuits.js remake-constants
 
 (cd noir-contracts && ./bootstrap.sh)
+(cd boxes && ./bootstrap.sh)
 (cd .. && l1-contracts/bootstrap.sh)
 
 # Until we push .yarn/cache, we still need to install.

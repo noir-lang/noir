@@ -1,6 +1,6 @@
-import { PrivateTokenContractAbi } from './artifacts/private_token.js';
 import { PXE, createPXEClient } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
+import { PrivateTokenContractAbi } from './artifacts/PrivateToken.js';
 
 // update this if using a different contract
 

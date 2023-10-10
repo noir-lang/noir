@@ -37,7 +37,6 @@
     "@aztec/aztec-ui": "^0.1.14",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
-    "@aztec/cli": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
     "classnames": "^2.3.2",

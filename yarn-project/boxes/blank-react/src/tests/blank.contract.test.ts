@@ -1,18 +1,18 @@
-import { BlankContract } from '../artifacts/blank.js';
-import { callContractFunction, deployContract, getWallet } from '../scripts/index.js';
 import {
   AccountWallet,
   AztecAddress,
-  PXE,
   CompleteAddress,
   Contract,
   Fr,
+  PXE,
   TxStatus,
   Wallet,
   createPXEClient,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { BlankContract } from '../artifacts/Blank.js';
+import { callContractFunction, deployContract, getWallet } from '../scripts/index.js';
 
 const logger = createDebugLogger('aztec:http-pxe-client');
 

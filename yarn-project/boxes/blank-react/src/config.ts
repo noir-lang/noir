@@ -1,6 +1,6 @@
 import { PXE, createPXEClient } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { BlankContractAbi } from './artifacts/blank.js';
+import { BlankContractAbi } from './artifacts/Blank.js';
 
 // update this if using a different contract
 
