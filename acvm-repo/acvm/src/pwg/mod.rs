@@ -306,15 +306,18 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
         if BrilligSolver::<B>::should_skip(witness, brillig)? {
             BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig).map(|_| None)
         } else {
-            let mut solver = match self.brillig_solver.take() {
+            // If we're resuming execution after resolving a foreign call then
+            // there will be a cached `BrilligSolver` to avoid recomputation.
+            let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
+                Some(solver) => solver,
                 None => {
                     BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?
                 }
-                Some(solver) => solver,
             };
             match solver.solve()? {
                 BrilligSolverStatus::ForeignCallWait(foreign_call) => {
-                    _ = self.brillig_solver.insert(solver);
+                    // Cache the current state of the solver
+                    self.brillig_solver = Some(solver);
                     Ok(Some(foreign_call))
                 }
                 BrilligSolverStatus::InProgress => {
