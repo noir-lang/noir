@@ -1,0 +1,7 @@
+[package]
+name = "trait_self"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.5"
+
+[dependencies]

@@ -1,8 +1,7 @@
 #![forbid(unsafe_code)]
-#![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
-#![warn(unused_qualifications, clippy::use_self)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 /// A Rust code formatting utility designed to manage and format untouched fragments of source code,
 /// including comments, whitespace, and other characters. While the module doesn't directly address comments,

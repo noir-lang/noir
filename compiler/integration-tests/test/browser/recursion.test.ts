@@ -9,6 +9,7 @@ import { acvm, abi, generateWitness } from '@noir-lang/noir_js';
 import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { getFile } from './utils.js';
+import { Field, InputMap } from '@noir-lang/noirc_abi';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
@@ -50,7 +51,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
   it('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
     const main_program = await getCircuit(circuit_main_source);
-    const main_inputs = TOML.parse(circuit_main_toml);
+    const main_inputs: InputMap = TOML.parse(circuit_main_toml) as InputMap;
 
     const main_backend = new BarretenbergBackend(main_program);
 
@@ -69,10 +70,10 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
       numPublicInputs,
     );
 
-    const recursion_inputs = {
+    const recursion_inputs: InputMap = {
       verification_key: vkAsFields,
       proof: proofAsFields,
-      public_inputs: [main_inputs.y],
+      public_inputs: [main_inputs.y as Field],
       key_hash: vkHash,
       input_aggregation_object: ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'],
     };
