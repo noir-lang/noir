@@ -20,7 +20,7 @@ impl BrilligSolver {
     pub(super) fn solve<B: BlackBoxFunctionSolver>(
         initial_witness: &mut WitnessMap,
         brillig: &Brillig,
-        foreign_call_results: &[ForeignCallResult],
+        foreign_call_results: Vec<ForeignCallResult>,
         bb_solver: &B,
         acir_index: usize,
     ) -> Result<Option<ForeignCallWaitInfo>, OpcodeResolutionError> {
@@ -81,7 +81,7 @@ impl BrilligSolver {
             input_registers,
             input_memory,
             &brillig.bytecode,
-            foreign_call_results.to_vec(),
+            foreign_call_results,
             bb_solver,
         );
 

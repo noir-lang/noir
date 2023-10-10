@@ -261,12 +261,15 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 solver.solve_memory_op(op, &mut self.witness_map, predicate)
             }
             Opcode::Brillig(brillig) => {
+                let foreign_call_results = self
+                    .foreign_call_results
+                    .get(&self.instruction_pointer)
+                    .cloned()
+                    .unwrap_or_default();
                 match BrilligSolver::solve(
                     &mut self.witness_map,
                     brillig,
-                    self.foreign_call_results
-                        .get(&self.instruction_pointer)
-                        .unwrap_or(&Vec::default()),
+                    foreign_call_results,
                     self.backend,
                     self.instruction_pointer,
                 ) {
