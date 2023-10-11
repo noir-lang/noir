@@ -1,0 +1,30 @@
+name: Build docs
+
+on: [push, pull_request]
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install docs dependencies
+        run: |
+          cd docs
+          yarn
+        
+      - name: Build Docusaurus
+        run: |
+          cd docs
+          yarn build
+
+    #   - name: Deploy to GitHub Pages
+    #     uses: peaceiris/actions-gh-pages@v3
+    #     with:
+    #       github_token: ${{ secrets.GITHUB_TOKEN }}
+    #       publish_dir: ./docs/build  # Update with the path to your build directory
