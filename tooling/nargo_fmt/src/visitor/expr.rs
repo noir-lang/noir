@@ -46,7 +46,7 @@ impl FmtVisitor<'_> {
                     .iter()
                     .map(|arg| {
                         let arg_str = self.format_expr(arg.clone()).trim().to_string();
-                        if arg_str.contains("(") { 
+                        if arg_str.contains('(') { 
                             return arg_str.replace(" ,", ",").replace("( ", "(").replace(" )", ")");
                         }
                         arg_str
