@@ -39,6 +39,20 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::If(if_expr) => {
+                let condition_str = self.format_expr(if_expr.condition);
+                let consequence_str = self.format_expr(if_expr.consequence);
+
+                if let Some(alternative_expr) = &if_expr.alternative {
+                    let alternative_str = self.format_expr(alternative_expr.clone());
+                    format!(
+                        "if {} {{\n    {}\n}} else {{\n    {}\n}}",
+                        condition_str, consequence_str, alternative_str
+                    )
+                } else {
+                    format!("if {} {{\n    {}\n}}", condition_str, consequence_str)
+                }
+            }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
