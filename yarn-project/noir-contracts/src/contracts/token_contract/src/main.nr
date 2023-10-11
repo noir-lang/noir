@@ -33,12 +33,14 @@ contract Token {
         selector::compute_selector,
     };
 
+    // docs:start:import_authwit
     use dep::authwit::{
         auth::{
             assert_current_call_valid_authwit, 
             assert_current_call_valid_authwit_public, 
         },
     };
+    // docs:end:import_authwit
 
     use crate::types::{
         transparent_note::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN},

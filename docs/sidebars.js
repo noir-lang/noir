@@ -80,7 +80,10 @@ const sidebars = {
           label: "Accounts",
           type: "category",
           link: { type: "doc", id: "concepts/foundation/accounts/main" },
-          items: ["concepts/foundation/accounts/keys"],
+          items: [
+            "concepts/foundation/accounts/keys",
+            "concepts/foundation/accounts/authwit",
+          ],
         },
         "concepts/foundation/contracts",
         "concepts/foundation/transactions",
@@ -273,27 +276,28 @@ const sidebars = {
           ],
         },
         "dev_docs/contracts/common_errors",
-        // {
-        //   label: "Resources",
-        //   type: "category",
-        //   items: [
-        //     "dev_docs/contracts/resources/style_guide",
-        //     {
-        //       label: "Common Patterns",
-        //       type: "category",
+        {
+           label: "Resources",
+           type: "category",
+           items: [
+             //"dev_docs/contracts/resources/style_guide",
+             {
+               label: "Common Patterns",
+               type: "category",
         //       link: {
         //         type: "doc",
         //         id: "dev_docs/contracts/resources/common_patterns/main",
         //       },
-        //       items: [
+               items: [
+                "dev_docs/contracts/resources/common_patterns/authwit",
         //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
         //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
         //         "dev_docs/contracts/resources/common_patterns/access_control",
         //         "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
-        //       ],
-        //     },
-        //   ],
-        // },
+               ],
+             },
+           ],
+         },
         // {
         //   label: "Security Considerations",
         //   type: "category",

@@ -180,6 +180,7 @@ contract Uniswap {
         1
     }
 
+    // docs:start:authwit_uniswap_get
     // Since the token bridge burns funds on behalf of this contract, this contract has to tell the token contract if the signature is valid
     // implementation is similar to how account contracts validate public approvals.
     // if valid, it returns the IS_VALID selector which is expected by token contract
@@ -192,7 +193,9 @@ contract Uniswap {
             0
         }
     }
+    // docs:end:authwit_uniswap_get
 
+    // docs:start:authwit_uniswap_set
     // This helper method approves the bridge to burn this contract's funds and exits the input asset to L1
     // Assumes contract already has funds. 
     // Assume `token` relates to `token_bridge` (ie token_bridge.token == token)
@@ -222,6 +225,7 @@ contract Uniswap {
             nonce_for_burn_approval,
         );
     }
+    // docs:end:authwit_uniswap_set
 
     #[aztec(public)]
     internal fn _assert_token_is_same(token: AztecAddress, token_bridge: AztecAddress) {

@@ -245,14 +245,14 @@ describe('e2e_token_contract', () => {
         expect(amount).toBeGreaterThan(0n);
         const nonce = Fr.random();
 
+        // docs:start:authwit_public_transfer_example
         const action = asset
           .withWallet(wallets[1])
           .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
         const messageHash = await computeAuthWitMessageHash(accounts[1].address, action.request());
 
-        // We need to compute the message we want to sign and add it to the wallet as approved
-        //const messageHash = await transferMessageHash(accounts[1], accounts[0], accounts[1], amount, nonce);
         await wallets[0].setPublicAuth(messageHash, true).send().wait();
+        // docs:end:authwit_public_transfer_example
 
         // Perform the transfer
         const tx = action.send();
@@ -404,16 +404,17 @@ describe('e2e_token_contract', () => {
         expect(amount).toBeGreaterThan(0n);
 
         // We need to compute the message we want to sign and add it to the wallet as approved
+        // docs:start:authwit_transfer_example
+        // docs:start:authwit_computeAuthWitMessageHash
         const action = asset
           .withWallet(wallets[1])
           .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
         const messageHash = await computeAuthWitMessageHash(accounts[1].address, action.request());
+        // docs:end:authwit_computeAuthWitMessageHash
 
-        // Both wallets are connected to same node and PXE so we could just insert directly using
-        // await wallet.signAndAddAuthWitness(messageHash, );
-        // But doing it in two actions to show the flow.
         const witness = await wallets[0].createAuthWitness(messageHash);
         await wallets[1].addAuthWitness(witness);
+        // docs:end:authwit_transfer_example
 
         // Perform the transfer
         const tx = action.send();

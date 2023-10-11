@@ -2,6 +2,7 @@ import { AztecAddress, CircuitsWasm, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { FunctionCall, PackedArguments } from '@aztec/types';
 
+// docs:start:authwit_computeAuthWitMessageHash
 /**
  * Compute an authentication witness message hash from a caller and a request
  * H(caller: AztecAddress, target: AztecAddress, selector: Field, args_hash: Field)
@@ -22,3 +23,4 @@ export const computeAuthWitMessageHash = async (caller: AztecAddress, request: F
     GeneratorIndex.SIGNATURE_PAYLOAD,
   );
 };
+// docs:end:authwit_computeAuthWitMessageHash
