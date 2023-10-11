@@ -80,8 +80,9 @@ fn main(y : pub Field) {
     // assert(x[y - 1].bar.inner == [106, 107, 108]);
     // assert(x[y].bar.inner == [109, 110, 111]);
 
+    let q = x.push_back(foo_four);
     let foo_parent_one = FooParent { parent_arr: [0, 1, 2], foos: x };
-    let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: x };
+    let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: q };
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
 

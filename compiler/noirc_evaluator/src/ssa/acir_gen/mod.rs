@@ -1462,33 +1462,15 @@ impl Context {
                         self.compute_inner_sizes(array_id, dfg);
                         // self.slice_sizes.insert(array_id, array.len());
                         for (i, value) in array.iter().enumerate() {
-                            // TODO: need to check this value recursively
-                            // let value_typ = dfg.type_of_value(*value);
-                            // match value_typ {
-                            //     Type::Slice(_) => {
-                            //         dbg!(array_id);
-                            //         dbg!(array.len());
-                            //         let slice_size = self.flattened_slice_size(*value, dfg);
-                            //         if let Some(size) = self.array_max_slice_sizes.get(&array_id) {
-                            //             if *size < slice_size {
-                            //                 if slice_size > 200 {
-                            //                     dbg!("GOT BIG SLIZE SIZE");
-                            //                     dbg!(slice_size);
-                            //                     dbg!(size);
-                            //                 }
-                            //                 self.array_max_slice_sizes.insert(array_id, slice_size); 
-                            //             }
-                            //         } else {
-                            //             if slice_size > 200 {
-                            //                 dbg!("GOT BIG SLIZE SIZE");
-                            //                 dbg!(slice_size);
-                            //             }
-                            //             self.array_max_slice_sizes.insert(array_id, slice_size);
-                            //         }
-                            //     }
-                            //     _ => {}
-                            // }
-                            
+                            let value_typ = dfg.type_of_value(*value);
+                            match value_typ {
+                                Type::Slice(_) => {
+                                    let inner_type_sizes = self.compute_elem_type_sizes(element_type_sizes, &value_typ, *value, dfg)?;
+                                    dbg!(inner_type_sizes.clone());
+                                    dbg!(inner_type_sizes.len());
+                                }
+                                _ => {}
+                            }
                             flat_elem_type_sizes.push(
                                 self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
                             );
@@ -1571,7 +1553,7 @@ impl Context {
                 .into());
             }
         }
-        // dbg!(flat_elem_type_sizes.clone());
+        dbg!(flat_elem_type_sizes.clone());
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
             let var = self.acir_context.add_constant(FieldElement::from(type_size as u128));
@@ -1587,6 +1569,51 @@ impl Context {
         self.internal_mem_block_lengths.insert(element_type_sizes, element_type_sizes_len);
 
         Ok(element_type_sizes)
+    }
+
+    fn compute_elem_type_sizes(
+        &mut self,
+        element_type_sizes: BlockId,
+        array_typ: &Type,
+        array_id: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Result<Vec<usize>, RuntimeError> {
+        let mut flat_elem_type_sizes = Vec::new();
+        flat_elem_type_sizes.push(0);
+        match array_typ {
+            Type::Array(_, _) | Type::Slice(_) => {
+                match &dfg[array_id] {
+                    // TODO: just started at index 0 is invalid as we can have differing slices within
+                    // the same array 
+                    // TODO: might have to do the full flat element types array and not reconstruct
+                    // the offset when looking for the type size
+                    Value::Array { array, .. } => {
+                        for (i, value) in array.iter().enumerate() {
+                            flat_elem_type_sizes.push(
+                                self.flattened_slice_size(*value, dfg) + flat_elem_type_sizes[i],
+                            );
+                        }
+                    }
+                    _ => {
+                        return Err(InternalError::UnExpected {
+                            expected: "array or instruction".to_owned(),
+                            found: format!("{:?}", &dfg[array_id]),
+                            call_stack: self.acir_context.get_call_stack(),
+                        }
+                        .into())
+                    }
+                };
+            }
+            _ => {
+                return Err(InternalError::UnExpected {
+                    expected: "array or slice".to_owned(),
+                    found: array_typ.to_string(),
+                    call_stack: self.acir_context.get_call_stack(),
+                }
+                .into());
+            }
+        }
+        Ok(flat_elem_type_sizes)
     }
 
     fn copy_dynamic_array(
