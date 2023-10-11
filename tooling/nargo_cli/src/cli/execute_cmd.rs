@@ -104,7 +104,7 @@ pub(crate) fn execute_program(
 
     let solved_witness_err = nargo::ops::execute_circuit(
         &blackbox_solver,
-        compiled_program.circuit.clone(),
+        &compiled_program.circuit,
         initial_witness,
         true,
     );

@@ -40,7 +40,6 @@
     "clean": "rm -rf ./lib"
   },
   "devDependencies": {
-    "@aztec/bb.js": "0.7.2",
     "@types/chai": "^4",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.2",
