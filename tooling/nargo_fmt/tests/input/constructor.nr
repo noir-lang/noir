@@ -4,5 +4,6 @@ struct Point {
 }
 
 fn foo() {
-    Point{x :5,y:  10   };
+    Point{x :5,
+    y:  10   };
 }
