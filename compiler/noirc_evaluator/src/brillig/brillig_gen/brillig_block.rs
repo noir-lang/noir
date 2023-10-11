@@ -554,7 +554,10 @@ impl<'block> BrilligBlock<'block> {
                     value_variable,
                 );
             }
-            _ => todo!("ICE: Instruction not supported {instruction:?}"),
+            Instruction::IncrementRc { .. } => todo!("Implement inc_rc in brillig"),
+            Instruction::EnableSideEffects { .. } => {
+                todo!("ICE: Instruction not supported {instruction:?}")
+            }
         };
 
         let dead_variables = self

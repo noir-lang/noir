@@ -529,6 +529,9 @@ impl Context {
             Instruction::Load { .. } => {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
+            Instruction::IncrementRc { .. } => {
+                // Do nothing. Only Brillig needs to worry about reference counted arrays
+            }
         }
         self.acir_context.set_call_stack(CallStack::new());
         Ok(())

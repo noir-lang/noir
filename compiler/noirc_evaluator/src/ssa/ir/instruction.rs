@@ -179,6 +179,13 @@ pub(crate) enum Instruction {
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
     ArraySet { array: ValueId, index: ValueId, value: ValueId },
+
+    /// An instruction to increment the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// IncrementRc instructions are ignored.
+    IncrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -198,6 +205,7 @@ impl Instruction {
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
+            | Instruction::IncrementRc { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
@@ -226,9 +234,12 @@ impl Instruction {
             Truncate { .. } => false,
 
             // These either have side-effects or interact with memory
-            Constrain(..) | EnableSideEffects { .. } | Allocate | Load { .. } | Store { .. } => {
-                false
-            }
+            Constrain(..)
+            | EnableSideEffects { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
@@ -250,7 +261,7 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } => true,
+            Constrain(..) | Store { .. } | EnableSideEffects { .. } | IncrementRc { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -307,6 +318,7 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
+            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
         }
     }
 
@@ -350,6 +362,9 @@ impl Instruction {
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
+            }
+            Instruction::IncrementRc { value } => {
+                f(*value);
             }
         }
     }
@@ -445,9 +460,10 @@ impl Instruction {
                 }
                 None
             }
-            Instruction::Allocate { .. } => None,
-            Instruction::Load { .. } => None,
-            Instruction::Store { .. } => None,
+            Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IncrementRc { .. } => None,
         }
     }
 }

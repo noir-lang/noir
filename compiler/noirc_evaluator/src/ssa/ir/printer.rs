@@ -172,5 +172,8 @@ pub(crate) fn display_instruction(
                 show(*value)
             )
         }
+        Instruction::IncrementRc { value } => {
+            writeln!(f, "inc_rc {}", show(*value))
+        }
     }
 }
