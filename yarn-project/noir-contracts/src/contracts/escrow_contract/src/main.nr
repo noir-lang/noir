@@ -1,5 +1,3 @@
-mod address_note;
-
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
     use dep::std::option::Option;
@@ -17,7 +15,7 @@ contract Escrow {
         state_vars::set::Set,
     };
 
-    use crate::address_note::{
+    use dep::address_note::address_note::{
         AddressNote,
         AddressNoteMethods,
         ADDRESS_NOTE_LEN,

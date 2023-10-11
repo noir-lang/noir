@@ -1,5 +1,3 @@
-mod address_note;
-
 contract PokeableToken {
     // Libs
     use dep::std::option::Option;
@@ -19,7 +17,11 @@ contract PokeableToken {
         state_vars::{immutable_singleton::ImmutableSingleton, map::Map, set::Set},
         types::point::Point,
     };
-    use crate::address_note::{AddressNote, AddressNoteMethods, ADDRESS_NOTE_LEN};
+    use dep::address_note::address_note::{
+        AddressNote,
+        AddressNoteMethods,
+        ADDRESS_NOTE_LEN,
+    };
 
     struct Storage {
         sender: ImmutableSingleton<AddressNote, ADDRESS_NOTE_LEN>,
@@ -50,8 +52,8 @@ contract PokeableToken {
         sender: Field,
         recipient: Field
     )  {
-        let mut sender_note = AddressNote::new(sender);
-        let mut recipient_note = AddressNote::new(recipient);
+        let mut sender_note = AddressNote::new(sender, sender);
+        let mut recipient_note = AddressNote::new(recipient, recipient);
 
         storage.sender.initialize(&mut sender_note, Option::none());
         storage.recipient.initialize(&mut recipient_note, Option::none());
