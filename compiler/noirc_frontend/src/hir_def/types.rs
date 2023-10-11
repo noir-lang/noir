@@ -782,7 +782,7 @@ impl Type {
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,
     /// any unified bindings are on success.
-    fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
+    pub fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
         use Type::*;
         use TypeVariableKind as Kind;
 
@@ -995,7 +995,7 @@ impl Type {
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
-    pub fn instantiate(&self, interner: &mut NodeInterner) -> (Type, TypeBindings) {
+    pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
                 let replacements = typevars
