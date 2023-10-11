@@ -21,6 +21,7 @@ describe.skip('Contract Deployer', () => {
         bytecode: '0af',
       },
     ],
+    events: [],
   };
 
   const publicKey: PublicKey = Point.random();

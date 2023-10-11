@@ -92,6 +92,7 @@ describe('Contract Class', () => {
         bytecode: '0cd',
       },
     ],
+    events: [],
   };
 
   beforeEach(async () => {

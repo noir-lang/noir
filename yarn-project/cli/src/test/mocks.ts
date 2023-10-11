@@ -61,4 +61,5 @@ export const mockContractArtifact: ContractArtifact = {
       bytecode: 'mockBytecode',
     },
   ],
+  events: [],
 };

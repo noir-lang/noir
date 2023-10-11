@@ -1,4 +1,4 @@
-import { ABIParameter, ABIType, DebugFileMap, DebugInfo } from '@aztec/foundation/abi';
+import { ABIParameter, ABIType, DebugFileMap, DebugInfo, EventAbi } from '@aztec/foundation/abi';
 
 /** The Aztec.nr function types. */
 type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
@@ -45,6 +45,8 @@ export interface NoirCompiledContract {
   backend: string;
   /** The functions of the contract. */
   functions: NoirFunctionEntry[];
+  /** The events of the contract */
+  events: EventAbi[];
 }
 
 /**

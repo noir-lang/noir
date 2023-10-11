@@ -100,6 +100,24 @@ export interface StructType extends BasicType<'struct'> {
 }
 
 /**
+ * A contract event.
+ */
+export interface EventAbi {
+  /**
+   * The event name.
+   */
+  name: string;
+  /**
+   * Fully qualified name of the event.
+   */
+  path: string;
+  /**
+   * The fields of the event.
+   */
+  fields: ABIVariable[];
+}
+
+/**
  * Aztec.nr function types.
  */
 export enum FunctionType {
@@ -235,6 +253,10 @@ export interface ContractArtifact {
    * The functions of the contract.
    */
   functions: FunctionArtifact[];
+  /**
+   * The events of the contract.
+   */
+  events: EventAbi[];
 
   /**
    * The debug metadata of the contract.

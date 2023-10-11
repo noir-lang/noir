@@ -56,6 +56,7 @@ export function generateContractArtifact({ contract, debug }: NoirCompilationArt
   return {
     name: contract.name,
     functions: sortedFunctions.map(generateFunctionArtifact),
+    events: contract.events,
     debug: parsedDebug,
   };
 }

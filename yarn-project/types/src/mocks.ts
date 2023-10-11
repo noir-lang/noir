@@ -40,6 +40,7 @@ export const mockTx = (seed = 1) => {
 export const randomContractArtifact = (): ContractArtifact => ({
   name: randomBytes(4).toString('hex'),
   functions: [],
+  events: [],
 });
 
 export const randomDeployedContract = async (): Promise<DeployedContract> => ({

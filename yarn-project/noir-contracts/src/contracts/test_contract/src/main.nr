@@ -14,6 +14,11 @@ contract Test {
         constants_gen::EMPTY_NULLIFIED_COMMITMENT,
     };
 
+    #[event]
+    struct ExampleEvent {
+        value: Field,
+    }
+
     #[aztec(private)]
     fn constructor() {}
 
