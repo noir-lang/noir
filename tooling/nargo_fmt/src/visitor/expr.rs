@@ -39,6 +39,18 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::Constructor(constructor_expr) => {
+                let type_str = constructor_expr.type_name.to_string();
+                let formatted_fields = constructor_expr
+                    .fields
+                    .iter()
+                    .map(|(field_ident, field_value)| {
+                        format!("{}: {}", field_ident, self.format_expr(field_value.clone()))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{} {{ {} }}", type_str, formatted_fields)
+            }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
