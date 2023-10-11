@@ -39,6 +39,17 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::Tuple(elements) => {
+                let formatted_elements = elements
+                    .iter()
+                    .map(|e| {
+                        let formatted = self.format_expr(e.clone()).trim().to_string();
+                        formatted
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({})", formatted_elements)
+            }
             ExpressionKind::MemberAccess(member_access_expr) => {
                 let lhs_str = self.format_expr(member_access_expr.lhs);
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
