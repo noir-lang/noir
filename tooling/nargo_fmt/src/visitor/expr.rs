@@ -41,7 +41,8 @@ impl FmtVisitor<'_> {
             }
             ExpressionKind::Call(call_expr) => {
                 let formatted_func = self.format_expr(*call_expr.func);
-                let formatted_args = call_expr.arguments
+                let formatted_args = call_expr
+                    .arguments
                     .iter()
                     .map(|arg| self.format_expr(arg.clone()))
                     .collect::<Vec<_>>()
