@@ -42,12 +42,10 @@ impl FmtVisitor<'_> {
             }
             ExpressionKind::Constructor(constructor_expr) => {
                 let type_str = constructor_expr.type_name.to_string();
-            
-                let formatted_fields = constructor_expr.fields
-                    .vecmap(|(field_ident, field_value)| {
-                        format!("{}: {}", field_ident, self.format_expr(field_value.clone()))
-                    })
-                    .join(", ");
+                let formatted_fields = vecmap(&constructor_expr.fields, |(field_ident, field_value)| {
+                    format!("{}: {}", field_ident, self.format_expr(field_value.clone()))
+                })
+                .join(", ");
                 format!("{} {{ {} }}", type_str, formatted_fields)
             }
             ExpressionKind::Index(index_expr) => {
