@@ -71,8 +71,7 @@ it('end-to-end proof creation and verification (inner)', async () => {
 
 // The "real" workflow will involve a prover and a verifier on different systems.
 //
-// We cannot do this in our tests because they will panic with:
-// `RuntimeError: null function or function signature mismatch`
+// We cannot do this in our tests because they will panic with: `unreachable`
 //
 // This happens when we we create a proof with one barretenberg instance and
 // try to verify it with another.
@@ -81,7 +80,7 @@ it('end-to-end proof creation and verification (inner)', async () => {
 // a prover and verifier class to more accurately reflect what happens in production.
 //
 // If its not fixable, we can leave it in as documentation of this behavior.
-it('[BUG] -- bb.js null function or function signature mismatch (different instance) ', async () => {
+it('[BUG] -- bb.js unreachable (different instance) ', async () => {
   // Noir.Js part
   const inputs = {
     x: '2',
@@ -105,7 +104,7 @@ it('[BUG] -- bb.js null function or function signature mismatch (different insta
     );
   } catch (error) {
     const knownError = error as Error;
-    expect(knownError.message).to.contain('null function or function signature mismatch');
+    expect(knownError.message).to.contain('unreachable');
   }
 });
 
@@ -139,15 +138,10 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
 
   // Proof verification
   //
-  try {
-    const isValidOuter = await prover.verifyFinalProof(proofOuter);
-    expect(isValidOuter).to.be.true;
-    // We can also try verifying an inner proof and it will fail.
-    // const isValidInner = await prover.verifyInnerProof(_proofInner);
-    // expect(isValidInner).to.be.true;
-    expect.fail('bb.js currently returns a bug when we try to verify an inner and outer proof with the same backend');
-  } catch (error) {
-    const knownError = error as Error;
-    expect(knownError.message).to.contain('null function or function signature mismatch');
-  }
+  const isValidOuter = await prover.verifyFinalProof(proofOuter);
+  expect(isValidOuter).to.be.true;
+  // We can also try verifying an inner proof and it will fail.
+  const isValidInner = await prover.verifyIntermediateProof(_proofInner);
+  expect(isValidInner).to.be.true;
+
 });
