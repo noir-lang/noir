@@ -2,8 +2,7 @@
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
-import initACVM from '@noir-lang/acvm_js';
-import { witnessMapToUint8Array } from './serialize.js';
+import initACVM, { compressWitness } from '@noir-lang/acvm_js';
 
 export class Noir {
   constructor(
@@ -30,7 +29,7 @@ export class Noir {
     await this.init();
     const witness = await generateWitness(this.circuit, inputs);
     const { return_value: returnValue } = abiDecode(this.circuit.abi, witness);
-    return { witness: witnessMapToUint8Array(witness), returnValue };
+    return { witness: compressWitness(witness), returnValue };
   }
 
   // Initial inputs to your program
