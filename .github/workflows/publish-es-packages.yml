@@ -6,6 +6,7 @@ on:
       noir-ref:
         description: The noir reference to checkout
         required: false
+        default: 'master'
       npm-tag:
         description: Repository Tag to publish under
         required: false
@@ -20,7 +21,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.noir-ref || 'master' }}
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -44,7 +45,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.noir-ref || 'master' }}
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -63,7 +64,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.noir-ref || 'master' }}
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
@@ -83,7 +84,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.noir-ref || 'master' }}
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup Nix
         uses: ./.github/actions/nix
