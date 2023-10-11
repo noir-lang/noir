@@ -313,9 +313,6 @@ struct PublicCircuitPublicInputs {
     unencrypted_log_preimages_length: Field,
     block_data: HistoricBlockData,
     prover_address: Field,
-
-    // TODO: include globals in here and check them elsewhere
-    // https://github.com/AztecProtocol/aztec-packages/issues/1567
 }
 
 impl PublicCircuitPublicInputs {
@@ -336,11 +333,9 @@ impl PublicCircuitPublicInputs {
         inputs.push_array(self.new_nullifiers);
         inputs.push_array(self.new_l2_to_l1_msgs);
 
-        // We do not include block_data since it's not in the cpp hash
-
         inputs.push_array(self.unencrypted_logs_hash);
         inputs.push(self.unencrypted_log_preimages_length);
-        inputs.push_array(self.block_data.serialize()); // see https://github.com/AztecProtocol/aztec-packages/issues/1473
+        inputs.push_array(self.block_data.serialize());
         inputs.push(self.prover_address);
 
         dep::std::hash::pedersen_with_separator(inputs.storage, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)[0]
