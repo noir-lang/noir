@@ -6,12 +6,14 @@ extract_repo yarn-project /usr/src project
 cd project/src/yarn-project
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
+# also copy npcrc into the l1-contracts directory
+cp .npmrc ../l1-contracts
 
 function deploy_package() {
     REPOSITORY=$1
     cd $REPOSITORY
 
-    VERSION=$(extract_tag_version $REPOSITORY true)
+    VERSION=$(extract_tag_version $REPOSITORY false)
     echo "Deploying $REPOSITORY $VERSION"
 
     # If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
@@ -55,7 +57,11 @@ function deploy_package() {
     fi
 
     # Back to root
-    cd ..
+    if [ "$REPOSITORY" == "../l1-contracts" ]; then
+        cd ../yarn-project
+    else
+        cd ..
+    fi
 }
 
 deploy_package foundation
@@ -77,3 +83,4 @@ deploy_package world-state
 deploy_package sequencer-client
 deploy_package aztec-node
 deploy_package aztec-sandbox
+deploy_package ../l1-contracts
