@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 use clap::Args;
 
-use backend_interface::{backends_directory, download_backend};
+use backend_interface::{backends_directory, download_backend, run_backend_installation_script};
 
 use crate::errors::{BackendError, CliError};
 
@@ -14,6 +16,9 @@ pub(crate) struct InstallCommand {
 
     /// The URL from which to download the backend.
     url: String,
+
+    #[arg(long)]
+    bash: bool,
 }
 
 pub(crate) fn run(args: InstallCommand) -> Result<(), CliError> {
@@ -23,8 +28,18 @@ pub(crate) fn run(args: InstallCommand) -> Result<(), CliError> {
         return Err(BackendError::AlreadyInstalled(args.backend).into());
     }
 
-    download_backend(&args.url, &backends_directory().join(args.backend).join("backend_binary"))
+    if args.bash {
+        run_backend_installation_script(
+            &PathBuf::from(args.url),
+            &backends_directory().join(args.backend).join("backend_binary"),
+        )
         .map_err(BackendError::from)?;
-
+    } else {
+        download_backend(
+            &args.url,
+            &backends_directory().join(args.backend).join("backend_binary"),
+        )
+        .map_err(BackendError::from)?;
+    }
     Ok(())
 }

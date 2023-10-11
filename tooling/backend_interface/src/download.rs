@@ -1,6 +1,7 @@
 use std::{
     io::{Cursor, ErrorKind},
     path::Path,
+    process::{Command, Stdio},
 };
 
 /// Downloads a zipped archive and unpacks the backend binary to `destination_path`.
@@ -40,6 +41,32 @@ pub fn download_backend(backend_url: &str, destination_path: &Path) -> std::io::
     drop(temp_directory);
 
     Ok(())
+}
+
+pub fn run_backend_installation_script(
+    installation_script_path: &Path,
+    destination_path: &Path,
+) -> std::io::Result<()> {
+    let mut cmd = Command::new("bash");
+
+    // TODO: Pass ACIR version to check for compatibility.
+    cmd.arg(installation_script_path)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .env("NARGO_OS", env!("NARGO_OS"))
+        .env("NARGO_ARCHITECTURE", env!("NARGO_ARCHITECTURE"))
+        .env("NARGO_BACKEND_DESTINATION_PATH", destination_path);
+
+    cmd.output().map(|_| ())?;
+
+    if destination_path.is_file() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            ErrorKind::NotFound,
+            "Installation script did not place backend at expected location",
+        ))
+    }
 }
 
 /// Try to download the specified URL into a buffer which is returned.

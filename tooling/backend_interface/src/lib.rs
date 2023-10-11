@@ -10,7 +10,7 @@ mod smart_contract;
 
 use acvm::acir::circuit::Opcode;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
-pub use download::download_backend;
+pub use download::{download_backend, run_backend_installation_script};
 
 const BACKENDS_DIR: &str = ".nargo/backends";
 
