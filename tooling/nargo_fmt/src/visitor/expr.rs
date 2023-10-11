@@ -42,6 +42,11 @@ impl FmtVisitor<'_> {
             ExpressionKind::MemberAccess(member_access_expr) => {
                 let lhs_str = self.format_expr(member_access_expr.lhs);
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
+            ExpressionKind::Index(index_expr) => {
+                let formatted_collection =
+                    self.format_expr(index_expr.collection).trim_end().to_string();
+                let formatted_index = self.format_expr(index_expr.index);
+                format!("{}[{}]", formatted_collection, formatted_index)
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
