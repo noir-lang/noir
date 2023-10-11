@@ -6,6 +6,7 @@ use dap::types::{
     Capabilities, Scope, ScopePresentationhint, SourceBreakpoint, StoppedEventReason, Thread,
     Variable,
 };
+use noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig;
 use serde_json::Value;
 
 use crate::{compile, dap_server::Dap, error::DebuggingError, vm, vm::VMType};
@@ -104,6 +105,9 @@ impl UninitializedState {
 pub(crate) struct RunningState {
     breakpoints: Vec<Breakpoint>,
     running: bool,
+    #[allow(dead_code)]
+    // for now to get access to bytecode
+    program: GeneratedBrillig,
     vm: VMType,
 }
 
@@ -115,8 +119,14 @@ impl RunningState {
 
         #[allow(deprecated)]
         let solver = Box::leak(Box::new(BarretenbergSolver::new()));
-        let vm = vm::new(program, solver);
-        Ok(RunningState { breakpoints: Vec::new(), running: false, vm: VMType::Brillig(vm) })
+        let bytecode = Box::leak(Box::new(program.byte_code.clone()));
+        let vm = vm::new(bytecode, solver);
+        Ok(RunningState {
+            breakpoints: Vec::new(),
+            running: false,
+            program,
+            vm: VMType::Brillig(vm),
+        })
     }
 
     pub(crate) fn init(&mut self, server: &Dap) -> Result<(), DebuggingError> {
