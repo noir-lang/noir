@@ -20,3 +20,16 @@ foreach(BENCHMARK_SOURCE ${BENCHMARK_SOURCES})
   target_link_libraries(${BENCHMARK_NAME}_bench ${LINKED_LIBRARIES})
   add_custom_target(run_${BENCHMARK_NAME} COMMAND ${BENCHMARK_NAME} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endforeach()
+
+add_executable(
+    honk_bench_main_simple
+    main.simple.cpp
+)
+
+target_link_libraries(
+    honk_bench_main_simple
+    PRIVATE
+    stdlib_sha256
+    stdlib_keccak
+    stdlib_merkle_tree
+)

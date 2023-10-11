@@ -1,3 +1,4 @@
+#pragma once
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/honk/composer/ultra_composer.hpp"
@@ -62,9 +63,6 @@ template <typename Builder> void generate_sha256_test_circuit(Builder& builder, 
 {
     std::string in;
     in.resize(32);
-    for (size_t i = 0; i < 32; ++i) {
-        in[i] = 0;
-    }
     proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
         input = proof_system::plonk::stdlib::sha256<Builder>(input);
