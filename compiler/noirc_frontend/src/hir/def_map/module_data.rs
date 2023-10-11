@@ -53,6 +53,10 @@ impl ModuleData {
         self.declare(name, id.into())
     }
 
+    pub fn declare_trait_function(&mut self, name: Ident, id: FuncId, trait_id: TraitId) -> Result<(), (Ident, Ident)> {
+        self.declare(name, id.into())
+    }
+
     pub fn declare_global(&mut self, name: Ident, id: StmtId) -> Result<(), (Ident, Ident)> {
         self.declare(name, id.into())
     }

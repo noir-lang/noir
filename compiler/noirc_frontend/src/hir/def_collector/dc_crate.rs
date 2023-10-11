@@ -502,11 +502,12 @@ fn add_method_to_struct_namespace(
     struct_type: &Shared<StructType>,
     func_id: FuncId,
     name_ident: &Ident,
+    trait_id: TraitId,
 ) -> Result<(), DefCollectorErrorKind> {
     let struct_type = struct_type.borrow();
     let type_module = struct_type.id.local_module_id();
     let module = &mut current_def_map.modules[type_module.0];
-    module.declare_function(name_ident.clone(), func_id).map_err(|(first_def, second_def)| {
+    module.declare_trait_function(name_ident.clone(), func_id, trait_id).map_err(|(first_def, second_def)| {
         DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::TraitImplementation,
             first_def,
@@ -553,6 +554,7 @@ fn collect_trait_impl(
                     struct_type,
                     *func_id,
                     ast.name_ident(),
+                    trait_id,
                 ) {
                     Ok(()) => {}
                     Err(err) => {
