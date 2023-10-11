@@ -39,7 +39,7 @@ impl ItemScope {
         let add_item = |map: &mut HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility)>>| {
             if let Entry::Occupied(mut o) = map.entry(name.clone()) {
                 let trait_hashmap = o.get_mut();
-                if let Entry::Occupied(oo) = trait_hashmap.entry(trait_id) {
+                if let Entry::Occupied(_) = trait_hashmap.entry(trait_id) {
                     let old_ident = o.key();
                     Err((old_ident.clone(), name))
                 } else {
@@ -113,12 +113,10 @@ impl ItemScope {
             types: if let Some(t) = self.types.get(name) {
                 if let Some(tt) = t.get(&None) {
                     Some(*tt)
+                } else if t.len() == 1 {
+                    t.values().last().cloned()
                 } else {
-                    if t.len() == 1 {
-                        t.values().last().cloned()
-                    } else {
-                        None
-                    }
+                    None
                 }
             } else {
                 None
@@ -126,12 +124,10 @@ impl ItemScope {
             values: if let Some(v) = self.values.get(name) {
                 if let Some(vv) = v.get(&None) {
                     Some(*vv)
+                } else if v.len() == 1 {
+                    v.values().last().cloned()
                 } else {
-                    if v.len() == 1 {
-                        v.values().last().cloned()
-                    } else {
-                        None
-                    }
+                    None
                 }
             } else {
                 None
