@@ -10,12 +10,12 @@
  * or can be queried via `view()`.
  *
  * ```ts
- * const contract = await Contract.deploy(wallet, MyContractAbi, [...constructorArgs]).send().deployed();
+ * const contract = await Contract.deploy(wallet, MyContractArtifact, [...constructorArgs]).send().deployed();
  * console.log(`Contract deployed at ${contract.address}`);
  * ```
  *
  * ```ts
- * const contract = await Contract.at(address, MyContractAbi, wallet);
+ * const contract = await Contract.at(address, MyContractArtifact, wallet);
  * await contract.methods.mint(1000, owner).send().wait();
  * console.log(`Total supply is now ${await contract.methods.totalSupply().view()}`);
  * ```

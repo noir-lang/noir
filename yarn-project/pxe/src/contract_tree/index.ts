@@ -22,14 +22,14 @@ import {
   computeVarArgsHash,
   hashConstructor,
 } from '@aztec/circuits.js/abis';
-import { ContractAbi, FunctionSelector } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionSelector } from '@aztec/foundation/abi';
 import { assertLength } from '@aztec/foundation/serialize';
 import { AztecNode, ContractDao, MerkleTreeId, PublicKey, StateInfoProvider } from '@aztec/types';
 
 /**
  * The ContractTree class represents a Merkle tree of functions for a particular contract.
  * It manages the construction of the function tree, computes its root, and generates membership witnesses
- * for constrained functions. This class also enables lookup of specific function ABI and bytecode using selectors.
+ * for constrained functions. This class also enables lookup of specific function artifact using selectors.
  * It is used in combination with the AztecNode to compute various data for executing private transactions.
  */
 export class ContractTree {
@@ -40,7 +40,7 @@ export class ContractTree {
 
   constructor(
     /**
-     * The contract data object containing the ABI and contract address.
+     * The contract data object containing the artifact and contract address.
      */
     public readonly contract: ContractDao,
     private stateInfoProvider: StateInfoProvider,
@@ -52,13 +52,13 @@ export class ContractTree {
   ) {}
 
   /**
-   * Create a new ContractTree instance from the provided contract ABI, constructor arguments, and related data.
+   * Create a new ContractTree instance from the provided contract artifact, constructor arguments, and related data.
    * The function generates function leaves for constrained functions, computes the function tree root,
    * and hashes the constructor's verification key. It then computes the contract address using the contract
    * and portal contract addresses, contract address salt, and generated data. Finally, it returns a new
    * ContractTree instance containing the contract data and computed values.
    *
-   * @param abi - The contract's ABI containing the functions and their metadata.
+   * @param artifact - The contract's build artifact containing the functions and their metadata.
    * @param args - An array of Fr elements representing the constructor's arguments.
    * @param portalContract - The Ethereum address of the portal smart contract.
    * @param contractAddressSalt - An Fr element representing the salt used to compute the contract address.
@@ -67,7 +67,7 @@ export class ContractTree {
    * @returns A new ContractTree instance containing the contract data and computed values.
    */
   public static async new(
-    abi: ContractAbi,
+    artifact: ContractArtifact,
     args: Fr[],
     portalContract: EthAddress,
     contractAddressSalt: Fr,
@@ -75,29 +75,29 @@ export class ContractTree {
     node: AztecNode,
   ) {
     const wasm = await CircuitsWasm.get();
-    const constructorAbi = abi.functions.find(isConstructor);
-    if (!constructorAbi) {
+    const constructorArtifact = artifact.functions.find(isConstructor);
+    if (!constructorArtifact) {
       throw new Error('Constructor not found.');
     }
-    if (!constructorAbi.verificationKey) {
+    if (!constructorArtifact.verificationKey) {
       throw new Error('Missing verification key for the constructor.');
     }
 
-    const functions = abi.functions.map(f => ({
+    const functions = artifact.functions.map(f => ({
       ...f,
       selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
     }));
     const leaves = generateFunctionLeaves(functions, wasm);
     const root = computeFunctionTreeRoot(wasm, leaves);
-    const functionData = FunctionData.fromAbi(constructorAbi);
-    const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
+    const functionData = FunctionData.fromAbi(constructorArtifact);
+    const vkHash = hashVKStr(constructorArtifact.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
     const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
 
     const completeAddress = computeCompleteAddress(wasm, from, contractAddressSalt, root, constructorHash);
 
     const contractDao: ContractDao = {
-      ...abi,
+      ...artifact,
       completeAddress,
       functions,
       portalContract,
@@ -110,23 +110,23 @@ export class ContractTree {
   }
 
   /**
-   * Retrieve the ABI of a given function.
+   * Retrieve the artifact of a given function.
    * The function is identified by its selector, which represents a unique identifier for the function's signature.
    * Throws an error if the function with the provided selector is not found in the contract.
    *
    * @param selector - The function selector.
-   * @returns The ABI object containing relevant information about the targeted function.
+   * @returns The artifact object containing relevant information about the targeted function.
    */
-  public getFunctionAbi(selector: FunctionSelector) {
-    const abi = this.contract.functions.find(f => f.selector.equals(selector));
-    if (!abi) {
+  public getFunctionArtifact(selector: FunctionSelector) {
+    const artifact = this.contract.functions.find(f => f.selector.equals(selector));
+    if (!artifact) {
       throw new Error(
-        `Unknown function. Selector ${selector.toString()} not found in the ABI of contract ${this.contract.completeAddress.address.toString()}. Expected one of: ${this.contract.functions
+        `Unknown function. Selector ${selector.toString()} not found in the artifact of contract ${this.contract.completeAddress.address.toString()}. Expected one of: ${this.contract.functions
           .map(f => f.selector.toString())
           .join(', ')}`,
       );
     }
-    return abi;
+    return artifact;
   }
 
   /**
@@ -138,7 +138,7 @@ export class ContractTree {
    * @returns The bytecode of the function as a string.
    */
   public getBytecode(selector: FunctionSelector) {
-    return this.getFunctionAbi(selector).bytecode;
+    return this.getFunctionArtifact(selector).bytecode;
   }
 
   /**

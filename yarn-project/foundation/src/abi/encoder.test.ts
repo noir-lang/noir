@@ -1,11 +1,11 @@
 import { AztecAddress } from '../aztec-address/index.js';
 import { Fr } from '../fields/fields.js';
-import { ABIParameterVisibility, FunctionAbi, FunctionAbiHeader, FunctionType } from './abi.js';
+import { ABIParameterVisibility, FunctionAbi, FunctionType } from './abi.js';
 import { encodeArguments } from './encoder.js';
 
 describe('abi/encoder', () => {
   it('serializes fields as fields', () => {
-    const abi: FunctionAbiHeader = {
+    const abi: FunctionAbi = {
       name: 'constructor',
       functionType: FunctionType.SECRET,
       isInternal: false,
@@ -26,7 +26,7 @@ describe('abi/encoder', () => {
   });
 
   it.each(['AztecAddress', 'EthereumAddress'])('accepts address instance for %s structs', (structType: string) => {
-    const abi: FunctionAbiHeader = {
+    const abi: FunctionAbi = {
       name: 'constructor',
       functionType: FunctionType.SECRET,
       isInternal: false,
@@ -71,8 +71,6 @@ describe('abi/encoder', () => {
         },
       ],
       returnTypes: [],
-      bytecode: '',
-      verificationKey: '',
     };
     const args = ['garbage'];
 
@@ -96,8 +94,6 @@ describe('abi/encoder', () => {
         },
       ],
       returnTypes: [],
-      bytecode: '',
-      verificationKey: '',
     };
     const args = ['garbage'];
     expect(() => encodeArguments(testFunctionAbi, args)).toThrowError('Cannot convert garbage to a BigInt');
@@ -118,8 +114,6 @@ describe('abi/encoder', () => {
         },
       ],
       returnTypes: [],
-      bytecode: '',
-      verificationKey: '',
     };
     const args = [
       {

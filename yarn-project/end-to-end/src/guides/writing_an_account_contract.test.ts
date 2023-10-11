@@ -9,7 +9,7 @@ import {
 } from '@aztec/aztec.js';
 import { GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { SchnorrHardcodedAccountContractAbi, TokenContract } from '@aztec/noir-contracts/types';
+import { SchnorrHardcodedAccountContractArtifact, TokenContract } from '@aztec/noir-contracts/types';
 import { AuthWitness } from '@aztec/types';
 
 import { setup } from '../fixtures/utils.js';
@@ -20,7 +20,7 @@ const PRIVATE_KEY = GrumpkinScalar.fromString('0xd35d743ac0dfe3d6dbe6be8c877cb52
 /** Account contract implementation that authenticates txs using Schnorr signatures. */
 class SchnorrHardcodedKeyAccountContract extends BaseAccountContract {
   constructor(private privateKey: GrumpkinPrivateKey = PRIVATE_KEY) {
-    super(SchnorrHardcodedAccountContractAbi);
+    super(SchnorrHardcodedAccountContractArtifact);
   }
 
   getDeploymentArgs(): Promise<any[]> {

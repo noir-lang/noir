@@ -1,4 +1,4 @@
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { PublicKey } from '@aztec/types';
 
@@ -17,19 +17,19 @@ export class Contract extends ContractBase {
   /**
    * Creates a contract instance.
    * @param address - The deployed contract's address.
-   * @param abi - The Application Binary Interface for the contract.
+   * @param artifact - Build artifact of the contract.
    * @param wallet - The wallet to use when interacting with the contract.
    * @param portalContract - The portal contract address on L1, if any.
    * @returns A promise that resolves to a new Contract instance.
    */
-  public static async at(address: AztecAddress, abi: ContractAbi, wallet: Wallet): Promise<Contract> {
+  public static async at(address: AztecAddress, artifact: ContractArtifact, wallet: Wallet): Promise<Contract> {
     const extendedContractData = await wallet.getExtendedContractData(address);
     if (extendedContractData === undefined) {
       throw new Error('Contract ' + address.toString() + ' is not deployed');
     }
     return new Contract(
       extendedContractData.getCompleteAddress(),
-      abi,
+      artifact,
       wallet,
       extendedContractData.contractData.portalContractAddress,
     );
@@ -38,21 +38,21 @@ export class Contract extends ContractBase {
   /**
    * Creates a tx to deploy a new instance of a contract.
    * @param wallet - The wallet for executing the deployment.
-   * @param abi - ABI of the contract to deploy.
+   * @param artifact - Build artifact of the contract to deploy
    * @param args - Arguments for the constructor.
    */
-  public static deploy(wallet: Wallet, abi: ContractAbi, args: any[]) {
-    return new DeployMethod(Point.ZERO, wallet, abi, args);
+  public static deploy(wallet: Wallet, artifact: ContractArtifact, args: any[]) {
+    return new DeployMethod(Point.ZERO, wallet, artifact, args);
   }
 
   /**
    * Creates a tx to deploy a new instance of a contract using the specified public key to derive the address.
    * @param publicKey - Public key for deriving the address.
    * @param wallet - The wallet for executing the deployment.
-   * @param abi - ABI of the contract to deploy.
+   * @param artifact - Build artifact of the contract.
    * @param args - Arguments for the constructor.
    */
-  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, abi: ContractAbi, args: any[]) {
-    return new DeployMethod(publicKey, wallet, abi, args);
+  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, artifact: ContractArtifact, args: any[]) {
+    return new DeployMethod(publicKey, wallet, artifact, args);
   }
 }

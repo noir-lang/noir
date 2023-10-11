@@ -33,7 +33,7 @@ async function deployZKContract(owner: CompleteAddress, wallet: Wallet, pxe: PXE
   logger('Deploying PrivateToken contract...');
   const typedArgs = [new Fr(INITIAL_BALANCE), owner.address.toField()];
 
-  const contractAddress = await deployContract(owner, PrivateTokenContract.abi, typedArgs, Fr.random(), pxe);
+  const contractAddress = await deployContract(owner, PrivateTokenContract.artifact, typedArgs, Fr.random(), pxe);
 
   logger(`L2 contract deployed at ${contractAddress}`);
   return PrivateTokenContract.at(contractAddress, wallet);
@@ -42,7 +42,14 @@ async function deployZKContract(owner: CompleteAddress, wallet: Wallet, pxe: PXE
 async function getBalance(contractAddress: AztecAddress, privateTokenContract: Contract, owner: CompleteAddress) {
   const typedArgs = [owner.address.toField()];
 
-  return await viewContractFunction(contractAddress, privateTokenContract.abi, 'getBalance', typedArgs, pxe, owner);
+  return await viewContractFunction(
+    contractAddress,
+    privateTokenContract.artifact,
+    'getBalance',
+    typedArgs,
+    pxe,
+    owner,
+  );
 }
 
 async function mint(
@@ -54,7 +61,7 @@ async function mint(
 ) {
   const typedArgs = [new Fr(amount), to.address.toField()];
 
-  return await callContractFunction(contractAddress, privateTokenContract.abi, 'mint', typedArgs, pxe, from);
+  return await callContractFunction(contractAddress, privateTokenContract.artifact, 'mint', typedArgs, pxe, from);
 }
 
 async function transfer(
@@ -66,7 +73,7 @@ async function transfer(
 ) {
   const typedArgs = [new Fr(amount), to.address.toField()];
 
-  return await callContractFunction(contractAddress, privateTokenContract.abi, 'transfer', typedArgs, pxe, from);
+  return await callContractFunction(contractAddress, privateTokenContract.artifact, 'transfer', typedArgs, pxe, from);
 }
 
 describe('ZK Contract Tests', () => {

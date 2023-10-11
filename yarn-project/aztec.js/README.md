@@ -21,7 +21,7 @@ console.log(`New account deployed at ${wallet.getAddress()}`);
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.deploy(wallet, MyContractAbi, [...constructorArgs]).send().deployed();
+const contract = await Contract.deploy(wallet, MyContractArtifact, [...constructorArgs]).send().deployed();
 console.log(`Contract deployed at ${contract.address}`);
 ```
 
@@ -30,7 +30,7 @@ console.log(`Contract deployed at ${contract.address}`);
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.at(contractAddress, MyContractAbi, wallet);
+const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
 const tx = await contract.methods.transfer(amount, recipientAddress).send().wait();
 console.log(`Transferred ${amount} to ${recipientAddress} on block ${tx.blockNumber}`);
 ```
@@ -40,7 +40,7 @@ console.log(`Transferred ${amount} to ${recipientAddress} on block ${tx.blockNum
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.at(contractAddress, MyContractAbi, wallet);
+const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
 const balance = await contract.methods.getBalance(wallet.getAddress()).view();
 console.log(`Account balance is ${balance}`);
 ```

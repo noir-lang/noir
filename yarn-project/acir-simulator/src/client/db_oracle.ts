@@ -1,5 +1,5 @@
 import { CompleteAddress, GrumpkinPrivateKey, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
+import { FunctionArtifact, FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -8,9 +8,9 @@ import { NoteData } from '../acvm/index.js';
 import { CommitmentsDB } from '../public/index.js';
 
 /**
- * A function ABI with optional debug metadata
+ * A function artifact with optional debug metadata
  */
-export interface FunctionAbiWithDebugMetadata extends FunctionAbi {
+export interface FunctionArtifactWithDebugMetadata extends FunctionArtifact {
   /**
    * Debug metadata for the function.
    */
@@ -59,14 +59,17 @@ export interface DBOracle extends CommitmentsDB {
   getNotes(contractAddress: AztecAddress, storageSlot: Fr): Promise<NoteData[]>;
 
   /**
-   * Retrieve the ABI information of a specific function within a contract.
+   * Retrieve the artifact information of a specific function within a contract.
    * The function is identified by its selector, which is a unique identifier generated from the function signature.
    *
    * @param contractAddress - The contract address.
    * @param selector - The corresponding function selector.
-   * @returns A Promise that resolves to a FunctionAbi object containing the ABI information of the target function.
+   * @returns A Promise that resolves to a FunctionArtifact object.
    */
-  getFunctionABI(contractAddress: AztecAddress, selector: FunctionSelector): Promise<FunctionAbiWithDebugMetadata>;
+  getFunctionArtifact(
+    contractAddress: AztecAddress,
+    selector: FunctionSelector,
+  ): Promise<FunctionArtifactWithDebugMetadata>;
 
   /**
    * Retrieves the portal contract address associated with the given contract address.

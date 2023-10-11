@@ -1,4 +1,4 @@
-import { ABIType, FunctionAbiHeader, isAddressStruct } from '@aztec/foundation/abi';
+import { ABIType, FunctionAbi, isAddressStruct } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -8,7 +8,7 @@ import { Fr } from '@aztec/foundation/fields';
 class ArgumentEncoder {
   private flattened: Fr[] = [];
 
-  constructor(private abi: FunctionAbiHeader, private args: any[]) {}
+  constructor(private abi: FunctionAbi, private args: any[]) {}
 
   /**
    * Encodes a single argument from the given type to field.
@@ -86,6 +86,6 @@ class ArgumentEncoder {
  * @param args - The arguments to encode.
  * @returns The encoded arguments.
  */
-export function encodeArguments(abi: FunctionAbiHeader, args: any[]) {
+export function encodeArguments(abi: FunctionAbi, args: any[]) {
   return new ArgumentEncoder(abi, args).encode();
 }

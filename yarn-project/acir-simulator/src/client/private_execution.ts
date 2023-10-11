@@ -9,7 +9,7 @@ import { extractPrivateCircuitPublicInputs } from '../acvm/deserialize.js';
 import { Oracle, acvm, extractCallStack } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
 import { ClientExecutionContext } from './client_execution_context.js';
-import { FunctionAbiWithDebugMetadata } from './db_oracle.js';
+import { FunctionArtifactWithDebugMetadata } from './db_oracle.js';
 import { ExecutionResult } from './execution_result.js';
 import { AcirSimulator } from './simulator.js';
 
@@ -18,7 +18,7 @@ import { AcirSimulator } from './simulator.js';
  */
 export async function executePrivateFunction(
   context: ClientExecutionContext,
-  abi: FunctionAbiWithDebugMetadata,
+  artifact: FunctionArtifactWithDebugMetadata,
   contractAddress: AztecAddress,
   functionData: FunctionData,
   log = createDebugLogger('aztec:simulator:secret_execution'),
@@ -26,7 +26,7 @@ export async function executePrivateFunction(
   const functionSelector = functionData.selector;
   log(`Executing external function ${contractAddress}:${functionSelector}`);
 
-  const acir = Buffer.from(abi.bytecode, 'base64');
+  const acir = Buffer.from(artifact.bytecode, 'base64');
   const initialWitness = context.getInitialWitness();
   const acvmCallback = new Oracle(context);
   const { partialWitness } = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, acvmCallback).catch(
@@ -37,7 +37,7 @@ export async function executePrivateFunction(
           contractAddress,
           functionSelector,
         },
-        extractCallStack(err, abi.debug),
+        extractCallStack(err, artifact.debug),
         { cause: err },
       );
     },
@@ -54,7 +54,7 @@ export async function executePrivateFunction(
   publicInputs.unencryptedLogPreimagesLength = new Fr(unencryptedLogs.getSerializedLength());
 
   const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs, false);
-  const returnValues = decodeReturnValues(abi, publicInputs.returnValues);
+  const returnValues = decodeReturnValues(artifact, publicInputs.returnValues);
   const readRequestPartialWitnesses = context.getReadRequestPartialWitnesses(publicInputs.readRequests);
   const newNotes = context.getNewNotes();
   const nestedExecutions = context.getNestedExecutions();
@@ -69,7 +69,7 @@ export async function executePrivateFunction(
     returnValues,
     readRequestPartialWitnesses,
     newNotes,
-    vk: Buffer.from(abi.verificationKey!, 'hex'),
+    vk: Buffer.from(artifact.verificationKey!, 'hex'),
     nestedExecutions,
     enqueuedPublicFunctionCalls,
     encryptedLogs,

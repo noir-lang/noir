@@ -6,7 +6,7 @@ import { mkdirpSync } from 'fs-extra';
 import path, { resolve } from 'path';
 
 import { generateNoirContractInterface } from '../index.js';
-import { isContractAbi } from '../utils.js';
+import { isContractArtifact } from '../utils.js';
 
 /**
  * Registers a 'interface' command on the given commander program that generates a Noir interface out of an ABI.
@@ -45,7 +45,7 @@ export function generateNoirInterface(program: Command, name = 'interface', log:
           const artifactPath = resolve(artifactsDir, artifactsDirItem);
           if (statSync(artifactPath).isFile() && artifactPath.endsWith('.json')) {
             const contract = JSON.parse(readFileSync(artifactPath).toString());
-            if (!isContractAbi(contract)) continue;
+            if (!isContractArtifact(contract)) continue;
             const interfacePath = resolve(projectPath, outdir, `${contract.name}_interface.nr`);
             log(`Writing ${contract.name} Noir external interface to ${path.relative(currentDir, interfacePath)}`);
             try {

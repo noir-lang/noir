@@ -48,7 +48,7 @@ describe('e2e_token_contract', () => {
 
     expect(await asset.methods.admin().view()).toBe(accounts[0].address.toBigInt());
 
-    asset.abi.functions.forEach(fn => {
+    asset.artifact.functions.forEach(fn => {
       logger(
         `Function ${fn.name} has ${fn.bytecode.length} bytes and the selector: ${FunctionSelector.fromNameAndParameters(
           fn.name,

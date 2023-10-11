@@ -11,7 +11,7 @@ import {
 } from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { FunctionAbi } from '@aztec/foundation/abi';
+import { FunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -306,8 +306,8 @@ export class ClientExecutionContext extends ViewDataOracle {
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
     );
 
-    const targetAbi = await this.db.getFunctionABI(targetContractAddress, functionSelector);
-    const targetFunctionData = FunctionData.fromAbi(targetAbi);
+    const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
+    const targetFunctionData = FunctionData.fromAbi(targetArtifact);
 
     const derivedTxContext = new TxContext(
       false,
@@ -318,7 +318,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.txContext.version,
     );
 
-    const derivedCallContext = await this.deriveCallContext(targetContractAddress, targetAbi, false, false);
+    const derivedCallContext = await this.deriveCallContext(targetContractAddress, targetArtifact, false, false);
 
     const context = new ClientExecutionContext(
       targetContractAddress,
@@ -336,7 +336,7 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     const childExecutionResult = await executePrivateFunction(
       context,
-      targetAbi,
+      targetArtifact,
       targetContractAddress,
       targetFunctionData,
     );
@@ -360,14 +360,14 @@ export class ClientExecutionContext extends ViewDataOracle {
     functionSelector: FunctionSelector,
     argsHash: Fr,
   ): Promise<PublicCallRequest> {
-    const targetAbi = await this.db.getFunctionABI(targetContractAddress, functionSelector);
-    const derivedCallContext = await this.deriveCallContext(targetContractAddress, targetAbi, false, false);
+    const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
+    const derivedCallContext = await this.deriveCallContext(targetContractAddress, targetArtifact, false, false);
     const args = this.packedArgsCache.unpack(argsHash);
     const sideEffectCounter = this.sideEffectCounter.count();
     const enqueuedRequest = PublicCallRequest.from({
       args,
       callContext: derivedCallContext,
-      functionData: FunctionData.fromAbi(targetAbi),
+      functionData: FunctionData.fromAbi(targetArtifact),
       contractAddress: targetContractAddress,
       sideEffectCounter,
     });
@@ -388,14 +388,14 @@ export class ClientExecutionContext extends ViewDataOracle {
   /**
    * Derives the call context for a nested execution.
    * @param targetContractAddress - The address of the contract being called.
-   * @param targetAbi - The ABI of the function being called.
+   * @param targetArtifact - The artifact of the function being called.
    * @param isDelegateCall - Whether the call is a delegate call.
    * @param isStaticCall - Whether the call is a static call.
    * @returns The derived call context.
    */
   private async deriveCallContext(
     targetContractAddress: AztecAddress,
-    targetAbi: FunctionAbi,
+    targetArtifact: FunctionArtifact,
     isDelegateCall = false,
     isStaticCall = false,
   ) {
@@ -404,7 +404,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.contractAddress,
       targetContractAddress,
       portalContractAddress,
-      FunctionSelector.fromNameAndParameters(targetAbi.name, targetAbi.parameters),
+      FunctionSelector.fromNameAndParameters(targetArtifact.name, targetArtifact.parameters),
       isDelegateCall,
       isStaticCall,
       false,

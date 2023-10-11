@@ -6,7 +6,7 @@ import { mkdirpSync } from 'fs-extra';
 import path, { resolve } from 'path';
 
 import { generateTypescriptContractInterface } from '../index.js';
-import { isContractAbi } from '../utils.js';
+import { isContractArtifact } from '../utils.js';
 
 /**
  * Registers a 'typescript' command on the given commander program that generates typescript interface out of an ABI.
@@ -45,7 +45,7 @@ export function generateTypescriptInterface(program: Command, name = 'typescript
           const artifactPath = resolve(artifactsDir, artifactsDirItem);
           if (statSync(artifactPath).isFile() && artifactPath.endsWith('.json')) {
             const contract = JSON.parse(readFileSync(artifactPath).toString());
-            if (!isContractAbi(contract)) continue;
+            if (!isContractArtifact(contract)) continue;
             const tsPath = resolve(projectPath, outdir, `${contract.name}.ts`);
             log(`Writing ${contract.name} typescript interface to ${path.relative(currentDir, tsPath)}`);
             let relativeArtifactPath = path.relative(path.dirname(tsPath), artifactPath);

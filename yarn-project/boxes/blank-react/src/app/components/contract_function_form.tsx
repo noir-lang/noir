@@ -1,12 +1,12 @@
-import { Button, Loader } from '@aztec/aztec-ui';
-import { AztecAddress, CompleteAddress, Fr } from '@aztec/aztec.js';
-import { ContractAbi, FunctionAbi } from '@aztec/foundation/abi';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
 import { CONTRACT_ADDRESS_PARAM_NAMES, pxe } from '../../config.js';
 import { callContractFunction, deployContract, viewContractFunction } from '../../scripts/index.js';
 import { convertArgs } from '../../scripts/util.js';
 import styles from './contract_function_form.module.scss';
+import { Button, Loader } from '@aztec/aztec-ui';
+import { AztecAddress, CompleteAddress, Fr } from '@aztec/aztec.js';
+import { ContractArtifact, FunctionArtifact } from '@aztec/foundation/abi';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 
 type NoirFunctionYupSchema = {
   // hack: add `any` at the end to get the array schema to typecheck
@@ -18,7 +18,7 @@ type NoirFunctionFormValues = {
   [key: string]: string | number | number[] | boolean;
 };
 
-function generateYupSchema(functionAbi: FunctionAbi, defaultAddress: string) {
+function generateYupSchema(functionAbi: FunctionArtifact, defaultAddress: string) {
   const parameterSchema: NoirFunctionYupSchema = {};
   const initialValues: NoirFunctionFormValues = {};
   for (const param of functionAbi.parameters) {
@@ -62,12 +62,12 @@ function generateYupSchema(functionAbi: FunctionAbi, defaultAddress: string) {
 
 async function handleFunctionCall(
   contractAddress: AztecAddress | undefined,
-  contractAbi: ContractAbi,
+  contractArtifact: ContractArtifact,
   functionName: string,
   args: any,
   wallet: CompleteAddress,
 ) {
-  const functionAbi = contractAbi.functions.find(f => f.name === functionName)!;
+  const functionAbi = contractArtifact.functions.find(f => f.name === functionName)!;
   const typedArgs: any[] = convertArgs(functionAbi, args);
 
   if (functionName === 'constructor' && !!wallet) {
@@ -80,13 +80,20 @@ async function handleFunctionCall(
     // for now, dont let user change the salt.  requires some change to the form generation if we want to let user choose one
     // since everything is currently based on parsing the contractABI, and the salt parameter is not present there
     const salt = Fr.random();
-    return await deployContract(wallet, contractAbi, typedArgs, salt, pxe);
+    return await deployContract(wallet, contractArtifact, typedArgs, salt, pxe);
   }
 
   if (functionAbi.functionType === 'unconstrained') {
-    return await viewContractFunction(contractAddress!, contractAbi, functionName, typedArgs, pxe, wallet);
+    return await viewContractFunction(contractAddress!, contractArtifact, functionName, typedArgs, pxe, wallet);
   } else {
-    const txnReceipt = await callContractFunction(contractAddress!, contractAbi, functionName, typedArgs, pxe, wallet);
+    const txnReceipt = await callContractFunction(
+      contractAddress!,
+      contractArtifact,
+      functionName,
+      typedArgs,
+      pxe,
+      wallet,
+    );
     return `Transaction ${txnReceipt.status} on block number ${txnReceipt.blockNumber}`;
   }
 }
@@ -94,8 +101,8 @@ async function handleFunctionCall(
 interface ContractFunctionFormProps {
   wallet: CompleteAddress;
   contractAddress?: AztecAddress;
-  contractAbi: ContractAbi;
-  functionAbi: FunctionAbi;
+  contractArtifact: ContractArtifact;
+  functionArtifact: FunctionArtifact;
   defaultAddress: string;
   title?: string;
   buttonText?: string;
@@ -109,8 +116,8 @@ interface ContractFunctionFormProps {
 export function ContractFunctionForm({
   wallet,
   contractAddress,
-  contractAbi,
-  functionAbi,
+  contractArtifact,
+  functionArtifact,
   defaultAddress,
   buttonText = 'Submit',
   isLoading,
@@ -119,14 +126,20 @@ export function ContractFunctionForm({
   onSuccess,
   onError,
 }: ContractFunctionFormProps) {
-  const { validationSchema, initialValues } = generateYupSchema(functionAbi, defaultAddress);
+  const { validationSchema, initialValues } = generateYupSchema(functionArtifact, defaultAddress);
   const formik = useFormik({
     initialValues: initialValues,
     validationSchema: validationSchema,
     onSubmit: async (values: any) => {
       onSubmit();
       try {
-        const result = await handleFunctionCall(contractAddress, contractAbi, functionAbi.name, values, wallet);
+        const result = await handleFunctionCall(
+          contractAddress,
+          contractArtifact,
+          functionArtifact.name,
+          values,
+          wallet,
+        );
         onSuccess(result);
       } catch (e: any) {
         onError(e.message);
@@ -136,7 +149,7 @@ export function ContractFunctionForm({
 
   return (
     <form onSubmit={formik.handleSubmit} className={styles.content}>
-      {functionAbi.parameters.map(input => (
+      {functionArtifact.parameters.map(input => (
         <div key={input.name} className={styles.field}>
           <label className={styles.label} htmlFor={input.name}>
             {input.name} ({input.type.kind})

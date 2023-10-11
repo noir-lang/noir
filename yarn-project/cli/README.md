@@ -140,28 +140,28 @@ Deploys a compiled Aztec.nr contract to Aztec.
 Syntax:
 
 ```shell
-aztec-cli deploy <contractAbi> [options]
+aztec-cli deploy <contractArtifact> [options]
 ```
 
 Options:
 
-- `-c, --contract-abi <fileLocation>`: Path to the compiled Aztec.nr contract's ABI file in JSON format. You can also use one of Aztec's example contracts found in [@aztec/noir-contracts](https://www.npmjs.com/package/@aztec/noir-contracts), e.g. PrivateTokenContractAbi. You can get a full ist of the available contracts with `aztec-cli example-contracts`
+- `-c, --contract-artifact <fileLocation>`: Path to the compiled Aztec.nr contract's artifact file in JSON format. You can also use one of Aztec's example contracts found in [@aztec/noir-contracts](https://www.npmjs.com/package/@aztec/noir-contracts), e.g. PrivateTokenContractArtifact. You can get a full ist of the available contracts with `aztec-cli example-contracts`
 - `-a, --args <constructorArgs...>` (optional): Contract constructor arguments Default: [].
 - `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 - `-k, --public-key <string>`: Public key of the deployer. If not provided, it will check the RPC for existing ones.
 
-This command deploys a compiled Aztec.nr contract to Aztec. It requires the path to the contract's ABI file in JSON format. Optionally, you can specify the public key of the deployer and provide constructor arguments for the contract. The command displays the address of the deployed contract.
+This command deploys a compiled Aztec.nr contract to Aztec. It requires the path to the contract's artifact file in JSON format. Optionally, you can specify the public key of the deployer and provide constructor arguments for the contract. The command displays the address of the deployed contract.
 
 Example usage:
 
 ```shell
-aztec-cli deploy -c path/to/contract.abi.json -a ...args
+aztec-cli deploy -c path/to/contract.artifact.json -a ...args
 ```
 
 With an Aztec example contract:
 
 ```shell
-aztec-cli deploy -c PrivateTokenContractAbi -a 333 0x134567890abcdef
+aztec-cli deploy -c PrivateTokenContractArtifact -a 333 0x134567890abcdef
 ```
 
 ### check-deploy
@@ -313,7 +313,7 @@ Sends a transaction invoking a function on an Aztec contract.
 Syntax:
 
 ```shell
-aztec-cli send <functionName> --args [functionArgs...] --contract-abi <contractAbi> --contract-address <contractAddress> --private-key <senderPrivateKey>
+aztec-cli send <functionName> --args [functionArgs...] --contract-artifact <contractArtifact> --contract-address <contractAddress> --private-key <senderPrivateKey>
 ```
 
 - `functionName`: Name of the function to call.
@@ -321,17 +321,17 @@ aztec-cli send <functionName> --args [functionArgs...] --contract-abi <contractA
 Options:
 
 - `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
-- `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
+- `-c, --contract-artifact <fileLocation>`: The compiled contract's artifact in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractArtifact.
 - `-ca, --contract-address <address>`: Address of the contract.
 - `-k, --private-key <string>`: The sender's private key.
 - `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
-This command calls a function on an Aztec contract. It requires the contract's ABI, address, function name, and optionally, function arguments. The command executes the function call and displays the transaction details.
+This command calls a function on an Aztec contract. It requires the contract's artifact, address, function name, and optionally, function arguments. The command executes the function call and displays the transaction details.
 
 Example usage:
 
 ```shell
-aztec-cli send transfer -ca 0x123456789abcdef123456789abcdef12345678 -a 100 -c path/to/abi.json
+aztec-cli send transfer -ca 0x123456789abcdef123456789abcdef12345678 -a 100 -c path/to/artifact.json
 ```
 
 ### call
@@ -342,7 +342,7 @@ Unlike transactions, view calls do not modify the state of the contract.
 Syntax:
 
 ```shell
-aztec-cli call <functionName> -a [functionArgs...] -c <contractAbi> -ca <contractAddress> -f <fromAddress>
+aztec-cli call <functionName> -a [functionArgs...] -c <contractArtifact> -ca <contractAddress> -f <fromAddress>
 ```
 
 - `functionName`: Name of the function to view.
@@ -350,17 +350,17 @@ aztec-cli call <functionName> -a [functionArgs...] -c <contractAbi> -ca <contrac
 Options:
 
 - `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
-- `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractAbi.
+- `-c, --contract-artifact <fileLocation>`: The compiled contract's artifact in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. PrivateTokenContractArtifact.
 - `-ca, --contract-address <address>`: Address of the contract.
 - `-f, --from <string>`: Address of the caller. If empty, first account in the Private eXecution Environment (PXE) will be used.
 - `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
-This command simulates the execution of a view function on a deployed contract without modifying the state. It requires the contract's ABI, address, function name, and optionally, function arguments. The command displays the result of the view function.
+This command simulates the execution of a view function on a deployed contract without modifying the state. It requires the contract's artifact, address, function name, and optionally, function arguments. The command displays the result of the view function.
 
 Example usage:
 
 ```shell
-aztec-cli call balanceOf -c path/to/contract.abi.json -ca 0x123456789abcdef123456789abcdef12345678 -a balanceOf 0xabcdef1234567890abcdef1234567890abcdef12
+aztec-cli call balanceOf -c path/to/contract.artifact.json -ca 0x123456789abcdef123456789abcdef12345678 -a balanceOf 0xabcdef1234567890abcdef1234567890abcdef12
 ```
 
 ### parse-parameter-struct
@@ -370,19 +370,19 @@ Helper for parsing an encoded string into a contract's parameter struct.
 Syntax:
 
 ```shell
-aztec-cli parse-parameter-struct <encodedString> <contractAbi> <parameterName>
+aztec-cli parse-parameter-struct <encodedString> <contractArtifact> <parameterName>
 ```
 
 - `encodedString`: The encoded hex string.
-- `contractAbi`: The compiled contract's ABI in JSON format.
+- `contractArtifact`: The compiled contract's artifact in JSON format.
 - `parameterName`: The name of the struct parameter to decode into.
 
-This command is a helper for parsing an encoded hex string into a contract's parameter struct. It requires the encoded string, the contract's ABI, and the name of the struct parameter. The command decodes the string and displays the struct data.
+This command is a helper for parsing an encoded hex string into a contract's parameter struct. It requires the encoded string, the contract's artifact, and the name of the struct parameter. The command decodes the string and displays the struct data.
 
 Example usage:
 
 ```shell
-aztec-cli parse-parameter-struct 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 path/to/contract.abi.json paramName
+aztec-cli parse-parameter-struct 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 path/to/contract.artifact.json paramName
 ```
 
 ### get-logs

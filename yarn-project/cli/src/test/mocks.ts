@@ -1,6 +1,6 @@
-import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
+import { ABIParameterVisibility, ContractArtifact, FunctionType } from '@aztec/foundation/abi';
 
-export const mockContractAbi: ContractAbi = {
+export const mockContractArtifact: ContractArtifact = {
   name: 'MockContract',
   functions: [
     {

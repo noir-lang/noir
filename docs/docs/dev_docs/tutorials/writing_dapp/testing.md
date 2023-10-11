@@ -27,7 +27,7 @@ Create a new file `src/index.test.mjs` with the imports we'll be using and an em
 ```js
 import { createSandbox } from "@aztec/aztec-sandbox";
 import { Contract, createAccount } from "@aztec/aztec.js";
-import TokenContractAbi from "../contracts/token/target/Token.json" assert { type: "json" };
+import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
 
 describe("token", () => {});
 ```

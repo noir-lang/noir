@@ -1,9 +1,9 @@
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
-import SchnorrAccountContractAbi from '../../abis/schnorr_account_contract.json' assert { type: 'json' };
+import SchnorrAccountContractArtifact from '../../artifacts/schnorr_account_contract.json' assert { type: 'json' };
 import { AuthWitnessProvider } from '../interface.js';
 import { BaseAccountContract } from './base_account_contract.js';
 
@@ -13,7 +13,7 @@ import { BaseAccountContract } from './base_account_contract.js';
  */
 export class SchnorrAccountContract extends BaseAccountContract {
   constructor(private signingPrivateKey: GrumpkinPrivateKey) {
-    super(SchnorrAccountContractAbi as ContractAbi);
+    super(SchnorrAccountContractArtifact as ContractArtifact);
   }
 
   async getDeploymentArgs() {

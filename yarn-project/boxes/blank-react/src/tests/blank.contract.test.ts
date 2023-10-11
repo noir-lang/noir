@@ -1,3 +1,5 @@
+import { BlankContract } from '../artifacts/Blank.js';
+import { callContractFunction, deployContract, getWallet } from '../scripts/index.js';
 import {
   AccountWallet,
   AztecAddress,
@@ -11,8 +13,6 @@ import {
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { BlankContract } from '../artifacts/Blank.js';
-import { callContractFunction, deployContract, getWallet } from '../scripts/index.js';
 
 const logger = createDebugLogger('aztec:http-pxe-client');
 
@@ -28,7 +28,7 @@ const setupSandbox = async () => {
 
 async function deployZKContract(owner: CompleteAddress, wallet: Wallet, pxe: PXE) {
   logger('Deploying Blank contract...');
-  const contractAddress = await deployContract(owner, BlankContract.abi, [], Fr.random(), pxe);
+  const contractAddress = await deployContract(owner, BlankContract.artifact, [], Fr.random(), pxe);
 
   logger(`L2 contract deployed at ${contractAddress}`);
   return BlankContract.at(contractAddress, wallet);
@@ -57,7 +57,7 @@ describe('ZK Contract Tests', () => {
   test('call succeeds after deploy', async () => {
     const callTxReceipt = await callContractFunction(
       contractAddress,
-      contract.abi,
+      contract.artifact,
       'getPublicKey',
       [owner.address.toField()],
       pxe,

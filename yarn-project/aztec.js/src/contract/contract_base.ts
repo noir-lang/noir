@@ -1,4 +1,4 @@
-import { ContractAbi, FunctionAbi, FunctionSelector } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionArtifact, FunctionSelector } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { CompleteAddress, DeployedContract } from '@aztec/types';
 
@@ -29,13 +29,13 @@ export class ContractBase implements DeployedContract {
     /** The deployed contract's complete address. */
     public readonly completeAddress: CompleteAddress,
     /** The Application Binary Interface for the contract. */
-    public readonly abi: ContractAbi,
+    public readonly artifact: ContractArtifact,
     /** The wallet used for interacting with this contract. */
     protected wallet: Wallet,
     /** The portal contract address on L1, if any. */
     public readonly portalContract: EthAddress,
   ) {
-    abi.functions.forEach((f: FunctionAbi) => {
+    artifact.functions.forEach((f: FunctionArtifact) => {
       const interactionFunction = (...args: any[]) => {
         return new ContractFunctionInteraction(this.wallet, this.completeAddress.address!, f, args);
       };
@@ -65,6 +65,6 @@ export class ContractBase implements DeployedContract {
    * @returns A new contract instance.
    */
   public withWallet(wallet: Wallet): this {
-    return new ContractBase(this.completeAddress, this.abi, wallet, this.portalContract) as this;
+    return new ContractBase(this.completeAddress, this.artifact, wallet, this.portalContract) as this;
   }
 }

@@ -137,7 +137,7 @@ It has prebuilt binaries and is super easy to install using `noirup`
 6. Export the abi in `src/artifacts/index.ts` to be able to use the contract in the rest of the project:
    ```
    import ExampleContractJson from './example_contract.json' assert { type: 'json' };
-   export const ExampleContractAbi = ExampleContractJson as ContractAbi;
+   export const ExampleContractArtifact = ExampleContractJson as ContractArtifact;
    ```
 7. ???
 8. Profit.

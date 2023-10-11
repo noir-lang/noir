@@ -17,16 +17,16 @@ import {
 } from '@aztec/aztec.js';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { PXE, PublicKey } from '@aztec/types';
-import { ContractAbi } from '@aztec/foundation/abi';
-import PrivateTokenContractAbiJson from './PrivateToken.json' assert { type: 'json' };
-export const PrivateTokenContractAbi = PrivateTokenContractAbiJson as ContractAbi;
+import { ContractArtifact } from '@aztec/foundation/abi';
+import PrivateTokenContractArtifactJson from './PrivateToken.json' assert { type: 'json' };
+export const PrivateTokenContractArtifact = PrivateTokenContractArtifactJson as ContractArtifact;
 
 /**
  * Type-safe interface for contract PrivateToken;
  */
 export class PrivateTokenContract extends ContractBase {
   private constructor(completeAddress: CompleteAddress, wallet: Wallet, portalContract = EthAddress.ZERO) {
-    super(completeAddress, PrivateTokenContractAbi, wallet, portalContract);
+    super(completeAddress, PrivateTokenContractArtifact, wallet, portalContract);
   }
 
   /**
@@ -36,7 +36,7 @@ export class PrivateTokenContract extends ContractBase {
    * @returns A promise that resolves to a new Contract instance.
    */
   public static async at(address: AztecAddress, wallet: Wallet) {
-    return Contract.at(address, PrivateTokenContract.abi, wallet) as Promise<PrivateTokenContract>;
+    return Contract.at(address, PrivateTokenContract.artifact, wallet) as Promise<PrivateTokenContract>;
   }
 
   /**
@@ -46,7 +46,7 @@ export class PrivateTokenContract extends ContractBase {
     return new DeployMethod<PrivateTokenContract>(
       Point.ZERO,
       pxe,
-      PrivateTokenContractAbi,
+      PrivateTokenContractArtifact,
       Array.from(arguments).slice(1),
     );
   }
@@ -58,16 +58,16 @@ export class PrivateTokenContract extends ContractBase {
     return new DeployMethod<PrivateTokenContract>(
       publicKey,
       pxe,
-      PrivateTokenContractAbi,
+      PrivateTokenContractArtifact,
       Array.from(arguments).slice(2),
     );
   }
 
   /**
-   * Returns this contract's ABI.
+   * Returns this contract's artifact.
    */
-  public static get abi(): ContractAbi {
-    return PrivateTokenContractAbi;
+  public static get artifact(): ContractArtifact {
+    return PrivateTokenContractArtifact;
   }
 
   /** Type-safe wrappers for the public methods exposed by the contract. */

@@ -1,10 +1,10 @@
 import { PartialAddress } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
-import SchnorrSingleKeyAccountContractAbi from '../../abis/schnorr_single_key_account_contract.json' assert { type: 'json' };
+import SchnorrSingleKeyAccountContractArtifact from '../../artifacts/schnorr_single_key_account_contract.json' assert { type: 'json' };
 import { generatePublicKey } from '../../index.js';
 import { AuthWitnessProvider } from '../interface.js';
 import { BaseAccountContract } from './base_account_contract.js';
@@ -15,7 +15,7 @@ import { BaseAccountContract } from './base_account_contract.js';
  */
 export class SingleKeyAccountContract extends BaseAccountContract {
   constructor(private encryptionPrivateKey: GrumpkinPrivateKey) {
-    super(SchnorrSingleKeyAccountContractAbi as ContractAbi);
+    super(SchnorrSingleKeyAccountContractArtifact as ContractArtifact);
   }
 
   getDeploymentArgs(): Promise<any[]> {

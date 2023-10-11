@@ -1,8 +1,8 @@
 import { AccountWallet, Fr, getSandboxAccountsWallets } from '@aztec/aztec.js';
-import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
+import { FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
 import { PXE, CompleteAddress } from '@aztec/types';
 
-export function convertArgs(functionAbi: FunctionAbi, args: any): Fr[] {
+export function convertArgs(functionAbi: FunctionArtifact, args: any): Fr[] {
   const untypedArgs = functionAbi.parameters.map(param => {
     switch (param.type.kind) {
       case 'field':

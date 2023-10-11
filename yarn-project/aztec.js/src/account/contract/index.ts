@@ -1,4 +1,4 @@
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { CompleteAddress, NodeInfo } from '@aztec/types';
 
 import { AccountInterface } from '../interface.js';
@@ -10,14 +10,14 @@ export * from './base_account_contract.js';
 
 // docs:start:account-contract-interface
 /**
- * An account contract instance. Knows its ABI, deployment arguments, how to create
+ * An account contract instance. Knows its artifact, deployment arguments, how to create
  * transaction execution requests out of function calls, and how to authorize actions.
  */
 export interface AccountContract {
   /**
-   * Returns the ABI of this account contract.
+   * Returns the artifact of this account contract.
    */
-  getContractAbi(): ContractAbi;
+  getContractArtifact(): ContractArtifact;
 
   /**
    * Returns the deployment arguments for this instance.

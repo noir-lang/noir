@@ -40,7 +40,7 @@ Each contract's function data is stored in a Merkle tree, where each leaf contai
 
 ### How are function signatures defined?
 
-We can take a leaf from Ethereum and make them the first 4 bytes of a hash of the function definition (defined according to the contract ABI, TBD).
+We can take a leaf from Ethereum and make them the first 4 bytes of a hash of the function definition (defined according to the contract artifact, TBD).
 
 ## Contract Representation in Aztec
 
@@ -284,7 +284,7 @@ The set of functions of a contract is represented as a mini Merkle tree of verif
 - Distributing L2 contract data
 - Linking to an L1 Portal Contract
 
-These topics are reflected in the layout of the contract deployment ABI:
+These topics are reflected in the layout of the contract deployment artifact:
 
 ```js
 publicInputs = {

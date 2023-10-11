@@ -6,7 +6,7 @@ import {
   Proof,
 } from '@aztec/circuits.js';
 import { makePrivateKernelPublicInputsFinal, makePublicCallRequest } from '@aztec/circuits.js/factories';
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Tuple } from '@aztec/foundation/serialize';
 
@@ -37,13 +37,13 @@ export const mockTx = (seed = 1) => {
   );
 };
 
-export const randomContractAbi = (): ContractAbi => ({
+export const randomContractArtifact = (): ContractArtifact => ({
   name: randomBytes(4).toString('hex'),
   functions: [],
 });
 
 export const randomDeployedContract = async (): Promise<DeployedContract> => ({
-  abi: randomContractAbi(),
+  artifact: randomContractArtifact(),
   completeAddress: await CompleteAddress.random(),
   portalContract: EthAddress.random(),
 });

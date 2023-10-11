@@ -64,7 +64,7 @@ export class AccountManager {
     if (!this.completeAddress) {
       const encryptionPublicKey = await generatePublicKey(this.encryptionPrivateKey);
       const contractDeploymentInfo = await getContractDeploymentInfo(
-        this.accountContract.getContractAbi(),
+        this.accountContract.getContractArtifact(),
         await this.accountContract.getDeploymentArgs(),
         this.salt!,
         encryptionPublicKey,
@@ -107,7 +107,7 @@ export class AccountManager {
       if (!this.salt) throw new Error(`Cannot deploy account contract without known salt.`);
       await this.register();
       const encryptionPublicKey = await this.getEncryptionPublicKey();
-      const deployer = new ContractDeployer(this.accountContract.getContractAbi(), this.pxe, encryptionPublicKey);
+      const deployer = new ContractDeployer(this.accountContract.getContractArtifact(), this.pxe, encryptionPublicKey);
       const args = await this.accountContract.getDeploymentArgs();
       this.deployMethod = deployer.deploy(...args);
     }

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import * as AztecJs from '@aztec/aztec.js';
-import { TokenContractAbi } from '@aztec/noir-contracts/artifacts';
+import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
 
 import { Server } from 'http';
 import Koa from 'koa';
@@ -127,32 +127,32 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
 
     it("Gets the owner's balance", async () => {
       const result = await page.evaluate(
-        async (rpcUrl, contractAddress, TokenContractAbi) => {
+        async (rpcUrl, contractAddress, TokenContractArtifact) => {
           const { Contract, AztecAddress, createPXEClient: createPXEClient } = window.AztecJs;
           const pxe = createPXEClient(rpcUrl!);
           const owner = (await pxe.getRegisteredAccounts())[0].address;
           const [wallet] = await AztecJs.getSandboxAccountsWallets(pxe);
-          const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractAbi, wallet);
+          const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractArtifact, wallet);
           const balance = await contract.methods.balance_of_private(owner).view({ from: owner });
           return balance;
         },
         PXE_URL,
         (await getTokenAddress()).toString(),
-        TokenContractAbi,
+        TokenContractArtifact,
       );
       expect(result).toEqual(initialBalance);
     });
 
     it('Sends a transfer TX', async () => {
       const result = await page.evaluate(
-        async (rpcUrl, contractAddress, transferAmount, TokenContractAbi) => {
+        async (rpcUrl, contractAddress, transferAmount, TokenContractArtifact) => {
           console.log(`Starting transfer tx`);
           const { AztecAddress, Contract, createPXEClient: createPXEClient } = window.AztecJs;
           const pxe = createPXEClient(rpcUrl!);
           const accounts = await pxe.getRegisteredAccounts();
           const receiver = accounts[1].address;
           const [wallet] = await AztecJs.getSandboxAccountsWallets(pxe);
-          const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractAbi, wallet);
+          const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractArtifact, wallet);
           await contract.methods.transfer(accounts[0].address, receiver, transferAmount, 0).send().wait();
           console.log(`Transferred ${transferAmount} tokens to new Account`);
           return await contract.methods.balance_of_private(receiver).view({ from: receiver });
@@ -160,14 +160,14 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
         PXE_URL,
         (await getTokenAddress()).toString(),
         transferAmount,
-        TokenContractAbi,
+        TokenContractArtifact,
       );
       expect(result).toEqual(transferAmount);
     }, 60_000);
 
     const deployTokenContract = async () => {
       const txHash = await page.evaluate(
-        async (rpcUrl, privateKeyString, initialBalance, TokenContractAbi) => {
+        async (rpcUrl, privateKeyString, initialBalance, TokenContractArtifact) => {
           const {
             GrumpkinScalar,
             DeployMethod,
@@ -189,14 +189,14 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
           }
           const [owner] = await getSandboxAccountsWallets(pxe);
           const ownerAddress = owner.getAddress();
-          const tx = new DeployMethod(accounts[0].publicKey, pxe, TokenContractAbi, [
+          const tx = new DeployMethod(accounts[0].publicKey, pxe, TokenContractArtifact, [
             owner.getCompleteAddress(),
           ]).send();
           await tx.wait();
           const receipt = await tx.getReceipt();
           console.log(`Contract Deployed: ${receipt.contractAddress}`);
 
-          const token = await Contract.at(receipt.contractAddress!, TokenContractAbi, owner);
+          const token = await Contract.at(receipt.contractAddress!, TokenContractArtifact, owner);
           const secret = Fr.random();
           const secretHash = await computeMessageSecretHash(secret);
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
@@ -212,7 +212,7 @@ export const browserTestSuite = (setup: () => Server, pageLogger: AztecJs.DebugL
         PXE_URL,
         privKey.toString(),
         initialBalance,
-        TokenContractAbi,
+        TokenContractArtifact,
       );
 
       const txResult = await testClient.getTxReceipt(AztecJs.TxHash.fromString(txHash));

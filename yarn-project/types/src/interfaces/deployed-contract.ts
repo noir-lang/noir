@@ -1,16 +1,16 @@
 import { EthAddress } from '@aztec/circuits.js';
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { CompleteAddress } from '@aztec/types';
 
 /**
  * Represents a deployed contract on the Aztec network.
- * Contains the contract ABI, address, and associated portal contract address.
+ * Contains the contract artifact, address, and associated portal contract address.
  */
 export interface DeployedContract {
   /**
-   * The Application Binary Interface of the deployed contract.
+   * The artifact of the deployed contract.
    */
-  abi: ContractAbi;
+  artifact: ContractArtifact;
   /**
    * The complete address representing the contract on L2.
    */

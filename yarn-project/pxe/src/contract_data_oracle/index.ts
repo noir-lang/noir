@@ -31,17 +31,17 @@ export class ContractDataOracle {
   }
 
   /**
-   * Retrieves the ABI of a specified function within a given contract.
+   * Retrieves the artifact of a specified function within a given contract.
    * The function is identified by its selector, which is a unique code generated from the function's signature.
    * Throws an error if the contract address or function selector are invalid or not found.
    *
    * @param contractAddress - The AztecAddress representing the contract containing the function.
    * @param selector - The function selector.
-   * @returns The corresponding function's ABI as an object.
+   * @returns The corresponding function's artifact as an object.
    */
-  public async getFunctionAbi(contractAddress: AztecAddress, selector: FunctionSelector) {
+  public async getFunctionArtifact(contractAddress: AztecAddress, selector: FunctionSelector) {
     const tree = await this.getTree(contractAddress);
-    return tree.getFunctionAbi(selector);
+    return tree.getFunctionArtifact(selector);
   }
 
   /**
@@ -51,20 +51,20 @@ export class ContractDataOracle {
    *
    * @param contractAddress - The AztecAddress representing the contract containing the function.
    * @param selector - The function selector.
-   * @returns The corresponding function's ABI as an object.
+   * @returns The corresponding function's artifact as an object.
    */
   public async getFunctionDebugMetadata(
     contractAddress: AztecAddress,
     selector: FunctionSelector,
   ): Promise<FunctionDebugMetadata | undefined> {
     const contract = await this.db.getContract(contractAddress);
-    const functionAbi = contract?.functions.find(f => f.selector.equals(selector));
+    const functionArtifact = contract?.functions.find(f => f.selector.equals(selector));
 
-    if (!contract || !functionAbi) {
+    if (!contract || !functionArtifact) {
       return undefined;
     }
 
-    return getFunctionDebugMetadata(contract, functionAbi.name);
+    return getFunctionDebugMetadata(contract, functionArtifact.name);
   }
 
   /**

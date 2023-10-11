@@ -18,7 +18,7 @@ To do this, let's first initialize a new `Contract` instance using `aztec.js` th
 // src/contracts.mjs
 import { Contract } from "@aztec/aztec.js";
 import { readFileSync } from "fs";
-import TokenContractAbi from "../contracts/token/target/Token.json" assert { type: "json" };
+import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
 ```
 
 And then add the following code for initialising the `Contract` instances:

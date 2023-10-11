@@ -1,4 +1,4 @@
-import { ABIParameterVisibility, FunctionAbi } from './abi.js';
+import { ABIParameterVisibility, FunctionArtifact } from './abi.js';
 import { decodeFunctionSignature, decodeFunctionSignatureWithParameterNames } from './decoder.js';
 
 describe('abi/decoder', () => {
@@ -61,7 +61,7 @@ describe('abi/decoder', () => {
         visibility: 'private' as ABIParameterVisibility,
       },
     ],
-  } as Pick<FunctionAbi, 'name' | 'parameters'>;
+  } as Pick<FunctionArtifact, 'name' | 'parameters'>;
 
   it('decodes function signature', () => {
     expect(decodeFunctionSignature(abi.name, abi.parameters)).toMatchInlineSnapshot(

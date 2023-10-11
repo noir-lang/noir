@@ -121,7 +121,7 @@ describe('e2e_2_pxes', () => {
     // Add token to PXE B (PXE A already has it because it was deployed through it)
     await pxeB.addContracts([
       {
-        abi: TokenContract.abi,
+        artifact: TokenContract.artifact,
         completeAddress: completeTokenAddress,
         portalContract: EthAddress.ZERO,
       },
@@ -184,7 +184,7 @@ describe('e2e_2_pxes', () => {
     // Add Child to PXE B
     await pxeB.addContracts([
       {
-        abi: ChildContract.abi,
+        artifact: ChildContract.artifact,
         completeAddress: childCompleteAddress,
         portalContract: EthAddress.ZERO,
       },
@@ -216,7 +216,7 @@ describe('e2e_2_pxes', () => {
     // Add token to PXE B (PXE A already has it because it was deployed through it)
     await pxeB.addContracts([
       {
-        abi: TokenContract.abi,
+        artifact: TokenContract.artifact,
         completeAddress: completeTokenAddress,
         portalContract: EthAddress.ZERO,
       },

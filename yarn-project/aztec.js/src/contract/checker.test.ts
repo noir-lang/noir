@@ -7,12 +7,12 @@ describe('abiChecker', () => {
     abi = {
       name: 'TEST_ABI',
     };
-    expect(() => abiChecker(abi)).toThrowError('ABI has no functions');
+    expect(() => abiChecker(abi)).toThrowError('artifact has no functions');
     abi = {
       name: 'TEST_ABI',
       functions: [],
     };
-    expect(() => abiChecker(abi)).toThrowError('ABI has no functions');
+    expect(() => abiChecker(abi)).toThrowError('artifact has no functions');
   });
 
   it('should error if ABI has no names', () => {

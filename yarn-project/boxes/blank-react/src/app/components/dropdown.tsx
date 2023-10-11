@@ -1,7 +1,6 @@
-import { CSSProperties, useEffect, useRef } from 'react';
-import classnames from 'classnames';
-
 import style from './dropdown.module.scss';
+import classnames from 'classnames';
+import { CSSProperties, useEffect, useRef } from 'react';
 
 export enum DropdownType {
   Simple = 'Simple',

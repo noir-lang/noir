@@ -11,7 +11,7 @@ ALICE_PRIVATE_KEY="0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf08
 
 # docs:start:deploy
 aztec-cli deploy \
-  TokenContractAbi \
+  TokenContractArtifact \
   --salt 0 \
   --args $ALICE
 
@@ -26,7 +26,7 @@ SECRET_HASH="0x0a42b1fe22b652cc8610e33bb1128040ce2d2862e7041ff235aa871739822b74"
 
 MINT_PRIVATE_OUTPUT=$(aztec-cli send mint_private \
   --args 1000 $SECRET_HASH \
-  --contract-abi TokenContractAbi \
+  --contract-artifact TokenContractArtifact \
   --contract-address $CONTRACT \
   --private-key $ALICE_PRIVATE_KEY)
 
@@ -38,7 +38,7 @@ aztec-cli add-note \
 
 aztec-cli send redeem_shield \
   --args $ALICE 1000 $SECRET \
-  --contract-abi TokenContractAbi \
+  --contract-artifact TokenContractArtifact \
   --contract-address $CONTRACT \
   --private-key $ALICE_PRIVATE_KEY
 # docs:end:mint-private
@@ -46,32 +46,32 @@ aztec-cli send redeem_shield \
 # docs:start:get-balance
 aztec-cli call balance_of_private \
   --args $ALICE \
-  --contract-abi TokenContractAbi \
+  --contract-artifact TokenContractArtifact \
   --contract-address $CONTRACT
 # docs:end:get-balance
 
 # docs:start:transfer
 aztec-cli send transfer \
   --args $ALICE $BOB 500 0 \
-  --contract-abi TokenContractAbi \
+  --contract-artifact TokenContractArtifact \
   --contract-address $CONTRACT \
   --private-key $ALICE_PRIVATE_KEY
 
 aztec-cli call balance_of_private \
   --args $ALICE \
-  --contract-abi TokenContractAbi \
+  --contract-artifact TokenContractArtifact \
   --contract-address $CONTRACT
 
 aztec-cli call balance_of_private \
   --args $BOB \
-  --contract-abi TokenContractAbi \
+  --contract-artifact TokenContractArtifact \
   --contract-address $CONTRACT
 # docs:end:transfer
 
 aztec-cli get-logs
 
 # Test end result
-BOB_BALANCE=$(aztec-cli call balance_of_private --args $BOB --contract-abi TokenContractAbi --contract-address $CONTRACT)
+BOB_BALANCE=$(aztec-cli call balance_of_private --args $BOB --contract-artifact TokenContractArtifact --contract-address $CONTRACT)
 if ! echo $BOB_BALANCE | grep -q 500; then
   echo "Incorrect Bob balance after transaction (expected 500 but got $BOB_BALANCE)"
   exit 1

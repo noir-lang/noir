@@ -1,5 +1,5 @@
 import { CompleteAddress, ContractFunctionDao } from '@aztec/circuits.js';
-import { ContractAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
 import { EncodedContractFunction } from './contract_data.js';
@@ -9,7 +9,7 @@ import { EncodedContractFunction } from './contract_data.js';
  * Contains the contract's address, portal contract address, and an array of ContractFunctionDao objects.
  * Each ContractFunctionDao object includes FunctionAbi data and the function selector buffer.
  */
-export interface ContractDao extends ContractAbi {
+export interface ContractDao extends ContractArtifact {
   /**
    * The complete address representing the contract on L2.
    */
@@ -25,25 +25,25 @@ export interface ContractDao extends ContractAbi {
 }
 
 /**
- * Converts the given contract ABI into a ContractDao object that includes additional properties
+ * Converts the given contract artifact into a ContractDao object that includes additional properties
  * such as the address, portal contract, and function selectors.
  *
- * @param abi - The contract ABI.
+ * @param artifact - The contract artifact.
  * @param completeAddress - The AztecAddress representing the contract's address.
  * @param portalContract - The EthAddress representing the address of the associated portal contract.
  * @returns A ContractDao object containing the provided information along with generated function selectors.
  */
 export function toContractDao(
-  abi: ContractAbi,
+  artifact: ContractArtifact,
   completeAddress: CompleteAddress,
   portalContract: EthAddress,
 ): ContractDao {
-  const functions = abi.functions.map(f => ({
+  const functions = artifact.functions.map(f => ({
     ...f,
     selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
   }));
   return {
-    ...abi,
+    ...artifact,
     completeAddress,
     functions,
     portalContract,

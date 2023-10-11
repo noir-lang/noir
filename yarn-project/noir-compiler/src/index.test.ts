@@ -1,4 +1,4 @@
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { fileURLToPath } from '@aztec/foundation/url';
 
 import { execSync } from 'child_process';
@@ -25,7 +25,7 @@ describe('noir-compiler', () => {
   });
 
   describeIf(isNargoAvailable)('using nargo binary', () => {
-    let compiled: ContractAbi[];
+    let compiled: ContractArtifact[];
     beforeAll(async () => {
       compiled = await compileUsingNargo(projectPath);
     });

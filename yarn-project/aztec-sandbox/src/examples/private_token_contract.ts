@@ -25,7 +25,7 @@ const SECONDARY_AMOUNT = 33n;
 /**
  * Deploys the Private Token contract.
  * @param owner - The address that the initial balance will belong to.
- * @returns An Aztec Contract object with the private token's ABI.
+ * @returns An Aztec Contract object with the private token's artifact.
  */
 async function deployZKContract(owner: AztecAddress) {
   logger('Deploying L2 contract...');

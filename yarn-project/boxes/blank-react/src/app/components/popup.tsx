@@ -1,5 +1,5 @@
-import { Button } from '@aztec/aztec-ui';
 import styles from './popup.module.scss';
+import { Button } from '@aztec/aztec-ui';
 
 interface Props {
   children: string;

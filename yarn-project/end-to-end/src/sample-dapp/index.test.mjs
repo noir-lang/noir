@@ -1,6 +1,6 @@
 import { createSandbox } from '@aztec/aztec-sandbox';
 import { Contract, Fr, NotePreimage, computeMessageSecretHash, createAccount } from '@aztec/aztec.js';
-import { TokenContractAbi } from '@aztec/noir-contracts/artifacts';
+import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
 
 describe('token', () => {
   // docs:start:setup
@@ -10,7 +10,7 @@ describe('token', () => {
     owner = await createAccount(pxe);
     recipient = await createAccount(pxe);
 
-    token = await Contract.deploy(owner, TokenContractAbi, [owner.getCompleteAddress()]).send().deployed();
+    token = await Contract.deploy(owner, TokenContractArtifact, [owner.getCompleteAddress()]).send().deployed();
 
     const initialBalance = 20n;
     const secret = Fr.random();

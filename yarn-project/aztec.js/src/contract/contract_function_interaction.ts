@@ -1,5 +1,5 @@
 import { AztecAddress, FunctionData } from '@aztec/circuits.js';
-import { FunctionAbiHeader, FunctionType, encodeArguments } from '@aztec/foundation/abi';
+import { FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { FunctionCall, TxExecutionRequest } from '@aztec/types';
 
 import { Wallet } from '../wallet/index.js';
@@ -26,7 +26,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
   constructor(
     protected wallet: Wallet,
     protected contractAddress: AztecAddress,
-    protected functionDao: FunctionAbiHeader,
+    protected functionDao: FunctionAbi,
     protected args: any[],
   ) {
     super(wallet);

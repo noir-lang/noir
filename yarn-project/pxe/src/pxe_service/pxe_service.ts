@@ -168,7 +168,7 @@ export class PXEService implements PXE {
   }
 
   public async addContracts(contracts: DeployedContract[]) {
-    const contractDaos = contracts.map(c => toContractDao(c.abi, c.completeAddress, c.portalContract));
+    const contractDaos = contracts.map(c => toContractDao(c.artifact, c.completeAddress, c.portalContract));
     await Promise.all(contractDaos.map(c => this.db.addContract(c)));
     for (const contract of contractDaos) {
       const portalInfo =
@@ -334,7 +334,7 @@ export class PXEService implements PXE {
     const functionCall = await this.#getFunctionCall(functionName, args, to);
     const executionResult = await this.#simulateUnconstrained(functionCall);
 
-    // TODO - Return typed result based on the function abi.
+    // TODO - Return typed result based on the function artifact.
     return executionResult;
   }
 
@@ -420,14 +420,14 @@ export class PXEService implements PXE {
 
   /**
    * Retrieves the simulation parameters required to run an ACIR simulation.
-   * This includes the contract address, function ABI, portal contract address, and historic tree roots.
+   * This includes the contract address, function artifact, portal contract address, and historic tree roots.
    *
    * @param execRequest - The transaction request object containing details of the contract call.
-   * @returns An object containing the contract address, function ABI, portal contract address, and historic tree roots.
+   * @returns An object containing the contract address, function artifact, portal contract address, and historic tree roots.
    */
   async #getSimulationParameters(execRequest: FunctionCall | TxExecutionRequest) {
     const contractAddress = (execRequest as FunctionCall).to ?? (execRequest as TxExecutionRequest).origin;
-    const functionAbi = await this.contractDataOracle.getFunctionAbi(
+    const functionArtifact = await this.contractDataOracle.getFunctionArtifact(
       contractAddress,
       execRequest.functionData.selector,
     );
@@ -439,8 +439,8 @@ export class PXEService implements PXE {
 
     return {
       contractAddress,
-      functionAbi: {
-        ...functionAbi,
+      functionArtifact: {
+        ...functionArtifact,
         debug,
       },
       portalContract,
@@ -450,11 +450,11 @@ export class PXEService implements PXE {
   async #simulate(txRequest: TxExecutionRequest): Promise<ExecutionResult> {
     // TODO - Pause syncing while simulating.
 
-    const { contractAddress, functionAbi, portalContract } = await this.#getSimulationParameters(txRequest);
+    const { contractAddress, functionArtifact, portalContract } = await this.#getSimulationParameters(txRequest);
 
     this.log('Executing simulator...');
     try {
-      const result = await this.simulator.run(txRequest, functionAbi, contractAddress, portalContract);
+      const result = await this.simulator.run(txRequest, functionArtifact, contractAddress, portalContract);
       this.log('Simulation completed!');
       return result;
     } catch (err) {
@@ -474,11 +474,11 @@ export class PXEService implements PXE {
    * @returns The simulation result containing the outputs of the unconstrained function.
    */
   async #simulateUnconstrained(execRequest: FunctionCall) {
-    const { contractAddress, functionAbi } = await this.#getSimulationParameters(execRequest);
+    const { contractAddress, functionArtifact } = await this.#getSimulationParameters(execRequest);
 
     this.log('Executing unconstrained simulator...');
     try {
-      const result = await this.simulator.runUnconstrained(execRequest, functionAbi, contractAddress, this.node);
+      const result = await this.simulator.runUnconstrained(execRequest, functionArtifact, contractAddress, this.node);
       this.log('Unconstrained simulation completed!');
 
       return result;
@@ -590,9 +590,9 @@ export class PXEService implements PXE {
         if (contract) {
           err.enrichWithContractName(parsedContractAddress, contract.name);
           selectors.forEach(selector => {
-            const functionAbi = contract.functions.find(f => f.selector.toString() === selector);
-            if (functionAbi) {
-              err.enrichWithFunctionName(parsedContractAddress, functionAbi.selector, functionAbi.name);
+            const functionArtifact = contract.functions.find(f => f.selector.toString() === selector);
+            if (functionArtifact) {
+              err.enrichWithFunctionName(parsedContractAddress, functionArtifact.selector, functionArtifact.name);
             }
           });
         }

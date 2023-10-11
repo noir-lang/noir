@@ -9,7 +9,7 @@ import {
 import { CircuitsWasm } from '@aztec/circuits.js';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
-import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
+import { TestContractArtifact } from '@aztec/noir-contracts/artifacts';
 import { TestContract, TokenContract } from '@aztec/noir-contracts/types';
 import { PXE, TxStatus } from '@aztec/types';
 
@@ -25,7 +25,7 @@ describe('e2e_block_building', () => {
   let teardown: () => Promise<void>;
 
   describe('multi-txs block', () => {
-    const abi = TestContractAbi;
+    const artifact = TestContractArtifact;
 
     beforeAll(async () => {
       ({
@@ -42,7 +42,7 @@ describe('e2e_block_building', () => {
       // Assemble N contract deployment txs
       // We need to create them sequentially since we cannot have parallel calls to a circuit
       const TX_COUNT = 8;
-      const deployer = new ContractDeployer(abi, owner);
+      const deployer = new ContractDeployer(artifact, owner);
       const methods = times(TX_COUNT, () => deployer.deploy());
 
       for (const i in methods) {
@@ -76,7 +76,7 @@ describe('e2e_block_building', () => {
       const callInteraction = new ContractFunctionInteraction(
         owner,
         deployer.completeAddress!.address,
-        TokenContract.abi.functions.find(x => x.name === 'set_minter')!,
+        TokenContract.artifact.functions.find(x => x.name === 'set_minter')!,
         [minter.getCompleteAddress(), true],
       );
 

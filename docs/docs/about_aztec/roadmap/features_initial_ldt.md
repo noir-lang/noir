@@ -52,7 +52,7 @@ A typescript wrapper for making RPC calls to an Aztec Sandbox node. See the sour
 
 - Similar in purpose to `web3.js`/`ethers.js`/`viem`, but for interacting with Aztec Network nodes. The RPC interface for an Aztec node is necessarily different from that of an Ethereum node, because it deals with encrypted transactions and state variables.
 - A library for public/private key management.
-- Construct `Contract` instances from a Aztec.nr contract's JSON ABI.
+- Construct `Contract` instances from a Aztec.nr contract's JSON artifact.
 - Deploy new contracts to the Aztec Sandbox.
 - Construct tx requests, passing arguments to a function of a contract.
 - Sign tx requests.

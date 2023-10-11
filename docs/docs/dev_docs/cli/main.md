@@ -52,7 +52,7 @@ We have shipped a number of example contracts in the `@aztec/noir-contracts` npm
 
 You can see all of our example contracts in the monorepo [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts).
 
-In the following sections there will be commands that require contracts as options. You can either specify the full directory path to the contract abi, or you can use the name of one of these examples as the option value. This will become clearer later on.
+In the following sections there will be commands that require contracts as options. You can either specify the full directory path to the contract artifact, or you can use the name of one of these examples as the option value. This will become clearer later on.
 
 ## Creating Accounts
 
@@ -101,7 +101,7 @@ export CONTRACT_ADDRESS=<Your new contract address>
 If you use a different address in the constructor above, you will get an error when running the deployment. This is because you need to register an account in the sandbox before it can receive private notes. When you create a new account, it gets automatically registered. Alternatively, you can register an account you do not own along with its public key using the `register-recipient` command.
 :::
 
-This command takes 1 mandatory positional argument which is the path to the contract ABI file in a JSON format (e.g. `contracts/target/PrivateToken.json`).
+This command takes 1 mandatory positional argument which is the path to the contract artifact file in a JSON format (e.g. `contracts/target/PrivateToken.json`).
 Alternatively you can pass the name of an example contract as exported by `@aztec/noir-contracts` (run `aztec-cli example-contracts` to see the full list of contracts available).
 
 The command takes a few optional arguments while the most important one is:
@@ -121,7 +121,7 @@ When we deployed the token contract, an initial supply of tokens was minted to t
 The `call` command calls a read-only method on a contract, one that will not generate a transaction to be sent to the network. The arguments here are:
 
 - `--args` - The address for which we want to retrieve the balance.
-- `--contract-abi` - The abi of the contract we are calling.
+- `--contract-artifact` - The artifact of the contract we are calling.
 - `--contract-address` - The address of the deployed contract
 
 As you can see from the result, this address has a balance of 1000000, as expected. When using the Sandbox, you are able to query the balance of any account that has been created in the system, even the accounts created by default. You may wonder why this is, as you haven't provided the private keys for these accounts. The Sandbox contains a component known as the Private Execution Environment (PXE). When an account is created, this component stores the provided encryption private key and is able to read the account's private state meaning that the Sandbox can report the balance of any of it's accounts. More information about the account model can be found [here](../../concepts/foundation/accounts/main.md).
@@ -135,7 +135,7 @@ We can now send a transaction to the network. We will transfer funds from the ow
 We called the `transfer` function of the contract and provided these arguments:
 
 - `--args` - The list of arguments to the function call.
-- `--contract-abi` - The abi of the contract to call.
+- `--contract-artifact` - The artifact of the contract to call.
 - `--contract-address` - The deployed address of the contract to call.
 - `--private-key` - The private key of the sender
 

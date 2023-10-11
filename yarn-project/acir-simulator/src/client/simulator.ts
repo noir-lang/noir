@@ -13,7 +13,7 @@ import { createSimulationError } from '../common/errors.js';
 import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { ClientExecutionContext } from './client_execution_context.js';
-import { DBOracle, FunctionAbiWithDebugMetadata } from './db_oracle.js';
+import { DBOracle, FunctionArtifactWithDebugMetadata } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
 import { ExecutionResult } from './execution_result.js';
 import { executePrivateFunction } from './private_execution.js';
@@ -52,7 +52,7 @@ export class AcirSimulator {
   /**
    * Runs a private function.
    * @param request - The transaction request.
-   * @param entryPointABI - The ABI of the entry point function.
+   * @param entryPointArtifact - The artifact of the entry point function.
    * @param contractAddress - The address of the contract (should match request.origin)
    * @param portalContractAddress - The address of the portal contract.
    * @param msgSender - The address calling the function. This can be replaced to simulate a call from another contract or a specific account.
@@ -60,13 +60,13 @@ export class AcirSimulator {
    */
   public async run(
     request: TxExecutionRequest,
-    entryPointABI: FunctionAbiWithDebugMetadata,
+    entryPointArtifact: FunctionArtifactWithDebugMetadata,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
     msgSender = AztecAddress.ZERO,
   ): Promise<ExecutionResult> {
-    if (entryPointABI.functionType !== FunctionType.SECRET) {
-      throw new Error(`Cannot run ${entryPointABI.functionType} function as secret`);
+    if (entryPointArtifact.functionType !== FunctionType.SECRET) {
+      throw new Error(`Cannot run ${entryPointArtifact.functionType} function as secret`);
     }
 
     if (request.origin !== contractAddress) {
@@ -82,7 +82,7 @@ export class AcirSimulator {
       msgSender,
       contractAddress,
       portalContractAddress,
-      FunctionSelector.fromNameAndParameters(entryPointABI.name, entryPointABI.parameters),
+      FunctionSelector.fromNameAndParameters(entryPointArtifact.name, entryPointArtifact.parameters),
       false,
       false,
       request.functionData.isConstructor,
@@ -104,7 +104,7 @@ export class AcirSimulator {
     try {
       const executionResult = await executePrivateFunction(
         context,
-        entryPointABI,
+        entryPointArtifact,
         contractAddress,
         request.functionData,
       );
@@ -117,18 +117,18 @@ export class AcirSimulator {
   /**
    * Runs an unconstrained function.
    * @param request - The transaction request.
-   * @param entryPointABI - The ABI of the entry point function.
+   * @param entryPointArtifact - The artifact of the entry point function.
    * @param contractAddress - The address of the contract.
    * @param aztecNode - The AztecNode instance.
    */
   public async runUnconstrained(
     request: FunctionCall,
-    entryPointABI: FunctionAbiWithDebugMetadata,
+    entryPointArtifact: FunctionArtifactWithDebugMetadata,
     contractAddress: AztecAddress,
     aztecNode?: AztecNode,
   ) {
-    if (entryPointABI.functionType !== FunctionType.UNCONSTRAINED) {
-      throw new Error(`Cannot run ${entryPointABI.functionType} function as constrained`);
+    if (entryPointArtifact.functionType !== FunctionType.UNCONSTRAINED) {
+      throw new Error(`Cannot run ${entryPointArtifact.functionType} function as constrained`);
     }
 
     const historicBlockData = await this.db.getHistoricBlockData();
@@ -137,7 +137,7 @@ export class AcirSimulator {
     try {
       return await executeUnconstrainedFunction(
         context,
-        entryPointABI,
+        entryPointArtifact,
         contractAddress,
         request.functionData,
         request.args,
@@ -161,38 +161,38 @@ export class AcirSimulator {
     storageSlot: Fr,
     notePreimage: Fr[],
   ) {
-    let abi: FunctionAbiWithDebugMetadata | undefined = undefined;
+    let artifact: FunctionArtifactWithDebugMetadata | undefined = undefined;
 
     // Brute force
     for (let i = notePreimage.length; i < MAX_NOTE_FIELDS_LENGTH; i++) {
       const signature = `compute_note_hash_and_nullifier(Field,Field,Field,[Field;${i}])`;
       const selector = FunctionSelector.fromSignature(signature);
       try {
-        abi = await this.db.getFunctionABI(contractAddress, selector);
-        if (abi !== undefined) break;
+        artifact = await this.db.getFunctionArtifact(contractAddress, selector);
+        if (artifact !== undefined) break;
       } catch (e) {
         // ignore
       }
     }
 
-    if (abi == undefined) {
+    if (artifact == undefined) {
       throw new Error(
         `Mandatory implementation of "compute_note_hash_and_nullifier" missing in noir contract ${contractAddress.toString()}.`,
       );
     }
 
-    const preimageLen = (abi.parameters[3].type as ArrayType).length;
+    const preimageLen = (artifact.parameters[3].type as ArrayType).length;
     const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
 
     const execRequest: FunctionCall = {
       to: AztecAddress.ZERO,
       functionData: FunctionData.empty(),
-      args: encodeArguments(abi, [contractAddress, nonce, storageSlot, extendedPreimage]),
+      args: encodeArguments(artifact, [contractAddress, nonce, storageSlot, extendedPreimage]),
     };
 
     const [innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier] = (await this.runUnconstrained(
       execRequest,
-      abi,
+      artifact,
       AztecAddress.ZERO,
     )) as bigint[];
 
@@ -209,7 +209,6 @@ export class AcirSimulator {
    * @param contractAddress - The address of the contract.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
-   * @param abi - The ABI of the function `compute_note_hash`.
    * @returns The note hash.
    */
   public async computeInnerNoteHash(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
@@ -228,7 +227,6 @@ export class AcirSimulator {
    * @param nonce - The nonce of the note hash.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
-   * @param abi - The ABI of the function `compute_note_hash`.
    * @returns The note hash.
    */
   public async computeUniqueSiloedNoteHash(
@@ -252,7 +250,6 @@ export class AcirSimulator {
    * @param nonce - The nonce of the note hash.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
-   * @param abi - The ABI of the function `compute_note_hash`.
    * @returns The note hash.
    */
   public async computeSiloedNoteHash(contractAddress: AztecAddress, nonce: Fr, storageSlot: Fr, notePreimage: Fr[]) {
@@ -271,7 +268,6 @@ export class AcirSimulator {
    * @param nonce - The nonce of the unique note hash.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
-   * @param abi - The ABI of the function `compute_note_hash`.
    * @returns The note hash.
    */
   public async computeInnerNullifier(contractAddress: AztecAddress, nonce: Fr, storageSlot: Fr, notePreimage: Fr[]) {

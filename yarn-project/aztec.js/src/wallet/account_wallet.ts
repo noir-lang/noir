@@ -1,5 +1,5 @@
 import { Fr, GrumpkinPrivateKey } from '@aztec/circuits.js';
-import { ABIParameterVisibility, FunctionAbiHeader, FunctionType } from '@aztec/foundation/abi';
+import { ABIParameterVisibility, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AuthWitness, FunctionCall, PXE, TxExecutionRequest } from '@aztec/types';
 
 import { AccountInterface } from '../account/interface.js';
@@ -47,7 +47,7 @@ export class AccountWallet extends BaseWallet {
     return this.getCompleteAddress().address;
   }
 
-  private getSetIsValidStorageAbi(): FunctionAbiHeader {
+  private getSetIsValidStorageAbi(): FunctionAbi {
     return {
       name: 'set_is_valid_storage',
       functionType: 'open' as FunctionType,

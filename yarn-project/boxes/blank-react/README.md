@@ -62,12 +62,12 @@ This will generate a [Contract ABI](src/artifacts/test_contract.json) and TypeSc
 Note: the `compile` command seems to generate a Typescript file which needs a single change -
 
 ```
-import TestContractAbiJson from 'text_contract.json' assert { type: 'json' };
+import TestContractArtifactJson from 'text_contract.json' assert { type: 'json' };
 // need to update the relative import to
-import TestContractAbiJson from './test_contract.json' assert { type: 'json' };
+import TestContractArtifactJson from './test_contract.json' assert { type: 'json' };
 ```
 
-After compiling, you can re-deploy the upated noir smart contract from the web UI. The function interaction forms are generated from parsing the ContractABI, so they should update automatically after you recompile.
+After compiling, you can re-deploy the updated noir smart contract from the web UI. The function interaction forms are generated from parsing the contract artifacts, so they should update automatically after you recompile.
 
 ## Learn More
 

@@ -1,5 +1,5 @@
 import { EthAddress, Fr, Point } from '@aztec/circuits.js';
-import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionType } from '@aztec/foundation/abi';
 import { PXE, PublicKey, Tx, TxHash, TxReceipt } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -9,7 +9,7 @@ import { ContractDeployer } from './contract_deployer.js';
 describe.skip('Contract Deployer', () => {
   let pxe: MockProxy<PXE>;
 
-  const abi: ContractAbi = {
+  const artifact: ContractArtifact = {
     name: 'MyContract',
     functions: [
       {
@@ -39,7 +39,7 @@ describe.skip('Contract Deployer', () => {
   });
 
   it('should create and send a contract deployment tx', async () => {
-    const deployer = new ContractDeployer(abi, pxe, publicKey);
+    const deployer = new ContractDeployer(artifact, pxe, publicKey);
     const sentTx = deployer.deploy(args[0], args[1]).send({
       portalContract,
       contractAddressSalt,

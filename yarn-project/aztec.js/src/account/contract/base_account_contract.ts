@@ -1,4 +1,4 @@
-import { ContractAbi } from '@aztec/foundation/abi';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { CompleteAddress, NodeInfo } from '@aztec/types';
 
 import { DefaultAccountInterface } from '../defaults/default_interface.js';
@@ -13,10 +13,10 @@ export abstract class BaseAccountContract implements AccountContract {
   abstract getAuthWitnessProvider(address: CompleteAddress): AuthWitnessProvider;
   abstract getDeploymentArgs(): Promise<any[]>;
 
-  constructor(private abi: ContractAbi) {}
+  constructor(private artifact: ContractArtifact) {}
 
-  getContractAbi(): ContractAbi {
-    return this.abi;
+  getContractArtifact(): ContractArtifact {
+    return this.artifact;
   }
 
   getInterface(address: CompleteAddress, nodeInfo: NodeInfo): Promise<AccountInterface> {

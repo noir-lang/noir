@@ -109,9 +109,9 @@ export enum FunctionType {
 }
 
 /**
- * The ABI entry of a function without including bytecode and verification key.
+ * The abi entry of a function.
  */
-export interface FunctionAbiHeader {
+export interface FunctionAbi {
   /**
    * The name of the function.
    */
@@ -135,9 +135,9 @@ export interface FunctionAbiHeader {
 }
 
 /**
- * The ABI entry of a function.
+ * The artifact entry of a function.
  */
-export interface FunctionAbi extends FunctionAbiHeader {
+export interface FunctionArtifact extends FunctionAbi {
   /**
    * The ACIR bytecode of the function.
    */
@@ -224,9 +224,9 @@ export interface DebugMetadata {
 }
 
 /**
- * Defines ABI of a contract.
+ * Defines artifact of a contract.
  */
-export interface ContractAbi {
+export interface ContractArtifact {
   /**
    * The name of the contract.
    */
@@ -234,7 +234,7 @@ export interface ContractAbi {
   /**
    * The functions of the contract.
    */
-  functions: FunctionAbi[];
+  functions: FunctionArtifact[];
 
   /**
    * The debug metadata of the contract.
@@ -258,18 +258,21 @@ export interface FunctionDebugMetadata {
 }
 
 /**
- * Gets the debug metadata of a given function from the contract abi
- * @param abi - The contract abi
+ * Gets the debug metadata of a given function from the contract artifact
+ * @param artifact - The contract build artifact
  * @param functionName - The name of the function
  * @returns The debug metadata of the function
  */
-export function getFunctionDebugMetadata(abi: ContractAbi, functionName: string): FunctionDebugMetadata | undefined {
-  const functionIndex = abi.functions.findIndex(f => f.name === functionName);
-  if (abi.debug && functionIndex !== -1) {
+export function getFunctionDebugMetadata(
+  artifact: ContractArtifact,
+  functionName: string,
+): FunctionDebugMetadata | undefined {
+  const functionIndex = artifact.functions.findIndex(f => f.name === functionName);
+  if (artifact.debug && functionIndex !== -1) {
     const debugSymbols = JSON.parse(
-      inflate(Buffer.from(abi.debug.debugSymbols[functionIndex], 'base64'), { to: 'string' }),
+      inflate(Buffer.from(artifact.debug.debugSymbols[functionIndex], 'base64'), { to: 'string' }),
     );
-    const files = abi.debug.fileMap;
+    const files = artifact.debug.fileMap;
     return {
       debugSymbols,
       files,

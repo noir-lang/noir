@@ -60,9 +60,9 @@ Most relevant to you is likely `src/contracts/main.nr` (and the build config `sr
 
 The `src/artifacts` folder can be re-generated from the command line with `yarn compile`.
 
-This will generate a [Contract ABI](src/artifacts/test_contract.json) and TypeScript class for the Aztec smart contract in `src/contracts/main.nr`, which the frontend uses to generate the UI.
+This will generate a [contract artifact](src/artifacts/test_contract.json) and TypeScript class for the Aztec smart contract in `src/contracts/main.nr`, which the frontend uses to generate the UI.
 
-After compiling, you can re-deploy the upated noir smart contract from the web UI. The function interaction forms are generated from parsing the ContractABI, so they should update automatically after you recompile.
+After compiling, you can re-deploy the updated noir smart contract from the web UI. The function interaction forms are generated from parsing the contract artifact, so they should update automatically after you recompile.
 
 ## Learn More
 

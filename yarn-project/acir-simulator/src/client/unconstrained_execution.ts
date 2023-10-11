@@ -8,7 +8,7 @@ import { extractReturnWitness } from '../acvm/deserialize.js';
 import { ACVMField, Oracle, acvm, extractCallStack, fromACVMField, toACVMWitness } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
 import { AcirSimulator } from '../index.js';
-import { FunctionAbiWithDebugMetadata } from './db_oracle.js';
+import { FunctionArtifactWithDebugMetadata } from './db_oracle.js';
 import { ViewDataOracle } from './view_data_oracle.js';
 
 /**
@@ -16,7 +16,7 @@ import { ViewDataOracle } from './view_data_oracle.js';
  */
 export async function executeUnconstrainedFunction(
   oracle: ViewDataOracle,
-  abi: FunctionAbiWithDebugMetadata,
+  artifact: FunctionArtifactWithDebugMetadata,
   contractAddress: AztecAddress,
   functionData: FunctionData,
   args: Fr[],
@@ -25,7 +25,7 @@ export async function executeUnconstrainedFunction(
   const functionSelector = functionData.selector;
   log(`Executing unconstrained function ${contractAddress}:${functionSelector}`);
 
-  const acir = Buffer.from(abi.bytecode, 'base64');
+  const acir = Buffer.from(artifact.bytecode, 'base64');
   const initialWitness = toACVMWitness(1, args);
   const { partialWitness } = await acvm(
     await AcirSimulator.getSolver(),
@@ -39,11 +39,11 @@ export async function executeUnconstrainedFunction(
         contractAddress,
         functionSelector,
       },
-      extractCallStack(err, abi.debug),
+      extractCallStack(err, artifact.debug),
       { cause: err },
     );
   });
 
   const returnValues: ACVMField[] = extractReturnWitness(acir, partialWitness);
-  return decodeReturnValues(abi, returnValues.map(fromACVMField));
+  return decodeReturnValues(artifact, returnValues.map(fromACVMField));
 }

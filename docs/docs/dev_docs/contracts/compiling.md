@@ -28,11 +28,11 @@ Then run the `compile` command with the path to your [contract project folder](.
 aztec-cli compile ./path/to/my_aztec_contract_project
 ```
 
-This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing their ABI, which you can use for deploying or interacting with your contracts.
+This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing their artifact, which you can use for deploying or interacting with your contracts.
 
 ### Typescript Interfaces
 
-You can use the compiler to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their ABI.
+You can use the compiler to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
 
 To generate them, include a `--typescript` option in the compile command with a path to the target folder for the typescript files:
 
@@ -77,7 +77,7 @@ Read more about interacting with contracts using `aztec.js` [here](../getting_st
 
 An Aztec.nr contract can [call a function](./syntax/functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serialising the arguments, which is not type-safe.
 
-To make this easier, the compiler can generate contract interface structs that expose a convenience method for each function listed in a given contract ABI. These structs are intended to be used from another contract project that calls into the current one. For each contract, two interface structs are generated: one to be used from private functions with a `PrivateContext`, and one to be used from open functions with a `PublicContext`.
+To make this easier, the compiler can generate contract interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one. For each contract, two interface structs are generated: one to be used from private functions with a `PrivateContext`, and one to be used from open functions with a `PublicContext`.
 
 To generate them, include a `--interface` option in the compile command with a path to the target folder for the generated Aztec.nr interface files:
 
@@ -140,8 +140,8 @@ You can also programmatically access the compiler via the `@aztec/noir-compiler`
 The compiler exposes the following functions:
 
 - `compileUsingNargo`: Compiles an Aztec.nr project in the target folder using the `nargo` binary available on the shell `PATH` and returns the generated ABIs.
-- `generateTypescriptContractInterface`: Generates a typescript class for the given contract ABI.
-- `generateNoirContractInterface`: Generates a Aztec.nr interface struct for the given contract ABI.
+- `generateTypescriptContractInterface`: Generates a typescript class for the given contract artifact.
+- `generateNoirContractInterface`: Generates a Aztec.nr interface struct for the given contract artifact.
 
 ## Next steps
 

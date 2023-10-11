@@ -1,10 +1,10 @@
-import { FILTERED_FUNCTION_NAMES, contractAbi } from '../config.js';
+import { FILTERED_FUNCTION_NAMES, contractArtifact } from '../config.js';
 import { Copy } from './components/copy.js';
 import { ContractFunctionForm, Popup } from './components/index.js';
 import styles from './contract.module.scss';
 import { Button, ButtonSize, ButtonTheme, Card, CardTheme, ImageButton, ImageButtonIcon } from '@aztec/aztec-ui';
 import { AztecAddress, CompleteAddress } from '@aztec/aztec.js';
-import { FunctionAbi } from '@aztec/foundation/abi';
+import { FunctionArtifact } from '@aztec/foundation/abi';
 import { ReactNode, useState } from 'react';
 
 const functionTypeSortOrder = {
@@ -40,12 +40,12 @@ export function Contract({ wallet }: Props) {
     setProcessingFunction('');
   };
 
-  const constructorAbi = contractAbi.functions.find(f => f.name === 'constructor')!;
+  const constructorAbi = contractArtifact.functions.find(f => f.name === 'constructor')!;
   const hasResult = !!(result || errorMsg);
 
   function renderCardContent(contractAddress?: AztecAddress): { content: ReactNode; header: string } {
     if (contractAddress) {
-      const functions = contractAbi.functions
+      const functions = contractArtifact.functions
         .filter(f => f.name !== 'constructor' && !f.isInternal && !FILTERED_FUNCTION_NAMES.includes(f.name))
         .sort((a, b) => functionTypeSortOrder[a.functionType] - functionTypeSortOrder[b.functionType]);
 
@@ -55,7 +55,7 @@ export function Contract({ wallet }: Props) {
           content: (
             <div className={styles.selectorWrapper}>
               <div className={styles.tag}>
-                <div className={styles.title}>{`${contractAbi.name}`}</div>
+                <div className={styles.title}>{`${contractArtifact.name}`}</div>
                 {!!contractAddress && (
                   <div className={styles.address}>
                     {`${contractAddress.toShortString()}`}
@@ -64,7 +64,7 @@ export function Contract({ wallet }: Props) {
                 )}
               </div>
               <div className={styles.functions}>
-                {functions.map((functionAbi: FunctionAbi, index: number) => (
+                {functions.map((functionAbi: FunctionArtifact, index: number) => (
                   <ImageButton
                     icon={ImageButtonIcon.Wallet}
                     label={functionAbi.name}
@@ -96,7 +96,7 @@ export function Contract({ wallet }: Props) {
               key={selectedFunctionAbi.name}
               wallet={wallet}
               contractAddress={contractAddress}
-              contractAbi={contractAbi}
+              artifact={contractArtifact}
               functionAbi={selectedFunctionAbi}
               defaultAddress={wallet.address.toString()}
               isLoading={processingFunction === selectedFunctionAbi.name && !hasResult}
@@ -111,11 +111,11 @@ export function Contract({ wallet }: Props) {
     }
 
     return {
-      header: `Deploy Contract (${contractAbi.name})`,
+      header: `Deploy Contract (${contractArtifact.name})`,
       content: (
         <ContractFunctionForm
           wallet={wallet}
-          contractAbi={contractAbi}
+          artifact={contractArtifact}
           functionAbi={constructorAbi}
           defaultAddress={wallet.address.toString()}
           buttonText="Deploy"
