@@ -101,7 +101,7 @@ yarn-project-base:
 yarn-project:
   buildDir: yarn-project
   rebuildPatterns:
-    - ^yarn-project/.*\\.(ts|js|cjs|mjs|json|html)$
+    - ^yarn-project/.*\\.(ts|js|cjs|mjs|json|html|md)$
     - ^yarn-project/Dockerfile
   dependencies:
     - yarn-project-base
