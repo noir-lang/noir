@@ -71,7 +71,8 @@ it('end-to-end proof creation and verification (inner)', async () => {
 
 // The "real" workflow will involve a prover and a verifier on different systems.
 //
-// We cannot do this in our tests because they will panic with: `unreachable`
+// We cannot do this in our tests because they will panic with:
+// `unreachable`
 //
 // This happens when we we create a proof with one barretenberg instance and
 // try to verify it with another.
