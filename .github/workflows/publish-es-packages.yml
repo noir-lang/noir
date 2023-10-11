@@ -117,12 +117,7 @@ jobs:
       - name: Prepare nightly version
         if: ${{ inputs.npm-tag != 'latest' }}
         run: |
-          yarn nightly:version
-
-      - name: Update Version as specific tag
-        if: ${{ inputs.npm-tag != 'latest' }}
-        run: |
-          jq '.version = .version + "-${{ inputs.npm-tag }}"' package.json > package-tmp.json && mv package-tmp.json package.json
+          yarn nightly:version -- .${{ inputs.npm-tag }}
 
       - name: Authenticate with npm
         run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
