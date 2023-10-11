@@ -1,5 +1,8 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
-use crate::{node_interner::{FuncId, TraitId}, Ident};
+use crate::{
+    node_interner::{FuncId, TraitId},
+    Ident,
+};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -36,23 +39,24 @@ impl ItemScope {
         mod_def: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        let add_item = |map: &mut HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility)>>| {
-            if let Entry::Occupied(mut o) = map.entry(name.clone()) {
-                let trait_hashmap = o.get_mut();
-                if let Entry::Occupied(_) = trait_hashmap.entry(trait_id) {
-                    let old_ident = o.key();
-                    Err((old_ident.clone(), name))
+        let add_item =
+            |map: &mut HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility)>>| {
+                if let Entry::Occupied(mut o) = map.entry(name.clone()) {
+                    let trait_hashmap = o.get_mut();
+                    if let Entry::Occupied(_) = trait_hashmap.entry(trait_id) {
+                        let old_ident = o.key();
+                        Err((old_ident.clone(), name))
+                    } else {
+                        trait_hashmap.insert(trait_id, (mod_def, Visibility::Public));
+                        Ok(())
+                    }
                 } else {
+                    let mut trait_hashmap = HashMap::new();
                     trait_hashmap.insert(trait_id, (mod_def, Visibility::Public));
+                    map.insert(name, trait_hashmap);
                     Ok(())
                 }
-            } else {
-                let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, Visibility::Public));
-                map.insert(name, trait_hashmap);
-                Ok(())
-            }
-        };
+            };
 
         match mod_def {
             ModuleDefId::ModuleId(_) => add_item(&mut self.types),
@@ -77,12 +81,10 @@ impl ItemScope {
         // methods introduced without trait take priority and hide methods with the same name that come from a trait
         let a = trait_hashmap.get(&None);
         match a {
-            Some((module_def, _)) => {
-                match module_def {
-                    ModuleDefId::FunctionId(id) => Some(*id),
-                    _ => None,
-                }
-            }
+            Some((module_def, _)) => match module_def {
+                ModuleDefId::FunctionId(id) => Some(*id),
+                _ => None,
+            },
             None => {
                 if trait_hashmap.len() == 1 {
                     let (module_def, _) = trait_hashmap.get(trait_hashmap.keys().last()?)?;
@@ -98,7 +100,11 @@ impl ItemScope {
         }
     }
 
-    pub fn find_func_with_name_and_trait_id(&self, func_name: &Ident, trait_id: &Option<TraitId>) -> Option<FuncId> {
+    pub fn find_func_with_name_and_trait_id(
+        &self,
+        func_name: &Ident,
+        trait_id: &Option<TraitId>,
+    ) -> Option<FuncId> {
         let (module_def, _) = self.values.get(func_name)?.get(trait_id)?;
         match module_def {
             ModuleDefId::FunctionId(id) => Some(*id),
@@ -131,22 +137,18 @@ impl ItemScope {
                 }
             } else {
                 None
-            }
+            },
         }
     }
 
     pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
         PerNs {
-            types: if let Some(t) = self.types.get(name) {
-                t.get(trait_id).cloned()
-            } else {
-                None
-            },
+            types: if let Some(t) = self.types.get(name) { t.get(trait_id).cloned() } else { None },
             values: if let Some(v) = self.values.get(name) {
                 v.get(trait_id).cloned()
             } else {
                 None
-            }
+            },
         }
     }
 

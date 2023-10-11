@@ -41,7 +41,12 @@ impl ModuleData {
         }
     }
 
-    fn declare(&mut self, name: Ident, item_id: ModuleDefId, trait_id: Option<TraitId>) -> Result<(), (Ident, Ident)> {
+    fn declare(
+        &mut self,
+        name: Ident,
+        item_id: ModuleDefId,
+        trait_id: Option<TraitId>,
+    ) -> Result<(), (Ident, Ident)> {
         self.scope.add_definition(name.clone(), item_id, trait_id)?;
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
@@ -53,7 +58,12 @@ impl ModuleData {
         self.declare(name, id.into(), None)
     }
 
-    pub fn declare_trait_function(&mut self, name: Ident, id: FuncId, trait_id: TraitId) -> Result<(), (Ident, Ident)> {
+    pub fn declare_trait_function(
+        &mut self,
+        name: Ident,
+        id: FuncId,
+        trait_id: TraitId,
+    ) -> Result<(), (Ident, Ident)> {
         self.declare(name, id.into(), Some(trait_id))
     }
 
