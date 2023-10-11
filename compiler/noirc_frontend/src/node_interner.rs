@@ -115,6 +115,12 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+
+    // For trait implementation functions, this is their self type and trait they belong to
+    func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+
+    /// Trait implementations on primitive types
+    primitive_trait_impls: HashMap<(Type, String), FuncId>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -364,6 +370,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
+            func_id_to_trait: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
@@ -378,6 +385,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            primitive_trait_impls: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -508,6 +516,19 @@ impl NodeInterner {
         }
     }
 
+    /// Updates the interned expression corresponding to `expr_id`
+    pub fn update_expression(&mut self, expr_id: ExprId, f: impl FnOnce(&mut HirExpression)) {
+        let def =
+            self.nodes.get_mut(expr_id.0).expect("ice: all expression ids should have definitions");
+
+        match def {
+            Node::Expression(expr) => f(expr),
+            _ => {
+                panic!("ice: all expression ids should correspond to a expression in the interner")
+            }
+        }
+    }
+
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);
@@ -559,6 +580,13 @@ impl NodeInterner {
             _ => panic!("ice: all function ids should correspond to a function in the interner"),
         };
         *func = hir_func;
+    }
+
+    pub fn find_function(&self, function_name: &str) -> Option<FuncId> {
+        self.func_meta
+            .iter()
+            .find(|(func_id, _func_meta)| self.function_name(func_id) == function_name)
+            .map(|(func_id, _meta)| *func_id)
     }
 
     ///Interns a function's metadata.
@@ -626,6 +654,14 @@ impl NodeInterner {
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
         self.push_definition(name, false, DefinitionKind::Function(func))
+    }
+
+    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
+        self.func_id_to_trait.insert(func, (self_type, trait_id));
+    }
+
+    pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {
+        self.func_id_to_trait.get(func).cloned()
     }
 
     /// Returns the visibility of the given function.
@@ -856,11 +892,49 @@ impl NodeInterner {
         self.trait_implementations.get(key).cloned()
     }
 
-    pub fn add_trait_implementation(&mut self, key: &TraitImplKey, trait_impl: Shared<TraitImpl>) {
+    pub fn add_trait_implementation(
+        &mut self,
+        key: &TraitImplKey,
+        trait_impl: Shared<TraitImpl>,
+    ) -> bool {
         self.trait_implementations.insert(key.clone(), trait_impl.clone());
-
-        for func_id in &trait_impl.borrow().methods {
-            self.add_method(&key.typ, self.function_name(func_id).to_owned(), *func_id);
+        match &key.typ {
+            Type::Struct(struct_type, _generics) => {
+                for func_id in &trait_impl.borrow().methods {
+                    let method_name = self.function_name(func_id).to_owned();
+                    let key = (struct_type.borrow().id, method_name);
+                    self.struct_methods.insert(key, *func_id);
+                }
+                true
+            }
+            Type::FieldElement
+            | Type::Unit
+            | Type::Array(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Tuple(..)
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Function(..)
+            | Type::MutableReference(..) => {
+                for func_id in &trait_impl.borrow().methods {
+                    let method_name = self.function_name(func_id).to_owned();
+                    let key = (key.typ.clone(), method_name);
+                    self.primitive_trait_impls.insert(key, *func_id);
+                }
+                true
+            }
+            // We should allow implementing traits NamedGenerics will also eventually be possible once we support generics
+            // impl<T> Foo for T
+            // but it's fine not to include these until we do.
+            Type::NamedGeneric(..) => false,
+            // prohibited are internal types (like NotConstant, TypeVariable, Forall, and Error) that
+            // aren't possible for users to write anyway
+            Type::TypeVariable(..)
+            | Type::Forall(..)
+            | Type::NotConstant
+            | Type::Constant(..)
+            | Type::Error => false,
         }
     }
 
@@ -873,6 +947,20 @@ impl NodeInterner {
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         get_type_method_key(typ)
             .and_then(|key| self.primitive_methods.get(&(key, method_name.to_owned())).copied())
+    }
+
+    pub fn lookup_primitive_trait_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
+        self.primitive_trait_impls.get(&(typ.clone(), method_name.to_string())).copied()
+    }
+
+    pub fn lookup_mut_primitive_trait_method(
+        &self,
+        typ: &Type,
+        method_name: &str,
+    ) -> Option<FuncId> {
+        self.primitive_trait_impls
+            .get(&(Type::MutableReference(Box::new(typ.clone())), method_name.to_string()))
+            .copied()
     }
 }
 

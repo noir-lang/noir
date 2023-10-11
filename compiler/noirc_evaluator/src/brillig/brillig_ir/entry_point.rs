@@ -288,7 +288,7 @@ mod tests {
 
     use crate::brillig::brillig_ir::{
         artifact::BrilligParameter,
-        tests::{create_and_run_vm, create_context},
+        tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
     };
 
     #[test]
@@ -317,13 +317,8 @@ mod tests {
 
         context.return_instruction(&[array_pointer]);
 
-        let vm = create_and_run_vm(
-            flattened_array.clone(),
-            vec![Value::from(0_usize)],
-            context,
-            arguments,
-            returns,
-        );
+        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
 
         assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(flattened_array.len()));
@@ -382,13 +377,8 @@ mod tests {
 
         context.return_instruction(&[array_pointer]);
 
-        let vm = create_and_run_vm(
-            flattened_array.clone(),
-            vec![Value::from(0_usize)],
-            context,
-            arguments,
-            returns,
-        );
+        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let vm = create_and_run_vm(flattened_array.clone(), vec![Value::from(0_usize)], &bytecode);
         let memory = vm.get_memory();
 
         assert_eq!(

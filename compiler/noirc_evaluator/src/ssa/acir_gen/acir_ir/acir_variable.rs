@@ -919,7 +919,7 @@ impl AcirContext {
                     self.brillig_array_input(var_expressions, var)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(FieldElement::from(i as u128));
@@ -1295,7 +1295,7 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
+    let mut vm = VM::new(input_registers, input_memory, &code, Vec::new(), &NullBbSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

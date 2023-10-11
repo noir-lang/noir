@@ -26,11 +26,10 @@ pub enum HirExpression {
     Call(HirCallExpression),
     MethodCall(HirMethodCallExpression),
     Cast(HirCastExpression),
-    For(HirForExpression),
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    TraitMethodReference(TraitMethodId),
+    TraitMethodReference(Type, TraitMethodId),
     Error,
 }
 
@@ -46,14 +45,6 @@ impl HirExpression {
 pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirForExpression {
-    pub identifier: HirIdent,
-    pub start_range: ExprId,
-    pub end_range: ExprId,
-    pub block: ExprId,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -76,6 +67,10 @@ impl HirBinaryOp {
 
     pub fn is_bit_shift(&self) -> bool {
         self.kind.is_bit_shift()
+    }
+
+    pub fn is_modulo(&self) -> bool {
+        self.kind.is_modulo()
     }
 }
 
@@ -151,7 +146,7 @@ pub struct HirMethodCallExpression {
     pub location: Location,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum HirMethodReference {
     /// A method can be defined in a regular `impl` block, in which case
     /// it's syntax sugar for a normal function call, and can be
@@ -161,7 +156,7 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphizaiton.
-    TraitMethodId(TraitMethodId),
+    TraitMethodId(Type, TraitMethodId),
 }
 
 impl HirMethodCallExpression {
@@ -179,8 +174,8 @@ impl HirMethodCallExpression {
                 let id = interner.function_definition_id(func_id);
                 HirExpression::Ident(HirIdent { location, id })
             }
-            HirMethodReference::TraitMethodId(method_id) => {
-                HirExpression::TraitMethodReference(method_id)
+            HirMethodReference::TraitMethodId(typ, method_id) => {
+                HirExpression::TraitMethodReference(typ, method_id)
             }
         };
         let func = interner.push_expr(expr);

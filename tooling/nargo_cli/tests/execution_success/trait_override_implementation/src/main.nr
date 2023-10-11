@@ -26,10 +26,10 @@ impl Default for Foo {
 
 trait F {
     fn f1(self) -> Field;
-    fn f2(self) -> Field { 2 };
-    fn f3(self) -> Field { 3 };
-    fn f4(self) -> Field { 4 };
-    fn f5(self) -> Field { 5 };
+    fn f2(self) -> Field { 2 }
+    fn f3(self) -> Field { 3 }
+    fn f4(self) -> Field { 4 }
+    fn f5(self) -> Field { 5 }
 }
 
 struct Bar {}
@@ -38,6 +38,11 @@ impl F for Bar {
     fn f5(self) -> Field { 50 }
     fn f1(self) -> Field { 10 }
     fn f3(self) -> Field { 30 }
+}
+
+impl F for &mut Bar {
+    fn f1(self) -> Field { 101 }
+    fn f5(self) -> Field { 505 }
 }
 
 fn main(x: Field) {
@@ -50,4 +55,17 @@ fn main(x: Field) {
     assert(bar.f3() == 30);
     assert(bar.f4() == 4);
     assert(bar.f5() == 50);
+
+    let mut bar_mut = Bar{};
+    assert((&mut bar_mut).f1() == 101);
+    assert((&mut bar_mut).f2() == 2);
+    assert((&mut bar_mut).f3() == 3);
+    assert((&mut bar_mut).f4() == 4);
+    assert((&mut bar_mut).f5() == 505);
+
+    assert(bar_mut.f1() == 10);
+    assert(bar_mut.f2() == 2);
+    assert(bar_mut.f3() == 30);
+    assert(bar_mut.f4() == 4);
+    assert(bar_mut.f5() == 50);
 }

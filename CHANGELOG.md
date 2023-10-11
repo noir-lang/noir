@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.16.0](https://github.com/noir-lang/noir/compare/v0.15.0...v0.16.0) (2023-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Maintain shape of foreign call arguments ([#2935](https://github.com/noir-lang/noir/issues/2935))
+
+### Features
+
+* **abi:** Tuples as inputs/outputs to main ([#2899](https://github.com/noir-lang/noir/issues/2899)) ([d8bd78f](https://github.com/noir-lang/noir/commit/d8bd78f60c447bb8488a844d779e8aaf4150afe7))
+* **acvm_js:** Export black box solver functions ([#2812](https://github.com/noir-lang/noir/issues/2812)) ([da8a98e](https://github.com/noir-lang/noir/commit/da8a98ed312fe69cb0bdb8f9d0a70ee7a981398f))
+* Add bb interface implementation ([#2902](https://github.com/noir-lang/noir/issues/2902)) ([fe92dc0](https://github.com/noir-lang/noir/commit/fe92dc0df57b2cbc0e7b8cd1f3a91cba6b0f3049))
+* Add noir types package ([#2893](https://github.com/noir-lang/noir/issues/2893)) ([e8fc868](https://github.com/noir-lang/noir/commit/e8fc8687e6dd89295fd023201443f1197963a243))
+* Dynamic indexing of non-homogenous slices ([#2883](https://github.com/noir-lang/noir/issues/2883)) ([72c3661](https://github.com/noir-lang/noir/commit/72c3661c86712b99236eafaac99f76f13d42b9d9))
+* Maintain shape of foreign call arguments ([#2935](https://github.com/noir-lang/noir/issues/2935)) ([f7869e6](https://github.com/noir-lang/noir/commit/f7869e6fb492b617e776e538ac4babfa56261d26))
+* Oracle mocker for nargo test ([#2928](https://github.com/noir-lang/noir/issues/2928)) ([0dd1e77](https://github.com/noir-lang/noir/commit/0dd1e77c0e625805e15fa56b4738c93ebae19b6d))
+* **ssa:** Multiple slice mergers ([#2753](https://github.com/noir-lang/noir/issues/2753)) ([8f76fe5](https://github.com/noir-lang/noir/commit/8f76fe5819e95ed111587090e15add48a2b4e859))
+* **traits:** Multi module support for traits ([#2844](https://github.com/noir-lang/noir/issues/2844)) ([4deb07f](https://github.com/noir-lang/noir/commit/4deb07f80ce110187b66a46dd5624af3b8df3dbd))
+
+
+### Bug Fixes
+
+* Fix should_fail_with ([#2940](https://github.com/noir-lang/noir/issues/2940)) ([4f07b84](https://github.com/noir-lang/noir/commit/4f07b84458dba97530d8179a3b9b19101b472616))
+* Force recompilation when `output_debug` flag is set. ([#2898](https://github.com/noir-lang/noir/issues/2898)) ([9854416](https://github.com/noir-lang/noir/commit/9854416f5ac03c9da6538edc6a0a540ccccb4b61))
+* Improve error message when multiplying unit values ([#2950](https://github.com/noir-lang/noir/issues/2950)) ([57b7c55](https://github.com/noir-lang/noir/commit/57b7c55e7005876dc2e070c64e1b8115ca8a4242))
+* **println:** Enable printing of arrays/strings &gt;2 in fmt strings  ([#2947](https://github.com/noir-lang/noir/issues/2947)) ([309fa70](https://github.com/noir-lang/noir/commit/309fa70823535c5340f986a17f4ddddcb8723bb8))
+
 ## [0.15.0](https://github.com/noir-lang/noir/compare/v0.14.1...v0.15.0) (2023-09-28)
 
 

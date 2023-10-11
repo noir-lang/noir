@@ -81,7 +81,7 @@ impl<F: PrimeField> std::fmt::Debug for FieldElement<F> {
 
 impl<F: PrimeField> std::hash::Hash for FieldElement<F> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write(&self.to_be_bytes())
+        state.write(&self.to_be_bytes());
     }
 }
 
@@ -295,7 +295,7 @@ impl<F: PrimeField> FieldElement<F> {
     fn byte_to_bit(byte: u8) -> Vec<bool> {
         let mut bits = Vec::with_capacity(8);
         for index in (0..=7).rev() {
-            bits.push((byte & (1 << index)) >> index == 1)
+            bits.push((byte & (1 << index)) >> index == 1);
         }
         bits
     }
@@ -341,7 +341,7 @@ impl<F: PrimeField> FieldElement<F> {
 
         let and_byte_arr: Vec<_> = lhs_bytes
             .into_iter()
-            .zip(rhs_bytes.into_iter())
+            .zip(rhs_bytes)
             .map(|(lhs, rhs)| if is_xor { lhs ^ rhs } else { lhs & rhs })
             .collect();
 
@@ -433,13 +433,13 @@ mod tests {
         for (i, string) in hex_strings.into_iter().enumerate() {
             let minus_i_field_element =
                 -crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
-            assert_eq!(minus_i_field_element.to_hex(), string)
+            assert_eq!(minus_i_field_element.to_hex(), string);
         }
     }
     #[test]
     fn max_num_bits_smoke() {
         let max_num_bits_bn254 = crate::generic_ark::FieldElement::<ark_bn254::Fr>::max_num_bits();
-        assert_eq!(max_num_bits_bn254, 254)
+        assert_eq!(max_num_bits_bn254, 254);
     }
 }
 

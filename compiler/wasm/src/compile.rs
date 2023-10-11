@@ -1,58 +1,83 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
-use log::debug;
+use js_sys::Array;
+use nargo::artifacts::{
+    contract::{PreprocessedContract, PreprocessedContractFunction},
+    program::PreprocessedProgram,
+};
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    CompiledContract, CompiledProgram,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 use wasm_bindgen::prelude::*;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WASMCompileOptions {
-    #[serde(default = "default_entry_point")]
+use crate::errors::JsCompileError;
+
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = Array, js_name = "StringArray", typescript_type = "string[]")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type StringArray;
+}
+
+#[wasm_bindgen]
+pub fn compile(
     entry_point: String,
+    contracts: Option<bool>,
+    dependencies: Option<StringArray>,
+) -> Result<JsValue, JsCompileError> {
+    console_error_panic_hook::set_once();
 
-    #[serde(default = "default_circuit_name")]
-    circuit_name: String,
+    let root = Path::new("/");
+    let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
+    let graph = CrateGraph::default();
+    let mut context = Context::new(fm, graph);
 
-    // Compile each contract function used within the program
-    #[serde(default = "bool::default")]
-    contracts: bool,
+    let path = Path::new(&entry_point);
+    let crate_id = prepare_crate(&mut context, path);
 
-    #[serde(default)]
-    compile_options: CompileOptions,
+    let dependencies: Vec<String> = dependencies
+        .map(|array| array.iter().map(|element| element.as_string().unwrap()).collect())
+        .unwrap_or_default();
+    for dependency in dependencies {
+        add_noir_lib(&mut context, dependency.as_str());
+    }
 
-    #[serde(default)]
-    optional_dependencies_set: Vec<String>,
+    let compile_options = CompileOptions::default();
 
-    #[serde(default = "default_log_level")]
-    log_level: String,
-}
+    // For now we default to plonk width = 3, though we can add it as a parameter
+    let np_language = acvm::Language::PLONKCSat { width: 3 };
+    #[allow(deprecated)]
+    let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
 
-fn default_log_level() -> String {
-    String::from("info")
-}
+    if contracts.unwrap_or_default() {
+        let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
+            .map_err(|_| JsCompileError::new("Failed to compile contract".to_string()))?
+            .0;
 
-fn default_circuit_name() -> String {
-    String::from("contract")
-}
+        let optimized_contract =
+            nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
+                .expect("Contract optimization failed");
 
-fn default_entry_point() -> String {
-    String::from("main.nr")
-}
+        let preprocessed_contract = preprocess_contract(optimized_contract);
 
-impl Default for WASMCompileOptions {
-    fn default() -> Self {
-        Self {
-            entry_point: default_entry_point(),
-            circuit_name: default_circuit_name(),
-            log_level: default_log_level(),
-            contracts: false,
-            compile_options: CompileOptions::default(),
-            optional_dependencies_set: vec![],
-        }
+        Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_contract).unwrap())
+    } else {
+        let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
+            .map_err(|_| JsCompileError::new("Failed to compile program".to_string()))?
+            .0;
+
+        let optimized_program =
+            nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
+                .expect("Program optimization failed");
+
+        let preprocessed_program = preprocess_program(optimized_program);
+
+        Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_program).unwrap())
     }
 }
 
@@ -80,59 +105,60 @@ fn add_noir_lib(context: &mut Context, library_name: &str) {
         context
             .crate_graph
             .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
-            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {} library", library_name));
+            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
     }
 }
 
-#[wasm_bindgen]
-pub fn compile(args: JsValue) -> JsValue {
-    console_error_panic_hook::set_once();
-
-    let options: WASMCompileOptions = if args.is_undefined() || args.is_null() {
-        debug!("Initializing compiler with default values.");
-        WASMCompileOptions::default()
-    } else {
-        JsValueSerdeExt::into_serde(&args).expect("Could not deserialize compile arguments")
-    };
-
-    debug!("Compiler configuration {:?}", &options);
-
-    let root = Path::new("/");
-    let fm = FileManager::new(root);
-    let graph = CrateGraph::default();
-    let mut context = Context::new(fm, graph);
-
-    let path = Path::new(&options.entry_point);
-    let crate_id = prepare_crate(&mut context, path);
-
-    for dependency in options.optional_dependencies_set {
-        add_noir_lib(&mut context, dependency.as_str());
+fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
+    PreprocessedProgram {
+        hash: program.hash,
+        backend: String::from(BACKEND_IDENTIFIER),
+        abi: program.abi,
+        bytecode: program.circuit,
     }
+}
 
-    // For now we default to plonk width = 3, though we can add it as a parameter
-    let np_language = acvm::Language::PLONKCSat { width: 3 };
-    #[allow(deprecated)]
-    let is_opcode_supported = acvm::pwg::default_is_opcode_supported(np_language);
+fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
+    let preprocessed_functions = contract
+        .functions
+        .into_iter()
+        .map(|func| PreprocessedContractFunction {
+            name: func.name,
+            function_type: func.function_type,
+            is_internal: func.is_internal,
+            abi: func.abi,
+            bytecode: func.bytecode,
+        })
+        .collect();
 
-    if options.contracts {
-        let compiled_contract = compile_contract(&mut context, crate_id, &options.compile_options)
-            .expect("Contract compilation failed")
-            .0;
+    PreprocessedContract {
+        name: contract.name,
+        backend: String::from(BACKEND_IDENTIFIER),
+        functions: preprocessed_functions,
+        events: contract.events,
+    }
+}
 
-        let optimized_contract =
-            nargo::ops::optimize_contract(compiled_contract, np_language, &is_opcode_supported)
-                .expect("Contract optimization failed");
-
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contract).unwrap()
+cfg_if::cfg_if! {
+    if #[cfg(target_os = "wasi")] {
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            std::fs::read_to_string(path_to_file)
+        }
     } else {
-        let compiled_program = compile_main(&mut context, crate_id, &options.compile_options, None)
-            .expect("Compilation failed")
-            .0;
+        use std::io::{Error, ErrorKind};
 
-        let optimized_program =
-            nargo::ops::optimize_program(compiled_program, np_language, &is_opcode_supported)
-                .expect("Program optimization failed");
+        #[wasm_bindgen(module = "@noir-lang/source-resolver")]
+        extern "C" {
+            #[wasm_bindgen(catch)]
+            fn read_file(path: &str) -> Result<String, JsValue>;
+        }
 
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
+        fn get_non_stdlib_asset(path_to_file: &Path) -> std::io::Result<String> {
+            let path_str = path_to_file.to_str().unwrap();
+            match read_file(path_str) {
+                Ok(buffer) => Ok(buffer),
+                Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
+            }
+        }
     }
 }

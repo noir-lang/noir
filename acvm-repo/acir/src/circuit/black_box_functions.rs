@@ -107,12 +107,12 @@ mod tests {
     fn consistent_function_names() {
         for bb_func in BlackBoxFunc::iter() {
             let resolved_func = BlackBoxFunc::lookup(bb_func.name()).unwrap_or_else(|| {
-                panic!("BlackBoxFunc::lookup couldn't find black box function {}", bb_func)
+                panic!("BlackBoxFunc::lookup couldn't find black box function {bb_func}")
             });
             assert_eq!(
                 resolved_func, bb_func,
                 "BlackBoxFunc::lookup returns unexpected BlackBoxFunc"
-            )
+            );
         }
     }
 }

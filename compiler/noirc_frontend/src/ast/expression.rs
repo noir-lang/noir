@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -22,7 +22,6 @@ pub enum ExpressionKind {
     MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
-    For(Box<ForExpression>),
     If(Box<IfExpression>),
     Variable(Path),
     Tuple(Vec<Expression>),
@@ -171,22 +170,20 @@ impl Expression {
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
         let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
             ExpressionKind::Block(BlockExpression(vec![
-                Statement::Expression(lhs),
-                Statement::Expression(Expression::new(ExpressionKind::Tuple(arguments), span)),
+                Statement { kind: StatementKind::Expression(lhs), span },
+                Statement {
+                    kind: StatementKind::Expression(Expression::new(
+                        ExpressionKind::Tuple(arguments),
+                        span,
+                    )),
+                    span,
+                },
             ]))
         } else {
             ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
         };
         Expression::new(kind, span)
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ForExpression {
-    pub identifier: Ident,
-    pub start_range: Expression,
-    pub end_range: Expression,
-    pub block: Expression,
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
@@ -275,6 +272,10 @@ impl BinaryOpKind {
 
     pub fn is_bit_shift(&self) -> bool {
         matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
+    }
+
+    pub fn is_modulo(&self) -> bool {
+        matches!(self, BinaryOpKind::Modulo)
     }
 }
 
@@ -438,8 +439,8 @@ pub struct IndexExpression {
 pub struct BlockExpression(pub Vec<Statement>);
 
 impl BlockExpression {
-    pub fn pop(&mut self) -> Option<Statement> {
-        self.0.pop()
+    pub fn pop(&mut self) -> Option<StatementKind> {
+        self.0.pop().map(|stmt| stmt.kind)
     }
 
     pub fn len(&self) -> usize {
@@ -469,7 +470,6 @@ impl Display for ExpressionKind {
             MethodCall(call) => call.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
-            For(for_loop) => for_loop.fmt(f),
             If(if_expr) => if_expr.fmt(f),
             Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
@@ -507,7 +507,7 @@ impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{{")?;
         for statement in &self.0 {
-            let statement = statement.to_string();
+            let statement = statement.kind.to_string();
             for line in statement.lines() {
                 writeln!(f, "    {line}")?;
             }
@@ -600,16 +600,6 @@ impl Display for BinaryOpKind {
             BinaryOpKind::ShiftRight => write!(f, ">>"),
             BinaryOpKind::Modulo => write!(f, "%"),
         }
-    }
-}
-
-impl Display for ForExpression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "for {} in {} .. {} {}",
-            self.identifier, self.start_range, self.end_range, self.block
-        )
     }
 }
 

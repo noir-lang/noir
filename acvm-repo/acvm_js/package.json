@@ -1,7 +1,6 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "0.27.4",
-  "private": true,
+  "version": "0.28.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/noir-lang/acvm.git"
@@ -28,17 +27,17 @@
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
-    "clean": "chmod u+w web nodejs && rm -rf web nodejs"
+    "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
+    "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
+    "clean": "chmod u+w web nodejs || true && rm -rf web nodejs"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.5",
-    "@typescript-eslint/parser": "^5.59.5",
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
     "chai": "^4.3.7",
-    "eslint": "^8.40.0",
+    "eslint": "^8.50.0",
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
