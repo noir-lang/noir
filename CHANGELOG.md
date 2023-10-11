@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.8.10](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.9...aztec-packages-v0.8.10) (2023-10-11)
+
+
+### Features
+
+* Adding Fr back as a BB export (ts) ([#2770](https://github.com/AztecProtocol/aztec-packages/issues/2770)) ([d9ac808](https://github.com/AztecProtocol/aztec-packages/commit/d9ac8080a5525b9792b7b3f10c40583536bb256c))
+* Bb faster init ([#2776](https://github.com/AztecProtocol/aztec-packages/issues/2776)) ([c794533](https://github.com/AztecProtocol/aztec-packages/commit/c794533754a9706d362d0374209df9eb5b6bfdc7))
+* Deploy l1 contracts npm pkg ([#2754](https://github.com/AztecProtocol/aztec-packages/issues/2754)) ([e317c47](https://github.com/AztecProtocol/aztec-packages/commit/e317c47471f0dc2ef9c95f917406dc1f85dd87e4))
+* Docs: Add foundational concepts, ACIR and Sequencer pages ([#2716](https://github.com/AztecProtocol/aztec-packages/issues/2716)) ([9d10326](https://github.com/AztecProtocol/aztec-packages/commit/9d103265e8cde02add16c1a920add5b290a8fc92))
+* Events in contract artifacts ([#2786](https://github.com/AztecProtocol/aztec-packages/issues/2786)) ([b8cb7df](https://github.com/AztecProtocol/aztec-packages/commit/b8cb7dfdb68784d60f29249fd49140bde1c8e581)), closes [#2324](https://github.com/AztecProtocol/aztec-packages/issues/2324)
+* IAC for a prototype devnet ([#2720](https://github.com/AztecProtocol/aztec-packages/issues/2720)) ([b30839e](https://github.com/AztecProtocol/aztec-packages/commit/b30839e9e5b88124443d35140f84610bbc0a7855))
+* **l1-contracts:** Remove remappings of [@aztec](https://github.com/aztec) ([#2797](https://github.com/AztecProtocol/aztec-packages/issues/2797)) ([aac8b37](https://github.com/AztecProtocol/aztec-packages/commit/aac8b37431d4e69db60388cf72c114297977248a))
+* LLVM xray presets ([#2525](https://github.com/AztecProtocol/aztec-packages/issues/2525)) ([23a1ee9](https://github.com/AztecProtocol/aztec-packages/commit/23a1ee91da6003d1b5798640c8ccecbd226beef7))
+* Separate aggregation protocol ([#2736](https://github.com/AztecProtocol/aztec-packages/issues/2736)) ([ad16937](https://github.com/AztecProtocol/aztec-packages/commit/ad169374943ef49c32eabc66483a7be28a711565))
+* Simplify relation containers ([#2619](https://github.com/AztecProtocol/aztec-packages/issues/2619)) ([99c5127](https://github.com/AztecProtocol/aztec-packages/commit/99c5127ac5c10e6637534870a689a95238ae997c))
+* ZeroMorph ([#2664](https://github.com/AztecProtocol/aztec-packages/issues/2664)) ([a006e5a](https://github.com/AztecProtocol/aztec-packages/commit/a006e5a0e0a30f8dfe992e3ac8a05f6c276f9300))
+
+
+### Miscellaneous
+
+* Acir format cleanup ([#2779](https://github.com/AztecProtocol/aztec-packages/issues/2779)) ([5ea373f](https://github.com/AztecProtocol/aztec-packages/commit/5ea373f7d653f7322a108297113a2deb379e1400))
+* Add md to rebuild patterns ([#2798](https://github.com/AztecProtocol/aztec-packages/issues/2798)) ([3f4297d](https://github.com/AztecProtocol/aztec-packages/commit/3f4297dbc924ca76fdfba44975c64316f2236deb))
+* Make canary uniswap test similar to e2e ([#2767](https://github.com/AztecProtocol/aztec-packages/issues/2767)) ([93d458b](https://github.com/AztecProtocol/aztec-packages/commit/93d458bbbf6c88861b72f00e8fe8beb753857765))
+* Measure block building times, history processing times, and db sizes ([#2733](https://github.com/AztecProtocol/aztec-packages/issues/2733)) ([0cc553a](https://github.com/AztecProtocol/aztec-packages/commit/0cc553ab7740c0479582674fce2626a30f3093a9))
+* Moved `AddressNote` to `aztec.nr` ([#2752](https://github.com/AztecProtocol/aztec-packages/issues/2752)) ([5f99066](https://github.com/AztecProtocol/aztec-packages/commit/5f99066113480292c8bc56247eca1adb4d49ad5c))
+* No calls to pedersen from TS ([#2724](https://github.com/AztecProtocol/aztec-packages/issues/2724)) ([78e44c3](https://github.com/AztecProtocol/aztec-packages/commit/78e44c33bb98fa405f104aafa74b44ce791f239f))
+* Remove stale comments ([#2788](https://github.com/AztecProtocol/aztec-packages/issues/2788)) ([d9c458d](https://github.com/AztecProtocol/aztec-packages/commit/d9c458d233d4c4a2ade50cdb6c1fc713e654cb55))
+* Renaming abi as artifact ([#2756](https://github.com/AztecProtocol/aztec-packages/issues/2756)) ([c0abcfd](https://github.com/AztecProtocol/aztec-packages/commit/c0abcfd9dfcceb4a2c81561bd89beb9381d20461))
+* Rewrite benchmark scripts in ts ([#2765](https://github.com/AztecProtocol/aztec-packages/issues/2765)) ([8efa374](https://github.com/AztecProtocol/aztec-packages/commit/8efa3741ca7503cd38a7de75d5768f1b4d1be287))
+* Stop whinging about this ownership stuff. ([#2775](https://github.com/AztecProtocol/aztec-packages/issues/2775)) ([3dd6900](https://github.com/AztecProtocol/aztec-packages/commit/3dd6900f96a7dc855643be0e4aba0cfe9fa8a16e))
+* Update ACIR serialisation format ([#2771](https://github.com/AztecProtocol/aztec-packages/issues/2771)) ([6d85527](https://github.com/AztecProtocol/aztec-packages/commit/6d855270f8c069edac62536ccc391a0cab764323))
+* Use global crs in more places. Less pain. ([#2772](https://github.com/AztecProtocol/aztec-packages/issues/2772)) ([b819980](https://github.com/AztecProtocol/aztec-packages/commit/b8199802bad3c05ebe4d1ded5338a09a04e0ed7e))
+
+
+### Documentation
+
+* Add yellow-paper directory ([#2773](https://github.com/AztecProtocol/aztec-packages/issues/2773)) ([03de545](https://github.com/AztecProtocol/aztec-packages/commit/03de545b62ab8d6755fae27b6f2e2bce3575e40e))
+* Adding some authwit docs ([#2711](https://github.com/AztecProtocol/aztec-packages/issues/2711)) ([afc23f4](https://github.com/AztecProtocol/aztec-packages/commit/afc23f4652c478298e86f8895f41b21e727a89a6))
+* Update overview.mdx ([#2746](https://github.com/AztecProtocol/aztec-packages/issues/2746)) ([082ab56](https://github.com/AztecProtocol/aztec-packages/commit/082ab56d4735a8f08922e36a9897a17fb4fd2c3c))
+* Update site title and tagline ([#2769](https://github.com/AztecProtocol/aztec-packages/issues/2769)) ([bbb0b60](https://github.com/AztecProtocol/aztec-packages/commit/bbb0b60d07bc2efa6754b1ad3839735272eeb896))
+
 ## [0.8.9](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.8...aztec-packages-v0.8.9) (2023-10-10)
 
 
