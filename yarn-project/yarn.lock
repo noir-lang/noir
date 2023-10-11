@@ -706,6 +706,31 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/scripts@workspace:scripts":
+  version: 0.0.0-use.local
+  resolution: "@aztec/scripts@workspace:scripts"
+  dependencies:
+    "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@rushstack/eslint-patch": ^1.1.4
+    "@types/jest": ^29.5.0
+    "@types/lodash.pick": ^4.4.7
+    "@types/node": ^18.14.6
+    fs-extra: ^11.1.1
+    jest: ^29.5.0
+    lodash.pick: ^4.4.0
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^5.0.4
+  bin:
+    bench-aggregate: ./dest/bin/bench-aggregate.js
+    bench-comment: ./dest/bin/bench-comment.js
+    bench-markdown: ./dest/bin/bench-markdown.js
+  languageName: unknown
+  linkType: soft
+
 "@aztec/sequencer-client@workspace:^, @aztec/sequencer-client@workspace:sequencer-client":
   version: 0.0.0-use.local
   resolution: "@aztec/sequencer-client@workspace:sequencer-client"

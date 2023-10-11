@@ -17,6 +17,7 @@ import { siloCommitment } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
+import { CircuitSimulationStats } from '@aztec/types/stats';
 
 /**
  * Represents the output of the proof creation process for init and inner private kernel circuit.
@@ -119,7 +120,7 @@ export class KernelProofCreator implements ProofCreator {
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
-    });
+    } satisfies CircuitSimulationStats);
     this.log('Skipping private kernel init proving...');
     const proof = makeEmptyProof();
 
@@ -141,7 +142,7 @@ export class KernelProofCreator implements ProofCreator {
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
-    });
+    } satisfies CircuitSimulationStats);
     this.log('Skipping private kernel inner proving...');
     const proof = makeEmptyProof();
 
@@ -164,7 +165,7 @@ export class KernelProofCreator implements ProofCreator {
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
-    });
+    } satisfies CircuitSimulationStats);
     this.log('Skipping private kernel ordering proving...');
     const proof = makeEmptyProof();
 

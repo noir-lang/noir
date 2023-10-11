@@ -1,12 +1,12 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { ExtendedContractData, L2Block } from '@aztec/types';
+import { L1PublishStats } from '@aztec/types/stats';
 
 import pick from 'lodash.pick';
 
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
-import { L1PublishStats } from './index.js';
 
 /**
  * Stats for a sent transaction.

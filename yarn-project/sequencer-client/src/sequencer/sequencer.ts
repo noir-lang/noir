@@ -5,6 +5,7 @@ import { RunningPromise } from '@aztec/foundation/running-promise';
 import { Timer, elapsed } from '@aztec/foundation/timer';
 import { P2P } from '@aztec/p2p';
 import { ContractDataSource, L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx } from '@aztec/types';
+import { L2BlockBuiltStats } from '@aztec/types/stats';
 import { WorldStateStatus, WorldStateSynchronizer } from '@aztec/world-state';
 
 import times from 'lodash.times';
@@ -182,7 +183,7 @@ export class Sequencer {
         publicProcessDuration: publicProcessorDuration,
         rollupCircuitsDuration: rollupCircuitsDuration,
         ...block.getStats(),
-      });
+      } satisfies L2BlockBuiltStats);
 
       await this.publishExtendedContractData(validTxs, block);
 

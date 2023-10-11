@@ -3,6 +3,7 @@ import { computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L2BlockContext, L2BlockL2Logs, LogType } from '@aztec/types';
+import { NoteProcessorCaughtUpStats } from '@aztec/types/stats';
 
 import { Database } from '../database/index.js';
 import { NoteProcessor } from '../note_processor/index.js';
@@ -184,7 +185,7 @@ export class Synchronizer {
           duration: noteProcessor.timer.ms(),
           dbSize: this.db.estimateSize(),
           ...noteProcessor.stats,
-        });
+        } satisfies NoteProcessorCaughtUpStats);
         this.noteProcessorsToCatchUp.shift();
         this.noteProcessors.push(noteProcessor);
       }

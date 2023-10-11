@@ -2,11 +2,10 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { BenchmarkingContract } from '@aztec/noir-contracts/types';
 import { SequencerClient } from '@aztec/sequencer-client';
+import { BENCHMARK_BLOCK_SIZES } from '@aztec/types/stats';
 
 import { EndToEndContext } from '../fixtures/utils.js';
 import { benchmarkSetup, sendTxs, waitNewPXESynced, waitRegisteredAccountSynced } from './utils.js';
-
-const ROLLUP_SIZES = process.env.ROLLUP_SIZES ? process.env.ROLLUP_SIZES.split(',').map(Number) : [8, 32, 128];
 
 describe('benchmarks/publish_rollup', () => {
   let context: EndToEndContext;
@@ -17,7 +16,7 @@ describe('benchmarks/publish_rollup', () => {
     ({ context, contract, sequencer } = await benchmarkSetup({ maxTxsPerBlock: 1024 }));
   }, 60_000);
 
-  it.each(ROLLUP_SIZES)(
+  it.each(BENCHMARK_BLOCK_SIZES)(
     `publishes a rollup with %d txs`,
     async (txCount: number) => {
       await sequencer.stop();

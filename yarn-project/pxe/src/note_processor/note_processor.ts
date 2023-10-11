@@ -5,6 +5,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { AztecNode, KeyStore, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, PublicKey } from '@aztec/types';
+import { NoteProcessorStats } from '@aztec/types/stats';
 
 import { Database, NoteSpendingInfoDao } from '../database/index.js';
 import { getAcirSimulator } from '../simulator/index.js';
@@ -22,20 +23,6 @@ interface ProcessedData {
    */
   noteSpendingInfoDaos: NoteSpendingInfoDao[];
 }
-
-/** Accumulated stats for a note processor.  */
-type NoteProcessorStats = {
-  /** How many notes have been seen and trial-decrypted. */
-  seen: number;
-  /** How many notes were successfully decrypted. */
-  decrypted: number;
-  /** How many notes failed processing. */
-  failed: number;
-  /** How many blocks were spanned.  */
-  blocks: number;
-  /** How many txs were spanned.  */
-  txs: number;
-};
 
 /**
  * NoteProcessor is responsible for decrypting logs and converting them to notes via their originating contracts

@@ -12,6 +12,7 @@ import {
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
+import { CircuitSimulationStats } from '@aztec/types/stats';
 
 import { RollupSimulator } from './index.js';
 
@@ -39,7 +40,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
       duration,
       inputSize: input.toBuffer().length,
       outputSize: result.toBuffer().length,
-    });
+    } satisfies CircuitSimulationStats);
 
     return Promise.resolve(result);
   }
@@ -61,7 +62,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
       duration,
       inputSize: input.toBuffer().length,
       outputSize: result.toBuffer().length,
-    });
+    } satisfies CircuitSimulationStats);
 
     return result;
   }
@@ -84,7 +85,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
       duration,
       inputSize: input.toBuffer().length,
       outputSize: result.toBuffer().length,
-    });
+    } satisfies CircuitSimulationStats);
 
     return result;
   }

@@ -5,6 +5,11 @@ import { elapsed } from '@aztec/foundation/timer';
 import { BenchmarkingContract } from '@aztec/noir-contracts/types';
 import { SequencerClient } from '@aztec/sequencer-client';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/types';
+import {
+  BENCHMARK_HISTORY_BLOCK_SIZE,
+  BENCHMARK_HISTORY_CHAIN_LENGTHS,
+  NodeSyncedChainHistoryStats,
+} from '@aztec/types/stats';
 
 import { EndToEndContext } from '../fixtures/utils.js';
 import {
@@ -16,8 +21,8 @@ import {
   waitRegisteredAccountSynced,
 } from './utils.js';
 
-const BLOCK_SIZE = process.env.BLOCK_SIZE ? +process.env.BLOCK_SIZE : 16;
-const CHAIN_LENGTHS = process.env.CHAIN_LENGTHS ? process.env.CHAIN_LENGTHS.split(',').map(Number) : [10, 20, 30];
+const BLOCK_SIZE = BENCHMARK_HISTORY_BLOCK_SIZE;
+const CHAIN_LENGTHS = BENCHMARK_HISTORY_CHAIN_LENGTHS;
 const MAX_CHAIN_LENGTH = CHAIN_LENGTHS[CHAIN_LENGTHS.length - 1];
 const SETUP_BLOCK_COUNT = 2; // deploy account + deploy contract
 
@@ -65,7 +70,7 @@ describe('benchmarks/process_history', () => {
           blockNumber,
           blockCount: chainLength,
           dbSize: getFolderSize(dataDirectory),
-        });
+        } satisfies NodeSyncedChainHistoryStats);
 
         // Create a new pxe and measure how much time it takes it to sync with failed and successful decryption
         // Skip the first two blocks used for setup (create account contract and deploy benchmarking contract)
