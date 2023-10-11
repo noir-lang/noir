@@ -67,6 +67,8 @@ pub enum InternalError {
     UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
     UnExpected { expected: String, found: String, call_stack: CallStack },
+    #[error("Returning a constant value is not allowed")]
+    ReturnConstant { call_stack: CallStack },
 }
 
 impl RuntimeError {
@@ -79,7 +81,8 @@ impl RuntimeError {
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
                 | InternalError::UndeclaredAcirVar { call_stack }
-                | InternalError::UnExpected { call_stack, .. },
+                | InternalError::UnExpected { call_stack, .. }
+                | InternalError::ReturnConstant { call_stack, .. },
             )
             | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }
@@ -96,9 +99,8 @@ impl RuntimeError {
 impl From<RuntimeError> for FileDiagnostic {
     fn from(error: RuntimeError) -> FileDiagnostic {
         let call_stack = vecmap(error.call_stack(), |location| *location);
-        let diagnostic = error.into_diagnostic();
         let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
-
+        let diagnostic = error.into_diagnostic();
         diagnostic.in_file(file_id).with_call_stack(call_stack)
     }
 }
@@ -106,6 +108,12 @@ impl From<RuntimeError> for FileDiagnostic {
 impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
+            RuntimeError::InternalError(InternalError::ReturnConstant { ref call_stack }) => {
+                let message = self.to_string();
+                let location =
+                call_stack.back().expect("Expected RuntimeError to have a location");
+               Diagnostic::simple_error(message, "constant value".to_string(), location.span)
+            }
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n

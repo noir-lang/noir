@@ -234,7 +234,7 @@ mod test {
         assert_eq!(block.instructions().len(), 0);
 
         match block.terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 let value = main
                     .dfg
                     .get_numeric_constant(return_values[0])
@@ -278,7 +278,7 @@ mod test {
         assert_ne!(new_add_instr_result, v1);
 
         let return_value_id = match entry_block.unwrap_terminator() {
-            TerminatorInstruction::Return { return_values } => return_values[0],
+            TerminatorInstruction::Return { return_values, .. } => return_values[0],
             _ => unreachable!(),
         };
         let return_element = match &main.dfg[return_value_id] {
