@@ -1,10 +1,10 @@
+use iter_extended::vecmap;
 use noirc_frontend::{
     hir::resolution::errors::Span, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
     Literal, Statement,
 };
 
 use super::FmtVisitor;
-use iter_extended::vecmap;
 
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression) {
