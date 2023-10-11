@@ -40,11 +40,11 @@ impl FmtVisitor<'_> {
                 )
             }
             ExpressionKind::MethodCall(method_call_expr) => {
-                let formatted_object = self.format_expr(method_call_expr.object).trim();
+                let formatted_object = self.format_expr(method_call_expr.object).trim().to_string();
                 let formatted_args = method_call_expr
                     .arguments
                     .iter()
-                    .map(|arg| self.format_expr(arg.clone()).trim())
+                    .map(|arg| self.format_expr(arg.clone()).trim().to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{}.{}({})", formatted_object, method_call_expr.method_name, formatted_args)
