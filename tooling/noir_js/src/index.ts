@@ -1,9 +1,11 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { generateWitness } from './witness_generation.js';
 import initAbi, * as abi from '@noir-lang/noirc_abi';
 import initACVM, * as acvm from '@noir-lang/acvm_js';
-import { base64Decode } from './base64_decode.js';
 import { witnessMapToUint8Array } from './serialize.js';
+
+const { abiDecode } = abi;
 
 class Noir {
   constructor(private backend?: Backend) {}
@@ -17,42 +19,35 @@ class Noir {
     }
   }
 
-  async destroy(): Promise<void> {
-    if (!this.backend) throw new Error('No backend to destroy');
-
-    await this.backend.destroy();
+  private getBackend(): Backend {
+    if (this.backend === undefined) throw new Error('Operation requires a backend but none was provided');
+    return this.backend;
   }
 
   // Initial inputs to your program
-  async generateFinalProof(inputs: any): Promise<ProofData> {
-    if (!this.backend) throw new Error('Cannot generate proofs without a backend');
+  async execute(
+    inputs: abi.InputMap,
+    circuit?: CompiledCircuit,
+  ): Promise<{ witness: Uint8Array; returnValue: abi.InputValue }> {
+    if (!circuit && !this.backend) throw new Error('Operation requires a circuit or a backend, but none was provided');
 
     await this.init();
-    const serializedWitness = await this.generateWitness(this.backend.circuit, inputs);
-    return this.backend.generateFinalProof(serializedWitness);
+    const witness = await generateWitness(circuit!, inputs);
+    const { return_value: returnValue } = abiDecode(circuit!.abi, witness);
+    return { witness: witnessMapToUint8Array(witness), returnValue };
+  }
+
+  // Initial inputs to your program
+  async generateFinalProof(inputs: abi.InputMap): Promise<ProofData> {
+    if (!this.backend) throw new Error('Operation requires a backend but none was provided');
+
+    const { witness } = await this.execute(inputs, this.backend.circuit);
+    return this.getBackend().generateFinalProof(witness);
   }
 
   async verifyFinalProof(proofData: ProofData): Promise<boolean> {
-    if (!this.backend) throw new Error('Cannot verify proofs without a backend');
-
-    return this.backend.verifyFinalProof(proofData);
-  }
-
-  async generateWitness(circuit: CompiledCircuit, inputs: abi.InputMap) {
-    // Throws on ABI encoding error
-    const witnessMap = abi.abiEncode(circuit.abi, inputs);
-
-    // Execute the circuit to generate the rest of the witnesses and serialize
-    // them into a Uint8Array.
-    try {
-      const solvedWitness = await acvm.executeCircuit(base64Decode(circuit.bytecode), witnessMap, () => {
-        throw Error('unexpected oracle during execution');
-      });
-      return witnessMapToUint8Array(solvedWitness);
-    } catch (err) {
-      throw new Error(`Circuit execution failed: ${err}`);
-    }
+    return this.getBackend().verifyFinalProof(proofData);
   }
 }
 
-export { Noir, abi, acvm };
+export { Noir, acvm, abi };

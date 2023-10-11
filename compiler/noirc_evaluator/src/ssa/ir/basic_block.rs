@@ -1,4 +1,5 @@
 use super::{
+    dfg::CallStack,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     value::ValueId,
@@ -117,7 +118,13 @@ impl BasicBlock {
     /// being kept, which is likely unwanted.
     pub(crate) fn take_terminator(&mut self) -> TerminatorInstruction {
         let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
-        std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
+        std::mem::replace(
+            terminator,
+            TerminatorInstruction::Return {
+                return_values: Vec::new(),
+                call_stack: CallStack::new(),
+            },
+        )
     }
 
     /// Return the jmp arguments, if any, of this block's TerminatorInstruction.

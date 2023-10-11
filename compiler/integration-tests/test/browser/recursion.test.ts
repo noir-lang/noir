@@ -4,7 +4,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
-import { Noir, acvm, abi } from '@noir-lang/noir_js';
+import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
 import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
@@ -57,7 +57,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const main_backend = new BarretenbergBackend(main_program);
 
-    const main_witnessUint8Array = await noir.generateWitness(main_program, main_inputs);
+    const { witness: main_witnessUint8Array } = await noir.execute(main_inputs, main_program);
 
     const main_proof = await main_backend.generateIntermediateProof(main_witnessUint8Array);
     const main_verification = await main_backend.verifyIntermediateProof(main_proof);
@@ -86,7 +86,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const recursion_backend = new BarretenbergBackend(recursion_program);
 
-    const recursion_witnessUint8Array = await noir.generateWitness(recursion_program, recursion_inputs);
+    const { witness: recursion_witnessUint8Array } = await new Noir().execute(recursion_inputs, recursion_program);
 
     const recursion_proof = await recursion_backend.generateFinalProof(recursion_witnessUint8Array);
 

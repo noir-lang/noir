@@ -1,32 +1,32 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import { Noir } from '../../src/index.js';
+import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend as Backend } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
+
+let backend: Backend;
+let noir: Noir;
 
 const inputs = {
   x: '2',
   y: '3',
 };
 
-describe('Outer proofs', () => {
-  let backend: Backend;
-  let noir: Noir;
-
-  before(() => {
+it('end-to-end proof creation and verification (outer)', async () => {
+  before(async () => {
     backend = new Backend(assert_lt_program, { numOfThreads: 4 });
     noir = new Noir(backend);
   });
 
   it('Creates and verifies end-to-end outer proofs with underlying backend API', async () => {
     // Noir.Js part
-    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
+    const { witness } = await noir.execute(inputs);
 
     // BackendBarretenberg part
     const prover = new Backend(assert_lt_program, { numOfThreads: 4 });
-    const proof = await prover.generateFinalProof(serializedWitness);
+    const proof = await prover.generateFinalProof(witness);
     const isValid = await prover.verifyFinalProof(proof);
 
     // tests
@@ -43,9 +43,6 @@ describe('Outer proofs', () => {
 });
 
 describe('Inner proofs', () => {
-  let backend: Backend;
-  let noir: Noir;
-
   before(() => {
     backend = new Backend(assert_lt_program, { numOfThreads: 4 });
     noir = new Noir(); // backendless noir;
@@ -53,18 +50,8 @@ describe('Inner proofs', () => {
 
   it('Creates and verifies end-to-end inner proofs with underlying backend API', async () => {
     // Noir.Js part
-    const inputs = {
-      x: '2',
-      y: '3',
-    };
-    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
-
-    // bb.js part
-    //
-    // Proof creation
-    const proof = await backend.generateIntermediateProof(serializedWitness);
-
-    // Proof verification
+    const { witness } = await noir.execute(inputs, assert_lt_program); // backendless noir, so it needs a circuit
+    const proof = await backend.generateIntermediateProof(witness);
     const isValid = await backend.verifyIntermediateProof(proof);
     expect(isValid).to.be.true;
   });
@@ -82,10 +69,10 @@ describe('Inner proofs', () => {
   //
   // If its not fixable, we can leave it in as documentation of this behavior.
   it('Expects the "null function or function signature mismatch" if using different instance', async () => {
-    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
+    const { witness } = await noir.execute(inputs, assert_lt_program);
 
     // bb.js part
-    const proof = await backend.generateFinalProof(serializedWitness);
+    const proof = await backend.generateFinalProof(witness);
 
     try {
       const verifier = new Backend(assert_lt_program);
@@ -107,22 +94,22 @@ describe('Inner proofs', () => {
   //
   // If we do not create an inner proof, then this will work as expected.
   it('Expects the "null function or function signature mismatch" when mixing different proof types', async () => {
-    const serializedWitness = await noir.generateWitness(assert_lt_program, inputs);
-
     // bb.js part
     //
     // Proof creation
     //
-    const prover = new Backend(assert_lt_program);
+    const { witness } = await noir.execute(inputs, assert_lt_program);
     // Create a proof using both proving systems, the majority of the time
     // one would only use outer proofs.
-    const proofOuter = await prover.generateFinalProof(serializedWitness);
-    const _proofInner = await prover.generateIntermediateProof(serializedWitness);
+    const backend = new Backend(assert_lt_program);
+
+    const proofOuter = await backend.generateFinalProof(witness);
+    const _proofInner = await backend.generateIntermediateProof(witness);
 
     // Proof verification
     //
     try {
-      const isValidOuter = await prover.verifyFinalProof(proofOuter);
+      const isValidOuter = await backend.verifyFinalProof(proofOuter);
       expect(isValidOuter).to.be.true;
       // We can also try verifying an inner proof and it will fail.
       // const isValidInner = await prover.verifyInnerProof(_proofInner);
