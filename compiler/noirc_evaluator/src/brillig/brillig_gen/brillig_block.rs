@@ -185,14 +185,18 @@ impl<'block> BrilligBlock<'block> {
                 RegisterOrMemory::HeapVector(HeapVector {
                     pointer: source_pointer,
                     size: source_size,
+                    reference_count: source_reference_count,
                 }),
                 RegisterOrMemory::HeapVector(HeapVector {
                     pointer: destination_pointer,
                     size: destination_size,
+                    reference_count: destination_reference_count,
                 }),
             ) => {
                 self.brillig_context.mov_instruction(destination_pointer, source_pointer);
                 self.brillig_context.mov_instruction(destination_size, source_size);
+                self.brillig_context
+                    .mov_instruction(destination_reference_count, source_reference_count);
             }
             (_, _) => {
                 unreachable!("ICE: Cannot pass value from {:?} to {:?}", source, destination);
@@ -221,9 +225,7 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
                 }
-                _ => {
-                    todo!("ICE: Param type not supported")
-                }
+                Type::Function => todo!("ICE: Param type not supported"),
             }
         }
     }
@@ -554,7 +556,23 @@ impl<'block> BrilligBlock<'block> {
                     value_variable,
                 );
             }
-            Instruction::IncrementRc { .. } => todo!("Implement inc_rc in brillig"),
+            Instruction::IncrementRc { value } => {
+                let rc_register = match self.convert_ssa_value(*value, dfg) {
+                    RegisterOrMemory::HeapArray(HeapArray { reference_count, .. }) => {
+                        reference_count
+                    }
+                    RegisterOrMemory::HeapVector(HeapVector { reference_count, .. }) => {
+                        reference_count
+                    }
+                    _ => unreachable!("ICE: array set on non-array"),
+                };
+
+                let operator = BrilligBinaryOp::Field { op: BinaryFieldOp::Add };
+                let one = self.brillig_context.make_constant(0_usize.into());
+
+                // TODO: Does this work for += 1?
+                self.brillig_context.binary_instruction(rc_register, one, rc_register, operator);
+            }
             Instruction::EnableSideEffects { .. } => {
                 todo!("ICE: Instruction not supported {instruction:?}")
             }
@@ -673,12 +691,12 @@ impl<'block> BrilligBlock<'block> {
 
         // First issue a array copy to the destination
         let (source_pointer, source_size_as_register) = match source_variable {
-            RegisterOrMemory::HeapArray(HeapArray { size, pointer }) => {
+            RegisterOrMemory::HeapArray(HeapArray { size, pointer, reference_count }) => {
                 let source_size_register = self.brillig_context.allocate_register();
                 self.brillig_context.const_instruction(source_size_register, size.into());
                 (pointer, source_size_register)
             }
-            RegisterOrMemory::HeapVector(HeapVector { size, pointer }) => {
+            RegisterOrMemory::HeapVector(HeapVector { size, pointer, reference_count }) => {
                 let source_size_register = self.brillig_context.allocate_register();
                 self.brillig_context.mov_instruction(source_size_register, size);
                 (pointer, source_size_register)

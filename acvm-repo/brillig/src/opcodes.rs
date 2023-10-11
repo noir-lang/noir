@@ -24,6 +24,7 @@ impl From<usize> for RegisterIndex {
 pub struct HeapArray {
     pub pointer: RegisterIndex,
     pub size: usize,
+    pub reference_count: RegisterIndex,
 }
 
 /// A register-sized vector passed starting from a Brillig register memory location and with a register-held size
@@ -31,6 +32,7 @@ pub struct HeapArray {
 pub struct HeapVector {
     pub pointer: RegisterIndex,
     pub size: RegisterIndex,
+    pub reference_count: RegisterIndex,
 }
 
 /// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.

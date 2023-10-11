@@ -10,6 +10,8 @@ fn main() {
     assert(some.is_some());
 
     assert(some.unwrap() == 3);
+    assert(some.expect("error never shown") == 3);
+    assert(none.expect("error shown") == 3);
 
     assert(none.unwrap_or(2) == 2);
     assert(some.unwrap_or(2) == 3);

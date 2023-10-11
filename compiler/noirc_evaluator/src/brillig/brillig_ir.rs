@@ -538,7 +538,7 @@ impl BrilligContext {
             RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
                 self.load_instruction(pointer, variable_pointer);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
+            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count }) => {
                 self.load_instruction(pointer, variable_pointer);
 
                 let size_pointer = self.allocate_register();
@@ -578,13 +578,13 @@ impl BrilligContext {
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size }) => {
+            RegisterOrMemory::HeapArray(HeapArray { pointer, size, reference_count }) => {
                 self.store_instruction(variable_pointer, pointer);
                 let size_constant = self.make_constant(Value::from(size));
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
+            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count }) => {
                 self.store_instruction(variable_pointer, pointer);
                 self.store_instruction(size_pointer, size);
             }
@@ -854,7 +854,11 @@ impl BrilligContext {
     /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
     pub(crate) fn array_to_vector(&mut self, array: &HeapArray) -> HeapVector {
         let size_register = self.make_constant(array.size.into());
-        HeapVector { size: size_register, pointer: array.pointer }
+        HeapVector {
+            size: size_register,
+            pointer: array.pointer,
+            reference_count: array.reference_count,
+        }
     }
 
     /// Issues a blackbox operation.
@@ -955,7 +959,7 @@ impl BrilligContext {
             RegisterOrMemory::HeapArray(array) => {
                 let size = self.allocate_register();
                 self.const_instruction(size, array.size.into());
-                HeapVector { pointer: array.pointer, size }
+                HeapVector { pointer: array.pointer, size, reference_count: array.reference_count }
             }
             _ => unreachable!("ICE: Expected vector, got {variable:?}"),
         }
@@ -1105,13 +1109,19 @@ pub(crate) mod tests {
         let r_array_ptr = RegisterIndex::from(ReservedRegisters::len() + 1);
         let r_output_size = RegisterIndex::from(ReservedRegisters::len() + 2);
         let r_equality = RegisterIndex::from(ReservedRegisters::len() + 3);
+        let r_output_rc = RegisterIndex::from(ReservedRegisters::len() + 4);
+
         context.const_instruction(r_input_size, Value::from(12_usize));
         // copy our stack frame to r_array_ptr
         context.mov_instruction(r_array_ptr, r_stack);
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[RegisterOrMemory::RegisterIndex(r_input_size)],
-            &[RegisterOrMemory::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+            &[RegisterOrMemory::HeapVector(HeapVector {
+                pointer: r_stack,
+                size: r_output_size,
+                reference_count: r_output_rc,
+            })],
         );
         // push stack frame by r_returned_size
         context.memory_op(r_stack, r_output_size, r_stack, BinaryIntOp::Add);
