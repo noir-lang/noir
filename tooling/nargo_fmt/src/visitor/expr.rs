@@ -40,7 +40,8 @@ impl FmtVisitor<'_> {
                 )
             }
             ExpressionKind::Index(index_expr) => {
-                let formatted_collection = self.format_expr(index_expr.collection).trim_end().to_string();
+                let formatted_collection =
+                    self.format_expr(index_expr.collection).trim_end().to_string();
                 let formatted_index = self.format_expr(index_expr.index);
                 format!("{}[{}]", formatted_collection, formatted_index)
             }
