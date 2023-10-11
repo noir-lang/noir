@@ -98,7 +98,7 @@ jobs:
       - name: Enable aztec features
         if: ${{ inputs.npm-tag == 'aztec' }}
         run: |
-          echo "\ndefault = [\"aztec\"]" >> compiler/noirc_frontend/Cargo.toml
+          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_frontend/Cargo.toml
 
       - name: Build ES Packages
         run: yarn prepare:publish
