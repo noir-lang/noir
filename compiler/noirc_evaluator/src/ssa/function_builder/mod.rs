@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -170,7 +170,8 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
-        self.insert_instruction(Instruction::Allocate, Some(vec![element_type])).first()
+        let reference_type = Type::Reference(Rc::new(element_type));
+        self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
@@ -347,6 +348,40 @@ impl FunctionBuilder {
         match self.current_function.dfg[value] {
             Value::Intrinsic(intrinsic) => Some(intrinsic),
             _ => None,
+        }
+    }
+
+    /// Insert instructions to increment the reference count of any array(s) stored
+    /// within the given value. If the given value is not an array and does not contain
+    /// any arrays, this does nothing.
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        match self.type_of_value(value) {
+            Type::Numeric(_) => (),
+            Type::Function => (),
+            Type::Reference(element) => {
+                if element.contains_an_array() {
+                    let value = self.insert_load(value, element.as_ref().clone());
+                    self.increment_array_reference_count(value);
+                }
+            }
+            Type::Array(element_types, _length) => {
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
+
+                for element_type in element_types.iter() {
+                    if element_type.contains_an_array() {
+                        todo!("inc_rc for nested arrays")
+                    }
+                }
+            }
+            Type::Slice(element_types) => {
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
+
+                for element_type in element_types.iter() {
+                    if element_type.contains_an_array() {
+                        todo!("inc_rc for nested slices")
+                    }
+                }
+            }
         }
     }
 }

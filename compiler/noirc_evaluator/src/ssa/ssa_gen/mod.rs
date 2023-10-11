@@ -524,6 +524,11 @@ impl<'a> FunctionContext<'a> {
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect::<Vec<_>>();
 
+        // If an array is passed as an argument we increase its reference count
+        for argument in &arguments {
+            self.builder.increment_array_reference_count(*argument);
+        }
+
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
         self.insert_call(function, arguments, &call.return_type, call.location)
@@ -564,12 +569,17 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Values {
         let mut values = self.codegen_expression(&let_expr.expression);
 
-        if let_expr.mutable {
-            values = values.map(|value| {
-                let value = value.eval(self);
-                Tree::Leaf(self.new_mutable_variable(value))
-            });
-        }
+        values = values.map(|value| {
+            let value = value.eval(self);
+            // Make sure to increment array reference counts on each let binding
+            self.builder.increment_array_reference_count(value);
+
+            Tree::Leaf(if let_expr.mutable {
+                self.new_mutable_variable(value)
+            } else {
+                value::Value::Normal(value)
+            })
+        });
 
         self.define(let_expr.id, values);
         Self::unit_value()

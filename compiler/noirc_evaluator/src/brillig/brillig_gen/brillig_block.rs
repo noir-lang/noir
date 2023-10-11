@@ -1121,7 +1121,7 @@ impl<'block> BrilligBlock<'block> {
                     new_variable
                 }
             }
-            _ => {
+            Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => {
                 todo!("ICE: Cannot convert value {value:?}")
             }
         }
