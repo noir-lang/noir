@@ -14,10 +14,6 @@ export interface Backend {
   destroy(): Promise<void>;
 }
 
-export type BackendOptions = {
-  threads: number;
-};
-
 export type ProofData = {
   publicInputs: Uint8Array[];
   proof: Uint8Array;

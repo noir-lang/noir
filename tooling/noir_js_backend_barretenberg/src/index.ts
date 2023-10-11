@@ -1,6 +1,7 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 import { acirToUint8Array } from './serialize.js';
-import { Backend, BackendOptions, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { BackendOptions } from './types.js';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.

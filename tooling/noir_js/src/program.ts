@@ -5,7 +5,7 @@ import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
 import initACVM from '@noir-lang/acvm_js';
 import { witnessMapToUint8Array } from './serialize.js';
 
-export class Noir implements Noir {
+export class Noir {
   constructor(
     private circuit: CompiledCircuit,
     private backend?: Backend,
