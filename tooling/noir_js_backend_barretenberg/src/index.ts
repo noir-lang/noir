@@ -20,7 +20,6 @@ export class BarretenbergBackend implements Backend {
     private options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
-    this.options = options;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
