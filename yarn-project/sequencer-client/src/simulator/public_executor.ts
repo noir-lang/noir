@@ -6,8 +6,9 @@ import {
   PublicStateDB,
 } from '@aztec/acir-simulator';
 import { AztecAddress, CircuitsWasm, EthAddress, Fr, FunctionSelector, HistoricBlockData } from '@aztec/circuits.js';
+import { computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
 import { ContractDataSource, ExtendedContractData, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
-import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
+import { MerkleTreeOperations } from '@aztec/world-state';
 
 /**
  * Returns a new PublicExecutor simulator backed by the supplied merkle tree db and contract data source.
@@ -31,7 +32,7 @@ export function getPublicExecutor(
 
 /**
  * Implements the PublicContractsDB using a ContractDataSource.
- * Progresively records contracts in transaction as they are processed in a block.
+ * Progressively records contracts in transaction as they are processed in a block.
  */
 export class ContractsDataSourcePublicDB implements PublicContractsDB {
   cache = new Map<string, ExtendedContractData>();
@@ -106,7 +107,7 @@ class WorldStatePublicDB implements PublicStateDB {
    * @returns The current value in the storage slot.
    */
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
-    const index = computePublicDataTreeLeafIndex(contract, slot, await CircuitsWasm.get());
+    const index = computePublicDataTreeIndex(await CircuitsWasm.get(), contract, slot).value;
     const cached = this.writeCache.get(index);
     if (cached !== undefined) return cached;
     const value = await this.db.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, index);
@@ -120,7 +121,7 @@ class WorldStatePublicDB implements PublicStateDB {
    * @param newValue - The new value to store.
    */
   public async storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
-    const index = computePublicDataTreeLeafIndex(contract, slot, await CircuitsWasm.get());
+    const index = computePublicDataTreeIndex(await CircuitsWasm.get(), contract, slot).value;
     this.writeCache.set(index, newValue);
   }
 }

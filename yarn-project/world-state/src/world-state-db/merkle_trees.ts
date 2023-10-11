@@ -10,7 +10,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { computeBlockHash } from '@aztec/circuits.js/abis';
+import { computeBlockHash, computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { Committable } from '@aztec/foundation/committable';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -33,7 +33,6 @@ import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 import { default as levelup } from 'levelup';
 
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
-import { computeGlobalVariablesHash } from '../utils.js';
 import {
   CurrentTreeRoots,
   HandleL2BlockResult,
@@ -127,12 +126,12 @@ export class MerkleTrees implements MerkleTreeDb {
 
     // The first leaf in the blocks tree contains the empty roots of the other trees and empty global variables.
     if (!fromDb) {
-      const initialGlobalVariablesHash = await computeGlobalVariablesHash(GlobalVariables.empty());
+      const initialGlobalVariablesHash = computeGlobalsHash(wasm, GlobalVariables.empty());
       await this._updateLatestGlobalVariablesHash(initialGlobalVariablesHash);
       await this._updateHistoricBlocksTree(initialGlobalVariablesHash, true);
       await this._commit();
     } else {
-      await this._updateLatestGlobalVariablesHash(await computeGlobalVariablesHash(fromDbOptions.globalVariables));
+      await this._updateLatestGlobalVariablesHash(computeGlobalsHash(wasm, fromDbOptions.globalVariables));
     }
   }
 
@@ -575,7 +574,7 @@ export class MerkleTrees implements MerkleTreeDb {
       }
 
       // Sync and add the block to the historic blocks tree
-      const globalVariablesHash = await computeGlobalVariablesHash(l2Block.globalVariables);
+      const globalVariablesHash = computeGlobalsHash(await CircuitsWasm.get(), l2Block.globalVariables);
       await this._updateLatestGlobalVariablesHash(globalVariablesHash);
       this.log(`Synced global variables with hash ${globalVariablesHash}`);
 

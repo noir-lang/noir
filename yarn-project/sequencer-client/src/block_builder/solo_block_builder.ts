@@ -36,7 +36,12 @@ import {
   VerificationKey,
   makeTuple,
 } from '@aztec/circuits.js';
-import { computeBlockHash, computeBlockHashWithGlobals, computeContractLeaf } from '@aztec/circuits.js/abis';
+import {
+  computeBlockHash,
+  computeBlockHashWithGlobals,
+  computeContractLeaf,
+  computeGlobalsHash,
+} from '@aztec/circuits.js/abis';
 import { toFriendlyJSON } from '@aztec/circuits.js/utils';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -44,7 +49,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, assertLength } from '@aztec/foundation/serialize';
 import { ContractData, L2Block, L2BlockL2Logs, MerkleTreeId, PublicDataWrite, TxL2Logs } from '@aztec/types';
-import { MerkleTreeOperations, computeGlobalVariablesHash } from '@aztec/world-state';
+import { MerkleTreeOperations } from '@aztec/world-state';
 
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
@@ -308,7 +313,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Update the root trees with the latest data and contract tree roots,
     // and validate them against the output of the root circuit simulation
     this.debug(`Updating and validating root trees`);
-    const globalVariablesHash = await computeGlobalVariablesHash(left[0].constants.globalVariables);
+    const globalVariablesHash = computeGlobalsHash(await CircuitsWasm.get(), left[0].constants.globalVariables);
     await this.db.updateLatestGlobalVariablesHash(globalVariablesHash);
     await this.db.updateHistoricBlocksTree(globalVariablesHash);
 

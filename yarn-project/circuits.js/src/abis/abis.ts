@@ -252,7 +252,7 @@ export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, innerC
 }
 
 /**
- * Computes a unique commitment. It includes a nonce which contains data that guarantees the commiment will be unique.
+ * Computes a unique commitment. It includes a nonce which contains data that guarantees the commitment will be unique.
  * @param wasm - A module providing low-level wasm access.
  * @param nonce - The contract address.
  * @param siloedCommitment - An siloed commitment.
@@ -367,11 +367,11 @@ export function computePublicDataTreeValue(wasm: IWasmModule, value: Fr): Fr {
  * Computes a public data tree index from contract address and storage slot.
  * @param wasm - A module providing low-level wasm access.
  * @param contractAddress - Contract where insertion is occurring.
- * @param storageSlot - Storage slot where insertion is occuring.
+ * @param storageSlot - Storage slot where insertion is occurring.
  * @returns Public data tree index computed from contract address and storage slot.
 
  */
-export function computePublicDataTreeIndex(wasm: IWasmModule, contractAddress: Fr, storageSlot: Fr): Fr {
+export function computePublicDataTreeIndex(wasm: IWasmModule, contractAddress: AztecAddress, storageSlot: Fr): Fr {
   wasm.call('pedersen__init');
   return abisComputePublicDataTreeIndex(wasm, contractAddress, storageSlot);
 }

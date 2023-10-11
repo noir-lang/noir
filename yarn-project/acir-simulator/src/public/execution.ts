@@ -122,7 +122,7 @@ function contractStorageReadToPublicDataRead(
   contractAddress: AztecAddress,
 ): PublicDataRead {
   return new PublicDataRead(
-    computePublicDataTreeIndex(wasm, contractAddress.toField(), read.storageSlot),
+    computePublicDataTreeIndex(wasm, contractAddress, read.storageSlot),
     computePublicDataTreeValue(wasm, read.currentValue),
     read.sideEffectCounter!,
   );
@@ -141,7 +141,7 @@ function contractStorageUpdateRequestToPublicDataUpdateRequest(
   contractAddress: AztecAddress,
 ): PublicDataUpdateRequest {
   return new PublicDataUpdateRequest(
-    computePublicDataTreeIndex(wasm, contractAddress.toField(), update.storageSlot),
+    computePublicDataTreeIndex(wasm, contractAddress, update.storageSlot),
     computePublicDataTreeValue(wasm, update.oldValue),
     computePublicDataTreeValue(wasm, update.newValue),
     update.sideEffectCounter!,
