@@ -50,6 +50,7 @@
     "@types/lodash.zipwith": "^4.2.7",
     "@types/memdown": "^3.0.3",
     "@types/node": "^18.7.23",
+    "glob": "^10.3.10",
     "jest": "^29.5.0",
     "koa": "^2.14.2",
     "koa-static": "^5.0.0",

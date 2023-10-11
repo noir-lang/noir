@@ -31,6 +31,10 @@ type NoteProcessorStats = {
   decrypted: number;
   /** How many notes failed processing. */
   failed: number;
+  /** How many blocks were spanned.  */
+  blocks: number;
+  /** How many txs were spanned.  */
+  txs: number;
 };
 
 /**
@@ -45,7 +49,7 @@ export class NoteProcessor {
   public readonly timer: Timer = new Timer();
 
   /** Stats accumulated for this processor. */
-  public readonly stats: NoteProcessorStats = { seen: 0, decrypted: 0, failed: 0 };
+  public readonly stats: NoteProcessorStats = { seen: 0, decrypted: 0, failed: 0, blocks: 0, txs: 0 };
 
   constructor(
     /**
@@ -106,6 +110,7 @@ export class NoteProcessor {
 
     // Iterate over both blocks and encrypted logs.
     for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
+      this.stats.blocks++;
       const { txLogs } = encryptedL2BlockLogs[blockIndex];
       const block = l2BlockContexts[blockIndex].block;
       const dataStartIndexForBlock = block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex;
@@ -117,6 +122,7 @@ export class NoteProcessor {
 
       // Iterate over all the encrypted logs and try decrypting them. If successful, store the note spending info.
       for (let indexOfTxInABlock = 0; indexOfTxInABlock < txLogs.length; ++indexOfTxInABlock) {
+        this.stats.txs++;
         const dataStartIndexForTx = dataStartIndexForBlock + indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX;
         const newCommitments = block.newCommitments.slice(
           indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX,

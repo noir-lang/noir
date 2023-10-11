@@ -62,3 +62,14 @@ export const createRandomNoteSpendingInfoDao = ({
   index,
   publicKey,
 });
+
+/**
+ * Returns the size in bytes of a note spending info dao.
+ * @param note - The note.
+ * @returns - Its size in bytes.
+ */
+export function getNoteSpendingInfoDaoSize(note: NoteSpendingInfoDao) {
+  // 7 fields + 1 bigint + 1 buffer size (4 bytes) + 1 buffer
+  const indexSize = Math.ceil(Math.log2(Number(note.index)));
+  return 7 * Fr.SIZE_IN_BYTES + indexSize + 4 + note.notePreimage.items.length * Fr.SIZE_IN_BYTES;
+}

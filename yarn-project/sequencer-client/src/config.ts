@@ -5,10 +5,22 @@ import { GlobalReaderConfig } from './global_variable_builder/index.js';
 import { PublisherConfig, TxSenderConfig } from './publisher/config.js';
 import { SequencerConfig } from './sequencer/config.js';
 
+/** Chain configuration. */
+type ChainConfig = {
+  /** The chain id of the ethereum host. */
+  chainId: number;
+  /** The version of the rollup. */
+  version: number;
+};
+
 /**
  * Configuration settings for the SequencerClient.
  */
-export type SequencerClientConfig = PublisherConfig & TxSenderConfig & SequencerConfig & GlobalReaderConfig;
+export type SequencerClientConfig = PublisherConfig &
+  TxSenderConfig &
+  SequencerConfig &
+  GlobalReaderConfig &
+  ChainConfig;
 
 /**
  * Creates an instance of SequencerClientConfig out of environment variables using sensible defaults for integration testing if not set.

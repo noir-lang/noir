@@ -6,7 +6,7 @@ import { MerkleTreeId, PublicKey } from '@aztec/types';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
-import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
+import { NoteSpendingInfoDao, getNoteSpendingInfoDaoSize } from './note_spending_info_dao.js';
 
 /**
  * The MemoryDB class provides an in-memory implementation of a database to manage transactions and auxiliary data.
@@ -143,5 +143,13 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
 
   public getCompleteAddresses(): Promise<CompleteAddress[]> {
     return Promise.resolve(this.addresses);
+  }
+
+  public estimateSize() {
+    const notesSize = this.noteSpendingInfoTable.reduce((sum, note) => sum + getNoteSpendingInfoDaoSize(note), 0);
+    const treeRootsSize = this.treeRoots ? Object.entries(this.treeRoots).length * Fr.SIZE_IN_BYTES : 0;
+    const authWits = Object.entries(this.authWitnesses);
+    const authWitsSize = authWits.reduce((sum, [key, value]) => sum + key.length + value.length * Fr.SIZE_IN_BYTES, 0);
+    return notesSize + treeRootsSize + authWitsSize + this.addresses.length * CompleteAddress.SIZE_IN_BYTES;
   }
 }

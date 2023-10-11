@@ -128,4 +128,10 @@ export interface Database extends ContractDatabase {
    * @returns A promise that resolves to an array of AztecAddress instances.
    */
   getCompleteAddresses(): Promise<CompleteAddress[]>;
+
+  /**
+   * Returns the estimated size in bytes of this db.
+   * @returns The estimated size in bytes of this db.
+   */
+  estimateSize(): number;
 }

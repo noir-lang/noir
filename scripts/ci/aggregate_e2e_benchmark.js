@@ -27,14 +27,26 @@ const {
   NOTE_SUCCESSFUL_DECRYPTING_TIME,
   NOTE_TRIAL_DECRYPTING_TIME,
   NOTE_PROCESSOR_CAUGHT_UP,
+  L2_BLOCK_BUILT,
+  L2_BLOCK_BUILD_TIME,
+  L2_BLOCK_ROLLUP_SIMULATION_TIME,
+  L2_BLOCK_PUBLIC_TX_PROCESS_TIME,
+  NODE_HISTORY_SYNC_TIME,
+  NODE_SYNCED_CHAIN,
+  NOTE_HISTORY_TRIAL_DECRYPTING_TIME,
+  NOTE_HISTORY_SUCCESSFUL_DECRYPTING_TIME,
+  PXE_DB_SIZE,
   ROLLUP_SIZES,
+  CHAIN_LENGTHS,
   BENCHMARK_FILE_JSON,
+  BLOCK_SIZE,
+  NODE_DB_SIZE,
 } = require("./benchmark_shared.js");
 
 // Folder where to load logs from
 const logsDir = process.env.LOGS_DIR ?? `log`;
 
-// Appends a datapoint to the final results for the given metric in the given bucket
+// Appends a data point to the final results for the given metric in the given bucket
 function append(results, metric, bucket, value) {
   if (value === undefined) {
     console.error(`Undefined value for ${metric} in bucket ${bucket}`);
@@ -79,13 +91,49 @@ function processCircuitSimulation(entry, results) {
 }
 
 // Processes an entry with event name 'note-processor-caught-up' and updates results
-// Buckets are rollup sizes
+// Buckets are rollup sizes for NOTE_DECRYPTING_TIME, or chain sizes for NOTE_HISTORY_DECRYPTING_TIME
 function processNoteProcessorCaughtUp(entry, results) {
-  const { seen, decrypted } = entry;
+  const { seen, decrypted, blocks, duration, dbSize } = entry;
   if (ROLLUP_SIZES.includes(decrypted))
-    append(results, NOTE_SUCCESSFUL_DECRYPTING_TIME, decrypted, entry.duration);
+    append(results, NOTE_SUCCESSFUL_DECRYPTING_TIME, decrypted, duration);
   if (ROLLUP_SIZES.includes(seen) && decrypted === 0)
-    append(results, NOTE_TRIAL_DECRYPTING_TIME, seen, entry.duration);
+    append(results, NOTE_TRIAL_DECRYPTING_TIME, seen, duration);
+  if (CHAIN_LENGTHS.includes(blocks) && decrypted > 0) {
+    append(results, NOTE_HISTORY_SUCCESSFUL_DECRYPTING_TIME, blocks, duration);
+    append(results, PXE_DB_SIZE, blocks, dbSize);
+  }
+  if (CHAIN_LENGTHS.includes(blocks) && decrypted === 0)
+    append(results, NOTE_HISTORY_TRIAL_DECRYPTING_TIME, blocks, duration);
+}
+
+// Processes an entry with event name 'l2-block-built' and updates results
+// Buckets are rollup sizes
+function processL2BlockBuilt(entry, results) {
+  const bucket = entry.txCount;
+  if (!ROLLUP_SIZES.includes(bucket)) return;
+  append(results, L2_BLOCK_BUILD_TIME, bucket, entry.duration);
+  append(
+    results,
+    L2_BLOCK_ROLLUP_SIMULATION_TIME,
+    bucket,
+    entry.rollupCircuitsDuration
+  );
+  append(
+    results,
+    L2_BLOCK_PUBLIC_TX_PROCESS_TIME,
+    bucket,
+    entry.publicProcessDuration
+  );
+}
+
+// Processes entries with event name node-synced-chain-history emitted by benchmark tests
+// Buckets are chain lengths
+function processNodeSyncedChain(entry, results) {
+  const bucket = entry.blockCount;
+  if (!CHAIN_LENGTHS.includes(bucket)) return;
+  if (entry.txsPerBlock !== BLOCK_SIZE) return;
+  append(results, NODE_HISTORY_SYNC_TIME, bucket, entry.duration);
+  append(results, NODE_DB_SIZE, bucket, entry.dbSize);
 }
 
 // Processes a parsed entry from a logfile and updates results
@@ -99,6 +147,10 @@ function processEntry(entry, results) {
       return processCircuitSimulation(entry, results);
     case NOTE_PROCESSOR_CAUGHT_UP:
       return processNoteProcessorCaughtUp(entry, results);
+    case L2_BLOCK_BUILT:
+      return processL2BlockBuilt(entry, results);
+    case NODE_SYNCED_CHAIN:
+      return processNodeSyncedChain(entry, results);
     default:
       return;
   }

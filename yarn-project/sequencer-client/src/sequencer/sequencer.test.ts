@@ -94,10 +94,6 @@ describe('sequencer', () => {
       l1ToL2MessageSource,
       contractDataSource,
       publicProcessorFactory,
-      {
-        chainId: Number(chainId.value),
-        version: Number(version.value),
-      },
     );
   });
 

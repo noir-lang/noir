@@ -182,6 +182,7 @@ export class Synchronizer {
           eventName: 'note-processor-caught-up',
           publicKey: noteProcessor.publicKey.toString(),
           duration: noteProcessor.timer.ms(),
+          dbSize: this.db.estimateSize(),
           ...noteProcessor.stats,
         });
         this.noteProcessorsToCatchUp.shift();

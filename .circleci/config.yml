@@ -955,9 +955,20 @@ jobs:
           name: "Benchmark"
           command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_publish_rollup.test.ts
           environment:
-            {
-              DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:world_state,aztec:merkle_trees",
-            }
+            DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees"
+
+  bench-process-history:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Benchmark"
+          command: cond_run_script end-to-end ./scripts/run_tests_local benchmarks/bench_process_history.test.ts
+          environment:
+            DEBUG: "aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees"
 
   build-docs:
     machine:
@@ -1307,6 +1318,7 @@ workflows:
       - guides-sample-dapp: *e2e_test
       - guides-up-quick-start: *e2e_test
       - bench-publish-rollup: *e2e_test
+      - bench-process-history: *e2e_test
 
       - e2e-end:
           requires:
@@ -1344,15 +1356,16 @@ workflows:
             - guides-dapp-testing
             - guides-sample-dapp
             - guides-up-quick-start
-            - bench-publish-rollup
           <<: *defaults
 
       - bench-summary:
           requires:
             - e2e-end
+            - bench-publish-rollup
+            - bench-process-history
           <<: *defaults
 
-        # Deployment and Canary tests
+      # Deployment and Canary tests
       - deploy-dockerhub:
           requires:
             - e2e-end

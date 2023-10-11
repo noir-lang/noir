@@ -109,14 +109,14 @@ export class KernelProofCreator implements ProofCreator {
 
   public async createProofInit(privateInputs: PrivateKernelInputsInit): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
-    const [time, result] = await elapsed(() => privateKernelSimInit(wasm, privateInputs));
+    const [duration, result] = await elapsed(() => privateKernelSimInit(wasm, privateInputs));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
     this.log(`Simulated private kernel init`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-init',
-      duration: time.ms(),
+      duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     });
@@ -131,14 +131,14 @@ export class KernelProofCreator implements ProofCreator {
 
   public async createProofInner(privateInputs: PrivateKernelInputsInner): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
-    const [time, result] = await elapsed(() => privateKernelSimInner(wasm, privateInputs));
+    const [duration, result] = await elapsed(() => privateKernelSimInner(wasm, privateInputs));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
     this.log(`Simulated private kernel inner`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-inner',
-      duration: time.ms(),
+      duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     });
@@ -154,14 +154,14 @@ export class KernelProofCreator implements ProofCreator {
   public async createProofOrdering(privateInputs: PrivateKernelInputsOrdering): Promise<ProofOutputFinal> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation ordering...');
-    const [time, result] = await elapsed(() => privateKernelSimOrdering(wasm, privateInputs));
+    const [duration, result] = await elapsed(() => privateKernelSimOrdering(wasm, privateInputs));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
     this.log(`Simulated private kernel ordering`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-ordering',
-      duration: time.ms(),
+      duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     });

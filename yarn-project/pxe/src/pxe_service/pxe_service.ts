@@ -110,6 +110,11 @@ export class PXEService implements PXE {
     this.log.info('Stopped');
   }
 
+  /** Returns an estimate of the db size in bytes. */
+  public estimateDbSize() {
+    return this.db.estimateSize();
+  }
+
   public addAuthWitness(witness: AuthWitness) {
     return this.db.addAuthWitness(witness.requestHash, witness.witness);
   }

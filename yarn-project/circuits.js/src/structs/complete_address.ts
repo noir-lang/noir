@@ -27,6 +27,9 @@ export class CompleteAddress {
     public partialAddress: PartialAddress,
   ) {}
 
+  /** Size in bytes of an instance */
+  static readonly SIZE_IN_BYTES = 32 * 4;
+
   static async create(
     address: AztecAddress,
     publicKey: PublicKey,

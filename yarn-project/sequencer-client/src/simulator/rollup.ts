@@ -28,7 +28,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    */
   public async baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     const wasm = await CircuitsWasm.get();
-    const [time, result] = await elapsed(() => baseRollupSim(wasm, input));
+    const [duration, result] = await elapsed(() => baseRollupSim(wasm, input));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
@@ -36,7 +36,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
     this.log(`Simulated base rollup circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'base-rollup',
-      duration: time.ms(),
+      duration,
       inputSize: input.toBuffer().length,
       outputSize: result.toBuffer().length,
     });
@@ -50,7 +50,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    */
   public async mergeRollupCircuit(input: MergeRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     const wasm = await CircuitsWasm.get();
-    const [time, result] = await elapsed(() => mergeRollupSim(wasm, input));
+    const [duration, result] = await elapsed(() => mergeRollupSim(wasm, input));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
@@ -58,7 +58,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
     this.log(`Simulated merge rollup circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'merge-rollup',
-      duration: time.ms(),
+      duration,
       inputSize: input.toBuffer().length,
       outputSize: result.toBuffer().length,
     });
@@ -73,7 +73,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
    */
   public async rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs> {
     const wasm = await CircuitsWasm.get();
-    const [time, result] = await elapsed(() => rootRollupSim(wasm, input));
+    const [duration, result] = await elapsed(() => rootRollupSim(wasm, input));
     if (result instanceof CircuitError) {
       throw new CircuitError(result.code, result.message);
     }
@@ -81,7 +81,7 @@ export class WasmRollupCircuitSimulator implements RollupSimulator {
     this.log(`Simulated root rollup circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'root-rollup',
-      duration: time.ms(),
+      duration,
       inputSize: input.toBuffer().length,
       outputSize: result.toBuffer().length,
     });
