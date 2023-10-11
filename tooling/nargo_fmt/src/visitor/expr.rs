@@ -25,6 +25,16 @@ impl FmtVisitor<'_> {
 
                 visitor.buffer
             }
+            ExpressionKind::Lambda(lambda) => {
+                let formatted_params = lambda
+                    .parameters
+                    .iter()
+                    .map(|(pattern, unresolved_type)| format!("{}: {}", pattern, unresolved_type))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let formatted_body = self.format_expr(lambda.body.clone());
+                format!("|{}| -> {}", formatted_params, formatted_body)
+            }
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
