@@ -107,15 +107,11 @@ pub(crate) fn debug_program(
         file_map: compiled_program.file_map.clone(),
     };
 
-    let solved_witness_err = noir_debugger::debug_circuit(
+    noir_debugger::debug_circuit(
         &blackbox_solver,
         compiled_program.circuit.clone(),
         debug_artifact,
         initial_witness,
         true,
-    );
-    match solved_witness_err {
-        Ok(solved_witness) => Ok(solved_witness),
-        Err(err) => Err(crate::errors::CliError::NargoError(err)),
-    }
+    ).map_err(CliError::from)
 }
