@@ -53,7 +53,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
-        
+
+      - name: Enable aztec features
+        if: ${{ inputs.npm-tag == 'aztec' }}
+        run: |
+          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_frontend/Cargo.toml
+          
       - name: Build wasm package
         run: |
           nix build -L .#noirc_abi_wasm
@@ -72,7 +77,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
-        
+
+      - name: Enable aztec features
+        if: ${{ inputs.npm-tag == 'aztec' }}
+        run: |
+          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_frontend/Cargo.toml
+          
       - name: Build wasm package
         run: |
           nix build -L .#acvm_js
