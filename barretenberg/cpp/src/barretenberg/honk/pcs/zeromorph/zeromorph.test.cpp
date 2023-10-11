@@ -81,24 +81,24 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
 
         // Execute Prover protocol
         {
-            auto alpha = prover_transcript.get_challenge("ZM:alpha");
+            auto rho = prover_transcript.get_challenge("ZM:rho");
 
-            // Compute batching of f_i and g_i polynomials: sum_{i=0}^{m-1}\alpha^i*f_i and
-            // sum_{i=0}^{l-1}\alpha^{m+i}*h_i, and also batched evaluation v = sum_{i=0}^{m-1}\alpha^i*v_i +
-            // sum_{i=0}^{l-1}\alpha^{m+i}*w_i.
+            // Compute batching of f_i and g_i polynomials: sum_{i=0}^{m-1}\rho^i*f_i and
+            // sum_{i=0}^{l-1}\rho^{m+i}*h_i, and also batched evaluation v = sum_{i=0}^{m-1}\rho^i*v_i +
+            // sum_{i=0}^{l-1}\rho^{m+i}*w_i.
             auto f_batched = Polynomial(N);
             auto g_batched = Polynomial(N);
             auto v_evaluation = Fr(0);
-            auto alpha_pow = Fr(1);
+            auto rho_pow = Fr(1);
             for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-                f_batched.add_scaled(f_polynomials[i], alpha_pow);
-                v_evaluation += alpha_pow * v_evaluations[i];
-                alpha_pow *= alpha;
+                f_batched.add_scaled(f_polynomials[i], rho_pow);
+                v_evaluation += rho_pow * v_evaluations[i];
+                rho_pow *= rho;
             }
             for (size_t i = 0; i < NUM_SHIFTED; ++i) {
-                g_batched.add_scaled(g_polynomials[i], alpha_pow);
-                v_evaluation += alpha_pow * w_evaluations[i];
-                alpha_pow *= alpha;
+                g_batched.add_scaled(g_polynomials[i], rho_pow);
+                v_evaluation += rho_pow * w_evaluations[i];
+                rho_pow *= rho;
             }
 
             // The new f is f_batched + g_batched.shifted() = f_batched + h_batched
@@ -151,19 +151,19 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
 
         // Execute Verifier protocol
         {
-            // Challenge alpha
-            auto alpha = verifier_transcript.get_challenge("ZM:alpha");
+            // Challenge rho
+            auto rho = verifier_transcript.get_challenge("ZM:rho");
 
-            // Construct batched evaluation v = sum_{i=0}^{m-1}\alpha^i*v_i + sum_{i=0}^{l-1}\alpha^{m+i}*w_i
+            // Construct batched evaluation v = sum_{i=0}^{m-1}\rho^i*v_i + sum_{i=0}^{l-1}\rho^{m+i}*w_i
             auto v_evaluation = Fr(0);
-            auto alpha_pow = Fr(1);
+            auto rho_pow = Fr(1);
             for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-                v_evaluation += alpha_pow * v_evaluations[i];
-                alpha_pow *= alpha;
+                v_evaluation += rho_pow * v_evaluations[i];
+                rho_pow *= rho;
             }
             for (size_t i = 0; i < NUM_SHIFTED; ++i) {
-                v_evaluation += alpha_pow * w_evaluations[i];
-                alpha_pow *= alpha;
+                v_evaluation += rho_pow * w_evaluations[i];
+                rho_pow *= rho;
             }
 
             // Receive commitments [q_k]
@@ -183,15 +183,12 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
             // Challenges x, z
             auto [x_challenge, z_challenge] = verifier_transcript.get_challenges("ZM:x", "ZM:z");
 
-            // Compute commitment C_{v,x} = v * x * \Phi_n(x) * [1]_1
-            auto C_v_x = Commitment::one() * v_evaluation * x_challenge * this->Phi(x_challenge, log_N);
-
             // Compute commitment C_{\zeta_x}
             auto C_zeta_x = ZeroMorphVerifier::compute_C_zeta_x(C_q, C_q_k, y_challenge, x_challenge);
 
             // Compute commitment C_{Z_x}
             Commitment C_Z_x = ZeroMorphVerifier::compute_C_Z_x(
-                C_v_x, f_commitments, g_commitments, C_q_k, alpha, x_challenge, u_challenge);
+                f_commitments, g_commitments, C_q_k, rho, v_evaluation, x_challenge, u_challenge);
 
             // Compute commitment C_{\zeta,Z}
             auto C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
@@ -418,13 +415,13 @@ TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZ)
     Fr v_evaluation = multilinear_f.evaluate_mle(u_challenge);
     Fr w_evaluation = multilinear_g.evaluate_mle(u_challenge, /* shift = */ true);
 
-    auto alpha = Fr::random_element();
+    auto rho = Fr::random_element();
 
     // compute batched polynomial and evaluation
     auto f_batched = multilinear_f;
     auto g_batched = multilinear_g;
-    g_batched *= alpha;
-    auto v_batched = v_evaluation + alpha * w_evaluation;
+    g_batched *= rho;
+    auto v_batched = v_evaluation + rho * w_evaluation;
 
     // Define some mock q_k with deg(q_k) = 2^k - 1
     auto q_0 = this->random_polynomial(1 << 0);

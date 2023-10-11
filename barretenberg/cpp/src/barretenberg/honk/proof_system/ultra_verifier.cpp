@@ -1,7 +1,5 @@
 #include "./ultra_verifier.hpp"
-#include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/gemini/gemini.hpp"
-#include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
+#include "barretenberg/honk/pcs/zeromorph/zeromorph.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
@@ -36,12 +34,9 @@ template <typename Flavor> UltraVerifier_<Flavor>& UltraVerifier_<Flavor>::opera
 template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
 {
     using FF = typename Flavor::FF;
-    using GroupElement = typename Flavor::GroupElement;
     using Commitment = typename Flavor::Commitment;
-    using PCS = typename Flavor::PCS;
     using Curve = typename Flavor::Curve;
-    using Gemini = pcs::gemini::GeminiVerifier_<Curve>;
-    using Shplonk = pcs::shplonk::ShplonkVerifier_<Curve>;
+    using ZeroMorph = pcs::zeromorph::ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
 
@@ -114,7 +109,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     // Execute Sumcheck Verifier
     auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    auto [multivariate_challenge, purported_evaluations, sumcheck_verified] =
+    auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, transcript);
 
     // If Sumcheck did not verify, return false
@@ -122,53 +117,11 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
         return false;
     }
 
-    // Execute Gemini/Shplonk verification:
+    // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the
+    // unrolled protocol.
+    auto pairing_points = ZeroMorph::verify(commitments, claimed_evaluations, multivariate_challenge, transcript);
 
-    // Construct inputs for Gemini verifier:
-    // - Multivariate opening point u = (u_0, ..., u_{d-1})
-    // - batched unshifted and to-be-shifted polynomial commitments
-    auto batched_commitment_unshifted = GroupElement::zero();
-    auto batched_commitment_to_be_shifted = GroupElement::zero();
-
-    // Compute powers of batching challenge rho
-    FF rho = transcript.get_challenge("rho");
-    std::vector<FF> rhos = pcs::gemini::powers_of_rho(rho, Flavor::NUM_ALL_ENTITIES);
-
-    // Compute batched multivariate evaluation
-    FF batched_evaluation = FF::zero();
-    size_t evaluation_idx = 0;
-    for (auto& value : purported_evaluations.get_unshifted_then_shifted()) {
-        batched_evaluation += value * rhos[evaluation_idx];
-        ++evaluation_idx;
-    }
-
-    // Construct batched commitment for NON-shifted polynomials
-    size_t commitment_idx = 0;
-    for (auto& commitment : commitments.get_unshifted()) {
-        batched_commitment_unshifted += commitment * rhos[commitment_idx];
-        ++commitment_idx;
-    }
-
-    // Construct batched commitment for to-be-shifted polynomials
-    for (auto& commitment : commitments.get_to_be_shifted()) {
-        batched_commitment_to_be_shifted += commitment * rhos[commitment_idx];
-        ++commitment_idx;
-    }
-
-    // Produce a Gemini claim consisting of:
-    // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
-    // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
-    auto univariate_opening_claims = Gemini::reduce_verification(multivariate_challenge,
-                                                                 batched_evaluation,
-                                                                 batched_commitment_unshifted,
-                                                                 batched_commitment_to_be_shifted,
-                                                                 transcript);
-
-    // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
-    auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, univariate_opening_claims, transcript);
-
-    // Verify the Shplonk claim with KZG or IPA
-    auto verified = PCS::verify(pcs_verification_key, shplonk_claim, transcript);
+    auto verified = pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
 
     return sumcheck_verified.value() && verified;
 }

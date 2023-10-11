@@ -136,7 +136,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
 
         auto composer = GoblinUltraComposer();
 
-        // Construct and verify Goblin ECC op queue Merge its proof
+        // Construct and verify Goblin ECC op queue Merge proof
         auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
         EXPECT_TRUE(merge_verified);
     }
@@ -196,7 +196,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
         auto honk_verified = construct_and_verify_honk_proof(composer, builder);
         EXPECT_TRUE(honk_verified);
 
-        // Construct and verify Goblin ECC op queue Merge its proof
+        // Construct and verify Goblin ECC op queue Merge proof
         auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
         EXPECT_TRUE(merge_verified);
     }

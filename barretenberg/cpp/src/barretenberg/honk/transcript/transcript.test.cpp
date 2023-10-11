@@ -73,22 +73,15 @@ class UltraTranscriptTests : public ::testing::Test {
         manifest_expected.add_challenge(round, "rho");
 
         round++;
-        for (size_t i = 1; i < log_n; ++i) {
-            std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Gemini:FOLD_" + idx, size_G);
-        }
-        manifest_expected.add_challenge(round, "Gemini:r");
-
-        round++;
         for (size_t i = 0; i < log_n; ++i) {
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Gemini:a_" + idx, size_FF);
+            manifest_expected.add_entry(round, "ZM:C_q_" + idx, size_G);
         }
-        manifest_expected.add_challenge(round, "Shplonk:nu");
+        manifest_expected.add_challenge(round, "ZM:y");
 
         round++;
-        manifest_expected.add_entry(round, "Shplonk:Q", size_G);
-        manifest_expected.add_challenge(round, "Shplonk:z");
+        manifest_expected.add_entry(round, "ZM:C_q", size_G);
+        manifest_expected.add_challenge(round, "ZM:x", "ZM:z");
 
         round++;
         // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
@@ -108,7 +101,7 @@ class UltraTranscriptTests : public ::testing::Test {
             round++;
             manifest_expected.add_entry(round, "IPA:a_0", size_FF);
         } else {
-            manifest_expected.add_entry(round, "KZG:W", size_G);
+            manifest_expected.add_entry(round, "ZM:PI", size_G);
         }
 
         manifest_expected.add_challenge(round); // no challenge

@@ -60,7 +60,7 @@ template <typename Builder> class Transcript {
          */
         std::array<field_ct, num_challenges> challenges;
         for (size_t i = 0; i < num_challenges; ++i) {
-            challenges[i] = native_challenges[i];
+            challenges[i] = field_ct::from_witness(builder, native_challenges[i]);
         }
 
         return challenges;

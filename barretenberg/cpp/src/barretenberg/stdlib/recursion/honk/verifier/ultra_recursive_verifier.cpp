@@ -1,6 +1,5 @@
 #include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
-#include "barretenberg/honk/pcs/gemini/gemini.hpp"
-#include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
+#include "barretenberg/honk/pcs/zeromorph/zeromorph.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
@@ -24,9 +23,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
 {
     using Sumcheck = ::proof_system::honk::sumcheck::SumcheckVerifier<Flavor>;
     using Curve = typename Flavor::Curve;
-    using Gemini = ::proof_system::honk::pcs::gemini::GeminiVerifier_<Curve>;
-    using Shplonk = ::proof_system::honk::pcs::shplonk::ShplonkVerifier_<Curve>;
-    using KZG = ::proof_system::honk::pcs::kzg::KZG<Curve>; // note: This can only be KZG
+    using ZeroMorph = ::proof_system::honk::pcs::zeromorph::ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationParams = ::proof_system::RelationParameters<FF>;
@@ -100,7 +97,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     // Execute Sumcheck Verifier and extract multivariate opening point u = (u_0, ..., u_{d-1}) and purported
     // multivariate evaluations at u
     auto sumcheck = Sumcheck(key->circuit_size);
-    auto [multivariate_challenge, purported_evaluations, verified] = sumcheck.verify(relation_parameters, transcript);
+    auto [multivariate_challenge, claimed_evaluations, verified] = sumcheck.verify(relation_parameters, transcript);
 
     info("Sumcheck: num gates = ",
          builder->get_num_gates() - prev_num_gates,
@@ -109,94 +106,8 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
          ")");
     prev_num_gates = builder->get_num_gates();
 
-    // Compute powers of batching challenge rho
-    FF rho = transcript.get_challenge("rho");
-    std::vector<FF> rhos = ::proof_system::honk::pcs::gemini::powers_of_rho(rho, Flavor::NUM_ALL_ENTITIES);
-
-    // Compute batched multivariate evaluation
-    FF batched_evaluation = FF(0);
-    size_t evaluation_idx = 0;
-    for (auto& value : purported_evaluations.get_unshifted_then_shifted()) {
-        batched_evaluation += value * rhos[evaluation_idx];
-        ++evaluation_idx;
-    }
-
-    info("Batched eval: num gates = ",
-         builder->get_num_gates() - prev_num_gates,
-         ", (total = ",
-         builder->get_num_gates(),
-         ")");
-    prev_num_gates = builder->get_num_gates();
-
-    // Compute batched commitments needed for input to Gemini.
-    // Note: For efficiency in emulating the construction of the batched commitments, we want to perform a batch mul
-    // rather than naively accumulate the points one by one. To do this, we collect the points and scalars required for
-    // each MSM then perform the two batch muls.
-    const size_t NUM_UNSHIFTED = commitments.get_unshifted().size();
-    const size_t NUM_TO_BE_SHIFTED = commitments.get_to_be_shifted().size();
-    std::vector<FF> scalars_unshifted;
-    std::vector<FF> scalars_to_be_shifted;
-    size_t idx = 0;
-    for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-        scalars_unshifted.emplace_back(rhos[idx++]);
-    }
-    for (size_t i = 0; i < NUM_TO_BE_SHIFTED; ++i) {
-        scalars_to_be_shifted.emplace_back(rhos[idx++]);
-    }
-    // TODO(luke): The powers_of_rho fctn does not set the context of rhos[0] = FF(1) so we do it explicitly here. Can
-    // we do something silly like set it to rho.pow(0) in the fctn to make it work both native and stdlib?
-    scalars_unshifted[0] = FF(builder, 1);
-
-    // Batch the commitments to the unshifted and to-be-shifted polynomials using powers of rho
-    auto batched_commitment_unshifted = GroupElement::batch_mul(commitments.get_unshifted(), scalars_unshifted);
-
-    info("Batch mul (unshifted): num gates = ",
-         builder->get_num_gates() - prev_num_gates,
-         ", (total = ",
-         builder->get_num_gates(),
-         ")");
-    prev_num_gates = builder->get_num_gates();
-
-    auto batched_commitment_to_be_shifted =
-        GroupElement::batch_mul(commitments.get_to_be_shifted(), scalars_to_be_shifted);
-
-    info("Batch mul (to-be-shited): num gates = ",
-         builder->get_num_gates() - prev_num_gates,
-         ", (total = ",
-         builder->get_num_gates(),
-         ")");
-    prev_num_gates = builder->get_num_gates();
-
-    // Produce a Gemini claim consisting of:
-    // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
-    // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
-    auto univariate_opening_claims = Gemini::reduce_verification(multivariate_challenge,
-                                                                 batched_evaluation,
-                                                                 batched_commitment_unshifted,
-                                                                 batched_commitment_to_be_shifted,
-                                                                 transcript);
-
-    info("Gemini: num gates = ",
-         builder->get_num_gates() - prev_num_gates,
-         ", (total = ",
-         builder->get_num_gates(),
-         ")");
-    prev_num_gates = builder->get_num_gates();
-
-    // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
-    auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, univariate_opening_claims, transcript);
-
-    info("Shplonk: num gates = ",
-         builder->get_num_gates() - prev_num_gates,
-         ", (total = ",
-         builder->get_num_gates(),
-         ")");
-    prev_num_gates = builder->get_num_gates();
-
-    // Constuct the inputs to the final KZG pairing check
-    auto pairing_points = KZG::compute_pairing_points(shplonk_claim, transcript);
-
-    info("KZG: num gates = ", builder->get_num_gates() - prev_num_gates, ", (total = ", builder->get_num_gates(), ")");
+    // Execute ZeroMorph multilinear PCS evaluation verifier
+    auto pairing_points = ZeroMorph::verify(commitments, claimed_evaluations, multivariate_challenge, transcript);
 
     return pairing_points;
 }
