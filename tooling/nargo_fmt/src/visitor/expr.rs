@@ -48,6 +48,7 @@ impl FmtVisitor<'_> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{}({})", formatted_func, formatted_args)
+            }
             ExpressionKind::Index(index_expr) => {
                 let formatted_collection =
                     self.format_expr(index_expr.collection).trim_end().to_string();
