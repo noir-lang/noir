@@ -63,7 +63,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
     /// witness.
     pub(super) fn new(
         initial_witness: &mut WitnessMap,
-        brillig: &Brillig,
+        brillig: &'b Brillig,
         bb_solver: &'b B,
         acir_index: usize,
     ) -> Result<Self, OpcodeResolutionError> {
@@ -105,13 +105,13 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         }
 
         // Instantiate a Brillig VM given the solved input registers and memory
-        // along with the Brillig bytecode, and any present foreign call results.
+        // along with the Brillig bytecode.
         let input_registers = Registers::load(input_register_values);
         let vm = VM::new(
             input_registers,
             input_memory,
-            brillig.bytecode.clone(),
-            brillig.foreign_call_results.clone(),
+            &brillig.bytecode,
+            vec![],
             bb_solver,
         );
         Ok(Self { vm, acir_index })

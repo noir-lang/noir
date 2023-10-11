@@ -10,6 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
+use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
@@ -73,6 +74,8 @@ struct Monomorphizer<'interner> {
     next_function_id: u32,
 
     is_range_loop: bool,
+
+    return_location: Option<Location>,
 }
 
 type HirType = crate::Type;
@@ -103,7 +106,7 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
-    Program::new(functions, function_sig, return_distinctness)
+    Program::new(functions, function_sig, return_distinctness, monomorphizer.return_location)
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -118,6 +121,7 @@ impl<'interner> Monomorphizer<'interner> {
             interner,
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
+            return_location: None,
         }
     }
 
@@ -197,7 +201,13 @@ impl<'interner> Monomorphizer<'interner> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id);
-
+        self.return_location =
+            self.interner.function(&main_id).block(self.interner).statements().last().and_then(
+                |x| match self.interner.statement(x) {
+                    HirStatement::Expression(id) => Some(self.interner.id_location(id)),
+                    _ => None,
+                },
+            );
         let main_meta = self.interner.function_meta(&main_id);
         main_meta.into_function_signature()
     }
@@ -1389,45 +1399,5 @@ fn perform_instantiation_bindings(bindings: &TypeBindings) {
 fn undo_instantiation_bindings(bindings: TypeBindings) {
     for (id, (var, _)) in bindings {
         *var.borrow_mut() = TypeBinding::Unbound(id);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::{BTreeMap, HashMap};
-
-    use crate::{
-        graph::CrateId,
-        hir::{
-            def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-            resolution::{import::PathResolutionError, path_resolver::PathResolver},
-        },
-    };
-
-    // TODO: refactor into a more general test utility?
-    // TestPathResolver struct and impls copied from hir / type_check / mod.rs
-    struct TestPathResolver(HashMap<String, ModuleDefId>);
-
-    impl PathResolver for TestPathResolver {
-        fn resolve(
-            &self,
-            _def_maps: &BTreeMap<CrateId, CrateDefMap>,
-            path: crate::Path,
-        ) -> Result<ModuleDefId, PathResolutionError> {
-            // Not here that foo::bar and hello::foo::bar would fetch the same thing
-            let name = path.segments.last().unwrap();
-            let mod_def = self.0.get(&name.0.contents).cloned();
-            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
-        }
-
-        fn local_module_id(&self) -> LocalModuleId {
-            // This is not LocalModuleId::dummy since we need to use this to index into a Vec
-            // later and do not want to push u32::MAX number of elements before we do.
-            LocalModuleId(arena::Index::from_raw_parts(0, 0))
-        }
-
-        fn module_id(&self) -> ModuleId {
-            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
-        }
     }
 }

@@ -122,6 +122,7 @@ pub struct DefCollector {
     pub(crate) collected_traits_impls: Vec<UnresolvedTraitImpl>,
 }
 
+#[derive(Debug, Clone)]
 pub enum CompilationError {
     ParseError(ParserError),
     DefinitionError(DefCollectorErrorKind),
@@ -393,15 +394,12 @@ fn collect_impls(
                 let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
 
                 for (_, method_id, method) in &unresolved.functions {
-                    let result = module.declare_function(method.name_ident().clone(), *method_id);
-
-                    if let Err((first_def, second_def)) = result {
-                        let error = DefCollectorErrorKind::Duplicate {
-                            typ: DuplicateType::Function,
-                            first_def,
-                            second_def,
-                        };
-                        errors.push((error.into(), unresolved.file_id));
+                    // If this method was already declared, remove it from the module so it cannot
+                    // be accessed with the `TypeName::method` syntax. We'll check later whether the
+                    // object types in each method overlap or not. If they do, we issue an error.
+                    // If not, that is specialization which is allowed.
+                    if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                        module.remove_function(method.name_ident());
                     }
                 }
             // Prohibit defining impls for primitive types if we're not in the stdlib
@@ -506,7 +504,11 @@ fn add_method_to_struct_namespace(
     let type_module = struct_type.id.local_module_id();
     let module = &mut current_def_map.modules[type_module.0];
     module.declare_function(name_ident.clone(), func_id).map_err(|(first_def, second_def)| {
-        DefCollectorErrorKind::Duplicate { typ: DuplicateType::Function, first_def, second_def }
+        DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::TraitImplementation,
+            first_def,
+            second_def,
+        }
     })
 }
 

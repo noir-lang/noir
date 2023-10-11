@@ -1,5 +1,6 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, BlockExpression, Expression, ExpressionKind, Statement,
+    hir::resolution::errors::Span, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
+    Literal, Statement,
 };
 
 use super::FmtVisitor;
@@ -27,6 +28,9 @@ impl FmtVisitor<'_> {
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
+            ExpressionKind::Cast(cast) => {
+                format!("{} as {}", self.format_expr(cast.lhs), cast.r#type)
+            }
             ExpressionKind::Infix(infix) => {
                 format!(
                     "{} {} {}",
@@ -35,6 +39,32 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::MemberAccess(member_access_expr) => {
+                let lhs_str = self.format_expr(member_access_expr.lhs);
+                format!("{}.{}", lhs_str, member_access_expr.rhs)
+            }
+            ExpressionKind::Index(index_expr) => {
+                let formatted_collection =
+                    self.format_expr(index_expr.collection).trim_end().to_string();
+                let formatted_index = self.format_expr(index_expr.index);
+                format!("{}[{}]", formatted_collection, formatted_index)
+            }
+            ExpressionKind::Literal(literal) => match literal {
+                Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
+                Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
+                    format!("[{}; {length}]", self.format_expr(*repeated_element))
+                }
+                // TODO: Handle line breaks when array gets too long.
+                Literal::Array(ArrayLiteral::Standard(exprs)) => {
+                    let contents: Vec<String> =
+                        exprs.into_iter().map(|expr| self.format_expr(expr)).collect();
+                    format!("[{}]", contents.join(", "))
+                }
+
+                Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::Unit => {
+                    literal.to_string()
+                }
+            },
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }

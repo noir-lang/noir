@@ -249,6 +249,11 @@ impl AcirContext {
         }
     }
 
+    /// True if the given AcirVar refers to a constant value
+    pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
+        matches!(self.vars[var], AcirVarData::Const(_))
+    }
+
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///
@@ -1289,7 +1294,7 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
+    let mut vm = VM::new(input_registers, input_memory, &code, Vec::new(), &NullBbSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

@@ -7,7 +7,11 @@ use getrandom as _;
 
 use acvm::acir::native_types::WitnessMap;
 use iter_extended::try_btree_map;
-use noirc_abi::{errors::InputParserError, input_parser::InputValue, Abi, MAIN_RETURN_NAME};
+use noirc_abi::{
+    errors::InputParserError,
+    input_parser::{json::JsonTypes, InputValue},
+    Abi, MAIN_RETURN_NAME,
+};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -16,34 +20,87 @@ use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 mod errors;
 mod js_witness_map;
-mod temp;
 
 use errors::JsAbiError;
 use js_witness_map::JsWitnessMap;
-use temp::{input_value_from_json_type, JsonTypes};
+
+#[wasm_bindgen(typescript_custom_section)]
+const INPUT_MAP: &'static str = r#"
+export type Field = string | number | boolean;
+export type InputValue = Field | Field[] | InputMap;
+export type InputMap = { [key: string]: InputValue };
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "InputMap", typescript_type = "InputMap")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsInputMap;
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "InputValue", typescript_type = "InputValue")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsInputValue;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const ABI: &'static str = r#"
+export type Visibility = "public" | "private";
+export type Sign = "unsigned" | "signed";
+export type AbiType = 
+    { kind: "field" } |
+    { kind: "boolean" } |
+    { kind: "string", length: number } |
+    { kind: "integer", sign: Sign, width: number } |
+    { kind: "array", length: number, type: AbiType } |
+    { kind: "tuple", fields: AbiType[] } |
+    { kind: "struct", path: string, fields: [string, AbiType][] };
+    
+export type AbiParameter = {
+    name: string,
+    type: AbiType,
+    visibility: Visibility,
+};
+    
+export type Abi = {
+    parameters: AbiParameter[],
+    param_witnesses: Record<string, number[]>,
+    return_type: AbiType | null,
+    return_witnesses: number[],
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = js_sys::Object, js_name = "Abi", typescript_type = "Abi")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsAbi;
+}
 
 #[wasm_bindgen(js_name = abiEncode)]
 pub fn abi_encode(
-    abi: JsValue,
-    inputs: JsValue,
-    return_value: JsValue,
+    abi: JsAbi,
+    inputs: JsInputMap,
+    return_value: Option<JsInputValue>,
 ) -> Result<JsWitnessMap, JsAbiError> {
     console_error_panic_hook::set_once();
-    let abi: Abi = JsValueSerdeExt::into_serde(&abi).map_err(|err| err.to_string())?;
+    let abi: Abi =
+        JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
     let inputs: BTreeMap<String, JsonTypes> =
-        JsValueSerdeExt::into_serde(&inputs).map_err(|err| err.to_string())?;
-    let return_value: Option<InputValue> = if return_value.is_undefined() || return_value.is_null()
-    {
-        None
-    } else {
-        let toml_return_value =
-            JsValueSerdeExt::into_serde(&return_value).expect("could not decode return value");
-        Some(input_value_from_json_type(
-            toml_return_value,
-            abi.return_type.as_ref().unwrap(),
-            MAIN_RETURN_NAME,
-        )?)
-    };
+        JsValueSerdeExt::into_serde(&JsValue::from(inputs)).map_err(|err| err.to_string())?;
+    let return_value: Option<InputValue> = return_value
+        .map(|return_value| {
+            let toml_return_value = JsValueSerdeExt::into_serde(&JsValue::from(return_value))
+                .expect("could not decode return value");
+            InputValue::try_from_json(
+                toml_return_value,
+                abi.return_type.as_ref().unwrap(),
+                MAIN_RETURN_NAME,
+            )
+        })
+        .transpose()?;
 
     let abi_map = abi.to_btree_map();
     let parsed_inputs: BTreeMap<String, InputValue> =
@@ -52,7 +109,7 @@ pub fn abi_encode(
             let value = inputs
                 .get(&arg_name)
                 .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
-            input_value_from_json_type(value.clone(), &abi_type, &arg_name)
+            InputValue::try_from_json(value.clone(), &abi_type, &arg_name)
                 .map(|input_value| (arg_name, input_value))
         })?;
 
@@ -62,9 +119,10 @@ pub fn abi_encode(
 }
 
 #[wasm_bindgen(js_name = abiDecode)]
-pub fn abi_decode(abi: JsValue, witness_map: JsWitnessMap) -> Result<JsValue, JsAbiError> {
+pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAbiError> {
     console_error_panic_hook::set_once();
-    let abi: Abi = JsValueSerdeExt::into_serde(&abi).map_err(|err| err.to_string())?;
+    let abi: Abi =
+        JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
 
     let witness_map = WitnessMap::from(witness_map);
 

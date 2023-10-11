@@ -128,26 +128,26 @@ impl From<BlackBoxResolutionError> for OpcodeResolutionError {
     }
 }
 
-pub struct ACVM<'backend, B: BlackBoxFunctionSolver> {
+pub struct ACVM<'a, B: BlackBoxFunctionSolver> {
     status: ACVMStatus,
 
-    backend: &'backend B,
+    backend: &'a B,
 
     /// Stores the solver for memory operations acting on blocks of memory disambiguated by [block][`BlockId`].
     block_solvers: HashMap<BlockId, MemoryOpSolver>,
 
     /// A list of opcodes which are to be executed by the ACVM.
-    opcodes: Vec<Opcode>,
+    opcodes: &'a [Opcode],
     /// Index of the next opcode to be executed.
     instruction_pointer: usize,
 
     witness_map: WitnessMap,
 
-    brillig_solver: Option<BrilligSolver<'backend, B>>,
+    brillig_solver: Option<BrilligSolver<'a, B>>,
 }
 
-impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
-    pub fn new(backend: &'backend B, opcodes: Vec<Opcode>, initial_witness: WitnessMap) -> Self {
+impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
+    pub fn new(backend: &'a B, opcodes: &'a [Opcode], initial_witness: WitnessMap) -> Self {
         let status = if opcodes.is_empty() { ACVMStatus::Solved } else { ACVMStatus::InProgress };
         ACVM {
             status,
@@ -169,7 +169,7 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
 
     /// Returns a slice containing the opcodes of the circuit being executed.
     pub fn opcodes(&self) -> &[Opcode] {
-        &self.opcodes
+        self.opcodes
     }
 
     /// Returns the index of the current opcode to be executed.
