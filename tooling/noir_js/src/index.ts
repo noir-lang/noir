@@ -19,6 +19,12 @@ class Noir {
     }
   }
 
+  async destroy(): Promise<void> {
+    if (!this.backend) throw new Error('No backend to destroy');
+
+    await this.backend.destroy();
+  }
+
   private getBackend(): Backend {
     if (this.backend === undefined) throw new Error('Operation requires a backend but none was provided');
     return this.backend;
