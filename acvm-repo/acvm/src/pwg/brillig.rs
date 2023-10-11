@@ -107,13 +107,7 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         // Instantiate a Brillig VM given the solved input registers and memory
         // along with the Brillig bytecode.
         let input_registers = Registers::load(input_register_values);
-        let vm = VM::new(
-            input_registers,
-            input_memory,
-            &brillig.bytecode,
-            vec![],
-            bb_solver,
-        );
+        let vm = VM::new(input_registers, input_memory, &brillig.bytecode, vec![], bb_solver);
         Ok(Self { vm, acir_index })
     }
 
