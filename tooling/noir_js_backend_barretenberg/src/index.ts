@@ -1,4 +1,5 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
+import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 
@@ -65,12 +66,12 @@ export class BarretenbergBackend implements Backend {
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
 
-  async generateProof(decompressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
+  async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
     await this.instantiate();
     const proofWithPublicInputs = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
-      decompressedWitness,
+      gunzip(compressedWitness),
       makeEasyToVerifyInCircuit,
     );
 
