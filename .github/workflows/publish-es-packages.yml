@@ -110,6 +110,7 @@ jobs:
           yarn nightly:version
 
       - name: Update Version as specific tag
+        if: ${{ inputs.npm-tag != 'latest' }}
         run: |
           jq '.version = .version + "-${{ inputs.npm-tag }}"' package.json > package-tmp.json && mv package-tmp.json package.json
 
