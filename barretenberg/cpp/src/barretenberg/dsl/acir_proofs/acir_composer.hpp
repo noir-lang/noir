@@ -38,7 +38,6 @@ class AcirComposer {
 
   private:
     acir_format::Builder builder_;
-    acir_format::Composer composer_;
     size_t size_hint_;
     size_t exact_circuit_size_;
     size_t total_circuit_size_;

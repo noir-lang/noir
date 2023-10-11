@@ -55,7 +55,7 @@ void create_block_constraints(Builder& builder, const BlockConstraint constraint
             field_ct value = poly_to_field_ct(op.value, builder);
             field_ct index = poly_to_field_ct(op.index, builder);
             if (has_valid_witness_assignments == false) {
-                index = field_ct(0);
+                index = field_ct::from_witness(&builder, 0);
             }
             if (op.access_type == 0) {
                 value.assert_equal(table.read(index));
