@@ -19,12 +19,18 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{function::RuntimeType, instruction::BinaryOp, types::Type, value::ValueId};
+use super::ir::{
+    function::RuntimeType,
+    instruction::{BinaryOp, TerminatorInstruction},
+    types::Type,
+    value::ValueId,
+};
 
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
 pub(crate) fn generate_ssa(program: Program) -> Ssa {
+    let return_location = program.return_location;
     let context = SharedContext::new(program);
 
     let main_id = Program::main_id();
@@ -40,6 +46,21 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
         &context,
     );
     function_context.codegen_function_body(&main.body);
+
+    if let Some(return_location) = return_location {
+        let block = function_context.builder.current_block();
+        if function_context.builder.current_function.dfg[block].terminator().is_some() {
+            let return_instruction =
+                function_context.builder.current_function.dfg[block].unwrap_terminator_mut();
+            match return_instruction {
+                TerminatorInstruction::Return { call_stack, .. } => {
+                    call_stack.clear();
+                    call_stack.push_back(return_location);
+                }
+                _ => unreachable!("ICE - expect return on the last block"),
+            }
+        }
+    }
 
     // Main has now been compiled and any other functions referenced within have been added to the
     // function queue as they were found in codegen_ident. This queueing will happen each time a
