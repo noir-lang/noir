@@ -879,7 +879,7 @@ impl NodeInterner {
             Type::Struct(struct_type, _generics) => {
                 let id = struct_type.borrow().id;
 
-                if let Some(existing) = self.lookup_method(self_type, id, &method_name) {
+                if let Some(existing) = self.lookup_method(self_type, id, &method_name, true) {
                     return Some(existing);
                 }
 
@@ -947,13 +947,29 @@ impl NodeInterner {
         }
     }
 
-    /// Search by name for a method on the given struct
-    pub fn lookup_method(&self, typ: &Type, id: StructId, method_name: &str) -> Option<FuncId> {
+    /// Search by name for a method on the given struct.
+    ///
+    /// If `check_type` is true, this will force `lookup_method` to check the type
+    /// of each candidate instead of returning only the first candidate if there is exactly one.
+    /// This is generally only desired when declaring new methods to check if they overlap any
+    /// existing methods.
+    ///
+    /// Another detail is that this method does not handle auto-dereferencing through `&mut T`.
+    /// So if an object is of type `self : &mut T` but a method only accepts `self: T` (or
+    /// vice-versa), the call will not be selected. If this is ever implemented into this method,
+    /// we can remove the `methods.len() == 1` check and the `check_type` early return.
+    pub fn lookup_method(
+        &self,
+        typ: &Type,
+        id: StructId,
+        method_name: &str,
+        check_type: bool,
+    ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()))?;
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
-        if methods.len() == 1 {
+        if !check_type && methods.len() == 1 {
             return Some(methods[0]);
         }
 
