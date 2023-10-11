@@ -542,18 +542,13 @@ impl<'block> BrilligBlock<'block> {
                 let value_variable = self.convert_ssa_value(*value, dfg);
 
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result_ids[0],
-                    dfg,
-                );
 
                 self.convert_ssa_array_set(
                     source_variable,
-                    destination_variable,
                     index_register,
                     value_variable,
+                    result_ids[0],
+                    dfg,
                 );
             }
             Instruction::IncrementRc { value } => {
@@ -679,48 +674,88 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_array_set(
         &mut self,
         source_variable: RegisterOrMemory,
-        destination_variable: RegisterOrMemory,
         index_register: RegisterIndex,
         value_variable: RegisterOrMemory,
+        destination_id: ValueId,
+        dfg: &DataFlowGraph,
     ) {
-        let destination_pointer = match destination_variable {
-            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => pointer,
-            RegisterOrMemory::HeapVector(HeapVector { pointer, .. }) => pointer,
-            _ => unreachable!("ICE: array set returns non-array"),
-        };
-
         // First issue a array copy to the destination
-        let (source_pointer, source_size_as_register) = match source_variable {
+        let (source_pointer, source_size_as_register, reference_count) = match source_variable {
             RegisterOrMemory::HeapArray(HeapArray { size, pointer, reference_count }) => {
                 let source_size_register = self.brillig_context.allocate_register();
                 self.brillig_context.const_instruction(source_size_register, size.into());
-                (pointer, source_size_register)
+                (pointer, source_size_register, reference_count)
             }
             RegisterOrMemory::HeapVector(HeapVector { size, pointer, reference_count }) => {
                 let source_size_register = self.brillig_context.allocate_register();
                 self.brillig_context.mov_instruction(source_size_register, size);
-                (pointer, source_size_register)
+                (pointer, source_size_register, reference_count)
             }
             _ => unreachable!("ICE: array set on non-array"),
         };
 
-        self.brillig_context
-            .allocate_array_instruction(destination_pointer, source_size_as_register);
-
-        self.brillig_context.copy_array_instruction(
-            source_pointer,
-            destination_pointer,
-            source_size_as_register,
+        let one = self.brillig_context.make_constant(0_usize.into());
+        let condition = self.brillig_context.allocate_register();
+        self.brillig_context.binary_instruction(
+            reference_count,
+            one,
+            condition,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
         );
 
-        if let RegisterOrMemory::HeapVector(HeapVector { size: target_size, .. }) =
-            destination_variable
-        {
-            self.brillig_context.mov_instruction(target_size, source_size_as_register);
-        }
+        // TODO: This is ugly, change.
+        let function_ctx = &std::cell::RefCell::new(&mut self.function_context);
+        let variables = &std::cell::RefCell::new(&mut self.variables);
 
-        // Then set the value in the newly created array
-        self.store_variable_in_array(destination_pointer, index_register, value_variable);
+        self.brillig_context.branch_instruction(
+            condition,
+            |ctx| {
+                // Reference count is 1, we can mutate the array directly
+                Self::store_variable_in_array_with_ctx(
+                    ctx,
+                    source_pointer,
+                    index_register,
+                    value_variable,
+                );
+            },
+            |ctx| {
+                let destination_variable = variables.borrow_mut().define_variable(
+                    &mut function_ctx.borrow_mut(),
+                    ctx,
+                    destination_id,
+                    dfg,
+                );
+
+                let destination_pointer = match destination_variable {
+                    RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => pointer,
+                    RegisterOrMemory::HeapVector(HeapVector { pointer, .. }) => pointer,
+                    _ => unreachable!("ICE: array set returns non-array"),
+                };
+
+                // Reference count is not 1, we need to copy it
+                ctx.allocate_array_instruction(destination_pointer, source_size_as_register);
+
+                ctx.copy_array_instruction(
+                    source_pointer,
+                    destination_pointer,
+                    source_size_as_register,
+                );
+
+                if let RegisterOrMemory::HeapVector(HeapVector { size: target_size, .. }) =
+                    destination_variable
+                {
+                    ctx.mov_instruction(target_size, source_size_as_register);
+                }
+
+                // Then set the value in the newly created array
+                Self::store_variable_in_array_with_ctx(
+                    ctx,
+                    destination_pointer,
+                    index_register,
+                    value_variable,
+                );
+            },
+        );
 
         self.brillig_context.deallocate_register(source_size_as_register);
     }
@@ -731,20 +766,34 @@ impl<'block> BrilligBlock<'block> {
         index_register: RegisterIndex,
         value_variable: RegisterOrMemory,
     ) {
+        Self::store_variable_in_array_with_ctx(
+            self.brillig_context,
+            destination_pointer,
+            index_register,
+            value_variable,
+        );
+    }
+
+    pub(crate) fn store_variable_in_array_with_ctx(
+        ctx: &mut BrilligContext,
+        destination_pointer: RegisterIndex,
+        index_register: RegisterIndex,
+        value_variable: RegisterOrMemory,
+    ) {
         match value_variable {
             RegisterOrMemory::RegisterIndex(value_register) => {
-                self.brillig_context.array_set(destination_pointer, index_register, value_register);
+                ctx.array_set(destination_pointer, index_register, value_register);
             }
             RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
-                self.brillig_context.array_set(destination_pointer, index_register, pointer);
+                ctx.array_set(destination_pointer, index_register, pointer);
             }
             RegisterOrMemory::HeapVector(_) => {
                 // Vectors are stored as references inside arrays to be able to match SSA indexes
-                let reference = self.brillig_context.allocate_register();
-                self.brillig_context.allocate_variable_instruction(reference);
-                self.brillig_context.store_variable_instruction(reference, value_variable);
-                self.brillig_context.array_set(destination_pointer, index_register, reference);
-                self.brillig_context.deallocate_register(reference);
+                let reference = ctx.allocate_register();
+                ctx.allocate_variable_instruction(reference);
+                ctx.store_variable_instruction(reference, value_variable);
+                ctx.array_set(destination_pointer, index_register, reference);
+                ctx.deallocate_register(reference);
             }
         }
     }
@@ -1126,6 +1175,7 @@ impl<'block> BrilligBlock<'block> {
                         let element_variable = self.convert_ssa_value(*element_id, dfg);
                         // Store the item in memory
                         self.store_variable_in_array(pointer, iterator_register, element_variable);
+
                         // Increment the iterator
                         self.brillig_context.usize_op_in_place(
                             iterator_register,

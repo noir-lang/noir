@@ -88,6 +88,8 @@ pub(crate) struct BrilligContext {
     context_label: String,
     /// Section label, used to separate sections of code
     section_label: usize,
+    /// Stores the next available section
+    next_section: usize,
     /// IR printer
     debug_show: DebugShow,
 }
@@ -100,6 +102,7 @@ impl BrilligContext {
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
+            next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
         }
     }
@@ -287,6 +290,40 @@ impl BrilligContext {
         self.deallocate_register(iterator_register);
     }
 
+    /// This instruction will issue an if-then branch that will check if the condition is true
+    /// and if so, perform the instructions given in the then function and otherwise perform the
+    /// instructions given in the otherwise function.
+    pub(crate) fn branch_instruction<F, G>(
+        &mut self,
+        condition: RegisterIndex,
+        then: F,
+        otherwise: G,
+    ) where
+        F: FnOnce(&mut BrilligContext),
+        G: FnOnce(&mut BrilligContext),
+    {
+        // Reserve 3 sections
+        let (then_section, then_label) = self.reserve_next_section_label();
+        let (otherwise_section, otherwise_label) = self.reserve_next_section_label();
+        let (end_section, end_label) = self.reserve_next_section_label();
+
+        self.jump_if_instruction(condition, then_label.clone());
+        self.jump_instruction(otherwise_label.clone());
+
+        self.enter_section(then_section);
+        assert_eq!(self.current_section_label(), then_label);
+        then(self);
+        self.jump_instruction(end_label.clone());
+
+        self.enter_section(otherwise_section);
+        assert_eq!(self.current_section_label(), otherwise_label);
+        otherwise(self);
+        self.jump_instruction(end_label.clone());
+
+        self.enter_section(end_section);
+        assert_eq!(self.current_section_label(), end_label);
+    }
+
     /// Adds a label to the next opcode
     pub(crate) fn enter_context<T: ToString>(&mut self, label: T) {
         self.debug_show.enter_context(label.to_string());
@@ -301,9 +338,24 @@ impl BrilligContext {
 
     /// Increments the section label and adds a section label to the next opcode
     fn enter_next_section(&mut self) {
-        self.section_label += 1;
+        self.section_label = self.next_section;
+        self.next_section += 1;
         self.obj
             .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+    }
+
+    /// Enter the given section
+    fn enter_section(&mut self, section: usize) {
+        self.section_label = section;
+        self.obj
+            .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+    }
+
+    /// Create, reserve, and return a new section label.
+    fn reserve_next_section_label(&mut self) -> (usize, String) {
+        let section = self.next_section;
+        self.next_section += 1;
+        (section, self.compute_section_label(section))
     }
 
     /// Internal function used to compute the section labels
@@ -312,7 +364,7 @@ impl BrilligContext {
     }
 
     /// Returns the next section label
-    fn next_section_label(&self) -> String {
+    pub(crate) fn next_section_label(&self) -> String {
         self.compute_section_label(self.section_label + 1)
     }
 
@@ -538,7 +590,7 @@ impl BrilligContext {
             RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
                 self.load_instruction(pointer, variable_pointer);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count }) => {
+            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count: _ }) => {
                 self.load_instruction(pointer, variable_pointer);
 
                 let size_pointer = self.allocate_register();
@@ -578,13 +630,13 @@ impl BrilligContext {
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size, reference_count }) => {
+            RegisterOrMemory::HeapArray(HeapArray { pointer, size, reference_count: _ }) => {
                 self.store_instruction(variable_pointer, pointer);
                 let size_constant = self.make_constant(Value::from(size));
                 self.store_instruction(size_pointer, size_constant);
                 self.deallocate_register(size_constant);
             }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count }) => {
+            RegisterOrMemory::HeapVector(HeapVector { pointer, size, reference_count: _ }) => {
                 self.store_instruction(variable_pointer, pointer);
                 self.store_instruction(size_pointer, size);
             }

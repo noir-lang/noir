@@ -20,6 +20,7 @@ impl BrilligContext {
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
+            next_section: 1,
             debug_show: DebugShow::new(false),
         };
 
