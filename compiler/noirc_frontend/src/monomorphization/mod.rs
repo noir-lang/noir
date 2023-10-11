@@ -10,6 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
+use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
@@ -73,6 +74,8 @@ struct Monomorphizer<'interner> {
     next_function_id: u32,
 
     is_range_loop: bool,
+
+    return_location: Option<Location>,
 }
 
 type HirType = crate::Type;
@@ -103,7 +106,7 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     let FuncMeta { return_distinctness, .. } = interner.function_meta(&main);
-    Program::new(functions, function_sig, return_distinctness)
+    Program::new(functions, function_sig, return_distinctness, monomorphizer.return_location)
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -118,6 +121,7 @@ impl<'interner> Monomorphizer<'interner> {
             interner,
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
+            return_location: None,
         }
     }
 
@@ -197,7 +201,13 @@ impl<'interner> Monomorphizer<'interner> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id);
-
+        self.return_location =
+            self.interner.function(&main_id).block(self.interner).statements().last().and_then(
+                |x| match self.interner.statement(x) {
+                    HirStatement::Expression(id) => Some(self.interner.id_location(id)),
+                    _ => None,
+                },
+            );
         let main_meta = self.interner.function_meta(&main_id);
         main_meta.into_function_signature()
     }

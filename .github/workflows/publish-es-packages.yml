@@ -6,11 +6,12 @@ on:
       noir-ref:
         description: The noir reference to checkout
         required: false
-      nightly:
-        description: Indicates this is a nightly release
+      npm-tag:
+        description: Repository Tag to publish under
         required: false
-        type: boolean
-        default: true
+        default: 'nightly'
+
+run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-tag }} tag.
 
 jobs:
   build-noir_wasm:
@@ -27,6 +28,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           nix-cache-name: ${{ vars.NIX_CACHE_NAME }}
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+
+      - name: Enable aztec features
+        if: ${{ inputs.npm-tag == 'aztec' }}
+        run: |
+          echo "\ndefault = [\"aztec\"]" >> compiler/noirc_frontend/Cargo.toml
 
       - name: Build wasm package
         run: |
@@ -89,17 +95,25 @@ jobs:
       - name: Install Yarn dependencies
         run: yarn install
 
+      - name: Enable aztec features
+        if: ${{ inputs.npm-tag == 'aztec' }}
+        run: |
+          echo "\ndefault = [\"aztec\"]" >> compiler/noirc_frontend/Cargo.toml
+
       - name: Build ES Packages
         run: yarn prepare:publish
 
       - name: Prepare nightly version
-        if: ${{ inputs.nightly }}
+        if: ${{ inputs.npm-tag != 'latest' }}
         run: |
-          sudo apt-get install jq
           yarn nightly:version
+
+      - name: Update Version as specific tag
+        run: |
+          jq '.version = .version + "-${{ inputs.npm-tag }}"' package.json > package-tmp.json && mv package-tmp.json package.json
 
       - name: Authenticate with npm
         run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
 
       - name: Publish ES Packages
-        run: yarn publish:all --access public ${{ inputs.nightly && ' --tag nightly' }}
+        run: yarn publish:all --access public --tag ${{ inputs.npm-tag }}

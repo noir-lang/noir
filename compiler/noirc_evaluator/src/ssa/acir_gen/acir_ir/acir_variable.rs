@@ -249,6 +249,11 @@ impl AcirContext {
         }
     }
 
+    /// True if the given AcirVar refers to a constant value
+    pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
+        matches!(self.vars[var], AcirVarData::Const(_))
+    }
+
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///
