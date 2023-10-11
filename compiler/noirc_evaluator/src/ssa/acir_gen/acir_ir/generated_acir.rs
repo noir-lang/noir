@@ -440,9 +440,11 @@ impl GeneratedAcir {
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        let rhs_is_zero = self.is_zero(rhs);
-        let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
-        self.assert_is_zero(rhs_is_not_zero);
+        if !rhs.is_const() || rhs.is_zero() {
+            let rhs_is_zero = self.is_zero(rhs);
+            let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
+            self.assert_is_zero(rhs_is_not_zero);
+        }
 
         // maximum bit size for q and for [r and rhs]
         let mut max_q_bits = max_bit_size;
