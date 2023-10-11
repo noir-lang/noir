@@ -43,7 +43,7 @@ impl FmtVisitor<'_> {
                 let formatted_collection = self.format_expr(index_expr.collection);
                 let formatted_index = self.format_expr(index_expr.index);
                 format!("{}[{}]", formatted_collection, formatted_index)
-            },  
+            }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
