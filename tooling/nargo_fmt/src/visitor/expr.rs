@@ -44,11 +44,17 @@ impl FmtVisitor<'_> {
                 let formatted_args = method_call_expr
                     .arguments
                     .iter()
-                    .map(|arg| self.format_expr(arg.clone()).trim().to_string())
+                    .map(|arg| {
+                        let arg_str = self.format_expr(arg.clone()).trim().to_string();
+                        if arg_str.contains("(") { 
+                            return arg_str.replace(" ,", ",").replace("( ", "(").replace(" )", ")");
+                        }
+                        arg_str
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{}.{}({})", formatted_object, method_call_expr.method_name, formatted_args)
-            }
+            }                              
             ExpressionKind::MemberAccess(member_access_expr) => {
                 let lhs_str = self.format_expr(member_access_expr.lhs);
                 format!("{}.{}", lhs_str, member_access_expr.rhs)
