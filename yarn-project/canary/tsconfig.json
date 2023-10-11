@@ -23,20 +23,8 @@
       "path": "../aztec.js"
     },
     {
-      "path": "../circuits.js"
-    },
-    {
-      "path": "../cli"
-    },
-    {
       "path": "../end-to-end"
     },
-    {
-      "path": "../l1-artifacts"
-    },
-    {
-      "path": "../noir-contracts"
-    }
   ],
   "include": ["src"]
 }

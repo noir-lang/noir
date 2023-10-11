@@ -289,6 +289,7 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
   config.l1Contracts.contractDeploymentEmitterAddress =
     deployL1ContractsValues.l1ContractAddresses.contractDeploymentEmitterAddress;
   config.l1Contracts.inboxAddress = deployL1ContractsValues.l1ContractAddresses.inboxAddress;
+  config.l1Contracts.outboxAddress = deployL1ContractsValues.l1ContractAddresses.outboxAddress;
 
   logger('Creating and synching an aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(config);

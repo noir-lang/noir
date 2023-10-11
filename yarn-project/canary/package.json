@@ -22,11 +22,7 @@
   },
   "dependencies": {
     "@aztec/aztec.js": "workspace:^",
-    "@aztec/circuits.js": "workspace:^",
-    "@aztec/cli": "workspace:^",
     "@aztec/end-to-end": "workspace:^",
-    "@aztec/l1-artifacts": "workspace:^",
-    "@aztec/noir-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/koa-static": "^4.0.2",

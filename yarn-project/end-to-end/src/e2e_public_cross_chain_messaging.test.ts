@@ -23,24 +23,13 @@ describe('e2e_public_cross_chain_messaging', () => {
   let outbox: any;
 
   beforeEach(async () => {
-    const {
-      aztecNode: aztecNode_,
-      pxe,
-      deployL1ContractsValues,
-      accounts,
-      wallets,
-      logger: logger_,
-      teardown: teardown_,
-      cheatCodes,
-    } = await setup(2);
+    const { pxe, deployL1ContractsValues, wallets, logger: logger_, teardown: teardown_ } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
-      aztecNode_,
       pxe,
-      deployL1ContractsValues,
-      accounts,
+      deployL1ContractsValues.publicClient,
+      deployL1ContractsValues.walletClient,
       wallets[0],
       logger_,
-      cheatCodes,
     );
     l2Token = crossChainTestHarness.l2Token;
     l2Bridge = crossChainTestHarness.l2Bridge;
@@ -57,7 +46,6 @@ describe('e2e_public_cross_chain_messaging', () => {
 
   afterEach(async () => {
     await teardown();
-    await crossChainTestHarness?.stop();
   });
 
   it('Milestone 2: Deposit funds from L1 -> L2 and withdraw back to L1', async () => {
@@ -184,7 +172,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     await delay(5000); /// waiting 5 seconds.
 
     // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
-    await crossChainTestHarness.performL2Transfer(0n);
+    await crossChainTestHarness.mintTokensPublicOnL2(0n);
 
     await expect(
       l2Bridge

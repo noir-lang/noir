@@ -18,24 +18,13 @@ describe('e2e_public_to_private_messaging', () => {
   let crossChainTestHarness: CrossChainTestHarness;
 
   beforeEach(async () => {
-    const {
-      aztecNode,
-      pxe,
-      deployL1ContractsValues,
-      accounts,
-      wallet,
-      logger: logger_,
-      cheatCodes,
-      teardown: teardown_,
-    } = await setup(2);
+    const { pxe, deployL1ContractsValues, wallet, logger: logger_, teardown: teardown_ } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
-      aztecNode,
       pxe,
-      deployL1ContractsValues,
-      accounts,
+      deployL1ContractsValues.publicClient,
+      deployL1ContractsValues.walletClient,
       wallet,
       logger_,
-      cheatCodes,
     );
 
     ethAccount = crossChainTestHarness.ethAccount;
@@ -49,7 +38,6 @@ describe('e2e_public_to_private_messaging', () => {
 
   afterEach(async () => {
     await teardown();
-    await crossChainTestHarness?.stop();
   });
 
   it('Milestone 5.4: Should be able to create a commitment in a public function and spend in a private function', async () => {
