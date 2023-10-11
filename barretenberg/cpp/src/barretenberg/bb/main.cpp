@@ -13,17 +13,29 @@
 #include <vector>
 
 using namespace barretenberg;
-// Transcript downloading code only supports fetching and parsing the first transcript file.
-const uint32_t MAX_CIRCUIT_SIZE = 1 << 22;
 std::string CRS_PATH = "./crs";
 bool verbose = false;
 
-void init()
+acir_proofs::AcirComposer init(acir_format::acir_format& constraint_system)
 {
+    acir_proofs::AcirComposer acir_composer(0, verbose);
+    acir_composer.create_circuit(constraint_system);
+    auto subgroup_size = acir_composer.get_circuit_subgroup_size();
+
     // Must +1!
-    auto g1_data = get_g1_data(CRS_PATH, MAX_CIRCUIT_SIZE + 1);
+    auto g1_data = get_g1_data(CRS_PATH, subgroup_size + 1);
     auto g2_data = get_g2_data(CRS_PATH);
     srs::init_crs_factory(g1_data, g2_data);
+
+    return acir_composer;
+}
+
+acir_proofs::AcirComposer init()
+{
+    acir_proofs::AcirComposer acir_composer(0, verbose);
+    auto g2_data = get_g2_data(CRS_PATH);
+    srs::init_crs_factory({}, g2_data);
+    return acir_composer;
 }
 
 acir_format::WitnessVector get_witness(std::string const& witness_path)
@@ -53,9 +65,10 @@ acir_format::acir_format get_constraint_system(std::string const& bytecode_path)
  */
 bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessPath, bool recursive)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
+    auto acir_composer = init(constraint_system);
+
     auto proof = acir_composer.create_proof(constraint_system, witness, recursive);
     auto verified = acir_composer.verify_proof(proof, recursive);
 
@@ -80,9 +93,9 @@ void prove(const std::string& bytecodePath,
            bool recursive,
            const std::string& outputPath)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
+    auto acir_composer = init(constraint_system);
     auto proof = acir_composer.create_proof(constraint_system, witness, recursive);
 
     if (outputPath == "-") {
@@ -104,9 +117,8 @@ void prove(const std::string& bytecodePath,
  */
 void gateCount(const std::string& bytecodePath)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
-    acir_composer.create_circuit(constraint_system);
+    auto acir_composer = init(constraint_system);
     auto gate_count = acir_composer.get_total_circuit_size();
 
     writeUint64AsRawBytesToStdout(static_cast<uint64_t>(gate_count));
@@ -131,7 +143,7 @@ void gateCount(const std::string& bytecodePath)
  */
 bool verify(const std::string& proof_path, bool recursive, const std::string& vk_path)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
+    auto acir_composer = init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     acir_composer.load_verification_key(std::move(vk_data));
     auto verified = acir_composer.verify_proof(read_file(proof_path), recursive);
@@ -153,8 +165,8 @@ bool verify(const std::string& proof_path, bool recursive, const std::string& vk
  */
 void writeVk(const std::string& bytecodePath, const std::string& outputPath)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
     auto constraint_system = get_constraint_system(bytecodePath);
+    auto acir_composer = init(constraint_system);
     acir_composer.init_proving_key(constraint_system);
     auto vk = acir_composer.init_verification_key();
     auto serialized_vk = to_buffer(*vk);
@@ -182,7 +194,7 @@ void writeVk(const std::string& bytecodePath, const std::string& outputPath)
  */
 void contract(const std::string& output_path, const std::string& vk_path)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
+    auto acir_composer = init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     acir_composer.load_verification_key(std::move(vk_data));
     auto contract = acir_composer.get_solidity_verifier();
@@ -223,7 +235,7 @@ void contract(const std::string& output_path, const std::string& vk_path)
  */
 void proofAsFields(const std::string& proof_path, std::string const& vk_path, const std::string& output_path)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
+    auto acir_composer = init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     auto data = acir_composer.serialize_proof_into_fields(read_file(proof_path), vk_data.num_public_inputs);
     auto json = format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
@@ -252,7 +264,7 @@ void proofAsFields(const std::string& proof_path, std::string const& vk_path, co
  */
 void vkAsFields(const std::string& vk_path, const std::string& output_path)
 {
-    acir_proofs::AcirComposer acir_composer(MAX_CIRCUIT_SIZE, verbose);
+    auto acir_composer = init();
     auto vk_data = from_buffer<plonk::verification_key_data>(read_file(vk_path));
     acir_composer.load_verification_key(std::move(vk_data));
     auto data = acir_composer.serialize_verification_key_into_fields();
@@ -338,17 +350,17 @@ int main(int argc, char* argv[])
         if (command == "--version") {
             writeStringToStdout(BB_VERSION);
             return 0;
-        } else if (command == "info") {
+        }
+        if (command == "info") {
             std::string output_path = getOption(args, "-o", "info.json");
             acvmInfo(output_path);
             return 0;
         }
 
-        init();
-
         if (command == "prove_and_verify") {
             return proveAndVerify(bytecode_path, witness_path, recursive) ? 0 : 1;
-        } else if (command == "prove") {
+        }
+        if (command == "prove") {
             std::string output_path = getOption(args, "-o", "./proofs/proof");
             prove(bytecode_path, witness_path, recursive, output_path);
         } else if (command == "gates") {

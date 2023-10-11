@@ -65,7 +65,7 @@ inline std::vector<barretenberg::g1::affine_element> get_g1_data(const std::file
     }
     if (size >= num_points) {
         vinfo("using cached crs at: ", path);
-        auto data = read_file(path / "g1.dat");
+        auto data = read_file(path / "g1.dat", 28 + num_points * 64);
         auto points = std::vector<barretenberg::g1::affine_element>(num_points);
         auto size_of_points_in_bytes = num_points * 64;
         barretenberg::srs::IO<curve::BN254>::read_affine_elements_from_buffer(

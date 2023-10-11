@@ -58,6 +58,7 @@ std::vector<uint8_t> AcirComposer::create_proof(acir_format::acir_format& constr
     composer_ = acir_format::Composer(/*p_key=*/0, /*v_key=*/0);
 
     vinfo("building circuit...");
+    builder_ = acir_format::Builder(size_hint_);
     create_circuit_with_witness(builder_, constraint_system, witness);
     vinfo("gates: ", builder_.get_total_circuit_size());
 

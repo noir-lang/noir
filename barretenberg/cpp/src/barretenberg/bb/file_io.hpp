@@ -1,9 +1,10 @@
 #pragma once
 #include <barretenberg/common/log.hpp>
 #include <fstream>
+#include <ios>
 #include <vector>
 
-inline std::vector<uint8_t> read_file(const std::string& filename)
+inline std::vector<uint8_t> read_file(const std::string& filename, size_t bytes = 0)
 {
     // Open the file in binary mode and move to the end.
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -12,7 +13,7 @@ inline std::vector<uint8_t> read_file(const std::string& filename)
     }
 
     // Get the file size.
-    std::streamsize size = file.tellg();
+    std::streamsize size = bytes == 0 ? (std::streamsize)file.tellg() : (std::streamsize)bytes;
     if (size <= 0) {
         throw std::runtime_error("File is empty or there's an error reading it: " + filename);
     }

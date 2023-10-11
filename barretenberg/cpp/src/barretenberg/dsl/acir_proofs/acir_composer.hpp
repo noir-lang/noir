@@ -29,6 +29,7 @@ class AcirComposer {
     std::string get_solidity_verifier();
     size_t get_exact_circuit_size() { return exact_circuit_size_; };
     size_t get_total_circuit_size() { return total_circuit_size_; };
+    size_t get_circuit_subgroup_size() { return circuit_subgroup_size_; };
 
     std::vector<barretenberg::fr> serialize_proof_into_fields(std::vector<uint8_t> const& proof,
                                                               size_t num_inner_public_inputs);
