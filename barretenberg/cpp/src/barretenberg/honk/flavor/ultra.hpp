@@ -61,8 +61,8 @@ class Ultra {
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
     // define the container for storing the univariate contribution from each relation in Sumcheck
-    using RelationUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
-    using RelationValues = decltype(create_relation_values_container<FF, Relations>());
+    using TupleOfTuplesOfUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
+    using TupleOfArraysOfValues = decltype(create_relation_values_container<FF, Relations>());
 
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = true;
@@ -272,9 +272,31 @@ class Ultra {
     using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment, CommitmentHandle>>;
 
     /**
+     * @brief A field element for each entity of the flavor.
+     */
+    class AllValues : public AllEntities<FF, FF> {
+      public:
+        using Base = AllEntities<FF, FF>;
+        using Base::Base;
+        AllValues(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
+    };
+
+    /**
      * @brief A container for polynomials handles; only stores spans.
      */
-    using ProverPolynomials = AllEntities<PolynomialHandle, PolynomialHandle>;
+    class ProverPolynomials : public AllEntities<PolynomialHandle, PolynomialHandle> {
+      public:
+        AllValues get_row(const size_t row_idx)
+        {
+            AllValues result;
+            size_t column_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
+            for (auto& column : this->_data) {
+                result[column_idx] = column[row_idx];
+                column_idx++;
+            }
+            return result;
+        }
+    };
 
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.
@@ -299,17 +321,6 @@ class Ultra {
     template <size_t MAX_RELATION_LENGTH>
     using ExtendedEdges = AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>,
                                       barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
-
-    /**
-     * @brief A container for the polynomials evaluations produced during sumcheck, which are purported to be the
-     * evaluations of polynomials committed in earlier rounds.
-     */
-    class ClaimedEvaluations : public AllEntities<FF, FF> {
-      public:
-        using Base = AllEntities<FF, FF>;
-        using Base::Base;
-        ClaimedEvaluations(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
-    };
 
     /**
      * @brief A container for commitment labels.

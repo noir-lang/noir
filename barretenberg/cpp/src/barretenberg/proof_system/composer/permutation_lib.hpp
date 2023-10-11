@@ -183,7 +183,8 @@ PermutationMapping<Flavor::NUM_WIRES> compute_permutation_mapping(
     PermutationMapping<Flavor::NUM_WIRES> mapping;
 
     // Initialize the table of permutations so that every element points to itself
-    for (size_t i = 0; i < Flavor::NUM_WIRES; ++i) { // TODO(#391) zip and split
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
+    for (size_t i = 0; i < Flavor::NUM_WIRES; ++i) {
         mapping.sigmas[i].reserve(proving_key->circuit_size);
         if constexpr (generalized) {
             mapping.ids[i].reserve(proving_key->circuit_size);

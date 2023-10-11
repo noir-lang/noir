@@ -11,13 +11,10 @@ template <typename FF_> class EllipticRelationImpl {
   public:
     using FF = FF_;
 
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 6; // degree(q_elliptic * q_beta * x^3) = 5
-
-    static constexpr size_t LEN_1 = 6; // x-coordinate sub-relation
-    static constexpr size_t LEN_2 = 6; // y-coordinate sub-relation
-    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
-    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
+    static constexpr std::array<size_t, 2> SUBRELATION_LENGTHS{
+        6, // x-coordinate sub-relation
+        6, // y-coordinate sub-relation
+    };
 
     // TODO(@zac-williamson #2609 find more generic way of doing this)
     static constexpr FF get_curve_b()
@@ -33,40 +30,37 @@ template <typename FF_> class EllipticRelationImpl {
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
-     * @details The relation is defined as C(extended_edges(X)...) =
+     * @details The relation is defined as C(in(X)...) =
      *    TODO(#429): steal description from elliptic_widget.hpp
      *
-     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
-     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+     * @param in an std::array containing the fully extended Univariate edges.
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename AccumulatorTypes>
-    static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
-                           const auto& extended_edges,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    static void accumulate(ContainerOverSubrelations& accumulators,
+                           const AllEntities& in,
                            const RelationParameters<FF>&,
                            const FF& scaling_factor)
     {
-        // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
-        //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-        // Note: Formatter turned off since it doesnt properly handle the explicit scoping below.
-
         // TODO(@zac - williamson #2608 when Pedersen refactor is completed,
         // replace old addition relations with these ones and
         // remove endomorphism coefficient in ecc add gate(not used))
 
-        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-        auto x_1 = View(extended_edges.w_r);
-        auto y_1 = View(extended_edges.w_o);
+        using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+        using View = typename Accumulator::View;
+        auto x_1 = View(in.w_r);
+        auto y_1 = View(in.w_o);
 
-        auto x_2 = View(extended_edges.w_l_shift);
-        auto y_2 = View(extended_edges.w_4_shift);
-        auto y_3 = View(extended_edges.w_o_shift);
-        auto x_3 = View(extended_edges.w_r_shift);
+        auto x_2 = View(in.w_l_shift);
+        auto y_2 = View(in.w_4_shift);
+        auto y_3 = View(in.w_o_shift);
+        auto x_3 = View(in.w_r_shift);
 
-        auto q_sign = View(extended_edges.q_l);
-        auto q_elliptic = View(extended_edges.q_elliptic);
-        auto q_is_double = View(extended_edges.q_m);
+        auto q_sign = View(in.q_l);
+        auto q_elliptic = View(in.q_elliptic);
+        auto q_is_double = View(in.q_m);
 
         // Contribution (1) point addition, x-coordinate check
         // q_elliptic * (x3 + x2 + x1)(x2 - x1)(x2 - x1) - y2^2 - y1^2 + 2(y2y1)*q_sign = 0
@@ -104,5 +98,4 @@ template <typename FF_> class EllipticRelationImpl {
 };
 
 template <typename FF> using EllipticRelation = Relation<EllipticRelationImpl<FF>>;
-// clang-format on
 } // namespace proof_system

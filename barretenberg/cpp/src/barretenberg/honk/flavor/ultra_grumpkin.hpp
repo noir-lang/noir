@@ -70,8 +70,8 @@ class UltraGrumpkin {
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
     // define the container for storing the univariate contribution from each relation in Sumcheck
-    using RelationUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
-    using RelationValues = decltype(create_relation_values_container<FF, Relations>());
+    using TupleOfTuplesOfUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
+    using TupleOfArraysOfValues = decltype(create_relation_values_container<FF, Relations>());
 
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = true;
@@ -308,14 +308,13 @@ class UltraGrumpkin {
                                       barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
 
     /**
-     * @brief A container for the polynomials evaluations produced during sumcheck, which are purported to be the
-     * evaluations of polynomials committed in earlier rounds.
+     * @brief A field element for each entity of the flavor.
      */
-    class ClaimedEvaluations : public AllEntities<FF, FF> {
+    class AllValues : public AllEntities<FF, FF> {
       public:
         using Base = AllEntities<FF, FF>;
         using Base::Base;
-        ClaimedEvaluations(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
+        AllValues(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
     };
 
     /**

@@ -17,10 +17,13 @@ namespace proof_system {
 template <typename Flavor> class ECCVMCircuitBuilder {
   public:
     using CycleGroup = typename Flavor::CycleGroup;
-    using CycleScalar = typename CycleGroup::subgroup_field;
     using FF = typename Flavor::FF;
+    using Polynomial = typename Flavor::Polynomial;
+
+    using CycleScalar = typename CycleGroup::subgroup_field;
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
+
     static constexpr size_t NUM_SCALAR_BITS = proof_system_eccvm::NUM_SCALAR_BITS;
     static constexpr size_t WNAF_SLICE_BITS = proof_system_eccvm::WNAF_SLICE_BITS;
     static constexpr size_t NUM_WNAF_SLICES = proof_system_eccvm::NUM_WNAF_SLICES;
@@ -36,8 +39,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
     using VMOperation = proof_system_eccvm::VMOperation<CycleGroup>;
     std::vector<VMOperation> vm_operations;
     using ScalarMul = proof_system_eccvm::ScalarMul<CycleGroup>;
-    using RawPolynomials = typename Flavor::RawPolynomials;
-    using Polynomial = barretenberg::Polynomial<FF>;
+    using AllPolynomials = typename Flavor::AllPolynomials;
 
     ECCVMCircuitBuilder() = default;
 
@@ -312,9 +314,9 @@ template <typename Flavor> class ECCVMCircuitBuilder {
      (reads come from msm_x/y1, msm_x/y2)
      *          lookup_read_counts_1: stores number of times a point has been read from a Straus precomputation table
      (reads come from msm_x/y3, msm_x/y4)
-     * @return RawPolynomials
+     * @return AllPolynomials
      */
-    RawPolynomials compute_full_polynomials()
+    AllPolynomials compute_polynomials()
     {
         const auto msms = get_msms();
         const auto flattened_muls = get_flattened_scalar_muls(msms);
@@ -336,14 +338,14 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         const auto num_rows_log2 = static_cast<size_t>(numeric::get_msb64(num_rows));
         size_t num_rows_pow2 = 1UL << (num_rows_log2 + (1UL << num_rows_log2 == num_rows ? 0 : 1));
 
-        RawPolynomials rows;
+        AllPolynomials polys;
         for (size_t j = 0; j < NUM_POLYNOMIALS; ++j) {
-            rows[j] = Polynomial(num_rows_pow2);
+            polys[j] = Polynomial(num_rows_pow2);
         }
 
-        rows.lagrange_first[0] = 1;
-        rows.lagrange_second[1] = 1;
-        rows.lagrange_last[rows.lagrange_last.size() - 1] = 1;
+        polys.lagrange_first[0] = 1;
+        polys.lagrange_second[1] = 1;
+        polys.lagrange_last[polys.lagrange_last.size() - 1] = 1;
 
         for (size_t i = 0; i < point_table_read_counts[0].size(); ++i) {
             // Explanation of off-by-one offset
@@ -352,30 +354,30 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             // `lookup_read_counts`. We do this mapping in `ecc_msm_relation`. We are off-by-one because we add an empty
             // row at the start of the WNAF columns that is not accounted for (index of lookup_read_counts maps to the
             // row in our WNAF columns that computes a slice for a given value of pc and round)
-            rows.lookup_read_counts_0[i + 1] = point_table_read_counts[0][i];
-            rows.lookup_read_counts_1[i + 1] = point_table_read_counts[1][i];
+            polys.lookup_read_counts_0[i + 1] = point_table_read_counts[0][i];
+            polys.lookup_read_counts_1[i + 1] = point_table_read_counts[1][i];
         }
         for (size_t i = 0; i < transcript_state.size(); ++i) {
-            rows.transcript_accumulator_empty[i] = transcript_state[i].accumulator_empty;
-            rows.transcript_add[i] = transcript_state[i].q_add;
-            rows.transcript_mul[i] = transcript_state[i].q_mul;
-            rows.transcript_eq[i] = transcript_state[i].q_eq;
-            rows.transcript_reset_accumulator[i] = transcript_state[i].q_reset_accumulator;
-            rows.transcript_msm_transition[i] = transcript_state[i].msm_transition;
-            rows.transcript_pc[i] = transcript_state[i].pc;
-            rows.transcript_msm_count[i] = transcript_state[i].msm_count;
-            rows.transcript_x[i] = transcript_state[i].base_x;
-            rows.transcript_y[i] = transcript_state[i].base_y;
-            rows.transcript_z1[i] = transcript_state[i].z1;
-            rows.transcript_z2[i] = transcript_state[i].z2;
-            rows.transcript_z1zero[i] = transcript_state[i].z1_zero;
-            rows.transcript_z2zero[i] = transcript_state[i].z2_zero;
-            rows.transcript_op[i] = transcript_state[i].opcode;
-            rows.transcript_accumulator_x[i] = transcript_state[i].accumulator_x;
-            rows.transcript_accumulator_y[i] = transcript_state[i].accumulator_y;
-            rows.transcript_msm_x[i] = transcript_state[i].msm_output_x;
-            rows.transcript_msm_y[i] = transcript_state[i].msm_output_y;
-            rows.transcript_collision_check[i] = transcript_state[i].collision_check;
+            polys.transcript_accumulator_empty[i] = transcript_state[i].accumulator_empty;
+            polys.transcript_add[i] = transcript_state[i].q_add;
+            polys.transcript_mul[i] = transcript_state[i].q_mul;
+            polys.transcript_eq[i] = transcript_state[i].q_eq;
+            polys.transcript_reset_accumulator[i] = transcript_state[i].q_reset_accumulator;
+            polys.transcript_msm_transition[i] = transcript_state[i].msm_transition;
+            polys.transcript_pc[i] = transcript_state[i].pc;
+            polys.transcript_msm_count[i] = transcript_state[i].msm_count;
+            polys.transcript_x[i] = transcript_state[i].base_x;
+            polys.transcript_y[i] = transcript_state[i].base_y;
+            polys.transcript_z1[i] = transcript_state[i].z1;
+            polys.transcript_z2[i] = transcript_state[i].z2;
+            polys.transcript_z1zero[i] = transcript_state[i].z1_zero;
+            polys.transcript_z2zero[i] = transcript_state[i].z2_zero;
+            polys.transcript_op[i] = transcript_state[i].opcode;
+            polys.transcript_accumulator_x[i] = transcript_state[i].accumulator_x;
+            polys.transcript_accumulator_y[i] = transcript_state[i].accumulator_y;
+            polys.transcript_msm_x[i] = transcript_state[i].msm_output_x;
+            polys.transcript_msm_y[i] = transcript_state[i].msm_output_y;
+            polys.transcript_collision_check[i] = transcript_state[i].collision_check;
         }
 
         // TODO(@zac-williamson) if final opcode resets accumulator, all subsequent "is_accumulator_empty" row values
@@ -383,102 +385,101 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         // all zero (issue #2217)
         if (transcript_state[transcript_state.size() - 1].accumulator_empty == 1) {
             for (size_t i = transcript_state.size(); i < num_rows_pow2; ++i) {
-                rows.transcript_accumulator_empty[i] = 1;
+                polys.transcript_accumulator_empty[i] = 1;
             }
         }
         for (size_t i = 0; i < precompute_table_state.size(); ++i) {
             // first row is always an empty row (to accomodate shifted polynomials which must have 0 as 1st
             // coefficient). All other rows in the precompute_table_state represent active wnaf gates (i.e.
             // precompute_select = 1)
-            rows.precompute_select[i] = (i != 0) ? 1 : 0;
-            rows.precompute_pc[i] = precompute_table_state[i].pc;
-            rows.precompute_point_transition[i] = static_cast<uint64_t>(precompute_table_state[i].point_transition);
-            rows.precompute_round[i] = precompute_table_state[i].round;
-            rows.precompute_scalar_sum[i] = precompute_table_state[i].scalar_sum;
+            polys.precompute_select[i] = (i != 0) ? 1 : 0;
+            polys.precompute_pc[i] = precompute_table_state[i].pc;
+            polys.precompute_point_transition[i] = static_cast<uint64_t>(precompute_table_state[i].point_transition);
+            polys.precompute_round[i] = precompute_table_state[i].round;
+            polys.precompute_scalar_sum[i] = precompute_table_state[i].scalar_sum;
 
-            rows.precompute_s1hi[i] = precompute_table_state[i].s1;
-            rows.precompute_s1lo[i] = precompute_table_state[i].s2;
-            rows.precompute_s2hi[i] = precompute_table_state[i].s3;
-            rows.precompute_s2lo[i] = precompute_table_state[i].s4;
-            rows.precompute_s3hi[i] = precompute_table_state[i].s5;
-            rows.precompute_s3lo[i] = precompute_table_state[i].s6;
-            rows.precompute_s4hi[i] = precompute_table_state[i].s7;
-            rows.precompute_s4lo[i] = precompute_table_state[i].s8;
+            polys.precompute_s1hi[i] = precompute_table_state[i].s1;
+            polys.precompute_s1lo[i] = precompute_table_state[i].s2;
+            polys.precompute_s2hi[i] = precompute_table_state[i].s3;
+            polys.precompute_s2lo[i] = precompute_table_state[i].s4;
+            polys.precompute_s3hi[i] = precompute_table_state[i].s5;
+            polys.precompute_s3lo[i] = precompute_table_state[i].s6;
+            polys.precompute_s4hi[i] = precompute_table_state[i].s7;
+            polys.precompute_s4lo[i] = precompute_table_state[i].s8;
             // If skew is active (i.e. we need to subtract a base point from the msm result),
             // write `7` into rows.precompute_skew. `7`, in binary representation, equals `-1` when converted into WNAF
             // form
-            rows.precompute_skew[i] = precompute_table_state[i].skew ? 7 : 0;
+            polys.precompute_skew[i] = precompute_table_state[i].skew ? 7 : 0;
 
-            rows.precompute_dx[i] = precompute_table_state[i].precompute_double.x;
-            rows.precompute_dy[i] = precompute_table_state[i].precompute_double.y;
-            rows.precompute_tx[i] = precompute_table_state[i].precompute_accumulator.x;
-            rows.precompute_ty[i] = precompute_table_state[i].precompute_accumulator.y;
+            polys.precompute_dx[i] = precompute_table_state[i].precompute_double.x;
+            polys.precompute_dy[i] = precompute_table_state[i].precompute_double.y;
+            polys.precompute_tx[i] = precompute_table_state[i].precompute_accumulator.x;
+            polys.precompute_ty[i] = precompute_table_state[i].precompute_accumulator.y;
         }
 
         for (size_t i = 0; i < msm_state.size(); ++i) {
-            rows.msm_transition[i] = static_cast<int>(msm_state[i].msm_transition);
-            rows.msm_add[i] = static_cast<int>(msm_state[i].q_add);
-            rows.msm_double[i] = static_cast<int>(msm_state[i].q_double);
-            rows.msm_skew[i] = static_cast<int>(msm_state[i].q_skew);
-            rows.msm_accumulator_x[i] = msm_state[i].accumulator_x;
-            rows.msm_accumulator_y[i] = msm_state[i].accumulator_y;
-            rows.msm_pc[i] = msm_state[i].pc;
-            rows.msm_size_of_msm[i] = msm_state[i].msm_size;
-            rows.msm_count[i] = msm_state[i].msm_count;
-            rows.msm_round[i] = msm_state[i].msm_round;
-            rows.msm_add1[i] = static_cast<int>(msm_state[i].add_state[0].add);
-            rows.msm_add2[i] = static_cast<int>(msm_state[i].add_state[1].add);
-            rows.msm_add3[i] = static_cast<int>(msm_state[i].add_state[2].add);
-            rows.msm_add4[i] = static_cast<int>(msm_state[i].add_state[3].add);
-            rows.msm_x1[i] = msm_state[i].add_state[0].point.x;
-            rows.msm_y1[i] = msm_state[i].add_state[0].point.y;
-            rows.msm_x2[i] = msm_state[i].add_state[1].point.x;
-            rows.msm_y2[i] = msm_state[i].add_state[1].point.y;
-            rows.msm_x3[i] = msm_state[i].add_state[2].point.x;
-            rows.msm_y3[i] = msm_state[i].add_state[2].point.y;
-            rows.msm_x4[i] = msm_state[i].add_state[3].point.x;
-            rows.msm_y4[i] = msm_state[i].add_state[3].point.y;
-            rows.msm_collision_x1[i] = msm_state[i].add_state[0].collision_inverse;
-            rows.msm_collision_x2[i] = msm_state[i].add_state[1].collision_inverse;
-            rows.msm_collision_x3[i] = msm_state[i].add_state[2].collision_inverse;
-            rows.msm_collision_x4[i] = msm_state[i].add_state[3].collision_inverse;
-            rows.msm_lambda1[i] = msm_state[i].add_state[0].lambda;
-            rows.msm_lambda2[i] = msm_state[i].add_state[1].lambda;
-            rows.msm_lambda3[i] = msm_state[i].add_state[2].lambda;
-            rows.msm_lambda4[i] = msm_state[i].add_state[3].lambda;
-            rows.msm_slice1[i] = msm_state[i].add_state[0].slice;
-            rows.msm_slice2[i] = msm_state[i].add_state[1].slice;
-            rows.msm_slice3[i] = msm_state[i].add_state[2].slice;
-            rows.msm_slice4[i] = msm_state[i].add_state[3].slice;
+            polys.msm_transition[i] = static_cast<int>(msm_state[i].msm_transition);
+            polys.msm_add[i] = static_cast<int>(msm_state[i].q_add);
+            polys.msm_double[i] = static_cast<int>(msm_state[i].q_double);
+            polys.msm_skew[i] = static_cast<int>(msm_state[i].q_skew);
+            polys.msm_accumulator_x[i] = msm_state[i].accumulator_x;
+            polys.msm_accumulator_y[i] = msm_state[i].accumulator_y;
+            polys.msm_pc[i] = msm_state[i].pc;
+            polys.msm_size_of_msm[i] = msm_state[i].msm_size;
+            polys.msm_count[i] = msm_state[i].msm_count;
+            polys.msm_round[i] = msm_state[i].msm_round;
+            polys.msm_add1[i] = static_cast<int>(msm_state[i].add_state[0].add);
+            polys.msm_add2[i] = static_cast<int>(msm_state[i].add_state[1].add);
+            polys.msm_add3[i] = static_cast<int>(msm_state[i].add_state[2].add);
+            polys.msm_add4[i] = static_cast<int>(msm_state[i].add_state[3].add);
+            polys.msm_x1[i] = msm_state[i].add_state[0].point.x;
+            polys.msm_y1[i] = msm_state[i].add_state[0].point.y;
+            polys.msm_x2[i] = msm_state[i].add_state[1].point.x;
+            polys.msm_y2[i] = msm_state[i].add_state[1].point.y;
+            polys.msm_x3[i] = msm_state[i].add_state[2].point.x;
+            polys.msm_y3[i] = msm_state[i].add_state[2].point.y;
+            polys.msm_x4[i] = msm_state[i].add_state[3].point.x;
+            polys.msm_y4[i] = msm_state[i].add_state[3].point.y;
+            polys.msm_collision_x1[i] = msm_state[i].add_state[0].collision_inverse;
+            polys.msm_collision_x2[i] = msm_state[i].add_state[1].collision_inverse;
+            polys.msm_collision_x3[i] = msm_state[i].add_state[2].collision_inverse;
+            polys.msm_collision_x4[i] = msm_state[i].add_state[3].collision_inverse;
+            polys.msm_lambda1[i] = msm_state[i].add_state[0].lambda;
+            polys.msm_lambda2[i] = msm_state[i].add_state[1].lambda;
+            polys.msm_lambda3[i] = msm_state[i].add_state[2].lambda;
+            polys.msm_lambda4[i] = msm_state[i].add_state[3].lambda;
+            polys.msm_slice1[i] = msm_state[i].add_state[0].slice;
+            polys.msm_slice2[i] = msm_state[i].add_state[1].slice;
+            polys.msm_slice3[i] = msm_state[i].add_state[2].slice;
+            polys.msm_slice4[i] = msm_state[i].add_state[3].slice;
         }
 
-        rows.transcript_mul_shift = typename Flavor::Polynomial(rows.transcript_mul.shifted());
-        rows.transcript_msm_count_shift = typename Flavor::Polynomial(rows.transcript_msm_count.shifted());
-        rows.transcript_accumulator_x_shift = typename Flavor::Polynomial(rows.transcript_accumulator_x.shifted());
-        rows.transcript_accumulator_y_shift = typename Flavor::Polynomial(rows.transcript_accumulator_y.shifted());
-        rows.precompute_scalar_sum_shift = typename Flavor::Polynomial(rows.precompute_scalar_sum.shifted());
-        rows.precompute_s1hi_shift = typename Flavor::Polynomial(rows.precompute_s1hi.shifted());
-        rows.precompute_dx_shift = typename Flavor::Polynomial(rows.precompute_dx.shifted());
-        rows.precompute_dy_shift = typename Flavor::Polynomial(rows.precompute_dy.shifted());
-        rows.precompute_tx_shift = typename Flavor::Polynomial(rows.precompute_tx.shifted());
-        rows.precompute_ty_shift = typename Flavor::Polynomial(rows.precompute_ty.shifted());
-        rows.msm_transition_shift = typename Flavor::Polynomial(rows.msm_transition.shifted());
-        rows.msm_add_shift = typename Flavor::Polynomial(rows.msm_add.shifted());
-        rows.msm_double_shift = typename Flavor::Polynomial(rows.msm_double.shifted());
-        rows.msm_skew_shift = typename Flavor::Polynomial(rows.msm_skew.shifted());
-        rows.msm_accumulator_x_shift = typename Flavor::Polynomial(rows.msm_accumulator_x.shifted());
-        rows.msm_accumulator_y_shift = typename Flavor::Polynomial(rows.msm_accumulator_y.shifted());
-        rows.msm_count_shift = typename Flavor::Polynomial(rows.msm_count.shifted());
-        rows.msm_round_shift = typename Flavor::Polynomial(rows.msm_round.shifted());
-        rows.msm_add1_shift = typename Flavor::Polynomial(rows.msm_add1.shifted());
-        rows.msm_pc_shift = typename Flavor::Polynomial(rows.msm_pc.shifted());
-        rows.precompute_pc_shift = typename Flavor::Polynomial(rows.precompute_pc.shifted());
-        rows.transcript_pc_shift = typename Flavor::Polynomial(rows.transcript_pc.shifted());
-        rows.precompute_round_shift = typename Flavor::Polynomial(rows.precompute_round.shifted());
-        rows.transcript_accumulator_empty_shift =
-            typename Flavor::Polynomial(rows.transcript_accumulator_empty.shifted());
-        rows.precompute_select_shift = typename Flavor::Polynomial(rows.precompute_select.shifted());
-        return rows;
+        polys.transcript_mul_shift = Polynomial(polys.transcript_mul.shifted());
+        polys.transcript_msm_count_shift = Polynomial(polys.transcript_msm_count.shifted());
+        polys.transcript_accumulator_x_shift = Polynomial(polys.transcript_accumulator_x.shifted());
+        polys.transcript_accumulator_y_shift = Polynomial(polys.transcript_accumulator_y.shifted());
+        polys.precompute_scalar_sum_shift = Polynomial(polys.precompute_scalar_sum.shifted());
+        polys.precompute_s1hi_shift = Polynomial(polys.precompute_s1hi.shifted());
+        polys.precompute_dx_shift = Polynomial(polys.precompute_dx.shifted());
+        polys.precompute_dy_shift = Polynomial(polys.precompute_dy.shifted());
+        polys.precompute_tx_shift = Polynomial(polys.precompute_tx.shifted());
+        polys.precompute_ty_shift = Polynomial(polys.precompute_ty.shifted());
+        polys.msm_transition_shift = Polynomial(polys.msm_transition.shifted());
+        polys.msm_add_shift = Polynomial(polys.msm_add.shifted());
+        polys.msm_double_shift = Polynomial(polys.msm_double.shifted());
+        polys.msm_skew_shift = Polynomial(polys.msm_skew.shifted());
+        polys.msm_accumulator_x_shift = Polynomial(polys.msm_accumulator_x.shifted());
+        polys.msm_accumulator_y_shift = Polynomial(polys.msm_accumulator_y.shifted());
+        polys.msm_count_shift = Polynomial(polys.msm_count.shifted());
+        polys.msm_round_shift = Polynomial(polys.msm_round.shifted());
+        polys.msm_add1_shift = Polynomial(polys.msm_add1.shifted());
+        polys.msm_pc_shift = Polynomial(polys.msm_pc.shifted());
+        polys.precompute_pc_shift = Polynomial(polys.precompute_pc.shifted());
+        polys.transcript_pc_shift = Polynomial(polys.transcript_pc.shifted());
+        polys.precompute_round_shift = Polynomial(polys.precompute_round.shifted());
+        polys.transcript_accumulator_empty_shift = Polynomial(polys.transcript_accumulator_empty.shifted());
+        polys.precompute_select_shift = Polynomial(polys.precompute_select.shifted());
+        return polys;
     }
 
     bool check_circuit()
@@ -501,31 +502,26 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             .eccvm_set_permutation_delta = eccvm_set_permutation_delta,
         };
 
-        auto rows = compute_full_polynomials();
-        const size_t num_rows = rows[0].size();
+        auto polynomials = compute_polynomials();
+        const size_t num_rows = polynomials[0].size();
         proof_system::honk::lookup_library::compute_logderivative_inverse<Flavor,
                                                                           honk::sumcheck::ECCVMLookupRelation<FF>>(
-            rows, params, num_rows);
+            polynomials, params, num_rows);
 
         honk::permutation_library::compute_permutation_grand_product<Flavor, honk::sumcheck::ECCVMSetRelation<FF>>(
-            num_rows, rows, params);
+            num_rows, polynomials, params);
 
-        rows.z_perm_shift = typename Flavor::Polynomial(rows.z_perm.shifted());
+        polynomials.z_perm_shift = Polynomial(polynomials.z_perm.shifted());
 
         const auto evaluate_relation = [&]<typename Relation>(const std::string& relation_name) {
-            auto relation = Relation();
-            typename Relation::RelationValues result;
+            typename Relation::ArrayOfValuesOverSubrelations result;
             for (auto& r : result) {
                 r = 0;
             }
             constexpr size_t NUM_SUBRELATIONS = result.size();
 
             for (size_t i = 0; i < num_rows; ++i) {
-                typename Flavor::RowPolynomials row;
-                for (size_t j = 0; j < NUM_POLYNOMIALS; ++j) {
-                    row[j] = rows[j][i];
-                }
-                relation.add_full_relation_value_contribution(result, row, params, 1);
+                Relation::accumulate(result, polynomials.get_row(i), params, 1);
 
                 bool x = true;
                 for (size_t j = 0; j < NUM_SUBRELATIONS; ++j) {
@@ -553,19 +549,13 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         result =
             result && evaluate_relation.template operator()<honk::sumcheck::ECCVMSetRelation<FF>>("ECCVMSetRelation");
 
-        auto lookup_relation = honk::sumcheck::ECCVMLookupRelation<FF>();
-        typename honk::sumcheck::ECCVMLookupRelation<typename Flavor::FF>::RelationValues lookup_result;
+        using LookupRelation = honk::sumcheck::ECCVMLookupRelation<FF>;
+        typename honk::sumcheck::ECCVMLookupRelation<typename Flavor::FF>::ArrayOfValuesOverSubrelations lookup_result;
         for (auto& r : lookup_result) {
             r = 0;
         }
         for (size_t i = 0; i < num_rows; ++i) {
-            typename Flavor::RowPolynomials row;
-            for (size_t j = 0; j < NUM_POLYNOMIALS; ++j) {
-                row[j] = rows[j][i];
-            }
-            {
-                lookup_relation.add_full_relation_value_contribution(lookup_result, row, params, 1);
-            }
+            LookupRelation::accumulate(lookup_result, polynomials.get_row(i), params, 1);
         }
         for (auto r : lookup_result) {
             if (r != 0) {

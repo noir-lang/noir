@@ -11,7 +11,7 @@ namespace proof_system::honk::sumcheck {
  */
 template <typename Flavor> struct SumcheckOutput {
     using FF = typename Flavor::FF;
-    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
+    using ClaimedEvaluations = typename Flavor::AllValues;
     // u = (u_0, ..., u_{d-1})
     std::vector<FF> challenge;
     // Evaluations in `u` of the polynomials used in Sumcheck

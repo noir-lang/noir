@@ -47,12 +47,12 @@ namespace proof_system::honk::grand_product_library {
  */
 template <typename Flavor, typename GrandProdRelation>
 void compute_grand_product(const size_t circuit_size,
-                           auto& full_polynomials,
+                           typename Flavor::ProverPolynomials& full_polynomials,
                            proof_system::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using FF = typename Flavor::FF;
     using Polynomial = typename Flavor::Polynomial;
-    using ValueAccumulatorsAndViews = typename GrandProdRelation::ValueAccumulatorsAndViews;
+    using Accumulator = std::tuple_element_t<0, typename GrandProdRelation::ArrayOfValuesOverSubrelations>;
 
     // Allocate numerator/denominator polynomials that will serve as scratch space
     // TODO(zac) we can re-use the permutation polynomial as the numerator polynomial. Reduces readability
@@ -67,15 +67,14 @@ void compute_grand_product(const size_t circuit_size,
         const size_t start = thread_idx * block_size;
         const size_t end = (thread_idx + 1) * block_size;
         for (size_t i = start; i < end; ++i) {
-
-            typename Flavor::ClaimedEvaluations evaluations;
+            typename Flavor::AllValues evaluations;
             for (size_t k = 0; k < Flavor::NUM_ALL_ENTITIES; ++k) {
                 evaluations[k] = full_polynomials[k].size() > i ? full_polynomials[k][i] : 0;
             }
-            numerator[i] = GrandProdRelation::template compute_grand_product_numerator<ValueAccumulatorsAndViews>(
-                evaluations, relation_parameters, i);
-            denominator[i] = GrandProdRelation::template compute_grand_product_denominator<ValueAccumulatorsAndViews>(
-                evaluations, relation_parameters, i);
+            numerator[i] = GrandProdRelation::template compute_grand_product_numerator<Accumulator>(
+                evaluations, relation_parameters);
+            denominator[i] = GrandProdRelation::template compute_grand_product_denominator<Accumulator>(
+                evaluations, relation_parameters);
         }
     });
 

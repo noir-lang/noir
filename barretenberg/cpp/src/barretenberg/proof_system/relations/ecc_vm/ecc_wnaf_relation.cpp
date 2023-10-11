@@ -36,32 +36,32 @@ namespace proof_system::honk::sumcheck {
  * @tparam AccumulatorTypes
  */
 template <typename FF>
-template <typename AccumulatorTypes>
-void ECCVMWnafRelationBase<FF>::accumulate(typename AccumulatorTypes::Accumulators& accumulator,
-                                           const auto& extended_edges,
+template <typename ContainerOverSubrelations, typename AllEntities>
+void ECCVMWnafRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+                                           const AllEntities& in,
                                            const RelationParameters<FF>& /*unused*/,
                                            const FF& scaling_factor)
 {
-    using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-    auto scalar_sum = View(extended_edges.precompute_scalar_sum);
-    auto scalar_sum_new = View(extended_edges.precompute_scalar_sum_shift);
-    auto q_transition = View(extended_edges.precompute_point_transition);
-    auto round = View(extended_edges.precompute_round);
-    auto round_shift = View(extended_edges.precompute_round_shift);
-    auto pc = View(extended_edges.precompute_pc);
-    auto pc_shift = View(extended_edges.precompute_pc_shift);
+    using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
+    using View = typename Accumulator::View;
+
+    auto scalar_sum = View(in.precompute_scalar_sum);
+    auto scalar_sum_new = View(in.precompute_scalar_sum_shift);
+    auto q_transition = View(in.precompute_point_transition);
+    auto round = View(in.precompute_round);
+    auto round_shift = View(in.precompute_round_shift);
+    auto pc = View(in.precompute_pc);
+    auto pc_shift = View(in.precompute_pc_shift);
     // precompute_select is a boolean column. We only evaluate the ecc_wnaf_relation and the ecc_point_table_relation if
     // `precompute_select=1`
-    auto precompute_select = View(extended_edges.precompute_select);
-    auto precompute_select_shift = View(extended_edges.precompute_select_shift);
+    auto precompute_select = View(in.precompute_select);
+    auto precompute_select_shift = View(in.precompute_select_shift);
 
-    const auto& precompute_skew = View(extended_edges.precompute_skew);
+    const auto& precompute_skew = View(in.precompute_skew);
 
     const std::array<View, 8> slices{
-        View(extended_edges.precompute_s1hi), View(extended_edges.precompute_s1lo),
-        View(extended_edges.precompute_s2hi), View(extended_edges.precompute_s2lo),
-        View(extended_edges.precompute_s3hi), View(extended_edges.precompute_s3lo),
-        View(extended_edges.precompute_s4hi), View(extended_edges.precompute_s4lo),
+        View(in.precompute_s1hi), View(in.precompute_s1lo), View(in.precompute_s2hi), View(in.precompute_s2lo),
+        View(in.precompute_s3hi), View(in.precompute_s3lo), View(in.precompute_s4hi), View(in.precompute_s4lo),
     };
 
     const auto range_constraint_slice_to_2_bits = [&scaling_factor](const View& s, auto& acc) {
@@ -100,7 +100,7 @@ void ECCVMWnafRelationBase<FF>::accumulate(typename AccumulatorTypes::Accumulato
      *        We already know slice1 is in the range [0, ..., 15]
      *        To check the range [8, ..., 15] we validate the most significant 2 bits (s1) are >=2
      */
-    const auto s1_shift = View(extended_edges.precompute_s1hi_shift);
+    const auto s1_shift = View(in.precompute_s1hi_shift);
     const auto s1_shift_msb_set = (s1_shift - 2) * (s1_shift - 3);
     std::get<20>(accumulator) += scaled_transition * precompute_select_shift * s1_shift_msb_set;
 

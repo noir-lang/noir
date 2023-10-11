@@ -29,61 +29,22 @@ namespace proof_system::honk::sumcheck {
  * If skew_i == 1, [Acc] = [Acc] - [P_i] for all i in [0, ..., k - 1]
  *
  * The relations in ECCVMMSMRelationBase constrain the ADDITION, DOUBLE and SKEW rounds
- * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
- * @param extended_edges an std::array containing the fully extended Accumulator edges.
+ * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+ * @param in an std::array containing the fully extended Accumulator edges.
  * @param parameters contains beta, gamma, and public_input_delta, ....
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
 template <typename FF_> class ECCVMMSMRelationBase {
   public:
     using FF = FF_;
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 8;
 
-    // blarp... add
-    static constexpr size_t LEN_1 = 8; // arithmetic sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using GetAccumulatorTypes = AccumulatorTypesContainer<LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1>;
+    static constexpr std::array<size_t, 36> SUBRELATION_LENGTHS{ 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+                                                                 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 };
 
-    template <typename AccumulatorTypes>
-    static void accumulate(typename AccumulatorTypes::Accumulators& accumulator,
-                           const auto& extended_edges,
-                           const RelationParameters<FF>& /*unused*/,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    static void accumulate(ContainerOverSubrelations& accumulator,
+                           const AllEntities& in,
+                           const RelationParameters<FF>& /* unused */,
                            const FF& scaling_factor);
 };
 

@@ -3334,7 +3334,6 @@ template <typename FF> bool UltraCircuitBuilder_<FF>::check_circuit()
         FF w_3_shifted_value;
         FF w_4_shifted_value;
         if (i < (this->num_gates - 1)) {
-
             w_1_shifted_value = this->get_variable(w_l[i + 1]);
             w_2_shifted_value = this->get_variable(w_r[i + 1]);
             w_3_shifted_value = this->get_variable(w_o[i + 1]);

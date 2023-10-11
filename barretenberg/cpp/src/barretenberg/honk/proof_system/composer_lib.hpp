@@ -26,7 +26,7 @@ std::shared_ptr<typename Flavor::VerificationKey> compute_verification_key_commo
 
     auto commitment_key = typename Flavor::CommitmentKey(proving_key->circuit_size, proving_key->crs);
 
-    size_t poly_idx = 0; // TODO(#391) zip
+    size_t poly_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
     for (auto& polynomial : proving_key) {
         verification_key[poly_idx] = commitment_key.commit(polynomial);
         ++polynomial_idx;

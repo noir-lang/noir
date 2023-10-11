@@ -8,19 +8,16 @@ template <typename FF_> class GenPermSortRelationImpl {
   public:
     using FF = FF_;
 
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 6; // degree(q_sort * D(D - 1)(D - 2)(D - 3)) = 5
-
-    static constexpr size_t LEN_1 = 6; // range constrain sub-relation 1
-    static constexpr size_t LEN_2 = 6; // range constrain sub-relation 2
-    static constexpr size_t LEN_3 = 6; // range constrain sub-relation 3
-    static constexpr size_t LEN_4 = 6; // range constrain sub-relation 4
-    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
-    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2, LEN_3, LEN_4>;
+    static constexpr std::array<size_t, 4> SUBRELATION_LENGTHS{
+        6, // range constrain sub-relation 1
+        6, // range constrain sub-relation 2
+        6, // range constrain sub-relation 3
+        6  // range constrain sub-relation 4
+    };
 
     /**
      * @brief Expression for the generalized permutation sort gate.
-     * @details The relation is defined as C(extended_edges(X)...) =
+     * @details The relation is defined as C(in(X)...) =
      *    q_sort * \sum{ i = [0, 3]} \alpha^i D_i(D_i - 1)(D_i - 2)(D_i - 3)
      *      where
      *      D_0 = w_2 - w_1
@@ -28,27 +25,25 @@ template <typename FF_> class GenPermSortRelationImpl {
      *      D_2 = w_4 - w_3
      *      D_3 = w_1_shift - w_4
      *
-     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
-     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+     * @param in an std::array containing the fully extended Univariate edges.
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename AccumulatorTypes>
-    void static accumulate(typename AccumulatorTypes::Accumulators& accumulators,
-                           const auto& extended_edges,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    void static accumulate(ContainerOverSubrelations& accumulators,
+                           const AllEntities& in,
                            const RelationParameters<FF>&,
                            const FF& scaling_factor)
     {
-        // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
-        //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-
-        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-        auto w_1 = View(extended_edges.w_l);
-        auto w_2 = View(extended_edges.w_r);
-        auto w_3 = View(extended_edges.w_o);
-        auto w_4 = View(extended_edges.w_4);
-        auto w_1_shift = View(extended_edges.w_l_shift);
-        auto q_sort = View(extended_edges.q_sort);
+        using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
+        using View = typename Accumulator::View;
+        auto w_1 = View(in.w_l);
+        auto w_2 = View(in.w_r);
+        auto w_3 = View(in.w_o);
+        auto w_4 = View(in.w_4);
+        auto w_1_shift = View(in.w_l_shift);
+        auto q_sort = View(in.q_sort);
 
         static const FF minus_one = FF(-1);
         static const FF minus_two = FF(-2);

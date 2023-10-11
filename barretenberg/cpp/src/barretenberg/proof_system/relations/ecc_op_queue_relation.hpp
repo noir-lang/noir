@@ -7,23 +7,21 @@ namespace proof_system {
 template <typename FF_> class EccOpQueueRelationImpl {
   public:
     using FF = FF_;
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 3; // degree(q * (w - w_op_queue)) = 2
 
-    static constexpr size_t LEN_1 = 3; // wire - op-queue-wire consistency sub-relation 1
-    static constexpr size_t LEN_2 = 3; // wire - op-queue-wire consistency sub-relation 2
-    static constexpr size_t LEN_3 = 3; // wire - op-queue-wire consistency sub-relation 3
-    static constexpr size_t LEN_4 = 3; // wire - op-queue-wire consistency sub-relation 4
-    static constexpr size_t LEN_5 = 3; // op-queue-wire vanishes sub-relation 1
-    static constexpr size_t LEN_6 = 3; // op-queue-wire vanishes sub-relation 2
-    static constexpr size_t LEN_7 = 3; // op-queue-wire vanishes sub-relation 3
-    static constexpr size_t LEN_8 = 3; // op-queue-wire vanishes sub-relation 4
-    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
-    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6, LEN_7, LEN_8>;
+    static constexpr std::array<size_t, 8> SUBRELATION_LENGTHS{
+        3, // wire - op-queue-wire consistency sub-relation 1
+        3, // wire - op-queue-wire consistency sub-relation 2
+        3, // wire - op-queue-wire consistency sub-relation 3
+        3, // wire - op-queue-wire consistency sub-relation 4
+        3, // op-queue-wire vanishes sub-relation 1
+        3, // op-queue-wire vanishes sub-relation 2
+        3, // op-queue-wire vanishes sub-relation 3
+        3  // op-queue-wire vanishes sub-relation 4
+    };
 
     /**
      * @brief Expression for the generalized permutation sort gate.
-     * @details The relation is defined as C(extended_edges(X)...) =
+     * @details The relation is defined as C(in(X)...) =
      *    \alpha_{base} *
      *       ( \Sum_{i=0}^3 \alpha^i * (w_i - w_{op,i}) * \chi_{ecc_op} +
      *         \Sum_{i=0}^3 \alpha^{i+4} w_{op,i} * \bar{\chi}_{ecc_op} )
@@ -35,29 +33,29 @@ template <typename FF_> class EccOpQueueRelationImpl {
      * ecc op wires over the portion of the execution trace representing ECC op queue gates. The next four check
      * that the op wire polynomials are identically zero everywhere else.
      *
-     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
-     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+     * @param in an std::array containing the fully extended Univariate edges.
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename AccumulatorTypes>
-    void static accumulate(typename AccumulatorTypes::Accumulators& accumulators,
-                           const auto& extended_edges,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    void static accumulate(ContainerOverSubrelations& accumulators,
+                           const AllEntities& in,
                            const RelationParameters<FF>&,
                            const FF& scaling_factor)
     {
-        // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
-        //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-        auto w_1 = View(extended_edges.w_l);
-        auto w_2 = View(extended_edges.w_r);
-        auto w_3 = View(extended_edges.w_o);
-        auto w_4 = View(extended_edges.w_4);
-        auto op_wire_1 = View(extended_edges.ecc_op_wire_1);
-        auto op_wire_2 = View(extended_edges.ecc_op_wire_2);
-        auto op_wire_3 = View(extended_edges.ecc_op_wire_3);
-        auto op_wire_4 = View(extended_edges.ecc_op_wire_4);
-        auto lagrange_ecc_op = View(extended_edges.lagrange_ecc_op);
+        using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
+        using View = typename Accumulator::View;
+
+        auto w_1 = View(in.w_l);
+        auto w_2 = View(in.w_r);
+        auto w_3 = View(in.w_o);
+        auto w_4 = View(in.w_4);
+        auto op_wire_1 = View(in.ecc_op_wire_1);
+        auto op_wire_2 = View(in.ecc_op_wire_2);
+        auto op_wire_3 = View(in.ecc_op_wire_3);
+        auto op_wire_4 = View(in.ecc_op_wire_4);
+        auto lagrange_ecc_op = View(in.lagrange_ecc_op);
 
         // If lagrange_ecc_op is the indicator for ecc_op_gates, this is the indicator for the complement
         auto complement_ecc_op = lagrange_ecc_op * FF(-1) + FF(1);

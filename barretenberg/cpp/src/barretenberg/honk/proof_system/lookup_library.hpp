@@ -23,33 +23,33 @@ namespace proof_system::honk::lookup_library {
  * The specific algebraic relations that define read terms and write terms are defined in Flavor::LookupRelation
  *
  */
-template <typename Flavor, typename Relation>
-void compute_logderivative_inverse(auto& polynomials,
+template <typename Flavor, typename Relation, typename Polynomials>
+void compute_logderivative_inverse(Polynomials& polynomials,
                                    proof_system::RelationParameters<typename Flavor::FF>& relation_parameters,
                                    const size_t circuit_size)
 {
     using FF = typename Flavor::FF;
-    using Accumulator = typename Relation::ValueAccumulatorsAndViews;
+    using Accumulator = typename Relation::ValueAccumulator0;
     constexpr size_t READ_TERMS = Relation::READ_TERMS;
     constexpr size_t WRITE_TERMS = Relation::WRITE_TERMS;
     auto& inverse_polynomial = polynomials.lookup_inverses;
 
     auto lookup_relation = Relation();
     for (size_t i = 0; i < circuit_size; ++i) {
-        bool has_inverse =
-            lookup_relation.template lookup_exists_at_row_index<Accumulator>(polynomials, relation_parameters, i);
+        auto row = polynomials.get_row(i);
+        bool has_inverse = lookup_relation.lookup_exists_at_row(row);
         if (!has_inverse) {
             continue;
         }
         FF denominator = 1;
         barretenberg::constexpr_for<0, READ_TERMS, 1>([&]<size_t read_index> {
-            auto denominator_term = lookup_relation.template compute_read_term<Accumulator, read_index>(
-                polynomials, relation_parameters, i);
+            auto denominator_term =
+                lookup_relation.template compute_read_term<Accumulator, read_index>(row, relation_parameters);
             denominator *= denominator_term;
         });
         barretenberg::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t write_index> {
-            auto denominator_term = lookup_relation.template compute_write_term<Accumulator, write_index>(
-                polynomials, relation_parameters, i);
+            auto denominator_term =
+                lookup_relation.template compute_write_term<Accumulator, write_index>(row, relation_parameters);
             denominator *= denominator_term;
         });
         inverse_polynomial[i] = denominator;

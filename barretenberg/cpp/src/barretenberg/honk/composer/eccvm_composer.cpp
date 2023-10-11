@@ -15,7 +15,7 @@ template <ECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(Circu
         return;
     }
 
-    auto polynomials = circuit_constructor.compute_full_polynomials();
+    auto polynomials = circuit_constructor.compute_polynomials();
 
     auto key_wires = proving_key->get_wires();
     auto poly_wires = polynomials.get_wires();

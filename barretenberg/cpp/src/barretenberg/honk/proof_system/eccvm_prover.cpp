@@ -144,6 +144,7 @@ ECCVMProver_<Flavor>::ECCVMProver_(std::shared_ptr<typename Flavor::ProvingKey> 
     prover_polynomials.lookup_inverses = key->lookup_inverses;
     key->z_perm = Polynomial(key->circuit_size);
     prover_polynomials.z_perm = key->z_perm;
+    prover_polynomials.z_perm_shift = key->z_perm; // this will be initialized properly later
 }
 
 /**
@@ -247,7 +248,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_univariatizatio
 
     // Batch the unshifted polynomials and the to-be-shifted polynomials using ρ
     Polynomial batched_poly_unshifted(key->circuit_size); // batched unshifted polynomials
-    size_t poly_idx = 0;                                  // TODO(#391) zip
+    size_t poly_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
     for (auto& unshifted_poly : prover_polynomials.get_unshifted()) {
         batched_poly_unshifted.add_scaled(unshifted_poly, rhos[poly_idx]);
         ++poly_idx;

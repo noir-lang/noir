@@ -29,51 +29,16 @@ namespace proof_system::honk::sumcheck {
 template <typename FF_> class ECCVMTranscriptRelationBase {
   public:
     using FF = FF_;
-    static constexpr size_t RELATION_LENGTH = 6;
 
-    static constexpr size_t LEN_1 = 6; // arithmetic sub-relation
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using GetAccumulatorTypes = AccumulatorTypesContainer<LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1>;
+    static constexpr std::array<size_t, 35> SUBRELATION_LENGTHS{
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+    };
 
-    template <typename AccumulatorTypes, typename PolynomialTypes>
-    static void accumulate(typename AccumulatorTypes::Accumulators& /*unused*/,
-                           const PolynomialTypes& /*unused*/,
-                           const RelationParameters<FF>& /*unused*/,
-                           const FF& /*unused*/);
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    static void accumulate(ContainerOverSubrelations& accumulator,
+                           const AllEntities& in,
+                           const RelationParameters<FF>& /* unused */,
+                           const FF& scaling_factor);
 
     // TODO(@zac-williamson #2609 find more generic way of doing this)
     static constexpr FF get_curve_b()

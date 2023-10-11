@@ -1,6 +1,7 @@
 #pragma once
-#include "barretenberg/polynomials/univariate.hpp"
+#include "nested_containers.hpp"
 #include "relation_parameters.hpp"
+#include <algorithm>
 
 namespace barretenberg {
 template <typename FF> class Polynomial;
@@ -15,6 +16,24 @@ concept HasSubrelationLinearlyIndependentMember = requires(T) {
                                                           std::get<subrelation_idx>(T::SUBRELATION_LINEARLY_INDEPENDENT)
                                                           } -> std::convertible_to<bool>;
                                                   };
+
+/**
+ * @brief Check whether a given subrelation is linearly independent from the other subrelations.
+ *
+ * @details More often than not, we want multiply each subrelation contribution by a power of the relation separator
+ * challenge. In cases where we wish to define a subrelation that merges into another, we encode this in a boolean array
+ * `SUBRELATION_LINEARLY_INDEPENDENT` in the relation. If no such array is defined, then the default case where all
+ * subrelations are independent is engaged.
+ */
+template <typename Relation, size_t subrelation_index> constexpr bool subrelation_is_linearly_independent()
+{
+    if constexpr (HasSubrelationLinearlyIndependentMember<Relation, subrelation_index>) {
+        return std::get<subrelation_index>(Relation::SUBRELATION_LINEARLY_INDEPENDENT);
+    } else {
+        return true;
+    }
+}
+
 /**
  * @brief The templates defined herein facilitate sharing the relation arithmetic between the prover and the verifier.
  *
@@ -34,49 +53,6 @@ concept HasSubrelationLinearlyIndependentMember = requires(T) {
  */
 
 /**
- * @brief Getter method that will return `input[index]` iff `input` is a std::span container
- *
- * @return requires
- */
-template <typename FF, typename AccumulatorTypes, typename T>
-    requires std::is_same<std::span<FF>, T>::value
-inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type get_view(const T& input,
-                                                                                                  const size_t index)
-{
-    return input[index];
-}
-
-/**
- * @brief Getter method that will return `input[index]` iff `input` is a Polynomial container
- *
- * @tparam FF
- * @tparam TypeMuncher
- * @tparam T
- * @param input
- * @param index
- * @return requires
- */
-template <typename FF, typename AccumulatorTypes, typename T>
-    requires std::is_same<barretenberg::Polynomial<FF>, T>::value
-inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type get_view(const T& input,
-                                                                                                  const size_t index)
-{
-    return input[index];
-}
-
-/**
- * @brief Getter method that will return `input[index]` iff `input` is not a std::span or a Polynomial container
- *
- * @return requires
- */
-template <typename FF, typename AccumulatorTypes, typename T>
-inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type get_view(
-    const T& input, const size_t /*unused*/)
-{
-    return typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type(input);
-}
-
-/**
  * @brief A wrapper for Relations to expose methods used by the Sumcheck prover or verifier to add the contribution of
  * a given relation to the corresponding accumulator.
  *
@@ -84,70 +60,18 @@ inline typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorView
  * @tparam RelationImpl Base class that implements the arithmetic for a given relation (or set of sub-relations)
  */
 template <typename RelationImpl> class Relation : public RelationImpl {
-  private:
-    using FF = typename RelationImpl::FF;
-    template <size_t... subrelation_lengths> struct UnivariateAccumulatorsAndViewsTemplate {
-        using Accumulators = std::tuple<barretenberg::Univariate<FF, subrelation_lengths>...>;
-        using AccumulatorViews = std::tuple<barretenberg::UnivariateView<FF, subrelation_lengths>...>;
-    };
-    template <size_t... subrelation_lengths> struct ValueAccumulatorsAndViewsTemplate {
-        using Accumulators = std::array<FF, sizeof...(subrelation_lengths)>;
-        using AccumulatorViews = std::array<FF, sizeof...(subrelation_lengths)>; // there is no "view" type here
-    };
-
   public:
-    // Each `RelationImpl` defines a template `GetAccumulatorTypes` that supplies the `subrelation_lengths` parameters
-    // of the different `AccumulatorsAndViewsTemplate`s.
-    using UnivariateAccumulatorsAndViews =
-        typename RelationImpl::template GetAccumulatorTypes<UnivariateAccumulatorsAndViewsTemplate>;
-    // In the case of the value accumulator types, only the number of subrelations (not their lengths) has an effect.
-    using ValueAccumulatorsAndViews =
-        typename RelationImpl::template GetAccumulatorTypes<ValueAccumulatorsAndViewsTemplate>;
+    using FF = typename RelationImpl::FF;
 
-    using RelationUnivariates = typename UnivariateAccumulatorsAndViews::Accumulators;
-    using RelationValues = typename ValueAccumulatorsAndViews::Accumulators;
-    static constexpr size_t RELATION_LENGTH = RelationImpl::RELATION_LENGTH;
+    static constexpr size_t RELATION_LENGTH =
+        *std::max_element(RelationImpl::SUBRELATION_LENGTHS.begin(), RelationImpl::SUBRELATION_LENGTHS.end());
 
-    static inline void add_edge_contribution(RelationUnivariates& accumulator,
-                                             const auto& input,
-                                             const RelationParameters<FF>& relation_parameters,
-                                             const FF& scaling_factor)
-    {
-        Relation::template accumulate<UnivariateAccumulatorsAndViews>(
-            accumulator, input, relation_parameters, scaling_factor);
-    }
+    using TupleOfUnivariatesOverSubrelations = TupleOfUnivariates<FF, RelationImpl::SUBRELATION_LENGTHS>;
+    using ArrayOfValuesOverSubrelations = ArrayOfValues<FF, RelationImpl::SUBRELATION_LENGTHS>;
 
-    static void add_full_relation_value_contribution(RelationValues& accumulator,
-                                                     auto& input,
-                                                     const RelationParameters<FF>& relation_parameters,
-                                                     const FF& scaling_factor = 1)
-    {
-        Relation::template accumulate<ValueAccumulatorsAndViews>(
-            accumulator, input, relation_parameters, scaling_factor);
-    }
-    /**
-     * @brief Check is subrelation is linearly independent
-     * Method is active if relation has SUBRELATION_LINEARLY_INDEPENDENT array defined
-     * @tparam size_t
-     */
-    template <size_t subrelation_index>
-    static constexpr bool is_subrelation_linearly_independent()
-        requires(!HasSubrelationLinearlyIndependentMember<Relation, subrelation_index>)
-    {
-        return true;
-    }
-
-    /**
-     * @brief Check is subrelation is linearly independent
-     * Method is active if relation has SUBRELATION_LINEARLY_INDEPENDENT array defined
-     * @tparam size_t
-     */
-    template <size_t subrelation_index>
-    static constexpr bool is_subrelation_linearly_independent()
-        requires(HasSubrelationLinearlyIndependentMember<Relation, subrelation_index>)
-    {
-        return std::get<subrelation_index>(Relation::SUBRELATION_LINEARLY_INDEPENDENT);
-    }
+    // These are commonly needed, most importantly, for explicitly instantiating compute_foo_numerator/denomintor.
+    using UnivariateAccumulator0 = std::tuple_element_t<0, TupleOfUnivariatesOverSubrelations>;
+    using ValueAccumulator0 = std::tuple_element_t<0, ArrayOfValuesOverSubrelations>;
 };
 
 } // namespace proof_system

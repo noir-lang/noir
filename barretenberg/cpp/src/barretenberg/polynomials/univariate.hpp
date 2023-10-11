@@ -21,6 +21,7 @@ template <class Fr, size_t view_length> class UnivariateView;
 template <class Fr, size_t _length> class Univariate {
   public:
     static constexpr size_t LENGTH = _length;
+    using View = UnivariateView<Fr, LENGTH>;
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/714) Try out std::valarray?
     std::array<Fr, _length> evaluations;

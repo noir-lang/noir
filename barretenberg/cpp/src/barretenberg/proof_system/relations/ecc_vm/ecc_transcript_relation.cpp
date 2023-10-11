@@ -31,44 +31,44 @@ namespace proof_system::honk::sumcheck {
  * @tparam PolynomialTypes
  */
 template <typename FF>
-template <typename AccumulatorTypes, typename PolynomialTypes>
-void ECCVMTranscriptRelationBase<FF>::accumulate(typename AccumulatorTypes::Accumulators& accumulator,
-                                                 const PolynomialTypes& extended_edges,
+template <typename ContainerOverSubrelations, typename PolynomialTypes>
+void ECCVMTranscriptRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+                                                 const PolynomialTypes& in,
                                                  const RelationParameters<FF>& /*unused*/,
                                                  const FF& scaling_factor)
 {
-    using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-    using Accumulator = typename std::tuple_element<0, typename AccumulatorTypes::Accumulators>::type;
+    using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+    using View = typename Accumulator::View;
 
-    auto z1 = View(extended_edges.transcript_z1);
-    auto z2 = View(extended_edges.transcript_z2);
-    auto z1_zero = View(extended_edges.transcript_z1zero);
-    auto z2_zero = View(extended_edges.transcript_z2zero);
-    auto op = View(extended_edges.transcript_op);
-    auto q_add = View(extended_edges.transcript_add);
-    auto q_mul = View(extended_edges.transcript_mul);
-    auto q_mul_shift = View(extended_edges.transcript_mul_shift);
-    auto q_eq = View(extended_edges.transcript_eq);
-    auto msm_transition = View(extended_edges.transcript_msm_transition);
-    auto msm_count = View(extended_edges.transcript_msm_count);
-    auto msm_count_shift = View(extended_edges.transcript_msm_count_shift);
-    auto pc = View(extended_edges.transcript_pc);
-    auto pc_shift = View(extended_edges.transcript_pc_shift);
-    auto transcript_accumulator_x_shift = View(extended_edges.transcript_accumulator_x_shift);
-    auto transcript_accumulator_y_shift = View(extended_edges.transcript_accumulator_y_shift);
-    auto transcript_accumulator_x = View(extended_edges.transcript_accumulator_x);
-    auto transcript_accumulator_y = View(extended_edges.transcript_accumulator_y);
-    auto transcript_msm_x = View(extended_edges.transcript_msm_x);
-    auto transcript_msm_y = View(extended_edges.transcript_msm_y);
-    auto transcript_x = View(extended_edges.transcript_x);
-    auto transcript_y = View(extended_edges.transcript_y);
-    auto is_accumulator_empty = View(extended_edges.transcript_accumulator_empty);
-    auto lagrange_first = View(extended_edges.lagrange_first);
-    auto lagrange_last = View(extended_edges.lagrange_last);
-    auto is_accumulator_empty_shift = View(extended_edges.transcript_accumulator_empty_shift);
-    auto q_reset_accumulator = View(extended_edges.transcript_reset_accumulator);
-    auto lagrange_second = View(extended_edges.lagrange_second);
-    auto transcript_collision_check = View(extended_edges.transcript_collision_check);
+    auto z1 = View(in.transcript_z1);
+    auto z2 = View(in.transcript_z2);
+    auto z1_zero = View(in.transcript_z1zero);
+    auto z2_zero = View(in.transcript_z2zero);
+    auto op = View(in.transcript_op);
+    auto q_add = View(in.transcript_add);
+    auto q_mul = View(in.transcript_mul);
+    auto q_mul_shift = View(in.transcript_mul_shift);
+    auto q_eq = View(in.transcript_eq);
+    auto msm_transition = View(in.transcript_msm_transition);
+    auto msm_count = View(in.transcript_msm_count);
+    auto msm_count_shift = View(in.transcript_msm_count_shift);
+    auto pc = View(in.transcript_pc);
+    auto pc_shift = View(in.transcript_pc_shift);
+    auto transcript_accumulator_x_shift = View(in.transcript_accumulator_x_shift);
+    auto transcript_accumulator_y_shift = View(in.transcript_accumulator_y_shift);
+    auto transcript_accumulator_x = View(in.transcript_accumulator_x);
+    auto transcript_accumulator_y = View(in.transcript_accumulator_y);
+    auto transcript_msm_x = View(in.transcript_msm_x);
+    auto transcript_msm_y = View(in.transcript_msm_y);
+    auto transcript_x = View(in.transcript_x);
+    auto transcript_y = View(in.transcript_y);
+    auto is_accumulator_empty = View(in.transcript_accumulator_empty);
+    auto lagrange_first = View(in.lagrange_first);
+    auto lagrange_last = View(in.lagrange_last);
+    auto is_accumulator_empty_shift = View(in.transcript_accumulator_empty_shift);
+    auto q_reset_accumulator = View(in.transcript_reset_accumulator);
+    auto lagrange_second = View(in.lagrange_second);
+    auto transcript_collision_check = View(in.transcript_collision_check);
 
     auto is_not_first_row = (-lagrange_first + 1);
     auto is_not_first_or_last_row = (-lagrange_first + -lagrange_last + 1);

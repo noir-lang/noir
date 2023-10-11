@@ -125,7 +125,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_univariatizatio
 
     // Batch the unshifted polynomials and the to-be-shifted polynomials using ρ
     Polynomial batched_poly_unshifted(instance->proving_key->circuit_size); // batched unshifted polynomials
-    size_t poly_idx = 0;                                                    // TODO(#391) zip
+    size_t poly_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
     for (auto& unshifted_poly : instance->prover_polynomials.get_unshifted()) {
         batched_poly_unshifted.add_scaled(unshifted_poly, rhos[poly_idx]);
         ++poly_idx;

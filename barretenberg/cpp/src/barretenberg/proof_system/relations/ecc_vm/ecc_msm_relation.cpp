@@ -31,67 +31,67 @@ namespace proof_system::honk::sumcheck {
  * If skew_i == 1, [Acc] = [Acc] - [P_i] for all i in [0, ..., k - 1]
  *
  * The relations in ECCVMMSMRelationBase constrain the ADDITION, DOUBLE and SKEW rounds
- * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
- * @param extended_edges an std::array containing the fully extended Accumulator edges.
+ * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+ * @param in an std::array containing the fully extended Accumulator edges.
  * @param parameters contains beta, gamma, and public_input_delta, ....
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
 template <typename FF>
-template <typename AccumulatorTypes>
-void ECCVMMSMRelationBase<FF>::accumulate(typename AccumulatorTypes::Accumulators& accumulator,
-                                          const auto& extended_edges,
+template <typename ContainerOverSubrelations, typename AllEntities>
+void ECCVMMSMRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+                                          const AllEntities& in,
                                           const RelationParameters<FF>& /*unused*/,
                                           const FF& scaling_factor)
 {
-    using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-    using Accumulator = typename std::tuple_element<0, typename AccumulatorTypes::Accumulators>::type;
+    using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+    using View = typename Accumulator::View;
 
-    const auto& x1 = View(extended_edges.msm_x1);
-    const auto& y1 = View(extended_edges.msm_y1);
-    const auto& x2 = View(extended_edges.msm_x2);
-    const auto& y2 = View(extended_edges.msm_y2);
-    const auto& x3 = View(extended_edges.msm_x3);
-    const auto& y3 = View(extended_edges.msm_y3);
-    const auto& x4 = View(extended_edges.msm_x4);
-    const auto& y4 = View(extended_edges.msm_y4);
-    const auto& collision_inverse1 = View(extended_edges.msm_collision_x1);
-    const auto& collision_inverse2 = View(extended_edges.msm_collision_x2);
-    const auto& collision_inverse3 = View(extended_edges.msm_collision_x3);
-    const auto& collision_inverse4 = View(extended_edges.msm_collision_x4);
-    const auto& lambda1 = View(extended_edges.msm_lambda1);
-    const auto& lambda2 = View(extended_edges.msm_lambda2);
-    const auto& lambda3 = View(extended_edges.msm_lambda3);
-    const auto& lambda4 = View(extended_edges.msm_lambda4);
-    const auto& lagrange_first = View(extended_edges.lagrange_first);
-    const auto& add1 = View(extended_edges.msm_add1);
-    const auto& add1_shift = View(extended_edges.msm_add1_shift);
-    const auto& add2 = View(extended_edges.msm_add2);
-    const auto& add3 = View(extended_edges.msm_add3);
-    const auto& add4 = View(extended_edges.msm_add4);
-    const auto& acc_x = View(extended_edges.msm_accumulator_x);
-    const auto& acc_y = View(extended_edges.msm_accumulator_y);
-    const auto& acc_x_shift = View(extended_edges.msm_accumulator_x_shift);
-    const auto& acc_y_shift = View(extended_edges.msm_accumulator_y_shift);
-    const auto& slice1 = View(extended_edges.msm_slice1);
-    const auto& slice2 = View(extended_edges.msm_slice2);
-    const auto& slice3 = View(extended_edges.msm_slice3);
-    const auto& slice4 = View(extended_edges.msm_slice4);
-    const auto& msm_transition = View(extended_edges.msm_transition);
-    const auto& msm_transition_shift = View(extended_edges.msm_transition_shift);
-    const auto& round = View(extended_edges.msm_round);
-    const auto& round_shift = View(extended_edges.msm_round_shift);
-    const auto& q_add = View(extended_edges.msm_add);
-    const auto& q_add_shift = View(extended_edges.msm_add_shift);
-    const auto& q_skew = View(extended_edges.msm_skew);
-    const auto& q_skew_shift = View(extended_edges.msm_skew_shift);
-    const auto& q_double = View(extended_edges.msm_double);
-    const auto& q_double_shift = View(extended_edges.msm_double_shift);
-    const auto& msm_size = View(extended_edges.msm_size_of_msm);
-    // const auto& msm_size_shift = View(extended_edges.msm_size_of_msm_shift);
-    const auto& pc = View(extended_edges.msm_pc);
-    const auto& pc_shift = View(extended_edges.msm_pc_shift);
-    const auto& count = View(extended_edges.msm_count);
-    const auto& count_shift = View(extended_edges.msm_count_shift);
+    const auto& x1 = View(in.msm_x1);
+    const auto& y1 = View(in.msm_y1);
+    const auto& x2 = View(in.msm_x2);
+    const auto& y2 = View(in.msm_y2);
+    const auto& x3 = View(in.msm_x3);
+    const auto& y3 = View(in.msm_y3);
+    const auto& x4 = View(in.msm_x4);
+    const auto& y4 = View(in.msm_y4);
+    const auto& collision_inverse1 = View(in.msm_collision_x1);
+    const auto& collision_inverse2 = View(in.msm_collision_x2);
+    const auto& collision_inverse3 = View(in.msm_collision_x3);
+    const auto& collision_inverse4 = View(in.msm_collision_x4);
+    const auto& lambda1 = View(in.msm_lambda1);
+    const auto& lambda2 = View(in.msm_lambda2);
+    const auto& lambda3 = View(in.msm_lambda3);
+    const auto& lambda4 = View(in.msm_lambda4);
+    const auto& lagrange_first = View(in.lagrange_first);
+    const auto& add1 = View(in.msm_add1);
+    const auto& add1_shift = View(in.msm_add1_shift);
+    const auto& add2 = View(in.msm_add2);
+    const auto& add3 = View(in.msm_add3);
+    const auto& add4 = View(in.msm_add4);
+    const auto& acc_x = View(in.msm_accumulator_x);
+    const auto& acc_y = View(in.msm_accumulator_y);
+    const auto& acc_x_shift = View(in.msm_accumulator_x_shift);
+    const auto& acc_y_shift = View(in.msm_accumulator_y_shift);
+    const auto& slice1 = View(in.msm_slice1);
+    const auto& slice2 = View(in.msm_slice2);
+    const auto& slice3 = View(in.msm_slice3);
+    const auto& slice4 = View(in.msm_slice4);
+    const auto& msm_transition = View(in.msm_transition);
+    const auto& msm_transition_shift = View(in.msm_transition_shift);
+    const auto& round = View(in.msm_round);
+    const auto& round_shift = View(in.msm_round_shift);
+    const auto& q_add = View(in.msm_add);
+    const auto& q_add_shift = View(in.msm_add_shift);
+    const auto& q_skew = View(in.msm_skew);
+    const auto& q_skew_shift = View(in.msm_skew_shift);
+    const auto& q_double = View(in.msm_double);
+    const auto& q_double_shift = View(in.msm_double_shift);
+    const auto& msm_size = View(in.msm_size_of_msm);
+    // const auto& msm_size_shift = View(in.msm_size_of_msm_shift);
+    const auto& pc = View(in.msm_pc);
+    const auto& pc_shift = View(in.msm_pc_shift);
+    const auto& count = View(in.msm_count);
+    const auto& count_shift = View(in.msm_count_shift);
     auto is_not_first_row = (-lagrange_first + 1);
 
     /**

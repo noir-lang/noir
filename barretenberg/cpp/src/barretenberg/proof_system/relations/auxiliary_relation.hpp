@@ -9,17 +9,14 @@ template <typename FF_> class AuxiliaryRelationImpl {
   public:
     using FF = FF_;
 
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 6;
-
-    static constexpr size_t LEN_1 = 6; // auxiliary sub-relation
-    static constexpr size_t LEN_2 = 6; // ROM consistency sub-relation 1
-    static constexpr size_t LEN_3 = 6; // ROM consistency sub-relation 2
-    static constexpr size_t LEN_4 = 6; // RAM consistency sub-relation 1
-    static constexpr size_t LEN_5 = 6; // RAM consistency sub-relation 2
-    static constexpr size_t LEN_6 = 6; // RAM consistency sub-relation 3
-    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
-    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2, LEN_3, LEN_4, LEN_5, LEN_6>;
+    static constexpr std::array<size_t, 6> SUBRELATION_LENGTHS{
+        6, // auxiliary sub-relation
+        6, // ROM consistency sub-relation 1
+        6, // ROM consistency sub-relation 2
+        6, // RAM consistency sub-relation 1
+        6, // RAM consistency sub-relation 2
+        6  // RAM consistency sub-relation 3
+    };
 
     /**
      * @brief Expression for the generalized permutation sort gate.
@@ -50,41 +47,40 @@ template <typename FF_> class AuxiliaryRelationImpl {
      *
      * N.B.2 The q_c selector is used to store circuit-specific values in the RAM/ROM access gate
      *
-     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
-     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+     * @param in an std::array containing the fully extended Univariate edges.
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename AccumulatorTypes>
-    inline static void accumulate(typename AccumulatorTypes::Accumulators& accumulators,
-                                  const auto& extended_edges,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    inline static void accumulate(ContainerOverSubrelations& accumulators,
+                                  const AllEntities& in,
                                   const RelationParameters<FF>& relation_parameters,
                                   const FF& scaling_factor)
     {
-        // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
-        //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-
         const auto& eta = relation_parameters.eta;
 
         // All subrelations have the same length so we use the same length view for all calculations
-        using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-        auto w_1 = View(extended_edges.w_l);
-        auto w_2 = View(extended_edges.w_r);
-        auto w_3 = View(extended_edges.w_o);
-        auto w_4 = View(extended_edges.w_4);
-        auto w_1_shift = View(extended_edges.w_l_shift);
-        auto w_2_shift = View(extended_edges.w_r_shift);
-        auto w_3_shift = View(extended_edges.w_o_shift);
-        auto w_4_shift = View(extended_edges.w_4_shift);
+        using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+        using View = typename Accumulator::View;
 
-        auto q_1 = View(extended_edges.q_l);
-        auto q_2 = View(extended_edges.q_r);
-        auto q_3 = View(extended_edges.q_o);
-        auto q_4 = View(extended_edges.q_4);
-        auto q_m = View(extended_edges.q_m);
-        auto q_c = View(extended_edges.q_c);
-        auto q_arith = View(extended_edges.q_arith);
-        auto q_aux = View(extended_edges.q_aux);
+        auto w_1 = View(in.w_l);
+        auto w_2 = View(in.w_r);
+        auto w_3 = View(in.w_o);
+        auto w_4 = View(in.w_4);
+        auto w_1_shift = View(in.w_l_shift);
+        auto w_2_shift = View(in.w_r_shift);
+        auto w_3_shift = View(in.w_o_shift);
+        auto w_4_shift = View(in.w_4_shift);
+
+        auto q_1 = View(in.q_l);
+        auto q_2 = View(in.q_r);
+        auto q_3 = View(in.q_o);
+        auto q_4 = View(in.q_4);
+        auto q_m = View(in.q_m);
+        auto q_c = View(in.q_c);
+        auto q_arith = View(in.q_arith);
+        auto q_aux = View(in.q_aux);
 
         const FF LIMB_SIZE(uint256_t(1) << 68);
         const FF SUBLIMB_SHIFT(uint256_t(1) << 14);

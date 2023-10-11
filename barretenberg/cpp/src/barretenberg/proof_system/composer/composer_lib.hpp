@@ -38,7 +38,7 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
     }
 
     // TODO(#398): Loose coupling here! Would rather build up pk from arithmetization
-    size_t selector_idx = 0; // TODO(#391) zip
+    size_t selector_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
     for (auto& selector_values : circuit_constructor.selectors) {
         ASSERT(proving_key->circuit_size >= selector_values.size());
 

@@ -9,6 +9,8 @@ namespace proof_system::plonk::stdlib {
 template <typename Builder> class bool_t;
 template <typename Builder> class field_t {
   public:
+    using View = field_t;
+
     field_t(Builder* parent_context = nullptr);
     field_t(Builder* parent_context, const barretenberg::fr& value);
 

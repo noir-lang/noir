@@ -8,13 +8,10 @@ template <typename FF_> class UltraArithmeticRelationImpl {
   public:
     using FF = FF_;
 
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 6; // degree(q_arith^2 * q_m * w_r * w_l) = 5
-
-    static constexpr size_t LEN_1 = 6; // primary arithmetic sub-relation
-    static constexpr size_t LEN_2 = 5; // secondary arithmetic sub-relation
-    template <template <size_t...> typename SubrelationAccumulatorsTemplate>
-    using GetAccumulatorTypes = SubrelationAccumulatorsTemplate<LEN_1, LEN_2>;
+    static constexpr std::array<size_t, 2> SUBRELATION_LENGTHS{
+        6, // primary arithmetic sub-relation
+        5  // secondary arithmetic sub-relation
+    };
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.
@@ -56,40 +53,38 @@ template <typename FF_> class UltraArithmeticRelationImpl {
      * 3) at product.
      *
      * The The relation is
-     * defined as C(extended_edges(X)...) = q_arith * [ -1/2(q_arith - 3)(q_m * w_r * w_l) + (q_l * w_l) + (q_r * w_r) +
+     * defined as C(in(X)...) = q_arith * [ -1/2(q_arith - 3)(q_m * w_r * w_l) + (q_l * w_l) + (q_r * w_r) +
      * (q_o * w_o) + (q_4 * w_4) + q_c + (q_arith - 1)w_4_shift ]
      *
      *    q_arith *
      *      (q_arith - 2) * (q_arith - 1) * (w_l + w_4 - w_l_shift + q_m)
      *
-     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
-     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+     * @param in an std::array containing the fully extended Univariate edges.
      * @param parameters contains beta, gamma, and public_input_delta, ....
      * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename AccumulatorTypes>
-    void static accumulate(typename AccumulatorTypes::Accumulators& evals,
-                           const auto& extended_edges,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    void static accumulate(ContainerOverSubrelations& evals,
+                           const AllEntities& in,
                            const RelationParameters<FF>&,
-                           const FF& scaling_factor){
-        // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
-        //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-        // clang-format off
-        // Contribution 1
-        {   
-            using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-            auto w_l = View(extended_edges.w_l);
-            auto w_r = View(extended_edges.w_r);
-            auto w_o = View(extended_edges.w_o);
-            auto w_4 = View(extended_edges.w_4);
-            auto w_4_shift = View(extended_edges.w_4_shift);
-            auto q_m = View(extended_edges.q_m);
-            auto q_l = View(extended_edges.q_l);
-            auto q_r = View(extended_edges.q_r);
-            auto q_o = View(extended_edges.q_o);
-            auto q_4 = View(extended_edges.q_4);
-            auto q_c = View(extended_edges.q_c);
-            auto q_arith = View(extended_edges.q_arith);
+                           const FF& scaling_factor)
+    {
+        {
+            using Accumulator = std::tuple_element_t<0, ContainerOverSubrelations>;
+            using View = typename Accumulator::View;
+            auto w_l = View(in.w_l);
+            auto w_r = View(in.w_r);
+            auto w_o = View(in.w_o);
+            auto w_4 = View(in.w_4);
+            auto w_4_shift = View(in.w_4_shift);
+            auto q_m = View(in.q_m);
+            auto q_l = View(in.q_l);
+            auto q_r = View(in.q_r);
+            auto q_o = View(in.q_o);
+            auto q_4 = View(in.q_4);
+            auto q_c = View(in.q_c);
+            auto q_arith = View(in.q_arith);
 
             static const FF neg_half = FF(-2).invert();
 
@@ -100,14 +95,14 @@ template <typename FF_> class UltraArithmeticRelationImpl {
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
-        // Contribution 2
         {
-            using View = typename std::tuple_element<1, typename AccumulatorTypes::AccumulatorViews>::type;
-            auto w_l = View(extended_edges.w_l);
-            auto w_4 = View(extended_edges.w_4);
-            auto w_l_shift = View(extended_edges.w_l_shift);
-            auto q_m = View(extended_edges.q_m);
-            auto q_arith = View(extended_edges.q_arith);
+            using Accumulator = std::tuple_element_t<1, ContainerOverSubrelations>;
+            using View = typename Accumulator::View;
+            auto w_l = View(in.w_l);
+            auto w_4 = View(in.w_4);
+            auto w_l_shift = View(in.w_l_shift);
+            auto q_m = View(in.q_m);
+            auto q_arith = View(in.q_arith);
 
             auto tmp = w_l + w_4 - w_l_shift + q_m;
             tmp *= (q_arith - 2);
@@ -115,12 +110,9 @@ template <typename FF_> class UltraArithmeticRelationImpl {
             tmp *= q_arith;
             tmp *= scaling_factor;
             std::get<1>(evals) += tmp;
-        }
-    }; // namespace proof_system::honk::sumcheck
+        };
+    };
 };
 
-template <typename FF>
-using UltraArithmeticRelation = Relation<UltraArithmeticRelationImpl<FF>>;
-
-// clang-format on
+template <typename FF> using UltraArithmeticRelation = Relation<UltraArithmeticRelationImpl<FF>>;
 } // namespace proof_system

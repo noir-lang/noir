@@ -34,37 +34,15 @@ namespace proof_system::honk::sumcheck {
 template <typename FF_> class ECCVMWnafRelationBase {
   public:
     using FF = FF_;
-    // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 5;
 
-    static constexpr size_t LEN_1 = 5;
-    template <template <size_t...> typename AccumulatorTypesContainer>
-    using GetAccumulatorTypes = AccumulatorTypesContainer<LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1,
-                                                          LEN_1>;
+    static constexpr std::array<size_t, 21> SUBRELATION_LENGTHS{
+        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+    };
 
-    template <typename AccumulatorTypes>
-    static void accumulate(typename AccumulatorTypes::Accumulators& accumulator,
-                           const auto& extended_edges,
-                           const RelationParameters<FF>& /*unused*/,
+    template <typename ContainerOverSubrelations, typename AllEntities>
+    static void accumulate(ContainerOverSubrelations& accumulator,
+                           const AllEntities& in,
+                           const RelationParameters<FF>& /* unused */,
                            const FF& scaling_factor);
 };
 

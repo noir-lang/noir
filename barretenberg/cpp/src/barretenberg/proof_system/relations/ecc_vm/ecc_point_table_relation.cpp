@@ -12,29 +12,31 @@ namespace proof_system::honk::sumcheck {
  * table out of the following points: { -15[P], -13[P], -11[P], -9[P], -7[P], -5[P], -3[P], -[P] }
  * ECCVMPointTableRelationBase defines relations that define the lookup table.
  *
- * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
- * @param extended_edges an std::array containing the fully extended Accumulator edges.
+ * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
+ * @param in an std::array containing the fully extended Accumulator edges.
  * @param parameters contains beta, gamma, and public_input_delta, ....
  * @param scaling_factor optional term to scale the evaluation before adding to evals.
  */
 template <typename FF>
-template <typename AccumulatorTypes>
-void ECCVMPointTableRelationBase<FF>::accumulate(typename AccumulatorTypes::Accumulators& accumulator,
-                                                 const auto& extended_edges,
+template <typename ContainerOverSubrelations, typename AllEntities>
+void ECCVMPointTableRelationBase<FF>::accumulate(ContainerOverSubrelations& accumulator,
+                                                 const AllEntities& in,
                                                  const RelationParameters<FF>& /*unused*/,
                                                  const FF& scaling_factor)
 {
-    using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-    const auto& Tx = View(extended_edges.precompute_tx);
-    const auto& Tx_shift = View(extended_edges.precompute_tx_shift);
-    const auto& Ty = View(extended_edges.precompute_ty);
-    const auto& Ty_shift = View(extended_edges.precompute_ty_shift);
-    const auto& Dx = View(extended_edges.precompute_dx);
-    const auto& Dx_shift = View(extended_edges.precompute_dx_shift);
-    const auto& Dy = View(extended_edges.precompute_dy);
-    const auto& Dy_shift = View(extended_edges.precompute_dy_shift);
-    const auto& precompute_point_transition = View(extended_edges.precompute_point_transition);
-    const auto& lagrange_first = View(extended_edges.lagrange_first);
+    using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+    using View = typename Accumulator::View;
+
+    const auto& Tx = View(in.precompute_tx);
+    const auto& Tx_shift = View(in.precompute_tx_shift);
+    const auto& Ty = View(in.precompute_ty);
+    const auto& Ty_shift = View(in.precompute_ty_shift);
+    const auto& Dx = View(in.precompute_dx);
+    const auto& Dx_shift = View(in.precompute_dx_shift);
+    const auto& Dy = View(in.precompute_dy);
+    const auto& Dy_shift = View(in.precompute_dy_shift);
+    const auto& precompute_point_transition = View(in.precompute_point_transition);
+    const auto& lagrange_first = View(in.lagrange_first);
 
     /**
      * @brief Row structure
