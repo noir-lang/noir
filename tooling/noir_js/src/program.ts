@@ -19,6 +19,10 @@ export class Noir {
     }
   }
 
+  async destroy(): Promise<void> {
+    await this.backend?.destroy();
+  }
+
   private getBackend(): Backend {
     if (this.backend === undefined) throw new Error('Operation requires a backend but none was provided');
     return this.backend;
