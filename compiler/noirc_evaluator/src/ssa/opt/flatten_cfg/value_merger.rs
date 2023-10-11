@@ -60,7 +60,7 @@ impl<'a> ValueMerger<'a> {
             typ @ Type::Slice(_) => {
                 self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            Type::Reference => panic!("Cannot return references from an if expression"),
+            Type::Reference(_) => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
         }
     }
@@ -325,7 +325,7 @@ impl<'a> ValueMerger<'a> {
             Type::Slice(_) => {
                 unreachable!("ICE: Slices of slice is unsupported")
             }
-            Type::Reference => {
+            Type::Reference(_) => {
                 unreachable!("ICE: Merging references is unsupported")
             }
             Type::Function => {

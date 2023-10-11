@@ -170,7 +170,7 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(_) | Type::Reference => {
+        Type::Numeric(_) | Type::Reference(_) => {
             let register = brillig_context.allocate_register();
             RegisterOrMemory::RegisterIndex(register)
         }

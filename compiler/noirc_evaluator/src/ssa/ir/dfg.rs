@@ -318,7 +318,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference)
+        matches!(self.values[value].get_type(), Type::Reference(_))
     }
 
     /// Appends a result type to the instruction.

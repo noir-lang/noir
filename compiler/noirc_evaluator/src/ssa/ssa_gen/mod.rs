@@ -242,11 +242,12 @@ impl<'a> FunctionContext<'a> {
                 self.codegen_reference(&unary.rhs).map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
-                            let alloc = self.builder.insert_allocate();
+                            let rhs_type = self.builder.current_function.dfg.type_of_value(value);
+                            let alloc = self.builder.insert_allocate(rhs_type);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
-                        // NOTE: The `.into()` here converts the Value::Mutable into
+                        // The `.into()` here converts the Value::Mutable into
                         // a Value::Normal so it is no longer automatically dereferenced.
                         value::Value::Mutable(reference, _) => reference.into(),
                     }

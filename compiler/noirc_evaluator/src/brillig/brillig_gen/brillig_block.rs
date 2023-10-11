@@ -213,7 +213,7 @@ impl<'block> BrilligBlock<'block> {
                 // In the case of arrays, the values should already be in memory and the register should
                 // Be a valid pointer to the array.
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
-                Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference => {
+                Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference(_) => {
                     self.variables.get_block_param(
                         self.function_context,
                         self.block_id,
@@ -1220,7 +1220,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
         }
-        (_, Type::Reference) | (Type::Reference, _) => {
+        (_, Type::Reference(_)) | (Type::Reference(_), _) => {
             unreachable!("References are invalid in binary operations")
         }
         (_, Type::Array(..)) | (Type::Array(..), _) => {

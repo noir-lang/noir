@@ -326,7 +326,7 @@ impl<'f> PerFunctionContext<'f> {
         match typ {
             Type::Numeric(_) => false,
             Type::Function => false,
-            Type::Reference => true,
+            Type::Reference(_) => true,
             Type::Array(elements, _) | Type::Slice(elements) => {
                 elements.iter().any(Self::contains_references)
             }

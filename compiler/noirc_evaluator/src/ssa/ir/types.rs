@@ -24,7 +24,7 @@ pub(crate) enum Type {
     Numeric(NumericType),
 
     /// A reference to some value, such as an array
-    Reference,
+    Reference(Rc<Type>),
 
     /// An immutable array value with the given element type and length
     Array(Rc<CompositeType>, usize),
@@ -103,7 +103,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference => write!(f, "reference"),
+            Type::Reference(element) => write!(f, "&mut {element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 write!(f, "[{}; {length}]", elements.join(", "))

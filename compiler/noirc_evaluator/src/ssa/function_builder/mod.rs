@@ -169,8 +169,8 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self) -> ValueId {
-        self.insert_instruction(Instruction::Allocate, None).first()
+    pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
+        self.insert_instruction(Instruction::Allocate, Some(vec![element_type])).first()
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {

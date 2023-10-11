@@ -150,7 +150,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let alloc = self.builder.insert_allocate();
+        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
@@ -175,7 +176,7 @@ impl<'a> FunctionContext<'a> {
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
             ast::Type::MutableReference(element) => {
-                Self::map_type_helper(element, &mut |_| f(Type::Reference))
+                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Rc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
@@ -229,8 +230,8 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
-                Self::convert_non_tuple_type(element);
-                Type::Reference
+                let element = Self::convert_non_tuple_type(element);
+                Type::Reference(Rc::new(element))
             }
         }
     }
@@ -389,7 +390,7 @@ impl<'a> FunctionContext<'a> {
         let loop_end = self.builder.insert_block();
 
         // pre-loop
-        let result_alloc = self.builder.set_location(location).insert_allocate();
+        let result_alloc = self.builder.set_location(location).insert_allocate(Type::bool());
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
         self.builder.insert_store(result_alloc, true_value);
         let zero = self.builder.field_constant(0u128);

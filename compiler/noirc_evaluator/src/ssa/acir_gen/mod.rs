@@ -1413,7 +1413,7 @@ impl Context {
             (_, Type::Function) | (Type::Function, _) => {
                 unreachable!("all functions should be inlined")
             }
-            (_, Type::Reference) | (Type::Reference, _) => {
+            (_, Type::Reference(_)) | (Type::Reference(_), _) => {
                 unreachable!("References are invalid in binary operations")
             }
             (_, Type::Array(..)) | (Type::Array(..), _) => {
