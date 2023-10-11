@@ -2388,6 +2388,7 @@ name = "nargo_fmt"
 version = "0.16.0"
 dependencies = [
  "bytecount",
+ "iter-extended",
  "noirc_frontend",
  "serde",
  "similar-asserts",

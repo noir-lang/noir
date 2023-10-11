@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_frontend::{
     hir::resolution::errors::Span, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
     Literal, Statement,
@@ -26,15 +27,22 @@ impl FmtVisitor<'_> {
                 visitor.buffer
             }
             ExpressionKind::Lambda(lambda) => {
-                let formatted_params = lambda
-                    .parameters
-                    .iter()
-                    .map(|(pattern, unresolved_type)| format!("{}: {}", pattern, unresolved_type))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let formatted_body = self.format_expr(lambda.body.clone());
-                format!("|{}| -> {}", formatted_params, formatted_body)
-            }
+                let formatted_params = vecmap(&lambda.parameters, |(pattern, unresolved_type)| {
+                    // Convert to string and then trim
+                    let pattern_str = pattern.to_string();
+                    let pattern_str = pattern_str.trim().to_string();
+            
+                    let type_str = unresolved_type.to_string();
+                    let type_str = type_str.trim().to_string();
+                    
+                    format!("{}: {}", pattern_str, type_str)
+                }).join(", ");
+            
+                let formatted_body_str = self.format_expr(lambda.body.clone());
+                let formatted_body = formatted_body_str.trim().to_string();
+            
+                format!("|{}| {}", formatted_params, formatted_body)
+            }            
             ExpressionKind::Prefix(prefix) => {
                 format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
             }
