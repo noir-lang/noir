@@ -53,9 +53,9 @@ export interface P2PConfig {
   announcePort?: number;
 
   /**
-   * Optional specification to run as a server node.
+   * Optional specification to run as a client in the Kademlia routing protocol.
    */
-  serverMode: boolean;
+  clientKADRouting: boolean;
 
   /**
    * Whether to enable NAT from libp2p (ignored for bootstrap node).
@@ -88,7 +88,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     BOOTSTRAP_NODES,
     P2P_ANNOUNCE_HOSTNAME,
     P2P_ANNOUNCE_PORT,
-    P2P_SERVER,
+    P2P_KAD_CLIENT,
     P2P_NAT_ENABLED,
     P2P_MIN_PEERS,
     P2P_MAX_PEERS,
@@ -104,7 +104,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     transactionProtocol: '',
     announceHostname: P2P_ANNOUNCE_HOSTNAME,
     announcePort: P2P_ANNOUNCE_PORT ? +P2P_ANNOUNCE_PORT : undefined,
-    serverMode: P2P_SERVER === 'true',
+    clientKADRouting: P2P_KAD_CLIENT === 'true',
     enableNat: P2P_NAT_ENABLED === 'true',
     minPeerCount: P2P_MIN_PEERS ? +P2P_MIN_PEERS : 10,
     maxPeerCount: P2P_MAX_PEERS ? +P2P_MAX_PEERS : 100,

@@ -150,18 +150,29 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       createPrivateKeyOption('Private key for note encryption and transaction signing. Uses random by default.', false),
     )
     .addOption(pxeOption)
-    .action(async options => {
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const privateKey = options.privateKey ?? GrumpkinScalar.random();
+    // `options.wait` is default true. Passing `--no-wait` will set it to false.
+    // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
+    .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
+    .action(async ({ rpcUrl, privateKey, wait }) => {
+      const client = await createCompatibleClient(rpcUrl, debugLogger);
+      const actualPrivateKey = privateKey ?? GrumpkinScalar.random();
 
-      const account = getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt);
-      const wallet = await account.waitDeploy();
-      const { address, publicKey, partialAddress } = wallet.getCompleteAddress();
+      const account = getSchnorrAccount(client, actualPrivateKey, actualPrivateKey, accountCreationSalt);
+      const { address, publicKey, partialAddress } = await account.getCompleteAddress();
+      const tx = await account.deploy();
+      const txHash = await tx.getTxHash();
+      debugLogger(`Account contract tx sent with hash ${txHash}`);
+      if (wait) {
+        log(`\nWaiting for account contract deployment...`);
+        await tx.wait();
+      } else {
+        log(`\nAccount deployment transaction hash: ${txHash}\n`);
+      }
 
-      log(`\nCreated new account:\n`);
+      log(`\nNew account:\n`);
       log(`Address:         ${address.toString()}`);
       log(`Public key:      ${publicKey.toString()}`);
-      if (!options.privateKey) log(`Private key:     ${privateKey.toString(true)}`);
+      if (!privateKey) log(`Private key:     ${actualPrivateKey.toString(true)}`);
       log(`Partial address: ${partialAddress.toString()}`);
     });
 

@@ -6,5 +6,5 @@ node_modules
 build/
 .idea
 cmake-build-debug
-.terraform
+.terraform*
 .bootstrapped

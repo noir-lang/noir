@@ -78,10 +78,10 @@ describe('e2e_p2p_network', () => {
       p2pEnabled: true,
       tcpListenPort: BOOT_NODE_TCP_PORT,
       tcpListenIp: '0.0.0.0',
-      announceHostname: '127.0.0.1',
+      announceHostname: '/tcp/127.0.0.1',
       announcePort: BOOT_NODE_TCP_PORT,
       peerIdPrivateKey: Buffer.from(peerId.privateKey!).toString('hex'),
-      serverMode: false,
+      clientKADRouting: false,
       minPeerCount: 10,
       maxPeerCount: 100,
 
@@ -107,7 +107,7 @@ describe('e2e_p2p_network', () => {
       minTxsPerBlock: NUM_TXS_PER_BLOCK,
       maxTxsPerBlock: NUM_TXS_PER_BLOCK,
       p2pEnabled: true,
-      serverMode: false,
+      clientKADRouting: false,
     };
     return await AztecNodeService.createAndSync(newConfig);
   };

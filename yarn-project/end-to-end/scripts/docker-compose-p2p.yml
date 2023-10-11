@@ -33,7 +33,6 @@ services:
       SEQ_MIN_TX_PER_BLOCK: 1
       P2P_TCP_LISTEN_IP: '0.0.0.0'
       P2P_NAT_ENABLED: 'false'
-      P2P_SERVER: 'false'
       P2P_ENABLED: 'true'
       BOOTSTRAP_NODES: '/ip4/p2p-bootstrap/tcp/40400/p2p/12D3KooWGBpbC6qQFkaCYphjNeY6sV99o4SnEWyTeBigoVriDn4D'
     command: ${TEST:-./src/e2e_p2p_network.test.ts}

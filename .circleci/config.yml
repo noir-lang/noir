@@ -443,6 +443,28 @@ jobs:
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
             build aztec-sandbox false arm64
 
+  aztec-p2p-bootstrap:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build p2p-bootstrap | add_timestamps
+
+  aztec-node:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build aztec-node | add_timestamps
+
   pxe-x86_64:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1024,6 +1046,17 @@ jobs:
           name: "yarn-project"
           command: yarn-project/deploy_npm.sh
 
+  deploy-ecr:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "yarn-project"
+          command: yarn-project/deploy_ecr.sh
+
   deploy-dockerhub:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1244,6 +1277,16 @@ workflows:
             - yarn-project
           <<: *defaults
 
+      - aztec-p2p-bootstrap:
+          requires:
+            - yarn-project
+          <<: *defaults
+
+      - aztec-node:
+          requires:
+            - yarn-project
+          <<: *defaults
+
       - pxe-x86_64:
           requires:
             - yarn-project
@@ -1371,6 +1414,10 @@ workflows:
             - e2e-end
           <<: *deploy_defaults
       - deploy-npm:
+          requires:
+            - e2e-end
+          <<: *deploy_defaults
+      - deploy-ecr:
           requires:
             - e2e-end
           <<: *deploy_defaults

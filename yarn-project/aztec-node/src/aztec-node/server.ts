@@ -69,7 +69,16 @@ export class AztecNodeService implements AztecNode {
     protected readonly globalVariableBuilder: GlobalVariableBuilder,
     protected readonly merkleTreesDb: levelup.LevelUp,
     private log = createDebugLogger('aztec:node'),
-  ) {}
+  ) {
+    const message =
+      `Started Aztec Node with contracts - \n` +
+      `Rollup: ${config.l1Contracts.rollupAddress.toString()}\n` +
+      `Registry: ${config.l1Contracts.registryAddress.toString()}\n` +
+      `Inbox: ${config.l1Contracts.inboxAddress.toString()}\n` +
+      `Outbox: ${config.l1Contracts.outboxAddress.toString()}\n` +
+      `Contract Emitter: ${config.l1Contracts.contractDeploymentEmitterAddress.toString()}`;
+    this.log(message);
+  }
 
   /**
    * initializes the Aztec Node, wait for component to sync.

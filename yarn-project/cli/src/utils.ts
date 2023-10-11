@@ -150,7 +150,6 @@ export async function getTxSender(pxe: PXE, _from?: string) {
 /**
  * Performs necessary checks, conversions & operations to call a contract fn from the CLI.
  * @param contractFile - Directory of the compiled contract ABI.
- * @param contractAddress - Aztec Address of the contract.
  * @param functionName - Name of the function to be called.
  * @param _functionArgs - Arguments to call the function with.
  * @param log - Logger instance that will output to the CLI

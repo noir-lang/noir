@@ -156,6 +156,18 @@ end-to-end:
   dependencies:
     - yarn-project
 
+aztec-node:
+  buildDir: yarn-project
+  projectDir: yarn-project/aztec-node
+  dependencies:
+    - yarn-project
+
+p2p-bootstrap:
+  buildDir: yarn-project
+  projectDir: yarn-project/p2p-bootstrap
+  dependencies:
+    - yarn-project
+
 docs:
   buildDir: .
   dockerfile: docs/Dockerfile
