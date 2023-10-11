@@ -53,6 +53,10 @@ impl FmtVisitor<'_> {
                     format!("if {} {{\n    {}\n}}", condition_str, consequence_str)
                 }
             }
+            ExpressionKind::MemberAccess(member_access_expr) => {
+                let lhs_str = self.format_expr(member_access_expr.lhs);
+                format!("{}.{}", lhs_str, member_access_expr.rhs)
+            }
             ExpressionKind::Index(index_expr) => {
                 let formatted_collection =
                     self.format_expr(index_expr.collection).trim_end().to_string();
