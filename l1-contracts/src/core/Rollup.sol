@@ -3,17 +3,17 @@
 pragma solidity >=0.8.18;
 
 // Interfaces
-import {IRollup} from "@aztec/core/interfaces/IRollup.sol";
-import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
-import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
+import {IRollup} from "./interfaces/IRollup.sol";
+import {IInbox} from "./interfaces/messagebridge/IInbox.sol";
+import {IOutbox} from "./interfaces/messagebridge/IOutbox.sol";
+import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
-import {Decoder} from "@aztec/core/libraries/Decoder.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
+import {Decoder} from "./libraries/Decoder.sol";
+import {Errors} from "./libraries/Errors.sol";
 
 // Contracts
-import {MockVerifier} from "@aztec/mock/MockVerifier.sol";
+import {MockVerifier} from "../mock/MockVerifier.sol";
 
 /**
  * @title Rollup

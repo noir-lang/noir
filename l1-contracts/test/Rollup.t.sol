@@ -6,13 +6,13 @@ import {Test} from "forge-std/Test.sol";
 
 import {DecoderTest} from "./Decoder.t.sol";
 
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+import {DataStructures} from "../src/core/libraries/DataStructures.sol";
 
-import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
-import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
-import {Rollup} from "@aztec/core/Rollup.sol";
+import {Registry} from "../src/core/messagebridge/Registry.sol";
+import {Inbox} from "../src/core/messagebridge/Inbox.sol";
+import {Outbox} from "../src/core/messagebridge/Outbox.sol";
+import {Errors} from "../src/core/libraries/Errors.sol";
+import {Rollup} from "../src/core/Rollup.sol";
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.

@@ -3,14 +3,14 @@
 pragma solidity >=0.8.18;
 
 // Interfaces
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
-import {IRollup} from "@aztec/core/interfaces/IRollup.sol";
-import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
-import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
+import {IRegistry} from "../interfaces/messagebridge/IRegistry.sol";
+import {IRollup} from "../interfaces/IRollup.sol";
+import {IInbox} from "../interfaces/messagebridge/IInbox.sol";
+import {IOutbox} from "../interfaces/messagebridge/IOutbox.sol";
 
 // Libraries
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
+import {DataStructures} from "../libraries/DataStructures.sol";
+import {Errors} from "../libraries/Errors.sol";
 
 /**
  * @title Registry

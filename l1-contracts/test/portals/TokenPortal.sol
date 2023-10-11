@@ -4,11 +4,11 @@ import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 
 // Messaging
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
-import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+import {IRegistry} from "../../src/core/interfaces/messagebridge/IRegistry.sol";
+import {IInbox} from "../../src/core/interfaces/messagebridge/IInbox.sol";
+import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 // docs:start:content_hash_sol_import
-import {Hash} from "@aztec/core/libraries/Hash.sol";
+import {Hash} from "../../src/core/libraries/Hash.sol";
 // docs:end:content_hash_sol_import
 
 contract TokenPortal {

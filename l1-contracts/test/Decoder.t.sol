@@ -4,13 +4,13 @@ pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
-import {Hash} from "@aztec/core/libraries/Hash.sol";
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
+import {Hash} from "../src/core/libraries/Hash.sol";
+import {DataStructures} from "../src/core/libraries/DataStructures.sol";
 import {DecoderHelper} from "./DecoderHelper.sol";
-import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
-import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
-import {Rollup} from "@aztec/core/Rollup.sol";
+import {Registry} from "../src/core/messagebridge/Registry.sol";
+import {Inbox} from "../src/core/messagebridge/Inbox.sol";
+import {Outbox} from "../src/core/messagebridge/Outbox.sol";
+import {Rollup} from "../src/core/Rollup.sol";
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.

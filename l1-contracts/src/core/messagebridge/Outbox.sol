@@ -3,14 +3,14 @@
 pragma solidity >=0.8.18;
 
 // Interfaces
-import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
+import {IOutbox} from "../interfaces/messagebridge/IOutbox.sol";
+import {IRegistry} from "../interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
-import {Hash} from "@aztec/core/libraries/Hash.sol";
-import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
+import {DataStructures} from "../libraries/DataStructures.sol";
+import {Errors} from "../libraries/Errors.sol";
+import {Hash} from "../libraries/Hash.sol";
+import {MessageBox} from "../libraries/MessageBox.sol";
 
 /**
  * @title Outbox

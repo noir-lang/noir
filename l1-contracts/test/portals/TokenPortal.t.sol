@@ -3,17 +3,17 @@ pragma solidity >=0.8.18;
 import "forge-std/Test.sol";
 
 // Rollup Proccessor
-import {Rollup} from "@aztec/core/Rollup.sol";
-import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
-import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {Hash} from "@aztec/core/libraries/Hash.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
+import {Rollup} from "../../src/core/Rollup.sol";
+import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
+import {Registry} from "../../src/core/messagebridge/Registry.sol";
+import {Outbox} from "../../src/core/messagebridge/Outbox.sol";
+import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
+import {Hash} from "../../src/core/libraries/Hash.sol";
+import {Errors} from "../../src/core/libraries/Errors.sol";
 
 // Interfaces
-import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
-import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
+import {IRegistry} from "../../src/core/interfaces/messagebridge/IRegistry.sol";
+import {IInbox} from "../../src/core/interfaces/messagebridge/IInbox.sol";
 
 // Portal tokens
 import {TokenPortal} from "./TokenPortal.sol";

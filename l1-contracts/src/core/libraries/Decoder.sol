@@ -3,8 +3,8 @@
 pragma solidity >=0.8.18;
 
 // Libraries
-import {Constants} from "@aztec/core/libraries/ConstantsGen.sol";
-import {Hash} from "@aztec/core/libraries/Hash.sol";
+import {Constants} from "./ConstantsGen.sol";
+import {Hash} from "./Hash.sol";
 
 /**
  * @title Decoder Library

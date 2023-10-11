@@ -2,8 +2,8 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {Decoder} from "@aztec/core/libraries/Decoder.sol";
-import {Rollup} from "@aztec/core/Rollup.sol";
+import {Decoder} from "../src/core/libraries/Decoder.sol";
+import {Rollup} from "../src/core/Rollup.sol";
 
 contract DecoderHelper {
   function decode(bytes calldata _l2Block)

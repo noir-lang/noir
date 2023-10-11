@@ -3,12 +3,12 @@
 pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
-import {IOutbox} from "@aztec/core/interfaces/messagebridge/IOutbox.sol";
-import {Outbox} from "@aztec/core/messagebridge/Outbox.sol";
-import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
+import {IOutbox} from "../src/core/interfaces/messagebridge/IOutbox.sol";
+import {Outbox} from "../src/core/messagebridge/Outbox.sol";
+import {Registry} from "../src/core/messagebridge/Registry.sol";
+import {Errors} from "../src/core/libraries/Errors.sol";
+import {DataStructures} from "../src/core/libraries/DataStructures.sol";
+import {MessageBox} from "../src/core/libraries/MessageBox.sol";
 
 contract OutboxTest is Test {
   Registry internal registry;

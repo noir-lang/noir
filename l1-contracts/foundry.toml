@@ -5,11 +5,7 @@ libs = ['lib']
 solc = "0.8.21"
 
 remappings = [
-  "@oz/=lib/openzeppelin-contracts/contracts/",
-  "@aztec/core/=src/core/",
-  "@aztec/periphery/=src/periphery/",
-  "@aztec/mock/=src/mock/",
-  "@aztec/verifier/=lib/aztec-verifier-contracts/src/"
+  "@oz/=lib/openzeppelin-contracts/contracts/"
 ]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

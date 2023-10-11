@@ -3,14 +3,14 @@
 pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
-import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
-import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
-import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-import {Constants} from "@aztec/core/libraries/ConstantsGen.sol";
-import {Errors} from "@aztec/core/libraries/Errors.sol";
+import {IInbox} from "../src/core/interfaces/messagebridge/IInbox.sol";
+import {Inbox} from "../src/core/messagebridge/Inbox.sol";
+import {Registry} from "../src/core/messagebridge/Registry.sol";
+import {Constants} from "../src/core/libraries/ConstantsGen.sol";
+import {Errors} from "../src/core/libraries/Errors.sol";
 
-import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
-import {MessageBox} from "@aztec/core/libraries/MessageBox.sol";
+import {DataStructures} from "../src/core/libraries/DataStructures.sol";
+import {MessageBox} from "../src/core/libraries/MessageBox.sol";
 
 contract InboxTest is Test {
   event MessageAdded(
