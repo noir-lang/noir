@@ -71,7 +71,7 @@ impl JsCompileError {
             .iter()
             .map(|err| {
                 JsDiagnostic::new(
-                    &err,
+                    err,
                     file_manager.path(err.file_id).to_str().unwrap().to_string(),
                 )
             })
