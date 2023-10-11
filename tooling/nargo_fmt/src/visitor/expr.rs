@@ -43,8 +43,8 @@ impl FmtVisitor<'_> {
                 let formatted_func = self.format_expr(*call_expr.func);
                 let formatted_args = call_expr
                     .arguments
-                    .iter()
-                    .map(|arg| self.format_expr(arg.clone()))
+                    .into_iter()
+                    .map(|arg| self.format_expr(arg))
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{}({})", formatted_func, formatted_args)
