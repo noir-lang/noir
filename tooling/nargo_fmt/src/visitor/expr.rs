@@ -4,6 +4,7 @@ use noirc_frontend::{
 };
 
 use super::FmtVisitor;
+use iter_extended::vecmap;
 
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression) {
@@ -41,13 +42,11 @@ impl FmtVisitor<'_> {
             }
             ExpressionKind::Constructor(constructor_expr) => {
                 let type_str = constructor_expr.type_name.to_string();
-                let formatted_fields = constructor_expr
-                    .fields
-                    .iter()
-                    .map(|(field_ident, field_value)| {
+            
+                let formatted_fields = constructor_expr.fields
+                    .vecmap(|(field_ident, field_value)| {
                         format!("{}: {}", field_ident, self.format_expr(field_value.clone()))
                     })
-                    .collect::<Vec<_>>()
                     .join(", ");
                 format!("{} {{ {} }}", type_str, formatted_fields)
             }
