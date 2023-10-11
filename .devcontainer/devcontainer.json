@@ -1,0 +1,50 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
+// https://github.com/microsoft/vscode-dev-containers/tree/master/containers/docker-existing-dockerfile
+{
+    "name": "noir-lang-project",
+    "dockerFile": "Dockerfile",
+    // "context": "${localWorkspaceFolder}",
+    "build": {
+      "args": {
+        "USER_UID": "${localEnv:USER_UID}",
+        "USER_GID": "${localEnv:USER_GID}"
+      },
+    },
+  
+    // run arguments passed to docker
+    "runArgs": [
+      "--security-opt", "label=disable"
+    ],
+  
+    "containerEnv": {
+       // extensions to preload before other extensions
+      "PRELOAD_EXTENSIONS": "arrterian.nix-env-selector"
+    },
+  
+     // disable command overriding and updating remote user ID
+    "overrideCommand": false,
+    "userEnvProbe": "loginShell",
+    "updateRemoteUserUID": false,
+    
+    // build development environment on creation
+    // this will build all dependencies, incl. ones from flake.
+    // Comment this if desirable
+    // "onCreateCommand": "nix-shell --command 'echo done building nix dev environment'",
+  
+    // Add the IDs of extensions you want installed when the container is created.
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "arrterian.nix-env-selector",
+                "bbenoist.Nix"
+            ]
+        }
+    },
+
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    "forwardPorts": []
+
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // "postCreateCommand": "cargo --version",
+        
+  }
