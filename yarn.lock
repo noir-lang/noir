@@ -953,7 +953,6 @@ __metadata:
     chai: ^4.3.8
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0
-    fflate: ^0.8.0
     mocha: ^10.2.0
     prettier: 3.0.3
     ts-node: ^10.9.1
@@ -1001,7 +1000,6 @@ __metadata:
     mocha: ^10.2.0
     prettier: 3.0.3
     ts-node: ^10.9.1
-    tslog: ^4.9.2
     typescript: ^5.0.4
   languageName: unknown
   linkType: soft
