@@ -5,9 +5,9 @@ description: Documentation of Aztec's Portals and Cross-chain communication.
 
 ## What is a portal
 
-A portal is the point of contact between L1 and a specific contract on Aztec. For applications such as token bridges, this is the point where the tokens are are held on L1 while used in L2. 
+A portal is the point of contact between L1 and a specific contract on Aztec. For applications such as token bridges, this is the point where the tokens are held on L1 while used in L2. 
 
-As outlined in the [foundational concepts](../../../concepts/foundation/communication/cross_chain_calls.md), an Aztec L2 contract is linked to *ONE* L1 address at time of deployment (specified by the developer). This L1 address is the only address that can send messages to that specific L2 contract, and the only address that can receive messages sent from the L2 contract to L1. Note, that a portal don't actually need to be a contract, it could be any address on L1. We say that an Aztec contract is attached to a portal.
+As outlined in the [foundational concepts](../../../concepts/foundation/communication/cross_chain_calls.md), an Aztec L2 contract is linked to *ONE* L1 address at time of deployment (specified by the developer). This L1 address is the only address that can send messages to that specific L2 contract, and the only address that can receive messages sent from the L2 contract to L1. Note, that a portal doesn't actually need to be a contract; a portal could be any address on L1. We say that an Aztec contract is attached to a portal.
 
 ## Passing data to the rollup
 
@@ -73,7 +73,7 @@ Similarly to messages going to L2 from L1, a message can only be consumed by the
 
 Recall that we mentioned the Aztec contract specifies what portal it is attached to at deployment. This value is stored in the rollup's contract tree, hence these links are not directly readable on L1. Also, it is possible to attach multiple aztec contracts to the same portal.
 
-The portal must ensure that the sender is as expected. One way to do this, is to compute the addresses before deployment and store them as constants in the contract, however a more flexible solution is to have an `initialize` function in the portal contract which can be used to set the address of the Aztec contract. In this model, the portal contract can check that the sender matches the value it has in storage.
+The portal must ensure that the sender is as expected. One way to do this is to compute the addresses before deployment and store them as constants in the contract. However, a more flexible solution is to have an `initialize` function in the portal contract which can be used to set the address of the Aztec contract. In this model, the portal contract can check that the sender matches the value it has in storage.
 
 To send a message to L1 from your Aztec contract, you must use the `message_portal` function on the `context`. When messaging to L1, only the `content` is required (as a `Field`). 
 
@@ -170,7 +170,7 @@ Designating a caller grants the ability to specify who should be able to call a 
 
 When performing multiple cross-chain calls in one action it is important to consider the order of the calls. Say for example, that you want to perform a uniswap trade on L1 because you are a whale and slippage on L2 is too damn high. 
 
-You would practically, withdraw funds from the rollup, swap them on L1, and then deposit the swapped funds back into the rollup. This is a fairly simple process, but it requires that the calls are done in the correct order. For one, if the swap is called before the funds are withdrawn, the swap will fail. And if the deposit is called before the swap, the funds might get lost! 
+Practically, you would withdraw funds from the rollup, swap them on L1, and then deposit the swapped funds back into the rollup. This is a fairly simple process, but it requires that the calls are done in the correct order. For one, if the swap is called before the funds are withdrawn, the swap will fail. And if the deposit is called before the swap, the funds might get lost! 
 
 As message boxes only will allow the recipient portal to consume the message, we can use this to our advantage to ensure that the calls are done in the correct order. Say that we include a designated "caller" in the messages, and that the portal contract checks that the caller matches the designated caller or designated is address(0) (anyone can call). When the message are to be consumed on L1, it can compute the message as seen below:
 
@@ -185,8 +185,7 @@ bytes memory message = abi.encodeWithSignature(
 
 This way, the message can be consumed by the portal contract, but only if the caller is the designated caller. By being a bit clever when specifying the designated caller, we can ensure that the calls are done in the correct order. For the Uniswap example, say that we have token portals implemented as we have done throughout this page, and a Uniswap portal implementing the designated caller.
 
-We require that the Uniswap portal is the caller of the withdraw, and that the uniswap portal implementation is executing the withdraw before the swap.  
-The order of execution can be constrained in the contract. Since all of the messages are emitted to L1 in the same transaction, we can leverage transaction atomicity to ensure success of failure of all messages. 
+We require that the Uniswap portal is the caller of the withdraw, and that the uniswap portal implementation is executing the withdraw before the swap. The order of execution can be constrained in the contract. Since all of the messages are emitted to L1 in the same transaction, we can leverage transaction atomicity to ensure success of failure of all messages. 
 
 Note, that crossing the L1/L2 chasm is asynchronous, so there could be a situation where the user has burned their assets on L2 but the swap fails on L1! This could be due to major price movements or the like. In such a case, the user could be stuck with funds on L1 that they cannot get back to L2 unless the portal contract implements a way to properly handle such errors.
 
