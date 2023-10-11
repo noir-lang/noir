@@ -39,6 +39,7 @@ impl FmtVisitor<'_> {
                     self.format_expr(infix.rhs)
                 )
             }
+            ExpressionKind::Variable(path) => path.to_string(),
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
