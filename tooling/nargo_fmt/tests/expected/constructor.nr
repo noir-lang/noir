@@ -1,8 +1,8 @@
 struct Point {
-    x: i32,
-    y: i32,
+    x: u8,
+    y: u8,
 }
 
 fn foo() {
-    Point { x: 5, y: 10 };
+    plain::Point { x: 5, y: 10 };
 }
