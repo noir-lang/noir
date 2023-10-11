@@ -144,5 +144,4 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   // We can also try verifying an inner proof and it will fail.
   const isValidInner = await prover.verifyIntermediateProof(_proofInner);
   expect(isValidInner).to.be.true;
-
 });
