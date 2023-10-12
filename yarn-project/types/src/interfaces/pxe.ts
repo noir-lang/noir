@@ -4,8 +4,9 @@ import {
   CompleteAddress,
   ContractData,
   ExtendedContractData,
-  L2BlockL2Logs,
+  GetUnencryptedLogsResponse,
   L2Tx,
+  LogFilter,
   NotePreimage,
   Tx,
   TxExecutionRequest,
@@ -231,14 +232,11 @@ export interface PXE {
   getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
-   * Gets unencrypted public logs from the specified block range. Logs are grouped by block and then by
-   * transaction. Use the `L2BlockL2Logs.unrollLogs` helper function to get an flattened array of logs instead.
-   *
-   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param limit - The maximum number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
+   * Gets unencrypted logs based on the provided filter.
+   * @param filter - The filter to apply to the logs.
+   * @returns The requested logs.
    */
-  getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]>;
+  getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse>;
 
   /**
    * Fetches the current block number.

@@ -1,6 +1,7 @@
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { FunctionL2Logs } from './function_l2_logs.js';
+import { LogType } from './log_type.js';
 
 /**
  * Data container of logs emitted in 1 tx.
@@ -58,16 +59,16 @@ export class TxL2Logs {
   }
 
   /**
-   * Creates a new `TxL2Logs` object with `numFunctionInvocations` function logs and `numLogsIn1Invocation` logs
-   * in each invocation.
-   * @param numFunctionInvocations - The number of function invocations in the tx.
-   * @param numLogsIn1Invocation - The number of logs emitted in each function invocation.
+   * Creates a new `TxL2Logs` object with `numCalls` function logs and `numLogsPerCall` logs in each invocation.
+   * @param numCalls - The number of function calls in the tx.
+   * @param numLogsPerCall - The number of logs emitted in each function call.
+   * @param logType - The type of logs to generate.
    * @returns A new `TxL2Logs` object.
    */
-  public static random(numFunctionInvocations: number, numLogsIn1Invocation: number): TxL2Logs {
+  public static random(numCalls: number, numLogsPerCall: number, logType = LogType.ENCRYPTED): TxL2Logs {
     const functionLogs: FunctionL2Logs[] = [];
-    for (let i = 0; i < numFunctionInvocations; i++) {
-      functionLogs.push(FunctionL2Logs.random(numLogsIn1Invocation));
+    for (let i = 0; i < numCalls; i++) {
+      functionLogs.push(FunctionL2Logs.random(numLogsPerCall, logType));
     }
     return new TxL2Logs(functionLogs);
   }
@@ -80,6 +81,14 @@ export class TxL2Logs {
     return {
       functionLogs: this.functionLogs.map(log => log.toJSON()),
     };
+  }
+
+  /**
+   * Unrolls logs from this tx.
+   * @returns Unrolled logs.
+   */
+  public unrollLogs(): Buffer[] {
+    return this.functionLogs.flatMap(functionLog => functionLog.logs);
   }
 
   /**

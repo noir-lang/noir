@@ -2,6 +2,7 @@ import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serializ
 
 import isEqual from 'lodash.isequal';
 
+import { LogType } from './log_type.js';
 import { TxL2Logs } from './tx_l2_logs.js';
 
 /**
@@ -62,17 +63,23 @@ export class L2BlockL2Logs {
   }
 
   /**
-   * Creates a new `L2BlockL2Logs` object with `numFunctionInvocations` function logs and `numLogsIn1Invocation` logs
-   * in each invocation.
+   * Creates a new `L2BlockL2Logs` object with `numCalls` function logs and `numLogsPerCall` logs in each function
+   * call.
    * @param numTxs - The number of txs in the block.
-   * @param numFunctionInvocations - The number of function invocations in the tx.
-   * @param numLogsIn1Invocation - The number of logs emitted in each function invocation.
+   * @param numCalls - The number of function calls in the tx.
+   * @param numLogsPerCall - The number of logs emitted in each function call.
+   * @param logType - The type of logs to generate.
    * @returns A new `L2BlockL2Logs` object.
    */
-  public static random(numTxs: number, numFunctionInvocations: number, numLogsIn1Invocation: number): L2BlockL2Logs {
+  public static random(
+    numTxs: number,
+    numCalls: number,
+    numLogsPerCall: number,
+    logType = LogType.ENCRYPTED,
+  ): L2BlockL2Logs {
     const txLogs: TxL2Logs[] = [];
     for (let i = 0; i < numTxs; i++) {
-      txLogs.push(TxL2Logs.random(numFunctionInvocations, numLogsIn1Invocation));
+      txLogs.push(TxL2Logs.random(numCalls, numLogsPerCall, logType));
     }
     return new L2BlockL2Logs(txLogs);
   }
@@ -86,9 +93,7 @@ export class L2BlockL2Logs {
     const logs: Buffer[] = [];
     for (const blockLog of blockLogs) {
       for (const txLog of blockLog.txLogs) {
-        for (const functionLog of txLog.functionLogs) {
-          logs.push(...functionLog.logs);
-        }
+        logs.push(...txLog.unrollLogs());
       }
     }
     return logs;

@@ -5,7 +5,7 @@ import { CompleteAddress, PXE, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
-import { expectUnencryptedLogsFromLastBlockToBe, setup } from './fixtures/utils.js';
+import { expectUnencryptedLogsFromLastBlockToBe, expectUnencryptedLogsInTxToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_public_token_contract', () => {
   let pxe: PXE;
@@ -52,7 +52,7 @@ describe('e2e_public_token_contract', () => {
     const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount);
 
-    await expectUnencryptedLogsFromLastBlockToBe(pxe, ['Coins minted']);
+    await expectUnencryptedLogsInTxToBe(tx, ['Coins minted']);
   }, 45_000);
 
   // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640

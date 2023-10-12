@@ -46,6 +46,9 @@ export interface ArchiverConfig {
    * Optional dir to store data. If omitted will store in memory.
    */
   dataDirectory?: string;
+
+  /** The max number of logs that can be obtained in 1 "getUnencryptedLogs" call. */
+  maxLogs?: number;
 }
 
 /**

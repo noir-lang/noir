@@ -32,11 +32,11 @@ import {
   DeployedContract,
   ExtendedContractData,
   FunctionCall,
+  GetUnencryptedLogsResponse,
   KeyStore,
   L2Block,
-  L2BlockL2Logs,
   L2Tx,
-  LogType,
+  LogFilter,
   MerkleTreeId,
   NodeInfo,
   NotePreimage,
@@ -384,8 +384,13 @@ export class PXEService implements PXE {
     return await this.node.getContractData(contractAddress);
   }
 
-  public async getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]> {
-    return await this.node.getLogs(from, limit, LogType.UNENCRYPTED);
+  /**
+   * Gets unencrypted logs based on the provided filter.
+   * @param filter - The filter to apply to the logs.
+   * @returns The requested logs.
+   */
+  public getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse> {
+    return this.node.getUnencryptedLogs(filter);
   }
 
   async #getFunctionCall(functionName: string, args: any[], to: AztecAddress): Promise<FunctionCall> {

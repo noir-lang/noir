@@ -387,28 +387,28 @@ aztec-cli parse-parameter-struct 0xabcdef1234567890abcdef1234567890abcdef1234567
 
 ### get-logs
 
-Gets all the unencrypted logs from L2 blocks in the specified range.
+Applies filter and returns the resulting unencrypted logs.
+The filter is applied by doing an intersection of all its params.
 
 Syntax:
 
 ```shell
-aztec-cli get-logs --from <number> --limit <number> [options]
+aztec-cli get-logs --fromBlock <number>
 ```
-
-- `from`: Block number to start fetching logs from.
-- `limit`: Maximum number of block logs to obtain.
-
 Options:
 
 - `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
 
-This command retrieves and displays all the unencrypted logs from L2 blocks in the specified range. It shows the logs found in the blocks and unrolls them for readability.
-
+This command retrieves and displays all the unencrypted logs from L2 blocks in the specified range or from a specific transaction.
 Example usage:
 
 ```shell
-aztec-cli get-logs --from 1000 --limit 10
+aztec-cli get-logs --txHash 21fef567e01f8508e30843ebcef9c5f6ff27b29d66783cfcdbd070c3a9174234
+aztec-cli get-logs --fromBlock 4 --toBlock 5 --contractAddress 0x1db5f68861c5960c37205d3d5b23466240359c115c49e45982865ea7ace69a02
+aztec-cli get-logs --fromBlock 4 --toBlock 5 --contractAddress 0x1db5f68861c5960c37205d3d5b23466240359c115c49e45982865ea7ace69a02 --selector 00000005
 ```
+
+Run `aztec-cli get-logs --help` for more information on the filtering options.
 
 ### block-number
 

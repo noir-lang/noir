@@ -11,9 +11,10 @@ import {
 import { StructType, decodeFunctionSignatureWithParameterNames } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { sleep } from '@aztec/foundation/sleep';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { compileContract, generateNoirInterface, generateTypescriptInterface } from '@aztec/noir-compiler/cli';
-import { CompleteAddress, ContractData, L2BlockL2Logs } from '@aztec/types';
+import { CompleteAddress, ContractData, LogFilter } from '@aztec/types';
 
 import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 import { Command, Option } from 'commander';
@@ -34,6 +35,11 @@ import {
   parseAztecAddress,
   parseField,
   parseFields,
+  parseOptionalAztecAddress,
+  parseOptionalInteger,
+  parseOptionalLogId,
+  parseOptionalSelector,
+  parseOptionalTxHash,
   parsePartialAddress,
   parsePrivateKey,
   parsePublicKey,
@@ -288,22 +294,58 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
 
   program
     .command('get-logs')
-    .description('Gets all the unencrypted logs from L2 blocks in the range specified.')
-    .option('-f, --from <blockNum>', 'Initial block number for getting logs (defaults to 1).')
-    .option('-l, --limit <blockCount>', 'How many blocks to fetch (defaults to 100).')
+    .description('Gets all the unencrypted logs from an intersection of all the filter params.')
+    .option('-tx, --tx-hash <txHash>', 'A transaction hash to get the receipt for.', parseOptionalTxHash)
+    .option(
+      '-fb, --from-block <blockNum>',
+      'Initial block number for getting logs (defaults to 1).',
+      parseOptionalInteger,
+    )
+    .option('-tb, --to-block <blockNum>', 'Up to which block to fetch logs (defaults to latest).', parseOptionalInteger)
+    .option('-al --after-log <logId>', 'ID of a log after which to fetch the logs.', parseOptionalLogId)
+    .option('-ca, --contract-address <address>', 'Contract address to filter logs by.', parseOptionalAztecAddress)
+    .option('-s, --selector <hex string>', 'Event selector to filter logs by.', parseOptionalSelector)
     .addOption(pxeOption)
-    .action(async options => {
-      const { from, limit } = options;
-      const fromBlock = from ? parseInt(from) : 1;
-      const limitCount = limit ? parseInt(limit) : 100;
+    .option('--follow', 'If set, will keep polling for new logs until interrupted.')
+    .action(async ({ txHash, fromBlock, toBlock, afterLog, contractAddress, selector, rpcUrl, follow }) => {
+      const pxe = await createCompatibleClient(rpcUrl, debugLogger);
 
-      const client = await createCompatibleClient(options.rpcUrl, debugLogger);
-      const logs = await client.getUnencryptedLogs(fromBlock, limitCount);
-      if (!logs.length) {
-        log(`No logs found in blocks ${fromBlock} to ${fromBlock + limitCount}`);
+      if (follow) {
+        if (txHash) throw Error('Cannot use --follow with --tx-hash');
+        if (toBlock) throw Error('Cannot use --follow with --to-block');
+      }
+
+      const filter: LogFilter = { txHash, fromBlock, toBlock, afterLog, contractAddress, selector };
+
+      const fetchLogs = async () => {
+        const response = await pxe.getUnencryptedLogs(filter);
+        const logs = response.logs;
+
+        if (!logs.length) {
+          const filterOptions = Object.entries(filter)
+            .filter(([, value]) => value !== undefined)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+          if (!follow) log(`No logs found for filter: {${filterOptions}}`);
+        } else {
+          if (!follow && !filter.afterLog) log('Logs found: \n');
+          logs.forEach(unencryptedLog => log(unencryptedLog.toHumanReadable()));
+          // Set the continuation parameter for the following requests
+          filter.afterLog = logs[logs.length - 1].id;
+        }
+        return response.maxLogsHit;
+      };
+
+      if (follow) {
+        log('Fetching logs...');
+        while (true) {
+          const maxLogsHit = await fetchLogs();
+          if (!maxLogsHit) await sleep(1000);
+        }
       } else {
-        log('Logs found: \n');
-        L2BlockL2Logs.unrollLogs(logs).forEach(fnLog => log(`${fnLog.toString('ascii')}\n`));
+        while (await fetchLogs()) {
+          // Keep fetching logs until we reach the end.
+        }
       }
     });
 

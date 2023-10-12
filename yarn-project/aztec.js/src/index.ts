@@ -7,7 +7,9 @@ export * from './contract_deployer/deploy_method.js';
 export * from './sandbox/index.js';
 export * from './wallet/index.js';
 
-export { AztecAddress, EthAddress, Point, Fr, GrumpkinScalar } from '@aztec/circuits.js';
+// TODO https://github.com/AztecProtocol/aztec-packages/issues/2632 --> FunctionSelector might not need to be exposed
+// here once the issue is resolved.
+export { AztecAddress, EthAddress, Point, Fr, FunctionSelector, GrumpkinScalar } from '@aztec/circuits.js';
 export {
   PXE,
   ContractData,
@@ -15,6 +17,7 @@ export {
   DeployedContract,
   FunctionCall,
   L2BlockL2Logs,
+  LogFilter,
   UnencryptedL2Log,
   NodeInfo,
   NotePreimage,

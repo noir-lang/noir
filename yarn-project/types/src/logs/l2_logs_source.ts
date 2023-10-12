@@ -1,8 +1,10 @@
+import { GetUnencryptedLogsResponse } from './get_unencrypted_logs_response.js';
 import { L2BlockL2Logs } from './l2_block_l2_logs.js';
+import { LogFilter } from './log_filter.js';
 import { LogType } from './log_type.js';
 
 /**
- * Interface of classes allowing for the retrieval of encrypted logs.
+ * Interface of classes allowing for the retrieval of logs.
  */
 export interface L2LogsSource {
   /**
@@ -15,17 +17,11 @@ export interface L2LogsSource {
   getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
-   * Starts the encrypted logs source.
-   * @param blockUntilSynced - If true, blocks until the data source has fully synced.
-   * @returns A promise signalling completion of the start process.
+   * Gets unencrypted logs based on the provided filter.
+   * @param filter - The filter to apply to the logs.
+   * @returns The requested logs.
    */
-  start(blockUntilSynced: boolean): Promise<void>;
-
-  /**
-   * Stops the encrypted logs source.
-   * @returns A promise signalling completion of the stop process.
-   */
-  stop(): Promise<void>;
+  getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse>;
 
   /**
    * Gets the number of the latest L2 block processed by the implementation.

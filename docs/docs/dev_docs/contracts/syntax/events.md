@@ -111,7 +111,7 @@ Once emitted, unencrypted events are stored in AztecNode and can be queried by a
 <TabItem value="cli" label="Aztec CLI">
 
 ```bash
-aztec-cli get-logs --from 5 --limit 1
+aztec-cli get-logs --fromBlock 5
 ```
 
 </TabItem>
@@ -121,6 +121,13 @@ aztec-cli get-logs --from 5 --limit 1
 
 </TabItem>
 </Tabs>
+
+Get logs functionality provides a variety of filtering options.
+To display them run:
+
+```bash
+aztec-cli get-logs --help
+```
 
 ## Costs
 

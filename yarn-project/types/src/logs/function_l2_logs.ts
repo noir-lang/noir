@@ -4,6 +4,9 @@ import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serializ
 
 import { randomBytes } from 'crypto';
 
+import { LogType } from './log_type.js';
+import { UnencryptedL2Log } from './unencrypted_l2_log.js';
+
 /**
  * Data container of logs emitted in 1 function invocation (corresponds to 1 kernel iteration).
  */
@@ -65,14 +68,19 @@ export class FunctionL2Logs {
   /**
    * Creates a new L2Logs object with `numLogs` logs.
    * @param numLogs - The number of logs to create.
+   * @param logType - The type of logs to generate.
    * @returns A new FunctionL2Logs object.
    */
-  public static random(numLogs: number): FunctionL2Logs {
+  public static random(numLogs: number, logType = LogType.ENCRYPTED): FunctionL2Logs {
     const logs: Buffer[] = [];
     for (let i = 0; i < numLogs; i++) {
-      const randomEphPubKey = Point.random();
-      const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
-      logs.push(Buffer.concat([randomLogContent, randomEphPubKey.toBuffer()]));
+      if (logType === LogType.ENCRYPTED) {
+        const randomEphPubKey = Point.random();
+        const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
+        logs.push(Buffer.concat([randomLogContent, randomEphPubKey.toBuffer()]));
+      } else {
+        logs.push(UnencryptedL2Log.random().toBuffer());
+      }
     }
     return new FunctionL2Logs(logs);
   }

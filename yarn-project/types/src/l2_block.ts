@@ -158,19 +158,19 @@ export class L2Block {
    * Creates an L2 block containing random data.
    * @param l2BlockNum - The number of the L2 block.
    * @param txsPerBlock - The number of transactions to include in the block.
-   * @param numPrivateFunctionCalls - The number of private function calls to include in each transaction.
-   * @param numPublicFunctionCalls - The number of public function calls to include in each transaction.
-   * @param numEncryptedLogs - The number of encrypted logs to include in each transaction.
-   * @param numUnencryptedLogs - The number of unencrypted logs to include in each transaction.
+   * @param numPrivateCallsPerTx - The number of private function calls to include in each transaction.
+   * @param numPublicCallsPerTx - The number of public function calls to include in each transaction.
+   * @param numEncryptedLogsPerCall - The number of encrypted logs per 1 private function invocation.
+   * @param numUnencryptedLogsPerCall - The number of unencrypted logs per 1 public function invocation.
    * @returns The L2 block.
    */
   static random(
     l2BlockNum: number,
     txsPerBlock = 4,
-    numPrivateFunctionCalls = 2,
-    numPublicFunctionCalls = 3,
-    numEncryptedLogs = 2,
-    numUnencryptedLogs = 1,
+    numPrivateCallsPerTx = 2,
+    numPublicCallsPerTx = 3,
+    numEncryptedLogsPerCall = 2,
+    numUnencryptedLogsPerCall = 1,
   ): L2Block {
     const newNullifiers = times(MAX_NEW_NULLIFIERS_PER_TX * txsPerBlock, Fr.random);
     const newCommitments = times(MAX_NEW_COMMITMENTS_PER_TX * txsPerBlock, Fr.random);
@@ -179,8 +179,18 @@ export class L2Block {
     const newPublicDataWrites = times(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
     const newL2ToL1Msgs = times(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random);
-    const newEncryptedLogs = L2BlockL2Logs.random(txsPerBlock, numPrivateFunctionCalls, numEncryptedLogs);
-    const newUnencryptedLogs = L2BlockL2Logs.random(txsPerBlock, numPublicFunctionCalls, numUnencryptedLogs);
+    const newEncryptedLogs = L2BlockL2Logs.random(
+      txsPerBlock,
+      numPrivateCallsPerTx,
+      numEncryptedLogsPerCall,
+      LogType.ENCRYPTED,
+    );
+    const newUnencryptedLogs = L2BlockL2Logs.random(
+      txsPerBlock,
+      numPublicCallsPerTx,
+      numUnencryptedLogsPerCall,
+      LogType.UNENCRYPTED,
+    );
 
     return L2Block.fromFields({
       number: l2BlockNum,

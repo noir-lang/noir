@@ -105,6 +105,22 @@ export class FunctionSelector {
   }
 
   /**
+   * Create an AztecAddress instance from a hex-encoded string.
+   * The input 'address' should be prefixed with '0x' or not, and have exactly 64 hex characters.
+   * Throws an error if the input length is invalid or address value is out of range.
+   *
+   * @param selector - The hex-encoded string representing the Aztec address.
+   * @returns An AztecAddress instance.
+   */
+  static fromString(selector: string) {
+    const buf = Buffer.from(selector.replace(/^0x/i, ''), 'hex');
+    if (buf.length !== FunctionSelector.SIZE) {
+      throw new Error(`Invalid length ${buf.length}.`);
+    }
+    return FunctionSelector.fromBuffer(buf);
+  }
+
+  /**
    * Creates an empty function selector.
    * @returns An empty function selector.
    */

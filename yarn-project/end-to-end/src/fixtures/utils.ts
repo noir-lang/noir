@@ -6,6 +6,7 @@ import {
   CompleteAddress,
   EthAddress,
   EthCheatCodes,
+  SentTx,
   Wallet,
   createAccounts,
   createPXEClient,
@@ -39,15 +40,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
-import {
-  AztecNode,
-  L2BlockL2Logs,
-  LogType,
-  PXE,
-  TxStatus,
-  UnencryptedL2Log,
-  createAztecNodeRpcClient,
-} from '@aztec/types';
+import { AztecNode, L2BlockL2Logs, LogType, PXE, TxStatus, createAztecNodeRpcClient } from '@aztec/types';
 
 import * as path from 'path';
 import {
@@ -522,18 +515,32 @@ export const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (
 
 /**
  * Checks that the last block contains the given expected unencrypted log messages.
- * @param pxe - The instance of PXE for retrieving the logs.
+ * @param tx - An instance of SentTx for which to retrieve the logs.
+ * @param logMessages - The set of expected log messages.
+ */
+export const expectUnencryptedLogsInTxToBe = async (tx: SentTx, logMessages: string[]) => {
+  const unencryptedLogs = (await tx.getUnencryptedLogs()).logs;
+  const asciiLogs = unencryptedLogs.map(extendedLog => extendedLog.log.data.toString('ascii'));
+
+  expect(asciiLogs).toStrictEqual(logMessages);
+};
+
+/**
+ * Checks that the last block contains the given expected unencrypted log messages.
+ * @param pxe - An instance of PXE for retrieving the logs.
  * @param logMessages - The set of expected log messages.
  */
 export const expectUnencryptedLogsFromLastBlockToBe = async (pxe: PXE, logMessages: string[]) => {
   // docs:start:get_logs
-  // Get the latest block number to retrieve logs from
-  const l2BlockNum = await pxe.getBlockNumber();
   // Get the unencrypted logs from the last block
-  const unencryptedLogs = await pxe.getUnencryptedLogs(l2BlockNum, 1);
+  const fromBlock = await pxe.getBlockNumber();
+  const logFilter = {
+    fromBlock,
+    toBlock: fromBlock + 1,
+  };
+  const unencryptedLogs = (await pxe.getUnencryptedLogs(logFilter)).logs;
   // docs:end:get_logs
-  const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs).map(log => UnencryptedL2Log.fromBuffer(log));
-  const asciiLogs = unrolledLogs.map(log => log.data.toString('ascii'));
+  const asciiLogs = unencryptedLogs.map(extendedLog => extendedLog.log.data.toString('ascii'));
 
   expect(asciiLogs).toStrictEqual(logMessages);
 };

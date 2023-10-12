@@ -24,6 +24,7 @@ import {
   ContractData,
   ContractDataSource,
   ExtendedContractData,
+  GetUnencryptedLogsResponse,
   L1ToL2MessageAndIndex,
   L1ToL2MessageSource,
   L2Block,
@@ -31,6 +32,7 @@ import {
   L2BlockSource,
   L2LogsSource,
   L2Tx,
+  LogFilter,
   LogType,
   MerkleTreeId,
   SiblingPath,
@@ -223,6 +225,15 @@ export class AztecNodeService implements AztecNode {
   public getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
     const logSource = logType === LogType.ENCRYPTED ? this.encryptedLogsSource : this.unencryptedLogsSource;
     return logSource.getLogs(from, limit, logType);
+  }
+
+  /**
+   * Gets unencrypted logs based on the provided filter.
+   * @param filter - The filter to apply to the logs.
+   * @returns The requested logs.
+   */
+  getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse> {
+    return this.unencryptedLogsSource.getUnencryptedLogs(filter);
   }
 
   /**

@@ -10,6 +10,7 @@ import {
   ContractDataSource,
   EncodedContractFunction,
   ExtendedContractData,
+  GetUnencryptedLogsResponse,
   INITIAL_L2_BLOCK_NUM,
   L1ToL2Message,
   L1ToL2MessageSource,
@@ -18,6 +19,7 @@ import {
   L2BlockSource,
   L2LogsSource,
   L2Tx,
+  LogFilter,
   LogType,
   TxHash,
 } from '@aztec/types';
@@ -100,7 +102,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       transport: http(chain.rpcUrl),
       pollingInterval: config.viemPollingIntervalMS,
     });
-    const archiverStore = new MemoryArchiverStore();
+    const archiverStore = new MemoryArchiverStore(config.maxLogs ?? 1000);
     const archiver = new Archiver(
       publicClient,
       config.l1Contracts.rollupAddress,
@@ -165,7 +167,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
      * This is a problem for example when setting the last block number marker for L1 to L2 messages -
      * this.lastProcessedBlockNumber = currentBlockNumber;
      * It's possible that we actually received messages in block currentBlockNumber + 1 meaning the next time
-     * we do this sync we get the same message again. Addtionally, the call to get cancelled L1 to L2 messages
+     * we do this sync we get the same message again. Additionally, the call to get cancelled L1 to L2 messages
      * could read from a block not present when retrieving pending messages. If a message was added and cancelled
      * in the same eth block then we could try and cancel a non-existent pending message.
      *
@@ -387,6 +389,15 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    */
   public getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
     return this.store.getLogs(from, limit, logType);
+  }
+
+  /**
+   * Gets unencrypted logs based on the provided filter.
+   * @param filter - The filter to apply to the logs.
+   * @returns The requested logs.
+   */
+  getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse> {
+    return this.store.getUnencryptedLogs(filter);
   }
 
   /**

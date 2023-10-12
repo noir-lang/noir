@@ -1,11 +1,21 @@
-import { AztecAddress, CompleteAddress, EthAddress, Fr, GrumpkinScalar, Point } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CompleteAddress,
+  EthAddress,
+  Fr,
+  FunctionSelector,
+  GrumpkinScalar,
+  Point,
+} from '@aztec/circuits.js';
 import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 import {
   AuthWitness,
   ContractData,
   ExtendedContractData,
+  ExtendedUnencryptedL2Log,
   L2BlockL2Logs,
   L2Tx,
+  LogId,
   NotePreimage,
   PXE,
   Tx,
@@ -21,10 +31,12 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], true))
     url,
     {
       CompleteAddress,
+      FunctionSelector,
       AztecAddress,
       TxExecutionRequest,
       ContractData,
       ExtendedContractData,
+      ExtendedUnencryptedL2Log,
       TxHash,
       EthAddress,
       Point,
@@ -33,6 +45,7 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], true))
       NotePreimage,
       AuthWitness,
       L2Tx,
+      LogId,
     },
     { Tx, TxReceipt, L2BlockL2Logs },
     false,

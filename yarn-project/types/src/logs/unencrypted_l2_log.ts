@@ -17,7 +17,10 @@ export class UnencryptedL2Log {
      * TODO: Optimize this once it makes sense.
      */
     public readonly contractAddress: AztecAddress,
-    /** Selector of the event/log topic. */
+    /**
+     * Selector of the event/log topic.
+     * TODO: https://github.com/AztecProtocol/aztec-packages/issues/2632
+     */
     public readonly selector: FunctionSelector,
     /** The data contents of the log. */
     public readonly data: Buffer,
@@ -45,7 +48,7 @@ export class UnencryptedL2Log {
    */
   public toHumanReadable(): string {
     return `UnencryptedL2Log(contractAddress: ${this.contractAddress.toString()}, selector: ${this.selector.toString()}, data: ${this.data.toString(
-      'hex',
+      'ascii',
     )})`;
   }
 

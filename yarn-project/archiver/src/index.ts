@@ -24,7 +24,7 @@ async function main() {
     transport: http(rpcUrl),
   });
 
-  const archiverStore = new MemoryArchiverStore();
+  const archiverStore = new MemoryArchiverStore(1000);
 
   const archiver = new Archiver(
     publicClient,

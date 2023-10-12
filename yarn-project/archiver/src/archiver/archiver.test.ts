@@ -22,7 +22,7 @@ describe('Archiver', () => {
 
   beforeEach(() => {
     publicClient = mock<PublicClient<HttpTransport, Chain>>();
-    archiverStore = new MemoryArchiverStore();
+    archiverStore = new MemoryArchiverStore(1000);
   });
 
   it('can start, sync and stop and handle l1 to l2 messages and logs', async () => {
