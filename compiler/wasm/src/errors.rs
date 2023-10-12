@@ -70,10 +70,7 @@ impl JsCompileError {
         let diagnostics: Vec<_> = file_diagnostics
             .iter()
             .map(|err| {
-                JsDiagnostic::new(
-                    err,
-                    file_manager.path(err.file_id).to_str().unwrap().to_string(),
-                )
+                JsDiagnostic::new(err, file_manager.path(err.file_id).to_str().unwrap().to_string())
             })
             .collect();
 
