@@ -19,7 +19,7 @@ pub struct Lexer<'a> {
     char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
     position: Position,
     done: bool,
-    skip_trivia: bool,
+    skip_comments: bool,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -46,12 +46,13 @@ impl<'a> Lexer<'a> {
             char_iter: source.chars().zip(0..).peekable(),
             position: 0,
             done: false,
-            skip_trivia: true,
+            skip_comments: true,
         }
     }
 
-    pub fn set_skip_trivia(&mut self, flag: bool) {
-        self.skip_trivia = flag;
+    pub fn skip_comments(mut self, flag: bool) -> Self {
+        self.skip_comments = flag;
+        self
     }
 
     /// Iterates the cursor and returns the char at the new cursor position
@@ -388,6 +389,9 @@ impl<'a> Lexer<'a> {
 
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
         let comment = self.eat_while(None, |ch| ch != '\n');
+        if self.skip_comments {
+            return self.next_token();
+        }
         Ok(Token::LineComment(comment).into_span(start, self.position))
     }
 
@@ -417,6 +421,9 @@ impl<'a> Lexer<'a> {
         }
 
         if depth == 0 {
+            if self.skip_comments {
+                return self.next_token();
+            }
             Ok(Token::BlockComment(content).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
@@ -433,24 +440,13 @@ impl<'a> Lexer<'a> {
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.done {
-                return None;
-            } else {
-                let token = self.next_token();
-
-                if self.skip_trivia
-                    && token.as_ref().map_or(false, |spanned| spanned.token().is_trivia())
-                {
-                    continue;
-                }
-
-                return Some(token);
-            }
+        if self.done {
+            None
+        } else {
+            Some(self.next_token())
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -516,7 +512,7 @@ mod tests {
         let input = r#"#[deprecated]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
@@ -528,7 +524,7 @@ mod tests {
         let input = r#"#[deprecated("hello")]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(crate::token::SecondaryAttribute::Deprecated(
@@ -551,7 +547,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -561,7 +557,7 @@ mod tests {
         let input = r#"#[custom(hello)]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Custom(
@@ -575,7 +571,7 @@ mod tests {
         let input = r#"#[test]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
@@ -587,7 +583,7 @@ mod tests {
         let input = r#"#[contract_library_method]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod))
@@ -599,7 +595,7 @@ mod tests {
         let input = r#"#[test(should_fail)]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
@@ -613,7 +609,7 @@ mod tests {
         let input = r#"#[test(should_fail_with = "hello")]"#;
         let mut lexer = Lexer::new(input);
 
-        let token = lexer.next().unwrap().unwrap();
+        let token = lexer.next_token().unwrap();
         assert_eq!(
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
@@ -657,7 +653,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -681,7 +677,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -711,7 +707,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let first_lexer_output = lexer.next().unwrap().unwrap();
+            let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
         }
     }
@@ -733,7 +729,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let first_lexer_output = lexer.next().unwrap().unwrap();
+            let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
         }
     }
@@ -755,7 +751,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let first_lexer_output = lexer.next().unwrap().unwrap();
+            let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
         }
     }
@@ -772,7 +768,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -785,7 +781,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -824,7 +820,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for spanned_token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got.to_span(), spanned_token.to_span());
             assert_eq!(got, spanned_token);
         }
@@ -895,7 +891,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
-            let got = lexer.next().unwrap().unwrap();
+            let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
     }

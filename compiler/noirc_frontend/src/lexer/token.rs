@@ -97,12 +97,6 @@ pub enum Token {
     Invalid(char),
 }
 
-impl Token {
-    pub fn is_trivia(&self) -> bool {
-        matches!(self, Token::LineComment(_) | Token::BlockComment(_))
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SpannedToken(Spanned<Token>);
 

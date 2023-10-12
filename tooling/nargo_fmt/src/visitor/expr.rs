@@ -174,10 +174,8 @@ fn changed_comment_content(original: &str, new: &str) -> bool {
 }
 
 fn comments(source: &str) -> Vec<String> {
-    let mut lexer = Lexer::new(source);
-    lexer.set_skip_trivia(false);
-
-    lexer
+    Lexer::new(source)
+        .skip_comments(false)
         .flatten()
         .filter_map(|spanned| {
             if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token()
