@@ -434,6 +434,20 @@ impl GeneratedAcir {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
+        if predicate.to_const().map(|pred| pred.is_zero()).unwrap_or_default() {
+            let zero = self.get_or_create_witness(&Expression::zero());
+            return Ok((zero, zero));
+        }
+
+        if let (Some(lhs_const), Some(rhs_const)) = (lhs.to_const(), rhs.to_const()) {
+            let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+            let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+
+            let quotient_witness = self.get_or_create_witness(&FieldElement::from(quotient).into());
+            let remainder_witness =
+                self.get_or_create_witness(&FieldElement::from(remainder).into());
+            return Ok((quotient_witness, remainder_witness));
+        }
 
         // Check that we the rhs is not zero.
         // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
@@ -443,10 +457,6 @@ impl GeneratedAcir {
         let rhs_is_nonzero_const = rhs.is_const() && !rhs.is_zero();
         if !rhs_is_nonzero_const {
             match predicate.to_const() {
-                Some(predicate) if predicate.is_zero() => {
-                    // If predicate is known to be inactive, we don't need to lay down constraints.
-                }
-
                 Some(predicate) if predicate.is_one() => {
                     // If the predicate is known to be active, we simply assert that an inverse must exist.
                     // This implies that `rhs != 0`.
