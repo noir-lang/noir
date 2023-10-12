@@ -465,7 +465,14 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
-            Instruction::RangeCheck { .. } => None,
+            Instruction::RangeCheck { value, max_bit_size, .. } => {
+                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
+                    if numeric_constant.num_bits() < *max_bit_size {
+                        return Remove;
+                    }
+                }
+                None
+            }
         }
     }
 }
@@ -489,7 +496,11 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
                 SimplifiedTo(dfg.make_constant(constant, dst_typ.clone()))
             }
             (
-                Type::Numeric(NumericType::NativeField | NumericType::Unsigned { .. }),
+                Type::Numeric(
+                    NumericType::NativeField
+                    | NumericType::Unsigned { .. }
+                    | NumericType::Signed { .. },
+                ),
                 Type::Numeric(NumericType::Unsigned { bit_size }),
             ) => {
                 // Field/Unsigned -> unsigned: truncate
@@ -826,6 +837,29 @@ fn eval_constant_binary_op(
             let result = function(lhs, rhs);
             truncate(result, *bit_size).into()
         }
+        Type::Numeric(NumericType::Signed { bit_size }) => {
+            let function = operator.get_i128_function();
+
+            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+            let l_pos = lhs < 2u128.pow(bit_size - 1);
+            let r_pos = rhs < 2u128.pow(bit_size - 1);
+            let lhs = if l_pos { lhs as i128 } else { -((2u128.pow(*bit_size) - lhs) as i128) };
+            let rhs = if r_pos { rhs as i128 } else { -((2u128.pow(*bit_size) - rhs) as i128) };
+            // The divisor is being truncated into the type of the operand, which can potentially
+            // lead to the rhs being zero.
+            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+            // and the operation should be handled by ACIR generation.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
+                return None;
+            }
+
+            let result = function(lhs, rhs);
+            let result =
+                if result >= 0 { result as u128 } else { (2i128.pow(*bit_size) + result) as u128 };
+            truncate(result, *bit_size).into()
+        }
         _ => return None,
     };
 
@@ -870,6 +904,21 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| x ^ y,
             BinaryOp::Eq => |x, y| (x == y) as u128,
             BinaryOp::Lt => |x, y| (x < y) as u128,
+        }
+    }
+
+    fn get_i128_function(self) -> fn(i128, i128) -> i128 {
+        match self {
+            BinaryOp::Add => i128::wrapping_add,
+            BinaryOp::Sub => i128::wrapping_sub,
+            BinaryOp::Mul => i128::wrapping_mul,
+            BinaryOp::Div => i128::wrapping_div,
+            BinaryOp::Mod => i128::wrapping_rem,
+            BinaryOp::And => |x, y| x & y,
+            BinaryOp::Or => |x, y| x | y,
+            BinaryOp::Xor => |x, y| x ^ y,
+            BinaryOp::Eq => |x, y| (x == y) as i128,
+            BinaryOp::Lt => |x, y| (x < y) as i128,
         }
     }
 }

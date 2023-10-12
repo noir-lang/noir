@@ -284,6 +284,180 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// helper function which add instructions to the block computing the absolute value of the
+    /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
+    fn absolute_value_hlp(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
+        // We compute the absolute value of lhs
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
+        let bit_width =
+            self.builder.numeric_constant(FieldElement::from(2_i128.pow(bit_size)), Type::field());
+        let sign_not = self.builder.insert_binary(one, BinaryOp::Sub, sign);
+        let as_field =
+            self.builder.insert_instruction(Instruction::Cast(input, Type::field()), None).first();
+        let sign_field =
+            self.builder.insert_instruction(Instruction::Cast(sign, Type::field()), None).first();
+        let positive_predicate = self.builder.insert_binary(sign_field, BinaryOp::Mul, as_field);
+        let two_complement = self.builder.insert_binary(bit_width, BinaryOp::Sub, as_field);
+        let sign_not_field = self
+            .builder
+            .insert_instruction(Instruction::Cast(sign_not, Type::field()), None)
+            .first();
+        let negative_predicate =
+            self.builder.insert_binary(sign_not_field, BinaryOp::Mul, two_complement);
+        self.builder.insert_binary(positive_predicate, BinaryOp::Add, negative_predicate)
+    }
+
+    fn check_overflow(
+        &mut self,
+        result: ValueId,
+        lhs: ValueId,
+        rhs: ValueId,
+        operator: BinaryOpKind,
+        location: Location,
+    ) -> ValueId {
+        let result_type = self.builder.current_function.dfg.type_of_value(result);
+        match result_type {
+            Type::Numeric(NumericType::Signed { bit_size }) => {
+                match operator {
+                    BinaryOpKind::Add | BinaryOpKind::Subtract => {
+                        // Result is computed modulo the bit size
+                        let mut result = self
+                            .builder
+                            .insert_instruction(
+                                Instruction::Truncate {
+                                    value: result,
+                                    bit_size,
+                                    max_bit_size: bit_size + 1,
+                                },
+                                None,
+                            )
+                            .first();
+                        result = self.builder.insert_cast(result, Type::unsigned(bit_size));
+
+                        self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
+                        self.builder.insert_cast(result, result_type)
+                    }
+                    BinaryOpKind::Multiply => {
+                        // Result is computed modulo the bit size
+                        let mut result =
+                            self.builder.insert_cast(result, Type::unsigned(2 * bit_size));
+                        result = self
+                            .builder
+                            .insert_instruction(
+                                Instruction::Truncate {
+                                    value: result,
+                                    bit_size,
+                                    max_bit_size: 2 * bit_size,
+                                },
+                                None,
+                            )
+                            .first();
+
+                        self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
+                        self.builder.insert_cast(result, result_type)
+                    }
+                    BinaryOpKind::ShiftLeft => {
+                        unreachable!("shift is not supported for signed integer")
+                    }
+                    _ => unreachable!("operator {} should not overflow", operator),
+                }
+            }
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                let op_name = match operator {
+                    BinaryOpKind::Add => "add",
+                    BinaryOpKind::Subtract => "subtract",
+                    BinaryOpKind::Multiply => "multiply",
+                    BinaryOpKind::ShiftLeft => "left shift",
+                    _ => unreachable!("operator {} should not overflow", operator),
+                };
+                let message = format!("attempt to {} with overflow", op_name);
+                let range_constraint = Instruction::RangeCheck {
+                    value: result,
+                    max_bit_size: bit_size,
+                    assert_message: Some(message),
+                };
+                self.builder.set_location(location).insert_instruction(range_constraint, None);
+                result
+            }
+            _ => result,
+        }
+    }
+
+    fn check_signed_overflow(
+        &mut self,
+        result: ValueId,
+        lhs: ValueId,
+        rhs: ValueId,
+        operator: BinaryOpKind,
+        bit_size: u32,
+        location: Location,
+    ) {
+        let is_sub = operator == BinaryOpKind::Subtract;
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
+        let half_width = self.builder.numeric_constant(
+            FieldElement::from(2_i128.pow(bit_size - 1)),
+            Type::unsigned(bit_size),
+        );
+        // We compute the sign of the operands. The overflow checks for signed integers depends on these signs
+        let lhs_as_unsigned = self.builder.insert_cast(lhs, Type::unsigned(bit_size));
+        let rhs_as_unsigned = self.builder.insert_cast(rhs, Type::unsigned(bit_size));
+        let lhs_sign = self.builder.insert_binary(lhs_as_unsigned, BinaryOp::Lt, half_width);
+        let mut rhs_sign = self.builder.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
+        let message = if is_sub {
+            // lhs - rhs = lhs + (-rhs)
+            rhs_sign = self.builder.insert_binary(one, BinaryOp::Sub, rhs_sign);
+            "attempt to subtract with overflow".to_string()
+        } else {
+            "attempt to add with overflow".to_string()
+        };
+        // same_sign is true if both operands have the same sign
+        let same_sign = self.builder.insert_binary(lhs_sign, BinaryOp::Eq, rhs_sign);
+        match operator {
+            BinaryOpKind::Add | BinaryOpKind::Subtract => {
+                //Check the result has the same sign as its inputs
+                let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
+                let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
+                let sign_diff_with_predicate =
+                    self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
+                let overflow_check =
+                    Instruction::Constrain(sign_diff_with_predicate, same_sign, Some(message));
+                self.builder.set_location(location).insert_instruction(overflow_check, None);
+            }
+            BinaryOpKind::Multiply => {
+                // Overflow check for the multiplication:
+                // First we compute the absolute value of operands, and their product
+                let lhs_abs = self.absolute_value_hlp(lhs, lhs_sign, bit_size);
+                let rhs_abs = self.absolute_value_hlp(rhs, rhs_sign, bit_size);
+                let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
+                // It must not already overflow the bit_size
+                let message = "attempt to multiply with overflow".to_string();
+                let size_overflow = Instruction::RangeCheck {
+                    value: product_field,
+                    max_bit_size: bit_size,
+                    assert_message: Some(message.clone()),
+                };
+                self.builder.set_location(location).insert_instruction(size_overflow, None);
+                let product = self.builder.insert_cast(product_field, Type::unsigned(bit_size));
+
+                // Then we check the signed product fits in a signed integer of bit_size-bits
+                let not_same = self.builder.insert_binary(one, BinaryOp::Sub, same_sign);
+                let not_same_sign_field = self
+                    .builder
+                    .insert_instruction(Instruction::Cast(not_same, Type::unsigned(bit_size)), None)
+                    .first();
+                let positive_maximum_with_offset =
+                    self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
+                let product_overflow_check =
+                    self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
+                self.builder.set_location(location).insert_instruction(
+                    Instruction::Constrain(product_overflow_check, one, Some(message)),
+                    None,
+                );
+            }
+            BinaryOpKind::ShiftLeft => unreachable!("shift is not supported for signed integer"),
+            _ => unreachable!("operator {} should not overflow", operator),
+        }
+    }
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -321,27 +495,7 @@ impl<'a> FunctionContext<'a> {
                 | BinaryOpKind::Multiply
                 | BinaryOpKind::ShiftLeft
         ) {
-            let result_type = self.builder.current_function.dfg.type_of_value(result);
-            match result_type {
-                Type::Numeric(NumericType::Signed { bit_size })
-                | Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                    let op_name = match operator {
-                        BinaryOpKind::Add => "add",
-                        BinaryOpKind::Subtract => "subtract",
-                        BinaryOpKind::Multiply => "multiply",
-                        BinaryOpKind::ShiftLeft => "left shift",
-                        _ => unreachable!("operator {} should not overflow", operator),
-                    };
-                    let message = format!("attempt to {} with overflow", op_name);
-                    let range_constraint = Instruction::RangeCheck {
-                        value: result,
-                        max_bit_size: bit_size,
-                        assert_message: Some(message),
-                    };
-                    self.builder.set_location(location).insert_instruction(range_constraint, None);
-                }
-                _ => (),
-            }
+            result = self.check_overflow(result, lhs, rhs, operator, location);
         }
 
         if operator_requires_not(operator) {

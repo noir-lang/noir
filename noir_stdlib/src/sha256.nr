@@ -5,7 +5,7 @@
 // Auxiliary mappings; names as in FIPS PUB 180-4
 fn rotr32(a: u32, b: u32) -> u32 // 32-bit right rotation
 {
-    (a >> b) | (a << (32 as u32 - b))
+    (a >> b) | (crate::wrapping_shift_left(a, 32 as u32 - b))
 }
 
 fn ch(x: u32, y: u32, z: u32) -> u32
@@ -50,7 +50,10 @@ fn sha_w(msg: [u32; 16]) -> [u32; 64] // Expanded message blocks
 
     for j in 16..64
     {
-        w[j] = sigma1(w[j-2]) + w[j-7] + sigma0(w[j-15]) + w[j-16];
+        w[j] = crate::wrapping_add(
+            crate::wrapping_add(sigma1(w[j-2]), w[j-7]), 
+            crate::wrapping_add(sigma0(w[j-15]), w[j-16]),
+        );
     };
     
     w
@@ -66,17 +69,22 @@ fn sha_c(msg: [u32; 16], hash: [u32; 8]) -> [u32; 8]
     let w = sha_w(msg);
     for j in 0..64
     {
-        let t1 = out_h[7] + bigma1(out_h[4]) + ch(out_h[4], out_h[5], out_h[6])
-            + K[j] + w[j];
-        let t2 = bigma0(out_h[0]) + maj(out_h[0], out_h[1], out_h[2]);
+        let t1 = crate::wrapping_add(
+            crate::wrapping_add(
+                crate::wrapping_add(out_h[7], bigma1(out_h[4])),
+                ch(out_h[4], out_h[5], out_h[6])
+            ),
+            crate::wrapping_add(K[j], w[j])
+         );
+        let t2 = crate::wrapping_add(bigma0(out_h[0]), maj(out_h[0], out_h[1], out_h[2]));
         out_h[7] = out_h[6];
         out_h[6] = out_h[5];
         out_h[5] = out_h[4];
-        out_h[4] = out_h[3] + t1;
+        out_h[4] = crate::wrapping_add(out_h[3], t1);
         out_h[3] = out_h[2];
         out_h[2] = out_h[1];
         out_h[1] = out_h[0];
-        out_h[0] = t1 + t2;
+        out_h[0] = crate::wrapping_add(t1, t2);
     };
     
     out_h
@@ -113,7 +121,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
         if i == 64 { // Enough to hash block
             c = sha_c(msg_u8_to_u32(msg_block), h);
             for j in 0..8 {
-                h[j] = c[j] + h[j];
+                h[j] = crate::wrapping_add(c[j], h[j]);
             }
             
             i = 0;
@@ -139,7 +147,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
         c = h;
         c = sha_c(msg_u8_to_u32(msg_block), c);
         for j in 0..8 {
-            h[j] += c[j];
+            h[j] = crate::wrapping_add(h[j], c[j]);
         }
         
         i = 0;
@@ -163,7 +171,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
     c = h;
     c = sha_c(msg_u8_to_u32(msg_block), c);
     for j in 0..8 {
-        h[j] += c[j];
+        h[j] = crate::wrapping_add(h[j], c[j]);
     }
 
     // Return final hash as byte array
