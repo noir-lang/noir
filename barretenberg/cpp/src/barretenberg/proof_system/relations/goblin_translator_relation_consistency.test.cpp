@@ -12,6 +12,7 @@
  *
  */
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include <gtest/gtest.h>
 
@@ -73,50 +74,50 @@ struct InputElements {
     FF& p_y_high_limbs_range_constraint_3 = std::get<29>(this->_data);
     FF& p_y_high_limbs_range_constraint_4 = std::get<30>(this->_data);
     FF& p_y_high_limbs_range_constraint_tail = std::get<31>(this->_data);
-    FF& z_lo_limbs = std::get<32>(this->_data);
-    FF& z_lo_limbs_range_constraint_0 = std::get<33>(this->_data);
-    FF& z_lo_limbs_range_constraint_1 = std::get<34>(this->_data);
-    FF& z_lo_limbs_range_constraint_2 = std::get<35>(this->_data);
-    FF& z_lo_limbs_range_constraint_3 = std::get<36>(this->_data);
-    FF& z_lo_limbs_range_constraint_4 = std::get<37>(this->_data);
-    FF& z_lo_limbs_range_constraint_tail = std::get<38>(this->_data);
-    FF& z_hi_limbs = std::get<39>(this->_data);
-    FF& z_hi_limbs_range_constraint_0 = std::get<40>(this->_data);
-    FF& z_hi_limbs_range_constraint_1 = std::get<41>(this->_data);
-    FF& z_hi_limbs_range_constraint_2 = std::get<42>(this->_data);
-    FF& z_hi_limbs_range_constraint_3 = std::get<43>(this->_data);
-    FF& z_hi_limbs_range_constraint_4 = std::get<44>(this->_data);
-    FF& z_hi_limbs_range_constraint_tail = std::get<45>(this->_data);
+    FF& z_low_limbs = std::get<32>(this->_data);
+    FF& z_low_limbs_range_constraint_0 = std::get<33>(this->_data);
+    FF& z_low_limbs_range_constraint_1 = std::get<34>(this->_data);
+    FF& z_low_limbs_range_constraint_2 = std::get<35>(this->_data);
+    FF& z_low_limbs_range_constraint_3 = std::get<36>(this->_data);
+    FF& z_low_limbs_range_constraint_4 = std::get<37>(this->_data);
+    FF& z_low_limbs_range_constraint_tail = std::get<38>(this->_data);
+    FF& z_high_limbs = std::get<39>(this->_data);
+    FF& z_high_limbs_range_constraint_0 = std::get<40>(this->_data);
+    FF& z_high_limbs_range_constraint_1 = std::get<41>(this->_data);
+    FF& z_high_limbs_range_constraint_2 = std::get<42>(this->_data);
+    FF& z_high_limbs_range_constraint_3 = std::get<43>(this->_data);
+    FF& z_high_limbs_range_constraint_4 = std::get<44>(this->_data);
+    FF& z_high_limbs_range_constraint_tail = std::get<45>(this->_data);
     FF& accumulators_binary_limbs_0 = std::get<46>(this->_data);
     FF& accumulators_binary_limbs_1 = std::get<47>(this->_data);
     FF& accumulators_binary_limbs_2 = std::get<48>(this->_data);
     FF& accumulators_binary_limbs_3 = std::get<49>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_0 = std::get<50>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_1 = std::get<51>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_2 = std::get<52>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_3 = std::get<53>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_4 = std::get<54>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_tail = std::get<55>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_0 = std::get<56>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_1 = std::get<57>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_2 = std::get<58>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_3 = std::get<59>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_4 = std::get<60>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_tail = std::get<61>(this->_data);
-    FF& quotient_lo_binary_limbs = std::get<62>(this->_data);
-    FF& quotient_hi_binary_limbs = std::get<63>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_0 = std::get<64>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_1 = std::get<65>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_2 = std::get<66>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_3 = std::get<67>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_4 = std::get<68>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_tail = std::get<69>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_0 = std::get<70>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_1 = std::get<71>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_2 = std::get<72>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_3 = std::get<73>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_4 = std::get<74>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_tail = std::get<75>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_0 = std::get<50>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_1 = std::get<51>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_2 = std::get<52>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_3 = std::get<53>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_4 = std::get<54>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_tail = std::get<55>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_0 = std::get<56>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_1 = std::get<57>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_2 = std::get<58>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_3 = std::get<59>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_4 = std::get<60>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_tail = std::get<61>(this->_data);
+    FF& quotient_low_binary_limbs = std::get<62>(this->_data);
+    FF& quotient_high_binary_limbs = std::get<63>(this->_data);
+    FF& quotient_low_limbs_range_constraint_0 = std::get<64>(this->_data);
+    FF& quotient_low_limbs_range_constraint_1 = std::get<65>(this->_data);
+    FF& quotient_low_limbs_range_constraint_2 = std::get<66>(this->_data);
+    FF& quotient_low_limbs_range_constraint_3 = std::get<67>(this->_data);
+    FF& quotient_low_limbs_range_constraint_4 = std::get<68>(this->_data);
+    FF& quotient_low_limbs_range_constraint_tail = std::get<69>(this->_data);
+    FF& quotient_high_limbs_range_constraint_0 = std::get<70>(this->_data);
+    FF& quotient_high_limbs_range_constraint_1 = std::get<71>(this->_data);
+    FF& quotient_high_limbs_range_constraint_2 = std::get<72>(this->_data);
+    FF& quotient_high_limbs_range_constraint_3 = std::get<73>(this->_data);
+    FF& quotient_high_limbs_range_constraint_4 = std::get<74>(this->_data);
+    FF& quotient_high_limbs_range_constraint_tail = std::get<75>(this->_data);
     FF& relation_wide_limbs = std::get<76>(this->_data);
     FF& relation_wide_limbs_range_constraint_0 = std::get<77>(this->_data);
     FF& relation_wide_limbs_range_constraint_1 = std::get<78>(this->_data);
@@ -163,50 +164,50 @@ struct InputElements {
     FF& p_y_high_limbs_range_constraint_3_shift = std::get<119>(this->_data);
     FF& p_y_high_limbs_range_constraint_4_shift = std::get<120>(this->_data);
     FF& p_y_high_limbs_range_constraint_tail_shift = std::get<121>(this->_data);
-    FF& z_lo_limbs_shift = std::get<122>(this->_data);
-    FF& z_lo_limbs_range_constraint_0_shift = std::get<123>(this->_data);
-    FF& z_lo_limbs_range_constraint_1_shift = std::get<124>(this->_data);
-    FF& z_lo_limbs_range_constraint_2_shift = std::get<125>(this->_data);
-    FF& z_lo_limbs_range_constraint_3_shift = std::get<126>(this->_data);
-    FF& z_lo_limbs_range_constraint_4_shift = std::get<127>(this->_data);
-    FF& z_lo_limbs_range_constraint_tail_shift = std::get<128>(this->_data);
-    FF& z_hi_limbs_shift = std::get<129>(this->_data);
-    FF& z_hi_limbs_range_constraint_0_shift = std::get<130>(this->_data);
-    FF& z_hi_limbs_range_constraint_1_shift = std::get<131>(this->_data);
-    FF& z_hi_limbs_range_constraint_2_shift = std::get<132>(this->_data);
-    FF& z_hi_limbs_range_constraint_3_shift = std::get<133>(this->_data);
-    FF& z_hi_limbs_range_constraint_4_shift = std::get<134>(this->_data);
-    FF& z_hi_limbs_range_constraint_tail_shift = std::get<135>(this->_data);
+    FF& z_low_limbs_shift = std::get<122>(this->_data);
+    FF& z_low_limbs_range_constraint_0_shift = std::get<123>(this->_data);
+    FF& z_low_limbs_range_constraint_1_shift = std::get<124>(this->_data);
+    FF& z_low_limbs_range_constraint_2_shift = std::get<125>(this->_data);
+    FF& z_low_limbs_range_constraint_3_shift = std::get<126>(this->_data);
+    FF& z_low_limbs_range_constraint_4_shift = std::get<127>(this->_data);
+    FF& z_low_limbs_range_constraint_tail_shift = std::get<128>(this->_data);
+    FF& z_high_limbs_shift = std::get<129>(this->_data);
+    FF& z_high_limbs_range_constraint_0_shift = std::get<130>(this->_data);
+    FF& z_high_limbs_range_constraint_1_shift = std::get<131>(this->_data);
+    FF& z_high_limbs_range_constraint_2_shift = std::get<132>(this->_data);
+    FF& z_high_limbs_range_constraint_3_shift = std::get<133>(this->_data);
+    FF& z_high_limbs_range_constraint_4_shift = std::get<134>(this->_data);
+    FF& z_high_limbs_range_constraint_tail_shift = std::get<135>(this->_data);
     FF& accumulators_binary_limbs_0_shift = std::get<136>(this->_data);
     FF& accumulators_binary_limbs_1_shift = std::get<137>(this->_data);
     FF& accumulators_binary_limbs_2_shift = std::get<138>(this->_data);
     FF& accumulators_binary_limbs_3_shift = std::get<139>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_0_shift = std::get<140>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_1_shift = std::get<141>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_2_shift = std::get<142>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_3_shift = std::get<143>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_4_shift = std::get<144>(this->_data);
-    FF& accumulator_lo_limbs_range_constraint_tail_shift = std::get<145>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_0_shift = std::get<146>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_1_shift = std::get<147>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_2_shift = std::get<148>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_3_shift = std::get<149>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_4_shift = std::get<150>(this->_data);
-    FF& accumulator_hi_limbs_range_constraint_tail_shift = std::get<151>(this->_data);
-    FF& quotient_lo_binary_limbs_shift = std::get<152>(this->_data);
-    FF& quotient_hi_binary_limbs_shift = std::get<153>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_0_shift = std::get<154>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_1_shift = std::get<155>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_2_shift = std::get<156>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_3_shift = std::get<157>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_4_shift = std::get<158>(this->_data);
-    FF& quotient_lo_limbs_range_constraint_tail_shift = std::get<159>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_0_shift = std::get<160>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_1_shift = std::get<161>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_2_shift = std::get<162>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_3_shift = std::get<163>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_4_shift = std::get<164>(this->_data);
-    FF& quotient_hi_limbs_range_constraint_tail_shift = std::get<165>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_0_shift = std::get<140>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_1_shift = std::get<141>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_2_shift = std::get<142>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_3_shift = std::get<143>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_4_shift = std::get<144>(this->_data);
+    FF& accumulator_low_limbs_range_constraint_tail_shift = std::get<145>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_0_shift = std::get<146>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_1_shift = std::get<147>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_2_shift = std::get<148>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_3_shift = std::get<149>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_4_shift = std::get<150>(this->_data);
+    FF& accumulator_high_limbs_range_constraint_tail_shift = std::get<151>(this->_data);
+    FF& quotient_low_binary_limbs_shift = std::get<152>(this->_data);
+    FF& quotient_high_binary_limbs_shift = std::get<153>(this->_data);
+    FF& quotient_low_limbs_range_constraint_0_shift = std::get<154>(this->_data);
+    FF& quotient_low_limbs_range_constraint_1_shift = std::get<155>(this->_data);
+    FF& quotient_low_limbs_range_constraint_2_shift = std::get<156>(this->_data);
+    FF& quotient_low_limbs_range_constraint_3_shift = std::get<157>(this->_data);
+    FF& quotient_low_limbs_range_constraint_4_shift = std::get<158>(this->_data);
+    FF& quotient_low_limbs_range_constraint_tail_shift = std::get<159>(this->_data);
+    FF& quotient_high_limbs_range_constraint_0_shift = std::get<160>(this->_data);
+    FF& quotient_high_limbs_range_constraint_1_shift = std::get<161>(this->_data);
+    FF& quotient_high_limbs_range_constraint_2_shift = std::get<162>(this->_data);
+    FF& quotient_high_limbs_range_constraint_3_shift = std::get<163>(this->_data);
+    FF& quotient_high_limbs_range_constraint_4_shift = std::get<164>(this->_data);
+    FF& quotient_high_limbs_range_constraint_tail_shift = std::get<165>(this->_data);
     FF& relation_wide_limbs_shift = std::get<166>(this->_data);
     FF& relation_wide_limbs_range_constraint_0_shift = std::get<167>(this->_data);
     FF& relation_wide_limbs_range_constraint_1_shift = std::get<168>(this->_data);
@@ -282,6 +283,70 @@ TEST_F(GoblinTranslatorRelationConsistency, PermutationRelation)
         // (Contribution 2)
         auto contribution_2 = z_perm_shift * lagrange_last;
         expected_values[1] = contribution_2;
+
+        validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+    };
+    run_test(/*random_inputs=*/false);
+    run_test(/*random_inputs=*/true);
+};
+
+TEST_F(GoblinTranslatorRelationConsistency, GenPermSortRelation)
+{
+    const auto run_test = [](bool random_inputs) {
+        using Relation = GoblinTranslatorGenPermSortRelation<FF>;
+        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+
+        const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
+
+        const auto& ordered_range_constraints_0 = input_elements.ordered_range_constraints_0;
+        const auto& ordered_range_constraints_1 = input_elements.ordered_range_constraints_1;
+        const auto& ordered_range_constraints_2 = input_elements.ordered_range_constraints_2;
+        const auto& ordered_range_constraints_3 = input_elements.ordered_range_constraints_3;
+        const auto& ordered_range_constraints_4 = input_elements.ordered_range_constraints_4;
+        const auto& ordered_range_constraints_0_shift = input_elements.ordered_range_constraints_0_shift;
+        const auto& ordered_range_constraints_1_shift = input_elements.ordered_range_constraints_1_shift;
+        const auto& ordered_range_constraints_2_shift = input_elements.ordered_range_constraints_2_shift;
+        const auto& ordered_range_constraints_3_shift = input_elements.ordered_range_constraints_3_shift;
+        const auto& ordered_range_constraints_4_shift = input_elements.ordered_range_constraints_4_shift;
+        const auto& lagrange_last = input_elements.lagrange_last;
+
+        RelationValues expected_values;
+
+        const auto parameters = RelationParameters<FF>::get_random();
+
+        const size_t MICRO_LIMB_BITS = 14;
+        const auto minus_one = FF(-1);
+        const auto minus_two = FF(-2);
+        const auto minus_three = FF(-3);
+        const auto maximum_value = -FF((1 << MICRO_LIMB_BITS) - 1);
+
+        // First compute individual deltas
+        const auto delta_1 = ordered_range_constraints_0_shift - ordered_range_constraints_0;
+        const auto delta_2 = ordered_range_constraints_1_shift - ordered_range_constraints_1;
+        const auto delta_3 = ordered_range_constraints_2_shift - ordered_range_constraints_2;
+        const auto delta_4 = ordered_range_constraints_3_shift - ordered_range_constraints_3;
+        const auto delta_5 = ordered_range_constraints_4_shift - ordered_range_constraints_4;
+
+        const auto not_last = lagrange_last + minus_one;
+
+        // Check the delta is {0,1,2,3}
+        auto delta_in_range = [not_last, minus_one, minus_two, minus_three](auto delta) {
+            return not_last * delta * (delta + minus_one) * (delta + minus_two) * (delta + minus_three);
+        };
+
+        // Check delta correctness
+        expected_values[0] = delta_in_range(delta_1);
+        expected_values[1] = delta_in_range(delta_2);
+        expected_values[2] = delta_in_range(delta_3);
+        expected_values[3] = delta_in_range(delta_4);
+        expected_values[4] = delta_in_range(delta_5);
+        // Check that the last value is maximum allowed
+        expected_values[5] = lagrange_last * (ordered_range_constraints_0 + maximum_value);
+        expected_values[6] = lagrange_last * (ordered_range_constraints_1 + maximum_value);
+        expected_values[7] = lagrange_last * (ordered_range_constraints_2 + maximum_value);
+        expected_values[8] = lagrange_last * (ordered_range_constraints_3 + maximum_value);
+        expected_values[9] = lagrange_last * (ordered_range_constraints_4 + maximum_value);
+        // We don't check that the first value is zero, because the shift mechanism already ensures it
 
         validate_relation_execution<Relation>(expected_values, input_elements, parameters);
     };
