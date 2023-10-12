@@ -118,7 +118,7 @@ const log = createDebugLogger('aztec:server_world_state_synchronizer_test');
 describe('server_world_state_synchronizer', () => {
   const rollupSource = mock<L2BlockSource>({
     getBlockNumber: jest.fn(getLatestBlockNumber),
-    getL2Blocks: jest.fn(consumeNextBlocks),
+    getBlocks: jest.fn(consumeNextBlocks),
   });
 
   const merkleTreeDb = mock<MerkleTreeDb>({

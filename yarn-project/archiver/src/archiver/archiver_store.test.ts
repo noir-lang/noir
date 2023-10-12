@@ -24,7 +24,7 @@ describe('Archiver Memory Store', () => {
     const blocks = Array(10)
       .fill(0)
       .map((_, index) => L2Block.random(index));
-    await archiverStore.addL2Blocks(blocks);
+    await archiverStore.addBlocks(blocks);
     // Offset indices by INITIAL_L2_BLOCK_NUM to ensure we are correctly aligned
     for (const [from, limit] of [
       [0 + INITIAL_L2_BLOCK_NUM, 10],
@@ -35,7 +35,7 @@ describe('Archiver Memory Store', () => {
       [11 + INITIAL_L2_BLOCK_NUM, 1],
     ]) {
       const expected = blocks.slice(from - INITIAL_L2_BLOCK_NUM, from - INITIAL_L2_BLOCK_NUM + limit);
-      const actual = await archiverStore.getL2Blocks(from, limit);
+      const actual = await archiverStore.getBlocks(from, limit);
       expect(expected).toEqual(actual);
     }
   });
@@ -64,10 +64,20 @@ describe('Archiver Memory Store', () => {
     const blocks = Array(10)
       .fill(0)
       .map((_, index) => L2Block.random(index));
-    await archiverStore.addL2Blocks(blocks);
-    await expect(async () => await archiverStore.getL2Blocks(1, 0)).rejects.toThrow(
-      `Invalid block range from: 1, limit: 0`,
-    );
+    await archiverStore.addBlocks(blocks);
+    await expect(async () => await archiverStore.getBlocks(1, 0)).rejects.toThrow(`Invalid limit: 0`);
+  });
+
+  it('returns from the beginning when "from" < genesis block', async () => {
+    const blocks = Array(10)
+      .fill(0)
+      .map((_, index) => L2Block.random(index));
+    await archiverStore.addBlocks(blocks);
+    const from = -5;
+    const limit = 1;
+    const retrievedBlocks = await archiverStore.getBlocks(from, limit);
+    expect(retrievedBlocks.length).toEqual(1);
+    expect(retrievedBlocks[0]).toEqual(blocks[0]);
   });
 
   test.each([LogType.ENCRYPTED, LogType.UNENCRYPTED])(
@@ -77,9 +87,7 @@ describe('Archiver Memory Store', () => {
         .fill(0)
         .map(_ => L2BlockL2Logs.random(6, 3, 2));
       await archiverStore.addLogs(logs, logType);
-      await expect(async () => await archiverStore.getLogs(1, 0, logType)).rejects.toThrow(
-        `Invalid block range from: 1, limit: 0`,
-      );
+      await expect(async () => await archiverStore.getLogs(1, 0, logType)).rejects.toThrow(`Invalid limit: 0`);
     },
   );
 
@@ -91,7 +99,7 @@ describe('Archiver Memory Store', () => {
         .fill(0)
         .map((_, index: number) => L2Block.random(index + 1, 4, 2, 3, 2, 2));
 
-      await archiverStore.addL2Blocks(blocks);
+      await archiverStore.addBlocks(blocks);
       await archiverStore.addLogs(
         blocks.map(block => block.newUnencryptedLogs!),
         LogType.UNENCRYPTED,
@@ -118,7 +126,7 @@ describe('Archiver Memory Store', () => {
           L2Block.random(index + 1, txsPerBlock, 2, numPublicFunctionCalls, 2, numUnencryptedLogs),
         );
 
-      await archiverStore.addL2Blocks(blocks);
+      await archiverStore.addBlocks(blocks);
       await archiverStore.addLogs(
         blocks.map(block => block.newUnencryptedLogs!),
         LogType.UNENCRYPTED,

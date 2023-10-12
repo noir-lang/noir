@@ -45,7 +45,7 @@ export class MockBlockSource implements L2BlockSource {
    * @param number - The block number to return (inclusive).
    * @returns The requested L2 block.
    */
-  public getL2Block(number: number) {
+  public getBlock(number: number) {
     return Promise.resolve(this.l2Blocks[number]);
   }
 
@@ -55,7 +55,7 @@ export class MockBlockSource implements L2BlockSource {
    * @param limit - The maximum number of blocks to return.
    * @returns The requested mocked L2 blocks.
    */
-  public getL2Blocks(from: number, limit: number) {
+  public getBlocks(from: number, limit: number) {
     return Promise.resolve(this.l2Blocks.slice(from, from + limit));
   }
 

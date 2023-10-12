@@ -31,7 +31,7 @@ export interface L2BlockSource {
    * @param number - The block number to return (inclusive).
    * @returns The requested L2 block.
    */
-  getL2Block(number: number): Promise<L2Block | undefined>;
+  getBlock(number: number): Promise<L2Block | undefined>;
 
   /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.
@@ -39,7 +39,7 @@ export interface L2BlockSource {
    * @param limit - The maximum number of blocks to return.
    * @returns The requested L2 blocks.
    */
-  getL2Blocks(from: number, limit: number): Promise<L2Block[]>;
+  getBlocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
    * Gets an l2 tx.

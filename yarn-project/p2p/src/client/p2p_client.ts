@@ -164,7 +164,7 @@ export class P2PClient implements P2P {
     // start looking for further blocks
     const blockProcess = async () => {
       while (!this.stopping) {
-        const blocks = await this.blockDownloader.getL2Blocks();
+        const blocks = await this.blockDownloader.getBlocks();
         await this.handleL2Blocks(blocks);
       }
     };

@@ -60,7 +60,7 @@ export class L2BlockDownloader {
   private async collectBlocks() {
     let totalBlocks = 0;
     while (true) {
-      const blocks = await this.l2BlockSource.getL2Blocks(this.from, 10);
+      const blocks = await this.l2BlockSource.getBlocks(this.from, 10);
       if (!blocks.length) {
         return totalBlocks;
       }
@@ -87,7 +87,7 @@ export class L2BlockDownloader {
    * @param timeout - optional timeout value to prevent permanent blocking
    * @returns The next batch of blocks from the queue.
    */
-  public async getL2Blocks(timeout?: number) {
+  public async getBlocks(timeout?: number): Promise<L2Block[]> {
     try {
       const blocks = await this.blockQueue.get(timeout);
       if (!blocks) {
