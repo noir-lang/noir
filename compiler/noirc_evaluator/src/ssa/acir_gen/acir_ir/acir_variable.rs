@@ -539,6 +539,20 @@ impl AcirContext {
         Ok(self.add_data(AcirVarData::from(sum_expr)))
     }
 
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the expression `lhs + k * rhs`
+    fn add_mul_var(
+        &mut self,
+        lhs: AcirVar,
+        k: FieldElement,
+        rhs: AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        let k_var = self.add_constant(k);
+
+        let intermediate = self.mul_var(k_var, rhs)?;
+        self.add_var(lhs, intermediate)
+    }
+
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size();
@@ -577,7 +591,6 @@ impl AcirContext {
         leading: AcirVar,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        let two = self.add_constant(FieldElement::from(2_i128));
         let max_power_of_two = self.add_constant(
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1)),
         );
@@ -585,8 +598,7 @@ impl AcirContext {
         let intermediate = self.sub_var(max_power_of_two, lhs)?;
         let intermediate = self.mul_var(intermediate, leading)?;
 
-        let intermediate = self.mul_var(two, intermediate)?;
-        self.add_var(lhs, intermediate)
+        self.add_mul_var(lhs, FieldElement::from(2_i128), intermediate)
     }
 
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
@@ -633,9 +645,7 @@ impl AcirContext {
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
         let sign_sum = self.add_var(lhs_leading, rhs_leading)?;
         let sign_prod = self.mul_var(lhs_leading, rhs_leading)?;
-        let neg_two = self.add_constant(-FieldElement::from(2_i128));
-        let neg_two_times_sign_prod = self.mul_var(neg_two, sign_prod)?;
-        let q_sign = self.add_var(sign_sum, neg_two_times_sign_prod)?;
+        let q_sign = self.add_mul_var(sign_sum, -FieldElement::from(2_i128), sign_prod)?;
 
         let quotient = self.two_complement(q1, q_sign, bit_size)?;
         let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
