@@ -27,15 +27,6 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
-        // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
-        let assert_messages = &self.circuit.assert_messages;
-        let get_assert_message = |opcode_location| {
-            assert_messages
-                .iter()
-                .find(|(loc, _)| loc == opcode_location)
-                .map(|(_, message)| message.clone())
-        };
-
         let solver_status = self.acvm.as_mut().unwrap().solve_opcode();
 
         match solver_status {
@@ -54,7 +45,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
 
                 Err(NargoError::ExecutionError(match call_stack {
                     Some(call_stack) => {
-                        if let Some(assert_message) = circuit.get_assert_message(
+                        if let Some(assert_message) = self.circuit.get_assert_message(
                             *call_stack.last().expect("Call stacks should not be empty"),
                         ) {
                             ExecutionError::AssertionFailed(assert_message.to_owned(), call_stack)
@@ -135,7 +126,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     let opcodes = circuit.opcodes.clone();
 
     let context = RefCell::new(DebugContext {
-        acvm: Some(ACVM::new(blackbox_solver, opcodes, initial_witness)),
+        acvm: Some(ACVM::new(blackbox_solver, &opcodes, initial_witness)),
         foreign_call_executor: ForeignCallExecutor::default(),
         circuit,
         debug_artifact,
