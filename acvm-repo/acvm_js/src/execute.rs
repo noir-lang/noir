@@ -1,5 +1,5 @@
 use acvm::{
-    acir::circuit::{Circuit, OpcodeLocation},
+    acir::circuit::Circuit,
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
 #[allow(deprecated)]
