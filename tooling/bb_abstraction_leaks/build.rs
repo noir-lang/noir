@@ -10,7 +10,7 @@ use const_format::formatcp;
 
 const USERNAME: &str = "AztecProtocol";
 const REPO: &str = "aztec-packages";
-const VERSION: &str = "0.7.3";
+const VERSION: &str = "0.8.10";
 const TAG: &str = formatcp!("aztec-packages-v{}", VERSION);
 
 const API_URL: &str =
