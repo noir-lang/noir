@@ -19,6 +19,7 @@ pub struct Lexer<'a> {
     char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
     position: Position,
     done: bool,
+    skip_trivia: bool,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -39,13 +40,18 @@ impl<'a> Lexer<'a> {
         (Tokens(tokens), errors)
     }
 
-    fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str) -> Self {
         Lexer {
             // We zip with the character index here to ensure the first char has index 0
             char_iter: source.chars().zip(0..).peekable(),
             position: 0,
             done: false,
+            skip_trivia: true,
         }
+    }
+
+    pub fn set_skip_trivia(&mut self, flag: bool) {
+        self.skip_trivia = flag;
     }
 
     /// Iterates the cursor and returns the char at the new cursor position
@@ -176,13 +182,16 @@ impl<'a> Lexer<'a> {
             Token::Minus => self.single_double_peek_token('>', prev_token, Token::Arrow),
             Token::Colon => self.single_double_peek_token(':', prev_token, Token::DoubleColon),
             Token::Slash => {
+                let start = self.position;
+
                 if self.peek_char_is('/') {
                     self.next_char();
-                    return self.parse_comment();
+                    return self.parse_comment(start);
                 } else if self.peek_char_is('*') {
                     self.next_char();
-                    return self.parse_block_comment();
+                    return self.parse_block_comment(start);
                 }
+
                 Ok(spanned_prev_token)
             }
             _ => Err(LexerErrorKind::NotADoubleChar {
@@ -377,15 +386,15 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn parse_comment(&mut self) -> SpannedTokenResult {
-        let _ = self.eat_while(None, |ch| ch != '\n');
-        self.next_token()
+    fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
+        let comment = self.eat_while(None, |ch| ch != '\n');
+        Ok(Token::LineComment(comment).into_span(start, self.position))
     }
 
-    fn parse_block_comment(&mut self) -> SpannedTokenResult {
-        let start = self.position;
+    fn parse_block_comment(&mut self, start: u32) -> SpannedTokenResult {
         let mut depth = 1usize;
 
+        let mut content = String::new();
         while let Some(ch) = self.next_char() {
             match ch {
                 '/' if self.peek_char_is('*') => {
@@ -403,12 +412,12 @@ impl<'a> Lexer<'a> {
                         break;
                     }
                 }
-                _ => {}
+                ch => content.push(ch),
             }
         }
 
         if depth == 0 {
-            self.next_token()
+            Ok(Token::BlockComment(content).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
             Err(LexerErrorKind::UnterminatedBlockComment { span })
@@ -424,10 +433,20 @@ impl<'a> Lexer<'a> {
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else {
-            Some(self.next_token())
+        loop {
+            if self.done {
+                return None;
+            } else {
+                let token = self.next_token();
+
+                if self.skip_trivia
+                    && token.as_ref().map_or(false, |spanned| spanned.token().is_trivia())
+                {
+                    continue;
+                }
+
+                return Some(token);
+            }
         }
     }
 }

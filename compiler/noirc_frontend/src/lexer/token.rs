@@ -19,6 +19,8 @@ pub enum Token {
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
+    LineComment(String),
+    BlockComment(String),
     /// <
     Less,
     /// <=
@@ -95,6 +97,12 @@ pub enum Token {
     Invalid(char),
 }
 
+impl Token {
+    pub fn is_trivia(&self) -> bool {
+        matches!(self, Token::LineComment(_) | Token::BlockComment(_))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SpannedToken(Spanned<Token>);
 
@@ -149,6 +157,8 @@ impl fmt::Display for Token {
             Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::LineComment(ref s) => write!(f, "//{s}"),
+            Token::BlockComment(ref s) => write!(f, "/*{s}*/"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
