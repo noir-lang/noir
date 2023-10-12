@@ -82,6 +82,7 @@ __metadata:
     ts-node: ^10.9.1
     tslib: ^2.4.0
     typescript: ^5.0.4
+    viem: ^1.2.5
   languageName: unknown
   linkType: soft
 

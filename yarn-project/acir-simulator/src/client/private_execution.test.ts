@@ -35,12 +35,12 @@ import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-t
 import {
   ChildContractArtifact,
   ImportTestContractArtifact,
-  NonNativeTokenContractArtifact,
   ParentContractArtifact,
   PendingCommitmentsContractArtifact,
   PrivateTokenAirdropContractArtifact,
   StatefulTestContractArtifact,
   TestContractArtifact,
+  TokenContractArtifact,
 } from '@aztec/noir-contracts/artifacts';
 import { PackedArguments, TxExecutionRequest } from '@aztec/types';
 
@@ -48,6 +48,7 @@ import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import { type MemDown, default as memdown } from 'memdown';
+import { getFunctionSelector } from 'viem';
 
 import { buildL1ToL2Message, getFunctionArtifact } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
@@ -649,16 +650,16 @@ describe('Private Execution test suite', () => {
 
     it('Should be able to consume a dummy cross chain message', async () => {
       const bridgedAmount = 100n;
-      const artifact = getFunctionArtifact(NonNativeTokenContractArtifact, 'mint');
+      const artifact = getFunctionArtifact(TestContractArtifact, 'consume_mint_private_message');
 
-      const secret = new Fr(1n);
+      const secretForL1ToL2MessageConsumption = new Fr(1n);
+      const secretHashForRedeemingNotes = new Fr(2n);
       const canceller = EthAddress.random();
-      // Function selector: 0xeeb73071 keccak256('mint(uint256,bytes32,address)')
       const preimage = await buildL1ToL2Message(
-        'eeb73071',
-        [new Fr(bridgedAmount), recipient.toField(), canceller.toField()],
+        getFunctionSelector('mint_private(bytes32,uint256,address)').substring(2),
+        [secretHashForRedeemingNotes, new Fr(bridgedAmount), canceller.toField()],
         contractAddress,
-        secret,
+        secretForL1ToL2MessageConsumption,
       );
 
       // stub message key
@@ -673,7 +674,13 @@ describe('Private Execution test suite', () => {
         });
       });
 
-      const args = [bridgedAmount, recipient, messageKey, secret, canceller.toField()];
+      const args = [
+        secretHashForRedeemingNotes,
+        bridgedAmount,
+        canceller.toField(),
+        messageKey,
+        secretForL1ToL2MessageConsumption,
+      ];
       const result = await runSimulator({ contractAddress, artifact, args });
 
       // Check a nullifier has been inserted
@@ -683,14 +690,14 @@ describe('Private Execution test suite', () => {
 
     it('Should be able to consume a dummy public to private message', async () => {
       const amount = 100n;
-      const artifact = getFunctionArtifact(NonNativeTokenContractArtifact, 'redeemShield');
+      const artifact = getFunctionArtifact(TokenContractArtifact, 'redeem_shield');
 
       const wasm = await CircuitsWasm.get();
       const secret = new Fr(1n);
       const secretHash = computeSecretMessageHash(wasm, secret);
       const preimage = [toBufferBE(amount, 32), secretHash.toBuffer()];
       const noteHash = Fr.fromBuffer(hash(preimage));
-      const storageSlot = new Fr(2);
+      const storageSlot = new Fr(5);
       const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), noteHash.toBuffer()]));
       const siloedNoteHash = siloCommitment(wasm, contractAddress, innerNoteHash);
       oracle.getNotes.mockResolvedValue([
@@ -707,7 +714,7 @@ describe('Private Execution test suite', () => {
 
       const result = await runSimulator({
         artifact,
-        args: [amount, secret, recipient],
+        args: [recipient, amount, secret],
       });
 
       // Check a nullifier has been inserted.

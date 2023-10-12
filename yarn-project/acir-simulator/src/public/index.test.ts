@@ -15,14 +15,15 @@ import { Fr } from '@aztec/foundation/fields';
 import { toBigInt } from '@aztec/foundation/serialize';
 import {
   ChildContractArtifact,
-  NonNativeTokenContractArtifact,
   ParentContractArtifact,
   PublicTokenContractArtifact,
   TestContractArtifact,
+  TokenContractArtifact,
 } from '@aztec/noir-contracts/artifacts';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
+import { getFunctionSelector } from 'viem';
 
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
@@ -285,11 +286,14 @@ describe('ACIR public execution simulator', () => {
     });
 
     it('Should be able to create a commitment from the public context', async () => {
-      const shieldArtifact = NonNativeTokenContractArtifact.functions.find(f => f.name === 'shield')!;
-      const args = encodeArguments(shieldArtifact, params);
+      const shieldArtifact = TokenContractArtifact.functions.find(f => f.name === 'shield')!;
+      const msgSender = AztecAddress.random();
+      const secretHash = Fr.random();
+
+      const args = encodeArguments(shieldArtifact, [msgSender.toField(), amount, secretHash, Fr.ZERO]);
 
       const callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
+        msgSender: msgSender,
         storageContractAddress: contractAddress,
         portalContractAddress: EthAddress.random(),
         functionSelector: FunctionSelector.empty(),
@@ -308,11 +312,8 @@ describe('ACIR public execution simulator', () => {
       // Assert the commitment was created
       expect(result.newCommitments.length).toEqual(1);
 
-      const expectedNoteHash = pedersenPlookupCommitInputs(
-        wasm,
-        params.map(a => a.toBuffer()),
-      );
-      const storageSlot = new Fr(2); // matches storage.nr
+      const expectedNoteHash = pedersenPlookupCommitInputs(wasm, [amount.toBuffer(), secretHash.toBuffer()]);
+      const storageSlot = new Fr(5); // for pending_shields
       const expectedInnerNoteHash = pedersenPlookupCommitInputs(wasm, [storageSlot.toBuffer(), expectedNoteHash]);
       expect(result.newCommitments[0].toBuffer()).toEqual(expectedInnerNoteHash);
     });
@@ -348,8 +349,8 @@ describe('ACIR public execution simulator', () => {
       expect(result.newL2ToL1Messages[0].toBuffer()).toEqual(expectedNewMessageValue);
     });
 
-    it('Should be able to consume an Ll to L2 message in the public context', async () => {
-      const mintPublicArtifact = NonNativeTokenContractArtifact.functions.find(f => f.name === 'mintPublic')!;
+    it('Should be able to consume an L1 to L2 message in the public context', async () => {
+      const mintPublicArtifact = TestContractArtifact.functions.find(f => f.name === 'consume_mint_public_message')!;
 
       // Set up cross chain message
       const canceller = EthAddress.random();
@@ -358,10 +359,9 @@ describe('ACIR public execution simulator', () => {
       const secret = new Fr(1n);
       const recipient = AztecAddress.random();
 
-      // Function selector: 0xeeb73071 keccak256('mint(uint256,bytes32,address)')
       const preimage = await buildL1ToL2Message(
-        'eeb73071',
-        [new Fr(bridgedAmount), recipient.toField(), canceller.toField()],
+        getFunctionSelector('mint_public(bytes32,uint256,address)').substring(2),
+        [recipient.toField(), new Fr(bridgedAmount), canceller.toField()],
         contractAddress,
         secret,
       );
@@ -369,11 +369,11 @@ describe('ACIR public execution simulator', () => {
       // Stub message key
       const messageKey = Fr.random();
       const args = encodeArguments(mintPublicArtifact, [
-        bridgedAmount,
         recipient.toField(),
+        bridgedAmount,
+        canceller.toField(),
         messageKey,
         secret,
-        canceller.toField(),
       ]);
 
       const callContext = CallContext.from({

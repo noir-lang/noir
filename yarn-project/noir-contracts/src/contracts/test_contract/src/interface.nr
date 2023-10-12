@@ -39,6 +39,46 @@ impl TestPrivateContextInterface {
       }
   }
   
+  pub fn consume_mint_private_message(
+    self,
+    context: &mut PrivateContext,
+    secret_hash_for_redeeming_minted_notes: Field,
+    amount: Field,
+    canceller: Field,
+    msg_key: Field,
+    secret_for_L1_to_L2_message_consumption: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialized_args = [0; 5];
+    serialized_args[0] = secret_hash_for_redeeming_minted_notes;
+    serialized_args[1] = amount;
+    serialized_args[2] = canceller;
+    serialized_args[3] = msg_key;
+    serialized_args[4] = secret_for_L1_to_L2_message_consumption;
+
+    context.call_private_function(self.address, 0x8999306a, serialized_args)
+  }
+  
+
+  pub fn consume_mint_public_message(
+    self,
+    context: &mut PrivateContext,
+    to: Field,
+    amount: Field,
+    canceller: Field,
+    msg_key: Field,
+    secret: Field
+  ) {
+    let mut serialized_args = [0; 5];
+    serialized_args[0] = to;
+    serialized_args[1] = amount;
+    serialized_args[2] = canceller;
+    serialized_args[3] = msg_key;
+    serialized_args[4] = secret;
+
+    context.call_public_function(self.address, 0x1c60863d, serialized_args)
+  }
+  
+
   pub fn createL2ToL1MessagePublic(
     self,
     context: &mut PrivateContext,
@@ -196,6 +236,26 @@ impl TestPublicContextInterface {
       }
   }
   
+  pub fn consume_mint_public_message(
+    self,
+    context: PublicContext,
+    to: Field,
+    amount: Field,
+    canceller: Field,
+    msg_key: Field,
+    secret: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialized_args = [0; 5];
+    serialized_args[0] = to;
+    serialized_args[1] = amount;
+    serialized_args[2] = canceller;
+    serialized_args[3] = msg_key;
+    serialized_args[4] = secret;
+
+    context.call_public_function(self.address, 0x1c60863d, serialized_args)
+  }
+  
+
   pub fn createL2ToL1MessagePublic(
     self,
     context: PublicContext,

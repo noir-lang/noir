@@ -104,7 +104,6 @@ EscrowContractArtifact
 ImportTestContractArtifact
 LendingContractArtifact
 MultiTransferContractArtifact
-NonNativeTokenContractArtifact
 ParentContractArtifact
 PendingCommitmentsContractArtifact
 PokeableTokenContractArtifact

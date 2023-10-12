@@ -86,9 +86,9 @@ contract TokenPortalTest is Test {
       recipient: DataStructures.L2Actor(l2TokenAddress, 1),
       content: Hash.sha256ToField(
         abi.encodeWithSignature(
-          "mint_private(uint256,bytes32,address)",
-          amount,
+          "mint_private(bytes32,uint256,address)",
           secretHashForRedeemingMintedNotes,
+          amount,
           _canceller
         )
         ),
@@ -107,7 +107,7 @@ contract TokenPortalTest is Test {
       sender: DataStructures.L1Actor(address(tokenPortal), block.chainid),
       recipient: DataStructures.L2Actor(l2TokenAddress, 1),
       content: Hash.sha256ToField(
-        abi.encodeWithSignature("mint_public(uint256,bytes32,address)", amount, to, _canceller)
+        abi.encodeWithSignature("mint_public(bytes32,uint256,address)", to, amount, _canceller)
         ),
       secretHash: secretHashForL2MessageConsumption,
       deadline: deadline,
@@ -142,8 +142,8 @@ contract TokenPortalTest is Test {
 
     // Perform op
     bytes32 entryKey = tokenPortal.depositToAztecPrivate{value: bid}(
-      amount,
       secretHashForRedeemingMintedNotes,
+      amount,
       address(this),
       deadline,
       secretHashForL2MessageConsumption
@@ -185,7 +185,7 @@ contract TokenPortalTest is Test {
 
     // Perform op
     bytes32 entryKey = tokenPortal.depositToAztecPublic{value: bid}(
-      amount, to, address(this), deadline, secretHashForL2MessageConsumption
+      to, amount, address(this), deadline, secretHashForL2MessageConsumption
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
@@ -210,7 +210,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePublic(
-      amount, to, deadline, secretHashForL2MessageConsumption, bid
+      to, amount, deadline, secretHashForL2MessageConsumption, bid
     );
     vm.stopPrank();
 
@@ -221,7 +221,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePrivate(
-      amount, secretHashForRedeemingMintedNotes, deadline, secretHashForL2MessageConsumption, bid
+      secretHashForRedeemingMintedNotes, amount, deadline, secretHashForL2MessageConsumption, bid
     );
 
     // actually cancel the message
@@ -231,7 +231,7 @@ contract TokenPortalTest is Test {
     emit L1ToL2MessageCancelled(expectedEntryKey);
     // perform op
     bytes32 entryKey = tokenPortal.cancelL1ToAztecMessagePublic(
-      amount, to, deadline, secretHashForL2MessageConsumption, bid
+      to, amount, deadline, secretHashForL2MessageConsumption, bid
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
@@ -257,7 +257,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePrivate(
-      amount, secretHashForRedeemingMintedNotes, deadline, secretHashForL2MessageConsumption, bid
+      secretHashForRedeemingMintedNotes, amount, deadline, secretHashForL2MessageConsumption, bid
     );
     vm.stopPrank();
 
@@ -268,7 +268,7 @@ contract TokenPortalTest is Test {
       abi.encodeWithSelector(Errors.Inbox__NothingToConsume.selector, expectedWrongEntryKey)
     );
     tokenPortal.cancelL1ToAztecMessagePublic(
-      amount, to, deadline, secretHashForL2MessageConsumption, bid
+      to, amount, deadline, secretHashForL2MessageConsumption, bid
     );
 
     // actually cancel the message
@@ -278,7 +278,7 @@ contract TokenPortalTest is Test {
     emit L1ToL2MessageCancelled(expectedEntryKey);
     // perform op
     bytes32 entryKey = tokenPortal.cancelL1ToAztecMessagePrivate(
-      amount, secretHashForRedeemingMintedNotes, deadline, secretHashForL2MessageConsumption, bid
+      secretHashForRedeemingMintedNotes, amount, deadline, secretHashForL2MessageConsumption, bid
     );
 
     assertEq(entryKey, expectedEntryKey, "returned entry key and calculated entryKey should match");
@@ -302,7 +302,7 @@ contract TokenPortalTest is Test {
         recipient: DataStructures.L1Actor({actor: address(tokenPortal), chainId: block.chainid}),
         content: Hash.sha256ToField(
           abi.encodeWithSignature(
-            "withdraw(uint256,address,address)", withdrawAmount, recipient, _designatedCaller
+            "withdraw(address,uint256,address)", recipient, withdrawAmount, _designatedCaller
           )
           )
       })
@@ -331,7 +331,7 @@ contract TokenPortalTest is Test {
     vm.startPrank(_caller);
     vm.expectEmit(true, true, true, true);
     emit MessageConsumed(expectedEntryKey, address(tokenPortal));
-    bytes32 actualEntryKey = tokenPortal.withdraw(withdrawAmount, recipient, false);
+    bytes32 actualEntryKey = tokenPortal.withdraw(recipient, withdrawAmount, false);
     assertEq(expectedEntryKey, actualEntryKey);
     // Should have received 654 RNA tokens
     assertEq(portalERC20.balanceOf(recipient), withdrawAmount);
@@ -340,7 +340,7 @@ contract TokenPortalTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, actualEntryKey)
     );
-    tokenPortal.withdraw(withdrawAmount, recipient, false);
+    tokenPortal.withdraw(recipient, withdrawAmount, false);
     vm.stopPrank();
   }
 
@@ -354,13 +354,13 @@ contract TokenPortalTest is Test {
     vm.expectRevert(
       abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
     );
-    tokenPortal.withdraw(withdrawAmount, recipient, true);
+    tokenPortal.withdraw(recipient, withdrawAmount, true);
 
     entryKeyPortalChecksAgainst = _createWithdrawMessageForOutbox(address(0));
     vm.expectRevert(
       abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
     );
-    tokenPortal.withdraw(withdrawAmount, recipient, false);
+    tokenPortal.withdraw(recipient, withdrawAmount, false);
     vm.stopPrank();
   }
 
@@ -370,7 +370,7 @@ contract TokenPortalTest is Test {
 
     vm.expectEmit(true, true, true, true);
     emit MessageConsumed(expectedEntryKey, address(tokenPortal));
-    bytes32 actualEntryKey = tokenPortal.withdraw(withdrawAmount, recipient, true);
+    bytes32 actualEntryKey = tokenPortal.withdraw(recipient, withdrawAmount, true);
     assertEq(expectedEntryKey, actualEntryKey);
     // Should have received 654 RNA tokens
     assertEq(portalERC20.balanceOf(recipient), withdrawAmount);

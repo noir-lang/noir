@@ -1,9 +1,0 @@
-[package]
-name = "non_native_token_contract"
-authors = [""]
-compiler_version = "0.1"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../../aztec-nr/aztec" }
-value_note = { path = "../../../../aztec-nr/value-note"}

@@ -82,7 +82,7 @@ contract UniswapPortalTest is Test {
       sender: DataStructures.L2Actor(l2TokenAddress, 1),
       recipient: DataStructures.L1Actor(address(daiTokenPortal), block.chainid),
       content: Hash.sha256ToField(
-        abi.encodeWithSignature("withdraw(uint256,address,address)", amount, _recipient, _caller)
+        abi.encodeWithSignature("withdraw(address,uint256,address)", _recipient, amount, _caller)
         )
     });
     entryKey = outbox.computeEntryKey(message);
@@ -379,7 +379,7 @@ contract UniswapPortalTest is Test {
     // perform op
     // TODO(2167) - Update UniswapPortal properly with new portal standard.
     bytes32 entryKey = wethTokenPortal.cancelL1ToAztecMessagePublic(
-      wethAmountOut, aztecRecipient, deadlineForL1ToL2Message, secretHash, 1 ether
+      aztecRecipient, wethAmountOut, deadlineForL1ToL2Message, secretHash, 1 ether
     );
     assertEq(entryKey, l1ToL2MessageKey, "returned entry key and calculated entryKey should match");
     assertFalse(inbox.contains(entryKey), "entry still in inbox");

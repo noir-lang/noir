@@ -1,0 +1,8 @@
+[package]
+name = "token_portal_content_hash_lib"
+authors = ["aztec-labs"]
+compiler_version = "0.1"
+type = "lib"
+
+[dependencies]
+aztec = { path = "../../../../aztec-nr/aztec" }

@@ -38,7 +38,7 @@ import {
   TokenPortalAbi,
   TokenPortalBytecode,
 } from '@aztec/l1-artifacts';
-import { NonNativeTokenContract, TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
+import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { AztecNode, L2BlockL2Logs, LogType, PXE, TxStatus, createAztecNodeRpcClient } from '@aztec/types';
 
@@ -428,61 +428,6 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   );
 
   return { token, bridge, tokenPortalAddress, tokenPortal, underlyingERC20 };
-}
-
-/**
- * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract and attach is to the portal.
- * @param wallet - Aztec wallet instance.
- * @param walletClient - A viem WalletClient.
- * @param publicClient - A viem PublicClient.
- * @param rollupRegistryAddress - address of rollup registry to pass to initialize the token portal
- * @param initialBalance - initial balance of the owner of the L2 contract
- * @param owner - owner of the L2 contract
- * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if none supplied, it deploys one)
- * @returns l2 contract instance, token portal instance, token portal address and the underlying ERC20 instance
- */
-// TODO (#2291) DELETE!!!
-export async function deployAndInitializeNonNativeL2TokenContracts(
-  wallet: Wallet,
-  walletClient: WalletClient<HttpTransport, Chain, Account>,
-  publicClient: PublicClient<HttpTransport, Chain>,
-  rollupRegistryAddress: EthAddress,
-  initialBalance = 0n,
-  owner = AztecAddress.ZERO,
-  underlyingERC20Address?: EthAddress,
-) {
-  // deploy underlying contract if no address supplied
-  if (!underlyingERC20Address) {
-    underlyingERC20Address = await deployL1Contract(walletClient, publicClient, PortalERC20Abi, PortalERC20Bytecode);
-  }
-  const underlyingERC20: any = getContract({
-    address: underlyingERC20Address.toString(),
-    abi: PortalERC20Abi,
-    walletClient,
-    publicClient,
-  });
-
-  // deploy the token portal
-  const tokenPortalAddress = await deployL1Contract(walletClient, publicClient, TokenPortalAbi, TokenPortalBytecode);
-  const tokenPortal: any = getContract({
-    address: tokenPortalAddress.toString(),
-    abi: TokenPortalAbi,
-    walletClient,
-    publicClient,
-  });
-
-  // deploy l2 contract and attach to portal
-  const l2Contract = await NonNativeTokenContract.deploy(wallet, initialBalance, owner)
-    .send({ portalContract: tokenPortalAddress })
-    .deployed();
-  const l2TokenAddress = l2Contract.address.toString();
-
-  // initialize portal
-  await tokenPortal.write.initialize(
-    [rollupRegistryAddress.toString(), underlyingERC20Address.toString(), l2TokenAddress],
-    {} as any,
-  );
-  return { l2Contract, tokenPortalAddress, tokenPortal, underlyingERC20 };
 }
 
 /**

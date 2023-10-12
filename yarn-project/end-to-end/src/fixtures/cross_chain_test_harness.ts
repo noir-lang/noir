@@ -6,7 +6,7 @@ import { OutboxAbi } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { NotePreimage, PXE, TxStatus } from '@aztec/types';
 
-import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
+import { Chain, HttpTransport, PublicClient, getContract, getFunctionSelector } from 'viem';
 
 import { deployAndInitializeTokenAndBridgeContracts } from './utils.js';
 
@@ -119,8 +119,8 @@ export class CrossChainTestHarness {
 
     this.logger('Sending messages to L1 portal to be consumed publicly');
     const args = [
-      bridgeAmount,
       this.ownerAddress.toString(),
+      bridgeAmount,
       this.ethAccount.toString(),
       deadline,
       secretHash.toString(true),
@@ -134,9 +134,9 @@ export class CrossChainTestHarness {
   }
 
   async sendTokensToPortalPrivate(
+    secretHashForRedeemingMintedNotes: Fr,
     bridgeAmount: bigint,
     secretHashForL2MessageConsumption: Fr,
-    secretHashForRedeemingMintedNotes: Fr,
   ) {
     await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount], {} as any);
 
@@ -145,8 +145,8 @@ export class CrossChainTestHarness {
 
     this.logger('Sending messages to L1 portal to be consumed privately');
     const args = [
-      bridgeAmount,
       secretHashForRedeemingMintedNotes.toString(true),
+      bridgeAmount,
       this.ethAccount.toString(),
       deadline,
       secretHashForL2MessageConsumption.toString(true),
@@ -183,8 +183,8 @@ export class CrossChainTestHarness {
   }
 
   async consumeMessageOnAztecAndMintSecretly(
-    bridgeAmount: bigint,
     secretHashForRedeemingMintedNotes: Fr,
+    bridgeAmount: bigint,
     messageKey: Fr,
     secretForL2MessageConsumption: Fr,
   ) {
@@ -192,8 +192,8 @@ export class CrossChainTestHarness {
     // Call the mint tokens function on the Aztec.nr contract
     const consumptionTx = this.l2Bridge.methods
       .claim_private(
-        bridgeAmount,
         secretHashForRedeemingMintedNotes,
+        bridgeAmount,
         this.ethAccount,
         messageKey,
         secretForL2MessageConsumption,
@@ -217,7 +217,7 @@ export class CrossChainTestHarness {
 
   async withdrawPrivateFromAztecToL1(withdrawAmount: bigint, nonce: Fr = Fr.ZERO) {
     const withdrawTx = this.l2Bridge.methods
-      .exit_to_l1_private(this.ethAccount, this.l2Token.address, withdrawAmount, EthAddress.ZERO, nonce)
+      .exit_to_l1_private(this.l2Token.address, this.ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
       .send();
     const withdrawReceipt = await withdrawTx.wait();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
@@ -252,12 +252,12 @@ export class CrossChainTestHarness {
 
   async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
     this.logger('Ensure that the entry is not in outbox yet');
-    // 0xb460af94, selector for "withdraw(uint256,address,address)"
+
     const content = sha256ToField(
       Buffer.concat([
-        Buffer.from([0xb4, 0x60, 0xaf, 0x94]),
-        new Fr(withdrawAmount).toBuffer(),
+        Buffer.from(getFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
         this.ethAccount.toBuffer32(),
+        new Fr(withdrawAmount).toBuffer(),
         callerOnL1.toBuffer32(),
       ]),
     );
@@ -279,8 +279,8 @@ export class CrossChainTestHarness {
     this.logger('Send L1 tx to consume entry and withdraw funds');
     // Call function on L1 contract to consume the message
     const { request: withdrawRequest, result: withdrawEntryKey } = await this.tokenPortal.simulate.withdraw([
-      withdrawAmount,
       this.ethAccount.toString(),
+      withdrawAmount,
       false,
     ]);
 

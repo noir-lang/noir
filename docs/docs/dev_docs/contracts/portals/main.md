@@ -50,7 +50,7 @@ Computing the `content` must be done manually in its current form, as we are sti
 :::info
 The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec-nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element:
 
-#include_code mint_public_content_hash_nr /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/util.nr rust
+#include_code mint_public_content_hash_nr /yarn-project/noir-contracts/src/contracts/token_portal_content_hash_lib/src/lib.nr rust
 
 In solidity, you can use our `Hash.sha256ToField()` method:
 

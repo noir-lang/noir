@@ -23,7 +23,7 @@ const PROJECT_CONTRACTS = [
   { name: 'EcdsaAccount', target: '../aztec.js/src/artifacts/', exclude: [] },
 ];
 
-const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'non_native_token', 'test'];
+const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'test'];
 
 /**
  * Writes the contract to a specific project folder, if needed.

@@ -151,9 +151,9 @@ export const uniswapL1L2TestSuite = (
       const [secretForRedeemingWeth, secretHashForRedeemingWeth] = await wethCrossChainHarness.generateClaimSecret();
 
       const messageKey = await wethCrossChainHarness.sendTokensToPortalPrivate(
+        secretHashForRedeemingWeth,
         wethAmountToBridge,
         secretHashForMintingWeth,
-        secretHashForRedeemingWeth,
       );
       // funds transferred from owner to token portal
       expect(await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress)).toBe(
@@ -172,8 +172,8 @@ export const uniswapL1L2TestSuite = (
       // 2. Claim WETH on L2
       logger('Minting weth on L2');
       await wethCrossChainHarness.consumeMessageOnAztecAndMintSecretly(
-        wethAmountToBridge,
         secretHashForRedeemingWeth,
+        wethAmountToBridge,
         messageKey,
         secretForMintingWeth,
       );
@@ -271,8 +271,8 @@ export const uniswapL1L2TestSuite = (
       // 6. claim dai on L2
       logger('Consuming messages to mint dai on L2');
       await daiCrossChainHarness.consumeMessageOnAztecAndMintSecretly(
-        daiAmountToBridge,
         secretHashForRedeemingDai,
+        daiAmountToBridge,
         depositDaiMessageKey,
         secretForDepositingSwappedDai,
       );
