@@ -339,157 +339,6 @@ impl GeneratedAcir {
         (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
     }
 
-    /// Computes lhs/rhs by using euclidean division.
-    ///
-    /// Returns `q` for quotient and `r` for remainder such
-    /// that lhs = rhs * q + r
-    pub(crate) fn euclidean_division(
-        &mut self,
-        lhs: &Expression,
-        rhs: &Expression,
-        max_bit_size: u32,
-        predicate: &Expression,
-    ) -> Result<(Witness, Witness), RuntimeError> {
-        // lhs = rhs * q + r
-        //
-        // If predicate is zero, `q_witness` and `r_witness` will be 0
-
-        // Check that we the rhs is not zero.
-        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
-        //
-        // When the predicate is 0, the equation always passes.
-        // When the predicate is 1, the rhs must not be 0.
-        let rhs_is_nonzero_const = rhs.is_const() && !rhs.is_zero();
-        if !rhs_is_nonzero_const {
-            match predicate.to_const() {
-                Some(predicate) if predicate.is_zero() => {
-                    // If predicate is known to be inactive, we don't need to lay down constraints.
-                }
-
-                Some(predicate) if predicate.is_one() => {
-                    // If the predicate is known to be active, we simply assert that an inverse must exist.
-                    // This implies that `rhs != 0`.
-                    let unsafe_inverse = self.brillig_inverse(rhs.clone());
-                    let rhs_has_inverse =
-                        self.mul_with_witness(rhs, &unsafe_inverse.into()) - FieldElement::one();
-                    self.assert_is_zero(rhs_has_inverse);
-                }
-
-                _ => {
-                    // Otherwise we must handle both potential cases.
-                    let rhs_is_zero = self.is_zero(rhs);
-                    let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
-                    self.assert_is_zero(rhs_is_not_zero);
-                }
-            }
-        }
-
-        // maximum bit size for q and for [r and rhs]
-        let mut max_q_bits = max_bit_size;
-        let mut max_rhs_bits = max_bit_size;
-        // when rhs is constant, we can better estimate the maximum bit sizes
-        if let Some(rhs_const) = rhs.to_const() {
-            max_rhs_bits = rhs_const.num_bits();
-            if max_rhs_bits != 0 {
-                if max_rhs_bits > max_bit_size {
-                    let zero = self.get_or_create_witness(&Expression::zero());
-                    return Ok((zero, zero));
-                }
-                max_q_bits = max_bit_size - max_rhs_bits + 1;
-            }
-        }
-
-        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        let mut avoid_overflow = false;
-        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
-            // q*b+r can overflow; we avoid this when b is constant
-            if rhs.is_const() {
-                avoid_overflow = true;
-            } else {
-                // we do not support unbounded division
-                unreachable!("overflow in unbounded division");
-            }
-        }
-
-        let (q_witness, r_witness) =
-            self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
-
-        // Constrain `q < 2^{max_q_bits}`.
-        self.range_constraint(q_witness, max_q_bits)?;
-
-        // Constrain `r < 2^{max_rhs_bits}`.
-        //
-        // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
-        // In the case where `rhs` isn't a power of 2 then this range constraint is required
-        // as the bound constraint creates a new witness.
-        // This opcode will be optimized out if it is redundant so we always add it for safety.
-        self.range_constraint(r_witness, max_rhs_bits)?;
-
-        // Constrain `r < rhs`.
-        self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
-
-        // a * predicate == (b * q + r) * predicate
-        // => predicate * (a - b * q - r) == 0
-        // When the predicate is 0, the equation always passes.
-        // When the predicate is 1, the euclidean division needs to be
-        // true.
-        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
-        let div_euclidean = &self.mul_with_witness(lhs, predicate)
-            - &self.mul_with_witness(&rhs_constraint, predicate);
-
-        if let Some(rhs_const) = rhs.to_const() {
-            if avoid_overflow {
-                // we compute q0 = p/rhs
-                let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
-                let q0_big = FieldElement::modulus() / &rhs_big;
-                let q0 = FieldElement::from_be_bytes_reduce(&q0_big.to_bytes_be());
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
-                let size_predicate =
-                    self.is_equal(&Expression::from_field(q0), &Expression::from(q_witness));
-                let predicate = self.mul_with_witness(&size_predicate.into(), predicate);
-                // Ensure that there is no overflow, under q == q0 predicate
-                let max_r_big = FieldElement::modulus() - q0_big * rhs_big;
-                let max_r = FieldElement::from_be_bytes_reduce(&max_r_big.to_bytes_be());
-                let max_r_predicate =
-                    self.mul_with_witness(&predicate, &Expression::from_field(max_r));
-                let r_predicate = self.mul_with_witness(&Expression::from(r_witness), &predicate);
-                // Bound the remainder to be <p-q0*b, if the predicate is true.
-                self.bound_constraint_with_offset(
-                    &r_predicate,
-                    &max_r_predicate,
-                    &predicate,
-                    rhs_const.num_bits(),
-                )?;
-            }
-        }
-
-        self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
-
-        Ok((q_witness, r_witness))
-    }
-
-    /// Adds a brillig opcode which injects witnesses with values `q = a / b` and `r = a % b`.
-    ///
-    /// Suitable range constraints for `q` and `r` must be applied externally.
-    pub(crate) fn brillig_quotient(
-        &mut self,
-        lhs: Expression,
-        rhs: Expression,
-        predicate: Expression,
-        max_bit_size: u32,
-    ) -> (Witness, Witness) {
-        // Create the witness for the result
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
-        let quotient_code = brillig_directive::directive_quotient(max_bit_size);
-        let inputs = vec![BrilligInputs::Single(lhs), BrilligInputs::Single(rhs)];
-        let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
-        self.brillig(Some(predicate), quotient_code, inputs, outputs);
-
-        (q_witness, r_witness)
-    }
-
     /// Generate constraints that are satisfied iff
     /// lhs < rhs , when offset is 1, or
     /// lhs <= rhs, when offset is 0
@@ -501,7 +350,7 @@ impl GeneratedAcir {
     /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
     /// lhs < rhs <=> a+1<=b
     /// TODO: Consolidate this with bounds_check function.
-    fn bound_constraint_with_offset(
+    pub(super) fn bound_constraint_with_offset(
         &mut self,
         lhs: &Expression,
         rhs: &Expression,
@@ -535,7 +384,7 @@ impl GeneratedAcir {
             // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
             let bit_size = bit_size_u128(rhs_offset);
-            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construtction
+            // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
             let r = (1_u128 << bit_size) - rhs_offset - 1;
             // however, since it is a constant, we can compute it's actual bit size
             let r_bit_size = bit_size_u128(r);

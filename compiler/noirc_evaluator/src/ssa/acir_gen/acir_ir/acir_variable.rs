@@ -22,6 +22,7 @@ use acvm::{
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
+use num_bigint::BigUint;
 use std::{borrow::Cow, hash::Hash};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -569,15 +570,136 @@ impl AcirContext {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
+        // lhs = rhs * q + r
+        //
+        // If predicate is zero, `q_witness` and `r_witness` will be 0
+
+        // Check that we the rhs is not zero.
+        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
+        //
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the rhs must not be 0.
+        let zero = self.add_constant(FieldElement::zero());
+        let one = self.add_constant(FieldElement::one());
+
         let rhs_expr = self.var_to_expression(rhs)?;
-        let predicate_expr = self.var_to_expression(predicate)?;
+        let rhs_is_nonzero_const = rhs_expr.is_const() && !rhs_expr.is_zero();
+        if !rhs_is_nonzero_const {
+            match self.var_to_expression(predicate)?.to_const() {
+                Some(predicate) if predicate.is_one() => {
+                    // If the predicate is known to be active, we simply assert that an inverse must exist.
+                    // This implies that `rhs != 0`.
+                    let _inverse = self.inv_var(rhs, one)?;
+                }
 
-        let (quotient, remainder) =
-            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, bit_size, &predicate_expr)?;
+                _ => {
+                    // Otherwise we must handle both potential cases.
+                    let rhs_is_zero = self.eq_var(rhs, zero)?;
+                    let rhs_is_not_zero = self.mul_var(rhs_is_zero, predicate)?;
+                    self.assert_eq_var(rhs_is_not_zero, zero, None)?;
+                }
+            }
+        }
 
-        let quotient_var = self.add_data(AcirVarData::Witness(quotient));
-        let remainder_var = self.add_data(AcirVarData::Witness(remainder));
+        // maximum bit size for q and for [r and rhs]
+        let mut max_q_bits = bit_size;
+        let mut max_rhs_bits = bit_size;
+        // when rhs is constant, we can better estimate the maximum bit sizes
+        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+            max_rhs_bits = rhs_const.num_bits();
+            if max_rhs_bits != 0 {
+                if max_rhs_bits > bit_size {
+                    return Ok((zero, zero));
+                }
+                max_q_bits = bit_size - max_rhs_bits + 1;
+            }
+        }
+
+        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
+        let mut avoid_overflow = false;
+        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
+            // q*b+r can overflow; we avoid this when b is constant
+            if self.var_to_expression(rhs)?.is_const() {
+                avoid_overflow = true;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
+            }
+        }
+
+        let [q_value, r_value]: [AcirValue; 2] = self
+            .brillig(
+                predicate,
+                brillig_directive::directive_quotient(bit_size + 1),
+                vec![
+                    AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
+                    AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
+                ],
+                vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
+            )?
+            .try_into()
+            .expect("quotient only returns two values");
+        let quotient_var = q_value.into_var()?;
+        let remainder_var = r_value.into_var()?;
+
+        // Constrain `q < 2^{max_q_bits}`.
+        self.range_constrain_var(quotient_var, &NumericType::Unsigned { bit_size: max_q_bits })?;
+
+        // Constrain `r < 2^{max_rhs_bits}`.
+        //
+        // If `rhs` is a power of 2, then is just a looser version of the following bound constraint.
+        // In the case where `rhs` isn't a power of 2 then this range constraint is required
+        // as the bound constraint creates a new witness.
+        // This opcode will be optimized out if it is redundant so we always add it for safety.
+        self.range_constrain_var(remainder_var, &NumericType::Unsigned { bit_size: max_rhs_bits })?;
+
+        // Constrain `r < rhs`.
+        self.acir_ir.bound_constraint_with_offset(
+            &self.var_to_expression(remainder_var)?,
+            &self.var_to_expression(rhs)?,
+            &self.var_to_expression(predicate)?,
+            max_rhs_bits,
+        )?;
+
+        // a * predicate == (b * q + r) * predicate
+        // => predicate * (a - b * q - r) == 0
+        // When the predicate is 0, the equation always passes.
+        // When the predicate is 1, the euclidean division needs to be
+        // true.
+        let rhs_constraint = self.mul_var(rhs, quotient_var)?;
+        let rhs_constraint = self.add_var(rhs_constraint, remainder_var)?;
+        let rhs_constraint = self.mul_var(rhs_constraint, predicate)?;
+
+        let lhs_constraint = self.mul_var(lhs, predicate)?;
+        self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
+
+        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+            if avoid_overflow {
+                // we compute q0 = p/rhs
+                let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
+                let q0_big = FieldElement::modulus() / &rhs_big;
+                let q0 = FieldElement::from_be_bytes_reduce(&q0_big.to_bytes_be());
+                let q0_var = self.add_constant(q0);
+                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+
+                let size_predicate = self.eq_var(q0_var, quotient_var)?;
+                let predicate = self.mul_var(size_predicate, predicate)?;
+                // Ensure that there is no overflow, under q == q0 predicate
+                let max_r_big = FieldElement::modulus() - q0_big * rhs_big;
+                let max_r = FieldElement::from_be_bytes_reduce(&max_r_big.to_bytes_be());
+                let max_r_var = self.add_constant(max_r);
+
+                let max_r_predicate = self.mul_var(predicate, max_r_var)?;
+                let r_predicate = self.mul_var(remainder_var, predicate)?;
+                // Bound the remainder to be <p-q0*b, if the predicate is true.
+                self.acir_ir.bound_constraint_with_offset(
+                    &self.var_to_expression(r_predicate)?,
+                    &self.var_to_expression(max_r_predicate)?,
+                    &self.var_to_expression(predicate)?,
+                    rhs_const.num_bits(),
+                )?;
+            }
+        }
 
         Ok((quotient_var, remainder_var))
     }
@@ -611,8 +733,8 @@ impl AcirContext {
         rhs: AcirVar,
         bit_size: u32,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        // We derive the signed division from the unsigned euclidian division.
-        // note that this is not euclidian division!
+        // We derive the signed division from the unsigned euclidean division.
+        // note that this is not euclidean division!
         // If `x` is a signed integer, then `sign(x)x >= 0`
         // so if `a` and `b` are signed integers, we can do the unsigned division:
         // `sign(a)a = q1*sign(b)b + r1`
@@ -701,19 +823,14 @@ impl AcirContext {
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
-        let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
+        let divisor =
+            self.add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128)));
+        let one = self.add_constant(FieldElement::one());
 
-        let lhs_data = &self.vars[&lhs];
-        let lhs_expr = lhs_data.to_expression();
         //  Computes lhs = 2^{rhs} * q + r
-        let (_, remainder) = self.acir_ir.euclidean_division(
-            &lhs_expr,
-            &Expression::from_field(divisor),
-            max_bit_size,
-            &Expression::one(),
-        )?;
+        let (_, remainder) = self.euclidean_division_var(lhs, divisor, max_bit_size, one)?;
 
-        Ok(self.add_data(AcirVarData::from(remainder)))
+        Ok(remainder)
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
@@ -753,7 +870,7 @@ impl AcirContext {
         let diff = self.sub_var(lhs, rhs)?;
         let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
-        // Euclidian division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        // Euclidean division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // 2^{max_bits} is of max_bits+1 bit size
         // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
