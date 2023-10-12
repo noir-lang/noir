@@ -487,11 +487,11 @@ impl AcirContext {
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
                 expr.push_addition_term(constant, witness);
-                self.add_data(AcirVarData::Expr(expr))
+                self.add_data(AcirVarData::from(expr))
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::Expr(&expr * constant))
+                self.add_data(AcirVarData::from(&expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
