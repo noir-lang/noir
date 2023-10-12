@@ -551,7 +551,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -657,7 +657,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -681,7 +681,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -711,7 +711,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let first_lexer_output = lexer.next_token().unwrap();
+            let first_lexer_output = lexer.next().unwrap().unwrap();
             assert_eq!(first_lexer_output, token);
         }
     }
@@ -733,7 +733,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let first_lexer_output = lexer.next_token().unwrap();
+            let first_lexer_output = lexer.next().unwrap().unwrap();
             assert_eq!(first_lexer_output, token);
         }
     }
@@ -755,7 +755,7 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
         for token in expected.into_iter() {
-            let first_lexer_output = lexer.next_token().unwrap();
+            let first_lexer_output = lexer.next().unwrap().unwrap();
             assert_eq!(first_lexer_output, token);
         }
     }
@@ -772,7 +772,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -785,7 +785,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got, token);
         }
     }
@@ -824,7 +824,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for spanned_token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got.to_span(), spanned_token.to_span());
             assert_eq!(got, spanned_token);
         }
@@ -895,7 +895,7 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
+            let got = lexer.next().unwrap().unwrap();
             assert_eq!(got, token);
         }
     }
