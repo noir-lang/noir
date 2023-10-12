@@ -1,6 +1,6 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
-    Literal, Statement,
+    hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
+    Expression, ExpressionKind, Literal, Statement,
 };
 
 use super::FmtVisitor;
@@ -10,6 +10,7 @@ impl FmtVisitor<'_> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
+        let rewrite = recover_comment_removed(slice!(self, span.start(), span.end()), rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
@@ -158,4 +159,31 @@ impl FmtVisitor<'_> {
         self.last_position = block_span.end();
         self.push_str(&block_str);
     }
+}
+
+fn recover_comment_removed(original: &str, new: String) -> String {
+    if changed_comment_content(original, &new) {
+        original.to_string()
+    } else {
+        new
+    }
+}
+
+fn changed_comment_content(original: &str, new: &str) -> bool {
+    comments(original) != comments(new)
+}
+
+fn comments(source: &str) -> Vec<String> {
+    Lexer::new(source)
+        .skip_comments(false)
+        .flatten()
+        .filter_map(|spanned| {
+            if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token()
+            {
+                Some(content)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
