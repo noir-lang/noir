@@ -22,7 +22,7 @@
     "lint": "yarn workspaces foreach --verbose run lint",
     "install:acvm_js": "yarn workspace @noir-lang/acvm_js run install:from:nix",
     "install:noir_wasm": "yarn workspace @noir-lang/noir_wasm run install:from:nix",
-    "install:noirc_abi_wasm": "yarn workspace @noir-lang/noirc_abi run install:from:nix",    
+    "install:noirc_abi_wasm": "yarn workspace @noir-lang/noirc_abi run install:from:nix",
     "install:from:nix": "yarn install:acvm_js && yarn install:noir_wasm && yarn install:noirc_abi_wasm",
     "build:types": "yarn workspace @noir-lang/types run build",
     "build:source-resolver": "yarn workspace @noir-lang/source-resolver run build",
