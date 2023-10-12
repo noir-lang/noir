@@ -47,49 +47,42 @@ pub(crate) fn run(
     let target_dir = &workspace.target_directory_path();
     let (np_language, opcode_support) = backend.get_backend_info()?;
 
-    if workspace.into_iter().filter(|p| p.is_binary()).count() == 0 {
+    let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
             "No matching binary packages found in workspace. Only binary packages can be debugged."
         );
         return Ok(());
-    }
+    };
 
-    for package in &workspace {
-        if package.is_binary() {
-            let compiled_program = compile_bin_package(
-                &workspace,
-                package,
-                &args.compile_options,
-                true,
-                np_language,
-                &|opcode| opcode_support.is_opcode_supported(opcode),
-            )?;
+    let compiled_program = compile_bin_package(
+        &workspace,
+        package,
+        &args.compile_options,
+        true,
+        np_language,
+        &|opcode| opcode_support.is_opcode_supported(opcode),
+    )?;
 
-            println!("[{}] Starting debugger", package.name);
-            let (return_value, solved_witness) =
-                debug_program_and_decode(compiled_program, package, &args.prover_name)?;
+    println!("[{}] Starting debugger", package.name);
+    let (return_value, solved_witness) =
+        debug_program_and_decode(compiled_program, package, &args.prover_name)?;
 
-            if let Some(solved_witness) = solved_witness {
-                println!("[{}] Circuit witness successfully solved", package.name);
+    if let Some(solved_witness) = solved_witness {
+        println!("[{}] Circuit witness successfully solved", package.name);
 
-                if let Some(return_value) = return_value {
-                    println!("[{}] Circuit output: {return_value:?}", package.name);
-                }
-
-                if let Some(witness_name) = &args.witness_name {
-                    let witness_path =
-                        save_witness_to_dir(solved_witness, witness_name, target_dir)?;
-
-                    println!("[{}] Witness saved to {}", package.name, witness_path.display());
-                }
-            } else {
-                println!("Debugger execution halted.");
-            }
-
-            // Only debug the first binary package that matches the selection criteria
-            break;
+        if let Some(return_value) = return_value {
+            println!("[{}] Circuit output: {return_value:?}", package.name);
         }
+
+        if let Some(witness_name) = &args.witness_name {
+            let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+
+            println!("[{}] Witness saved to {}", package.name, witness_path.display());
+        }
+    } else {
+        println!("Debugger execution halted.");
     }
+
     Ok(())
 }
 
