@@ -36,9 +36,6 @@
     "@noir-lang/types": "workspace:*",
     "fflate": "^0.8.0"
   },
-  "peerDependencies": {
-    "@noir-lang/backend_barretenberg": "workspace:*"
-  },
   "devDependencies": {
     "@types/node": "^20.6.2",
     "@types/prettier": "^3",
