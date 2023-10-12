@@ -29,7 +29,6 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
     "build:nix": "nix build -L .#noir_wasm",
     "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
-
   },
   "peerDependencies": {
     "@noir-lang/source-resolver": "workspace:*"
