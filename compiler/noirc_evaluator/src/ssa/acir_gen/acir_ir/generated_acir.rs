@@ -440,7 +440,8 @@ impl GeneratedAcir {
         //
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the rhs must not be 0.
-        if !rhs.is_const() || rhs.is_zero() {
+        let rhs_is_nonzero_const = rhs.is_const() && rhs.is_zero();
+        if !rhs_is_nonzero_const {
             let rhs_is_zero = self.is_zero(rhs);
             let rhs_is_not_zero = self.mul_with_witness(&rhs_is_zero.into(), predicate);
             self.assert_is_zero(rhs_is_not_zero);
