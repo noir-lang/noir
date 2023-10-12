@@ -440,13 +440,17 @@ impl GeneratedAcir {
         }
 
         if let (Some(lhs_const), Some(rhs_const)) = (lhs.to_const(), rhs.to_const()) {
-            let quotient = lhs_const.to_u128() / rhs_const.to_u128();
-            let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+            // Disallow division by zero.
+            if rhs_const != FieldElement::zero() {
+                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
+                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
-            let quotient_witness = self.get_or_create_witness(&FieldElement::from(quotient).into());
-            let remainder_witness =
-                self.get_or_create_witness(&FieldElement::from(remainder).into());
-            return Ok((quotient_witness, remainder_witness));
+                let quotient_witness =
+                    self.get_or_create_witness(&FieldElement::from(quotient).into());
+                let remainder_witness =
+                    self.get_or_create_witness(&FieldElement::from(remainder).into());
+                return Ok((quotient_witness, remainder_witness));
+            }
         }
 
         // Check that we the rhs is not zero.
