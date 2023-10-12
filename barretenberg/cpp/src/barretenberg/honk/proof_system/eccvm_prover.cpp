@@ -33,8 +33,7 @@ template <ECCVMFlavor Flavor>
 ECCVMProver_<Flavor>::ECCVMProver_(std::shared_ptr<typename Flavor::ProvingKey> input_key,
                                    std::shared_ptr<PCSCommitmentKey> commitment_key)
     : key(input_key)
-    , queue(commitment_key, transcript)
-    , pcs_commitment_key(commitment_key)
+    , commitment_key(commitment_key)
 {
 
     // TODO(@zac-williamson) Future work; is there a cleaner way of doing this? #2213
@@ -148,19 +147,6 @@ ECCVMProver_<Flavor>::ECCVMProver_(std::shared_ptr<typename Flavor::ProvingKey> 
 }
 
 /**
- * @brief Commit to the first three wires only
- *
- */
-template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::compute_wire_commitments()
-{
-    auto wire_polys = key->get_wires();
-    auto labels = commitment_labels.get_wires();
-    for (size_t idx = 0; idx < wire_polys.size(); ++idx) {
-        queue.add_commitment(wire_polys[idx], labels[idx]);
-    }
-}
-
-/**
  * @brief Add circuit size, public input size, and public inputs to transcript
  *
  */
@@ -180,7 +166,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_wire_commitment
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < wire_polys.size(); ++idx) {
-        queue.add_commitment(wire_polys[idx], labels[idx]);
+        transcript.send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
     }
 }
 
@@ -204,7 +190,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivative_
     // Compute inverse polynomial for our logarithmic-derivative lookup method
     lookup_library::compute_logderivative_inverse<Flavor, typename Flavor::LookupRelation>(
         prover_polynomials, relation_parameters, key->circuit_size);
-    queue.add_commitment(key->lookup_inverses, commitment_labels.lookup_inverses);
+    transcript.send_to_verifier(commitment_labels.lookup_inverses, commitment_key->commit(key->lookup_inverses));
     prover_polynomials.lookup_inverses = key->lookup_inverses;
 }
 
@@ -217,7 +203,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_grand_product_c
     // Compute permutation grand product and their commitments
     permutation_library::compute_permutation_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
 
-    queue.add_commitment(key->z_perm, commitment_labels.z_perm);
+    transcript.send_to_verifier(commitment_labels.z_perm, commitment_key->commit(key->z_perm));
 }
 
 /**
@@ -266,7 +252,8 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_univariatizatio
 
     // Compute and add to trasnscript the commitments [Fold^(i)], i = 1, ..., d-1
     for (size_t l = 0; l < key->log_circuit_size - 1; ++l) {
-        queue.add_commitment(gemini_polynomials[l + 2], "Gemini:FOLD_" + std::to_string(l + 1));
+        transcript.send_to_verifier("Gemini:FOLD_" + std::to_string(l + 1),
+                                    commitment_key->commit(gemini_polynomials[l + 2]));
     }
 }
 
@@ -301,7 +288,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_shplonk_batched
         Shplonk::compute_batched_quotient(gemini_output.opening_pairs, gemini_output.witnesses, nu_challenge);
 
     // commit to Q(X) and add [Q] to the transcript
-    queue.add_commitment(batched_quotient_Q, "Shplonk:Q");
+    transcript.send_to_verifier("Shplonk:Q", commitment_key->commit(batched_quotient_Q));
 }
 
 /**
@@ -322,8 +309,7 @@ template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_shplonk_partial
  * */
 template <ECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_final_pcs_round()
 {
-    PCS::compute_opening_proof(pcs_commitment_key, shplonk_output.opening_pair, shplonk_output.witness, transcript);
-    // queue.add_commitment(quotient_W, "KZG:W");
+    PCS::compute_opening_proof(commitment_key, shplonk_output.opening_pair, shplonk_output.witness, transcript);
 }
 
 template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::export_proof()
@@ -339,16 +325,13 @@ template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::construct_proo
 
     // Compute first three wire commitments
     execute_wire_commitments_round();
-    queue.process_queue();
 
     // Compute sorted list accumulator and commitment
     execute_log_derivative_commitments_round();
-    queue.process_queue();
 
     // Fiat-Shamir: bbeta & gamma
     // Compute grand product(s) and commitments.
     execute_grand_product_computation_round();
-    queue.process_queue();
 
     // Fiat-Shamir: alpha
     // Run sumcheck subprotocol.
@@ -357,7 +340,6 @@ template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::construct_proo
     // Fiat-Shamir: rho
     // Compute Fold polynomials and their commitments.
     execute_univariatization_round();
-    queue.process_queue();
 
     // Fiat-Shamir: r
     // Compute Fold evaluations
@@ -366,7 +348,6 @@ template <ECCVMFlavor Flavor> plonk::proof& ECCVMProver_<Flavor>::construct_proo
     // Fiat-Shamir: nu
     // Compute Shplonk batched quotient commitment Q
     execute_shplonk_batched_quotient_round();
-    queue.process_queue();
 
     // Fiat-Shamir: z
     // Compute partial evaluation Q_z

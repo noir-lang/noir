@@ -2,7 +2,6 @@
 #include "barretenberg/honk/flavor/ecc_vm.hpp"
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
-#include "barretenberg/honk/proof_system/work_queue.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
@@ -37,8 +36,6 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     void execute_shplonk_partial_evaluation_round();
     void execute_final_pcs_round();
 
-    void compute_wire_commitments();
-
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
@@ -63,12 +60,10 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
 
     Polynomial quotient_W;
 
-    work_queue<Curve> queue;
-
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
     pcs::gemini::ProverOutput<Curve> gemini_output;
     pcs::shplonk::ProverOutput<Curve> shplonk_output;
-    std::shared_ptr<PCSCommitmentKey> pcs_commitment_key;
+    std::shared_ptr<PCSCommitmentKey> commitment_key;
 
     using Gemini = pcs::gemini::GeminiProver_<Curve>;
     using Shplonk = pcs::shplonk::ShplonkProver_<Curve>;

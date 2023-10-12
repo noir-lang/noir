@@ -13,9 +13,8 @@ namespace proof_system::honk {
  * */
 template <UltraFlavor Flavor>
 UltraProver_<Flavor>::UltraProver_(std::shared_ptr<Instance> inst)
-    : queue(inst->commitment_key, transcript)
-    , instance(std::move(inst))
-    , pcs_commitment_key(instance->commitment_key)
+    : instance(std::move(inst))
+    , commitment_key(instance->commitment_key)
 {
     instance->initialise_prover_polynomials();
 }
@@ -51,14 +50,14 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitment
     auto wire_polys = instance->proving_key->get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < 3; ++idx) {
-        queue.add_commitment(wire_polys[idx], labels[idx]);
+        transcript.send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
     }
 
     if constexpr (IsGoblinFlavor<Flavor>) {
         auto op_wire_polys = instance->proving_key->get_ecc_op_wires();
         auto labels = commitment_labels.get_ecc_op_wires();
         for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
-            queue.add_commitment(op_wire_polys[idx], labels[idx]);
+            transcript.send_to_verifier(labels[idx], commitment_key->commit(op_wire_polys[idx]));
         }
     }
 }
@@ -75,8 +74,10 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
 
     // Commit to the sorted withness-table accumulator and the finalised (i.e. with memory records) fourth wire
     // polynomial
-    queue.add_commitment(instance->proving_key->sorted_accum, commitment_labels.sorted_accum);
-    queue.add_commitment(instance->proving_key->w_4, commitment_labels.w_4);
+    auto sorted_accum_commitment = commitment_key->commit(instance->proving_key->sorted_accum);
+    auto w_4_commitment = commitment_key->commit(instance->proving_key->w_4);
+    transcript.send_to_verifier(commitment_labels.sorted_accum, sorted_accum_commitment);
+    transcript.send_to_verifier(commitment_labels.w_4, w_4_commitment);
 }
 
 /**
@@ -90,8 +91,10 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
 
     instance->compute_grand_product_polynomials(beta, gamma);
 
-    queue.add_commitment(instance->proving_key->z_perm, commitment_labels.z_perm);
-    queue.add_commitment(instance->proving_key->z_lookup, commitment_labels.z_lookup);
+    auto z_perm_commitment = commitment_key->commit(instance->proving_key->z_perm);
+    auto z_lookup_commitment = commitment_key->commit(instance->proving_key->z_lookup);
+    transcript.send_to_verifier(commitment_labels.z_perm, z_perm_commitment);
+    transcript.send_to_verifier(commitment_labels.z_lookup, z_lookup_commitment);
 }
 
 /**
@@ -118,7 +121,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_zeromorph_round
                      instance->prover_polynomials.get_to_be_shifted(),
                      sumcheck_output.claimed_evaluations,
                      sumcheck_output.challenge,
-                     pcs_commitment_key,
+                     commitment_key,
                      transcript);
 }
 
@@ -135,16 +138,13 @@ template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proo
 
     // Compute first three wire commitments
     execute_wire_commitments_round();
-    queue.process_queue();
 
     // Compute sorted list accumulator and commitment
     execute_sorted_list_accumulator_round();
-    queue.process_queue();
 
     // Fiat-Shamir: beta & gamma
     // Compute grand product(s) and commitments.
     execute_grand_product_computation_round();
-    queue.process_queue();
 
     // Fiat-Shamir: alpha
     // Run sumcheck subprotocol.

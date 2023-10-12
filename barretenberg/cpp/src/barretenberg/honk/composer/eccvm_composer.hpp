@@ -5,6 +5,7 @@
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 
 namespace proof_system::honk {
 template <ECCVMFlavor Flavor> class ECCVMComposer_ {
