@@ -10,8 +10,7 @@
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
-    "@noir-lang/types": "workspace:*",
-    "fflate": "^0.8.0"
+    "@noir-lang/types": "workspace:*"
   },
   "files": [
     "lib",
@@ -40,7 +39,6 @@
     "clean": "rm -rf ./lib"
   },
   "devDependencies": {
-    "@aztec/bb.js": "0.7.2",
     "@types/chai": "^4",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.2",

@@ -155,4 +155,9 @@ impl ItemScope {
     pub fn values(&self) -> &HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility)>> {
         &self.values
     }
+
+    pub fn remove_definition(&mut self, name: &Ident) {
+        self.types.remove(name);
+        self.values.remove(name);
+    }
 }
