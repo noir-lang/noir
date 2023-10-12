@@ -161,7 +161,6 @@ export class Oracle {
   }
 
   emitUnencryptedLog([contractAddress]: ACVMField[], [eventSelector]: ACVMField[], message: ACVMField[]): ACVMField {
-    // https://github.com/AztecProtocol/aztec-packages/issues/885
     const logPayload = Buffer.concat(message.map(charBuffer => convertACVMFieldToBuffer(charBuffer).subarray(-1)));
     const log = new UnencryptedL2Log(
       AztecAddress.fromString(contractAddress),
