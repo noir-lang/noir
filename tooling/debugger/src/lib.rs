@@ -54,10 +54,10 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
 
                 Err(NargoError::ExecutionError(match call_stack {
                     Some(call_stack) => {
-                        if let Some(assert_message) = get_assert_message(
-                            call_stack.last().expect("Call stacks should not be empty"),
+                        if let Some(assert_message) = circuit.get_assert_message(
+                            *call_stack.last().expect("Call stacks should not be empty"),
                         ) {
-                            ExecutionError::AssertionFailed(assert_message, call_stack)
+                            ExecutionError::AssertionFailed(assert_message.to_owned(), call_stack)
                         } else {
                             ExecutionError::SolvingError(error)
                         }
