@@ -1554,7 +1554,9 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser.clone()))
+    .or(parenthesized(expr_parser.clone()).map_with_span(|subexpr, span| {
+        Expression::new(ExpressionKind::Parenthesized(subexpr.into()), span)
+    }))
     .or(tuple(expr_parser))
     .labelled(ParsingRuleLabel::Atom)
 }
