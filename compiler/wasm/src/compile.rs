@@ -56,7 +56,9 @@ pub fn compile(
 
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
-            .map_err(|_| JsCompileError::new("Failed to compile contract".to_string()))?
+            .map_err(|errs| {
+                JsCompileError::new("Failed to compile contract", errs, &context.file_manager)
+            })?
             .0;
 
         let optimized_contract =
@@ -68,7 +70,9 @@ pub fn compile(
         Ok(<JsValue as JsValueSerdeExt>::from_serde(&preprocessed_contract).unwrap())
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
-            .map_err(|_| JsCompileError::new("Failed to compile program".to_string()))?
+            .map_err(|errs| {
+                JsCompileError::new("Failed to compile program", errs, &context.file_manager)
+            })?
             .0;
 
         let optimized_program =
