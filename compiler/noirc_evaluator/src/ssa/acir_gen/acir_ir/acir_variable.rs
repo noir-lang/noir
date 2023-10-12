@@ -693,17 +693,69 @@ impl AcirContext {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        max_bits: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
-        let rhs_expr = self.var_to_expression(rhs)?;
-        let predicate_expr = self.var_to_expression(predicate)?;
+        // Returns a `Witness` that is constrained to be:
+        // - `1` if lhs >= rhs
+        // - `0` otherwise
+        //
+        // We essentially computes the sign bit of `b-a`
+        // For this we sign-extend `b-a` with `c = 2^{max_bits} - (b - a)`, since both `a` and `b` are less than `2^{max_bits}`
+        // Then we get the bit sign of `c`, the 2-complement representation of `(b-a)`, which is a `max_bits+1` integer,
+        // by doing the euclidean division `c / 2^{max_bits}`
+        //
+        // To see why it really works;
+        // We first note that `c` is an integer of `(max_bits+1)` bits. Therefore,
+        // if `b-a>0`, then `c < 2^{max_bits}`, so the division by `2^{max_bits}` will give `0`
+        // If `b-a<=0`, then `c >= 2^{max_bits}`, so the division by `2^{max_bits}` will give `1`.
+        //
+        // In other words, `1` means `a >= b` and `0` means `b > a`.
+        // The important thing here is that `c` does not overflow nor underflow the field;
+        // - By construction we have `c >= 0`, so there is no underflow
+        // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither c.
 
-        let is_greater_than_eq =
-            self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size, predicate_expr)?;
+        // Ensure that 2^{max_bits + 1} is less than the field size
+        //
+        // TODO: perhaps this should be a user error, instead of an assert
+        assert!(max_bits + 1 < FieldElement::max_num_bits());
+        let two_max_bits = self
+            .add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(max_bits as i128)));
+        let diff = self.sub_var(lhs, rhs)?;
+        let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
-        Ok(self.add_data(AcirVarData::Witness(is_greater_than_eq)))
+        // Euclidian division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        //
+        // 2^{max_bits} is of max_bits+1 bit size
+        // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
+        // If a <= b, then 2^{max_bits} + a - b is less than 2^{max_bits} <= 2^{max_bits+1} - 1
+        // This means that both operands of the division have at most max_bits+1 bit size.
+        //
+        // case: a == b
+        //
+        //   let k = 0;
+        // - 2^{max_bits} == q *  2^{max_bits} + r
+        // - This is only the case when q == 1 and r == 0 (assuming r is bounded to be less than 2^{max_bits})
+        //
+        // case: a > b
+        //
+        //   let k = a - b;
+        // - k + 2^{max_bits} == q * 2^{max_bits} + r
+        // - This is the case when q == 1 and r = k
+        //
+        // case: a < b
+        //
+        //   let k = b - a
+        // - 2^{max_bits} - k == q * 2^{max_bits} + r
+        // - This is only the case when q == 0 and r == 2^{max_bits} - k
+        //
+        let (q, _) = self.euclidean_division_var(
+            comparison_evaluation,
+            two_max_bits,
+            max_bits + 1,
+            predicate,
+        )?;
+        Ok(q)
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs < rhs
