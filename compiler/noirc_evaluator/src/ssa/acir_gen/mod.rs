@@ -1864,13 +1864,7 @@ impl Context {
 mod tests {
     use std::{collections::HashMap, rc::Rc};
 
-    use acvm::{
-        acir::{
-            circuit::Opcode,
-            native_types::{Expression, Witness},
-        },
-        FieldElement,
-    };
+    use acvm::FieldElement;
 
     use crate::{
         brillig::Brillig,

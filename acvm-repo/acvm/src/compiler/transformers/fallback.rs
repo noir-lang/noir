@@ -60,7 +60,11 @@ impl FallbackTransformer {
         }
 
         Ok((
-            Circuit { current_witness_index: witness_idx, opcodes: acir_supported_opcodes, ..acir },
+            Circuit {
+                current_witness_index: witness_idx - 1,
+                opcodes: acir_supported_opcodes,
+                ..acir
+            },
             new_opcode_positions,
         ))
     }
