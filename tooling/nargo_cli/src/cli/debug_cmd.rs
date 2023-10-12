@@ -28,10 +28,6 @@ pub(crate) struct DebugCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
-    /// Detail all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
-
     /// The name of the package to execute
     #[clap(long)]
     package: Option<CrateName>,
@@ -49,30 +45,42 @@ pub(crate) fn run(
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let target_dir = &workspace.target_directory_path();
-
     let (np_language, opcode_support) = backend.get_backend_info()?;
+
+    if workspace.into_iter().filter(|p| p.is_binary()).count() == 0 {
+        println!(
+            "No matching binary packages found in workspace. Only binary packages can be debugged."
+        );
+        return Ok(());
+    }
+
     for package in &workspace {
-        let compiled_program = compile_bin_package(
-            &workspace,
-            package,
-            &args.compile_options,
-            true,
-            np_language,
-            &|opcode| opcode_support.is_opcode_supported(opcode),
-        )?;
+        if package.is_binary() {
+            let compiled_program = compile_bin_package(
+                &workspace,
+                package,
+                &args.compile_options,
+                true,
+                np_language,
+                &|opcode| opcode_support.is_opcode_supported(opcode),
+            )?;
 
-        println!("[{}] Starting debugger", package.name);
-        let (return_value, solved_witness) =
-            debug_program_and_decode(compiled_program, package, &args.prover_name)?;
+            println!("[{}] Starting debugger", package.name);
+            let (return_value, solved_witness) =
+                debug_program_and_decode(compiled_program, package, &args.prover_name)?;
 
-        println!("[{}] Circuit witness successfully solved", package.name);
-        if let Some(return_value) = return_value {
-            println!("[{}] Circuit output: {return_value:?}", package.name);
-        }
-        if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+            println!("[{}] Circuit witness successfully solved", package.name);
+            if let Some(return_value) = return_value {
+                println!("[{}] Circuit output: {return_value:?}", package.name);
+            }
+            if let Some(witness_name) = &args.witness_name {
+                let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
 
-            println!("[{}] Witness saved to {}", package.name, witness_path.display());
+                println!("[{}] Witness saved to {}", package.name, witness_path.display());
+            }
+
+            // Only debug the first binary package that matches the selection criteria
+            break;
         }
     }
     Ok(())
@@ -113,5 +121,6 @@ pub(crate) fn debug_program(
         debug_artifact,
         initial_witness,
         true,
-    ).map_err(CliError::from)
+    )
+    .map_err(CliError::from)
 }
