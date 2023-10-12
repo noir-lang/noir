@@ -161,7 +161,13 @@ impl std::hash::Hash for Ident {
 
 impl Display for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.contents.fmt(f)
+        let content = &self.0.contents;
+        let formatted_content = if content.starts_with("plain::") {
+            &content["plain::".len()..]
+        } else {
+            content
+        };
+        f.write_str(formatted_content)
     }
 }
 

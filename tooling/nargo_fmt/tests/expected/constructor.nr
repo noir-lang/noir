@@ -4,5 +4,5 @@ struct Point {
 }
 
 fn foo() {
-    plain::Point { x: 5, y: 10 };
+    Point { x: 5, y: 10 };
 }
