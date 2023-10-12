@@ -1,5 +1,11 @@
 fn foo() {
-    let val = 1;
-    let val2 = 2;
-    let add_50 =   |  val  ,   val2 |   val + 50;
+    let calculate_total =    |  a ,   b, c| {
+        
+        let average = (a + b + c) / 3;
+        let difference = a - b;
+        average + difference
+        
+    };
+    let result = calculate_total(10, 5, 15);
+    assert(result == 15);
 }
