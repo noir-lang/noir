@@ -2573,6 +2573,7 @@ dependencies = [
  "log",
  "nargo",
  "noirc_driver",
+ "noirc_errors",
  "noirc_frontend",
  "serde",
  "wasm-bindgen",

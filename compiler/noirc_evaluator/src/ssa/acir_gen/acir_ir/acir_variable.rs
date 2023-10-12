@@ -249,6 +249,11 @@ impl AcirContext {
         }
     }
 
+    /// True if the given AcirVar refers to a constant value
+    pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
+        matches!(self.vars[var], AcirVarData::Const(_))
+    }
+
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///
@@ -873,7 +878,7 @@ impl AcirContext {
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
         if let Some(brillig_outputs) =
-            self.execute_brillig(generated_brillig.byte_code.clone(), &b_inputs, &outputs)
+            self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
         {
             return Ok(brillig_outputs);
         }
@@ -960,7 +965,7 @@ impl AcirContext {
 
     fn execute_brillig(
         &mut self,
-        code: Vec<BrilligOpcode>,
+        code: &[BrilligOpcode],
         inputs: &[BrilligInputs],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
@@ -1233,7 +1238,7 @@ pub(crate) struct AcirVar(usize);
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
 fn execute_brillig(
-    code: Vec<BrilligOpcode>,
+    code: &[BrilligOpcode],
     inputs: &[BrilligInputs],
 ) -> Option<(Registers, Vec<Value>)> {
     struct NullBbSolver;
@@ -1289,7 +1294,7 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(input_registers, input_memory, &code, Vec::new(), &NullBbSolver);
+    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

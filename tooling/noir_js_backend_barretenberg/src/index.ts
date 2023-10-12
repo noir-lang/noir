@@ -1,6 +1,8 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
+import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { BackendOptions } from './types.js';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
@@ -14,11 +16,12 @@ export class BarretenbergBackend implements Backend {
   private api: any;
   private acirComposer: any;
   private acirUncompressedBytecode: Uint8Array;
-  private numberOfThreads = 1;
 
-  constructor(acirCircuit: CompiledCircuit, numberOfThreads = 1) {
+  constructor(
+    acirCircuit: CompiledCircuit,
+    private options: BackendOptions = { threads: 1 },
+  ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
-    this.numberOfThreads = numberOfThreads;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
   }
 
@@ -27,7 +30,7 @@ export class BarretenbergBackend implements Backend {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new(this.numberOfThreads);
+      const api = await Barretenberg.new(this.options.threads);
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
@@ -65,12 +68,12 @@ export class BarretenbergBackend implements Backend {
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
 
-  async generateProof(decompressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
+  async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
     await this.instantiate();
     const proofWithPublicInputs = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
-      decompressedWitness,
+      gunzip(compressedWitness),
       makeEasyToVerifyInCircuit,
     );
 
