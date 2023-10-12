@@ -271,6 +271,7 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
 }
 
 fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
+    //tuka
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
         .then(optional_visibility())
@@ -993,6 +994,7 @@ fn parse_type_inner(
         string_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
+        named_trait(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         tuple_type(recursive_type_parser.clone()),
@@ -1080,6 +1082,12 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
     path()
         .then(generic_type_args(type_parser))
         .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
+}
+
+fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Impl).then(path()).then(generic_type_args(type_parser)).map_with_span(
+        |((_token, path), args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
+    )
 }
 
 fn generic_type_args(

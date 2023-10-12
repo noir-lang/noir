@@ -35,6 +35,7 @@ impl<'interner> TypeChecker<'interner> {
             }
         }
     }
+
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -50,7 +51,7 @@ impl<'interner> TypeChecker<'interner> {
                 // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
-                let t = self.interner.id_type(ident.id);
+                let t = self.interner.id_type_substitute_trait_as_type(ident.id);
                 let (typ, bindings) = t.instantiate(self.interner);
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
                 typ
@@ -131,7 +132,6 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
-
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
@@ -838,6 +838,9 @@ impl<'interner> TypeChecker<'interner> {
                         None
                     }
                 }
+            }
+            Type::TraitAsType(_trait) => {
+                unreachable!("unexpected lookup on trait as return type")
             }
             Type::NamedGeneric(_, _) => {
                 let func_meta = self.interner.function_meta(
