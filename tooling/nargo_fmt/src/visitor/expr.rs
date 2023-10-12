@@ -79,6 +79,17 @@ impl FmtVisitor<'_> {
                 let formatted_index = self.format_expr(index_expr.index);
                 format!("{}[{}]", formatted_collection, formatted_index)
             }
+            ExpressionKind::Tuple(elements) => {
+                let mut elements = TupleElements::new(self, span, elements).collect::<Vec<_>>();
+
+                let elements = if elements.len() == 1 {
+                    format!("{},", elements.pop().unwrap())
+                } else {
+                    elements.join(", ")
+                };
+
+                format!("({elements})")
+            }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
@@ -171,20 +182,68 @@ fn recover_comment_removed(original: &str, new: String) -> String {
 }
 
 fn changed_comment_content(original: &str, new: &str) -> bool {
-    comments(original) != comments(new)
+    comments(original).ne(comments(new))
 }
 
-fn comments(source: &str) -> Vec<String> {
-    Lexer::new(source)
-        .skip_comments(false)
-        .flatten()
-        .filter_map(|spanned| {
-            if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token()
-            {
-                Some(content)
-            } else {
-                None
-            }
-        })
-        .collect()
+fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
+    Lexer::new(source).skip_comments(false).flatten().filter_map(|spanned| {
+        if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token() {
+            Some(content)
+        } else {
+            None
+        }
+    })
+}
+
+struct TupleElements<'me> {
+    visitor: &'me FmtVisitor<'me>,
+    elements: std::iter::Peekable<std::vec::IntoIter<Expression>>,
+    last_position: u32,
+    end_position: u32,
+}
+
+impl<'me> TupleElements<'me> {
+    fn new(visitor: &'me FmtVisitor, span: Span, elements: Vec<Expression>) -> Self {
+        Self {
+            visitor,
+            last_position: span.start() + 1, /*(*/
+            end_position: span.end() - 1,    /*)*/
+            elements: elements.into_iter().peekable(),
+        }
+    }
+}
+
+impl Iterator for TupleElements<'_> {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let element = self.elements.next()?;
+        let element_span = element.span;
+
+        let start = self.last_position;
+        let end = element_span.start();
+
+        let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.span.start());
+
+        let leading = slice!(self.visitor, start, end).trim();
+        let trailing = slice!(self.visitor, element_span.end(), next_start);
+        let element_str = self.visitor.format_expr(element);
+
+        let end = trailing.find_token(Token::Comma).unwrap_or(trailing.len() as u32);
+
+        let trailing = trailing[..end as usize].trim_matches(',').trim();
+        self.last_position = element_span.end() + end;
+
+        format!("{leading}{element_str}{trailing}").into()
+    }
+}
+
+trait FindToken {
+    fn find_token(&self, token: Token) -> Option<u32>;
+}
+
+impl FindToken for str {
+    fn find_token(&self, token: Token) -> Option<u32> {
+        Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span().end()))
+    }
 }

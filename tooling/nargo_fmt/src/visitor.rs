@@ -1,7 +1,7 @@
 /// A macro to create a slice from a given data source, helping to avoid borrow checker errors.
 #[macro_export]
 macro_rules! slice {
-    ($this:ident, $start:expr, $end:expr) => {
+    ($this:expr, $start:expr, $end:expr) => {
         &$this.source[$start as usize..$end as usize]
     };
 }
