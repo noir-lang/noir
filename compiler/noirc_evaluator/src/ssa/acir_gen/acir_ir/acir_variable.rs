@@ -231,13 +231,10 @@ impl AcirContext {
         let expression = self.var_to_expression(var)?;
         let witness = if let Some(constant) = expression.to_const() {
             // Check if a witness has been assigned this value already, if so reuse it.
-            if let Some(witness) = self.constant_witnesses.get(&constant) {
-                *witness
-            } else {
-                let witness = self.acir_ir.get_or_create_witness(&expression);
-                self.constant_witnesses.insert(constant, witness);
-                witness
-            }
+            *self
+                .constant_witnesses
+                .entry(constant)
+                .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
         } else {
             self.acir_ir.get_or_create_witness(&expression)
         };
