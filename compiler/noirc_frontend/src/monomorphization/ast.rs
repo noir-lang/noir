@@ -242,6 +242,7 @@ pub struct Program {
     /// Note: this has no impact on monomorphization, and is simply attached here for ease of
     /// forwarding to the next phase.
     pub return_distinctness: Distinctness,
+    pub return_location: Option<Location>,
 }
 
 impl Program {
@@ -249,8 +250,9 @@ impl Program {
         functions: Vec<Function>,
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
+        return_location: Option<Location>,
     ) -> Program {
-        Program { functions, main_function_signature, return_distinctness }
+        Program { functions, main_function_signature, return_distinctness, return_location }
     }
 
     pub fn main(&self) -> &Function {

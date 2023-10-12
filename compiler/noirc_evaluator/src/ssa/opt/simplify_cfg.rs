@@ -202,7 +202,7 @@ mod test {
         assert_eq!(main.reachable_blocks().len(), 1);
 
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 assert_eq!(return_values.len(), 1);
                 let return_value = main
                     .dfg
@@ -258,7 +258,7 @@ mod test {
         assert_eq!(main.reachable_blocks().len(), 1);
 
         match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values }) => {
+            Some(TerminatorInstruction::Return { return_values, .. }) => {
                 assert_eq!(return_values.len(), 1);
                 let return_value = main
                     .dfg
