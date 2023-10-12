@@ -95,6 +95,7 @@ impl FmtVisitor<'_> {
                     literal.to_string()
                 }
             },
+            ExpressionKind::Parenthesized(subexpr) => format!("({})", self.format_expr(*subexpr)),
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
