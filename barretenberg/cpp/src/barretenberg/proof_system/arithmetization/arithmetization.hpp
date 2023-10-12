@@ -174,7 +174,7 @@ template <typename _FF> class Ultra : public Arithmetization</*NUM_WIRES =*/4, /
         // ~Selectors() = default;
     };
 };
-class GoblinTranslator : public Arithmetization</*NUM_WIRES =*/78, /*num_selectors =*/0> {
+class GoblinTranslator : public Arithmetization</*NUM_WIRES =*/81, /*num_selectors =*/0> {
   public:
     // Dirty hack
     using Selectors = bool;

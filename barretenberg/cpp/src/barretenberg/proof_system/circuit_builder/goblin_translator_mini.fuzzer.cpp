@@ -35,9 +35,9 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
     proof_system::GoblinTranslatorCircuitBuilder::AccumulationInput single_accumulation_step =
         proof_system::generate_witness_values(op, p_x_lo, p_x_hi, p_y_lo, p_y_hi, z_1, z_2, previous_accumulator, v, x);
 
-    auto circuit_builder = proof_system::GoblinTranslatorCircuitBuilder();
+    auto circuit_builder = proof_system::GoblinTranslatorCircuitBuilder(v, x);
     circuit_builder.create_accumulation_gate(single_accumulation_step);
-    if (!circuit_builder.check_circuit(x, v)) {
+    if (!circuit_builder.check_circuit()) {
         return 1;
     }
     return 0;

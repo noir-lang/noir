@@ -21,6 +21,17 @@ template <typename CycleGroup> struct VMOperation {
     uint256_t z1 = 0;
     uint256_t z2 = 0;
     typename CycleGroup::subgroup_field mul_scalar_full = 0;
+    [[nodiscard]] uint32_t get_opcode_value() const
+    {
+        auto res = static_cast<uint32_t>(add);
+        res += res;
+        res += static_cast<uint32_t>(mul);
+        res += res;
+        res += static_cast<uint32_t>(eq);
+        res += res;
+        res += static_cast<uint32_t>(reset);
+        return res;
+    }
 };
 template <typename CycleGroup> struct ScalarMul {
     uint32_t pc;
