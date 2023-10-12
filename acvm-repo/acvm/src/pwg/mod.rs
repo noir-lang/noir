@@ -11,7 +11,9 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
 use self::{
-    arithmetic::ArithmeticSolver, brillig::BrilligSolver, directives::solve_directives,
+    arithmetic::ArithmeticSolver,
+    brillig::{BrilligSolver, BrilligSolverStatus},
+    directives::solve_directives,
     memory_op::MemoryOpSolver,
 };
 use crate::{BlackBoxFunctionSolver, Language};
@@ -141,9 +143,7 @@ pub struct ACVM<'a, B: BlackBoxFunctionSolver> {
 
     witness_map: WitnessMap,
 
-    /// Results of oracles/functions external to brillig like a database read.
-    // Each element of this vector corresponds to a single foreign call but may contain several values.
-    foreign_call_results: HashMap<usize, Vec<ForeignCallResult>>,
+    brillig_solver: Option<BrilligSolver<'a, B>>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
@@ -156,7 +156,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             opcodes,
             instruction_pointer: 0,
             witness_map: initial_witness,
-            foreign_call_results: HashMap::default(),
+            brillig_solver: None,
         }
     }
 
@@ -221,10 +221,8 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             panic!("ACVM is not expecting a foreign call response as no call was made");
         }
 
-        // We want to inject the foreign call result into the brillig opcode which initiated the call.
-        let foreign_call_results =
-            self.foreign_call_results.entry(self.instruction_pointer).or_default();
-        foreign_call_results.push(foreign_call_result);
+        let brillig_solver = self.brillig_solver.as_mut().expect("No active Brillig solver");
+        brillig_solver.resolve_pending_foreign_call(foreign_call_result);
 
         // Now that the foreign call has been resolved then we can resume execution.
         self.status(ACVMStatus::InProgress);
@@ -260,23 +258,10 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.solve_memory_op(op, &mut self.witness_map, predicate)
             }
-            Opcode::Brillig(brillig) => {
-                let foreign_call_results = self
-                    .foreign_call_results
-                    .get(&self.instruction_pointer)
-                    .cloned()
-                    .unwrap_or_default();
-                match BrilligSolver::solve(
-                    &mut self.witness_map,
-                    brillig,
-                    foreign_call_results,
-                    self.backend,
-                    self.instruction_pointer,
-                ) {
-                    Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
-                    res => res.map(|_| ()),
-                }
-            }
+            Opcode::Brillig(_) => match self.solve_brillig_opcode() {
+                Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
+                res => res.map(|_| ()),
+            },
         };
         match resolution {
             Ok(()) => {
@@ -307,6 +292,42 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                     _ => (),
                 };
                 self.fail(error)
+            }
+        }
+    }
+
+    fn solve_brillig_opcode(
+        &mut self,
+    ) -> Result<Option<ForeignCallWaitInfo>, OpcodeResolutionError> {
+        let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
+            unreachable!("Not executing a Brillig opcode");
+        };
+        let witness = &mut self.witness_map;
+        if BrilligSolver::<B>::should_skip(witness, brillig)? {
+            BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig).map(|_| None)
+        } else {
+            // If we're resuming execution after resolving a foreign call then
+            // there will be a cached `BrilligSolver` to avoid recomputation.
+            let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
+                Some(solver) => solver,
+                None => {
+                    BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?
+                }
+            };
+            match solver.solve()? {
+                BrilligSolverStatus::ForeignCallWait(foreign_call) => {
+                    // Cache the current state of the solver
+                    self.brillig_solver = Some(solver);
+                    Ok(Some(foreign_call))
+                }
+                BrilligSolverStatus::InProgress => {
+                    unreachable!("Brillig solver still in progress")
+                }
+                BrilligSolverStatus::Finished => {
+                    // Write execution outputs
+                    solver.finalize(witness, brillig)?;
+                    Ok(None)
+                }
             }
         }
     }
