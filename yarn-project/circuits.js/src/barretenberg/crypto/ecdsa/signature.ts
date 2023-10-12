@@ -45,8 +45,8 @@ export class EcdsaSignature implements Signature {
   }
 
   /**
-   * Deserialises the signature from a buffer.
-   * @param buffer - The buffer from which to deserialise the signature.
+   * Deserializes the signature from a buffer.
+   * @param buffer - The buffer from which to deserialize the signature.
    * @returns The ECDSA signature
    */
   public static fromBuffer(buffer: Buffer) {

@@ -74,5 +74,5 @@ declare module 'browserify-cipher' {
    *
    * @returns An array of strings representing the supported cipher algorithms.
    */
-  function gebtCiphers(): CipherTypes[];
+  function getCiphers(): CipherTypes[];
 }

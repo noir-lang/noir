@@ -262,7 +262,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * Gets the sibling path for a leaf in a tree.
    * @param treeId - The ID of the tree.
    * @param index - The index of the leaf.
-   * @param includeUncommitted - Indicates whether the sibling path should incro include uncommitted data.
+   * @param includeUncommitted - Indicates whether the sibling path should include uncommitted data.
    * @returns The sibling path for the leaf.
    */
   public async getSiblingPath<N extends number>(

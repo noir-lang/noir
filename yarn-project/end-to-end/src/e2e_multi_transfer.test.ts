@@ -160,10 +160,10 @@ describe('multi-transfer payments', () => {
     {
       const amounts: bigint[] = [50n, 50n, 50n, 50n, 50n, 50n, 50n, 50n, 50n, 50n, 50n, 50n];
       const noteOffsets: bigint[] = [0n, 0n, 3n, 6n];
-      const repeatedSelfAdddress: AztecAddress[] = Array(12).fill(ownerAddress);
+      const repeatedSelfAddress: AztecAddress[] = Array(12).fill(ownerAddress);
 
       await multiTransferContract.methods
-        .multiTransfer(zkTokenContract.address.toField(), repeatedSelfAdddress, amounts, ownerAddress, noteOffsets)
+        .multiTransfer(zkTokenContract.address.toField(), repeatedSelfAddress, amounts, ownerAddress, noteOffsets)
         .send()
         .wait({ timeout: 100 }); // mining timeout ≥ time needed for the test to finish.
 

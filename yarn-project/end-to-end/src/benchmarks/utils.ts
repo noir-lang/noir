@@ -111,7 +111,7 @@ export async function waitNewPXESynced(
 }
 
 /**
- * Retisters a new account in a pxe and waits until it's synced all its notes.
+ * Registers a new account in a pxe and waits until it's synced all its notes.
  * @param pxe - PXE where to register the account.
  * @param privateKey - Private key of the account to register.
  * @param partialAddress - Partial address of the account to register.

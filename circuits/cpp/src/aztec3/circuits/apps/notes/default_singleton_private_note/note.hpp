@@ -74,9 +74,9 @@ template <typename Builder, typename ValueType> class DefaultSingletonPrivateNot
 
     fr generate_nonce() override;
 
-    fr get_initialisation_nullifier() override;
+    fr get_initialization_nullifier() override;
 
-    fr get_initialisation_commitment() override;
+    fr get_initialization_commitment() override;
 
     // CUSTOM METHODS
 

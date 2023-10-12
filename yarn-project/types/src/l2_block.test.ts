@@ -16,8 +16,8 @@ describe('L2Block', () => {
     block.newEncryptedLogs = undefined;
     block.newUnencryptedLogs = undefined;
 
-    const serialised = block.toString();
-    const recovered = L2Block.fromString(serialised);
+    const serialized = block.toString();
+    const recovered = L2Block.fromString(serialized);
 
     expect(recovered).toEqual(block);
   });

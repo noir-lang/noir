@@ -66,7 +66,7 @@ export class NoteProcessor {
   }
 
   /**
-   * Returns synchronisation status (ie up to which block has been synced ) for this note processor.
+   * Returns synchronization status (ie up to which block has been synced ) for this note processor.
    */
   public get status() {
     return { syncedToBlock: this.syncedToBlock };
@@ -230,7 +230,7 @@ ${siloedNoteHash.toString()}'.
 If you can see that notification. Everything's fine.
 If that's not the case, and you can't find such a notification, something has gone wrong.
 There could be a problem with the way you've defined a custom note, or with the way you're
-serialising / deserialising / hashing / encrypting / decrypting that note.
+serializing / deserializing / hashing / encrypting / decrypting that note.
 Please see the following github issue to track an improvement that we're working on:
 https://github.com/AztecProtocol/aztec-packages/issues/1641`;
       }

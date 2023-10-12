@@ -71,7 +71,7 @@ export class MockBlockSource implements L2BlockSource {
 
   /**
    * Starts the block source. In this mock implementation, this is a noop.
-   * @returns A promise that signals the initialization of the l2 block source on compmletion.
+   * @returns A promise that signals the initialization of the l2 block source on completion.
    */
   public start(): Promise<void> {
     return Promise.resolve();

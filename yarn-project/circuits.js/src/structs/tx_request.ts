@@ -51,7 +51,7 @@ export class TxRequest {
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
-   * @returns The deserialised TxRequest object.
+   * @returns The deserialized TxRequest object.
    */
   static fromBuffer(buffer: Buffer | BufferReader): TxRequest {
     const reader = BufferReader.asReader(buffer);

@@ -11,7 +11,7 @@ export class Aes128 {
   /**
    * Encrypt a buffer using AES-128-CBC.
    * @param data - Data to encrypt.
-   * @param iv - AES initialisation vector.
+   * @param iv - AES initialization vector.
    * @param key - Key to encrypt with.
    * @returns Encrypted data.
    */
@@ -50,7 +50,7 @@ export class Aes128 {
   /**
    * Decrypt a buffer using AES-128-CBC.
    * @param data - Data to decrypt.
-   * @param iv - AES initialisation vector.
+   * @param iv - AES initialization vector.
    * @param key - Key to decrypt with.
    * @returns Decrypted data.
    */

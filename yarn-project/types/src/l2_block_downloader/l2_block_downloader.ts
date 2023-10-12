@@ -1,6 +1,6 @@
 import { MemoryFifo, Semaphore, SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { InterruptableSleep } from '@aztec/foundation/sleep';
+import { InterruptibleSleep } from '@aztec/foundation/sleep';
 
 import { INITIAL_L2_BLOCK_NUM, L2Block, L2BlockSource } from '../index.js';
 
@@ -16,7 +16,7 @@ export class L2BlockDownloader {
   private runningPromise?: Promise<void>;
   private running = false;
   private from = 0;
-  private interruptableSleep = new InterruptableSleep();
+  private interruptibleSleep = new InterruptibleSleep();
   private semaphore: Semaphore;
   private jobQueue = new SerialQueue();
   private blockQueue = new MemoryFifo<L2Block[]>();
@@ -31,7 +31,7 @@ export class L2BlockDownloader {
    */
   public start(from = INITIAL_L2_BLOCK_NUM) {
     if (this.running) {
-      this.interruptableSleep.interrupt();
+      this.interruptibleSleep.interrupt();
       return;
     }
     this.from = from;
@@ -41,10 +41,10 @@ export class L2BlockDownloader {
       while (this.running) {
         try {
           await this.jobQueue.put(() => this.collectBlocks());
-          await this.interruptableSleep.sleep(this.pollIntervalMS);
+          await this.interruptibleSleep.sleep(this.pollIntervalMS);
         } catch (err) {
           log.error(`Error downloading L2 block`, err);
-          await this.interruptableSleep.sleep(this.pollIntervalMS);
+          await this.interruptibleSleep.sleep(this.pollIntervalMS);
         }
       }
     };
@@ -76,7 +76,7 @@ export class L2BlockDownloader {
    */
   public async stop() {
     this.running = false;
-    this.interruptableSleep.interrupt();
+    this.interruptibleSleep.interrupt();
     await this.jobQueue.cancel();
     this.blockQueue.cancel();
     await this.runningPromise;

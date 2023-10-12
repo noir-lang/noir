@@ -45,6 +45,6 @@ export enum RollupTypes {
 }
 
 /**
- * String encoding of serialised buffer data
+ * String encoding of serialized buffer data
  */
 export const STRING_ENCODING: BufferEncoding = 'hex';

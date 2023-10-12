@@ -16,7 +16,7 @@ export enum P2PClientState {
 }
 
 /**
- * The synchronisation status of the P2P client.
+ * The synchronization status of the P2P client.
  */
 export interface P2PSyncState {
   /**

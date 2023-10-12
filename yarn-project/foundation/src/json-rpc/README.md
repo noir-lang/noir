@@ -12,7 +12,7 @@ json-rpc
 ```
 
 Each createJsonRpcClient and JsonRpcServer call needs a map of classes that will be translated in input and output values.
-By default, Buffer is handled, but other usermade classes need to define toString() and static fromString() like so:
+By default, Buffer is handled, but other user-made classes need to define toString() and static fromString() like so:
 
 ```
    class PublicKey {

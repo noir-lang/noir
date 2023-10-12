@@ -45,7 +45,7 @@ export class PublicDataWrite {
   }
 
   /**
-   * Serialises the operation to a string.
+   * Serializes the operation to a string.
    * @returns A string representation of the operation.
    */
   toString(): string {
@@ -72,7 +72,7 @@ export class PublicDataWrite {
 
   /**
    * Creates a new public data write operation from the given string.
-   * @param str - The serialised string
+   * @param str - The serialized string
    * @returns A new public data write operation instance.
    */
   static fromString(str: string): PublicDataWrite {

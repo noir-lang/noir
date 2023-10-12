@@ -86,7 +86,7 @@ export class PXEService implements PXE {
   }
 
   /**
-   * Starts the PXE Service by beginning the synchronisation process between the Aztec node and the database.
+   * Starts the PXE Service by beginning the synchronization process between the Aztec node and the database.
    *
    * @returns A promise that resolves when the server has started successfully.
    */

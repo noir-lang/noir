@@ -117,7 +117,7 @@ export function convertFromJsonObj(cc: ClassConverter, obj: any): any {
  * @returns The encoded object.
  */
 export function convertToJsonObj(cc: ClassConverter, obj: any): any {
-  // Bigint is a primitive type that needs special handling since it's not serialisable
+  // Bigint is a primitive type that needs special handling since it's not serializable
   if (typeof obj === 'bigint') {
     return {
       type: 'bigint',

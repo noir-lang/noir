@@ -130,7 +130,7 @@ template <typename Fr> Fr Polynomial<Fr>::evaluate(const Fr& z) const
 /**
  * @brief sets a block of memory to all zeroes
  * Used to zero out unintialized memory to ensure that, when writing to the polynomial in future,
- * memory requests made to the OS do not return virtual pages (performance optimisation).
+ * memory requests made to the OS do not return virtual pages (performance optimization).
  * Used, for example, when one polynomial is instantiated from another one with size_>= other.size_.
  *
  * @param opening_proof Opening proof computed by `batch_open`

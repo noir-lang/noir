@@ -78,7 +78,7 @@ export class Point {
   }
 
   /**
-   * Converts the Point instance to a Buffer representaion of the coordinates.
+   * Converts the Point instance to a Buffer representation of the coordinates.
    * The outputs buffer length will be 64, the length of both coordinates not represented as fields.
    * @returns A Buffer representation of the Point instance.
    */

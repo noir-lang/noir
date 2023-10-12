@@ -56,7 +56,7 @@ Responsibilities:
 Responsibilities:
 
 - Returns the sibling path for the given `tree_id` at the given leaf `index`.
-- Can be injected into any context that requires path queries for a particular tree. Might be backed by implementations that call out to a server (where privacy doesn't matter, or during early development), or leverages some privacy tech (query via Nym), or could just point to a local `WorldStateSynchroniser`.
+- Can be injected into any context that requires path queries for a particular tree. Might be backed by implementations that call out to a server (where privacy doesn't matter, or during early development), or leverages some privacy tech (query via Nym), or could just point to a local `WorldStateSynchronizer`.
 
 ### RollupSource
 
@@ -182,7 +182,7 @@ Injected:
 Implementation notes for this milestone:
 
 - Mostly acting as a facade for other components, forwards requests as necessary.
-- A `WorldStateSynchroniser` will ingest rollups from the `RollupSource` and maintain an up-to-date `MerkleTreeDb`.
+- A `WorldStateSynchronizer` will ingest rollups from the `RollupSource` and maintain an up-to-date `MerkleTreeDb`.
 
 <!--
 Mikes bullets. Some of these in wrong place (sequencer does publishing)
@@ -259,7 +259,7 @@ Interface:
 - `get_sibling_path`
 - `append_leaves`
 
-### WorldStateSynchroniser
+### WorldStateSynchronizer
 
 Injected:
 

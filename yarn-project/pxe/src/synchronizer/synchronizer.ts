@@ -1,7 +1,7 @@
 import { AztecAddress, CircuitsWasm, Fr, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
 import { computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { InterruptableSleep } from '@aztec/foundation/sleep';
+import { InterruptibleSleep } from '@aztec/foundation/sleep';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L2BlockContext, L2BlockL2Logs, LogType } from '@aztec/types';
 import { NoteProcessorCaughtUpStats } from '@aztec/types/stats';
 
@@ -18,7 +18,7 @@ import { NoteProcessor } from '../note_processor/index.js';
 export class Synchronizer {
   private runningPromise?: Promise<void>;
   private noteProcessors: NoteProcessor[] = [];
-  private interruptableSleep = new InterruptableSleep();
+  private interruptibleSleep = new InterruptibleSleep();
   private running = false;
   private initialSyncBlockNumber = 0;
   private synchedToBlock = 0;
@@ -30,7 +30,7 @@ export class Synchronizer {
   }
 
   /**
-   * Starts the synchronisation process by fetching encrypted logs and blocks from a specified position.
+   * Starts the synchronization process by fetching encrypted logs and blocks from a specified position.
    * Continuously processes the fetched data for all note processors until stopped. If there is no data
    * available, it retries after a specified interval.
    *
@@ -80,20 +80,20 @@ export class Synchronizer {
     try {
       let encryptedLogs = await this.node.getLogs(from, limit, LogType.ENCRYPTED);
       if (!encryptedLogs.length) {
-        await this.interruptableSleep.sleep(retryInterval);
+        await this.interruptibleSleep.sleep(retryInterval);
         return;
       }
 
       let unencryptedLogs = await this.node.getLogs(from, limit, LogType.UNENCRYPTED);
       if (!unencryptedLogs.length) {
-        await this.interruptableSleep.sleep(retryInterval);
+        await this.interruptibleSleep.sleep(retryInterval);
         return;
       }
 
       // Note: If less than `limit` encrypted logs is returned, then we fetch only that number of blocks.
       const blocks = await this.node.getBlocks(from, encryptedLogs.length);
       if (!blocks.length) {
-        await this.interruptableSleep.sleep(retryInterval);
+        await this.interruptibleSleep.sleep(retryInterval);
         return;
       }
 
@@ -129,7 +129,7 @@ export class Synchronizer {
       this.synchedToBlock = latestBlock.block.number;
     } catch (err) {
       this.log.error(`Error in synchronizer work`, err);
-      await this.interruptableSleep.sleep(retryInterval);
+      await this.interruptibleSleep.sleep(retryInterval);
     }
   }
 
@@ -191,7 +191,7 @@ export class Synchronizer {
       }
     } catch (err) {
       this.log.error(`Error in synchronizer workNoteProcessorCatchUp`, err);
-      await this.interruptableSleep.sleep(retryInterval);
+      await this.interruptibleSleep.sleep(retryInterval);
     }
   }
 
@@ -224,7 +224,7 @@ export class Synchronizer {
    */
   public async stop() {
     this.running = false;
-    this.interruptableSleep.interrupt();
+    this.interruptibleSleep.interrupt();
     await this.runningPromise;
     this.log('Stopped');
   }

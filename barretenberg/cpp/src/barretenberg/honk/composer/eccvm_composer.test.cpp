@@ -18,7 +18,7 @@ namespace test_eccvm_composer {
 
 template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
   protected:
-    // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
+    // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialized for every test.
     void SetUp() override
     {
         if constexpr (std::is_same<Flavor, flavor::ECCVMGrumpkin>::value) {

@@ -38,7 +38,7 @@ function generateCallStatement(selector: FunctionSelector, functionType: Functio
 /**
  * Formats a string as pascal case.
  * @param str - A string.
- * @returns A capitalised camelcase string.
+ * @returns A capitalized camelcase string.
  */
 function toPascalCase(str: string) {
   return upperFirst(camelCase(str));
@@ -47,7 +47,7 @@ function toPascalCase(str: string) {
 /**
  * Returns a struct name given a list of fragments.
  * @param fragments - Fragments.
- * @returns The concatenation of the capitalised fragments.
+ * @returns The concatenation of the capitalized fragments.
  */
 function getStructName(...fragments: string[]) {
   return fragments.map(toPascalCase).join('') + 'Struct';
@@ -122,7 +122,7 @@ function collectParametersForSerialization(parameters: ABIVariable[]) {
 }
 
 /**
- * Generates Noir code for serialising the parameters into an array of fields.
+ * Generates Noir code for serializing the parameters into an array of fields.
  * @param parameters - Parameters to serialize.
  * @returns The serialization code.
  */

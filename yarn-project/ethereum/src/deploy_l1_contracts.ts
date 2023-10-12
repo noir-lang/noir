@@ -43,7 +43,7 @@ export type DeployL1Contracts = {
  */
 export interface ContractArtifacts {
   /**
-   * The conttract abi.
+   * The contract abi.
    */
   contractAbi: Narrow<Abi | readonly unknown[]>;
   /**

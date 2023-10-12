@@ -310,7 +310,7 @@ export class LibP2PService implements P2PService {
   private async processReceivedTxs(encodedMessage: Buffer, peerId: PeerId) {
     try {
       const txs = decodeTransactionsMessage(encodedMessage);
-      // Could optimise here and process all txs at once
+      // Could optimize here and process all txs at once
       // Propagation would need to filter and send custom tx set per peer
       for (const tx of txs) {
         await this.processTxFromPeer(tx, peerId);

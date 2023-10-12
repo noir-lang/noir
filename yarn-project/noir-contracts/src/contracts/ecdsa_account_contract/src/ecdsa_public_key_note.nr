@@ -36,10 +36,10 @@ impl EcdsaPublicKeyNote {
         let mut mul: Field = 1;
 
         for i in 1..32 {
-          let bytex: Field = self.x[31 - i] as Field;
-          x = x + (bytex * mul);
-          let bytey: Field = self.y[31 - i] as Field;
-          y = y + (bytey * mul);
+          let byte_x: Field = self.x[31 - i] as Field;
+          x = x + (byte_x * mul);
+          let byte_y: Field = self.y[31 - i] as Field;
+          y = y + (byte_y * mul);
           mul *= 256;
         }
 

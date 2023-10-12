@@ -132,7 +132,7 @@ function processTxAddedToPool(entry: TxAddedToPoolStats, results: BenchmarkColle
   append(results, 'tx_size_in_bytes', entry.newContractCount, entry.size);
 }
 
-/** Processes a parsed entry from a logfile and updates results */
+/** Processes a parsed entry from a log-file and updates results */
 function processEntry(entry: Stats, results: BenchmarkCollectedResults) {
   switch (entry.eventName) {
     case 'rollup-published-to-l1':
@@ -181,7 +181,7 @@ export async function main() {
 
   log(`Collected entries: ${JSON.stringify(collected)}`);
 
-  // For each bucket of each metric compute the average all collected datapoints
+  // For each bucket of each metric compute the average all collected data points
   const results: BenchmarkResults = {};
   for (const [metricName, metric] of Object.entries(collected)) {
     const resultMetric: BenchmarkMetricResults = {};

@@ -79,7 +79,7 @@ export class SchnorrSignature implements Signature {
   }
 
   /**
-   * Deserialises from a buffer.
+   * Deserializes from a buffer.
    * @param buffer - The buffer representation of the object.
    * @returns The new object.
    */

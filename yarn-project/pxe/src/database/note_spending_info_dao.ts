@@ -25,7 +25,7 @@ export interface NoteSpendingInfoDao {
    */
   notePreimage: NotePreimage;
   /**
-   * Inner note hash of the note. This is customisable by the app circuit.
+   * Inner note hash of the note. This is customizable by the app circuit.
    * We can use this value to compute siloedNoteHash and uniqueSiloedNoteHash.
    */
   innerNoteHash: Fr;

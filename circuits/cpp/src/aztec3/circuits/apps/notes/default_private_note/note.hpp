@@ -85,16 +85,16 @@ template <typename Builder, typename ValueType> class DefaultPrivateNote : publi
 
     fr generate_nonce() override;
 
-    fr get_initialisation_nullifier() override
+    fr get_initialization_nullifier() override
     {
         throw_or_abort(
-            "DefaultPrivateNote does not support initialisation. Maybe use DefaultSingletonPrivateNote instead?");
+            "DefaultPrivateNote does not support initialization. Maybe use DefaultSingletonPrivateNote instead?");
     };
 
-    fr get_initialisation_commitment() override
+    fr get_initialization_commitment() override
     {
         throw_or_abort(
-            "DefaultPrivateNote does not support initialisation. Maybe use DefaultSingletonPrivateNote instead?");
+            "DefaultPrivateNote does not support initialization. Maybe use DefaultSingletonPrivateNote instead?");
     };
 
     // CUSTOM METHODS

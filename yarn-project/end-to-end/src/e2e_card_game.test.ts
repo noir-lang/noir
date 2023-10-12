@@ -267,9 +267,9 @@ describe('e2e_card_game', () => {
         { address: secondPlayer, deck: secondPlayerGameDeck },
       ]);
 
-      const sotedByPoints = game.players.sort((a, b) => Number(b.points - a.points));
-      const winner = AztecAddress.fromBigInt(sotedByPoints[0].address);
-      const loser = AztecAddress.fromBigInt(sotedByPoints[1].address);
+      const sortedByPoints = game.players.sort((a, b) => Number(b.points - a.points));
+      const winner = AztecAddress.fromBigInt(sortedByPoints[0].address);
+      const loser = AztecAddress.fromBigInt(sortedByPoints[1].address);
 
       await expect(
         contractFor(loser).methods.claim_cards(GAME_ID, game.rounds_cards.map(cardToField)).send().wait(),

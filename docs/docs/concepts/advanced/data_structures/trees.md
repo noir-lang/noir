@@ -100,7 +100,7 @@ If a function of a smart contract generates this Nullifier and submits it to the
 
 'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a Private State's current value. <!-- TODO: write about fragmented private state, somewhere. -->
 
-We've found that such notes require an 'Initialisation Nullifier'; a nullifier which, when emitted, signals the initialisation of this state variable. I.e. the very first time the state variable has been written-to.
+We've found that such notes require an 'Initialisation Nullifier'; a nullifier which, when emitted, signals the initialization of this state variable. I.e. the very first time the state variable has been written-to.
 
 > There's more on this topic in [the Aztec forum](https://discourse.aztec.network/t/utxo-syntax-2-initialising-singleton-utxos/47).
 

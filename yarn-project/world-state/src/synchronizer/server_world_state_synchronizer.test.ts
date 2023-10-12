@@ -210,7 +210,7 @@ describe('server_world_state_synchronizer', () => {
       nextBlocks = [getMockBlock(currentBlockNumber + 1)];
     }
 
-    // check the status agian, should be fully synced
+    // check the status again, should be fully synced
     status = await server.status();
     expect(status.state).toEqual(WorldStateRunningState.RUNNING);
     expect(status.syncedToL2Block).toEqual(LATEST_BLOCK_NUMBER);

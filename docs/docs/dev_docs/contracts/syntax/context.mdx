@@ -94,7 +94,7 @@ New commitments contains an array of all of the commitments created in the curre
 New nullifiers contains an array of the new nullifiers emitted from the current execution context.
 
 ### Nullified Commitments
-Nullified commitments is an optimisation for introduced to help reduce state growth. There are often cases where commitments are created and nullified within the same transaction.  
+Nullified commitments is an optimization for introduced to help reduce state growth. There are often cases where commitments are created and nullified within the same transaction.  
 In these cases there is no reason that these commitments should take up space on the node's commitment/nullifier trees. Keeping track of nullified commitments allows us to "cancel out" and prove these cases.
 
 ### Private Call Stack

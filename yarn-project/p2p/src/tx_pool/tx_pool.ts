@@ -18,7 +18,7 @@ export interface TxPool {
   getTxByHash(txHash: TxHash): Tx | undefined;
 
   /**
-   * Deletes transactions from the pool. Tx hasehs that are not present are ignored.
+   * Deletes transactions from the pool. Tx hashes that are not present are ignored.
    * @param txHashes - An array of tx hashes to be removed from the tx pool.
    */
   deleteTxs(txHashes: TxHash[]): void;

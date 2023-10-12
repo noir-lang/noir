@@ -256,7 +256,7 @@ template <typename Builder> class FunctionExecutionContext {
     }
 
     /**
-     * @brief This is an important optimisation, to save on the number of emitted nullifiers.
+     * @brief This is an important optimization, to save on the number of emitted nullifiers.
      *
      * A nullifier is ideal to serve as a nonce for a new note commitment, because its uniqueness is enforced by the
      * Rollup circuit. But we won't know how many non-dummy nullifiers we have at our disposal (to inject into
@@ -268,7 +268,7 @@ template <typename Builder> class FunctionExecutionContext {
      * nullifiers created within the function. Now, at that point, we _could_ generate a dummy nullifier and use that as
      * a nonce. But that uses up a precious slot in the circuit's nullifiers array (part of the circuit's public inputs
      * abi). And it might be the case that later in the function, a load of non-dummy nullifiers get created. So as an
-     * optimisation, it would be better if we could use _those_ nullifiers, so as to minimise dummy values in the
+     * optimization, it would be better if we could use _those_ nullifiers, so as to minimise dummy values in the
      * circuit's public inputs.
      *
      * And so, we provide the option here of deferring the injection of nonces into note_preimages (and hence deferring

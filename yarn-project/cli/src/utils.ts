@@ -199,7 +199,7 @@ export function parseSaltFromHexString(str: string): Fr {
 
 /**
  * Parses an AztecAddress from a string.
- * @param address - A serialised Aztec address
+ * @param address - A serialized Aztec address
  * @returns An Aztec address
  * @throws InvalidArgumentError if the input string is not valid.
  */
@@ -213,7 +213,7 @@ export function parseAztecAddress(address: string): AztecAddress {
 
 /**
  * Parses an AztecAddress from a string.
- * @param address - A serialised Aztec address
+ * @param address - A serialized Aztec address
  * @returns An Aztec address
  * @throws InvalidArgumentError if the input string is not valid.
  */
@@ -239,7 +239,7 @@ export function parseOptionalLogId(logId: string): LogId | undefined {
 
 /**
  * Parses a selector from a string.
- * @param selector - A serialised selector.
+ * @param selector - A serialized selector.
  * @returns A selector.
  * @throws InvalidArgumentError if the input string is not valid.
  */

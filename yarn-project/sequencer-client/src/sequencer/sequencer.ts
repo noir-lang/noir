@@ -103,7 +103,7 @@ export class Sequencer {
   }
 
   protected async initialSync() {
-    // TODO: Should we wait for worldstate to be ready, or is the caller expected to run await start?
+    // TODO: Should we wait for world state to be ready, or is the caller expected to run await start?
     this.lastPublishedBlock = await this.worldState.status().then((s: WorldStateStatus) => s.syncedToL2Block);
   }
 
@@ -156,7 +156,7 @@ export class Sequencer {
       // Only accept processed transactions that are not double-spends,
       // public functions emitting nullifiers would pass earlier check but fail here.
       // Note that we're checking all nullifiers generated in the private execution twice,
-      // we could store the ones already checked and skip them here as an optimisation.
+      // we could store the ones already checked and skip them here as an optimization.
       const processedValidTxs = await this.takeValidTxs(processedTxs);
 
       if (processedValidTxs.length === 0) {

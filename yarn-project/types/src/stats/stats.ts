@@ -8,9 +8,9 @@ export type L2BlockStats = {
   encryptedLogCount?: number;
   /** Number of unencrypted logs. */
   unencryptedLogCount?: number;
-  /** Serialised size of encrypted logs. */
+  /** Serialized size of encrypted logs. */
   encryptedLogSize?: number;
-  /** Serialised size of unencrypted logs. */
+  /** Serialized size of unencrypted logs. */
   unencryptedLogSize?: number;
 };
 

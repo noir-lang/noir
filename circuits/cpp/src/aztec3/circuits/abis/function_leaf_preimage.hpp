@@ -24,7 +24,7 @@ using std::is_same;
  * This struct includes a `hash()` function for computing its pedersen compression.
  * There are also static functions for:
  * - converting preimages between native/circuit types
- * - serialising and deserialising preimages
+ * - serializing and deserializing preimages
  * - writing a preimage to an ostream
  */
 template <typename NCT> struct FunctionLeafPreimage {

@@ -122,8 +122,8 @@ void Opcodes<Builder>::UTXO_NULL(StateVar<Builder>* state_var, Note& note_to_nul
 template <typename Builder> template <typename Note>
 void Opcodes<Builder>::UTXO_INIT(StateVar<Builder>* state_var, Note& note_to_initialise)
 {
-    typename CT::fr const init_nullifier = note_to_initialise.get_initialisation_nullifier();
-    typename CT::fr const init_commitment = note_to_initialise.get_initialisation_commitment();
+    typename CT::fr const init_nullifier = note_to_initialise.get_initialization_nullifier();
+    typename CT::fr const init_commitment = note_to_initialise.get_initialization_commitment();
 
     auto& exec_ctx = state_var->exec_ctx;
 

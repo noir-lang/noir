@@ -442,7 +442,7 @@ void common_update_public_end_values(Builder& builder,
 /**
  * @brief Initialises the circuit output end state from provided inputs
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
- * @param circuit_outputs The circuit outputs to be initialised
+ * @param circuit_outputs The circuit outputs to be initialized
  */
 void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
                                   KernelCircuitPublicInputs<NT>& circuit_outputs);

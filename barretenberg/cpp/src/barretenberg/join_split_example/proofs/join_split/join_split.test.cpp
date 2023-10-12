@@ -212,7 +212,7 @@ class join_split_tests : public ::testing::Test {
                                uint32_t account_note_index = 0,
                                bool account_required = false)
     {
-        // The tree, user and notes are initialised in SetUp().
+        // The tree, user and notes are initialized in SetUp().
         preload_value_notes();
         preload_account_notes(); // indices: [ACCOUNT_INDEX, ACCOUNT_INDEX + 1]
         return create_join_split_tx(input_indices,

@@ -1,7 +1,7 @@
 import { MemoryFifo } from './memory_fifo.js';
 
 /**
- * A more specialised fifo queue that enqueues functions to execute. Enqueued functions are executed in serial.
+ * A more specialized fifo queue that enqueues functions to execute. Enqueued functions are executed in serial.
  */
 export class SerialQueue {
   private readonly queue = new MemoryFifo<() => Promise<void>>();

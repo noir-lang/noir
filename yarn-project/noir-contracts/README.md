@@ -59,7 +59,7 @@ It has prebuilt binaries and is super easy to install using `noirup`
   ```
   echo -e '\n# Adds direnv initialization\neval "$(direnv hook zsh)"' >> $HOME/.zshenv
   ```
-- VSCode needs to be resterted so direnv plugin can notice env changes with:
+- VSCode needs to be restarted so direnv plugin can notice env changes with:
   ```
   kill -9 ps aux | grep $(whoami)/.vscode-server | awk '{print $2}'
   ```

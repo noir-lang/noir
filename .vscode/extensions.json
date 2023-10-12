@@ -36,6 +36,8 @@
     "IBM.output-colorizer",
     // Displays code coverage report information within vscode
     "ryanluker.vscode-coverage-gutters",
+    // Spell checking
+    "streetsidesoftware.code-spell-checker",
     // End C++/Circuits extensions
     ///////////////////////////////////////
   ],

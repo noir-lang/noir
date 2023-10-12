@@ -38,7 +38,7 @@ export const Metrics = [
   {
     name: 'l2_block_processing_time_in_ms',
     groupBy: 'block-size',
-    description: 'Time for the state synchroniser to process an L2 block that was not built by its own sequencer.',
+    description: 'Time for the state synchronizer to process an L2 block that was not built by its own sequencer.',
     events: ['l2-block-handled'],
   },
   {

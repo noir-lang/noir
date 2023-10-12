@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use crate::constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALISATION_NULLIFIER};
+use crate::constants_gen::{EMPTY_NULLIFIED_COMMITMENT, GENERATOR_INDEX__INITIALIZATION_NULLIFIER};
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
     lifecycle::{create_note, destroy_note},
@@ -18,12 +18,12 @@ pub fn compute_singleton_initialization_nullifier(storage_slot: Field, owner: Op
         let secret = get_secret_key(owner.unwrap_unchecked());
         pedersen_with_separator(
             [storage_slot, secret.low, secret.high],
-            GENERATOR_INDEX__INITIALISATION_NULLIFIER,
+            GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
         )[0]
     } else {
         pedersen_with_separator(
             [storage_slot],
-            GENERATOR_INDEX__INITIALISATION_NULLIFIER,
+            GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
         )[0]
     }
 }

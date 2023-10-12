@@ -107,7 +107,7 @@ struct GeneratorIndexPacker {
         int UNIQUE_COMMITMENT = GeneratorIndex::UNIQUE_COMMITMENT;
         int SILOED_COMMITMENT = GeneratorIndex::SILOED_COMMITMENT;
         int NULLIFIER = GeneratorIndex::NULLIFIER;
-        int INITIALISATION_NULLIFIER = GeneratorIndex::INITIALISATION_NULLIFIER;
+        int INITIALIZATION_NULLIFIER = GeneratorIndex::INITIALIZATION_NULLIFIER;
         int OUTER_NULLIFIER = GeneratorIndex::OUTER_NULLIFIER;
         int PUBLIC_DATA_READ = GeneratorIndex::PUBLIC_DATA_READ;
         int PUBLIC_DATA_UPDATE_REQUEST = GeneratorIndex::PUBLIC_DATA_UPDATE_REQUEST;
@@ -144,7 +144,7 @@ struct GeneratorIndexPacker {
                  UNIQUE_COMMITMENT,
                  SILOED_COMMITMENT,
                  NULLIFIER,
-                 INITIALISATION_NULLIFIER,
+                 INITIALIZATION_NULLIFIER,
                  OUTER_NULLIFIER,
                  PUBLIC_DATA_READ,
                  PUBLIC_DATA_UPDATE_REQUEST,

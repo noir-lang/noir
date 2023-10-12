@@ -62,7 +62,7 @@ template <typename Builder> class Opcodes {
 
     /**
      * @brief Compute and push a new commitment to the public inputs of this exec_ctx, BUT ALSO compute and produce an
-     * initialisation nullifier, to prevent this note from being initialised again in the future.
+     * initialization nullifier, to prevent this note from being initialized again in the future.
      */
     template <typename Note> static void UTXO_INIT(StateVar<Builder>* state_var, Note& note_to_initialise);
 

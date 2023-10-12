@@ -450,7 +450,7 @@ template <typename Builder> void bool_t<Builder>::must_imply(const bool_t& other
 }
 
 /**
- * Process many implications all at once, for readablity, and as an optimisation.
+ * Process many implications all at once, for readablity, and as an optimization.
  * @param conds - each pair is a boolean condition that we want to constrain to be "implied", and an error message if it
  * is not implied.
  *

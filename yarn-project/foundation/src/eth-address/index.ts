@@ -70,7 +70,7 @@ export class EthAddress {
       // Does not have the basic requirements of an address.
       return false;
     } else if (/^(0x|0X)?[0-9a-f]{40}$/.test(address) || /^(0x|0X)?[0-9A-F]{40}$/.test(address)) {
-      // It's ALL lowercase or ALL upppercase.
+      // It's ALL lowercase or ALL uppercase.
       return true;
     } else {
       return EthAddress.checkAddressChecksum(address);
@@ -227,7 +227,7 @@ export class EthAddress {
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
-   * @returns The EthAdress.
+   * @returns The EthAddress.
    */
   static fromBuffer(buffer: Buffer | BufferReader): EthAddress {
     const reader = BufferReader.asReader(buffer);

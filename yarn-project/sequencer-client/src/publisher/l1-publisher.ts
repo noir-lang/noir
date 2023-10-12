@@ -1,5 +1,5 @@
 import { createDebugLogger } from '@aztec/foundation/log';
-import { InterruptableSleep } from '@aztec/foundation/sleep';
+import { InterruptibleSleep } from '@aztec/foundation/sleep';
 import { ExtendedContractData, L2Block } from '@aztec/types';
 import { L1PublishStats } from '@aztec/types/stats';
 
@@ -108,7 +108,7 @@ function isNotUndefined<T>(item: T | undefined): item is T {
  * Adapted from https://github.com/AztecProtocol/aztec2-internal/blob/master/falafel/src/rollup_publisher.ts.
  */
 export class L1Publisher implements L2BlockReceiver {
-  private interruptableSleep = new InterruptableSleep();
+  private interruptibleSleep = new InterruptibleSleep();
   private sleepTimeMs: number;
   private interrupted = false;
   private log = createDebugLogger('aztec:sequencer:publisher');
@@ -217,7 +217,7 @@ export class L1Publisher implements L2BlockReceiver {
    */
   public interrupt() {
     this.interrupted = true;
-    this.interruptableSleep.interrupt();
+    this.interruptibleSleep.interrupt();
   }
 
   /** Restarts the publisher after calling `interrupt`. */
@@ -276,6 +276,6 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   protected async sleepOrInterrupted() {
-    await this.interruptableSleep.sleep(this.sleepTimeMs);
+    await this.interruptibleSleep.sleep(this.sleepTimeMs);
   }
 }

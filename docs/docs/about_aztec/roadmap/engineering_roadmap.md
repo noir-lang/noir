@@ -180,7 +180,7 @@ Some example features:
     - Revisit the current topology:
         - We can make the rollup trees 'wonky' (rather than balanced), meaning a sequencer doesn't need to prove a load of pointless 'padding' proofs?
             - This would also enable new txs (entering the tx pool) to be added to a rollup block 'on-the-fly' (mid way through a rollup being proven) - but of course, the sequencer selection protocol might require an up-front commitment, so this might not be possible for that reason (sad face).
-        - We can definitely redesign the public kernel circuit to be a '2x2' topology (i.e. a tree of public kernel proofs), to get a logarithmic speed-up (parallelism). The question is, with folding schemes, do we need that optimisation?
+        - We can definitely redesign the public kernel circuit to be a '2x2' topology (i.e. a tree of public kernel proofs), to get a logarithmic speed-up (parallelism). The question is, with folding schemes, do we need that optimization?
 
 #### Refactor of packing & unpacking data in circuits
 

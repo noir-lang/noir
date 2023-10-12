@@ -439,7 +439,7 @@ export class L2Block {
     const newL2ToL1Msgs = reader.readVector(Fr);
     const newContracts = reader.readVector(Fr);
     const newContractData = reader.readArray(newContracts.length, ContractData);
-    // TODO(sean): could an optimisation of this be that it is encoded such that zeros are assumed
+    // TODO(sean): could an optimization of this be that it is encoded such that zeros are assumed
     const newL1ToL2Messages = reader.readVector(Fr);
 
     return L2Block.fromFields({

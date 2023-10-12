@@ -146,7 +146,7 @@ enum GeneratorIndex {
     UNIQUE_COMMITMENT,           // Size = 2
     SILOED_COMMITMENT,           // Size = 2
     NULLIFIER,                   // Size = 4 (unused)
-    INITIALISATION_NULLIFIER,    // Size = 2 (unused)
+    INITIALIZATION_NULLIFIER,    // Size = 2 (unused)
     OUTER_NULLIFIER,             // Size = 2
     PUBLIC_DATA_READ,            // Size = 2
     PUBLIC_DATA_UPDATE_REQUEST,  // Size = 3

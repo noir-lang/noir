@@ -124,7 +124,7 @@ if(COVERAGE)
         message(FATAL_ERROR "Couldn't find ${COV_EXECUTABLE_NAME}")
     endif()
 
-    # Add profiling compile options and disable optimisations
+    # Add profiling compile options and disable optimizations
     add_compile_options(-fprofile-instr-generate -fcoverage-mapping -O0)
 
     # Add a custom target for creating the report

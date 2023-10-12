@@ -102,9 +102,9 @@ export class CallContext {
   }
 
   /**
-   * Deserialise this from a buffer.
-   * @param buffer - The bufferable type from which to deserialise.
-   * @returns The deserialised instance of PublicCallRequest.
+   * Deserialize this from a buffer.
+   * @param buffer - The bufferable type from which to deserialize.
+   * @returns The deserialized instance of PublicCallRequest.
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);

@@ -55,8 +55,8 @@ export class BoundedSerialQueue {
   }
 
   /**
-   * The caller will block until fn is succesfully enqueued.
-   * The fn itself is execute asyncronously and its result discarded.
+   * The caller will block until fn is successfully enqueued.
+   * The fn itself is execute asynchronously and its result discarded.
    * TODO(AD) do we need this if we have exec()?
    * @param fn - The function to call once unblocked.
    */
@@ -78,7 +78,7 @@ export class BoundedSerialQueue {
   /**
    * The caller will block until fn is successfully executed, and it's result returned.
    * @param fn - The function.
-   * @returns A promise that resolves with the result once exceuted.
+   * @returns A promise that resolves with the result once executed.
    */
   public async exec<T>(fn: () => Promise<T>): Promise<T> {
     await this.semaphore.acquire();

@@ -5,7 +5,7 @@ import { FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 
 /**
- * The string encoding used for serialising HistoricBlockData objects.
+ * The string encoding used for serializing HistoricBlockData objects.
  */
 const STRING_ENCODING: BufferEncoding = 'hex';
 
@@ -88,7 +88,7 @@ export class HistoricBlockData {
   }
 
   /**
-   * Return the historic block data as an array of items in the order they are serialised in noir.
+   * Return the historic block data as an array of items in the order they are serialized in noir.
    * @returns Array of items in the order they are stored in the contract
    */
   toArray(): Fr[] {

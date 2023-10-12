@@ -248,7 +248,7 @@ export type EndToEndContext = {
 /**
  * Sets up the environment for the end-to-end tests.
  * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
- * @param opts - Options to pass to the node initialisation and to the setup script.
+ * @param opts - Options to pass to the node initialization and to the setup script.
  */
 export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Promise<EndToEndContext> {
   const config = { ...getConfigEnvVars(), ...opts };

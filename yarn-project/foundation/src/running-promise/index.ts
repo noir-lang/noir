@@ -20,14 +20,14 @@ export class RunningPromise {
     const poll = async () => {
       while (this.running) {
         await this.fn();
-        await this.interruptableSleep(this.pollingInterval);
+        await this.interruptibleSleep(this.pollingInterval);
       }
     };
     this.runningPromise = poll();
   }
 
   /**
-   * Stops the running promise, resolves any pending interruptable sleep,
+   * Stops the running promise, resolves any pending interruptible sleep,
    * and waits for the currently executing function to complete.
    */
   async stop(): Promise<void> {
@@ -41,7 +41,7 @@ export class RunningPromise {
    * The sleep duration is determined by 'timeInMs', and it can be terminated early if the 'interruptPromise' is resolved.
    * @param timeInMs - The time in milliseconds.
    */
-  private async interruptableSleep(timeInMs: number) {
+  private async interruptibleSleep(timeInMs: number) {
     let timeout!: NodeJS.Timeout;
     const sleepPromise = new Promise(resolve => {
       timeout = setTimeout(resolve, timeInMs);

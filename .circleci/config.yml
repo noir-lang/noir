@@ -438,7 +438,7 @@ jobs:
       - run:
           name: "Build and test"
           # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
-          # out to eu-west2 despite the image being locally tagged, resulting in unauthorised 401. Weird docker bug?
+          # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
           command: |
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
             build aztec-sandbox false arm64
@@ -486,7 +486,7 @@ jobs:
       - run:
           name: "Build and test"
           # We need to force not to use docker buildkit because for some reason on arm only, it ends up making a call
-          # out to eu-west2 despite the image being locally tagged, resulting in unauthorised 401. Weird docker bug?
+          # out to eu-west2 despite the image being locally tagged, resulting in unauthorized 401. Weird docker bug?
           command: |
             echo "export DOCKER_BUILDKIT=" > $BASH_ENV
             build pxe false arm64

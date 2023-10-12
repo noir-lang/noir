@@ -18,7 +18,7 @@ The root project Dockerfile `yarn-project` then:
 1. Checks all formatting is correct.
 1. Runs all workspace unit tests.
 
-Downstream projects are then just about containerising what's needed to produce executable containers for e2e testing or
+Downstream projects are then just about containerizing what's needed to produce executable containers for e2e testing or
 deployments.
 
 ## Do we care about docker layer caching, when build-system rebuild patterns only trigger on yarn.lock changes?

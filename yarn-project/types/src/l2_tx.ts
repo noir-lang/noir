@@ -16,7 +16,7 @@ import { PublicDataWrite } from './public_data_write.js';
 import { TxHash } from './tx/tx_hash.js';
 
 /**
- * The string encoding used for serialising L2Tx objects to strings.
+ * The string encoding used for serializing L2Tx objects to strings.
  */
 const STRING_ENCODING: BufferEncoding = 'hex';
 

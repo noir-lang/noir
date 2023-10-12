@@ -15,7 +15,7 @@ export class DummyP2PService implements P2PService {
   }
 
   /**
-   * Stops the dummy imaplementation.
+   * Stops the dummy implementation.
    * @returns A resolved promise.
    */
   public stop() {
