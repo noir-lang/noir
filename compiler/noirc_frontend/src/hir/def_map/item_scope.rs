@@ -115,30 +115,22 @@ impl ItemScope {
     pub fn find_name(&self, name: &Ident) -> PerNs {
         // Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
         // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
-        PerNs {
-            types: if let Some(t) = self.types.get(name) {
-                if let Some(tt) = t.get(&None) {
-                    Some(*tt)
-                } else if t.len() == 1 {
-                    t.values().last().cloned()
+        let find_name_in =
+            |a: &HashMap<Ident, HashMap<Option<TraitId>, (ModuleDefId, Visibility)>>| {
+                if let Some(t) = a.get(name) {
+                    if let Some(tt) = t.get(&None) {
+                        Some(*tt)
+                    } else if t.len() == 1 {
+                        t.values().last().cloned()
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
-            },
-            values: if let Some(v) = self.values.get(name) {
-                if let Some(vv) = v.get(&None) {
-                    Some(*vv)
-                } else if v.len() == 1 {
-                    v.values().last().cloned()
-                } else {
-                    None
-                }
-            } else {
-                None
-            },
-        }
+            };
+
+        PerNs { types: find_name_in(&self.types), values: find_name_in(&self.values) }
     }
 
     pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
