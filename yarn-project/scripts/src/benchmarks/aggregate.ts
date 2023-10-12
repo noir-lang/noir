@@ -24,6 +24,7 @@ import {
   NodeSyncedChainHistoryStats,
   NoteProcessorCaughtUpStats,
   Stats,
+  TxAddedToPoolStats,
 } from '@aztec/types/stats';
 
 import * as fs from 'fs';
@@ -126,6 +127,11 @@ function processNodeSyncedChain(entry: NodeSyncedChainHistoryStats, results: Ben
   append(results, 'node_database_size_in_bytes', bucket, entry.dbSize);
 }
 
+/** Processes entries for events tx-added-to-pool, with grouping by deployed contract count. */
+function processTxAddedToPool(entry: TxAddedToPoolStats, results: BenchmarkCollectedResults) {
+  append(results, 'tx_size_in_bytes', entry.newContractCount, entry.size);
+}
+
 /** Processes a parsed entry from a logfile and updates results */
 function processEntry(entry: Stats, results: BenchmarkCollectedResults) {
   switch (entry.eventName) {
@@ -141,6 +147,8 @@ function processEntry(entry: Stats, results: BenchmarkCollectedResults) {
       return processL2BlockBuilt(entry, results);
     case 'node-synced-chain-history':
       return processNodeSyncedChain(entry, results);
+    case 'tx-added-to-pool':
+      return processTxAddedToPool(entry, results);
     default:
       return;
   }

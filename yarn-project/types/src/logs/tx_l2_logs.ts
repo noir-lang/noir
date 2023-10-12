@@ -32,6 +32,11 @@ export class TxL2Logs {
     return this.functionLogs.reduce((acc, logs) => acc + logs.getSerializedLength(), 0) + 4;
   }
 
+  /** Gets the total number of logs. */
+  public getTotalLogCount() {
+    return this.functionLogs.reduce((acc, logs) => acc + logs.logs.length, 0);
+  }
+
   /**
    * Adds function logs to the existing logs.
    * @param functionLogs - The function logs to add

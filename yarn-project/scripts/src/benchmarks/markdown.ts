@@ -107,6 +107,7 @@ export function getMarkdown() {
   const metricsByBlockSize = Metrics.filter(m => m.groupBy === 'block-size').map(m => m.name);
   const metricsByChainLength = Metrics.filter(m => m.groupBy === 'chain-length').map(m => m.name);
   const metricsByCircuitName = Metrics.filter(m => m.groupBy === 'circuit-name').map(m => m.name);
+  const metricsByContractCount = Metrics.filter(m => m.groupBy === 'contract-count').map(m => m.name);
 
   const baseHash = process.env.BASE_COMMIT_HASH;
   const baseUrl = baseHash && `[\`${baseHash.slice(0, 8)}\`](${S3_URL}/benchmarks-v1/master/${baseHash}.json)`;
@@ -141,6 +142,11 @@ ${getTableContent(pick(benchmark, metricsByChainLength), baseBenchmark, 'blocks'
 
 Stats on running time and I/O sizes collected for every circuit run across all benchmarks.
 ${getTableContent(transpose(pick(benchmark, metricsByCircuitName)), transpose(baseBenchmark), '', 'Circuit')}
+
+### Miscellaneous
+
+Transaction sizes based on how many contracts are deployed in the tx.
+${getTableContent(pick(benchmark, metricsByContractCount), baseBenchmark, 'deployed contracts')}
 
 ${COMMENT_MARK}
 `;

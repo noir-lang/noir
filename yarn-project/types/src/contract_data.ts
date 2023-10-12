@@ -166,6 +166,17 @@ export class ExtendedContractData {
     return new CompleteAddress(this.contractData.contractAddress, this.publicKey, this.partialAddress);
   }
 
+  /** True if this represents an empty instance. */
+  public isEmpty(): boolean {
+    return (
+      this.contractData.isEmpty() &&
+      this.publicFunctions.length === 0 &&
+      this.partialAddress.isZero() &&
+      this.publicKey.x.isZero() &&
+      this.publicKey.y.isZero()
+    );
+  }
+
   /**
    * Deserializes a contract data object from an encoded buffer, using 20 bytes for the eth address.
    * @param buffer - Byte array resulting from calling toBuffer.
@@ -201,6 +212,11 @@ export class ExtendedContractData {
       Point.random(),
     );
   }
+
+  /** Generates empty extended contract data. */
+  static empty(): ExtendedContractData {
+    return new ExtendedContractData(ContractData.empty(), [], Fr.ZERO, Point.ZERO);
+  }
 }
 
 /**
@@ -234,6 +250,11 @@ export class ContractData {
     return this.toBuffer().toString('hex');
   }
 
+  /** True if all data is zero. */
+  public isEmpty(): boolean {
+    return this.contractAddress.isZero() && this.portalContractAddress.isZero();
+  }
+
   /**
    * Deserializes a contract data object from an encoded buffer, using 20 bytes for the eth address.
    * @param buffer - Byte array resulting from calling toBuffer.
@@ -261,5 +282,10 @@ export class ContractData {
    */
   static random(): ContractData {
     return new ContractData(AztecAddress.random(), EthAddress.random());
+  }
+
+  /** Generates an empty ContractData. */
+  static empty(): ContractData {
+    return new ContractData(AztecAddress.ZERO, EthAddress.ZERO);
   }
 }

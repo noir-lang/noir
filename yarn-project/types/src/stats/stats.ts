@@ -118,6 +118,34 @@ export type NoteProcessorStats = {
   txs: number;
 };
 
+/** Stats for a tx. */
+export type TxStats = {
+  /** Hash of the tx. */
+  txHash: string;
+  /** Total size in bytes. */
+  size: number;
+  /** Size of the proof. */
+  proofSize: number;
+  /** Number of encrypted logs. */
+  encryptedLogCount: number;
+  /** Number of unencrypted logs. */
+  unencryptedLogCount: number;
+  /** Serialised size of encrypted logs. */
+  encryptedLogSize: number;
+  /** Serialised size of unencrypted logs. */
+  unencryptedLogSize: number;
+  /** Serialised size of new contract data. */
+  newContractDataSize: number;
+  /** Number of new contracts deployed in this tx. */
+  newContractCount: number;
+};
+
+/** A new tx was added to the tx pool. */
+export type TxAddedToPoolStats = {
+  /** Name of the event. */
+  eventName: 'tx-added-to-pool';
+} & TxStats;
+
 /** Stats emitted in structured logs with an `eventName` for tracking. */
 export type Stats =
   | L1PublishStats
@@ -125,7 +153,8 @@ export type Stats =
   | CircuitSimulationStats
   | L2BlockBuiltStats
   | L2BlockHandledStats
-  | NoteProcessorCaughtUpStats;
+  | NoteProcessorCaughtUpStats
+  | TxAddedToPoolStats;
 
 /** Set of event names across emitted stats. */
 export type StatsEventName = Stats['eventName'];

@@ -38,13 +38,7 @@ export class L2BlockL2Logs {
    * Gets the total number of logs emitted from all the TxL2Logs.
    */
   public getTotalLogCount(): number {
-    let count = 0;
-    for (const txLog of this.txLogs) {
-      for (const functionLog of txLog.functionLogs) {
-        count += functionLog.logs.length;
-      }
-    }
-    return count;
+    return this.txLogs.reduce((acc, logs) => acc + logs.getTotalLogCount(), 0);
   }
 
   /**

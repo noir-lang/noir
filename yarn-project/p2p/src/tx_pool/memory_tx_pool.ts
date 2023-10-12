@@ -1,5 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Tx, TxHash } from '@aztec/types';
+import { TxAddedToPoolStats } from '@aztec/types/stats';
 
 import { TxPool } from './index.js';
 
@@ -38,7 +39,10 @@ export class InMemoryTxPool implements TxPool {
   public async addTxs(txs: Tx[]): Promise<void> {
     for (const tx of txs) {
       const txHash = await tx.getTxHash();
-      this.log(`Adding tx with id ${txHash.toString()}`);
+      this.log(`Adding tx with id ${txHash.toString()}`, {
+        eventName: 'tx-added-to-pool',
+        ...tx.getStats(),
+      } satisfies TxAddedToPoolStats);
       this.txs.set(txHash.toBigInt(), tx);
     }
   }

@@ -10,7 +10,6 @@ import {
   AztecAddress,
   CircuitsWasm,
   CompleteAddress,
-  EthAddress,
   FunctionData,
   GrumpkinPrivateKey,
   KernelCircuitPublicInputsFinal,
@@ -21,7 +20,7 @@ import {
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import NoirVersion from '@aztec/noir-compiler/noir-version';
 import {
@@ -553,22 +552,18 @@ export class PXEService implements PXE {
     this.log(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
 
-    const newContractPublicFunctions = newContract ? getNewContractPublicFunctions(newContract) : [];
-
     const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
     const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
 
-    const contractData = new ContractData(
-      newContract?.completeAddress.address ?? AztecAddress.ZERO,
-      newContract?.portalContract ?? EthAddress.ZERO,
-    );
-    const extendedContractData = new ExtendedContractData(
-      contractData,
-      newContractPublicFunctions,
-      newContract?.completeAddress.partialAddress ?? Fr.ZERO,
-      newContract?.completeAddress.publicKey ?? Point.ZERO,
-    );
+    const extendedContractData = newContract
+      ? new ExtendedContractData(
+          new ContractData(newContract.completeAddress.address, newContract.portalContract),
+          getNewContractPublicFunctions(newContract),
+          newContract.completeAddress.partialAddress,
+          newContract.completeAddress.publicKey,
+        )
+      : ExtendedContractData.empty();
 
     // HACK(#1639): Manually patches the ordering of the public call stack
     // TODO(#757): Enforce proper ordering of enqueued public calls
