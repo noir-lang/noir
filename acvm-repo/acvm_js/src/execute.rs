@@ -85,12 +85,12 @@ pub async fn execute_circuit_with_black_box_solver(
                         opcode_location: ErrorLocation::Resolved(opcode_location),
                         ..
                     } => {
-                        (circuit.get_assert_message(opcode_location), Some(vec![*opcode_location]))
+                        (circuit.get_assert_message(*opcode_location), Some(vec![*opcode_location]))
                     }
                     OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
                         let failing_opcode =
                             call_stack.last().expect("Brillig error call stacks cannot be empty");
-                        (circuit.get_assert_message(failing_opcode), Some(call_stack.clone()))
+                        (circuit.get_assert_message(*failing_opcode), Some(call_stack.clone()))
                     }
                     _ => (None, None),
                 };
