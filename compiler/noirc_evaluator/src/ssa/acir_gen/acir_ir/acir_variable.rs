@@ -600,6 +600,14 @@ impl AcirContext {
         rhs: AcirVar,
         bit_size: u32,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
+        // We derive the signed division from the unsigned euclidian division.
+        // note that this is not euclidian division!
+        // If `x` is a signed integer, then `sign(x)x >= 0`
+        // so if `a` and `b` are signed integers, we can do the unsigned division:
+        // `sign(a)a = q1*sign(b)b + r1`
+        // => `a = sign(a)sign(b)q1*b + sign(a)r1`
+        // => `a = qb+r`, with `|r|<|b|` and `a` and `r` have the same sign.
+
         assert_ne!(bit_size, 0, "signed integer should have at least one bit");
 
         // 2^{max_bit size-1}
