@@ -568,6 +568,27 @@ impl AcirContext {
         Ok((quotient_var, remainder_var))
     }
 
+    // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
+    // if leading is zero, it returns lhs
+    // if leading is one, it returns 2^bit_size-lhs
+    fn two_complement(
+        &mut self,
+        lhs: AcirVar,
+        leading: AcirVar,
+        max_bit_size: u32,
+    ) -> Result<AcirVar, RuntimeError> {
+        let two = self.add_constant(FieldElement::from(2_i128));
+        let max_power_of_two = self.add_constant(
+            FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1)),
+        );
+
+        let intermediate = self.sub_var(max_power_of_two, lhs)?;
+        let intermediate = self.mul_var(intermediate, leading)?;
+
+        let intermediate = self.mul_var(two, intermediate)?;
+        self.add_var(lhs, intermediate)
+    }
+
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
     /// and |remainder| < |rhs|
     /// and remainder has the same sign than lhs
@@ -578,14 +599,48 @@ impl AcirContext {
         rhs: AcirVar,
         bit_size: u32,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        let l_witness = self.var_to_witness(lhs)?;
-        let r_witness = self.var_to_witness(rhs)?;
+        // We derive the signed division from the unsigned euclidian division.
+        // note that this is not euclidian division!
+        // If `x` is a signed integer, then `sign(x)x >= 0`
+        // so if `a` and `b` are signed integers, we can do the unsigned division:
+        // `sign(a)a = q1*sign(b)b + r1`
+        // => `a = sign(a)sign(b)q1*b + sign(a)r1`
+        // => `a = qb+r`, with `|r|<|b|` and `a` and `r` have the same sign.
 
         assert_ne!(bit_size, 0, "signed integer should have at least one bit");
-        let (q, r) =
-            self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
 
-        Ok((self.add_data(q.into()), self.add_data(r.into())))
+        // 2^{max_bit size-1}
+        let max_power_of_two = self.add_constant(
+            FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128 - 1)),
+        );
+        let one = self.add_constant(FieldElement::one());
+
+        // Get the sign bit of rhs by computing rhs / max_power_of_two
+        let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
+
+        // Get the sign bit of lhs by computing lhs / max_power_of_two
+        let (lhs_leading, _) = self.euclidean_division_var(lhs, max_power_of_two, bit_size, one)?;
+
+        // Signed to unsigned:
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading, bit_size)?;
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading, bit_size)?;
+
+        // Performs the division using the unsigned values of lhs and rhs
+        let (q1, r1) =
+            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, one)?;
+
+        // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
+        // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
+        let sign_sum = self.add_var(lhs_leading, rhs_leading)?;
+        let sign_prod = self.mul_var(lhs_leading, rhs_leading)?;
+        let neg_two = self.add_constant(-FieldElement::from(2_i128));
+        let neg_two_times_sign_prod = self.mul_var(neg_two, sign_prod)?;
+        let q_sign = self.add_var(sign_sum, neg_two_times_sign_prod)?;
+
+        let quotient = self.two_complement(q1, q_sign, bit_size)?;
+        let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
+
+        Ok((quotient, remainder))
     }
 
     /// Returns a variable which is constrained to be `lhs mod rhs`
