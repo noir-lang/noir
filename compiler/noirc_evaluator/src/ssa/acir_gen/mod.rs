@@ -1259,9 +1259,12 @@ impl Context {
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
         for acir_var in return_acir_vars {
-            if self.acir_context.is_constant(&acir_var) {
-                return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
-            }
+            // TODO(Guillaume) -- disabled as it has shown to break
+            // TODO with important programs. We will add it back once
+            // TODO we change it to a warning.
+            // if self.acir_context.is_constant(&acir_var) {
+            //     return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
+            // }
             self.acir_context.return_var(acir_var)?;
         }
         Ok(())
