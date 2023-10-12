@@ -256,8 +256,8 @@ impl BrilligContext {
     {
         let iterator_register = self.make_constant(0_u128.into());
 
-        let loop_label = self.next_section_label();
-        self.enter_next_section();
+        let (loop_section, loop_label) = self.reserve_next_section_label();
+        self.enter_section(loop_section);
 
         // Loop body
 
@@ -270,7 +270,7 @@ impl BrilligContext {
             BinaryIntOp::LessThan,
         );
 
-        let exit_loop_label = self.next_section_label();
+        let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
 
         self.not_instruction(iterator_less_than_iterations, 1, iterator_less_than_iterations);
         self.jump_if_instruction(iterator_less_than_iterations, exit_loop_label);
@@ -284,7 +284,8 @@ impl BrilligContext {
         self.jump_instruction(loop_label);
 
         // Exit the loop
-        self.enter_next_section();
+        self.enter_section(exit_loop_section);
+
         // Deallocate our temporary registers
         self.deallocate_register(iterator_less_than_iterations);
         self.deallocate_register(iterator_register);
@@ -311,17 +312,14 @@ impl BrilligContext {
         self.jump_instruction(otherwise_label.clone());
 
         self.enter_section(then_section);
-        assert_eq!(self.current_section_label(), then_label);
         then(self);
         self.jump_instruction(end_label.clone());
 
         self.enter_section(otherwise_section);
-        assert_eq!(self.current_section_label(), otherwise_label);
         otherwise(self);
         self.jump_instruction(end_label.clone());
 
         self.enter_section(end_section);
-        assert_eq!(self.current_section_label(), end_label);
     }
 
     /// Adds a label to the next opcode
@@ -332,14 +330,6 @@ impl BrilligContext {
         // Add a context label to the next opcode
         self.obj.add_label_at_position(label.to_string(), self.obj.index_of_next_opcode());
         // Add a section label to the next opcode
-        self.obj
-            .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
-    }
-
-    /// Increments the section label and adds a section label to the next opcode
-    fn enter_next_section(&mut self) {
-        self.section_label = self.next_section;
-        self.next_section += 1;
         self.obj
             .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
     }
@@ -360,12 +350,11 @@ impl BrilligContext {
 
     /// Internal function used to compute the section labels
     fn compute_section_label(&self, section: usize) -> String {
-        format!("{}-{}", self.context_label, section)
-    }
-
-    /// Returns the next section label
-    pub(crate) fn next_section_label(&self) -> String {
-        self.compute_section_label(self.section_label + 1)
+        let ret = format!("{}-{}", self.context_label, section);
+        if ret.contains("b42-1") {
+            panic!("Found {}", ret);
+        }
+        ret
     }
 
     /// Returns the current section label
@@ -423,15 +412,16 @@ impl BrilligContext {
         assert_message: Option<String>,
     ) {
         self.debug_show.constrain_instruction(condition);
+        let (next_section, next_label) = self.reserve_next_section_label();
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
-            self.next_section_label(),
+            next_label,
         );
         self.push_opcode(BrilligOpcode::Trap);
         if let Some(assert_message) = assert_message {
             self.obj.add_assert_message_to_last_opcode(assert_message);
         }
-        self.enter_next_section();
+        self.enter_section(next_section);
     }
 
     /// Processes a return instruction.
