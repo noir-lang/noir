@@ -36,6 +36,5 @@ UltraVerifier_<Flavor> UltraComposer_<Flavor>::create_verifier(std::shared_ptr<I
 }
 
 template class UltraComposer_<honk::flavor::Ultra>;
-template class UltraComposer_<honk::flavor::UltraGrumpkin>;
 template class UltraComposer_<honk::flavor::GoblinUltra>;
 } // namespace proof_system::honk

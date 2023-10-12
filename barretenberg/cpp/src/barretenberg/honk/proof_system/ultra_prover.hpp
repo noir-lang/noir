@@ -1,7 +1,6 @@
 #pragma once
 #include "barretenberg/honk/flavor/goblin_ultra.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
-#include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include "barretenberg/honk/instance/prover_instance.hpp"
 #include "barretenberg/honk/pcs/zeromorph/zeromorph.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
@@ -56,7 +55,6 @@ template <UltraFlavor Flavor> class UltraProver_ {
 };
 
 extern template class UltraProver_<honk::flavor::Ultra>;
-extern template class UltraProver_<honk::flavor::UltraGrumpkin>;
 extern template class UltraProver_<honk::flavor::GoblinUltra>;
 
 using UltraProver = UltraProver_<honk::flavor::Ultra>;

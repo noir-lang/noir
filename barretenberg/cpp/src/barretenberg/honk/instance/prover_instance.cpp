@@ -476,7 +476,6 @@ std::shared_ptr<typename Flavor::VerificationKey> ProverInstance_<Flavor>::compu
 }
 
 template class ProverInstance_<honk::flavor::Ultra>;
-template class ProverInstance_<honk::flavor::UltraGrumpkin>;
 template class ProverInstance_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

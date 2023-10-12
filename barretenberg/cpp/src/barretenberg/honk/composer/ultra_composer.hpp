@@ -122,12 +122,8 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     };
 };
 extern template class UltraComposer_<honk::flavor::Ultra>;
-// TODO: the UltraGrumpkin flavor still works on BN254 because plookup needs to be templated to be able to construct
-// Grumpkin circuits.
-extern template class UltraComposer_<honk::flavor::UltraGrumpkin>;
 extern template class UltraComposer_<honk::flavor::GoblinUltra>;
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
 using UltraComposer = UltraComposer_<honk::flavor::Ultra>;
-using UltraGrumpkinComposer = UltraComposer_<honk::flavor::UltraGrumpkin>;
 using GoblinUltraComposer = UltraComposer_<honk::flavor::GoblinUltra>;
 } // namespace proof_system::honk

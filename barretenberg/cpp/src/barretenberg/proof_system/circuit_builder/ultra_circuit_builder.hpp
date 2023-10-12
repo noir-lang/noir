@@ -1040,8 +1040,5 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     bool check_circuit();
 };
 extern template class UltraCircuitBuilder_<barretenberg::fr>;
-// TODO: template plookup to be able to be able to have UltraCircuitBuilder on Grumpkin
-// extern template class UltraCircuitBuilder_<grumpkin::fr>;
 using UltraCircuitBuilder = UltraCircuitBuilder_<barretenberg::fr>;
-// using UltraGrumpkinCircuitBuilder = UltraCircuitBuilder_<grumpkin::fr>;
 } // namespace proof_system

@@ -2,7 +2,6 @@
 
 #include "barretenberg/honk/flavor/goblin_ultra.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
-#include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
@@ -38,7 +37,6 @@ template <typename Flavor> class MergeProver_ {
 };
 
 extern template class MergeProver_<honk::flavor::Ultra>;
-extern template class MergeProver_<honk::flavor::UltraGrumpkin>;
 extern template class MergeProver_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

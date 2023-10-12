@@ -127,7 +127,6 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
 }
 
 template class UltraVerifier_<honk::flavor::Ultra>;
-template class UltraVerifier_<honk::flavor::UltraGrumpkin>;
 template class UltraVerifier_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

@@ -114,7 +114,6 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
 }
 
 template class MergeProver_<honk::flavor::Ultra>;
-template class MergeProver_<honk::flavor::UltraGrumpkin>;
 template class MergeProver_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

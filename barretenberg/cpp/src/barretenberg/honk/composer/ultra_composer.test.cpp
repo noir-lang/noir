@@ -922,35 +922,4 @@ TEST_F(UltraHonkComposerTests, range_constraint_small_variable)
     prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
 }
 
-TEST(UltraGrumpkinHonkComposer, XorConstraint)
-{
-    using fr = barretenberg::fr;
-    // NOTE: as a WIP, this test may not actually use the Grumpkin SRS (just the IPA PCS).
-
-    auto circuit_builder = proof_system::UltraCircuitBuilder();
-
-    uint32_t left_value = engine.get_random_uint32();
-    uint32_t right_value = engine.get_random_uint32();
-
-    fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
-    fr right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
-
-    uint32_t left_witness_index = circuit_builder.add_variable(left_witness_value);
-    uint32_t right_witness_index = circuit_builder.add_variable(right_witness_value);
-
-    uint32_t xor_result_expected = left_value ^ right_value;
-
-    const auto lookup_accumulators = plookup::get_lookup_accumulators(
-        plookup::MultiTableId::UINT32_XOR, left_witness_value, right_witness_value, true);
-    auto xor_result = lookup_accumulators[plookup::ColumnIdx::C3]
-                                         [0]; // The zeroth index in the 3rd column is the fully accumulated xor
-
-    EXPECT_EQ(xor_result, xor_result_expected);
-    circuit_builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::UINT32_XOR, lookup_accumulators, left_witness_index, right_witness_index);
-
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
-    auto composer = UltraGrumpkinComposer();
-    prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
-}
 } // namespace test_ultra_honk_composer
