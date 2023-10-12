@@ -69,14 +69,21 @@ pub(crate) fn run(
             let (return_value, solved_witness) =
                 debug_program_and_decode(compiled_program, package, &args.prover_name)?;
 
-            println!("[{}] Circuit witness successfully solved", package.name);
-            if let Some(return_value) = return_value {
-                println!("[{}] Circuit output: {return_value:?}", package.name);
-            }
-            if let Some(witness_name) = &args.witness_name {
-                let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+            if let Some(solved_witness) = solved_witness {
+                println!("[{}] Circuit witness successfully solved", package.name);
 
-                println!("[{}] Witness saved to {}", package.name, witness_path.display());
+                if let Some(return_value) = return_value {
+                    println!("[{}] Circuit output: {return_value:?}", package.name);
+                }
+
+                if let Some(witness_name) = &args.witness_name {
+                    let witness_path =
+                        save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+
+                    println!("[{}] Witness saved to {}", package.name, witness_path.display());
+                }
+            } else {
+                println!("Debugger execution halted.");
             }
 
             // Only debug the first binary package that matches the selection criteria
@@ -90,21 +97,26 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
+) -> Result<(Option<InputValue>, Option<WitnessMap>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let solved_witness = debug_program(&program, &inputs_map)?;
     let public_abi = program.abi.public_abi();
-    let (_, return_value) = public_abi.decode(&solved_witness)?;
 
-    Ok((return_value, solved_witness))
+    match solved_witness {
+        Some(witness) => {
+            let (_, return_value) = public_abi.decode(&witness)?;
+            Ok((return_value, Some(witness)))
+        }
+        None => Ok((None, None)),
+    }
 }
 
 pub(crate) fn debug_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<WitnessMap, CliError> {
+) -> Result<Option<WitnessMap>, CliError> {
     #[allow(deprecated)]
     let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
 

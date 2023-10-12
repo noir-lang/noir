@@ -9,25 +9,12 @@ use nargo::NargoError;
 
 use nargo::ops::ForeignCallExecutor;
 
-use thiserror::Error;
-
 use easy_repl::{command, CommandStatus, Critical, Repl};
 use std::cell::{Cell, RefCell};
 
 enum SolveResult {
     Done,
     Ok,
-}
-
-#[derive(Debug, Error)]
-enum DebuggingError {
-    /// ACIR circuit execution error
-    #[error(transparent)]
-    ExecutionError(#[from] nargo::errors::ExecutionError),
-
-    /// Oracle handling error
-    #[error(transparent)]
-    ForeignCallError(#[from] noirc_printable_type::ForeignCallError),
 }
 
 struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
@@ -39,7 +26,7 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
 }
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
-    fn step_opcode(&mut self) -> Result<SolveResult, DebuggingError> {
+    fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
         // Assert messages are not a map due to https://github.com/noir-lang/acvm/issues/522
         let assert_messages = &self.circuit.assert_messages;
         let get_assert_message = |opcode_location| {
@@ -65,7 +52,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                     _ => None,
                 };
 
-                Err(DebuggingError::ExecutionError(match call_stack {
+                Err(NargoError::ExecutionError(match call_stack {
                     Some(call_stack) => {
                         if let Some(assert_message) = get_assert_message(
                             call_stack.last().expect("Call stacks should not be empty"),
@@ -116,7 +103,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         }
     }
 
-    fn cont(&mut self) -> Result<SolveResult, DebuggingError> {
+    fn cont(&mut self) -> Result<SolveResult, NargoError> {
         loop {
             match self.step_opcode()? {
                 SolveResult::Done => break,
@@ -128,15 +115,6 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
 
     fn finalize(&mut self) -> WitnessMap {
         self.acvm.take().unwrap().finalize()
-    }
-}
-
-impl From<nargo::errors::NargoError> for DebuggingError {
-    fn from(e: nargo::errors::NargoError) -> Self {
-        match e {
-            NargoError::ForeignCallError(e1) => DebuggingError::ForeignCallError(e1),
-            _ => DebuggingError::ExecutionError(ExecutionError::Halted),
-        }
     }
 }
 
@@ -153,7 +131,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     debug_artifact: DebugArtifact,
     initial_witness: WitnessMap,
     show_output: bool,
-) -> Result<WitnessMap, NargoError> {
+) -> Result<Option<WitnessMap>, NargoError> {
     let opcodes = circuit.opcodes.clone();
 
     let context = RefCell::new(DebugContext {
@@ -208,8 +186,8 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
 
     if solved.get() {
         let solved_witness = context.borrow_mut().finalize();
-        Ok(solved_witness)
+        Ok(Some(solved_witness))
     } else {
-        Err(NargoError::ExecutionError(ExecutionError::Halted))
+        Ok(None)
     }
 }
