@@ -13,9 +13,11 @@
  */
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/proof_system/relations/decomposition_relation.hpp"
+#include "barretenberg/proof_system/relations/extra_relations.hpp"
 #include "barretenberg/proof_system/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/proof_system/relations/permutation_relation.hpp"
 #include "decomposition_relation.hpp"
+#include "extra_relations.hpp"
 #include <gtest/gtest.h>
 
 using namespace proof_system;
@@ -899,6 +901,79 @@ TEST_F(GoblinTranslatorRelationConsistency, DecompositionRelation)
         expected_values[47] =
             check_wide_limb_into_regular_limb_correctness(z_low_limbs_shift, z_high_limbs_shift, y_lo_z_2_shift);
 
+        validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+    };
+    run_test(/*random_inputs=*/false);
+    run_test(/*random_inputs=*/true);
+};
+
+TEST_F(GoblinTranslatorRelationConsistency, OpcodeConstraintRelation)
+{
+    const auto run_test = [](bool random_inputs) {
+        using Relation = GoblinTranslatorOpcodeConstraintRelation<FF>;
+        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+
+        const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
+        const auto& op = input_elements.op;
+
+        RelationValues expected_values;
+
+        const auto parameters = RelationParameters<FF>::get_random();
+
+        // (Contribution 1)
+        auto contribution_1 = op * (op - FF(1)) * (op - FF(2)) * (op - FF(3)) * (op - FF(4)) * (op - FF(8));
+        expected_values[0] = contribution_1;
+
+        validate_relation_execution<Relation>(expected_values, input_elements, parameters);
+    };
+    run_test(/*random_inputs=*/false);
+    run_test(/*random_inputs=*/true);
+};
+
+TEST_F(GoblinTranslatorRelationConsistency, AccumulatorTransferRelation)
+{
+    const auto run_test = [](bool random_inputs) {
+        using Relation = GoblinTranslatorAccumulatorTransferRelation<FF>;
+        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+
+        const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
+
+        const auto& lagrange_even = input_elements.lagrange_even;
+        const auto& lagrange_second = input_elements.lagrange_second;
+        const auto& lagrange_second_to_last_in_minicircuit = input_elements.lagrange_second_to_last_in_minicircuit;
+        const auto& accumulators_binary_limbs_0 = input_elements.accumulators_binary_limbs_0;
+        const auto& accumulators_binary_limbs_0_shift = input_elements.accumulators_binary_limbs_0_shift;
+        const auto& accumulators_binary_limbs_1 = input_elements.accumulators_binary_limbs_1;
+        const auto& accumulators_binary_limbs_1_shift = input_elements.accumulators_binary_limbs_1_shift;
+        const auto& accumulators_binary_limbs_2 = input_elements.accumulators_binary_limbs_2;
+        const auto& accumulators_binary_limbs_2_shift = input_elements.accumulators_binary_limbs_2_shift;
+        const auto& accumulators_binary_limbs_3 = input_elements.accumulators_binary_limbs_3;
+        const auto& accumulators_binary_limbs_3_shift = input_elements.accumulators_binary_limbs_3_shift;
+
+        RelationValues expected_values;
+
+        const auto parameters = RelationParameters<FF>::get_random();
+
+        const auto [accumulated_result_0, accumulated_result_1, accumulated_result_2, accumulated_result_3] =
+            parameters.accumulated_result;
+
+        // Check transfer of accumulator at even indices
+        expected_values[0] = lagrange_even * (accumulators_binary_limbs_0 - accumulators_binary_limbs_0_shift);
+        expected_values[1] = lagrange_even * (accumulators_binary_limbs_1 - accumulators_binary_limbs_1_shift);
+        expected_values[2] = lagrange_even * (accumulators_binary_limbs_2 - accumulators_binary_limbs_2_shift);
+        expected_values[3] = lagrange_even * (accumulators_binary_limbs_3 - accumulators_binary_limbs_3_shift);
+
+        // Check the accumulator starts as zero
+        expected_values[4] = accumulators_binary_limbs_0 * lagrange_second_to_last_in_minicircuit;
+        expected_values[5] = accumulators_binary_limbs_1 * lagrange_second_to_last_in_minicircuit;
+        expected_values[6] = accumulators_binary_limbs_2 * lagrange_second_to_last_in_minicircuit;
+        expected_values[7] = accumulators_binary_limbs_3 * lagrange_second_to_last_in_minicircuit;
+
+        // Check the accumulator results in submitted value
+        expected_values[8] = (accumulators_binary_limbs_0 - accumulated_result_0) * lagrange_second;
+        expected_values[9] = (accumulators_binary_limbs_1 - accumulated_result_1) * lagrange_second;
+        expected_values[10] = (accumulators_binary_limbs_2 - accumulated_result_2) * lagrange_second;
+        expected_values[11] = (accumulators_binary_limbs_3 - accumulated_result_3) * lagrange_second;
         validate_relation_execution<Relation>(expected_values, input_elements, parameters);
     };
     run_test(/*random_inputs=*/false);
