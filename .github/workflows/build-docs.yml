@@ -54,6 +54,9 @@ jobs:
           branch-name: ${{ github.head_ref || github.ref }}
         continue-on-error: true
 
+      - name: Debugging - print deploy_status
+        run: echo "${{ steps.check_deploy_status.outputs.deploy_status }}"
+
       - name: Change PR Comment for Successful Deployment
         if: steps.check_deploy_status.outputs.deploy_status == 'success'
         uses: mshick/add-pr-comment@v2

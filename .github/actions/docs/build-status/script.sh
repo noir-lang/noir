@@ -17,11 +17,11 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
         exit 0
     elif [[ "$DEPLOY_STATUS" == "error" ]]; then
         echo "::set-output name=deploy_status::failure"
-        exit 1
+        exit 0
     fi
 
     echo "Deploy still running. Retrying..."
 done
 
 echo "::set-output name=deploy_status::failure"
-exit 1
+exit 0
