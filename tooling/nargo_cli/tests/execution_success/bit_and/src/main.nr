@@ -15,4 +15,4 @@ fn main(x : Field, y : Field) {
     let y_as_u11 = y as u11;
     assert((x_as_u11 & y_as_u11) == x_as_u11);
 }
-    
+

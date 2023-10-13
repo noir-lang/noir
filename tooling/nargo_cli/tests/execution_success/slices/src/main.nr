@@ -116,7 +116,7 @@ fn merge_slices_if(x: Field, y: Field) {
     assert(slice[5] == 15);
     assert(slice[6] == 50);
     assert(slice[7] == 60);
-    
+
     merge_slices_push_then_pop(x, y);
 
     let slice = merge_slices_push_then_insert(x, y);
@@ -199,7 +199,7 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
 
     slice = slice.push_back(15);
     slice = slice.push_back(30);
-    
+
     slice
 }
 
@@ -213,7 +213,7 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
     }
 
     slice = slice.push_back(30);
-    
+
     if x == 20 {
         slice = slice.push_back(20);
     }

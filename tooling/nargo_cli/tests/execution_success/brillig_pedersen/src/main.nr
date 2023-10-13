@@ -14,4 +14,4 @@ unconstrained fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Fiel
     let hash = std::hash::pedersen_with_separator([state], 0);
     assert(std::hash::pedersen_with_separator([43], 0)[0] == hash[0]);
 }
-    
+

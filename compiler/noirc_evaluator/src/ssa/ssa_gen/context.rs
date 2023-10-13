@@ -774,7 +774,15 @@ fn operator_result_max_bit_size_to_truncate(
     match op {
         Add => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
         Subtract => Some(std::cmp::max(lhs_bit_size, rhs_bit_size) + 1),
-        Multiply => Some(lhs_bit_size + rhs_bit_size),
+        Multiply => {
+            if lhs_bit_size == 1 || rhs_bit_size == 1 {
+                // Truncation is unnecessary as multiplication by a boolean value cannot cause an overflow.
+                None
+            } else {
+                Some(lhs_bit_size + rhs_bit_size)
+            }
+        }
+
         ShiftLeft => {
             if let Some(rhs_constant) = dfg.get_numeric_constant(rhs) {
                 // Happy case is that we know precisely by how many bits the the integer will
@@ -855,7 +863,7 @@ impl SharedContext {
     /// and return this new id.
     pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
-        // before map needs to be aquired again in self.functions.write() below
+        // before map needs to be acquired again in self.functions.write() below
         {
             let map = self.functions.read().expect("Failed to read self.functions");
             if let Some(existing_id) = map.get(&id) {
