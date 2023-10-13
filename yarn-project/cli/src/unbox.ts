@@ -103,7 +103,7 @@ async function downloadContractAndBoxFromGithub(
   // small string conversion, in the ABI the contract name looks like PrivateToken
   // but in the repostory it looks like private_token
 
-  log(`Downloading @aztex/boxes/${contractName}/ to ${outputPath}...`);
+  log(`Downloading @aztec/boxes/${contractName}/ to ${outputPath}...`);
   // Step 1: Fetch the monorepo ZIP from GitHub, matching the CLI version
   const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/archive/refs/tags/${tag}.zip`;
   const response = await fetch(url);
@@ -176,8 +176,9 @@ async function updateNargoToml(tag: string, outputPath: string, log: LogFn): Pro
       line.trim().startsWith(`${dependencyName} =`),
     );
     if (key) {
-      // Replace the line
-      return `${key} = { git="https://github.com/AztecProtocol/aztec-packages", tag="${tag}", directory="yarn-project/aztec-nr/${key}" }`;
+      // Replace the line, which was configured for compiling within the `aztec-packages` monorepo.  We replace
+      // the local path with `git` and `directory` fields with a `tag` field, which points to the tagged release
+      return `${key} = { git="https://github.com/AztecProtocol/aztec-packages/", tag="${tag}", directory="yarn-project/aztec-nr/${key}" }`;
     }
     return line;
   });
