@@ -18,5 +18,5 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
 done
 
 echo "Deploy failed or took too long."
-echo "::set-output name=deploy_status::$DEPLOY_STATUS"
+echo "::set-output name=deploy_status::failure
 exit 1
