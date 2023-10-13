@@ -15,7 +15,7 @@ runs:
   steps:
     - run: ${{ github.action_path }}/script.sh
       shell: bash
-      with:
+      env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         BRANCH_NAME: ${{ inputs.branch-name }}
         PR_NUMBER: ${{ inputs.pr-number }}
