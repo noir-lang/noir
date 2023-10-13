@@ -29,10 +29,18 @@ jobs:
           curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME" > deploy.json
           echo "::set-output name=deploy_url::$(cat deploy.json | jq -r '.[0].deploy_ssl_url')"
           
+      - name: Check on deploy status
+        uses: ./.github/actions/docs/build-status
+        id: check_deploy_status
+        with:
+          branch-name: ${{ github.head_ref || github.ref }}
+        continue-on-error: true
+
       - name: Add PR Comment
         uses: mshick/add-pr-comment@v2
         if: always()
         with:
+          status: ${{ job.status }}
           message: |
             Hey @${{ github.event.pull_request.user.login }}! 🙌
 
@@ -70,8 +78,3 @@ jobs:
             [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
 
             
-      - name: Check on deploy status
-        uses: ./.github/actions/docs/build-status
-        id: check_deploy_status
-        with:
-          branch-name: ${{ github.head_ref || github.ref }}
