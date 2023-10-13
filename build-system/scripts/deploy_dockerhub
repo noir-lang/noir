@@ -9,6 +9,7 @@ fi
 
 REPOSITORY=$1
 ARCH=${2:-""}
+DIST_TAG=${3:-"latest"}
 
 echo "Repo: $REPOSITORY"
 echo "Arch: $ARCH"
@@ -18,10 +19,10 @@ USERNAME="aztecprotocolci"
 
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 
-IMAGE_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
+IMAGE_DIST_URI=$ACCOUNT/$REPOSITORY:$DIST_TAG
 if [[ -n "$ARCH" ]]; then
   IMAGE_COMMIT_URI=$IMAGE_COMMIT_URI-$ARCH
-  IMAGE_LATEST_URI=$IMAGE_LATEST_URI-$ARCH
+  IMAGE_DIST_URI=$IMAGE_DIST_URI-$ARCH
 fi
 
 COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY true)
@@ -49,11 +50,11 @@ echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_DEPLOY_URI"
 # Tag with commit tag
 docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_URI
 
-echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_LATEST_URI"
-# Tag with :latest
-docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_LATEST_URI
+echo "Tagging $IMAGE_COMMIT_URI as $IMAGE_DIST_URI"
+# Tag with :$DIST_TAG (latest or canary)
+docker_or_dryrun tag $IMAGE_COMMIT_URI $IMAGE_DIST_URI
 
 # Push tagged image to dockerhub.
 docker_or_dryrun push $IMAGE_DEPLOY_URI
-# Push :latest image to dockerhub
-docker_or_dryrun push $IMAGE_LATEST_URI
+# Push :latest or :canary image to dockerhub
+docker_or_dryrun push $IMAGE_DIST_URI

@@ -1024,6 +1024,15 @@ jobs:
           name: "Noop"
           command: echo Noop
 
+  canary-end:
+    docker:
+      - image: cimg/base:2023.09
+    resource_class: small
+    steps:
+      - run:
+          name: "Noop"
+          command: echo Noop
+
   bench-summary:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1033,6 +1042,19 @@ jobs:
       - run:
           name: "Assemble benchmark summary from uploaded logs"
           command: ./scripts/ci/assemble_e2e_benchmark.sh
+
+  deploy-npm-canary:
+    # Deploys next version under 'canary' dist tag.
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      # Aztec.js and dependencies
+      - run:
+          name: "yarn-project"
+          command: yarn-project/deploy_npm.sh canary
 
   deploy-npm:
     machine:
@@ -1044,7 +1066,18 @@ jobs:
       # Aztec.js and dependencies
       - run:
           name: "yarn-project"
-          command: yarn-project/deploy_npm.sh
+          command: yarn-project/deploy_npm.sh latest
+
+  deploy-dockerhub-canary:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Deploy to dockerhub"
+          command: yarn-project/deploy_dockerhub.sh canary
 
   deploy-ecr:
     machine:
@@ -1068,15 +1101,6 @@ jobs:
           name: "Deploy to dockerhub"
           command: yarn-project/deploy_dockerhub.sh
 
-  deploy-end:
-    docker:
-      - image: cimg/base:2023.09
-    resource_class: small
-    steps:
-      - run:
-          name: "Noop"
-          command: echo Noop
-
   build-deployment-canary:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1088,7 +1112,7 @@ jobs:
           name: "Build"
           command: build canary true
 
-  run-deployment-canary-uniswap:
+  canary-uniswap-test:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -1099,7 +1123,7 @@ jobs:
           name: "Test"
           command: run_script canary ./scripts/run_tests ./src/uniswap_trade_on_l1_from_l2.test.ts canary ./scripts/docker-compose.yml
 
-  run-deployment-canary-browser:
+  canary-browser-test:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -1110,7 +1134,7 @@ jobs:
           name: "Test"
           command: run_script canary ./scripts/run_tests ./src/aztec_js_browser.test.ts canary ./scripts/docker-compose-browser.yml
 
-  run-deployment-canary-cli:
+  canary-cli-test:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -1408,12 +1432,12 @@ workflows:
             - bench-process-history
           <<: *defaults
 
-      # Deployment and Canary tests
-      - deploy-dockerhub:
+        # Deploy under canary tag
+      - deploy-npm-canary:
           requires:
             - e2e-end
           <<: *deploy_defaults
-      - deploy-npm:
+      - deploy-dockerhub-canary:
           requires:
             - e2e-end
           <<: *deploy_defaults
@@ -1422,28 +1446,40 @@ workflows:
             - e2e-end
           <<: *deploy_defaults
 
-      - deploy-end:
-          requires:
-            - deploy-dockerhub
-            - deploy-npm
-          <<: *deploy_defaults
-
       - build-deployment-canary:
           requires:
-            - deploy-end
+            - deploy-npm-canary
+            - deploy-dockerhub-canary
           <<: *deploy_defaults
 
-      - run-deployment-canary-uniswap:
+      # Run canary tests
+      - canary-uniswap-test:
           requires:
             - build-deployment-canary
           <<: *deploy_defaults
 
-      - run-deployment-canary-browser:
+      - canary-browser-test:
           requires:
             - build-deployment-canary
           <<: *deploy_defaults
 
-      - run-deployment-canary-cli:
+      - canary-cli-test:
           requires:
             - build-deployment-canary
+          <<: *deploy_defaults
+
+      - canary-end:
+          requires:
+            - canary-uniswap-test
+            - canary-browser-test
+            - canary-cli-test
+
+        # Production deployment
+      - deploy-dockerhub:
+          requires:
+            - canary-end
+          <<: *deploy_defaults
+      - deploy-npm:
+          requires:
+            - canary-end
           <<: *deploy_defaults

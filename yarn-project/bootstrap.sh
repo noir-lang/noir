@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 
 if [ "$(uname)" = "Darwin" ]; then
   # works around https://github.com/AztecProtocol/aztec3-packages/issues/158
-  echo "Note: not sourcing nvm on Mac, see github #158"
+    echo "Note: not sourcing nvm on Mac, see github #158"
 else
   \. ~/.nvm/nvm.sh
 fi
