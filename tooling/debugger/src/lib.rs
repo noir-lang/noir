@@ -119,10 +119,8 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<Option<WitnessMap>, NargoError> {
-    let opcodes = circuit.opcodes.clone();
-
     let context = RefCell::new(DebugContext {
-        acvm: ACVM::new(blackbox_solver, &opcodes, initial_witness),
+        acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
         foreign_call_executor: ForeignCallExecutor::default(),
         circuit,
         debug_artifact,
