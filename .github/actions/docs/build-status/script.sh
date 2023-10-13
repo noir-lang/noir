@@ -13,15 +13,15 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
     echo "Deploy status: $DEPLOY_STATUS"
     # If deploy status is ready, set the output and exit successfully
     if [[ "$DEPLOY_STATUS" == "ready" ]]; then
-        echo "::set-output name=deploy_status::success"
+        echo "deploy_status=success" >> $GITHUB_OUTPUT
         exit 0
     elif [[ "$DEPLOY_STATUS" == "error" ]]; then
-        echo "::set-output name=deploy_status::failure"
+        echo "deploy_status=failure" >> $GITHUB_OUTPUT
         exit 0
     fi
 
     echo "Deploy still running. Retrying..."
 done
 
-echo "::set-output name=deploy_status::failure"
+echo "deploy_status=failure" >> $GITHUB_OUTPUT
 exit 0

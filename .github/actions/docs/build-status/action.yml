@@ -4,10 +4,15 @@ inputs:
   branch-name:
     description: 'Branch name'
     required: true
+outputs:
+  deploy_status:
+    description: "The deploy status"
+    value: ${{ steps.check_deploy_status.outputs.deploy_status }}
 runs:
   using: "composite"
   steps:
     - run: ${{ github.action_path }}/script.sh
       shell: bash
+      id: check_deploy_status
       env:
         BRANCH_NAME: ${{ inputs.branch-name }}
