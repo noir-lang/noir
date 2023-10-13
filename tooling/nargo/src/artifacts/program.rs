@@ -15,6 +15,9 @@ pub struct PreprocessedProgram {
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
     pub hash: u64,
 
+    /// Version of nargo used to compile this contract
+    pub nargo_version: String,
+
     pub backend: String,
     pub abi: Abi,
 

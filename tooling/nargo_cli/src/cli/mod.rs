@@ -28,6 +28,10 @@ const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");
 const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Version string that gets placed in artifacts that Noir builds
+pub(crate) const NOIR_ARTIFACT_VERSION_STRING: &str =
+    concat!(env!("CARGO_PKG_VERSION"), "-", env!("GIT_COMMIT"));
+
 static VERSION_STRING: &str =
     formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
 

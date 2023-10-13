@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 /// - Proving and verification keys have been pregenerated based on this ACIR.
 #[derive(Serialize, Deserialize)]
 pub struct PreprocessedContract {
+    /// Version of nargo used to compile this contract
+    pub nargo_version: String,
     /// The name of the contract.
     pub name: String,
     /// The identifier of the proving backend which this contract has been compiled for.

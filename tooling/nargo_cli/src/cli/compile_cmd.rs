@@ -28,6 +28,7 @@ use super::fs::program::{
     save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
+use super::NOIR_ARTIFACT_VERSION_STRING;
 use rayon::prelude::*;
 
 // TODO(#1388): pull this from backend.
@@ -271,6 +272,7 @@ fn save_program(
     output_debug: bool,
 ) {
     let preprocessed_program = PreprocessedProgram {
+        nargo_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         hash: program.hash,
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
@@ -311,6 +313,7 @@ fn save_contract(
     });
 
     let preprocessed_contract = PreprocessedContract {
+        nargo_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
