@@ -27,9 +27,13 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
-        let solver_status = self.acvm.as_mut().unwrap().solve_opcode();
+        let solver_status = self.acvm.as_mut().unwrap().step_opcode();
 
-        match solver_status {
+        self.handle_acvm_status(solver_status)
+    }
+
+    fn handle_acvm_status(&mut self, status: ACVMStatus) -> Result<SolveResult, NargoError> {
+        match status {
             ACVMStatus::Solved => Ok(SolveResult::Done),
             ACVMStatus::InProgress => Ok(SolveResult::Ok),
             ACVMStatus::Failure(error) => {
@@ -67,13 +71,22 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
 
     fn show_current_vm_status(&self) {
         let acvm = self.acvm.as_ref().unwrap();
-        let ip = acvm.instruction_pointer();
+        let location = acvm.location();
         let opcodes = acvm.opcodes();
-        if ip >= opcodes.len() {
-            println!("Finished execution");
-        } else {
-            println!("Stopped at opcode {}: {}", ip, opcodes[ip]);
-            Self::show_source_code_location(&OpcodeLocation::Acir(ip), &self.debug_artifact);
+        match location {
+            None => println!("Finished execution"),
+            Some(location) => {
+                match location {
+                    OpcodeLocation::Acir(ip) => {
+                        println!("Stopped at opcode {}: {}", ip, opcodes[ip])
+                    }
+                    OpcodeLocation::Brillig { acir_index: ip, brillig_index } => println!(
+                        "Stopped at opcode {} in Brillig block {}: {}",
+                        brillig_index, ip, opcodes[ip]
+                    ),
+                }
+                Self::show_source_code_location(&location, &self.debug_artifact);
+            }
         }
     }
 

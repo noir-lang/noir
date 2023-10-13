@@ -111,8 +111,17 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         Ok(Self { vm, acir_index })
     }
 
+    pub(super) fn program_counter(&self) -> usize {
+        self.vm.program_counter()
+    }
+
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
         let status = self.vm.process_opcodes();
+        self.handle_vm_status(status)
+    }
+
+    pub(super) fn step(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+        let status = self.vm.process_opcode();
         self.handle_vm_status(status)
     }
 

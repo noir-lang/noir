@@ -177,6 +177,20 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         self.instruction_pointer
     }
 
+    pub fn location(&self) -> Option<OpcodeLocation> {
+        if self.instruction_pointer >= self.opcodes.len() {
+            // evaluation finished
+            None
+        } else if let Some(solver) = &self.brillig_solver {
+            Some(OpcodeLocation::Brillig {
+                acir_index: self.instruction_pointer,
+                brillig_index: solver.program_counter(),
+            })
+        } else {
+            Some(OpcodeLocation::Acir(self.instruction_pointer))
+        }
+    }
+
     /// Finalize the ACVM execution, returning the resulting [`WitnessMap`].
     pub fn finalize(self) -> WitnessMap {
         if self.status != ACVMStatus::Solved {
@@ -263,6 +277,28 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 res => res.map(|_| ()),
             },
         };
+        self.handle_resolution(resolution)
+    }
+
+    pub fn step_opcode(&mut self) -> ACVMStatus {
+        match &self.opcodes[self.instruction_pointer] {
+            Opcode::Brillig(_) => {
+                let resolution = match self.step_brillig_opcode() {
+                    Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) => {
+                        return self.wait_for_foreign_call(foreign_call)
+                    }
+                    Ok(BrilligSolverStatus::InProgress) => {
+                        return self.status(ACVMStatus::InProgress)
+                    }
+                    res => res.map(|_| ()),
+                };
+                self.handle_resolution(resolution)
+            }
+            _ => self.solve_opcode(),
+        }
+    }
+
+    fn handle_resolution(&mut self, resolution: Result<(), OpcodeResolutionError>) -> ACVMStatus {
         match resolution {
             Ok(()) => {
                 self.instruction_pointer += 1;
@@ -330,6 +366,41 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 }
             }
         }
+    }
+
+    fn step_brillig_opcode(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+        let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
+            unreachable!("Not executing a Brillig opcode");
+        };
+        let witness = &mut self.witness_map;
+
+        // Try to use the cached `BrilligSolver` when stepping through opcodes
+        let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
+            Some(solver) => solver,
+            None => {
+                if BrilligSolver::<B>::should_skip(witness, brillig)? {
+                    return BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig)
+                        .map(|_| BrilligSolverStatus::Finished);
+                }
+                BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?
+            }
+        };
+        let status = solver.step()?;
+        match status {
+            BrilligSolverStatus::ForeignCallWait(_) => {
+                // Cache the current state of the solver
+                self.brillig_solver = Some(solver);
+            }
+            BrilligSolverStatus::InProgress => {
+                // Cache the current state of the solver
+                self.brillig_solver = Some(solver);
+            }
+            BrilligSolverStatus::Finished => {
+                // Write execution outputs
+                solver.finalize(witness, brillig)?;
+            }
+        };
+        Ok(status)
     }
 }
 
