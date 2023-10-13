@@ -344,7 +344,7 @@ fn collect_crate_structs(crate_id: &CrateId, context: &Context) -> Vec<StructId>
 fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
     let struct_type = interner.get_struct(struct_id);
     let selector_id = interner
-        .lookup_method(&Type::Struct(struct_type, vec![]), struct_id, "selector", true)
+        .lookup_method(&Type::Struct(struct_type, vec![]), struct_id, "selector", false)
         .expect("Selector method not found");
     let selector_function = interner.function(&selector_id);
 
