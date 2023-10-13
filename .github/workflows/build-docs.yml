@@ -31,6 +31,7 @@ jobs:
           
       - name: Add PR Comment
         uses: mshick/add-pr-comment@v2
+        if: always()
         with:
           message: |
             Hey @${{ github.event.pull_request.user.login }}! 🙌
@@ -45,20 +46,8 @@ jobs:
             ![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})(https://app.netlify.com/sites/noir-docs-v2/deploys)
             
             If you have any questions about this process, refer to our contribution guide or feel free to ask around.
-
-            
-      - name: Check on deploy status
-        uses: ./.github/actions/docs/build-status
-        id: check_deploy_status
-        with:
-          branch-name: ${{ github.head_ref || github.ref }}
-
-
-      - name: Change PR Comment for Successful Deployment
-        if: steps.check_deploy_status.outputs.deploy_status == 'success'
-        uses: mshick/add-pr-comment@v2
-        with:
-          message: |
+          
+          message-success: |
             ![It's Alive!](https://i.imgflip.com/82hstk.jpg)
             
             I'm a bot, beep boop 🤖
@@ -69,14 +58,8 @@ jobs:
             ## Preview
 
             🌐 [View Deployment Preview](${{ steps.get_deploy_preview.outputs.deploy_url }})
-            
-
-            
-      - name: Change PR Comment for Failed Deployment
-        if: steps.check_deploy_status.outputs.deploy_status == 'failure'
-        uses: mshick/add-pr-comment@v2
-        with:
-          message: |
+          
+          message-failure: |
             ![It's Dead!](https://i.imgflip.com/82ht8f.jpg)
             
             I'm a bot, beep boop 🤖
@@ -85,3 +68,10 @@ jobs:
             Deployment didn't succeed. Please check logs below and resolve the issue 🧐
             
             [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+
+            
+      - name: Check on deploy status
+        uses: ./.github/actions/docs/build-status
+        id: check_deploy_status
+        with:
+          branch-name: ${{ github.head_ref || github.ref }}
