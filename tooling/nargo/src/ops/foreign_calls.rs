@@ -89,7 +89,7 @@ impl MockedCall {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct ForeignCallExecutor {
+pub struct ForeignCallExecutor {
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
@@ -97,7 +97,7 @@ pub(crate) struct ForeignCallExecutor {
 }
 
 impl ForeignCallExecutor {
-    pub(crate) fn execute(
+    pub fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
         show_output: bool,
