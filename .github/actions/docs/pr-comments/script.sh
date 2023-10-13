@@ -1,8 +1,10 @@
 #!/bin/bash
 
+ACTION_PATH=$1
+
 BRANCH_NAME=$(echo "$BRANCH_NAME" | sed -e "s#refs/[^/]*/##")
 
-COMMENT_TEMPLATE=$(cat "${{ github.action_path }}/comment-template.md")
+COMMENT_TEMPLATE=$(cat "$ACTION_PATH/comment-template.md")
 COMMENT_BODY="${COMMENT_TEMPLATE//BRANCH_NAME_PLACEHOLDER/$BRANCH_NAME}"
 
 COMMENTS_URL="https://api.github.com/repos/noir-lang/noir/issues/$PR_NUMBER/comments"

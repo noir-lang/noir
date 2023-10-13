@@ -13,7 +13,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: ${{ github.action_path }}/script.sh
+    - run: ${{ github.action_path }}/script.sh "${{ github.action_path }}"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
