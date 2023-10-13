@@ -65,8 +65,8 @@ pub(crate) struct Barretenberg {
 use std::cell::RefCell;
 
 use wasmer::{
-    imports, wasmparser::FuncType, Function, FunctionEnv, FunctionEnvMut, Imports, Instance,
-    Memory, MemoryType, Store, Value, WasmPtr,
+    imports, Function, FunctionEnv, FunctionEnvMut, Imports, Instance, Memory, MemoryType, Store,
+    Value, WasmPtr,
 };
 
 /// The number of bytes necessary to represent a pointer to memory inside the wasm.
