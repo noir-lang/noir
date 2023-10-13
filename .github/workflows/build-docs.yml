@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         
-      - name: Netlify deploy 
+      - name: Netlify deploy  
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
           curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
