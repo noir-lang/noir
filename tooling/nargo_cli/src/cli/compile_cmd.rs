@@ -208,7 +208,7 @@ fn compile_program(
                 circuit: preprocessed_program.bytecode,
                 abi: preprocessed_program.abi,
                 debug: DebugInfo::default(),
-                file_map: BTreeMap::default(),
+                file_map: BTreeMap::new(),
             })
         }
     } else {
