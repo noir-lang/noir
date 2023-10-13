@@ -96,6 +96,8 @@ pub(crate) struct AcirContext {
     /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData>,
 
+    constant_witnesses: HashMap<FieldElement, Witness>,
+
     /// An in-memory representation of ACIR.
     ///
     /// This struct will progressively be populated
@@ -227,7 +229,16 @@ impl AcirContext {
     /// Converts an [`AcirVar`] to a [`Witness`]
     fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
-        Ok(self.acir_ir.get_or_create_witness(&expression))
+        let witness = if let Some(constant) = expression.to_const() {
+            // Check if a witness has been assigned this value already, if so reuse it.
+            *self
+                .constant_witnesses
+                .entry(constant)
+                .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
+        } else {
+            self.acir_ir.get_or_create_witness(&expression)
+        };
+        Ok(witness)
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
