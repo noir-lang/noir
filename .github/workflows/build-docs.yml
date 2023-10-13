@@ -7,8 +7,11 @@ on:
     types: [opened, synchronize, labeled]
 
 jobs:
+  
   build_and_deploy:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     if: contains(github.event.pull_request.labels.*.name, 'documentation')
     steps:
       - name: Checkout code
@@ -19,12 +22,18 @@ jobs:
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
           curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
 
-      - name: Change PR Comment
-        uses: ./.github/actions/docs/pr-comments
+      # - name: Change PR Comment
+      #   uses: ./.github/actions/docs/pr-comments
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     branch-name: ${{ github.head_ref || github.ref }}
+      #     pr-number: ${{ github.event.pull_request.number }}
+      - name: Add PR Comment
+        uses: mshick/add-pr-comment@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          branch-name: ${{ github.head_ref || github.ref }}
-          pr-number: ${{ github.event.pull_request.number }}
+          message: |
+            **Hello**
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
           
           
       - name: Check on deploy status
