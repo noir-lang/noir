@@ -5,16 +5,16 @@ mod gates;
 mod info;
 mod prove;
 mod verify;
-mod write_vk;
 mod version;
+mod write_vk;
 
 pub(crate) use contract::ContractCommand;
 pub(crate) use gates::GatesCommand;
 pub(crate) use info::InfoCommand;
 pub(crate) use prove::ProveCommand;
 pub(crate) use verify::VerifyCommand;
-pub(crate) use write_vk::WriteVkCommand;
 pub(crate) use version::VersionCommand;
+pub(crate) use write_vk::WriteVkCommand;
 
 #[test]
 fn no_command_provided_works() -> Result<(), crate::BackendError> {
