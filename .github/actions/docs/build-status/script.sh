@@ -14,7 +14,7 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
     if [[ "$DEPLOY_STATUS" == "ready" ]]; then
         echo "::set-output name=deploy_status::success"
         exit 0
-    elif [[ "$DEPLOY_STATUS" == "failure" ]]; then
+    elif [[ "$DEPLOY_STATUS" == "error" ]]; then
         echo "::set-output name=deploy_status::failure"
         exit 1
     fi
