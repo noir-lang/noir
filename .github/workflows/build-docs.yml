@@ -22,20 +22,27 @@ jobs:
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
           curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
 
-      # - name: Change PR Comment
-      #   uses: ./.github/actions/docs/pr-comments
-      #   with:
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     branch-name: ${{ github.head_ref || github.ref }}
-      #     pr-number: ${{ github.event.pull_request.number }}
+      - name: Get deploy preview
+        id: get_deploy_preview
+        run: |
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
+          curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME" > deploy.json
+          echo "::set-output name=deploy_url::$(cat deploy.json | jq -r '.[0].deploy_ssl_url')"
+          
       - name: Add PR Comment
         uses: mshick/add-pr-comment@v2
         with:
           message: |
-            **Hello**
+            I'm a bot, beep boop 🤖
+
+            # Deployment status
+
             [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
           
-          
+            # Deployment preview
+
+            ${{ steps.get_deploy_preview.outputs.deploy_url }}
+            
       - name: Check on deploy status
         uses: ./.github/actions/docs/build-status
         with:
