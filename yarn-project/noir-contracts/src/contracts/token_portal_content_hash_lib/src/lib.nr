@@ -1,5 +1,5 @@
-use dep::std::hash::pedersen_with_separator;
 // docs:start:mint_public_content_hash_nr
+use dep::std::hash::pedersen_with_separator;
 use dep::aztec::hash::{sha256_to_field};
 
 // Computes a content hash of a deposit/mint_public message.
@@ -28,6 +28,7 @@ pub fn get_mint_public_content_hash(owner_address: Field, amount: Field, cancell
 }
 // docs:end:mint_public_content_hash_nr
 
+// docs:start:get_mint_private_content_hash
 // Computes a content hash of a deposit/mint_private message.
 // Refer TokenPortal.sol for reference on L1.
 pub fn get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes: Field, amount: Field, canceller: Field) -> Field {
@@ -51,7 +52,9 @@ pub fn get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes: Fie
     let content_hash = sha256_to_field(hash_bytes);
     content_hash
 }
+// docs:end:get_mint_private_content_hash
 
+// docs:start:get_withdraw_content_hash
 // Computes a content hash of a withdraw message.
 pub fn get_withdraw_content_hash(recipient: Field, amount: Field, callerOnL1: Field) -> Field {
     // Compute the content hash
@@ -77,3 +80,4 @@ pub fn get_withdraw_content_hash(recipient: Field, amount: Field, callerOnL1: Fi
     let content_hash = sha256_to_field(hash_bytes);
     content_hash
 }
+// docs:end:get_withdraw_content_hash

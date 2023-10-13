@@ -1,11 +1,16 @@
-import { AccountWallet, AztecAddress, computeAuthWitMessageHash } from '@aztec/aztec.js';
+import {
+  AccountWallet,
+  AztecAddress,
+  DebugLogger,
+  EthAddress,
+  Fr,
+  PXE,
+  TxStatus,
+  computeAuthWitMessageHash,
+} from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
-import { DebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContract } from '@aztec/noir-contracts/types';
-import { PXE, TxStatus } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 import { Chain, HttpTransport, PublicClient, getContract, parseEther } from 'viem';
@@ -20,6 +25,7 @@ import { delay } from '../fixtures/utils.js';
 // anvil --fork-url https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c --fork-block-number 17514288 --chain-id 31337
 // For CI, this is configured in `run_tests.sh` and `docker-compose.yml`
 
+// docs:start:uniswap_l1_l2_test_setup_const
 const TIMEOUT = 90_000;
 
 /** Objects to be returned by the uniswap setup function */
@@ -37,12 +43,14 @@ export type UniswapSetupContext = {
   /** The sponsor wallet. */
   sponsorWallet: AccountWallet;
 };
+// docs:end:uniswap_l1_l2_test_setup_const
 
 export const uniswapL1L2TestSuite = (
   setup: () => Promise<UniswapSetupContext>,
   cleanup: () => Promise<void>,
   expectedForkBlockNumber = 17514288,
 ) => {
+  // docs:start:uniswap_l1_l2_test_beforeAll
   describe('uniswap_trade_on_l1_from_l2', () => {
     jest.setTimeout(TIMEOUT);
 
@@ -138,11 +146,12 @@ export const uniswapL1L2TestSuite = (
       logger('Getting some weth');
       await walletClient.sendTransaction({ to: WETH9_ADDRESS.toString(), value: parseEther('1') });
     });
+    // docs:end:uniswap_l1_l2_test_beforeAll
 
     afterAll(async () => {
       await cleanup();
     });
-
+    // docs:start:uniswap_private
     it('should uniswap trade on L1 from L2 funds privately (swaps WETH -> DAI)', async () => {
       const wethL1BeforeBalance = await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress);
 
@@ -288,7 +297,9 @@ export const uniswapL1L2TestSuite = (
       logger('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
       logger('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
     });
+    // docs:end:uniswap_private
 
+    // docs:start:uniswap_public
     it('should uniswap trade on L1 from L2 funds publicly (swaps WETH -> DAI)', async () => {
       const wethL1BeforeBalance = await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress);
 
@@ -431,6 +442,7 @@ export const uniswapL1L2TestSuite = (
       logger('WETH balance after swap : ', wethL2BalanceAfterSwap.toString());
       logger('DAI balance after swap  : ', daiL2BalanceAfterSwap.toString());
     });
+    // docs:end:uniswap_public
 
     // Edge cases for the private flow:
     // note - tests for uniswapPortal.sol and minting asset on L2 are covered in other tests.

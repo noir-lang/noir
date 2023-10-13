@@ -11,7 +11,8 @@ const hdAccount = mnemonicToAccount(MNEMONIC);
 // This tests works on forked mainnet, configured on the CI.
 const EXPECTED_FORKED_BLOCK = 17514288;
 
-const setupRPC = async (): Promise<UniswapSetupContext> => {
+// docs:start:uniswap_setup
+const setup = async (): Promise<UniswapSetupContext> => {
   const logger = createDebugLogger('aztec:canary_uniswap');
   const pxe = createPXEClient(PXE_URL);
   await waitForSandbox(pxe);
@@ -30,5 +31,6 @@ const setupRPC = async (): Promise<UniswapSetupContext> => {
 
   return { pxe, logger, publicClient, walletClient, ownerWallet, sponsorWallet };
 };
+// docs:end:uniswap_setup
 
-uniswapL1L2TestSuite(setupRPC, () => Promise.resolve(), EXPECTED_FORKED_BLOCK);
+uniswapL1L2TestSuite(setup, () => Promise.resolve(), EXPECTED_FORKED_BLOCK);

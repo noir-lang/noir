@@ -1,7 +1,6 @@
-import { TxHash, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
-import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
+// docs:start:cross_chain_test_harness
+import { AztecAddress, DebugLogger, EthAddress, Fr, TxHash, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
-import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi } from '@aztec/l1-artifacts';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
 import { NotePreimage, PXE, TxStatus } from '@aztec/types';
@@ -323,3 +322,4 @@ export class CrossChainTestHarness {
     expect(unshieldReceipt.status).toBe(TxStatus.MINED);
   }
 }
+// docs:end:cross_chain_test_harness

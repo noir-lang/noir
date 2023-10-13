@@ -1,3 +1,4 @@
+// docs:start:interfaces
 use dep::aztec::{
   context::{ PrivateContext, PublicContext, Context },
   selector::compute_selector,
@@ -52,3 +53,4 @@ impl TokenBridge {
     );
   }
 }
+// docs:end:interfaces

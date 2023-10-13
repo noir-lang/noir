@@ -1,9 +1,13 @@
-import { AccountWallet, AztecAddress, computeAuthWitMessageHash } from '@aztec/aztec.js';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
-import { DebugLogger } from '@aztec/foundation/log';
+import {
+  AccountWallet,
+  AztecAddress,
+  DebugLogger,
+  EthAddress,
+  Fr,
+  TxStatus,
+  computeAuthWitMessageHash,
+} from '@aztec/aztec.js';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
-import { TxStatus } from '@aztec/types';
 
 import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, setup } from './fixtures/utils.js';
@@ -48,8 +52,8 @@ describe('e2e_cross_chain_messaging', () => {
   afterEach(async () => {
     await teardown();
   });
-
-  it('Milestone 2: Deposit funds from L1 -> L2 and withdraw back to L1', async () => {
+  // docs:start:e2e_private_cross_chain
+  it('Privately deposit funds from L1 -> L2 and withdraw back to L1', async () => {
     // Generate a claim secret using pedersen
     const l1TokenBalance = 1000000n;
     const bridgeAmount = 100n;
@@ -113,6 +117,7 @@ describe('e2e_cross_chain_messaging', () => {
 
     expect(await outbox.read.contains([entryKey.toString(true)])).toBeFalsy();
   }, 120_000);
+  // docs:end:e2e_private_cross_chain
 
   // Unit tests for TokenBridge's private methods.
   it('Someone else can mint funds to me on my behalf (privately)', async () => {

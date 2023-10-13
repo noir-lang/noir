@@ -1,3 +1,4 @@
+// docs:start:token_brodge_token_interface
 use dep::aztec::{
   context::{ PrivateContext, PublicContext, Context },
   selector::compute_selector,
@@ -49,3 +50,4 @@ impl Token {
   }
   // docs:end:private_burn_interface
 }
+// docs:end:token_brodge_token_interface

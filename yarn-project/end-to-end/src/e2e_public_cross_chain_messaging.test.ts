@@ -12,9 +12,9 @@ describe('e2e_public_cross_chain_messaging', () => {
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
 
-  let ownerWallet: AccountWallet;
+  let user1Wallet: AccountWallet;
   let user2Wallet: AccountWallet;
-  let ownerEthAddress: EthAddress;
+  let ethAccount: EthAddress;
   let ownerAddress: AztecAddress;
 
   let crossChainTestHarness: CrossChainTestHarness;
@@ -33,11 +33,11 @@ describe('e2e_public_cross_chain_messaging', () => {
     );
     l2Token = crossChainTestHarness.l2Token;
     l2Bridge = crossChainTestHarness.l2Bridge;
-    ownerEthAddress = crossChainTestHarness.ethAccount;
+    ethAccount = crossChainTestHarness.ethAccount;
     ownerAddress = crossChainTestHarness.ownerAddress;
     outbox = crossChainTestHarness.outbox;
     teardown = teardown_;
-    ownerWallet = wallets[0];
+    user1Wallet = wallets[0];
     user2Wallet = wallets[1];
 
     logger = logger_;
@@ -48,7 +48,8 @@ describe('e2e_public_cross_chain_messaging', () => {
     await teardown();
   });
 
-  it('Milestone 2: Deposit funds from L1 -> L2 and withdraw back to L1', async () => {
+  // docs:start:e2e_public_cross_chain
+  it('Publicly deposit funds from L1 -> L2 and withdraw back to L1', async () => {
     // Generate a claim secret using pedersen
     const l1TokenBalance = 1000000n;
     const bridgeAmount = 100n;
@@ -60,7 +61,7 @@ describe('e2e_public_cross_chain_messaging', () => {
 
     // 2. Deposit tokens to the TokenPortal
     const messageKey = await crossChainTestHarness.sendTokensToPortalPublic(bridgeAmount, secretHash);
-    expect(await crossChainTestHarness.getL1BalanceOf(ownerEthAddress)).toBe(l1TokenBalance - bridgeAmount);
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
     // Wait for the archiver to process the message
     await delay(5000); /// waiting 5 seconds.
@@ -86,7 +87,7 @@ describe('e2e_public_cross_chain_messaging', () => {
       l2Bridge.address,
       l2Token.methods.burn_public(ownerAddress, withdrawAmount, nonce).request(),
     );
-    await ownerWallet.setPublicAuth(burnMessageHash, true).send().wait();
+    await user1Wallet.setPublicAuth(burnMessageHash, true).send().wait();
 
     // 5. Withdraw owner's funds from L2 to L1
     const entryKey = await crossChainTestHarness.checkEntryIsNotInOutbox(withdrawAmount);
@@ -94,14 +95,13 @@ describe('e2e_public_cross_chain_messaging', () => {
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, afterBalance - withdrawAmount);
 
     // Check balance before and after exit.
-    expect(await crossChainTestHarness.getL1BalanceOf(ownerEthAddress)).toBe(l1TokenBalance - bridgeAmount);
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
     await crossChainTestHarness.withdrawFundsFromBridgeOnL1(withdrawAmount, entryKey);
-    expect(await crossChainTestHarness.getL1BalanceOf(ownerEthAddress)).toBe(
-      l1TokenBalance - bridgeAmount + withdrawAmount,
-    );
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount + withdrawAmount);
 
     expect(await outbox.read.contains([entryKey.toString(true)])).toBeFalsy();
   }, 120_000);
+  // docs:end:e2e_public_cross_chain
 
   // Unit tests for TokenBridge's public methods.
 
@@ -114,7 +114,7 @@ describe('e2e_public_cross_chain_messaging', () => {
 
     await crossChainTestHarness.mintTokensOnL1(l1TokenBalance);
     const messageKey = await crossChainTestHarness.sendTokensToPortalPublic(bridgeAmount, secretHash);
-    expect(await crossChainTestHarness.getL1BalanceOf(ownerEthAddress)).toBe(l1TokenBalance - bridgeAmount);
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
     // Wait for the archiver to process the message
     await delay(5000); /// waiting 5 seconds.
@@ -128,7 +128,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     await expect(
       l2Bridge
         .withWallet(user2Wallet)
-        .methods.claim_public(user2Wallet.getAddress(), bridgeAmount, ownerEthAddress, messageKey, secret)
+        .methods.claim_public(user2Wallet.getAddress(), bridgeAmount, ethAccount, messageKey, secret)
         .simulate(),
     ).rejects.toThrow();
 
@@ -136,7 +136,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     logger("user2 consumes owner's message on L2 Publicly");
     const tx = l2Bridge
       .withWallet(user2Wallet)
-      .methods.claim_public(ownerAddress, bridgeAmount, ownerEthAddress, messageKey, secret)
+      .methods.claim_public(ownerAddress, bridgeAmount, ethAccount, messageKey, secret)
       .send();
     const receipt = await tx.wait();
     expect(receipt.status).toBe(TxStatus.MINED);
@@ -154,8 +154,8 @@ describe('e2e_public_cross_chain_messaging', () => {
     // Should fail as owner has not given approval to bridge burn their funds.
     await expect(
       l2Bridge
-        .withWallet(ownerWallet)
-        .methods.exit_to_l1_public(ownerEthAddress, withdrawAmount, EthAddress.ZERO, nonce)
+        .withWallet(user1Wallet)
+        .methods.exit_to_l1_public(ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
         .simulate(),
     ).rejects.toThrowError('Assertion failed: Message not authorized by account');
   });
@@ -166,7 +166,7 @@ describe('e2e_public_cross_chain_messaging', () => {
 
     await crossChainTestHarness.mintTokensOnL1(bridgeAmount);
     const messageKey = await crossChainTestHarness.sendTokensToPortalPublic(bridgeAmount, secretHash);
-    expect(await crossChainTestHarness.getL1BalanceOf(ownerEthAddress)).toBe(0n);
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(0n);
 
     // Wait for the archiver to process the message
     await delay(5000); /// waiting 5 seconds.
@@ -177,7 +177,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     await expect(
       l2Bridge
         .withWallet(user2Wallet)
-        .methods.claim_private(secretHash, bridgeAmount, ownerEthAddress, messageKey, secret)
+        .methods.claim_private(secretHash, bridgeAmount, ethAccount, messageKey, secret)
         .simulate(),
     ).rejects.toThrowError("Cannot satisfy constraint 'l1_to_l2_message_data.message.content == content");
   });

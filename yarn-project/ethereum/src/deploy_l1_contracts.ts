@@ -192,6 +192,7 @@ export const deployL1Contracts = async (
   };
 };
 
+// docs:start:deployL1Contract
 /**
  * Helper function to deploy ETH contracts.
  * @param walletClient - A viem WalletClient.
@@ -222,3 +223,4 @@ export async function deployL1Contract(
 
   return EthAddress.fromString(receipt.contractAddress!);
 }
+// docs:end:deployL1Contract

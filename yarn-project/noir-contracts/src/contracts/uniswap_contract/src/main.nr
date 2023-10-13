@@ -1,3 +1,4 @@
+// docs:start:uniswap_setup
 mod interfaces;
 mod util;
 
@@ -49,7 +50,9 @@ contract Uniswap {
     
     #[aztec(private)]
     fn constructor() {}
+// docs:end:uniswap_setup
 
+// docs:start:swap_public
     #[aztec(public)]
     fn swap_public(
         sender: AztecAddress,
@@ -117,7 +120,9 @@ contract Uniswap {
 
         1
     }
+// docs:end:swap_public
 
+// docs:start:swap_private
     #[aztec(private)]
     fn swap_private(
         input_asset: AztecAddress, // since private, we pass here and later assert that this is as expected by input_bridge
@@ -181,6 +186,7 @@ contract Uniswap {
 
         1
     }
+    // docs:end:swap_private
 
     // docs:start:authwit_uniswap_get
     // Since the token bridge burns funds on behalf of this contract, this contract has to tell the token contract if the signature is valid
@@ -229,10 +235,12 @@ contract Uniswap {
     }
     // docs:end:authwit_uniswap_set
 
+    // docs:start:assert_token_is_same
     #[aztec(public)]
     internal fn _assert_token_is_same(token: AztecAddress, token_bridge: AztecAddress) {
         assert(token.eq(TokenBridge::at(token_bridge.address).token(context)), "input_asset address is not the same as seen in the bridge contract");
     }
+    // docs:end:assert_token_is_same
 
     // /// Unconstrained /// 
 
@@ -240,5 +248,4 @@ contract Uniswap {
     unconstrained fn nonce_for_burn_approval() -> Field {
         storage.nonce_for_burn_approval.read()
     }
-
 }

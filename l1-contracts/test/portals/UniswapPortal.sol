@@ -1,12 +1,14 @@
 pragma solidity >=0.8.18;
 
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-import {IRegistry} from "../../src/core/interfaces/messagebridge/IRegistry.sol";
 
-import {TokenPortal} from "./TokenPortal.sol";
-import {ISwapRouter} from "../external/ISwapRouter.sol";
+import {IRegistry} from "../../src/core/interfaces/messagebridge/IRegistry.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 import {Hash} from "../../src/core/libraries/Hash.sol";
+
+// docs:start:setup
+import {TokenPortal} from "./TokenPortal.sol";
+import {ISwapRouter} from "../external/ISwapRouter.sol";
 
 /**
  * @title UniswapPortal
@@ -33,8 +35,9 @@ contract UniswapPortal {
     IERC20 outputAsset;
     bytes32 contentHash;
   }
+  // docs:end:setup
 
-  // docs:start:solidity_uniswap_swap
+  // docs:start:solidity_uniswap_swap_public
   /**
    * @notice Exit with funds from L2, perform swap on L1 and deposit output asset to L2 again publicly
    * @dev `msg.value` indicates fee to submit message to inbox. Currently, anyone can call this method on your behalf.
@@ -126,8 +129,9 @@ contract UniswapPortal {
       _aztecRecipient, amountOut, _canceller, _deadlineForL1ToL2Message, _secretHashForL1ToL2Message
     );
   }
-  // docs:end:solidity_uniswap_swap
+  // docs:end:solidity_uniswap_swap_public
 
+  // docs:start:solidity_uniswap_swap_private
   /**
    * @notice Exit with funds from L2, perform swap on L1 and deposit output asset to L2 again privately
    * @dev `msg.value` indicates fee to submit message to inbox. Currently, anyone can call this method on your behalf.
@@ -224,3 +228,4 @@ contract UniswapPortal {
     );
   }
 }
+// docs:end:solidity_uniswap_swap_private

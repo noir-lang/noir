@@ -338,6 +338,7 @@ export function getLogger() {
   return createDebugLogger('aztec:' + describeBlockName);
 }
 
+// docs:start:deployAndInitializeTokenAndBridgeContracts
 /**
  * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract, its L2 bridge contract and attach is to the portal.
  * @param wallet - the wallet instance
@@ -429,7 +430,9 @@ export async function deployAndInitializeTokenAndBridgeContracts(
 
   return { token, bridge, tokenPortalAddress, tokenPortal, underlyingERC20 };
 }
+// docs:end:deployAndInitializeTokenAndBridgeContracts
 
+// docs:start:delay
 /**
  * Sleep for a given number of milliseconds.
  * @param ms - the number of milliseconds to sleep for
@@ -437,6 +440,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
 export function delay(ms: number): Promise<void> {
   return new Promise<void>(resolve => setTimeout(resolve, ms));
 }
+// docs:end:delay
 
 /**
  * Checks the number of encrypted logs in the last block is as expected.
