@@ -79,9 +79,9 @@
         src = pkgs.lib.cleanSourceWith {
           src = craneLib.path ./.;
           # Custom filter with various file extensions that we rely upon to build packages
-          # Currently: `.nr`, `.sol`, `.sh`, `.json`, `.md`
+          # Currently: `.nr`, `.sol`, `.sh`, `.json`, `.md` and `.wasm`
           filter = path: type:
-            (builtins.match ".*\.(nr|sol|sh|json|md)$" path != null) || (craneLib.filterCargoSources path type);
+            (builtins.match ".*\.(nr|sol|sh|json|md|wasm)$" path != null) || (craneLib.filterCargoSources path type);
         };
 
         # TODO(#1198): It'd be nice to include these flags when running `cargo clippy` in a devShell.
