@@ -10,6 +10,8 @@ mod smart_contract;
 
 use acvm::acir::circuit::Opcode;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
+use bb_abstraction_leaks::BB_VERSION;
+use cli::VersionCommand;
 pub use download::download_backend;
 
 const BACKENDS_DIR: &str = ".nargo/backends";
@@ -103,6 +105,15 @@ impl Backend {
 
     fn crs_directory(&self) -> PathBuf {
         self.backend_directory().join("crs")
+    }
+
+    fn assert_correct_version(&self) -> Result<String, BackendError> {
+        let binary_path = self.binary_path();
+        let version_string = VersionCommand{}.run(binary_path)?;
+        if version_string.as_str() != BB_VERSION {
+            println!("WARNING!: Configured backend version `{:}` is different from expected `{:}`", version_string, BB_VERSION);
+        }
+        Ok(version_string)
     }
 }
 

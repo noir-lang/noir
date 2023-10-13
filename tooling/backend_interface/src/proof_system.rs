@@ -39,6 +39,8 @@ impl Backend {
     ) -> Result<Vec<u8>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
 
+        self.assert_correct_version()?;
+
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
@@ -78,6 +80,7 @@ impl Backend {
         is_recursive: bool,
     ) -> Result<bool, BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
