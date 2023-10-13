@@ -1260,7 +1260,7 @@ impl<'a> Resolver<'a> {
                     captures: lambda_context.captures,
                 })
             }),
-            ExpressionKind::Parenthesized(subexpr) => return self.resolve_expression(*subexpr),
+            ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
         };
 
         let expr_id = self.interner.push_expr(hir_expr);

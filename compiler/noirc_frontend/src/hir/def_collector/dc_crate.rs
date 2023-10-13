@@ -303,7 +303,7 @@ impl DefCollector {
         errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
 
         // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overriden.
+        // default implementation, which hasn't been overridden.
         errors.extend(collect_trait_impls(
             context,
             crate_id,

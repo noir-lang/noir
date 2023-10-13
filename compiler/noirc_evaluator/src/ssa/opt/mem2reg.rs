@@ -524,8 +524,8 @@ mod tests {
 
         // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
         // is most likely no longer v0. We have to retrieve the new id here.
-        let alloca_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id, alloca_id);
+        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
+        assert_eq!(ret_val_id, allocate_id);
     }
 
     fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {

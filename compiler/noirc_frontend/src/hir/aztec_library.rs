@@ -591,7 +591,7 @@ fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let last_statement = &func.def.body.0[len - 1];
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
-    // Doesnt need done until we have settled on a kernel size
+    // Doesn't need done until we have settled on a kernel size
     // TODO: support tuples here and in inputs -> convert into an issue
 
     // Check if the return type is an expression, if it is, we can handle it
@@ -864,11 +864,11 @@ fn add_array_to_hasher(identifier: &Ident) -> Statement {
 
 fn add_field_to_hasher(identifier: &Ident) -> Statement {
     // `hasher.add({ident})`
-    let iden = variable_path(path(identifier.clone()));
+    let ident = variable_path(path(identifier.clone()));
     make_statement(StatementKind::Semi(method_call(
         variable("hasher"), // variable
         "add",              // method name
-        vec![iden],         // args
+        vec![ident],        // args
     )))
 }
 
