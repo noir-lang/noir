@@ -46,6 +46,8 @@ jobs:
               -X PATCH \
               -d "{\"body\": \"$COMMENT_BODY\"}" \
               "$COMMENT_UPDATE_URL/$EXISTING_COMMENT_ID"
+
+            echo "Comment updated."
           else
             echo "Creating comment..."
 
@@ -58,6 +60,8 @@ jobs:
               -X POST \
               -d "{\"body\": \"$COMMENT_BODY\"}" \
               $COMMENTS_URL
+
+            echo "Comment created."
           fi
           
       - name: Check on deploy status
