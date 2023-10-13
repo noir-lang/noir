@@ -160,6 +160,10 @@ resource "aws_ecs_task_definition" "aztec-node-1" {
         "value": "${var.INBOX_CONTRACT_ADDRESS}"
       },
       {
+        "name": "REGISTRY_CONTRACT_ADDRESS",
+        "value": "${var.REGISTRY_CONTRACT_ADDRESS}"
+      },
+      {
         "name": "API_KEY",
         "value": "${var.API_KEY}"
       },
@@ -447,6 +451,10 @@ resource "aws_ecs_task_definition" "aztec-node-2" {
       {
         "name": "INBOX_CONTRACT_ADDRESS",
         "value": "${var.INBOX_CONTRACT_ADDRESS}"
+      },
+      {
+        "name": "REGISTRY_CONTRACT_ADDRESS",
+        "value": "${var.REGISTRY_CONTRACT_ADDRESS}"
       },
       {
         "name": "API_KEY",

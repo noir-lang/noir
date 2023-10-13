@@ -18,6 +18,10 @@ variable "INBOX_CONTRACT_ADDRESS" {
   type = string
 }
 
+variable "REGISTRY_CONTRACT_ADDRESS" {
+  type = string
+}
+
 variable "SEQ_1_PUBLISHER_PRIVATE_KEY" {
   type = string
 }
