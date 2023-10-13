@@ -15,6 +15,7 @@ fi
 
 REPOSITORY=$1
 ARCH_LIST=$2
+DIST_TAG=${3:-"latest"}
 
 echo "Repo: $REPOSITORY"
 echo "Arch list: $ARCH_LIST"
@@ -26,7 +27,7 @@ USERNAME="aztecprotocolci"
 IMAGE_TAG=$(extract_tag_version $REPOSITORY true)
 
 MANIFEST_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG
-MANIFEST_LATEST_URI=$ACCOUNT/$REPOSITORY:latest
+MANIFEST_DIST_URI=$ACCOUNT/$REPOSITORY:$DIST_TAG
 
 # Login to dockerhub.
 dockerhub_login
@@ -42,11 +43,11 @@ do
   IMAGE_DEPLOY_URI=$ACCOUNT/$REPOSITORY:$IMAGE_TAG-$A
   echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DEPLOY_URI"
   docker_or_dryrun manifest create $MANIFEST_DEPLOY_URI \
-  --amend $IMAGE_DEPLOY_URI
-  
-  echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_LATEST_URI"
-  docker_or_dryrun manifest create $MANIFEST_LATEST_URI \
-  --amend $IMAGE_DEPLOY_URI
+    --amend $IMAGE_DEPLOY_URI
+
+  echo "Adding image $IMAGE_DEPLOY_URI to manifest list $MANIFEST_DIST_URI"
+  docker_or_dryrun manifest create $MANIFEST_DIST_URI \
+    --amend $IMAGE_DEPLOY_URI
 done
 
 IFS=$OLD_IFS
@@ -56,6 +57,6 @@ echo "Pushing manifest list $MANIFEST_DEPLOY_URI..."
 # Push the version tagged list
 docker_or_dryrun manifest push --purge $MANIFEST_DEPLOY_URI
 
-echo "Pushing manifest list $MANIFEST_LATEST_URI..."
+echo "Pushing manifest list $MANIFEST_DIST_URI..."
 # Push the latest tagged list
-docker_or_dryrun manifest push --purge $MANIFEST_LATEST_URI
+docker_or_dryrun manifest push --purge $MANIFEST_DIST_URI
