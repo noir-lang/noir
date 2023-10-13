@@ -22,10 +22,45 @@ jobs:
       - name: Comment on PR
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
-          COMMENT_BODY='[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)'
-          curl -sSL \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -X POST \
-            -d "{\"body\": \"$COMMENT_BODY\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+          COMMENT_BODY="[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)"
+          
+              
+          # Check for existing comments
+          COMMENTS_URL="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+          EXISTING_COMMENT_ID=$(curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $COMMENTS_URL | jq '.[] | select(.user.login == "github-actions[bot]" and .body == "$COMMENT_BODY") | .id')
+          
+
+          # If comment exists, update it; otherwise, create a new one
+          if [[ -n "$EXISTING_COMMENT_ID" ]]; then
+            curl -sSL \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -X PATCH \
+              -d "{\"body\": \"$COMMENT_BODY\"}" \
+              "$COMMENTS_URL/$EXISTING_COMMENT_ID"
+          else
+            curl -sSL \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"body\": \"$COMMENT_BODY\"}" \
+              $COMMENTS_URL
+          fi
+          
+
+          # Check deploy status and fail CI if deploy fails (replace this with your actual check)
+          DEPLOY_STATUS=$(curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME"  | jq '.[] | select(.created_at != null) | .state' | head -1)
+          
+          MAX_RETRIES=60
+          COUNT=0
+          while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
+            sleep 60
+            DEPLOY_STATUS=$(curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME" | jq '.[] | select(.created_at != null) | .state' | head -1)
+            COUNT=$((COUNT+1))
+          done
+
+          # If deploy status isn't ready after all retries, fail the CI
+          if [[ "$DEPLOY_STATUS" != "ready" ]]; then
+            echo "Deploy failed or took too long."
+            exit 1
+          fi
