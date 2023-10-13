@@ -7,6 +7,7 @@ on:
     types: [opened, synchronize, labeled]
 
 jobs:
+  
   build_and_deploy:
     runs-on: ubuntu-latest
     permissions:
@@ -28,18 +29,9 @@ jobs:
           curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME" > deploy.json
           echo "::set-output name=deploy_url::$(cat deploy.json | jq -r '.[0].deploy_ssl_url')"
           
-      - name: Check on deploy status
-        uses: ./.github/actions/docs/build-status
-        id: check_deploy_status
-        with:
-          branch-name: ${{ github.head_ref || github.ref }}
-        continue-on-error: true
-
       - name: Add PR Comment
         uses: mshick/add-pr-comment@v2
-        if: always()
         with:
-          status: ${{ job.status }}
           message: |
             Hey @${{ github.event.pull_request.user.login }}! 🙌
 
@@ -50,30 +42,46 @@ jobs:
             
             Click the badge to see logs 🧐
             
-            [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+            ![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})(https://app.netlify.com/sites/noir-docs-v2/deploys)
             
             If you have any questions about this process, refer to our contribution guide or feel free to ask around.
-          
+
+            
+      - name: Check on deploy status
+        uses: ./.github/actions/docs/build-status
+        id: check_deploy_status
+        with:
+          branch-name: ${{ github.head_ref || github.ref }}
+        continue-on-error: true
+
+      - name: Change PR Comment for Successful Deployment
+        if: steps.check_deploy_status.outputs.deploy_status == 'success'
+        uses: mshick/add-pr-comment@v2
+        with:
           message-success: |
+            ![It's Alive!](https://i.imgflip.com/82hstk.jpg)
+            
             I'm a bot, beep boop 🤖
 
-            ![It's Alive!](https://i.imgflip.com/82hw5n.jpg)
-          
             ## Deployment Status: Success!
             [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
             
             ## Preview
 
             🌐 [View Deployment Preview](${{ steps.get_deploy_preview.outputs.deploy_url }})
-          
-          message-failure: |
-            I'm a bot, beep boop 🤖
+            
 
+            
+      - name: Change PR Comment for Failed Deployment
+        if: steps.check_deploy_status.outputs.deploy_status == 'failure'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
             ![It's Dead!](https://i.imgflip.com/82ht8f.jpg)
             
+            I'm a bot, beep boop 🤖
+
             ## Deployment Status: Failed ❌
             Deployment didn't succeed. Please check logs below and resolve the issue 🧐
             
             [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
-
-            
