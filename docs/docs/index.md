@@ -21,6 +21,7 @@ keywords:
 slug: /
 ---
 
+[Im a bad link and I want my CI to fail](../docs/language_concepts/migration_notes.md)
 
 ## What is Noir?
 

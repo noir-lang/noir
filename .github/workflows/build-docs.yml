@@ -48,10 +48,10 @@ jobs:
             If you have any questions about this process, refer to our contribution guide or feel free to ask around.
           
           message-success: |
-            ![It's Alive!](https://i.imgflip.com/82hstk.jpg)
-            
             I'm a bot, beep boop 🤖
 
+            ![It's Alive!](https://i.imgflip.com/82hw5n.jpg)
+          
             ## Deployment Status: Success!
             [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
             
@@ -60,10 +60,10 @@ jobs:
             🌐 [View Deployment Preview](${{ steps.get_deploy_preview.outputs.deploy_url }})
           
           message-failure: |
-            ![It's Dead!](https://i.imgflip.com/82ht8f.jpg)
-            
             I'm a bot, beep boop 🤖
 
+            ![It's Dead!](https://i.imgflip.com/82ht8f.jpg)
+            
             ## Deployment Status: Failed ❌
             Deployment didn't succeed. Please check logs below and resolve the issue 🧐
             
