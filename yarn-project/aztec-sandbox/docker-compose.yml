@@ -2,7 +2,15 @@ version: '3'
 services:
   ethereum:
     image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
-    command: '"anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337"'
+    command: >
+      sh -c '
+      if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
+        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
+      elif [ -n "$FORK_URL" ]; then
+        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" 
+      else
+        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337
+      fi'
     ports:
       - '${SANDBOX_ANVIL_PORT:-8545}:8545'
 
