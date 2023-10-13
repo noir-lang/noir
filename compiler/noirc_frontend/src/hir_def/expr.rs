@@ -103,7 +103,7 @@ pub struct HirInfixExpression {
     pub rhs: ExprId,
 }
 
-/// This is always a struct field access `mystruct.field`
+/// This is always a struct field access `my_struct.field`
 /// and never a method call. The later is represented by HirMethodCallExpression.
 #[derive(Debug, Clone)]
 pub struct HirMemberAccess {
@@ -155,7 +155,7 @@ pub enum HirMethodReference {
 
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
-    /// which can be only known during monomorphizaiton.
+    /// which can be only known during monomorphization.
     TraitMethodId(Type, TraitMethodId),
 }
 

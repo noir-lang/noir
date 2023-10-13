@@ -1,7 +1,7 @@
 // Tests a very simple program.
 // 
 // The features being tested is brillig calls passing arrays around
-fn main(x: [u32; 3])  {
+fn main(x: [u32; 3]) {
     assert(entry_point(x) == 9);
     another_entry_point(x);
 }

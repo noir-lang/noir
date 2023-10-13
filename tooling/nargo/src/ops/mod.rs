@@ -1,4 +1,5 @@
 pub use self::execute::execute_circuit;
+pub use self::foreign_calls::ForeignCallExecutor;
 pub use self::optimize::{optimize_contract, optimize_program};
 pub use self::test::{run_test, TestStatus};
 

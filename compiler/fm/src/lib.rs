@@ -102,7 +102,7 @@ impl FileManager {
         let anchor_path = self.path(anchor).to_path_buf();
         let anchor_dir = anchor_path.parent().unwrap();
 
-        // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{modname}.nr`, we check siblings of
+        // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
         // the anchor at `base/mod_name.nr`.
         let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
             anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
