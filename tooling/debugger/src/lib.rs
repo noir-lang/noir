@@ -18,7 +18,7 @@ enum SolveResult {
 }
 
 struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
-    acvm: Option<ACVM<'backend, B>>,
+    acvm: ACVM<'backend, B>,
     debug_artifact: DebugArtifact,
     foreign_call_executor: ForeignCallExecutor,
     circuit: &'backend Circuit,
@@ -27,7 +27,7 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
-        let solver_status = self.acvm.as_mut().unwrap().step_opcode(true);
+        let solver_status = self.acvm.step_opcode(true);
 
         self.handle_acvm_status(solver_status)
     }
@@ -63,16 +63,16 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result =
                     self.foreign_call_executor.execute(&foreign_call, self.show_output)?;
-                self.acvm.as_mut().unwrap().resolve_pending_foreign_call(foreign_call_result);
+                self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 Ok(SolveResult::Ok)
             }
         }
     }
 
     fn show_current_vm_status(&self) {
-        let acvm = self.acvm.as_ref().unwrap();
-        let location = acvm.location();
-        let opcodes = acvm.opcodes();
+        let location = self.acvm.location();
+        let opcodes = self.acvm.opcodes();
+
         match location {
             None => println!("Finished execution"),
             Some(location) => {
@@ -114,8 +114,8 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
         Ok(SolveResult::Done)
     }
 
-    fn finalize(&mut self) -> WitnessMap {
-        self.acvm.take().unwrap().finalize()
+    fn finalize(self) -> WitnessMap {
+        self.acvm.finalize()
     }
 }
 
@@ -133,10 +133,8 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<Option<WitnessMap>, NargoError> {
-    let opcodes = circuit.opcodes.clone();
-
     let context = RefCell::new(DebugContext {
-        acvm: Some(ACVM::new(blackbox_solver, &opcodes, initial_witness)),
+        acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
         foreign_call_executor: ForeignCallExecutor::default(),
         circuit,
         debug_artifact,
@@ -182,8 +180,12 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
 
     repl.run().expect("Debugger error");
 
+    // REPL execution has finished.
+    // Drop it so that we can move fields out from `context` again.
+    drop(repl);
+
     if solved.get() {
-        let solved_witness = context.borrow_mut().finalize();
+        let solved_witness = context.into_inner().finalize();
         Ok(Some(solved_witness))
     } else {
         Ok(None)
