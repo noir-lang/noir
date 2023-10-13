@@ -12,4 +12,5 @@ jobs:
         
       - name: Netlify deploy
         run: |
-          curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=${{ github.head_ref }}"
+          BRANCH_NAME=${{ github.head_ref || github.ref }}
+          curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
