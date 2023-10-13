@@ -1248,7 +1248,7 @@ impl Context {
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) -> Result<(), InternalError> {
-        let (return_values, call_stack) = match terminator {
+        let (return_values, _call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack)
             }
