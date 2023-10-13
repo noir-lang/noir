@@ -177,6 +177,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         self.instruction_pointer
     }
 
+    /// Returns the location for the next opcode to execute, or None if execution is finished
     pub fn location(&self) -> Option<OpcodeLocation> {
         if self.instruction_pointer >= self.opcodes.len() {
             // evaluation finished
@@ -256,6 +257,10 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
     }
 
     pub fn solve_opcode(&mut self) -> ACVMStatus {
+        self.step_opcode(false)
+    }
+
+    pub fn step_opcode(&mut self, step_into_brillig: bool) -> ACVMStatus {
         let opcode = &self.opcodes[self.instruction_pointer];
 
         let resolution = match opcode {
@@ -272,33 +277,15 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.solve_memory_op(op, &mut self.witness_map, predicate)
             }
-            Opcode::Brillig(_) => match self.solve_brillig_opcode() {
-                Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
+            Opcode::Brillig(_) => match self.step_brillig_opcode(step_into_brillig) {
+                Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) => {
+                    return self.wait_for_foreign_call(foreign_call)
+                }
+                Ok(BrilligSolverStatus::InProgress) => return self.status(ACVMStatus::InProgress),
                 res => res.map(|_| ()),
             },
         };
-        self.handle_resolution(resolution)
-    }
 
-    pub fn step_opcode(&mut self) -> ACVMStatus {
-        match &self.opcodes[self.instruction_pointer] {
-            Opcode::Brillig(_) => {
-                let resolution = match self.step_brillig_opcode() {
-                    Ok(BrilligSolverStatus::ForeignCallWait(foreign_call)) => {
-                        return self.wait_for_foreign_call(foreign_call)
-                    }
-                    Ok(BrilligSolverStatus::InProgress) => {
-                        return self.status(ACVMStatus::InProgress)
-                    }
-                    res => res.map(|_| ()),
-                };
-                self.handle_resolution(resolution)
-            }
-            _ => self.solve_opcode(),
-        }
-    }
-
-    fn handle_resolution(&mut self, resolution: Result<(), OpcodeResolutionError>) -> ACVMStatus {
         match resolution {
             Ok(()) => {
                 self.instruction_pointer += 1;
@@ -332,66 +319,40 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         }
     }
 
-    fn solve_brillig_opcode(
+    fn step_brillig_opcode(
         &mut self,
-    ) -> Result<Option<ForeignCallWaitInfo>, OpcodeResolutionError> {
-        let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
-            unreachable!("Not executing a Brillig opcode");
-        };
-        let witness = &mut self.witness_map;
-        if BrilligSolver::<B>::should_skip(witness, brillig)? {
-            BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig).map(|_| None)
-        } else {
-            // If we're resuming execution after resolving a foreign call then
-            // there will be a cached `BrilligSolver` to avoid recomputation.
-            let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
-                Some(solver) => solver,
-                None => {
-                    BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?
-                }
-            };
-            match solver.solve()? {
-                BrilligSolverStatus::ForeignCallWait(foreign_call) => {
-                    // Cache the current state of the solver
-                    self.brillig_solver = Some(solver);
-                    Ok(Some(foreign_call))
-                }
-                BrilligSolverStatus::InProgress => {
-                    unreachable!("Brillig solver still in progress")
-                }
-                BrilligSolverStatus::Finished => {
-                    // Write execution outputs
-                    solver.finalize(witness, brillig)?;
-                    Ok(None)
-                }
-            }
-        }
-    }
-
-    fn step_brillig_opcode(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
+        step_into: bool,
+    ) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
         let Opcode::Brillig(brillig) = &self.opcodes[self.instruction_pointer] else {
             unreachable!("Not executing a Brillig opcode");
         };
         let witness = &mut self.witness_map;
 
-        // Try to use the cached `BrilligSolver` when stepping through opcodes
+        // Try to use the cached `BrilligSolver` which we will have if:
+        // - stepping into a Brillig block
+        // - resuming execution from a foreign call
         let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
             Some(solver) => solver,
             None => {
                 if BrilligSolver::<B>::should_skip(witness, brillig)? {
+                    // Exit early if the block doesn't need to be executed (false predicate)
                     return BrilligSolver::<B>::zero_out_brillig_outputs(witness, brillig)
                         .map(|_| BrilligSolverStatus::Finished);
                 }
                 BrilligSolver::new(witness, brillig, self.backend, self.instruction_pointer)?
             }
         };
-        let status = solver.step()?;
+
+        let status = if step_into { solver.step()? } else { solver.solve()? };
         match status {
             BrilligSolverStatus::ForeignCallWait(_) => {
                 // Cache the current state of the solver
                 self.brillig_solver = Some(solver);
             }
             BrilligSolverStatus::InProgress => {
+                if !step_into {
+                    unreachable!("Brillig solver still in progress")
+                }
                 // Cache the current state of the solver
                 self.brillig_solver = Some(solver);
             }

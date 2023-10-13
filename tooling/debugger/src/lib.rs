@@ -27,7 +27,7 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
 
 impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     fn step_opcode(&mut self) -> Result<SolveResult, NargoError> {
-        let solver_status = self.acvm.as_mut().unwrap().step_opcode();
+        let solver_status = self.acvm.as_mut().unwrap().step_opcode(true);
 
         self.handle_acvm_status(solver_status)
     }
