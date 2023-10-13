@@ -25,8 +25,9 @@ jobs:
           COMMENT_BODY="[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)"
           
           COMMENTS_URL="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
-          EXISTING_COMMENT_ID=$(curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $COMMENTS_URL | jq '.[] | select(.user.login == "github-actions[bot]" and .body == "$COMMENT_BODY") | .id')
+          EXISTING_COMMENT_ID=$(curl -sSL -H "Authorization: token $GH_TOKEN" $COMMENTS_URL | jq '.[] | select(.user.login == "github-actions[bot]") | select (.body == "'"$COMMENT_BODY"'") | .id')
           
+          echo "Existing comment ID: $EXISTING_COMMENT_ID"
 
           # If comment exists, update it; otherwise, create a new one
           if [[ -n "$EXISTING_COMMENT_ID" ]]; then
