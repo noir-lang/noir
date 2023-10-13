@@ -5,6 +5,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
+import { RegistryAbi } from '@aztec/l1-artifacts';
 import {
   ContractData,
   ContractDataSource,
@@ -24,7 +25,7 @@ import {
 } from '@aztec/types';
 
 import omit from 'lodash.omit';
-import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
+import { Chain, HttpTransport, PublicClient, createPublicClient, getContract, http } from 'viem';
 
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 import { ArchiverConfig } from './config.js';
@@ -101,6 +102,16 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       transport: http(chain.rpcUrl),
       pollingInterval: config.viemPollingIntervalMS,
     });
+
+    // ask the registry for the block number when the rollup was deployed
+    // this is the block from which archiver has to search from
+    const registryContract = getContract({
+      address: config.l1Contracts.registryAddress.toString(),
+      abi: RegistryAbi,
+      publicClient,
+    });
+    const searchStartBlock = Number((await registryContract.read.getCurrentSnapshot()).blockNumber);
+
     const archiverStore = new MemoryArchiverStore(config.maxLogs ?? 1000);
     const archiver = new Archiver(
       publicClient,
@@ -108,7 +119,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       config.l1Contracts.inboxAddress,
       config.l1Contracts.registryAddress,
       config.l1Contracts.contractDeploymentEmitterAddress,
-      config.searchStartBlock,
+      searchStartBlock,
       archiverStore,
       config.archiverPollingIntervalMS,
     );

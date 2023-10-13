@@ -10,8 +10,6 @@ export const MNEMONIC = 'test test test test test test test test test test test 
 const hdAccount = mnemonicToAccount(MNEMONIC);
 // This tests works on forked mainnet, configured on the CI.
 const EXPECTED_FORKED_BLOCK = 17514288;
-// We tell the archiver to only sync from this block.
-process.env.SEARCH_START_BLOCK = EXPECTED_FORKED_BLOCK.toString();
 
 const setupRPC = async (): Promise<UniswapSetupContext> => {
   const logger = createDebugLogger('aztec:canary_uniswap');

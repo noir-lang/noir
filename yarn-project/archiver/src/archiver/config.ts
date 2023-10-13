@@ -33,11 +33,6 @@ export interface ArchiverConfig {
   viemPollingIntervalMS?: number;
 
   /**
-   * Eth block from which we start scanning for L2Blocks.
-   */
-  searchStartBlock: number;
-
-  /**
    * The deployed L1 contract addresses
    */
   l1Contracts: L1ContractAddresses;
@@ -63,7 +58,6 @@ export function getConfigEnvVars(): ArchiverConfig {
     ARCHIVER_VIEM_POLLING_INTERVAL_MS,
     ROLLUP_CONTRACT_ADDRESS,
     CONTRACT_DEPLOYMENT_EMITTER_ADDRESS,
-    SEARCH_START_BLOCK,
     API_KEY,
     INBOX_CONTRACT_ADDRESS,
     OUTBOX_CONTRACT_ADDRESS,
@@ -85,7 +79,6 @@ export function getConfigEnvVars(): ArchiverConfig {
     rpcUrl: ETHEREUM_HOST || 'http://127.0.0.1:8545/',
     archiverPollingIntervalMS: ARCHIVER_POLLING_INTERVAL_MS ? +ARCHIVER_POLLING_INTERVAL_MS : 1_000,
     viemPollingIntervalMS: ARCHIVER_VIEM_POLLING_INTERVAL_MS ? +ARCHIVER_VIEM_POLLING_INTERVAL_MS : 1_000,
-    searchStartBlock: SEARCH_START_BLOCK ? +SEARCH_START_BLOCK : 0,
     apiKey: API_KEY,
     l1Contracts: addresses,
     dataDirectory: DATA_DIRECTORY,

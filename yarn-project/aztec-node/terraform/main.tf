@@ -168,10 +168,6 @@ resource "aws_ecs_task_definition" "aztec-node-1" {
         "value": "/${var.DEPLOY_TAG}/aztec-node-1"
       },
       {
-        "name": "SEARCH_START_BLOCK",
-        "value": "15920300"
-      },
-      {
         "name": "P2P_TCP_LISTEN_PORT",
         "value": "${var.NODE_1_TCP_PORT}"
       },
@@ -459,10 +455,6 @@ resource "aws_ecs_task_definition" "aztec-node-2" {
       {
         "name": "API_PREFIX",
         "value": "/${var.DEPLOY_TAG}/aztec-node-2"
-      },
-      {
-        "name": "SEARCH_START_BLOCK",
-        "value": "15920300"
       },
       {
         "name": "P2P_TCP_LISTEN_PORT",
