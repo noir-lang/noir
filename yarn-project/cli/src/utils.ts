@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, FunctionSelector, GrumpkinScalar, PXE, Point, TxHash } from '@aztec/aztec.js';
+import { AztecAddress, EthAddress, Fr, FunctionSelector, GrumpkinScalar, PXE, Point, TxHash } from '@aztec/aztec.js';
 import { L1ContractArtifactsForDeployment, createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
@@ -206,6 +206,20 @@ export function parseSaltFromHexString(str: string): Fr {
 export function parseAztecAddress(address: string): AztecAddress {
   try {
     return AztecAddress.fromString(address);
+  } catch {
+    throw new InvalidArgumentError(`Invalid address: ${address}`);
+  }
+}
+
+/**
+ * Parses an Ethereum address from a string.
+ * @param address - A serialized Ethereum address
+ * @returns An Ethereum address
+ * @throws InvalidArgumentError if the input string is not valid.
+ */
+export function parseEthereumAddress(address: string): EthAddress {
+  try {
+    return EthAddress.fromString(address);
   } catch {
     throw new InvalidArgumentError(`Invalid address: ${address}`);
   }
