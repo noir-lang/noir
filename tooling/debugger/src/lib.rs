@@ -85,7 +85,7 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 let source = &file.source.as_str();
                 let start = loc.span.start() as usize;
                 let end = loc.span.end() as usize;
-                println!("At {}:{start}-{end}", file.path.as_path().display());
+                println!("At {}.nr:{start}-{end}", file.path.as_path().display());
                 println!("\n{}\n", &source[start..end]);
             }
         }
