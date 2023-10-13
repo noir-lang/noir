@@ -130,17 +130,17 @@ export class Sequencer {
       if (pendingTxs.length < this.minTxsPerBLock) return;
       this.log.info(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
+      const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
+      const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
+
       // Filter out invalid txs
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
-      const validTxs = await this.takeValidTxs(pendingTxs);
+      const validTxs = await this.takeValidTxs(pendingTxs, newGlobalVariables);
       if (validTxs.length < this.minTxsPerBLock) return;
-
-      const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
 
       this.log.info(`Building block ${blockNumber} with ${validTxs.length} transactions`);
       this.state = SequencerState.CREATING_BLOCK;
 
-      const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
       const prevGlobalVariables = (await this.l2BlockSource.getBlock(-1))?.globalVariables ?? GlobalVariables.empty();
 
       // Process txs and drop the ones that fail processing
@@ -156,8 +156,8 @@ export class Sequencer {
       // Only accept processed transactions that are not double-spends,
       // public functions emitting nullifiers would pass earlier check but fail here.
       // Note that we're checking all nullifiers generated in the private execution twice,
-      // we could store the ones already checked and skip them here as an optimization.
-      const processedValidTxs = await this.takeValidTxs(processedTxs);
+      // we could store the ones already checked and skip them here as an optimisation.
+      const processedValidTxs = await this.takeValidTxs(processedTxs, newGlobalVariables);
 
       if (processedValidTxs.length === 0) {
         this.log('No txs processed correctly to build block. Exiting');
@@ -240,16 +240,25 @@ export class Sequencer {
     }
   }
 
-  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[]): Promise<T[]> {
+  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[], globalVariables: GlobalVariables): Promise<T[]> {
     const validTxs: T[] = [];
-    const doubleSpendTxs = [];
+    const txsToDelete = [];
     const thisBlockNullifiers: Set<bigint> = new Set();
 
     // Process txs until we get to maxTxsPerBlock, rejecting double spends in the process
     for (const tx of txs) {
+      if (tx.data.constants.txContext.chainId.value !== globalVariables.chainId.value) {
+        this.log(
+          `Deleting tx for incorrect chain ${tx.data.constants.txContext.chainId.toString()}, tx hash ${await Tx.getHash(
+            tx,
+          )}`,
+        );
+        txsToDelete.push(tx);
+        continue;
+      }
       if (await this.isTxDoubleSpend(tx)) {
         this.log(`Deleting double spend tx ${await Tx.getHash(tx)}`);
-        doubleSpendTxs.push(tx);
+        txsToDelete.push(tx);
         continue;
       } else if (this.isTxDoubleSpendSameBlock(tx, thisBlockNullifiers)) {
         // We don't drop these txs from the p2p pool immediately since they become valid
@@ -264,8 +273,8 @@ export class Sequencer {
     }
 
     // Make sure we remove these from the tx pool so we do not consider it again
-    if (doubleSpendTxs.length > 0) {
-      await this.p2pClient.deleteTxs(await Tx.getHashes([...doubleSpendTxs]));
+    if (txsToDelete.length > 0) {
+      await this.p2pClient.deleteTxs(await Tx.getHashes([...txsToDelete]));
     }
 
     return validTxs;

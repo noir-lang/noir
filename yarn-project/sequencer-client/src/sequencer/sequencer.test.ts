@@ -44,7 +44,7 @@ describe('sequencer', () => {
 
   let sequencer: TestSubject;
 
-  const chainId = Fr.ZERO;
+  const chainId = new Fr(12345);
   const version = Fr.ZERO;
 
   beforeEach(() => {
@@ -99,6 +99,7 @@ describe('sequencer', () => {
 
   it('builds a block out of a single tx', async () => {
     const tx = mockTx();
+    tx.data.constants.txContext.chainId = chainId;
     const block = L2Block.random(lastBlockNumber + 1);
     const proof = makeEmptyProof();
 
@@ -124,6 +125,9 @@ describe('sequencer', () => {
 
   it('builds a block out of several txs rejecting double spends', async () => {
     const txs = [mockTx(0x10000), mockTx(0x20000), mockTx(0x30000)];
+    txs.forEach(tx => {
+      tx.data.constants.txContext.chainId = chainId;
+    });
     const doubleSpendTx = txs[1];
     const block = L2Block.random(lastBlockNumber + 1);
     const proof = makeEmptyProof();
@@ -155,6 +159,39 @@ describe('sequencer', () => {
     );
     expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(p2p.deleteTxs).toHaveBeenCalledWith([await doubleSpendTx.getTxHash()]);
+  });
+
+  it('builds a block out of several txs rejecting incorrect chain ids', async () => {
+    const txs = [mockTx(0x10000), mockTx(0x20000), mockTx(0x30000)];
+    txs.forEach(tx => {
+      tx.data.constants.txContext.chainId = chainId;
+    });
+    const invalidChainTx = txs[1];
+    const block = L2Block.random(lastBlockNumber + 1);
+    const proof = makeEmptyProof();
+
+    p2p.getTxs.mockResolvedValueOnce(txs);
+    blockBuilder.buildL2Block.mockResolvedValueOnce([block, proof]);
+    publisher.processL2Block.mockResolvedValueOnce(true);
+    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
+    );
+
+    // We make the chain id on the invalid tx not equal to the configured chain id
+    invalidChainTx.data.constants.txContext.chainId = new Fr(1n + chainId.value);
+
+    await sequencer.initialSync();
+    await sequencer.work();
+
+    const expectedTxHashes = [...(await Tx.getHashes([txs[0], txs[2]])), TxHash.ZERO, TxHash.ZERO];
+
+    expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
+      expectedTxHashes.map(hash => expect.objectContaining({ hash })),
+      Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
+    );
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block);
+    expect(p2p.deleteTxs).toHaveBeenCalledWith([await invalidChainTx.getTxHash()]);
   });
 });
 

@@ -99,7 +99,7 @@ resource "aws_ecs_task_definition" "aztec-node-1" {
 [
   {
     "name": "${var.DEPLOY_TAG}-aztec-node-1",
-    "image": "${var.ECR_URL}/aztec-node:latest",
+    "image": "${var.ECR_URL}/aztec-node:aztec3-packages-prod",
     "essential": true,
     "memoryReservation": 3776,
     "portMappings": [
@@ -388,7 +388,7 @@ resource "aws_ecs_task_definition" "aztec-node-2" {
 [
   {
     "name": "${var.DEPLOY_TAG}-aztec-node-2",
-    "image": "${var.ECR_URL}/aztec-node:latest",
+    "image": "${var.ECR_URL}/aztec-node:aztec3-packages-prod",
     "essential": true,
     "memoryReservation": 3776,
     "portMappings": [

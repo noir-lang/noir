@@ -3,6 +3,7 @@ import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/azte
 import {
   DeployL1Contracts,
   L1ContractArtifactsForDeployment,
+  NULL_KEY,
   createEthereumChain,
   deployL1Contracts,
 } from '@aztec/ethereum';
@@ -22,7 +23,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 
-import { createPublicClient, http as httpViemTransport } from 'viem';
+import { HDAccount, createPublicClient, http as httpViemTransport } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
@@ -65,23 +66,12 @@ async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Pro
   return await deployFunction();
 }
 
-/** Sandbox settings. */
-export type SandboxConfig = AztecNodeConfig & {
-  /** Mnemonic used to derive the L1 deployer private key.*/
-  l1Mnemonic: string;
-};
-
 /**
- * Create and start a new Aztec Node and PXE. Deploys L1 contracts.
- * Does not start any HTTP services nor populate any initial accounts.
- * @param config - Optional Sandbox settings.
+ * Function to deploy our L1 contracts to the sandbox L1
+ * @param aztecNodeConfig - The Aztec Node Config
+ * @param hdAccount - Account for publishing L1 contracts
  */
-export async function createSandbox(config: Partial<SandboxConfig> = {}) {
-  const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
-  const pxeServiceConfig = getPXEServiceConfig();
-  const hdAccount = mnemonicToAccount(config.l1Mnemonic ?? MNEMONIC);
-  const privKey = hdAccount.getHdKey().privateKey;
-
+async function deployContractsToL1(aztecNodeConfig: AztecNodeConfig, hdAccount: HDAccount) {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
     contractDeploymentEmitter: {
       contractAbi: ContractDeploymentEmitterAbi,
@@ -108,12 +98,37 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   const l1Contracts = await waitThenDeploy(aztecNodeConfig, () =>
     deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, logger, l1Artifacts),
   );
-  aztecNodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
   aztecNodeConfig.l1Contracts.rollupAddress = l1Contracts.l1ContractAddresses.rollupAddress;
   aztecNodeConfig.l1Contracts.contractDeploymentEmitterAddress =
     l1Contracts.l1ContractAddresses.contractDeploymentEmitterAddress;
   aztecNodeConfig.l1Contracts.inboxAddress = l1Contracts.l1ContractAddresses.inboxAddress;
   aztecNodeConfig.l1Contracts.registryAddress = l1Contracts.l1ContractAddresses.registryAddress;
+  return l1Contracts;
+}
+
+/** Sandbox settings. */
+export type SandboxConfig = AztecNodeConfig & {
+  /** Mnemonic used to derive the L1 deployer private key.*/
+  l1Mnemonic: string;
+};
+
+/**
+ * Create and start a new Aztec Node and PXE. Deploys L1 contracts.
+ * Does not start any HTTP services nor populate any initial accounts.
+ * @param config - Optional Sandbox settings.
+ */
+export async function createSandbox(config: Partial<SandboxConfig> = {}) {
+  const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
+  const pxeServiceConfig = getPXEServiceConfig();
+  const hdAccount = mnemonicToAccount(config.l1Mnemonic ?? MNEMONIC);
+  if (aztecNodeConfig.publisherPrivateKey === NULL_KEY) {
+    const privKey = hdAccount.getHdKey().privateKey;
+    aztecNodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
+  }
+
+  if (!aztecNodeConfig.p2pEnabled) {
+    await deployContractsToL1(aztecNodeConfig, hdAccount);
+  }
 
   const node = await AztecNodeService.createAndSync(aztecNodeConfig);
   const pxe = await createPXEService(node, pxeServiceConfig);
@@ -123,5 +138,5 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
     await node.stop();
   };
 
-  return { node, pxe, l1Contracts, stop };
+  return { node, pxe, aztecNodeConfig, stop };
 }

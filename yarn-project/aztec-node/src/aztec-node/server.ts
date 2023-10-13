@@ -9,7 +9,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeIndex } from '@aztec/circuits.js/abis';
-import { L1ContractAddresses } from '@aztec/ethereum';
+import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
@@ -73,7 +73,7 @@ export class AztecNodeService implements AztecNode {
     private log = createDebugLogger('aztec:node'),
   ) {
     const message =
-      `Started Aztec Node with contracts - \n` +
+      `Started Aztec Node against chain 0x${chainId.toString(16)} with contracts - \n` +
       `Rollup: ${config.l1Contracts.rollupAddress.toString()}\n` +
       `Registry: ${config.l1Contracts.registryAddress.toString()}\n` +
       `Inbox: ${config.l1Contracts.inboxAddress.toString()}\n` +
@@ -88,6 +88,13 @@ export class AztecNodeService implements AztecNode {
    * @returns - A fully synced Aztec Node for use in development/testing.
    */
   public static async createAndSync(config: AztecNodeConfig) {
+    const ethereumChain = createEthereumChain(config.rpcUrl, config.apiKey);
+    //validate that the actual chain id matches that specified in configuration
+    if (config.chainId !== ethereumChain.chainInfo.id) {
+      throw new Error(
+        `RPC URL configured for chain id ${ethereumChain.chainInfo.id} but expected id ${config.chainId}`,
+      );
+    }
     // first create and sync the archiver
     const archiver = await Archiver.createAndSync(config);
 
@@ -122,7 +129,7 @@ export class AztecNodeService implements AztecNode {
       archiver,
       worldStateSynchronizer,
       sequencer,
-      config.chainId,
+      ethereumChain.chainInfo.id,
       config.version,
       getGlobalVariableBuilder(config),
       db,

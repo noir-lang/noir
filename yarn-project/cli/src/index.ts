@@ -225,7 +225,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         const deployed = await tx.wait();
         log(`\nContract deployed at ${deployed.contractAddress!.toString()}\n`);
       } else {
-        log(`\nDeployment transaction hash: ${txHash}\n`);
+        log(`\nContract Address: ${tx.completeContractAddress?.address.toString() ?? 'N/A'}`);
+        log(`Deployment transaction hash: ${txHash}\n`);
       }
     });
 
@@ -458,7 +459,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const wallet = await getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt).getWallet();
       const contract = await Contract.at(contractAddress, contractArtifact, wallet);
       const tx = contract.methods[functionName](...functionArgs).send();
-      log(`Transaction hash: ${(await tx.getTxHash()).toString()}`);
+      log(`\nTransaction hash: ${(await tx.getTxHash()).toString()}`);
       if (options.wait) {
         await tx.wait();
 
@@ -469,7 +470,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         log(`Block number: ${receipt.blockNumber}`);
         log(`Block hash: ${receipt.blockHash?.toString('hex')}`);
       } else {
-        log('\nTransaction pending. Check status with get-tx-receipt');
+        log('Transaction pending. Check status with get-tx-receipt');
       }
     });
 

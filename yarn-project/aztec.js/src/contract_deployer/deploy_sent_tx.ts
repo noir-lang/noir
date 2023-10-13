@@ -1,4 +1,4 @@
-import { FieldsOf } from '@aztec/circuits.js';
+import { CompleteAddress, FieldsOf } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { TxHash, TxReceipt } from '@aztec/types';
 
@@ -20,7 +20,16 @@ export type DeployTxReceipt<TContract extends ContractBase = Contract> = FieldsO
  * A contract deployment transaction sent to the network, extending SentTx with methods to create a contract instance.
  */
 export class DeploySentTx<TContract extends Contract = Contract> extends SentTx {
-  constructor(private artifact: ContractArtifact, wallet: PXE | Wallet, txHashPromise: Promise<TxHash>) {
+  constructor(
+    private artifact: ContractArtifact,
+    wallet: PXE | Wallet,
+    txHashPromise: Promise<TxHash>,
+
+    /**
+     * The complete address of the deployed contract
+     */
+    public completeContractAddress?: CompleteAddress,
+  ) {
     super(wallet, txHashPromise);
   }
 

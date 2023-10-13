@@ -123,7 +123,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public send(options: DeployOptions = {}): DeploySentTx<TContract> {
     const txHashPromise = super.send(options).getTxHash();
-    return new DeploySentTx(this.artifact, this.pxe, txHashPromise);
+    return new DeploySentTx(this.artifact, this.pxe, txHashPromise, this.completeAddress);
   }
 
   /**

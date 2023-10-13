@@ -13,6 +13,7 @@ import {
   range,
 } from '@aztec/circuits.js';
 import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
+import { createEthereumChain } from '@aztec/ethereum';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
@@ -87,6 +88,8 @@ describe('L1Publisher integration', () => {
   // The global variables of the last rollup
   let prevGlobals: GlobalVariables;
 
+  const chainId = createEthereumChain(config.rpcUrl, config.apiKey).chainInfo.id;
+
   beforeEach(async () => {
     deployerAccount = privateKeyToAccount(deployerPK);
     const {
@@ -148,7 +151,7 @@ describe('L1Publisher integration', () => {
     const historicTreeRoots = await getHistoricBlockData(builderDb, prevGlobals);
     const tx = await makeEmptyProcessedTxFromHistoricTreeRoots(
       historicTreeRoots,
-      new Fr(config.chainId),
+      new Fr(chainId),
       new Fr(config.version),
     );
     return tx;
@@ -157,7 +160,7 @@ describe('L1Publisher integration', () => {
   const makeBloatedProcessedTx = async (seed = 0x1) => {
     const tx = mockTx(seed);
     const kernelOutput = KernelCircuitPublicInputs.empty();
-    kernelOutput.constants.txContext.chainId = fr(config.chainId);
+    kernelOutput.constants.txContext.chainId = fr(chainId);
     kernelOutput.constants.txContext.version = fr(config.version);
     kernelOutput.constants.blockData = await getHistoricBlockData(builderDb, prevGlobals);
     kernelOutput.end.publicDataUpdateRequests = makeTuple(
@@ -267,7 +270,7 @@ describe('L1Publisher integration', () => {
         await makeBloatedProcessedTx(totalNullifiersPerBlock * i + 4 * MAX_NEW_NULLIFIERS_PER_TX),
       ];
       const globalVariables = new GlobalVariables(
-        new Fr(config.chainId),
+        new Fr(chainId),
         new Fr(config.version),
         new Fr(1 + i),
         new Fr(await rollup.read.lastBlockTs()),
@@ -359,7 +362,7 @@ describe('L1Publisher integration', () => {
         await makeEmptyProcessedTx(),
       ];
       const globalVariables = new GlobalVariables(
-        new Fr(config.chainId),
+        new Fr(chainId),
         new Fr(config.version),
         new Fr(1 + i),
         new Fr(await rollup.read.lastBlockTs()),
