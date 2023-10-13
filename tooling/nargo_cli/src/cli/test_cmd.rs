@@ -84,7 +84,12 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 ) -> Result<(), CliError> {
     let (mut context, crate_id) =
         prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
-    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
+    check_crate_and_report_errors(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
 
@@ -119,6 +124,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                         context.file_manager.as_file_map(),
                         &[diag],
                         compile_options.deny_warnings,
+                        compile_options.silence_warnings,
                     );
                 }
                 failing += 1;
@@ -128,6 +134,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                     context.file_manager.as_file_map(),
                     &[err],
                     compile_options.deny_warnings,
+                    compile_options.silence_warnings,
                 );
                 failing += 1;
             }

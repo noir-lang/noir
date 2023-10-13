@@ -1,29 +1,82 @@
-use js_sys::JsString;
-
+use gloo_utils::format::JsValueSerdeExt;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+use fm::FileManager;
+use noirc_errors::FileDiagnostic;
+
 #[wasm_bindgen(typescript_custom_section)]
-const COMPILE_ERROR: &'static str = r#"
-export type CompileError = Error;
+const DIAGNOSTICS: &'static str = r#"
+export type Diagnostic = {
+    message: string;
+    file_path: string;
+    secondaries: ReadonlyArray<{
+        message: string;
+        start: number;
+        end: number;
+    }>;
+}
+
+interface CompileError {
+    diagnostics: ReadonlyArray<Diagnostic>;
+}
 "#;
 
-/// `CompileError` is a raw js error.
-/// It'd be ideal that `CompileError` was a subclass of `Error`, but for that we'd need to use JS snippets or a js module.
-/// Currently JS snippets don't work with a nodejs target. And a module would be too much for just a custom error type.
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(extends = js_sys::Error, js_name = "CompileError", typescript_type = "CompileError")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
-    pub type JsCompileError;
+#[derive(Serialize, Deserialize)]
+struct JsDiagnosticLabel {
+    message: String,
+    start: u32,
+    end: u32,
+}
 
-    #[wasm_bindgen(constructor, js_class = "Error")]
-    fn constructor(message: JsString) -> JsCompileError;
+#[derive(Serialize, Deserialize)]
+struct JsDiagnostic {
+    message: String,
+    file_path: String,
+    secondaries: Vec<JsDiagnosticLabel>,
+}
+
+impl JsDiagnostic {
+    fn new(file_diagnostic: &FileDiagnostic, file_path: String) -> JsDiagnostic {
+        let diagnostic = &file_diagnostic.diagnostic;
+        let message = diagnostic.message.clone();
+
+        let secondaries = diagnostic
+            .secondaries
+            .iter()
+            .map(|label| JsDiagnosticLabel {
+                message: label.message.clone(),
+                start: label.span.start(),
+                end: label.span.end(),
+            })
+            .collect();
+
+        JsDiagnostic { message, file_path, secondaries }
+    }
+}
+
+#[wasm_bindgen(getter_with_clone, js_name = "CompileError")]
+pub struct JsCompileError {
+    pub message: js_sys::JsString,
+    pub diagnostics: JsValue,
 }
 
 impl JsCompileError {
-    /// Creates a new execution error with the given call stack.
-    /// Call stacks won't be optional in the future, after removing ErrorLocation in ACVM.
-    pub fn new(message: String) -> Self {
-        JsCompileError::constructor(JsString::from(message))
+    pub fn new(
+        message: &str,
+        file_diagnostics: Vec<FileDiagnostic>,
+        file_manager: &FileManager,
+    ) -> JsCompileError {
+        let diagnostics: Vec<_> = file_diagnostics
+            .iter()
+            .map(|err| {
+                JsDiagnostic::new(err, file_manager.path(err.file_id).to_str().unwrap().to_string())
+            })
+            .collect();
+
+        JsCompileError {
+            message: js_sys::JsString::from(message.to_string()),
+            diagnostics: <JsValue as JsValueSerdeExt>::from_serde(&diagnostics).unwrap(),
+        }
     }
 }

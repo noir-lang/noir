@@ -4,11 +4,12 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
-import { acvm, abi, generateWitness } from '@noir-lang/noir_js';
+import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
 import * as TOML from 'smol-toml';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { getFile } from './utils.js';
+import { Field, InputMap } from '@noir-lang/noirc_abi';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
@@ -50,11 +51,11 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
   it('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
     const main_program = await getCircuit(circuit_main_source);
-    const main_inputs = TOML.parse(circuit_main_toml);
+    const main_inputs: InputMap = TOML.parse(circuit_main_toml) as InputMap;
 
     const main_backend = new BarretenbergBackend(main_program);
 
-    const main_witnessUint8Array = await generateWitness(main_program, main_inputs);
+    const { witness: main_witnessUint8Array } = await new Noir(main_program).execute(main_inputs);
 
     const main_proof = await main_backend.generateIntermediateProof(main_witnessUint8Array);
     const main_verification = await main_backend.verifyIntermediateProof(main_proof);
@@ -69,10 +70,10 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
       numPublicInputs,
     );
 
-    const recursion_inputs = {
+    const recursion_inputs: InputMap = {
       verification_key: vkAsFields,
       proof: proofAsFields,
-      public_inputs: [main_inputs.y],
+      public_inputs: [main_inputs.y as Field],
       key_hash: vkHash,
       input_aggregation_object: ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'],
     };
@@ -83,7 +84,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const recursion_backend = new BarretenbergBackend(recursion_program);
 
-    const recursion_witnessUint8Array = await generateWitness(recursion_program, recursion_inputs);
+    const { witness: recursion_witnessUint8Array } = await new Noir(recursion_program).execute(recursion_inputs);
 
     const recursion_proof = await recursion_backend.generateFinalProof(recursion_witnessUint8Array);
 

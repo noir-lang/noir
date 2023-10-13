@@ -1,6 +1,5 @@
 {
     "name": "integration-tests",
-    "version": "1.0.0",
     "license": "(MIT OR Apache-2.0)",
     "main": "index.js",
     "private": true,
@@ -26,7 +25,6 @@
         "eslint": "^8.50.0",
         "eslint-plugin-prettier": "^5.0.0",
         "ethers": "^6.7.1",
-        "fflate": "^0.8.0",
         "hardhat": "^2.17.4",
         "prettier": "3.0.3",
         "smol-toml": "^1.1.2",

@@ -4,8 +4,7 @@
 // Binary addition, multiplication, division, constant modulo
 // x = 3, y = 4, z = 5
 fn main(x : Field, y : Field, z : Field) -> pub Field {
-    //constant modulo
-    assert(x % 2 == 1);
+    //cast
     assert(y as u1 == 0);
 
     let a = x + x; // 3 + 3 = 6

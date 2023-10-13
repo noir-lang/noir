@@ -5,6 +5,7 @@ import * as TOML from 'smol-toml';
 import { initializeResolver } from '@noir-lang/source-resolver';
 import newCompiler, { compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
+import { InputMap } from '@noir-lang/noirc_abi';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 import { getFile } from './utils.js';
@@ -64,7 +65,7 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program, backend);
 
     const prover_toml = await getFile(`${base_relative_path}/${test_case}/Prover.toml`);
-    const inputs = TOML.parse(prover_toml);
+    const inputs: InputMap = TOML.parse(prover_toml) as InputMap;
 
     // JS Proving
 

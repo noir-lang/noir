@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
-    Signedness, TypeBinding, TypeVariableKind, UnaryOp,
+    BinaryOpKind, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -128,7 +128,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Error
                     })
             }
-            HirExpression::Index(index_expr) => self.check_index_expression(index_expr),
+            HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
                 self.check_if_deprecated(&call_expr.func);
 
@@ -396,7 +396,11 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn check_index_expression(&mut self, index_expr: expr::HirIndexExpression) -> Type {
+    fn check_index_expression(
+        &mut self,
+        id: &ExprId,
+        mut index_expr: expr::HirIndexExpression,
+    ) -> Type {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
@@ -408,14 +412,20 @@ impl<'interner> TypeChecker<'interner> {
             }
         });
 
+        // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
+        // times as needed to get the underlying array.
         let lhs_type = self.check_expression(&index_expr.collection);
-        match lhs_type {
+        let (new_lhs, lhs_type) = self.insert_auto_dereferences(index_expr.collection, lhs_type);
+        index_expr.collection = new_lhs;
+        self.interner.replace_expr(id, HirExpression::Index(index_expr));
+
+        match lhs_type.follow_bindings() {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
-                let span = self.interner.expr_span(&index_expr.collection);
+                let span = self.interner.expr_span(&new_lhs);
                 self.errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
@@ -816,7 +826,8 @@ impl<'interner> TypeChecker<'interner> {
     ) -> Option<HirMethodReference> {
         match object_type {
             Type::Struct(typ, _args) => {
-                match self.interner.lookup_method(typ.borrow().id, method_name) {
+                let id = typ.borrow().id;
+                match self.interner.lookup_method(object_type, id, method_name, false) {
                     Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                     None => {
                         self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -859,14 +870,22 @@ impl<'interner> TypeChecker<'interner> {
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
-            Type::MutableReference(element) => self.lookup_method(element, method_name, expr_id),
+            Type::MutableReference(element) => self
+                .interner
+                .lookup_mut_primitive_trait_method(element.as_ref(), method_name)
+                .map(HirMethodReference::FuncId)
+                .or_else(|| self.lookup_method(element, method_name, expr_id)),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
             // In the future we could support methods for non-struct types if we have a context
             // (in the interner?) essentially resembling HashMap<Type, Methods>
-            other => match self.interner.lookup_primitive_method(other, method_name) {
+            other => match self
+                .interner
+                .lookup_primitive_method(other, method_name)
+                .or_else(|| self.interner.lookup_primitive_trait_method(other, method_name))
+            {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
                     self.errors.push(TypeCheckError::UnresolvedMethodCall {
@@ -966,8 +985,8 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
-                if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
+                if (op.is_modulo() || op.is_bitwise()) && (other.is_bindable() || other.is_field())
+                {
                     let other = other.follow_bindings();
                     let kind = op.kind;
                     // This will be an error if these types later resolve to a Field, or stay
@@ -975,7 +994,11 @@ impl<'interner> TypeChecker<'interner> {
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
                     self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
-                            Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            if kind == BinaryOpKind::Modulo {
+                                Err(TypeCheckError::FieldModulo { span })
+                            } else {
+                                Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
+                            }
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
                         } else if kind.is_bit_shift() && other.is_signed() {
@@ -1045,6 +1068,9 @@ impl<'interner> TypeChecker<'interner> {
             (FieldElement, FieldElement) => {
                 if op.is_bitwise() {
                     return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                }
+                if op.is_modulo() {
+                    return Err(TypeCheckError::FieldModulo { span });
                 }
                 Ok(FieldElement)
             }

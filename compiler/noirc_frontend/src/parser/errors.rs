@@ -92,6 +92,10 @@ impl ParserError {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn reason(&self) -> Option<&ParserErrorReason> {
+        self.reason.as_ref()
+    }
 }
 
 impl std::fmt::Display for ParserError {

@@ -27,7 +27,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
             // otherwise constraints involving these expressions will not error.
             let circuit_execution =
-                execute_circuit(blackbox_solver, program.circuit, WitnessMap::new(), show_output);
+                execute_circuit(blackbox_solver, &program.circuit, WitnessMap::new(), show_output);
             test_status_program_compile_pass(test_function, program.debug, circuit_execution)
         }
         Err(err) => test_status_program_compile_fail(err, test_function),
@@ -47,12 +47,13 @@ fn test_status_program_compile_fail(err: RuntimeError, test_function: TestFuncti
     }
 
     // The test has failed compilation, extract the assertion message if present and check if it's expected.
-    if let RuntimeError::FailedConstraint { assert_message: Some(assert_message), .. } = &err {
-        let assert_message = assert_message.clone();
-        check_expected_failure_message(test_function, &assert_message, Some(err.into()))
+    let assert_message = if let RuntimeError::FailedConstraint { assert_message, .. } = &err {
+        assert_message.clone()
     } else {
-        TestStatus::CompileError(err.into())
-    }
+        None
+    };
+
+    check_expected_failure_message(test_function, assert_message, Some(err.into()))
 }
 
 /// The test function compiled successfully.
@@ -91,15 +92,16 @@ fn test_status_program_compile_pass(
         };
     }
 
-    let assertion_message =
-        circuit_execution_err.user_defined_failure_message().unwrap_or_default().to_string();
-
-    check_expected_failure_message(test_function, &assertion_message, diagnostic)
+    check_expected_failure_message(
+        test_function,
+        circuit_execution_err.user_defined_failure_message().map(|s| s.to_string()),
+        diagnostic,
+    )
 }
 
 fn check_expected_failure_message(
     test_function: TestFunction,
-    failed_assertion: &str,
+    failed_assertion: Option<String>,
     error_diagnostic: Option<FileDiagnostic>,
 ) -> TestStatus {
     // Extract the expected failure message, if there was one
@@ -112,7 +114,8 @@ fn check_expected_failure_message(
         None => return TestStatus::Pass,
     };
 
-    let expected_failure_message_matches = failed_assertion == expected_failure_message;
+    let expected_failure_message_matches =
+        matches!(&failed_assertion, Some(message) if message == expected_failure_message);
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
@@ -122,7 +125,7 @@ fn check_expected_failure_message(
         message: format!(
             "\nerror: Test failed with the wrong message. \nExpected: {} \nGot: {}",
             test_function.failure_reason().unwrap_or_default(),
-            failed_assertion.trim_matches('\'')
+            failed_assertion.unwrap_or_default().trim_matches('\'')
         ),
         error_diagnostic,
     }

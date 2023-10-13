@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use std::fmt;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DuplicateType {
     Function,
     Module,
@@ -18,6 +18,9 @@ pub enum DuplicateType {
     Import,
     Trait,
     TraitImplementation,
+    TraitAssociatedType,
+    TraitAssociatedConst,
+    TraitAssociatedFunction,
 }
 
 #[derive(Error, Debug, Clone)]
@@ -30,8 +33,8 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
-    #[error("Non-struct type used in trait impl")]
-    NonStructTraitImpl { trait_path: Path, span: Span },
+    #[error("Trait implementation is not allowed for this")]
+    TraitImplNotAllowedFor { trait_path: Path, span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
     #[error("Mismatch number of parameters in of trait implementation")]
@@ -79,6 +82,9 @@ impl fmt::Display for DuplicateType {
             DuplicateType::Trait => write!(f, "trait definition"),
             DuplicateType::TraitImplementation => write!(f, "trait implementation"),
             DuplicateType::Import => write!(f, "import"),
+            DuplicateType::TraitAssociatedType => write!(f, "trait associated type"),
+            DuplicateType::TraitAssociatedConst => write!(f, "trait associated constant"),
+            DuplicateType::TraitAssociatedFunction => write!(f, "trait associated function"),
         }
     }
 }
@@ -119,10 +125,10 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
-            DefCollectorErrorKind::NonStructTraitImpl { trait_path, span } => {
+            DefCollectorErrorKind::TraitImplNotAllowedFor { trait_path, span } => {
                 Diagnostic::simple_error(
-                    format!("Only struct types may implement trait `{trait_path}`"),
-                    "Only struct types may implement traits".into(),
+                    format!("Only limited types may implement trait `{trait_path}`"),
+                    "Only limited types may implement traits".into(),
                     span,
                 )
             }

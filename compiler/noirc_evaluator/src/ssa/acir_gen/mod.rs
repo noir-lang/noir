@@ -766,6 +766,36 @@ impl Context {
 
                 Ok(AcirValue::Array(elements))
             }
+            (
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::Array(dummy_values),
+            ) => {
+                let dummy_values = dummy_values
+                    .into_iter()
+                    .flat_map(|val| val.clone().flatten())
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<Vec<_>>();
+
+                assert_eq!(
+                    *len,
+                    dummy_values.len(),
+                    "ICE: The store value and dummy must have the same number of inner values"
+                );
+
+                let values = try_vecmap(0..*len, |i| {
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+
+                let mut elements = im::Vector::new();
+                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                    elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
+                }
+
+                Ok(AcirValue::Array(elements))
+            }
             (AcirValue::DynamicArray(_), AcirValue::DynamicArray(_)) => {
                 unimplemented!("ICE: setting a dynamic array not supported");
             }
@@ -925,8 +955,14 @@ impl Context {
                     self.array_set_value(value, block_id, var_index)?;
                 }
             }
-            AcirValue::DynamicArray(_) => {
-                unimplemented!("ICE: setting a dynamic array not supported");
+            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
+                let values = try_vecmap(0..len, |i| {
+                    let index_var = self.acir_context.add_constant(FieldElement::from(i as u128));
+
+                    let read = self.acir_context.read_from_memory(inner_block_id, &index_var)?;
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+                self.array_set_value(AcirValue::Array(values.into()), block_id, var_index)?;
             }
         }
         Ok(())
@@ -951,7 +987,7 @@ impl Context {
         if !already_initialized {
             let value = &dfg[array_id];
             match value {
-                Value::Array { .. } => {
+                Value::Array { .. } | Value::Instruction { .. } => {
                     let value = self.convert_value(array_id, dfg);
                     let len = if matches!(array_typ, Type::Array(_, _)) {
                         array_typ.flattened_size()
@@ -965,7 +1001,7 @@ impl Context {
                         message: format!("Array {array_id} should be initialized"),
                         call_stack: self.acir_context.get_call_stack(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }
@@ -1212,8 +1248,10 @@ impl Context {
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) -> Result<(), InternalError> {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values } => return_values,
+        let (return_values, call_stack) = match terminator {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                (return_values, call_stack)
+            }
             _ => unreachable!("ICE: Program must have a singular return"),
         };
 
@@ -1221,6 +1259,9 @@ impl Context {
         // will expand the array if there is one.
         let return_acir_vars = self.flatten_value_list(return_values, dfg);
         for acir_var in return_acir_vars {
+            if self.acir_context.is_constant(&acir_var) {
+                return Err(InternalError::ReturnConstant { call_stack: call_stack.clone() });
+            }
             self.acir_context.return_var(acir_var)?;
         }
         Ok(())
@@ -1823,16 +1864,11 @@ impl Context {
 mod tests {
     use std::{collections::HashMap, rc::Rc};
 
-    use acvm::{
-        acir::{
-            circuit::Opcode,
-            native_types::{Expression, Witness},
-        },
-        FieldElement,
-    };
+    use acvm::FieldElement;
 
     use crate::{
         brillig::Brillig,
+        errors::{InternalError, RuntimeError},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{function::RuntimeType, map::Id, types::Type},
@@ -1861,12 +1897,10 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::default()).unwrap();
-
-        let expected_opcodes =
-            vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.take_opcodes(), expected_opcodes);
-        assert_eq!(acir.return_witnesses, vec![Witness(1)]);
+        let acir = context
+            .convert_ssa(ssa, Brillig::default(), &HashMap::default())
+            .expect_err("Return constant value");
+        assert!(matches!(acir, RuntimeError::InternalError(InternalError::ReturnConstant { .. })));
     }
 }
 //

@@ -162,7 +162,7 @@ fn regression_2218_if_inner_else(x: Field, y: Field) {
 
 fn regression_2218_else(x: Field, y: Field) {
     let value = regression_2218(x, y);
-    assert(value == 20);  
+    assert(value == 20);
 }
 
 fn regression_2218_loop(x: Field, y: Field) {
@@ -215,7 +215,7 @@ fn regression_2218_loop(x: Field, y: Field) {
             assert(*q1 == 20);  
         }
     }
-    assert(*q1 == 2);  
+    assert(*q1 == 2);
 
     if x != y {
         for _ in 0..5 {
@@ -234,7 +234,7 @@ fn regression_2218_loop(x: Field, y: Field) {
         *q2 = 20;
         assert(*q1 == 20);  
     }
-    assert(*q1 == 2);  
+    assert(*q1 == 2);
 }
 
 // This is more a feature test than a proper regression.

@@ -153,7 +153,7 @@ impl<'block> BrilligBlock<'block> {
                     self.create_block_label_for_current_function(*destination_block),
                 );
             }
-            TerminatorInstruction::Return { return_values } => {
+            TerminatorInstruction::Return { return_values, .. } => {
                 let return_registers: Vec<_> = return_values
                     .iter()
                     .flat_map(|value_id| {

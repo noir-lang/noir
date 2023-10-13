@@ -1,11 +1,11 @@
-//Tests for function calling 
+//Tests for function calling
 fn f1(mut x: Field) -> Field {
     x = x + 1;
     x = f2(x);
     x
 }
 
-fn f2(mut x: Field) -> Field{
+fn f2(mut x: Field) -> Field {
     x += 2;
     x
 }
@@ -22,7 +22,7 @@ fn test1(mut a: Field) {
     assert(a == 4);
 }
 
-fn test2(z: Field, t: u32 ) { 
+fn test2(z: Field, t: u32 ) {
     let a = z + t as Field;
     assert(a == 64);
     let e = pow(z, t as Field);
@@ -78,14 +78,11 @@ fn test_multiple5(a: (u32, u32)) {
     assert(a.0 == a.1+2);
 }
 
-
 fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     test_multiple4(a.aa);
     test_multiple5((b.a, b.b));
     assert(c.0.aa.a == c.1.a);
 }
-
-
 
 fn foo<N>(a: [Field; N]) -> [Field; N] {
     a
@@ -95,7 +92,7 @@ fn bar() -> [Field; 1] {
     foo([0])
 }
 
-fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {  
+fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     let mut ss: my_struct = my_struct { b: x, a: x+2, };
     test_multiple4(ss);
     test_multiple5((ss.a,ss.b));
@@ -106,13 +103,13 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     ss.a = 61;
     test_multiple6(my, ss, (my,ss));
 
-    let my_block = { 
+    let my_block = {
         let mut ab = f2(a);
         ab = ab + a;
         (x,ab)
     };
     assert(my_block.1 == 4);
-    
+
     test0(a);
     test1(a);
     test2(x as Field, y);

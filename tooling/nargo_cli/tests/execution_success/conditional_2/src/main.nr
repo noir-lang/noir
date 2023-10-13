@@ -1,6 +1,5 @@
 use dep::std;
 
-
 fn must_be_zero(x: u8) {
     assert(x == 0);
 }
@@ -17,7 +16,6 @@ fn test4() -> [u32; 4] {
 }
 
 fn main(a: u32, mut c: [u32; 4]) {
-  
     test3(1);
 
     if a == 0 {
