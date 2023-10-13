@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.12](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.11...aztec-packages-v0.8.12) (2023-10-13)
+
+
+### Features
+
+* Private token box upgrade to new Token contract ([#2824](https://github.com/AztecProtocol/aztec-packages/issues/2824)) ([22794a5](https://github.com/AztecProtocol/aztec-packages/commit/22794a57bbf45cac72dd69bf9838c63b240e6e22))
+* Use privacy consistently ([#2833](https://github.com/AztecProtocol/aztec-packages/issues/2833)) ([89b9b6a](https://github.com/AztecProtocol/aztec-packages/commit/89b9b6ac6eeed10484a4c0892d43d9374864ee1d))
+
+
+### Bug Fixes
+
+* Copied box nargo toml trailing slash ([#2819](https://github.com/AztecProtocol/aztec-packages/issues/2819)) ([ecd2a64](https://github.com/AztecProtocol/aztec-packages/commit/ecd2a64a517e34ada4770d26e6d7f9c578ee82aa))
+* Fix rebuild pattern slashes. ([#2843](https://github.com/AztecProtocol/aztec-packages/issues/2843)) ([e32517e](https://github.com/AztecProtocol/aztec-packages/commit/e32517e9eae791b32f94b3816413392ccf0ba096))
+* Trigger yarn-project rebuild for .sh files ([#2846](https://github.com/AztecProtocol/aztec-packages/issues/2846)) ([c956254](https://github.com/AztecProtocol/aztec-packages/commit/c95625439e3c779568d4ddf2f0d0ed93519fb4ac))
+
 ## [0.8.11](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.10...aztec-packages-v0.8.11) (2023-10-13)
 
 
