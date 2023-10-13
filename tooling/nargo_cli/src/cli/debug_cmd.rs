@@ -10,8 +10,6 @@ use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 
-use noir_debugger;
-
 use super::compile_cmd::compile_bin_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;

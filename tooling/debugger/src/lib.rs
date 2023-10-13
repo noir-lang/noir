@@ -78,19 +78,16 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
     }
 
     fn show_source_code_location(location: &OpcodeLocation, debug_artifact: &DebugArtifact) {
-        let locations = debug_artifact.debug_symbols[0].opcode_location(&location);
-        match locations {
-            Some(locations) => {
-                for loc in locations {
-                    let file = &debug_artifact.file_map[&loc.file];
-                    let source = &file.source.as_str();
-                    let start = loc.span.start() as usize;
-                    let end = loc.span.end() as usize;
-                    println!("At {}:{start}-{end}", file.path.as_path().display());
-                    println!("\n{}\n", &source[start..end]);
-                }
+        let locations = debug_artifact.debug_symbols[0].opcode_location(location);
+        if let Some(locations) = locations {
+            for loc in locations {
+                let file = &debug_artifact.file_map[&loc.file];
+                let source = &file.source.as_str();
+                let start = loc.span.start() as usize;
+                let end = loc.span.end() as usize;
+                println!("At {}:{start}-{end}", file.path.as_path().display());
+                println!("\n{}\n", &source[start..end]);
             }
-            None => {}
         }
     }
 
@@ -140,10 +137,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     context.borrow().show_current_vm_status();
 
     let handle_result = |result| {
-        solved.set(match result {
-            SolveResult::Done => true,
-            _ => false,
-        });
+        solved.set(matches!(result, SolveResult::Done));
         Ok(map_command_status(result))
     };
 
