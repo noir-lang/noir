@@ -21,7 +21,7 @@ struct DebugContext<'backend, B: BlackBoxFunctionSolver> {
     acvm: Option<ACVM<'backend, B>>,
     debug_artifact: DebugArtifact,
     foreign_call_executor: ForeignCallExecutor,
-    circuit: Circuit,
+    circuit: &'backend Circuit,
     show_output: bool,
 }
 
@@ -115,7 +115,7 @@ fn map_command_status(result: SolveResult) -> CommandStatus {
 
 pub fn debug_circuit<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
-    circuit: Circuit,
+    circuit: &Circuit,
     debug_artifact: DebugArtifact,
     initial_witness: WitnessMap,
     show_output: bool,
