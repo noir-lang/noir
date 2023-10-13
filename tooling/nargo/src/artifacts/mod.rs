@@ -5,6 +5,7 @@
 //! to generate them using these artifacts as a starting point.
 use acvm::acir::circuit::Circuit;
 use base64::Engine;
+use serde::{de::Error as DeserializationError, ser::Error as SerializationError};
 use serde::{Deserializer, Serializer};
 
 pub mod contract;
@@ -17,7 +18,7 @@ where
     S: Serializer,
 {
     let mut circuit_bytes: Vec<u8> = Vec::new();
-    circuit.write(&mut circuit_bytes).unwrap();
+    circuit.write(&mut circuit_bytes).map_err(|err| S::Error::custom(err.to_string()))?;
     let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
     s.serialize_str(&encoded_b64)
 }
@@ -28,6 +29,7 @@ where
 {
     let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
     let circuit_bytes = base64::engine::general_purpose::STANDARD.decode(bytecode_b64).unwrap();
-    let circuit = Circuit::read(&*circuit_bytes).unwrap();
+    let circuit =
+        Circuit::read(&*circuit_bytes).map_err(|err| D::Error::custom(err.to_string()))?;
     Ok(circuit)
 }
