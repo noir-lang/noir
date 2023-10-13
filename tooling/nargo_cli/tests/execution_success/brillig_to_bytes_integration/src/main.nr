@@ -1,6 +1,6 @@
 use dep::std;
 
-unconstrained fn main(x : Field, _y: Field)  {
+unconstrained fn main(x : Field, _y: Field) {
     // The result of this byte array will be big-endian
     let y: Field = 2040124;
     let be_byte_array = y.to_be_bytes(31);
@@ -23,5 +23,5 @@ unconstrained fn main(x : Field, _y: Field)  {
     assert(z_bits[0] == 0);
     assert(p_bits[100] == z_bits[100]);
 
-   _y.to_le_bits(std::field::modulus_num_bits() as u32);
+    _y.to_le_bits(std::field::modulus_num_bits() as u32);
 }

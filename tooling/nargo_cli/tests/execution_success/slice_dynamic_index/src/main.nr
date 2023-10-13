@@ -9,7 +9,7 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
         slice = slice.push_back(i);
     }
     assert(slice.len() == 5);
-    
+
     dynamic_slice_index_set_if(slice, x, y);
     dynamic_slice_index_set_else(slice, x, y);
     dynamic_slice_index_set_nested_if_else_else(slice, x, y);
@@ -91,7 +91,6 @@ fn dynamic_slice_index_else(mut slice: [Field], x: Field) {
     }
     assert(slice[4] == 2);
 }
-
 
 fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
     if x as u32 < 10 {
@@ -250,7 +249,6 @@ fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
     assert(slice[slice.len() - 1] == 20);
 }
 
-
 fn dynamic_slice_merge_mutate_between_ifs(mut slice: [Field], x: Field, y: Field) {
     if x != y {
         slice[x] = 50;
@@ -311,5 +309,4 @@ fn dynamic_slice_merge_push_then_pop(mut slice: [Field], x: Field, y: Field) {
     let (_, elem) = slice.pop_back();
     assert(elem == y);
 }
-
 

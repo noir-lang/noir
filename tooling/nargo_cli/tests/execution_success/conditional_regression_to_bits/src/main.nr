@@ -1,8 +1,6 @@
 use dep::std;
 
-
 fn main() {
-  
     //Regression for to_le_bits() constant evaluation 
     // binary array representation of u8 1
     let arr: [u8; 2] = [1, 2];
@@ -26,7 +24,5 @@ fn main() {
         }
     }
     assert(c1 == 1);
-
-   
 }
 
