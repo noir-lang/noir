@@ -1903,7 +1903,9 @@ mod tests {
         let acir = context
             .convert_ssa(ssa, Brillig::default(), &HashMap::default())
             .expect_err("Return constant value");
-        assert!(matches!(acir, RuntimeError::InternalError(InternalError::ReturnConstant { .. })));
+        // TODO(Guillaume): We invert the condition here because we have disabled return constant errors
+        // until we can make it into a warning.
+        assert!(!matches!(acir, RuntimeError::InternalError(InternalError::ReturnConstant { .. })));
     }
 }
 //
