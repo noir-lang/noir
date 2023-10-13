@@ -425,15 +425,6 @@ mod lsp_tests {
             {
                 unimplemented!()
             }
-
-            fn fixed_base_scalar_mul(
-                &self,
-                _low: &acvm::FieldElement,
-                _high: &acvm::FieldElement,
-            ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError>
-            {
-                unimplemented!()
-            }
         }
 
         let client = ClientSocket::new_closed();
