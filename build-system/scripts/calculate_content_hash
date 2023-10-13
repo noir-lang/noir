@@ -6,10 +6,9 @@ set -eu
 REPOSITORY=$1
 COMMIT_HASH=${2:-${COMMIT_HASH:-$(git rev-parse HEAD)}}
 
-# Compute REBUILD_PATTERNS from the build manifest
-REBUILD_PATTERNS=$(query_manifest rebuildPatterns $REPOSITORY)
+# Get list of rebuild patterns, concat them with regex 'or' (|), and double escape \ for awk -v.
+AWK_PATTERN=$(query_manifest rebuildPatterns $REPOSITORY | tr '\n' '|' | sed 's/\\/\\\\/g')
 
-AWK_PATTERN=$(echo $REBUILD_PATTERNS | sed 's/ /|/g')
 cd "$(git rev-parse --show-toplevel)"
 
 # an example line is
