@@ -340,7 +340,6 @@ void common_contract_logic(DummyBuilder& builder,
 
     const auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
 
-    // input storage contract address must be 0 if its a constructor call and non-zero otherwise
     if (is_contract_deployment) {
         auto constructor_hash =
             compute_constructor_hash(function_data, private_call_public_inputs.args_hash, private_call_vk_hash);
