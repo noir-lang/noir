@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.13](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.12...aztec-packages-v0.8.13) (2023-10-13)
+
+
+### Features
+
+* Add deployed contract to PXE from CLI ([#2850](https://github.com/AztecProtocol/aztec-packages/issues/2850)) ([5bad3e3](https://github.com/AztecProtocol/aztec-packages/commit/5bad3e344ee5842d86aebe443bb001e27d1e735b))
+* **docs_tutorials:** Token Portal & Uniswap Tutorial ([#2726](https://github.com/AztecProtocol/aztec-packages/issues/2726)) ([dbef55f](https://github.com/AztecProtocol/aztec-packages/commit/dbef55fc63a296e720e270616b8ae7bd642b8a28))
+
+
+### Bug Fixes
+
+* Added registry contract address to node terraform ([#2851](https://github.com/AztecProtocol/aztec-packages/issues/2851)) ([bfc5feb](https://github.com/AztecProtocol/aztec-packages/commit/bfc5feb1bad76a5a1a4c7deb5ecd674f9ab42a9b))
+* Create canary dockerhub manifest ([#2849](https://github.com/AztecProtocol/aztec-packages/issues/2849)) ([1d7bd26](https://github.com/AztecProtocol/aztec-packages/commit/1d7bd26874af4f3c608ce707c81b844e929cc742))
+* Fix check_circuit in goblin translator (resulted in flimsy test) ([#2827](https://github.com/AztecProtocol/aztec-packages/issues/2827)) ([98b1679](https://github.com/AztecProtocol/aztec-packages/commit/98b16793b0e84360af8dc70934636d11d7bc7e29))
+
 ## [0.8.12](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.8.11...aztec-packages-v0.8.12) (2023-10-13)
 
 
