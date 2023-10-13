@@ -863,7 +863,7 @@ impl SharedContext {
     /// and return this new id.
     pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
-        // before map needs to be aquired again in self.functions.write() below
+        // before map needs to be acquired again in self.functions.write() below
         {
             let map = self.functions.read().expect("Failed to read self.functions");
             if let Some(existing_id) = map.get(&id) {

@@ -480,7 +480,7 @@ impl Display for ExpressionKind {
                 write!(f, "({})", elements.join(", "))
             }
             Lambda(lambda) => lambda.fmt(f),
-            Parenthesized(subexpr) => write!(f, "({subexpr})"),
+            Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Error => write!(f, "Error"),
         }
     }

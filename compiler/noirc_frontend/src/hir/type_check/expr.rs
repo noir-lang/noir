@@ -475,7 +475,7 @@ impl<'interner> TypeChecker<'interner> {
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        let (fntyp, param_len) = match method_ref {
+        let (fn_typ, param_len) = match method_ref {
             HirMethodReference::FuncId(func_id) => {
                 if func_id == FuncId::dummy_id() {
                     return Type::Error;
@@ -504,7 +504,7 @@ impl<'interner> TypeChecker<'interner> {
             });
         }
 
-        let (function_type, instantiation_bindings) = fntyp.instantiate(self.interner);
+        let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
