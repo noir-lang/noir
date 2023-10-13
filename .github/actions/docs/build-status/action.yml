@@ -1,7 +1,13 @@
 name: 'Get build status'
 description: 'Gets the build status of a Netlify site'
+inputs:
+  branch-name:
+    description: 'Branch name'
+    required: true
 runs:
   using: "composite"
   steps:
     - run: ${{ github.action_path }}/script.sh
       shell: bash
+      env:
+        BRANCH_NAME: ${{ inputs.branch-name }}

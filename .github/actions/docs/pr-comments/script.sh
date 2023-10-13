@@ -1,7 +1,9 @@
 #!/bin/bash
 
 BRANCH_NAME=$(echo "$BRANCH_NAME" | sed -e "s#refs/[^/]*/##")
-COMMENT_BODY="[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)"
+
+COMMENT_TEMPLATE=$(cat "${{ github.action_path }}/comment-template.md")
+COMMENT_BODY="${COMMENT_TEMPLATE//BRANCH_NAME_PLACEHOLDER/$BRANCH_NAME}"
 
 COMMENTS_URL="https://api.github.com/repos/noir-lang/noir/issues/$PR_NUMBER/comments"
 EXISTING_COMMENT_ID=$(curl -sSL -H "Authorization: token $GITHUB_TOKEN" $COMMENTS_URL | jq '.[] | select(.user.login == "github-actions[bot]") | select (.body == "'"$COMMENT_BODY"'") | .id')
