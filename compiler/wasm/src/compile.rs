@@ -17,6 +17,9 @@ use crate::errors::JsCompileError;
 
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
+const NOIR_ARTIFACT_VERSION_STRING: &str =
+    concat!(env!("CARGO_PKG_VERSION"), "-", env!("GIT_COMMIT"));
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(extends = Array, js_name = "StringArray", typescript_type = "string[]")]
@@ -119,6 +122,7 @@ fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
         backend: String::from(BACKEND_IDENTIFIER),
         abi: program.abi,
         bytecode: program.circuit,
+        nargo_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
     }
 }
 
@@ -140,6 +144,7 @@ fn preprocess_contract(contract: CompiledContract) -> PreprocessedContract {
         backend: String::from(BACKEND_IDENTIFIER),
         functions: preprocessed_functions,
         events: contract.events,
+        nargo_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
     }
 }
 
