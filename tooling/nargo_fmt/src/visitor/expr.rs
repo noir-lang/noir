@@ -80,7 +80,12 @@ impl FmtVisitor<'_> {
                 format!("{}[{}]", formatted_collection, formatted_index)
             }
             ExpressionKind::Tuple(elements) => {
-                let mut elements = TupleElements::new(self, span, elements).collect::<Vec<_>>();
+                let mut visitor = FmtVisitor::new(self.source, self.config);
+                visitor.block_indent = self.block_indent;
+                visitor.block_indent.block_indent(self.config);
+
+                let mut elements =
+                    TupleElements::new(&mut visitor, span, elements).collect::<Vec<_>>();
 
                 let elements = if elements.len() == 1 {
                     format!("{},", elements.pop().unwrap())
@@ -196,19 +201,21 @@ fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
 }
 
 struct TupleElements<'me> {
-    visitor: &'me FmtVisitor<'me>,
+    visitor: &'me mut FmtVisitor<'me>,
     elements: std::iter::Peekable<std::vec::IntoIter<Expression>>,
     last_position: u32,
     end_position: u32,
+    emit_newline: bool,
 }
 
 impl<'me> TupleElements<'me> {
-    fn new(visitor: &'me FmtVisitor, span: Span, elements: Vec<Expression>) -> Self {
+    fn new(visitor: &'me mut FmtVisitor<'me>, span: Span, elements: Vec<Expression>) -> Self {
         Self {
             visitor,
             last_position: span.start() + 1, /*(*/
             end_position: span.end() - 1,    /*)*/
             elements: elements.into_iter().peekable(),
+            emit_newline: false,
         }
     }
 }
@@ -225,7 +232,36 @@ impl Iterator for TupleElements<'_> {
 
         let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.span.start());
 
-        let leading = slice!(self.visitor, start, end).trim();
+        let leading = {
+            let mut emit_newline = false;
+
+            let leading = slice!(self.visitor, start, end);
+            let leading_trimmed = slice!(self.visitor, start, end).trim();
+
+            let starts_with_block_comment = leading_trimmed.starts_with("/*");
+            let ends_with_block_comment = leading_trimmed.ends_with("*/");
+            let starts_with_single_line_comment = leading_trimmed.starts_with("//");
+
+            if ends_with_block_comment {
+                let comment_end = leading_trimmed.rfind(|c| c == '/').unwrap();
+
+                if leading[comment_end..].contains('\n') {
+                    emit_newline = true;
+                }
+            } else if starts_with_single_line_comment || starts_with_block_comment {
+                emit_newline = true;
+            };
+
+            if emit_newline {
+                self.emit_newline = true;
+            }
+
+            let newline = if emit_newline { "\n" } else { "" };
+            let indent =
+                if emit_newline { self.visitor.block_indent.to_string() } else { String::new() };
+            format!("{newline}{indent}{leading_trimmed}{newline}{indent}")
+        };
+
         let trailing = slice!(self.visitor, element_span.end(), next_start);
         let element_str = self.visitor.format_expr(element);
 
@@ -234,7 +270,14 @@ impl Iterator for TupleElements<'_> {
         let trailing = trailing[..end as usize].trim_matches(',').trim();
         self.last_position = element_span.end() + end;
 
-        format!("{leading}{element_str}{trailing}").into()
+        let newline = if self.end_position == next_start && self.emit_newline {
+            self.visitor.block_indent.block_unindent(self.visitor.config);
+            format!("\n{}", self.visitor.block_indent.to_string())
+        } else {
+            String::new()
+        };
+
+        dbg!(format!("{leading}{element_str}{trailing}{newline}").into())
     }
 }
 
