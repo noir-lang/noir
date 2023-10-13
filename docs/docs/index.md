@@ -20,10 +20,11 @@ keywords:
   ]
 slug: /
 ---
-<!-- 
+
+
 There will be a lot of features
 that are missing in this version, however the syntax and the feel of the language will mostly be
-completed. -->
+completed.
 
 ## What is Noir?
 

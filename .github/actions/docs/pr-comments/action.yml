@@ -1,0 +1,21 @@
+name: 'Update PR comments'
+description: 'Update PR comments for Netlify deployments'
+inputs:
+  GITHUB_TOKEN:
+    description: 'GitHub Token'
+    required: true
+  BRANCH_NAME:
+    description: 'Branch name'
+    required: true
+  PR_NUMBER:
+    description: 'PR number'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: ${{ github.action_path }}/script.sh
+      shell: bash
+      with:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        BRANCH_NAME: ${{ inputs.branch-name }}
+        PR_NUMBER: ${{ inputs.pr-number }}

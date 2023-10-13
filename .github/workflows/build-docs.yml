@@ -19,57 +19,20 @@ jobs:
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
           curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
 
-      - name: Comment on PR
-        run: |
-          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
-          COMMENT_BODY="[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)"
+      - name: Change PR Comment
+        uses: ./.github/actions/docs/pr-comments
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          branch-name: ${{ github.head_ref || github.ref }}
+          pr-number: ${{ github.event.pull_request.number }}
           
-          COMMENTS_URL="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
-          EXISTING_COMMENT_ID=$(curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $COMMENTS_URL | jq '.[] | select(.user.login == "github-actions[bot]") | select (.body == "'"$COMMENT_BODY"'") | .id')
-          
-          echo "Comments url: $COMMENTS_URL"
-          echo "Existing comment ID: $EXISTING_COMMENT_ID"
-
-          COMMENT_UPDATE_URL="https://api.github.com/repos/${{ github.repository }}/issues/comments"
-          echo "Comment update URL: $COMMENT_UPDATE_URL"
-
-          # If comment exists, update it; otherwise, create a new one
-          if [[ -n "$EXISTING_COMMENT_ID" ]]; then
-            echo "Updating comment..."
-
-            echo "Comment body: $COMMENT_BODY"
-            echo "Comment update URL: $COMMENT_UPDATE_URL/$EXISTING_COMMENT_ID"
-
-            curl -sSL \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -X PATCH \
-              -d "{\"body\": \"$COMMENT_BODY\"}" \
-              "$COMMENT_UPDATE_URL/$EXISTING_COMMENT_ID"
-
-            echo "Comment updated."
-          else
-            echo "Creating comment..."
-
-            echo "Comment body: $COMMENT_BODY"
-            echo "Comment URL: $COMMENTS_URL"
-
-            curl -sSL \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -X POST \
-              -d "{\"body\": \"$COMMENT_BODY\"}" \
-              $COMMENTS_URL
-
-            echo "Comment created."
-          fi
           
       - name: Check on deploy status
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
           DEPLOY_STATUS=$(curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME"  | jq -r '.[] | select(.created_at != null) | .state' | head -1)
           
-          MAX_RETRIES=60
+          MAX_RETRIES=10
           COUNT=0
           while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
             sleep 60

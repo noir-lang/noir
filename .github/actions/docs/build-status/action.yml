@@ -1,0 +1,7 @@
+name: 'Get build status'
+description: 'Gets the build status of a Netlify site'
+runs:
+  using: "composite"
+  steps:
+    - run: ${{ github.action_path }}/script.sh
+      shell: bash
