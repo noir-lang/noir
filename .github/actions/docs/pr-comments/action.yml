@@ -1,13 +1,13 @@
 name: 'Update PR comments'
 description: 'Update PR comments for Netlify deployments'
 inputs:
-  GITHUB_TOKEN:
+  github-token:
     description: 'GitHub Token'
     required: true
-  BRANCH_NAME:
+  branch-name:
     description: 'Branch name'
     required: true
-  PR_NUMBER:
+  pr-number:
     description: 'PR number'
     required: true
 runs:
