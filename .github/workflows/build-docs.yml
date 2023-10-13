@@ -42,7 +42,7 @@ jobs:
             
             Click the badge to see logs 🧐
             
-            ![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})(https://app.netlify.com/sites/noir-docs-v2/deploys)
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
             
             If you have any questions about this process, refer to our contribution guide or feel free to ask around.
 

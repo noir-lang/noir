@@ -10,6 +10,7 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
     DEPLOY_STATUS=$(curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME"  | jq -r '.[] | select(.created_at != null) | .state' | head -1)
     COUNT=$((COUNT+1))
 
+    echo "Deploy status: $DEPLOY_STATUS"
     # If deploy status is ready, set the output and exit successfully
     if [[ "$DEPLOY_STATUS" == "ready" ]]; then
         echo "::set-output name=deploy_status::success"
@@ -22,4 +23,5 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
     echo "Deploy still running. Retrying..."
 done
 
+echo "::set-output name=deploy_status::failure"
 exit 1
