@@ -10,23 +10,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
       - name: Netlify deploy
-        uses: nwtgck/actions-netlify@v2.0
-        with:
-          publish-dir: './docs/build'
-          production-branch: ${{ github.head_ref }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
-
-    #   - name: Deploy to GitHub Pages
-    #     uses: peaceiris/actions-gh-pages@v3
-    #     with:
-    #       github_token: ${{ secrets.GITHUB_TOKEN }}
-    #       publish_dir: ./docs/build  # Update with the path to your build directory
+        run: |
+          curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=${{ github.head_ref }}"
