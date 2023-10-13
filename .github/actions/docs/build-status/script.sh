@@ -14,14 +14,12 @@ while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
     if [[ "$DEPLOY_STATUS" == "ready" ]]; then
         echo "::set-output name=deploy_status::success"
         exit 0
+    else if [[ "$DEPLOY_STATUS" == "failure" ]]; then
+        echo "::set-output name=deploy_status::failure"
+        exit 1
     else
-        echo "::set-output name=deploy_status::pending"
+        echo "Deploy still running. Retrying in 60 seconds..."
     fi
 done
 
-# Check after all retries if deployment status is not "ready"
-if [[ "$DEPLOY_STATUS" != "ready" ]]; then
-    echo "Deploy failed or took too long."
-    echo "::set-output name=deploy_status::failure"
-    exit 1
-fi
+exit 1
