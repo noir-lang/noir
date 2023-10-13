@@ -10,6 +10,7 @@
 use acir::{BlackBoxFunc, FieldElement};
 use blake2::digest::generic_array::GenericArray;
 use blake2::{Blake2s256, Digest};
+use num_bigint::BigUint;
 use sha2::Sha256;
 use sha3::Keccak256;
 use thiserror::Error;
@@ -39,11 +40,6 @@ pub trait BlackBoxFunctionSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
-    fn fixed_base_scalar_mul(
-        &self,
-        low: &FieldElement,
-        high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
 }
 
 pub fn sha256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
@@ -64,6 +60,89 @@ pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
 pub fn hash_to_field_128_security(inputs: &[u8]) -> Result<FieldElement, BlackBoxResolutionError> {
     generic_hash_to_field::<Blake2s256>(inputs)
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::HashToField128Security, err))
+}
+
+pub fn fixed_base_scalar_mul(
+    low: &FieldElement,
+    high: &FieldElement,
+) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+    #[cfg(not(feature = "bn254"))]
+    return BlackBoxResolutionError::Failed(
+        BlackBoxFunc::FixedBaseScalarMul,
+        "This solver is only defined over the bn254 curve currently".into(),
+    );
+
+    use ark_ec::AffineRepr;
+
+    let low: u128 = low.try_into_u128().ok_or_else(|| {
+        BlackBoxResolutionError::Failed(
+            BlackBoxFunc::FixedBaseScalarMul,
+            format!("Limb {} is not less than 2^128", low.to_hex()),
+        )
+    })?;
+
+    let high: u128 = high.try_into_u128().ok_or_else(|| {
+        BlackBoxResolutionError::Failed(
+            BlackBoxFunc::FixedBaseScalarMul,
+            format!("Limb {} is not less than 2^128", high.to_hex()),
+        )
+    })?;
+
+    let mut bytes = high.to_be_bytes().to_vec();
+    bytes.extend_from_slice(&low.to_be_bytes());
+
+    // Check if this is smaller than the grumpkin modulus
+    let grumpkin_integer = BigUint::from_bytes_be(&bytes);
+    let grumpkin_modulus = BigUint::from_bytes_be(&[
+        48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 151, 129, 106, 145,
+        104, 113, 202, 141, 60, 32, 140, 22, 216, 124, 253, 71,
+    ]);
+
+    if grumpkin_integer >= grumpkin_modulus {
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::FixedBaseScalarMul,
+            format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
+        ));
+    }
+
+    let result = grumpkin::SWAffine::from(
+        grumpkin::SWAffine::generator().mul_bigint(grumpkin_integer.to_u64_digits()),
+    );
+    if let Some((res_x, res_y)) = result.xy() {
+        Ok((FieldElement::from_repr(*res_x), FieldElement::from_repr(*res_y)))
+    } else {
+        Ok((FieldElement::zero(), FieldElement::zero()))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn smoke_test() -> Result<(), BlackBoxResolutionError> {
+        let input = FieldElement::one();
+
+        let res = fixed_base_scalar_mul(&input, &FieldElement::zero())?;
+        let x = "0000000000000000000000000000000000000000000000000000000000000001";
+        let y = "0000000000000002cf135e7506a45d632d270d45f1181294833fc48d823f272c";
+
+        assert_eq!(x, res.0.to_hex());
+        assert_eq!(y, res.1.to_hex());
+        Ok(())
+    }
+    #[test]
+    fn low_high_smoke_test() -> Result<(), BlackBoxResolutionError> {
+        let low = FieldElement::one();
+        let high = FieldElement::from(2u128);
+
+        let res = fixed_base_scalar_mul(&low, &high)?;
+        let x = "0702ab9c7038eeecc179b4f209991bcb68c7cb05bf4c532d804ccac36199c9a9";
+        let y = "23f10e9e43a3ae8d75d24154e796aae12ae7af546716e8f81a2564f1b5814130";
+
+        assert_eq!(x, res.0.to_hex());
+        assert_eq!(y, res.1.to_hex());
+        Ok(())
+    }
 }
 
 pub fn ecdsa_secp256k1_verify(

@@ -65,14 +65,6 @@ impl BlackBoxFunctionSolver for WrapperSolver {
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
         self.0.pedersen(inputs, domain_separator)
     }
-
-    fn fixed_base_scalar_mul(
-        &self,
-        low: &acvm::FieldElement,
-        high: &acvm::FieldElement,
-    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        self.0.fixed_base_scalar_mul(low, high)
-    }
 }
 
 // State for the LSP gets implemented on this struct and is internal to the implementation

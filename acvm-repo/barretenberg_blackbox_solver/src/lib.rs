@@ -9,7 +9,7 @@ mod wasm;
 
 use wasm::Barretenberg;
 
-use self::wasm::{Pedersen, ScalarMul, SchnorrSig};
+use self::wasm::{Pedersen, SchnorrSig};
 
 #[deprecated = "The `BarretenbergSolver` is a temporary solution and will be removed in future."]
 pub struct BarretenbergSolver {
@@ -70,16 +70,5 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         self.blackbox_vendor
             .encrypt(inputs.to_vec(), domain_separator)
             .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Pedersen, err.to_string()))
-    }
-
-    fn fixed_base_scalar_mul(
-        &self,
-        low: &FieldElement,
-        high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        #[allow(deprecated)]
-        self.blackbox_vendor.fixed_base(low, high).map_err(|err| {
-            BlackBoxResolutionError::Failed(BlackBoxFunc::FixedBaseScalarMul, err.to_string())
-        })
     }
 }
