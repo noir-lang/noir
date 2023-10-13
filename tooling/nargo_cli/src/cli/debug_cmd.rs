@@ -120,7 +120,7 @@ pub(crate) fn debug_program(
 
     noir_debugger::debug_circuit(
         &blackbox_solver,
-        &compiled_program.circuit.clone(),
+        &compiled_program.circuit,
         debug_artifact,
         initial_witness,
         true,
