@@ -1,16 +1,20 @@
 name: Build docs
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - zpedro/docs_monorepo
+    types: [opened, synchronize, labeled]
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    
+    if: contains(github.event.pull_request.labels.*.name, 'documentation')
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
         
       - name: Netlify deploy
         run: |
-          BRANCH_NAME=${{ github.head_ref || github.ref }}
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
           curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
