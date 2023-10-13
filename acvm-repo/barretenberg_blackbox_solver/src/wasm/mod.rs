@@ -65,8 +65,8 @@ pub(crate) struct Barretenberg {
 use std::cell::RefCell;
 
 use wasmer::{
-    imports, Function, FunctionEnv, FunctionEnvMut, Imports, Instance, Memory, MemoryType, Store,
-    Value, WasmPtr,
+    imports, wasmparser::FuncType, Function, FunctionEnv, FunctionEnvMut, Imports, Instance,
+    Memory, MemoryType, Store, Value, WasmPtr,
 };
 
 /// The number of bytes necessary to represent a pointer to memory inside the wasm.
@@ -272,6 +272,10 @@ fn init_memory_and_state() -> (Memory, Store, Imports) {
                 &function_env,
                 logstr,
             ),
+            "_ZN6sha2566sha256INSt3__26vectorIhNS1_9allocatorIhEEEEEENS1_5arrayIhLm32EEERKT_" => Function::new_typed(
+                &mut store,
+                foo,
+            ),
             "memory" => memory.clone(),
         },
         "wasi_snapshot_preview1" => {
@@ -297,6 +301,8 @@ fn instance_load() -> (Instance, Memory, Store) {
 
     (Instance::new(&mut store, &module, &custom_imports).unwrap(), memory, store)
 }
+
+fn foo(input: i32, output: i32) {}
 
 #[cfg(target_arch = "wasm32")]
 async fn instance_load() -> (Instance, Memory, Store) {

@@ -42,20 +42,14 @@ fn download_binary_from_url(url: &str) -> Result<Cursor<Vec<u8>>, String> {
 fn main() -> Result<(), String> {
     let out_dir = std::env::var("OUT_DIR").unwrap();
 
-    match std::env::var(BARRETENBERG_ARCHIVE) {
-        Ok(archive_path) => {
-            unpack_wasm(&PathBuf::from(archive_path), &PathBuf::from(&out_dir))?;
-            println!("cargo:rustc-env={BARRETENBERG_BIN_DIR}={out_dir}");
-            Ok(())
-        }
-        Err(_) => {
-            let wasm_bytes = download_binary_from_url(BARRETENBERG_ARCHIVE_FALLBACK)
-                .expect("download should succeed");
+    // let content = std::fs::read("./src/acvm_backend.wasm")
+    //     .map_err(|_| "Could not read acvm_backend.wasm")?
+    //     .to_vec();
+    let mut dest_path = PathBuf::from(out_dir.clone());
+    dest_path = dest_path.join("acvm_backend.wasm");
 
-            unpack_archive(wasm_bytes, &PathBuf::from(&out_dir));
-            println!("cargo:rustc-env={BARRETENBERG_BIN_DIR}={out_dir}");
+    println!("cargo:rustc-env={BARRETENBERG_BIN_DIR}={out_dir}");
+    std::fs::copy("./src/acvm_backend.wasm", dest_path).unwrap();
 
-            Ok(())
-        }
-    }
+    Ok(())
 }
