@@ -1039,13 +1039,6 @@ pub(crate) mod tests {
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((2_u128.into(), 3_u128.into()))
         }
-        fn fixed_base_scalar_mul(
-            &self,
-            _low: &FieldElement,
-            _high: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into()))
-        }
     }
 
     pub(crate) fn create_context() -> BrilligContext {
