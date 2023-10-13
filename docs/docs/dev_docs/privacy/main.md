@@ -45,7 +45,7 @@ There are many caveats to the above. Since Aztec also enables interaction with t
 Any time a private function makes a call to a public function, information is leaked. Now, that might be perfectly fine in some use cases (it's up to the smart contract developer). Indeed, most interesting apps will require some public state. But let's have a look at some leaky patterns:
 
 - Calling a public function from a private function. The public function execution will be publicly visible.
-- Calling a public function from a private function, without anonymising the `msg_sender` of that call. (Otherwise the `msg_sender` will be publicly visible).
+- Calling a public function from a private function, without revealing the `msg_sender` of that call. (Otherwise the `msg_sender` will be publicly visible).
 - Passing arguments to a public function from a private function. All of those arguments will be publicly visible.
 - Calling an internal public function from a private function. The fact that the call originated from a private function of that same contract will be trivially known.
 - Emitting unencrypted events from a private function. The unencrypted event name and arguments will be publicly visible.
@@ -118,7 +118,7 @@ App developers should be aware of this avenue for private data leakage. **Whenev
 
 To read a private state is to read a note from the private data tree. To read a note is to prove existence of that note in the private data tree. And to prove existence is to re-compute the root of the private data tree using the leaf value, the leaf index, and the sibling path of that leaf. This computed root is then exposed to the world, as a way of saying "This note exists", or more precisely "This note has existed at least since this historic snapshot time".
 
-If an old historic snapshot is used, then that old historic root will be exposed, and this leaks some information about the nature of your transaction: it leaks that your note was created before the snapshot date. It shrinks the 'anonymity set' of the transaction to a smaller window of time than the entire history of the network.
+If an old historic snapshot is used, then that old historic root will be exposed, and this leaks some information about the nature of your transaction: it leaks that your note was created before the snapshot date. It shrinks the 'privacy set' of the transaction to a smaller window of time than the entire history of the network.
 
 So for maximal privacy, it's in a user's best interest to read from the very-latest snapshot of the data tree.
 
@@ -130,7 +130,7 @@ But if a user is not running their own node, they would need to query the very-l
 
 We're [researching](../../about_aztec/roadmap/engineering_roadmap.md) cryptographic ways to enable users to retrieve sibling paths from 3rd-parties without revealing leaf indices.
 
-> \* Note: due to the non-uniformity of Aztec transactions, the 'anonymity set' of a transaction might not be the entire set of transactions that came before. See here (LINK).
+> \* Note: due to the non-uniformity of Aztec transactions, the 'privacy set' of a transaction might not be the entire set of transactions that came before. See here (LINK).
 
 ##### Any query
 
