@@ -40,7 +40,7 @@
     { "path": "sequencer-client/tsconfig.json" },
     { "path": "types/tsconfig.json" },
     { "path": "world-state/tsconfig.json" },
-    { "path": "boxes/private-token/tsconfig.json" },
+    { "path": "boxes/token/tsconfig.json" },
     { "path": "boxes/blank/tsconfig.json" },
     { "path": "boxes/blank-react/tsconfig.json" },
     { "path": "scripts/tsconfig.json" }

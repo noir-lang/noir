@@ -24,7 +24,7 @@
     "aztec.js",
     "boxes/blank",
     "boxes/blank-react",
-    "boxes/private-token",
+    "boxes/token",
     "canary",
     "circuits.js",
     "cli",

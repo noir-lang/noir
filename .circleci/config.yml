@@ -526,7 +526,7 @@ jobs:
           name: "Test via adhoc script"
           command: ./yarn-project/boxes/blank/run_tests
 
-  boxes-private-token:
+  boxes-token:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -535,7 +535,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test via adhoc script"
-          command: ./yarn-project/boxes/private-token/run_tests
+          command: ./yarn-project/boxes/token/run_tests
 
   canary:
     machine:
@@ -1338,7 +1338,7 @@ workflows:
             - aztec-sandbox-x86_64
           <<: *defaults
 
-      - boxes-private-token:
+      - boxes-token:
           requires:
             - aztec-sandbox-x86_64
           <<: *defaults

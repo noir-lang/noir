@@ -131,9 +131,9 @@ boxes-blank:
   dependencies:
     - aztec-sandbox
 
-boxes-private-token:
+boxes-token:
   buildDir: yarn-project
-  projectDir: yarn-project/boxes/private-token
+  projectDir: yarn-project/boxes/token
   dependencies:
     - aztec-sandbox
 

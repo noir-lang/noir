@@ -15640,55 +15640,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"private-token@workspace:boxes/private-token":
-  version: 0.0.0-use.local
-  resolution: "private-token@workspace:boxes/private-token"
-  dependencies:
-    "@aztec/aztec-ui": ^0.1.14
-    "@aztec/aztec.js": "workspace:^"
-    "@aztec/circuits.js": "workspace:^"
-    "@aztec/foundation": "workspace:^"
-    "@aztec/types": "workspace:^"
-    "@types/node": ^20.5.9
-    "@types/react": ^18.2.15
-    "@types/react-dom": ^18.2.7
-    "@typescript-eslint/eslint-plugin": ^6.0.0
-    "@typescript-eslint/parser": ^6.0.0
-    autoprefixer: ^10.4.15
-    classnames: ^2.3.2
-    copy-webpack-plugin: ^11.0.0
-    css-loader: ^6.8.1
-    eslint: ^8.45.0
-    eslint-import-resolver-typescript: ^3.5.5
-    eslint-plugin-import: ^2.27.5
-    eslint-plugin-react-hooks: ^4.6.0
-    eslint-plugin-react-refresh: ^0.4.3
-    formik: ^2.4.3
-    jest: ^29.6.4
-    node-sass: ^9.0.0
-    postcss: ^8.4.29
-    postcss-loader: ^7.3.3
-    prettier: ^3.0.3
-    react: ^18.2.0
-    react-dom: ^18.2.0
-    resolve-typescript-plugin: ^2.0.1
-    sass-loader: ^13.3.2
-    serve: ^14.2.1
-    stream-browserify: ^3.0.0
-    style-loader: ^3.3.3
-    ts-jest: ^29.1.0
-    ts-loader: ^9.4.4
-    ts-node: ^10.9.1
-    tty-browserify: ^0.0.1
-    typescript: ^5.0.4
-    util: ^0.12.5
-    webpack: ^5.88.2
-    webpack-cli: ^5.1.4
-    webpack-dev-server: ^4.15.1
-    yup: ^1.2.0
-  languageName: unknown
-  linkType: soft
-
 "process-nextick-args@npm:~2.0.0":
   version: 2.0.1
   resolution: "process-nextick-args@npm:2.0.1"
@@ -17959,6 +17910,56 @@ __metadata:
   checksum: 952c29e2a85d7123239b5cfdd889a0dde47ab0497f0913d70588f19c53f7e0b5327c95f4651e413c74b785147f9637b17410ac8c846d5d4a20a5a33eb6dc3a45
   languageName: node
   linkType: hard
+
+"token@workspace:boxes/token":
+  version: 0.0.0-use.local
+  resolution: "token@workspace:boxes/token"
+  dependencies:
+    "@aztec/aztec-ui": ^0.1.14
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
+    "@jest/globals": ^29.6.4
+    "@types/node": ^20.5.9
+    "@types/react": ^18.2.15
+    "@types/react-dom": ^18.2.7
+    "@typescript-eslint/eslint-plugin": ^6.0.0
+    "@typescript-eslint/parser": ^6.0.0
+    autoprefixer: ^10.4.15
+    classnames: ^2.3.2
+    copy-webpack-plugin: ^11.0.0
+    css-loader: ^6.8.1
+    eslint: ^8.45.0
+    eslint-import-resolver-typescript: ^3.5.5
+    eslint-plugin-import: ^2.27.5
+    eslint-plugin-react-hooks: ^4.6.0
+    eslint-plugin-react-refresh: ^0.4.3
+    formik: ^2.4.3
+    jest: ^29.6.4
+    node-sass: ^9.0.0
+    postcss: ^8.4.29
+    postcss-loader: ^7.3.3
+    prettier: ^3.0.3
+    react: ^18.2.0
+    react-dom: ^18.2.0
+    resolve-typescript-plugin: ^2.0.1
+    sass-loader: ^13.3.2
+    serve: ^14.2.1
+    stream-browserify: ^3.0.0
+    style-loader: ^3.3.3
+    ts-jest: ^29.1.0
+    ts-loader: ^9.4.4
+    ts-node: ^10.9.1
+    tty-browserify: ^0.0.1
+    typescript: ^5.0.4
+    util: ^0.12.5
+    webpack: ^5.88.2
+    webpack-cli: ^5.1.4
+    webpack-dev-server: ^4.15.1
+    yup: ^1.2.0
+  languageName: unknown
+  linkType: soft
 
 "toml@npm:^3.0.0":
   version: 3.0.0

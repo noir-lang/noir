@@ -113,7 +113,7 @@ async function downloadContractAndBoxFromGithub(
   const data = await zip.loadAsync(buffer);
 
   // Step 2: copy the '@aztec/boxes/{contract-name}' subpackage to the output directory
-  // this is currently only implemented for `blank` and `private-token` under 'boxes/{box-name}/'
+  // this is currently only implemented for `blank`, `blank-react` and `token` under 'boxes/{box-name}/'
   const repoDirectoryPrefix = `${GITHUB_REPO}-${tag}`;
 
   const boxPath = `${repoDirectoryPrefix}/${BOXES_PATH}/${contractName}/`;
@@ -312,13 +312,13 @@ export async function unboxContract(
   packageVersion: string,
   log: LogFn,
 ) {
-  const contractNames = ['private-token', 'blank', 'blank-react'];
+  const contractNames = ['token', 'blank', 'blank-react'];
 
   if (!contractNames.includes(contractName)) {
     log(
       `The noir contract named "${contractName}" was not found in "@aztec/boxes" package.  Valid options are: 
         ${contractNames.join('\n\t')}
-      We recommend "private-token" as a default.`,
+      We recommend "token" as a default.`,
     );
     return;
   }
