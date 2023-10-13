@@ -199,14 +199,18 @@ fn compile_program(
     let cached_program = if let Ok(preprocessed_program) =
         read_program_from_file(workspace.package_build_path(package))
     {
-        // TODO: Load debug information.
-        Some(CompiledProgram {
-            hash: preprocessed_program.hash,
-            circuit: preprocessed_program.bytecode,
-            abi: preprocessed_program.abi,
-            debug: DebugInfo::default(),
-            file_map: BTreeMap::new(),
-        })
+        if preprocessed_program.nargo_version != NOIR_ARTIFACT_VERSION_STRING {
+            None
+        } else {
+            // TODO: Load debug information.
+            Some(CompiledProgram {
+                hash: preprocessed_program.hash,
+                circuit: preprocessed_program.bytecode,
+                abi: preprocessed_program.abi,
+                debug: DebugInfo::default(),
+                file_map: BTreeMap::default(),
+            })
+        }
     } else {
         None
     };
