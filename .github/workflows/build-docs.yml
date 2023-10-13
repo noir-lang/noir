@@ -22,7 +22,7 @@ jobs:
       - name: Comment on PR
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
-          COMMENT_BODY='[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)'
+          COMMENT_BODY="[![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=$BRANCH_NAME)](https://app.netlify.com/sites/noir-docs-v2/deploys)"
           curl -sSL \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
