@@ -840,7 +840,7 @@ bool GoblinTranslatorCircuitBuilder::check_circuit()
                 // First check that all the microlimbs are properly range constrained
                 for (auto& micro_limb_series : micro_limbs) {
                     for (auto& micro_limb : micro_limb_series) {
-                        if (uint256_t(micro_limb) >= MAX_MICRO_LIMB_SIZE) {
+                        if (uint256_t(micro_limb) > MAX_MICRO_LIMB_SIZE) {
                             return false;
                         }
                     }
