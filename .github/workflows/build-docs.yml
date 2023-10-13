@@ -47,7 +47,8 @@ jobs:
               $COMMENTS_URL
           fi
           
-
+      - name: Check on deploy status
+        run: |
           # Check deploy status and fail CI if deploy fails (replace this with your actual check)
           DEPLOY_STATUS=$(curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME"  | jq '.[] | select(.created_at != null) | .state' | head -1)
           
