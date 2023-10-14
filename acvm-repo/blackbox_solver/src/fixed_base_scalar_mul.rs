@@ -1,20 +1,26 @@
 use acir::{BlackBoxFunc, FieldElement};
-use num_bigint::BigUint;
 
 use crate::BlackBoxResolutionError;
 
+#[cfg(not(feature = "bn254"))]
+pub fn fixed_base_scalar_mul(
+    _low: &FieldElement,
+    _high: &FieldElement,
+) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+    Err(BlackBoxResolutionError::Failed(
+        BlackBoxFunc::FixedBaseScalarMul,
+        "This solver is only defined over the bn254 curve currently".into(),
+    ))
+}
+
+#[cfg(feature = "bn254")]
 pub fn fixed_base_scalar_mul(
     low: &FieldElement,
     high: &FieldElement,
 ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-    #[cfg(not(feature = "bn254"))]
-    return BlackBoxResolutionError::Failed(
-        BlackBoxFunc::FixedBaseScalarMul,
-        "This solver is only defined over the bn254 curve currently".into(),
-    );
-
     use ark_ec::AffineRepr;
     use ark_ff::MontConfig;
+    use num_bigint::BigUint;
 
     let low: u128 = low.try_into_u128().ok_or_else(|| {
         BlackBoxResolutionError::Failed(

@@ -15,7 +15,6 @@ repository.workspace = true
 [dependencies]
 acir.workspace = true
 thiserror.workspace = true
-num-bigint.workspace = true
 
 blake2 = "0.10.6"
 sha2 = "0.10.6"
@@ -39,8 +38,9 @@ p256 = { version = "0.11.0", features = [
 grumpkin = { git = "https://github.com/noir-lang/grumpkin", optional = true, features = ["std"] }
 ark-ec = { version = "^0.4.0", optional = true, default-features = false }
 ark-ff = { version = "^0.4.0", optional = true, default-features = false }
+num-bigint = { workspace = true, optional = true }
 
 [features]
 default = ["bn254"]
-bn254 = ["acir/bn254", "dep:grumpkin", "dep:ark-ec", "dep:ark-ff"]
+bn254 = ["acir/bn254", "dep:grumpkin", "dep:ark-ec", "dep:ark-ff", "dep:num-bigint"]
 bls12_381 = ["acir/bls12_381"]
