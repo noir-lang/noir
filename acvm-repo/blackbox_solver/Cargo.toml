@@ -35,7 +35,7 @@ p256 = { version = "0.11.0", features = [
 ] }
 
 # BN254 fixed base scalar multiplication solver
-grumpkin = { git = "https://github.com/noir-lang/grumpkin", optional = true, features = ["std"] }
+grumpkin = { git = "https://github.com/noir-lang/grumpkin", rev = "56d99799381f79e42148aaef0de2b0cf9a4b9a5d", optional = true, features = ["std"] }
 ark-ec = { version = "^0.4.0", optional = true, default-features = false }
 ark-ff = { version = "^0.4.0", optional = true, default-features = false }
 num-bigint = { workspace = true, optional = true }
