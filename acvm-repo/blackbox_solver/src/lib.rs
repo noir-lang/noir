@@ -73,6 +73,7 @@ pub fn fixed_base_scalar_mul(
     );
 
     use ark_ec::AffineRepr;
+    use ark_ff::MontConfig;
 
     let low: u128 = low.try_into_u128().ok_or_else(|| {
         BlackBoxResolutionError::Failed(
@@ -93,12 +94,8 @@ pub fn fixed_base_scalar_mul(
 
     // Check if this is smaller than the grumpkin modulus
     let grumpkin_integer = BigUint::from_bytes_be(&bytes);
-    let grumpkin_modulus = BigUint::from_bytes_be(&[
-        48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 151, 129, 106, 145,
-        104, 113, 202, 141, 60, 32, 140, 22, 216, 124, 253, 71,
-    ]);
 
-    if grumpkin_integer >= grumpkin_modulus {
+    if grumpkin_integer >= grumpkin::FrConfig::MODULUS.into() {
         return Err(BlackBoxResolutionError::Failed(
             BlackBoxFunc::FixedBaseScalarMul,
             format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),

@@ -57,6 +57,7 @@ version = "0.28.0"
 dependencies = [
  "acir",
  "ark-ec",
+ "ark-ff",
  "blake2",
  "grumpkin",
  "k256",

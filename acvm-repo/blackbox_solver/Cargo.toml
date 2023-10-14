@@ -34,10 +34,13 @@ p256 = { version = "0.11.0", features = [
     "digest",
     "arithmetic",
 ] }
-grumpkin = { git = "https://github.com/noir-lang/grumpkin", features = ["std"] }
-ark-ec = { version = "^0.4.0", default-features = false }
+
+# BN254 fixed base scalar multiplication solver
+grumpkin = { git = "https://github.com/noir-lang/grumpkin", optional = true, features = ["std"] }
+ark-ec = { version = "^0.4.0", optional = true, default-features = false }
+ark-ff = { version = "^0.4.0", optional = true, default-features = false }
 
 [features]
 default = ["bn254"]
-bn254 = ["acir/bn254"]
+bn254 = ["acir/bn254", "dep:grumpkin", "dep:ark-ec", "dep:ark-ff"]
 bls12_381 = ["acir/bls12_381"]
