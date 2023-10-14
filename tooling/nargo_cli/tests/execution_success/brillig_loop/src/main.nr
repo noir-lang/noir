@@ -1,7 +1,7 @@
 // Tests a very simple program.
 // 
 // The features being tested is basic looping on brillig
-fn main(sum: u32){
+fn main(sum: u32) {
     assert(loop(4) == sum);
     assert(plain_loop() == sum);
 }

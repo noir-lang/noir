@@ -358,8 +358,8 @@ impl GeneratedAcir {
     }
 
     /// Signed division lhs /  rhs
-    /// We derive the signed division from the unsigned euclidian division.
-    /// note that this is not euclidian division!
+    /// We derive the signed division from the unsigned euclidean division.
+    /// note that this is not euclidean division!
     // if x is a signed integer, then sign(x)x >= 0
     // so if a and b are signed integers, we can do the unsigned division:
     // sign(a)a = q1*sign(b)b + r1
@@ -821,7 +821,7 @@ impl GeneratedAcir {
         let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
         let comparison_evaluation = (a - b) + two_max_bits;
 
-        // Euclidian division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        // euclidean division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // 2^{max_bits} is of max_bits+1 bit size
         // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1

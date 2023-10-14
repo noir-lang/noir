@@ -71,3 +71,11 @@ fn test() {
     // 324
     34
 }
+
+fn parenthesized() {
+    value + (x as Field)
+}
+
+fn parenthesized() {
+    (i as u8) + (j as u8) + (k as u8) + x + y + z
+}

@@ -346,10 +346,10 @@ fn nothing<T>() -> impl NoirParser<T> {
 }
 
 fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
-    let refmut_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
+    let mut_ref_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
     let mut_pattern = keyword(Keyword::Mut);
 
-    refmut_pattern
+    mut_ref_pattern
         .or(mut_pattern)
         .map_with_span(|token, span| (token, span))
         .or_not()
@@ -935,7 +935,7 @@ fn assign_operator() -> impl NoirParser<Token> {
     let shorthand_operators = right_shift_operator().or(one_of(shorthand_operators));
     let shorthand_syntax = shorthand_operators.then_ignore(just(Token::Assign));
 
-    // Since >> is lexed as two separate greater-thans, >>= is lexed as > >=, so
+    // Since >> is lexed as two separate "greater-than"s, >>= is lexed as > >=, so
     // we need to account for that case here as well.
     let right_shift_fix =
         just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
@@ -1554,7 +1554,9 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser.clone()))
+    .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
+        Expression::new(ExpressionKind::Parenthesized(sub_expr.into()), span)
+    }))
     .or(tuple(expr_parser))
     .labelled(ParsingRuleLabel::Atom)
 }

@@ -126,7 +126,7 @@ pub struct NodeInterner {
 }
 
 /// All the information from a function that is filled out during definition collection rather than
-/// name resolution. Resultingly, if information about a function is needed during name resolution,
+/// name resolution. As a result, if information about a function is needed during name resolution,
 /// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
 pub struct FunctionModifiers {
     pub name: String,
@@ -614,7 +614,7 @@ impl NodeInterner {
         id
     }
 
-    /// Push a function with the default modifiers and moduleid for testing
+    /// Push a function with the default modifiers and [`ModuleId`] for testing
     #[cfg(test)]
     pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
         let id = self.push_fn(HirFunction::empty());
