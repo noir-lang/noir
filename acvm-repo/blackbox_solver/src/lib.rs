@@ -140,6 +140,43 @@ mod test {
         assert_eq!(y, res.1.to_hex());
         Ok(())
     }
+
+    #[test]
+    fn rejects_invalid_limbs() {
+        let max_limb = FieldElement::from(u128::MAX);
+        let invalid_limb = max_limb + FieldElement::one();
+
+        let expected_error =  Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::FixedBaseScalarMul,
+            "Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128".into()
+        ));
+
+        let res = fixed_base_scalar_mul(&invalid_limb, &FieldElement::zero());
+        assert_eq!(res, expected_error);
+
+        let res = fixed_base_scalar_mul(&FieldElement::zero(), &invalid_limb);
+        assert_eq!(res, expected_error);
+    }
+
+    #[test]
+    fn rejects_grumpkin_modulus() {
+        use ark_ff::{BigInteger, MontConfig};
+
+        let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
+
+        let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
+        let low = FieldElement::from_be_bytes_reduce(&x[16..32]);
+
+        let res = fixed_base_scalar_mul(&low, &high);
+
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::FixedBaseScalarMul,
+                "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into()
+            ))
+        );
+    }
 }
 
 pub fn ecdsa_secp256k1_verify(
