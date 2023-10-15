@@ -17,9 +17,6 @@ use std::{
 
 pub const FILE_EXTENSION: &str = "nr";
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct VirtualPath(PathBuf);
-
 pub struct FileManager {
     root: PathBuf,
     file_map: file_map::FileMap,
