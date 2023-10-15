@@ -2,9 +2,7 @@ name: Build docs
 
 on:
   pull_request:
-    branches:
-      - zpedro/docs_monorepo
-    types: [opened, synchronize, labeled]
+    types: [labeled]
 
 jobs:
   
