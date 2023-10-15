@@ -116,23 +116,25 @@ fn get_package_tests_in_crate(
     let tests =
         context.get_all_test_functions_in_crate_matching(crate_id, FunctionNameMatch::Anything);
 
-    let mut package_tests = Vec::new();
+    let package_tests: Vec<_> = tests
+        .into_iter()
+        .map(|(func_name, test_function)| {
+            let location = context.function_meta(&test_function.get_id()).name.location;
+            let file_id = location.file;
 
-    for (func_name, test_function) in tests {
-        let location = context.function_meta(&test_function.get_id()).name.location;
-        let file_id = location.file;
+            let file_path = fm.path(file_id).with_extension(FILE_EXTENSION);
+            let range =
+                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
 
-        let file_path = fm.path(file_id).with_extension(FILE_EXTENSION);
-        let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-        package_tests.push(NargoTest {
-            id: NargoTestId::new(crate_name.clone(), func_name.clone()),
-            label: func_name,
-            uri: Url::from_file_path(file_path)
-                .expect("Expected a valid file path that can be converted into a URI"),
-            range,
-        });
-    }
+            NargoTest {
+                id: NargoTestId::new(crate_name.clone(), func_name.clone()),
+                label: func_name,
+                uri: Url::from_file_path(file_path)
+                    .expect("Expected a valid file path that can be converted into a URI"),
+                range,
+            }
+        })
+        .collect();
 
     if package_tests.is_empty() {
         None
