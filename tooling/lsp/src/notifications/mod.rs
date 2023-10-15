@@ -14,7 +14,7 @@ use crate::types::{
     PublishDiagnosticsParams, Range,
 };
 
-use crate::{byte_span_to_range, get_package_tests_in_crate, LspState};
+use crate::{byte_span_to_range, get_non_stdlib_asset, get_package_tests_in_crate, LspState};
 
 pub(super) fn on_initialized(
     _state: &mut LspState,
@@ -104,8 +104,7 @@ pub(super) fn on_did_save_text_document(
     let mut diagnostics = Vec::new();
 
     for package in &workspace {
-        let (mut context, crate_id) =
-            prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+        let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
 
         let file_diagnostics = match check_crate(&mut context, crate_id, false) {
             Ok(((), warnings)) => warnings,
