@@ -98,7 +98,7 @@ impl FileManager {
     }
 
     pub fn find_module(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
-        let anchor_path = self.path(anchor).to_path_buf();
+        let anchor_path = self.path(anchor).with_extension("");
         let anchor_dir = anchor_path.parent().unwrap();
 
         // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
@@ -117,14 +117,14 @@ impl FileManager {
 /// Returns true if a module's child module's are expected to be in the same directory.
 /// Returns false if they are expected to be in a subdirectory matching the name of the module.
 fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
-    if let Some(filename) = module_path.file_name() {
+    if let Some(filename) = module_path.file_stem() {
         // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
         // check its same directory for child modules instead of a subdirectory. Should we prohibit
         // `main.nr` and `lib.nr` files outside of the crate root?
         filename == "main"
             || filename == "lib"
             || filename == "mod"
-            || Some(filename) == parent_path.file_name()
+            || Some(filename) == parent_path.file_stem()
     } else {
         // If there's no filename, we arbitrarily return true.
         // Alternatively, we could panic, but this is left to a different step where we
@@ -246,7 +246,7 @@ mod tests {
 
         let file_id = fm.add_file(file_name).unwrap();
 
-        assert!(fm.path(file_id).ends_with("foo"));
+        assert!(fm.path(file_id).ends_with("foo.nr"));
     }
 
     #[test]
