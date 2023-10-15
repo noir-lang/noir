@@ -11,5 +11,11 @@ fn main() {
 
     "hello world";
 
+    "hell\0\"world";
+
+    (   );
+
+    (/*test*/);
+
     ()
 }
