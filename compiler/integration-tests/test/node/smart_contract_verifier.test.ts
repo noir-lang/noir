@@ -52,9 +52,9 @@ test_cases.forEach((testInfo) => {
 
     // Smart contract verification
 
-    const contract = await ethers.deployContract(testInfo.compiled, [], {});
+    const contract = await ethers.deployContract(testInfo.compiled, []);
 
-    const result = await contract.verify(proofData.proof, proofData.publicInputs);
+    const result = await contract.verify.staticCall(proofData.proof, proofData.publicInputs);
 
     expect(result).to.be.true;
   });
