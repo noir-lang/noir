@@ -51,6 +51,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   };
 
   const recursion_proof = await recursion.generateFinalProof(recursion_inputs);
+  expect(await recursion.verifyFinalProof(recursion_proof)).to.be.true;
 
   // Smart contract verification
 
