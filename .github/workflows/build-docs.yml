@@ -2,7 +2,15 @@ name: Build docs
 
 on:
   pull_request:
-    types: [labeled]
+    paths:
+      - 'docs/**'
+    types:
+      - opened
+      - synchronize
+      - labeled
+  push:
+    paths:
+      - 'docs/**'
 
 jobs:
   
