@@ -1,22 +1,24 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
-    Expression, ExpressionKind, Literal, Statement,
+    hir::resolution::errors::Span, token::Token, ArrayLiteral, BlockExpression, Expression,
+    ExpressionKind, Literal, Statement,
 };
 
 use super::FmtVisitor;
+use crate::utils::{self, FindToken};
 
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression) {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
-        let rewrite = recover_comment_removed(slice!(self, span.start(), span.end()), rewrite);
+        let rewrite =
+            utils::recover_comment_removed(slice!(self, span.start(), span.end()), rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
     }
 
-    fn format_expr(&self, Expression { kind, span }: Expression) -> String {
+    pub(crate) fn format_expr(&self, Expression { kind, span }: Expression) -> String {
         match kind {
             ExpressionKind::Block(block) => {
                 let mut visitor = FmtVisitor::new(self.source, self.config);
@@ -84,16 +86,31 @@ impl FmtVisitor<'_> {
                 visitor.block_indent = self.block_indent;
                 visitor.block_indent.block_indent(self.config);
 
-                let mut elements =
-                    TupleElements::new(&mut visitor, span, elements).collect::<Vec<_>>();
+                let mut exprs = utils::Exprs::new(&mut visitor, span, elements).collect::<Vec<_>>();
 
-                let elements = if elements.len() == 1 {
-                    format!("{},", elements.pop().unwrap())
+                if exprs.len() == 1 {
+                    let expr = exprs.pop().unwrap();
+                    let comma =
+                        if expr.trailing.find_token(Token::Comma).is_none() { "," } else { "" };
+
+                    let newline_with_indent = if expr.newlines {
+                        "\n".to_string() + &visitor.block_indent.to_string()
+                    } else {
+                        String::new()
+                    };
+                    let end_newline = if expr.newlines {
+                        "\n".to_string() + &self.block_indent.to_string()
+                    } else {
+                        String::new()
+                    };
+
+                    format!(
+                        "({newline_with_indent}{}{newline_with_indent}{}{}{comma}{end_newline})",
+                        expr.leading, expr.expr, expr.trailing
+                    )
                 } else {
-                    elements.join(", ")
-                };
-
-                format!("({elements})")
+                    slice!(self, span.start(), span.end()).into()
+                }
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
@@ -175,118 +192,5 @@ impl FmtVisitor<'_> {
         };
         self.last_position = block_span.end();
         self.push_str(&block_str);
-    }
-}
-
-fn recover_comment_removed(original: &str, new: String) -> String {
-    if changed_comment_content(original, &new) {
-        original.to_string()
-    } else {
-        new
-    }
-}
-
-fn changed_comment_content(original: &str, new: &str) -> bool {
-    comments(original).ne(comments(new))
-}
-
-fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
-    Lexer::new(source).skip_comments(false).flatten().filter_map(|spanned| {
-        if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token() {
-            Some(content)
-        } else {
-            None
-        }
-    })
-}
-
-struct TupleElements<'me> {
-    visitor: &'me mut FmtVisitor<'me>,
-    elements: std::iter::Peekable<std::vec::IntoIter<Expression>>,
-    last_position: u32,
-    end_position: u32,
-    emit_newline: bool,
-}
-
-impl<'me> TupleElements<'me> {
-    fn new(visitor: &'me mut FmtVisitor<'me>, span: Span, elements: Vec<Expression>) -> Self {
-        Self {
-            visitor,
-            last_position: span.start() + 1, /*(*/
-            end_position: span.end() - 1,    /*)*/
-            elements: elements.into_iter().peekable(),
-            emit_newline: false,
-        }
-    }
-}
-
-impl Iterator for TupleElements<'_> {
-    type Item = String;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let element = self.elements.next()?;
-        let element_span = element.span;
-
-        let start = self.last_position;
-        let end = element_span.start();
-
-        let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.span.start());
-
-        let leading = {
-            let mut emit_newline = false;
-
-            let leading = slice!(self.visitor, start, end);
-            let leading_trimmed = slice!(self.visitor, start, end).trim();
-
-            let starts_with_block_comment = leading_trimmed.starts_with("/*");
-            let ends_with_block_comment = leading_trimmed.ends_with("*/");
-            let starts_with_single_line_comment = leading_trimmed.starts_with("//");
-
-            if ends_with_block_comment {
-                let comment_end = leading_trimmed.rfind(|c| c == '/').unwrap();
-
-                if leading[comment_end..].contains('\n') {
-                    emit_newline = true;
-                }
-            } else if starts_with_single_line_comment || starts_with_block_comment {
-                emit_newline = true;
-            };
-
-            if emit_newline {
-                self.emit_newline = true;
-            }
-
-            let newline = if emit_newline { "\n" } else { "" };
-            let indent =
-                if emit_newline { self.visitor.block_indent.to_string() } else { String::new() };
-            format!("{newline}{indent}{leading_trimmed}{newline}{indent}")
-        };
-
-        let trailing = slice!(self.visitor, element_span.end(), next_start);
-        let element_str = self.visitor.format_expr(element);
-
-        let end = trailing.find_token(Token::Comma).unwrap_or(trailing.len() as u32);
-
-        let trailing = trailing[..end as usize].trim_matches(',').trim();
-        self.last_position = element_span.end() + end;
-
-        let newline = if self.end_position == next_start && self.emit_newline {
-            self.visitor.block_indent.block_unindent(self.visitor.config);
-            format!("\n{}", self.visitor.block_indent.to_string())
-        } else {
-            String::new()
-        };
-
-        dbg!(format!("{leading}{element_str}{trailing}{newline}").into())
-    }
-}
-
-trait FindToken {
-    fn find_token(&self, token: Token) -> Option<u32>;
-}
-
-impl FindToken for str {
-    fn find_token(&self, token: Token) -> Option<u32> {
-        Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span().end()))
     }
 }

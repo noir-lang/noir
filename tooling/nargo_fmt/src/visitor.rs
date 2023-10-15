@@ -17,7 +17,7 @@ use crate::config::Config;
 pub(crate) struct FmtVisitor<'me> {
     config: &'me Config,
     buffer: String,
-    source: &'me str,
+    pub(crate) source: &'me str,
     block_indent: Indent,
     last_position: u32,
 }
