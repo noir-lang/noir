@@ -13,6 +13,8 @@ fn main() {
 
     "hell\0\"world";
 
+    f"i: {i}, j: {j}";
+
     (   );
 
     (/*test*/);
