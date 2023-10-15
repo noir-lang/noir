@@ -2,7 +2,6 @@ use std::future::{self, Future};
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 
-use fm::FILE_EXTENSION;
 use nargo::{package::Package, prepare_package, workspace::Workspace};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::check_crate;
@@ -98,9 +97,7 @@ fn on_code_lens_request_inner(
 
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
-            // TODO: This currently just appends the `.nr` file extension that we store as a constant,
-            // but that won't work if we accept other extensions
-            if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+            if fm.path(file_id) != file_path {
                 continue;
             }
 
@@ -131,9 +128,7 @@ fn on_code_lens_request_inner(
 
                 // Ignore diagnostics for any file that wasn't the file we saved
                 // TODO: In the future, we could create "related" diagnostics for these files
-                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
-                // but that won't work if we accept other extensions
-                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                if fm.path(file_id) != file_path {
                     continue;
                 }
 
@@ -180,9 +175,7 @@ fn on_code_lens_request_inner(
 
                 // Ignore diagnostics for any file that wasn't the file we saved
                 // TODO: In the future, we could create "related" diagnostics for these files
-                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
-                // but that won't work if we accept other extensions
-                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                if fm.path(file_id) != file_path {
                     continue;
                 }
 

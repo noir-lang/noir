@@ -23,8 +23,8 @@ struct VirtualPath(PathBuf);
 pub struct FileManager {
     root: PathBuf,
     file_map: file_map::FileMap,
-    id_to_path: HashMap<FileId, VirtualPath>,
-    path_to_id: HashMap<VirtualPath, FileId>,
+    id_to_path: HashMap<FileId, PathBuf>,
+    path_to_id: HashMap<PathBuf, FileId>,
     file_reader: Box<FileReader>,
 }
 
@@ -65,19 +65,18 @@ impl FileManager {
         };
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
-        let path_to_file = virtualize_path(&resolved_path);
-        if let Some(file_id) = self.path_to_id.get(&path_to_file) {
+        if let Some(file_id) = self.path_to_id.get(&resolved_path) {
             return Some(*file_id);
         }
 
         // Otherwise we add the file
         let source = file_reader::read_file_to_string(&resolved_path, &self.file_reader).ok()?;
-        let file_id = self.file_map.add_file(resolved_path.into(), source);
-        self.register_path(file_id, path_to_file);
+        let file_id = self.file_map.add_file(resolved_path.clone().into(), source);
+        self.register_path(file_id, resolved_path);
         Some(file_id)
     }
 
-    fn register_path(&mut self, file_id: FileId, path: VirtualPath) {
+    fn register_path(&mut self, file_id: FileId, path: PathBuf) {
         let old_value = self.id_to_path.insert(file_id, path.clone());
         assert!(
             old_value.is_none(),
@@ -95,7 +94,7 @@ impl FileManager {
     pub fn path(&self, file_id: FileId) -> &Path {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
-        self.id_to_path.get(&file_id).unwrap().0.as_path()
+        self.id_to_path.get(&file_id).unwrap().as_path()
     }
 
     pub fn find_module(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
@@ -211,16 +210,6 @@ mod path_normalization {
     }
 }
 
-/// Takes a path to a noir file. This will panic on paths to directories
-/// Returns the file path with the extension removed
-fn virtualize_path(path: &Path) -> VirtualPath {
-    let path = path.to_path_buf();
-    let base = path.parent().unwrap();
-    let path_no_ext: PathBuf =
-        path.file_stem().expect("ice: this should have been the path to a file").into();
-    let path = base.join(path_no_ext);
-    VirtualPath(path)
-}
 #[cfg(test)]
 mod tests {
     use super::*;

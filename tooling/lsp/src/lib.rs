@@ -18,7 +18,6 @@ use async_lsp::{
 };
 use codelens::{on_code_lens_request, on_test_run_request, on_tests_request};
 use codespan_reporting::files;
-use fm::FILE_EXTENSION;
 use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::check_crate;
@@ -300,9 +299,7 @@ fn on_did_save_text_document(
             for FileDiagnostic { file_id, diagnostic, call_stack: _ } in file_diagnostics {
                 // Ignore diagnostics for any file that wasn't the file we saved
                 // TODO: In the future, we could create "related" diagnostics for these files
-                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
-                // but that won't work if we accept other extensions
-                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                if fm.path(file_id) != file_path {
                     continue;
                 }
 
@@ -361,14 +358,14 @@ fn get_package_tests_in_crate(
         let location = context.function_meta(&test_function.get_id()).name.location;
         let file_id = location.file;
 
-        let file_path = fm.path(file_id).with_extension(FILE_EXTENSION);
         let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+        let file_uri = Url::from_file_path(fm.path(file_id))
+            .expect("Expected a valid file path that can be converted into a URI");
 
         package_tests.push(NargoTest {
             id: NargoTestId::new(crate_name.clone(), func_name.clone()),
             label: func_name,
-            uri: Url::from_file_path(file_path)
-                .expect("Expected a valid file path that can be converted into a URI"),
+            uri: file_uri,
             range,
         });
     }
