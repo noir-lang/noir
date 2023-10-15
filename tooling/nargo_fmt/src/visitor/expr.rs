@@ -3,8 +3,8 @@ use noirc_frontend::{
     ExpressionKind, Literal, Statement,
 };
 
-use super::FmtVisitor;
-use crate::utils::{self, FindToken};
+use super::{FmtVisitor, Indent};
+use crate::utils::{self, Expr, FindToken};
 
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression) {
@@ -21,11 +21,8 @@ impl FmtVisitor<'_> {
     pub(crate) fn format_expr(&self, Expression { kind, span }: Expression) -> String {
         match kind {
             ExpressionKind::Block(block) => {
-                let mut visitor = FmtVisitor::new(self.source, self.config);
-
-                visitor.block_indent = self.block_indent;
+                let mut visitor = self.fork();
                 visitor.visit_block(block, span, true);
-
                 visitor.buffer
             }
             ExpressionKind::Prefix(prefix) => {
@@ -81,36 +78,8 @@ impl FmtVisitor<'_> {
                 let formatted_index = self.format_expr(index_expr.index);
                 format!("{}[{}]", formatted_collection, formatted_index)
             }
-            ExpressionKind::Tuple(elements) => {
-                let mut visitor = FmtVisitor::new(self.source, self.config);
-                visitor.block_indent = self.block_indent;
-                visitor.block_indent.block_indent(self.config);
-
-                let mut exprs = utils::Exprs::new(&mut visitor, span, elements).collect::<Vec<_>>();
-
-                if exprs.len() == 1 {
-                    let expr = exprs.pop().unwrap();
-                    let comma =
-                        if expr.trailing.find_token(Token::Comma).is_none() { "," } else { "" };
-
-                    let newline_with_indent = if expr.newlines {
-                        "\n".to_string() + &visitor.block_indent.to_string()
-                    } else {
-                        String::new()
-                    };
-                    let end_newline = if expr.newlines {
-                        "\n".to_string() + &self.block_indent.to_string()
-                    } else {
-                        String::new()
-                    };
-
-                    format!(
-                        "({newline_with_indent}{}{newline_with_indent}{}{}{comma}{end_newline})",
-                        expr.leading, expr.expr, expr.trailing
-                    )
-                } else {
-                    slice!(self, span.start(), span.end()).into()
-                }
+            ExpressionKind::Tuple(exprs) => {
+                format_parens(self.fork(), exprs.len() == 1, exprs, span)
             }
             ExpressionKind::Literal(literal) => match literal {
                 Literal::Integer(_) => slice!(self, span.start(), span.end()).to_string(),
@@ -128,7 +97,9 @@ impl FmtVisitor<'_> {
                     literal.to_string()
                 }
             },
-            ExpressionKind::Parenthesized(subexpr) => format!("({})", self.format_expr(*subexpr)),
+            ExpressionKind::Parenthesized(subexpr) => {
+                format_parens(self.fork(), false, vec![*subexpr], span)
+            }
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
@@ -161,7 +132,7 @@ impl FmtVisitor<'_> {
 
         self.push_str("\n");
         if should_indent {
-            self.push_str(&self.block_indent.to_string());
+            self.push_str(&self.indent.to_string());
         }
         self.push_str("}");
     }
@@ -181,16 +152,81 @@ impl FmtVisitor<'_> {
         let block_str = if comment_str.is_empty() {
             "{}".to_string()
         } else {
-            self.block_indent.block_indent(self.config);
-            let open_indent = self.block_indent.to_string();
-            self.block_indent.block_unindent(self.config);
-            let close_indent =
-                if should_indent { self.block_indent.to_string() } else { String::new() };
+            self.indent.block_indent(self.config);
+            let open_indent = self.indent.to_string();
+            self.indent.block_unindent(self.config);
+            let close_indent = if should_indent { self.indent.to_string() } else { String::new() };
 
             let ret = format!("{{\n{open_indent}{comment_str}\n{close_indent}}}");
             ret
         };
         self.last_position = block_span.end();
         self.push_str(&block_str);
+    }
+}
+
+fn format_parens(
+    mut visitor: FmtVisitor,
+    trailing_comma: bool,
+    exprs: Vec<Expression>,
+    span: Span,
+) -> String {
+    visitor.indent.block_indent(visitor.config);
+
+    let nested_indent = visitor.indent;
+    let exprs: Vec<_> = utils::Exprs::new(&visitor, span, exprs).collect();
+    let (exprs, force_one_line) = format_exprs(trailing_comma, exprs, nested_indent);
+
+    visitor.indent.block_unindent(visitor.config);
+
+    wrap_exprs(exprs, nested_indent, visitor.indent, force_one_line)
+}
+
+fn format_exprs(trailing_comma: bool, exprs: Vec<Expr>, indent: Indent) -> (String, bool) {
+    let mut result = String::new();
+    let mut force_one_line = true;
+    let indent_str = indent.to_string();
+    let mut exprs = exprs.into_iter().enumerate().peekable();
+
+    while let Some((index, expr)) = exprs.next() {
+        let is_first = index == 0;
+        let separate = exprs.peek().is_some() || trailing_comma;
+
+        if !is_first && force_one_line {
+            result.push(' ');
+        }
+
+        result.push_str(&expr.leading);
+
+        if expr.newlines {
+            force_one_line = false;
+            result.push('\n');
+            result.push_str(&indent_str);
+        }
+
+        result.push_str(&expr.expr);
+        result.push_str(&expr.trailing);
+
+        if separate && expr.trailing.find_token(Token::Comma).is_none() {
+            result.push(',');
+        }
+    }
+
+    (result, force_one_line)
+}
+
+fn wrap_exprs(
+    exprs: String,
+    nested_indent: Indent,
+    indent: Indent,
+    force_one_line: bool,
+) -> String {
+    if force_one_line {
+        format!("({exprs})")
+    } else {
+        let nested_indent_str = "\n".to_string() + &nested_indent.to_string();
+        let indent_str = "\n".to_string() + &indent.to_string();
+
+        format!("({nested_indent_str}{exprs}{indent_str})")
     }
 }
