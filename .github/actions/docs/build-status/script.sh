@@ -3,6 +3,7 @@
 BRANCH_NAME=$(echo "$BRANCH_NAME" | sed -e "s#refs/[^/]*/##")
 DEPLOY_STATUS=$(curl -X GET "https://api.netlify.com/api/v1/sites/$SITE_ID/deploys?branch=$BRANCH_NAME"  | jq -r '.[] | select(.created_at != null) | .state' | head -1)
 
+echo "$SITE_ID"
 MAX_RETRIES=10
 COUNT=0
 while [[ "$DEPLOY_STATUS" != "ready" && $COUNT -lt $MAX_RETRIES ]]; do
