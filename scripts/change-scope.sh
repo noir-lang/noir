@@ -6,10 +6,13 @@ new_scope="@kevaundray"
 
 # Read workspace configuration from package.json
 # using jq to parse JSON, so make sure jq is installed on your system
+echo "Huh"
 workspaces=( $(jq -r '.workspaces[]' package.json) )
+echo "Huh2"
 
 # Iterate over each workspace directory
 for workspace in "${workspaces[@]}"; do
+  echo "Updating scope in $workspace"
   # Check if workspace is a directory
   if [ -d "$workspace" ]; then
     # Find all package.json files within the workspace directory and its subdirectories
