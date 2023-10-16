@@ -46,19 +46,19 @@ fn on_tests_request_inner(
             ResponseError::new(ErrorCode::REQUEST_FAILED, err)
         })?;
 
-    let mut package_tests = Vec::new();
+    let package_tests: Vec<_> = workspace
+        .into_iter()
+        .filter_map(|package| {
+            let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+            // We ignore the warnings and errors produced by compilation for producing tests
+            // because we can still get the test functions even if compilation fails
+            let _ = check_crate(&mut context, crate_id, false);
 
-    for package in &workspace {
-        let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
-        // We ignore the warnings and errors produced by compilation for producing tests
-        // because we can still get the test functions even if compilation fails
-        let _ = check_crate(&mut context, crate_id, false);
-
-        // We don't add test headings for a package if it contains no `#[test]` functions
-        if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
-            package_tests.push(NargoPackageTests { package: package.name.to_string(), tests });
-        }
-    }
+            // We don't add test headings for a package if it contains no `#[test]` functions
+            get_package_tests_in_crate(&context, &crate_id, &package.name)
+                .map(|tests| NargoPackageTests { package: package.name.to_string(), tests })
+        })
+        .collect();
 
     if package_tests.is_empty() {
         Ok(None)
