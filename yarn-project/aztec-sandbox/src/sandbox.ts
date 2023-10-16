@@ -95,15 +95,13 @@ async function deployContractsToL1(aztecNodeConfig: AztecNodeConfig, hdAccount: 
     },
   };
 
-  const l1Contracts = await waitThenDeploy(aztecNodeConfig, () =>
-    deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, logger, l1Artifacts),
-  );
-  aztecNodeConfig.l1Contracts.rollupAddress = l1Contracts.l1ContractAddresses.rollupAddress;
-  aztecNodeConfig.l1Contracts.contractDeploymentEmitterAddress =
-    l1Contracts.l1ContractAddresses.contractDeploymentEmitterAddress;
-  aztecNodeConfig.l1Contracts.inboxAddress = l1Contracts.l1ContractAddresses.inboxAddress;
-  aztecNodeConfig.l1Contracts.registryAddress = l1Contracts.l1ContractAddresses.registryAddress;
-  return l1Contracts;
+  aztecNodeConfig.l1Contracts = (
+    await waitThenDeploy(aztecNodeConfig, () =>
+      deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, logger, l1Artifacts),
+    )
+  ).l1ContractAddresses;
+
+  return aztecNodeConfig.l1Contracts;
 }
 
 /** Sandbox settings. */
