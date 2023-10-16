@@ -5,7 +5,7 @@
 // Auxiliary mappings; names as in FIPS PUB 180-4
 fn rotr32(a: u32, b: u32) -> u32 // 32-bit right rotation
 {
-    (a >> b) | (crate::wrapping_shift_left(a, 32 as u32 - b))
+  (a >> b) | (crate::wrapping_shift_left(a, 32 as u32 - b))
 }
 
 fn ch(x: u32, y: u32, z: u32) -> u32
@@ -100,11 +100,12 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16]
         for j in 0..4
         {
             msg32[15 - i] = (msg32[15 - i] << 8) + msg[64 - 4*(i + 1) + j] as u32;
-        };
-    };
-    
+        }
+    }
+        
     msg32
 }
+
 
 // SHA-256 hash function
 pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
@@ -169,7 +170,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
 
     // Hash final padded block
     c = h;
-    c = sha_c(msg_u8_to_u32(msg_block), c);
+    c = sha_c_dbg(msg_u8_to_u32(msg_block), c);
     for j in 0..8 {
         h[j] = crate::wrapping_add(h[j], c[j]);
     }

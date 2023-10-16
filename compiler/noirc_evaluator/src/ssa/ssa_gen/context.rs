@@ -377,7 +377,17 @@ impl<'a> FunctionContext<'a> {
                     assert_message: Some(message),
                 };
                 self.builder.set_location(location).insert_instruction(range_constraint, None);
-                result
+                if operator == BinaryOpKind::ShiftLeft {
+                    match result_type {
+                        Type::Numeric(NumericType::Signed { bit_size })
+                        | Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                            self.builder.insert_truncate(result, bit_size, bit_size + 1)
+                        }
+                        _ => result,
+                    }
+                } else {
+                    result
+                }
             }
             _ => result,
         }
