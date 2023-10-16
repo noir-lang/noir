@@ -20,7 +20,6 @@ jobs:
       pull-requests: write
     if: contains(github.event.pull_request.labels.*.name, 'documentation')
     env:
-      NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
     steps:
       - name: Checkout code
