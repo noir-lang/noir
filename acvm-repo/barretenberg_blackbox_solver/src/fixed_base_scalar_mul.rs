@@ -1,3 +1,7 @@
+use ark_ec::AffineRepr;
+use ark_ff::MontConfig;
+use num_bigint::BigUint;
+
 use acir::{BlackBoxFunc, FieldElement};
 
 use crate::BlackBoxResolutionError;
@@ -6,10 +10,6 @@ pub fn fixed_base_scalar_mul(
     low: &FieldElement,
     high: &FieldElement,
 ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-    use ark_ec::AffineRepr;
-    use ark_ff::MontConfig;
-    use num_bigint::BigUint;
-
     let low: u128 = low.try_into_u128().ok_or_else(|| {
         BlackBoxResolutionError::Failed(
             BlackBoxFunc::FixedBaseScalarMul,
@@ -49,6 +49,8 @@ pub fn fixed_base_scalar_mul(
 
 #[cfg(test)]
 mod grumpkin_fixed_base_scalar_mul {
+    use ark_ff::BigInteger;
+
     use super::*;
     #[test]
     fn smoke_test() -> Result<(), BlackBoxResolutionError> {
@@ -95,8 +97,6 @@ mod grumpkin_fixed_base_scalar_mul {
 
     #[test]
     fn rejects_grumpkin_modulus() {
-        use ark_ff::{BigInteger, MontConfig};
-
         let x = grumpkin::FrConfig::MODULUS.to_bytes_be();
 
         let high = FieldElement::from_be_bytes_reduce(&x[0..16]);
