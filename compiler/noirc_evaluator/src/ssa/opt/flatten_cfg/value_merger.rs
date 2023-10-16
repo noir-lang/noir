@@ -17,6 +17,8 @@ pub(crate) struct ValueMerger<'a> {
     store_values: Option<&'a HashMap<ValueId, Store>>,
     outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
     slice_sizes: HashMap<ValueId, usize>,
+    // Maps SSA array values to each nested slice size and the array id of its parent array
+    inner_slice_sizes: HashMap<ValueId, Vec<(usize, Option<ValueId>)>>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -32,6 +34,7 @@ impl<'a> ValueMerger<'a> {
             store_values,
             outer_block_stores,
             slice_sizes: HashMap::default(),
+            inner_slice_sizes: HashMap::default(),
         }
     }
 
@@ -184,15 +187,20 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
+        self.compute_inner_slice_sizes(then_value_id, None, None);
+        self.compute_inner_slice_sizes(else_value_id, None, None);
+        dbg!(self.inner_slice_sizes.clone());
         let then_len = self.get_slice_length(then_value_id);
         self.slice_sizes.insert(then_value_id, then_len);
-        println!("value: {then_value_id}, len: {then_len}");
+        println!("value: {then_value_id}, then_len: {then_len}");
         let else_len = self.get_slice_length(else_value_id);
         self.slice_sizes.insert(else_value_id, else_len);
-        println!("value: {else_value_id}, len: {else_len}");
+        println!("value: {else_value_id}, else_len: {else_len}");
 
+        let then_typ = self.dfg.type_of_value(then_value_id);
+        let else_typ = self.dfg.type_of_value(else_value_id);
         let len = then_len.max(else_len);
-        dbg!(len);
+        // dbg!(len);
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_usize = i * element_types.len() + element_index;
@@ -205,6 +213,75 @@ impl<'a> ValueMerger<'a> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_usize {
+                        dbg!(len);
+                        dbg!(index_usize);
+                        dbg!(element_types.len());
+                        if index_usize == 7 {
+                            dbg!(element_type.clone());
+                            // dbg!(element_type.clone()); 
+                        }
+
+                        // dbg!(index_usize);
+                        // let fetched_len = self.slice_sizes.get(&array);
+                        // dbg!(fetched_len);
+                        // Need to see which elements type we are on within the outer type
+                        // and use that length and the other respective inner lengths to accurately construct the dummy data
+                        // dbg!(element_type.clone());
+                        // match element_type {
+                        //     Type::Slice(element_types) => {
+                        //         // dbg!(element_types.clone());
+                        //         // dbg!(&self.dfg[array]);
+                        //         match &self.dfg[array] {
+                        //             Value::Array { array: array_values, typ } => {
+                        //                 let slice_size = self.slice_sizes.get(&array);
+                        //                 dbg!(slice_size);
+                        //                 for value in array_values {
+                        //                     let value_typ = self.dfg.type_of_value(*value);
+                        //                     // dbg!(value_typ.clone());
+                        //                     match value_typ {
+                        //                         Type::Slice(_) => {
+                        //                             let slice_size = self.slice_sizes.get(value);
+                        //                             dbg!(slice_size);
+                        //                         }
+                        //                         _ => {
+                        //                             dbg!("got not slice type");
+                        //                         }
+                        //                     }
+                        //                     // let slice_size = self.slice_sizes.get(value);
+                        //                     // dbg!(slice_size);
+                        //                 }
+                        //             }
+                        //             Value::Instruction { instruction, position, typ } => {
+                        //                 let slice_size = self.slice_sizes.get(&array);
+                        //                 dbg!(slice_size);
+                        //                 // match &self.dfg[*instruction] {
+                        //                 //     Instruction::ArrayGet { array, index } => {
+                        //                 //         dbg!("got array get");
+                        //                 //     }
+                        //                 //     Instruction::ArraySet { array, index, value } => {
+                        //                 //         dbg!("got array set");
+                        //                 //     }
+                        //                 //     _ => {
+                        //                 //         dbg!("got neither get/set");
+                        //                 //     }
+                        //                 // }
+                        //                 let results = self.dfg.instruction_results(*instruction);
+                        //                 // let fetched_len = self.slice_sizes.get(&results[0]);
+                        //                 // dbg!(fetched_len);
+                        //                 // match &self.dfg[results[0]] {            
+                        //                 // }
+                        //             }
+                        //             _ => {
+                        //                 dbg!(&self.dfg[array]);
+                        //                 println!("got not array value");
+                        //             }
+                        //         }
+                        //     }
+                        //     _ => {}
+                        // }
+            
+                        // dbg!(then_len);
+                        // dbg!(else_len);
                         self.make_slice_dummy_data(element_type, len)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
@@ -219,9 +296,16 @@ impl<'a> ValueMerger<'a> {
                     }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone(), then_len);
-                let else_element = get_element(else_value_id, typevars, else_len);
+                let then_element = get_element(then_value_id, typevars.clone(), then_len * then_typ.element_size());
+                let else_element = get_element(else_value_id, typevars, else_len * else_typ.element_size());
 
+                // dbg!(element_type.clone());
+                match element_type {
+                    Type::Slice(_) => {
+                        dbg!("got element type slice");
+                    }
+                    _ => {}
+                }
                 merged.push_back(self.merge_values(
                     then_condition,
                     else_condition,
@@ -230,31 +314,59 @@ impl<'a> ValueMerger<'a> {
                 ));
             }
         }
-
+        // dbg!(self.slice_sizes.clone());
         self.dfg.make_array(merged, typ)
     }
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
         let value = &self.dfg[value_id];
-        match value {
-            Value::Array { array, .. } => array.len(),
+        match value.clone() {
+            Value::Array { array, typ } => {
+                let element_size = typ.element_size();
+                dbg!(element_size);
+                let mut inner_slices = Vec::new();
+                for value in array.clone() {
+                    let value_typ = self.dfg.type_of_value(value);
+                    match value_typ {
+                        Type::Slice(_) => {
+                            inner_slices.push(value);
+                        }
+                        _ => {}
+                    }
+                    // dbg!(inner_len);
+                }
+                for value in inner_slices {
+                    let inner_len = self.get_slice_length(value);
+                    println!("inner_len: {}", inner_len);
+                }
+                array.len() / element_size
+            }
             Value::Instruction { instruction: instruction_id, .. } => {
-                let instruction = &self.dfg[*instruction_id];
+                let instruction = &self.dfg[instruction_id];
                 match instruction {
                     // An slice can be the result of an ArrayGet when it is the
                     // fetched from a slice of slices or as a struct field.
                     Instruction::ArrayGet { array, .. } => {
                         let array = *array;
+                        let results = self.dfg.instruction_results(instruction_id);
+                        dbg!(results[0]);
+                        // let x = self.get_slice_length(results[0]);
+                        // dbg!(x);
+                        // TOOD: this seems wrong as I want the internal slice not
+                        // the slice we are fetching from size
                         let len = self.get_slice_length(array);
-                        self.slice_sizes.insert(array, len);
-                        dbg!("GOT ARRAY GET");
                         dbg!(len);
+                        let inner_slice_size = self.inner_slice_sizes.get(&array);
+                        dbg!(inner_slice_size);
+                        // self.slice_sizes.insert(array, len);
+                        // dbg!("GOT ARRAY GET");
+                        // dbg!(len);
                         len
                     }
                     Instruction::ArraySet { array, .. } => {
                         let array = *array;
                         let len = self.get_slice_length(array);
-                        self.slice_sizes.insert(array, len);
+                        // self.slice_sizes.insert(array, len);
                         len
                     }
                     Instruction::Load { address } => {
@@ -290,7 +402,7 @@ impl<'a> ValueMerger<'a> {
                                 | Intrinsic::SliceInsert => {
                                     // `get_slice_length` needs to be called here as it is borrows self as mutable
                                     let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
+                                    // self.slice_sizes.insert(slice_contents, initial_len);
                                     initial_len + 1
                                 }
                                 Intrinsic::SlicePopBack
@@ -298,7 +410,7 @@ impl<'a> ValueMerger<'a> {
                                 | Intrinsic::SliceRemove => {
                                     // `get_slice_length` needs to be called here as it is borrows self as mutable
                                     let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
+                                    // self.slice_sizes.insert(slice_contents, initial_len);
                                     initial_len - 1
                                 }
                                 _ => {
@@ -313,6 +425,7 @@ impl<'a> ValueMerger<'a> {
             }
             _ => unreachable!("ICE: Got unexpected value when resolving slice length {value:?}"),
         }
+
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.
@@ -335,6 +448,12 @@ impl<'a> ValueMerger<'a> {
                 self.dfg.make_array(array, typ.clone())
             }
             Type::Slice(element_types) => {
+                // dbg!(element_types.clone());
+                let mut array = im::Vector::new();
+                let zero = FieldElement::zero();
+                array.push_back(self.make_slice_dummy_data(&Type::field(), len));
+                self.dfg.make_array(array, typ.clone())
+                // self.dfg.make_array(array, Type::Slice(Rc::new(vec![Type::field()])))
                 // let mut array = im::Vector::new();
                 // // dbg!(len);
                 // if len == 16 {
@@ -346,8 +465,8 @@ impl<'a> ValueMerger<'a> {
                 //     }
                 // }
                 // self.dfg.make_array(array, typ.clone())
-                let zero = FieldElement::zero();
-                self.dfg.make_constant(zero, Type::field())
+                // let zero = FieldElement::zero();
+                // self.dfg.make_constant(zero, Type::field())
                 // dbg!(self.slice_sizes.clone());
                 // unreachable!("ICE: Slices of slice is unsupported")
             }
@@ -359,4 +478,50 @@ impl<'a> ValueMerger<'a> {
             }
         }
     }
+
+    fn compute_inner_slice_sizes(
+        &mut self,
+        current_array_id: ValueId,
+        parent_array: Option<ValueId>,
+        inner_parent_array: Option<ValueId>,
+    ) {
+        // annoying try and get rid of this clone
+        match &self.dfg[current_array_id].clone() {
+            Value::Array { array, typ } => {
+                match typ {
+                    Type::Slice(_) => {
+                        // dbg!(array.len());
+                        let element_size = typ.element_size();
+                        let true_len = array.len() / element_size;
+                        // dbg!(true_len);
+                        if let Some(parent_array) = parent_array {
+                            let sizes_list = self.inner_slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
+                            let inner_parent_array = inner_parent_array.expect("ICE: expected inner_parent_array");
+                            sizes_list.push((true_len, Some(inner_parent_array)));
+                            // self.new_slice_sizes.entry(parent_array).or_default().push(true_len)
+                        } else {
+                            // This means the current_array_id is the parent as well as the inner parent id
+                            self.inner_slice_sizes.insert(current_array_id, vec![(true_len, None)]);
+                        }
+                        for (i, value) in array.iter().enumerate() {
+                            let typ = self.dfg.type_of_value(*value);
+                            match typ {
+                                Type::Slice(_) => {
+                                    if parent_array.is_some() {
+                                        self.compute_inner_slice_sizes(*value, parent_array, Some(current_array_id));
+                                    } else {
+                                        self.compute_inner_slice_sizes(*value, Some(current_array_id), Some(current_array_id));
+                                    }
+                                }
+                                _ => ()
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
 }

@@ -290,6 +290,7 @@ impl<'backend, B: BlackBoxFunctionSolver> ACVM<'backend, B> {
                     | OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: opcode_index,
                     } => {
+                        dbg!(opcode.clone());
                         *opcode_index = ErrorLocation::Resolved(OpcodeLocation::Acir(
                             self.instruction_pointer(),
                         ));

@@ -55,7 +55,7 @@ fn main(y : pub Field) {
     // assert(struct_slice[2] == 23);
     // assert(x[y].bar.inner == [109, 110, 111]);
 
-    // // Check dynamic array set 
+    // Check dynamic array set 
     // if y != 2 {
     //     x[y].a = 50;
     // } else {
@@ -63,9 +63,19 @@ fn main(y : pub Field) {
     // }
     // assert(x[3].a == 50);
 
-    // // NOTE: Using slices nested inside of arrays/structs
-    // // with multiple witness dependent conditionals
-    // // starts to seriously degrade performance
+    // This if statement and the above work together
+    // Check dynamic array set 
+    // if y == 2 {
+    //     x[3].a = 50;
+    // } else {
+    //     x[3].a = 100;
+    // }
+    // assert(x[3].a == 100);
+
+    // NOTE: Using slices nested inside of arrays/structs
+    // with multiple witness dependent conditionals
+    // starts to seriously degrade performance
+    // Flattening of the slice starts to complicate things
     // if y == 2 {
     //     x[y - 1].b = [50, 51, 52];
     // } else {
@@ -86,19 +96,26 @@ fn main(y : pub Field) {
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
 
-    // if y != 2 {
-    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
-    // } else {
-    //     foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
-    // }
+    // This is broken
+    if y == 2 {
+        foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    } else {
+        foo_parents[y - 2].foos[y - 1].b[y - 1] = 1000;
+    }
     // foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
+    // let temp = foo_parents[y - 2].foos[y - 1].b;
+    // let q = temp[1];
+    // dep::std::println(temp[0]);
+    dep::std::println(foo_parents[y - 2].foos[y - 1].b[y - 3]);
+
     // dep::std::println(foo_parents[y - 2].foos[y - 3].a);
     // dep::std::println(foo_parents[y - 2].foos[y - 2].a);
-    dep::std::println(foo_parents[y - 2].foos[y - 1].a);
+    // dep::std::println(foo_parents[y - 2].foos[y - 1].a);
     // dep::std::println(foo_parents[y - 2].foos[y].a);
 
-    // foo_parents[y - 2].foos[y - 1].b[y - 1] = 5000;
-    // dep::std::println(foo_parents[y - 2].foos[y - 1].b[y - 1]);
+    // dep::std::println(foo_parents[y - 2].foos[y - 3].bar.inner);
+    // dep::std::println(foo_parents[y - 2].foos[y - 2].bar.inner);
+    // dep::std::println(foo_parents[y - 2].foos[y - 1].bar.inner);
 
     // dep::std::println(foo_parents[y - 2].parent_arr[y - 1]);
     // dep::std::println(foo_parents[y - 2].foos[y - 3].b[0]);
