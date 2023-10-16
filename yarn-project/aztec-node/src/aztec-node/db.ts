@@ -1,6 +1,7 @@
 import { LevelDown, default as leveldown } from 'leveldown';
 import { LevelUp, default as levelup } from 'levelup';
 import { MemDown, default as memdown } from 'memdown';
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { AztecNodeConfig } from './config.js';
@@ -22,8 +23,9 @@ type NodeMetadata = {
 };
 
 /**
- * Opens the database for the aztec node.
+ * Opens the database for the aztec node. If a data directory is specified, then this attempts to create it.
  * @param config - The configuration to be used by the aztec node.
+ * @throws If `config.dataDirectory` is set and the directory cannot be created.
  * @returns The database for the aztec node.
  */
 export async function openDb(config: AztecNodeConfig): Promise<LevelUp> {
@@ -31,7 +33,17 @@ export async function openDb(config: AztecNodeConfig): Promise<LevelUp> {
     rollupContractAddress: config.l1Contracts.rollupAddress.toString(),
   };
 
-  const db = levelup(config.dataDirectory ? createLevelDown(join(config.dataDirectory, DB_SUBDIR)) : createMemDown());
+  let db: LevelUp;
+
+  if (config.dataDirectory) {
+    const dbDir = join(config.dataDirectory, DB_SUBDIR);
+    // this throws if we don't have permissions to create the directory
+    await mkdir(dbDir, { recursive: true });
+    db = levelup(createLevelDown(dbDir));
+  } else {
+    db = levelup(createMemDown());
+  }
+
   const prevNodeMetadata = await getNodeMetadata(db);
 
   // if the rollup addresses are different, wipe the local database and start over
