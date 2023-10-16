@@ -14,11 +14,6 @@ use crate::{
     LspState,
 };
 
-mod test_run;
-mod tests;
-
-pub(crate) use {test_run::on_test_run_request, tests::on_tests_request};
-
 const ARROW: &str = "▶\u{fe0e}";
 const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "Run Test";
@@ -42,7 +37,7 @@ fn package_selection_args(workspace: &Workspace, package: &Package) -> Vec<serde
     ]
 }
 
-pub(super) fn on_code_lens_request(
+pub(crate) fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
