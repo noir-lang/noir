@@ -26,13 +26,13 @@ jobs:
       - name: Netlify deploy  
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
-          curl -X POST -d {} "https://api.netlify.com/build_hooks/6529125afcf0840fd514859e?trigger_branch=$BRANCH_NAME"
+          curl -X POST -d {} "https://api.netlify.com/build_hooks/${{ secrets.NETLIFY_BUILD_HOOK }}"?trigger_branch=$BRANCH_NAME"
 
       - name: Get deploy preview
         id: get_deploy_preview
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
-          curl -X GET "https://api.netlify.com/api/v1/sites/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploys?branch=$BRANCH_NAME" > deploy.json
+          curl -X GET "https://api.netlify.com/api/v1/sites/${{ secrets.NETLIFY_SITE_ID }}/deploys?branch=$BRANCH_NAME" > deploy.json
           echo "::set-output name=deploy_url::$(cat deploy.json | jq -r '.[0].deploy_ssl_url')"
           
       - name: Add PR Comment
@@ -48,7 +48,7 @@ jobs:
             
             Click the badge to see logs 🧐
             
-            [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
             
             If you have any questions about this process, refer to our contribution guide or feel free to ask around.
 
@@ -58,6 +58,7 @@ jobs:
         id: check_deploy_status
         with:
           branch-name: ${{ github.head_ref || github.ref }}
+          site-id: ${{ secrets.NETLIFY_SITE_ID }}
         continue-on-error: true
 
       - name: Debugging - print deploy_status
@@ -73,7 +74,7 @@ jobs:
             I'm a bot, beep boop 🤖
 
             ## Deployment Status: Success!
-            [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
             
             ## Preview
 
@@ -93,4 +94,4 @@ jobs:
             ## Deployment Status: Failed ❌
             Deployment didn't succeed. Please check logs below and resolve the issue 🧐
             
-            [![Netlify Status](https://api.netlify.com/api/v1/badges/1b11824b-a5b7-4872-8c76-aedbe0ac867c/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)

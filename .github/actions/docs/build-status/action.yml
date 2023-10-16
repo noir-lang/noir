@@ -4,6 +4,9 @@ inputs:
   branch-name:
     description: 'Branch name'
     required: true
+  site-id:
+    description: Netlify site id
+    required: true
 outputs:
   deploy_status:
     description: "The deploy status"
@@ -16,3 +19,4 @@ runs:
       id: check_deploy_status
       env:
         BRANCH_NAME: ${{ inputs.branch-name }}
+        SITE_ID: ${{ inputs.site-id }}
