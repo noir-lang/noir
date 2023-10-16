@@ -128,15 +128,15 @@ impl Circuit {
     pub fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
-        encoder.write_all(&buf).unwrap();
-        encoder.finish().unwrap();
+        encoder.write_all(&buf)?;
+        encoder.finish()?;
         Ok(())
     }
 
     pub fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
-        gz_decoder.read_to_end(&mut buf_d).unwrap();
+        gz_decoder.read_to_end(&mut buf_d)?;
         bincode::deserialize(&buf_d)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
