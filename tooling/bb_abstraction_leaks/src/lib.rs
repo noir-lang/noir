@@ -3,7 +3,6 @@
 
 use acvm::FieldElement;
 
-pub const BACKEND_BARRETENBERG_SEARCH_STR: &str = "barretenberg";
 pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 pub const BB_DOWNLOAD_URL: &str = env!("BB_BINARY_URL");
 pub const BB_VERSION: &str = env!("BB_VERSION");

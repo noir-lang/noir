@@ -10,7 +10,6 @@ mod smart_contract;
 
 use acvm::acir::circuit::Opcode;
 use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
-use bb_abstraction_leaks::BACKEND_BARRETENBERG_SEARCH_STR;
 use bb_abstraction_leaks::BB_VERSION;
 use cli::VersionCommand;
 pub use download::download_backend;
@@ -108,16 +107,21 @@ impl Backend {
         self.backend_directory().join("crs")
     }
 
-    fn assert_correct_version(&self) {
+    fn assert_correct_version(&self) -> Result<&PathBuf, BackendError> {
         let binary_path = self.binary_path();
-        if binary_path.to_string_lossy().contains(BACKEND_BARRETENBERG_SEARCH_STR) {
+        if binary_path.to_string_lossy().contains(ACVM_BACKEND_BARRETENBERG) {
             let version_result = VersionCommand {}.run(binary_path);
             if let Ok(version_string) = version_result {
                 if version_string.as_str() != BB_VERSION {
-                    println!("WARNING!: Configured backend version `{:}` is different from expected `{:}`", version_string, BB_VERSION);
+                    println!("WARNING!: `{:}` version `{:}` is different from expected `{:}`, downloading expected...", ACVM_BACKEND_BARRETENBERG, version_string, BB_VERSION);
+                    // If we're trying to use barretenberg, automatically go and install the correct version.
+                    let bb_url = std::env::var("BB_BINARY_URL")
+                        .unwrap_or_else(|_| bb_abstraction_leaks::BB_DOWNLOAD_URL.to_owned());
+                    download_backend(&bb_url, binary_path)?;
                 }
             }
         }
+        Ok(binary_path)
     }
 }
 

@@ -10,7 +10,7 @@ impl Backend {
     pub fn eth_contract(&self, circuit: &Circuit) -> Result<String, BackendError> {
         let binary_path = self.assert_binary_exists()?;
 
-        self.assert_correct_version();
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory_path = temp_directory.path().to_path_buf();
