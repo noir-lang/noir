@@ -1,8 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
-    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, fixed_base_scalar_mul,
-    hash_to_field_128_security, keccak256, sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, hash_to_field_128_security, keccak256,
+    sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
 use crate::{Memory, Registers};
@@ -143,7 +143,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
             let low = registers.get(*low).to_field();
             let high = registers.get(*high).to_field();
-            let (x, y) = fixed_base_scalar_mul(&low, &high)?;
+            let (x, y) = solver.fixed_base_scalar_mul(&low, &high)?;
             memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
             Ok(())
         }

@@ -14,10 +14,6 @@ use sha2::Sha256;
 use sha3::Keccak256;
 use thiserror::Error;
 
-mod fixed_base_scalar_mul;
-
-pub use fixed_base_scalar_mul::fixed_base_scalar_mul;
-
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum BlackBoxResolutionError {
     #[error("unsupported blackbox function: {0}")]
@@ -42,6 +38,11 @@ pub trait BlackBoxFunctionSolver {
         &self,
         inputs: &[FieldElement],
         domain_separator: u32,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
+    fn fixed_base_scalar_mul(
+        &self,
+        low: &FieldElement,
+        high: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
 }
 

@@ -36,6 +36,13 @@ impl BlackBoxFunctionSolver for StubbedBackend {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         panic!("Path not trodden by this test")
     }
+    fn fixed_base_scalar_mul(
+        &self,
+        _low: &FieldElement,
+        _high: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        panic!("Path not trodden by this test")
+    }
 }
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.

@@ -5,8 +5,10 @@
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
+mod fixed_base_scalar_mul;
 mod wasm;
 
+pub use fixed_base_scalar_mul::fixed_base_scalar_mul;
 use wasm::Barretenberg;
 
 use self::wasm::{Pedersen, SchnorrSig};
@@ -70,5 +72,13 @@ impl BlackBoxFunctionSolver for BarretenbergSolver {
         self.blackbox_vendor
             .encrypt(inputs.to_vec(), domain_separator)
             .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Pedersen, err.to_string()))
+    }
+
+    fn fixed_base_scalar_mul(
+        &self,
+        low: &FieldElement,
+        high: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        fixed_base_scalar_mul(low, high)
     }
 }

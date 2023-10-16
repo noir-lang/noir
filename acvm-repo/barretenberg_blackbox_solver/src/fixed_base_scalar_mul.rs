@@ -2,18 +2,6 @@ use acir::{BlackBoxFunc, FieldElement};
 
 use crate::BlackBoxResolutionError;
 
-#[cfg(not(feature = "bn254"))]
-pub fn fixed_base_scalar_mul(
-    _low: &FieldElement,
-    _high: &FieldElement,
-) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-    Err(BlackBoxResolutionError::Failed(
-        BlackBoxFunc::FixedBaseScalarMul,
-        "This solver is only defined over the bn254 curve currently".into(),
-    ))
-}
-
-#[cfg(feature = "bn254")]
 pub fn fixed_base_scalar_mul(
     low: &FieldElement,
     high: &FieldElement,

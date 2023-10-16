@@ -1271,6 +1271,13 @@ fn execute_brillig(
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
         }
+        fn fixed_base_scalar_mul(
+            &self,
+            _low: &FieldElement,
+            _high: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::FixedBaseScalarMul))
+        }
     }
 
     // Set input values

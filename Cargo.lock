@@ -56,12 +56,8 @@ name = "acvm_blackbox_solver"
 version = "0.28.0"
 dependencies = [
  "acir",
- "ark-ec",
- "ark-ff",
  "blake2",
- "grumpkin",
  "k256",
- "num-bigint",
  "p256",
  "sha2",
  "sha3",
@@ -457,9 +453,13 @@ version = "0.28.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-ec",
+ "ark-ff",
  "flate2",
  "getrandom",
+ "grumpkin",
  "js-sys",
+ "num-bigint",
  "pkg-config",
  "reqwest",
  "rust-embed",
