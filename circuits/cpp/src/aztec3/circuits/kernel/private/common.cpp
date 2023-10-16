@@ -371,7 +371,7 @@ void common_contract_logic(DummyBuilder& builder,
 
         // compute contract address nullifier
         auto const blake_input = new_contract_address.to_field().to_buffer();
-        auto const new_contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
+        auto const new_contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake2s(blake_input).data());
 
         // push the contract address nullifier to nullifier vector
         array_push(builder,

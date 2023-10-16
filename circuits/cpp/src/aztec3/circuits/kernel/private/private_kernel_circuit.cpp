@@ -131,7 +131,7 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
 
         // compute contract address nullifier
         auto blake_input = CT::byte_array(contract_address.to_field());
-        auto contract_address_nullifier = CT::fr(CT::blake3s(blake_input));
+        auto contract_address_nullifier = CT::fr(CT::blake2s(blake_input));
 
         // push the contract address nullifier to nullifier vector
         CT::fr const conditional_contract_address_nullifier =

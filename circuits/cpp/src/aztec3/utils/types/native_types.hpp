@@ -101,8 +101,6 @@ struct NativeTypes {
         auto res = blake2::blake2s(input);
         return byte_array(res.begin(), res.end());
     }
-
-    static byte_array blake3s(const byte_array& input) { return blake3::blake3s(input); }
 };
 
 }  // namespace aztec3::utils::types

@@ -111,8 +111,6 @@ template <typename Builder> struct CircuitTypes {
     };
 
     static byte_array blake2s(const byte_array& input) { return plonk::stdlib::blake2s(input); }
-
-    static byte_array blake3s(const byte_array& input) { return plonk::stdlib::blake3s(input); }
 };
 
 }  // namespace aztec3::utils::types
