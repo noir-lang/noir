@@ -2545,6 +2545,7 @@ dependencies = [
  "easy-repl",
  "nargo",
  "noirc_printable_type",
+ "owo-colors",
  "thiserror",
 ]
 
