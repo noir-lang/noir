@@ -16,7 +16,7 @@ for package_location in $packages; do
   
   # Extract the package name from the package.json
   package_name=$(jq -r .name package.json)
-
+  echo "Publishing $package_name"
   # Check if the package is private
   is_private=$(jq -r .private package.json)
   if [ "$is_private" == "true" ]; then
@@ -26,6 +26,6 @@ for package_location in $packages; do
   
   # Publish the package with the constructed tag name
   npm publish --tag dev --access public
-  
+  echo "Published $package_name"
   cd -
 done
