@@ -1,6 +1,6 @@
 use noirc_frontend::{
     hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
-    Expression, ExpressionKind, Literal, Statement,
+    Expression, ExpressionKind, Literal, Statement, UnaryOp,
 };
 
 use super::FmtVisitor;
@@ -27,7 +27,20 @@ impl FmtVisitor<'_> {
                 visitor.buffer
             }
             ExpressionKind::Prefix(prefix) => {
-                format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
+                let op = match prefix.operator {
+                    UnaryOp::Minus => "-",
+                    UnaryOp::Not => "!",
+                    UnaryOp::MutableReference => "&mut ",
+                    UnaryOp::Dereference { implicitly_added } => {
+                        if implicitly_added {
+                            ""
+                        } else {
+                            "*"
+                        }
+                    }
+                };
+
+                format!("{op}{}", self.format_expr(prefix.rhs))
             }
             ExpressionKind::Cast(cast) => {
                 format!("{} as {}", self.format_expr(cast.lhs), cast.r#type)
