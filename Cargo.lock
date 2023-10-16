@@ -453,9 +453,11 @@ version = "0.28.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-ec",
+ "ark-ff",
  "flate2",
  "getrandom",
- "hex",
+ "grumpkin",
  "js-sys",
  "num-bigint",
  "pkg-config",
@@ -1826,6 +1828,17 @@ dependencies = [
  "ff",
  "rand_core",
  "subtle",
+]
+
+[[package]]
+name = "grumpkin"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/grumpkin?rev=56d99799381f79e42148aaef0de2b0cf9a4b9a5d#56d99799381f79e42148aaef0de2b0cf9a4b9a5d"
+dependencies = [
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
 ]
 
 [[package]]
