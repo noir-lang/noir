@@ -1,9 +1,8 @@
 // ---
-
-    fn new_concrete_c_over_d() -> C<D> {
-        let d_method_interface = get_d_method_interface();
-        C::new(d_method_interface)
-    }
+fn new_concrete_c_over_d() -> C<D> {
+    let d_method_interface = get_d_method_interface();
+    C::new(d_method_interface)
+}
 
 // ---
 
@@ -54,25 +53,24 @@
         d: Field,
     }
 
-    fn d_method(input: D) -> Field {
-        input.d * input.d
-    }
+fn d_method(input: D) -> Field {
+    input.d * input.d
+}
 
-    fn get_d_method_interface() -> MethodInterface<D> {
-        MethodInterface {
+fn get_d_method_interface() -> MethodInterface<D> {
+    MethodInterface {
             some_method_on_t_d: d_method,
         }
-    }  
+}  
 
-// ---  
+// ---
+fn main(input: Field) -> pub Field {
+    let b: B<C<D>> = B::new(new_concrete_c_over_d);
+    let c: C<D> = b.get_t_c(); // Singleton<Note>
+    let d: D = D { d: input }; // Note
+    let output = c.call_method_of_t_d(d);
 
-    fn main(input: Field) -> pub Field {
-        let b: B<C<D>> = B::new(new_concrete_c_over_d);
-        let c: C<D> = b.get_t_c(); // Singleton<Note>
-        let d: D = D { d: input }; // Note
-        let output = c.call_method_of_t_d(d);
-
-        output
-    }
+    output
+}
 
 // ---

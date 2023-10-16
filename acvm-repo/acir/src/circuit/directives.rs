@@ -15,7 +15,7 @@ pub struct QuotientDirective {
 /// You can think of them as opcodes that allow one to use non-determinism
 /// In the future, this can be replaced with asm non-determinism blocks
 pub enum Directive {
-    //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
+    //Performs euclidean division of a / b (as integers) and stores the quotient in q and the rest in r
     Quotient(QuotientDirective),
 
     //decomposition of a: a=\sum b[i]*radix^i where b is an array of witnesses < radix in little endian form
