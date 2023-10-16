@@ -89,9 +89,9 @@ impl<'backend, B: BlackBoxFunctionSolver> DebugContext<'backend, B> {
                 println!("At {}.nr:{start}-{end}", file.path.as_path().display());
                 println!(
                     "\n{}{}{}\n",
-                    &source[0..start],
-                    &source[start..end].to_string().reversed(),
-                    &source[end..]
+                    &source[0..start].to_string().dimmed(),
+                    &source[start..end],
+                    &source[end..].to_string().dimmed(),
                 );
             }
         }
