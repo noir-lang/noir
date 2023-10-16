@@ -89,6 +89,12 @@ impl From<Span> for Range<usize> {
     }
 }
 
+impl From<Range<u32>> for Span {
+    fn from(Range { start, end }: Range<u32>) -> Self {
+        Self(ByteSpan::new(start, end))
+    }
+}
+
 impl chumsky::Span for Span {
     type Context = ();
 
