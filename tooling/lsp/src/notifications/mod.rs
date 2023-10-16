@@ -1,7 +1,6 @@
 use std::ops::ControlFlow;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::FILE_EXTENSION;
 use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::check_crate;
@@ -127,9 +126,7 @@ pub(super) fn on_did_save_text_document(
                 .filter_map(|FileDiagnostic { file_id, diagnostic, call_stack: _ }| {
                     // Ignore diagnostics for any file that wasn't the file we saved
                     // TODO: In the future, we could create "related" diagnostics for these files
-                    // TODO: This currently just appends the `.nr` file extension that we store as a constant,
-                    // but that won't work if we accept other extensions
-                    if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                    if fm.path(file_id) != file_path {
                         return None;
                     }
 
