@@ -6,7 +6,7 @@ use super::string_from_stderr;
 
 /// VersionCommand will call the backend binary
 /// to query installed version.
-pub(crate) struct VersionCommand {}
+pub(crate) struct VersionCommand;
 
 impl VersionCommand {
     pub(crate) fn run(self, binary_path: &Path) -> Result<String, BackendError> {
