@@ -15,7 +15,6 @@ members = [
     "src/contracts/pokeable_token_contract",
     "src/contracts/price_feed_contract",
     "src/contracts/private_token_airdrop_contract",
-    "src/contracts/private_token_contract",
     "src/contracts/public_token_contract",
     "src/contracts/schnorr_account_contract",
     "src/contracts/schnorr_hardcoded_account_contract",

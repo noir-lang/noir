@@ -18,7 +18,7 @@ const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:854
 
 describe('guides/dapp/testing', () => {
   describe('on in-proc sandbox', () => {
-    describe('private token contract', () => {
+    describe('token contract', () => {
       let pxe: PXE;
       let stop: () => Promise<void>;
       let owner: AccountWallet;
@@ -64,7 +64,7 @@ describe('guides/dapp/testing', () => {
     });
 
     // docs:start:sandbox-example
-    describe('private token contract', () => {
+    describe('token contract', () => {
       let pxe: PXE;
       let owner: AccountWallet;
       let recipient: AccountWallet;
@@ -96,7 +96,7 @@ describe('guides/dapp/testing', () => {
     });
     // docs:end:sandbox-example
 
-    describe('private token contract with initial accounts', () => {
+    describe('token contract with initial accounts', () => {
       let pxe: PXE;
       let owner: AccountWallet;
       let recipient: AccountWallet;

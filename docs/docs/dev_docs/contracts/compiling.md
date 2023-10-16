@@ -46,27 +46,85 @@ You can also generate these interfaces from prebuilt artifacts using the `genera
 aztec-cli generate-typescript ./path/to/my_aztec_contract_project
 ```
 
-Example code generated from the [PrivateToken](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr) contract:
+Below is typescript code generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) contract:
 
 ```ts showLineNumbers
-export class PrivateTokenContract extends ContractBase {
-  /** Creates a contract instance at the given address. */
-  public static async at(address: AztecAddress, wallet: Wallet) { ... }
+export class TokenContract extends ContractBase {
+  private constructor(completeAddress: CompleteAddress, wallet: Wallet, portalContract = EthAddress.ZERO) {
+    super(completeAddress, TokenContractArtifact, wallet, portalContract);
+  }
 
-  /** Creates a tx to deploy a new instance of this contract. */
-  public static deploy(pxe: PXE, initial_supply: FieldLike, owner: FieldLike) { ... }
+  /**
+   * Creates a contract instance.
+   * @param address - The deployed contract's address.
+   * @param wallet - The wallet to use when interacting with the contract.
+   * @returns A promise that resolves to a new Contract instance.
+   */
+  public static async at(address: AztecAddress, wallet: Wallet) {
+    return Contract.at(address, TokenContract.artifact, wallet) as Promise<TokenContract>;
+  }
+
+  /**
+   * Creates a tx to deploy a new instance of this contract.
+   */
+  public static deploy(pxe: PXE, admin: AztecAddressLike) {
+    return new DeployMethod<TokenContract>(Point.ZERO, pxe, TokenContractArtifact, Array.from(arguments).slice(1));
+  }
+
+  /**
+   * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
+   */
+  public static deployWithPublicKey(pxe: PXE, publicKey: PublicKey, admin: AztecAddressLike) {
+    return new DeployMethod<TokenContract>(publicKey, pxe, TokenContractArtifact, Array.from(arguments).slice(2));
+  }
+
+  /**
+   * Returns this contract's artifact.
+   */
+  public static get artifact(): ContractArtifact {
+    return TokenContractArtifact;
+  }
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {
-    /** getBalance(owner: field) */
-    getBalance: ((owner: FieldLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
-    /** mint(amount: field, owner: field) */
-    mint: ((amount: FieldLike, owner: FieldLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+    /** balance_of_private(owner: struct) */
+    balance_of_private: ((owner: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
-    /** transfer(amount: field, sender: field, recipient: field) */
-    transfer: ((amount: FieldLike, sender: FieldLike, recipient: FieldLike) => ContractFunctionInteraction) &
+    /** balance_of_public(owner: struct) */
+    balance_of_public: ((owner: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
+    /** shield(from: struct, amount: field, secret_hash: field, nonce: field) */
+    shield: ((
+      from: AztecAddressLike,
+      amount: FieldLike,
+      secret_hash: FieldLike,
+      nonce: FieldLike,
+    ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
+
+    /** total_supply() */
+    total_supply: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
+    /** transfer(from: struct, to: struct, amount: field, nonce: field) */
+    transfer: ((
+      from: AztecAddressLike,
+      to: AztecAddressLike,
+      amount: FieldLike,
+      nonce: FieldLike,
+    ) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+
+    /** transfer_public(from: struct, to: struct, amount: field, nonce: field) */
+    transfer_public: ((
+      from: AztecAddressLike,
+      to: AztecAddressLike,
+      amount: FieldLike,
+      nonce: FieldLike,
+    ) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+    
+    ...
   };
 }
 ```
@@ -91,37 +149,87 @@ You can also generate these interfaces from prebuilt artifacts using the `genera
 aztec-cli generate-noir-interface ./path/to/my_aztec_contract_project
 ```
 
-Example code generated from the [PrivateToken](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr) contract:
+Below is an example interface, also generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) contract:
 
 ```rust
-impl PrivateTokenPrivateContextInterface {
-  fn at(address: Field) -> Self {
-      Self { address }
+impl TokenPrivateContextInterface {
+  pub fn at(address: Field) -> Self {
+      Self {
+          address,
+      }
   }
+  
+  pub fn burn(
+    self,
+    context: &mut PrivateContext,
+    from: FromBurnStruct,
+    amount: Field,
+    nonce: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = from.address;
+    serialized_args[1] = amount;
+    serialized_args[2] = nonce;
 
-  fn mint(
-    self, context: &mut PrivateContext, amount: Field, owner: Field
+    context.call_private_function(self.address, 0xd4fcc96e, serialized_args)
+  }
+  
+
+  pub fn burn_public(
+    self,
+    context: &mut PrivateContext,
+    from: FromBurnPublicStruct,
+    amount: Field,
+    nonce: Field
+  ) {
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = from.address;
+    serialized_args[1] = amount;
+    serialized_args[2] = nonce;
+
+    context.call_public_function(self.address, 0xb0e964d5, serialized_args)
+  }
+  ...
+  
+}
+
+impl TokenPublicContextInterface {
+  pub fn at(address: Field) -> Self {
+      Self {
+          address,
+      }
+  }
+  
+  pub fn burn_public(
+    self,
+    context: PublicContext,
+    from: FromBurnPublicStruct,
+    amount: Field,
+    nonce: Field
+  ) -> [Field; RETURN_VALUES_LENGTH] {
+    let mut serialized_args = [0; 3];
+    serialized_args[0] = from.address;
+    serialized_args[1] = amount;
+    serialized_args[2] = nonce;
+
+    context.call_public_function(self.address, 0xb0e964d5, serialized_args)
+  }
+  
+
+  pub fn mint_private(
+    self,
+    context: PublicContext,
+    amount: Field,
+    secret_hash: Field
   ) -> [Field; RETURN_VALUES_LENGTH] {
     let mut serialized_args = [0; 2];
     serialized_args[0] = amount;
-    serialized_args[1] = owner;
+    serialized_args[1] = secret_hash;
 
-    // 0x1dc9c3c0 is the function selector for `mint(field,field)`
-    context.call_private_function(self.address, 0x1dc9c3c0, serialized_args)
+    context.call_public_function(self.address, 0x10763932, serialized_args)
   }
 
-
-  fn transfer(
-    self, context: &mut PrivateContext, amount: Field, sender: Field, recipient: Field
-  ) -> [Field; RETURN_VALUES_LENGTH] {
-    let mut serialized_args = [0; 3];
-    serialized_args[0] = amount;
-    serialized_args[1] = sender;
-    serialized_args[2] = recipient;
-
-    // 0xdcd4c318 is the function selector for `transfer(field,field,field)`
-    context.call_private_function(self.address, 0xdcd4c318, serialized_args)
-  }
+  
 }
 ```
 

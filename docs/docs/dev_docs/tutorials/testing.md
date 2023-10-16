@@ -12,48 +12,65 @@ Let's start with a simple example for a test using the [Sandbox](../getting_star
 
 #include_code sandbox-example /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
-This test sets up the environment by creating a client to the Private Execution Environment (PXE) running on the Sandbox on port 8080. It then creates two new accounts, dubbed `owner` and `recipient`. Last, it deploys an instance of the [`PrivateTokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr), minting an initial 100 tokens to the owner.
+This test sets up the environment by creating a client to the Private Execution Environment (PXE) running on the Sandbox on port 8080. It then creates two new accounts, dubbed `owner` and `recipient`. Last, it deploys an instance of the [Token contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr), minting an initial 100 tokens to the owner.
 
 Once we have this setup, the test itself is simple. We check the balance of the `recipient` user to ensure it has no tokens, send and await a deployment transaction, and then check the balance again to ensure it was increased. Note that all numeric values are represented as [native bigints](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) to avoid loss of precision.
 
 :::info
-We are using the `PrivateTokenContract` [typescript interface](../contracts/compiling.md#typescript-interfaces) to get type-safe methods for deploying and interacting with the token contract.
+We are using the `Token` contract's typescript interface. Follow the [typescript interface section](../contracts/compiling.md#typescript-interfaces) to get type-safe methods for deploying and interacting with the token contract.
 :::
 
 To run the test, first make sure the Sandbox is running on port 8080, and then [run your tests using jest](https://jestjs.io/docs/getting-started#running-from-command-line). Your test should pass, and you should see the following output in the Sandbox logs, where each chunk corresponds to a transaction. Note how this test run has a total of four transactions: two for deploying the account contracts for the `owner` and `recipient`, another for deploying the token contract, and a last one for actually executing the transfer.
 
 ```text
-pxe_service Registered account 0x2efa51d2e67581aef4578e8cc647a1af2e3f40e9872deeda0919e5f77cb8b2d2
-pxe_service Added contract SchnorrAccount at 0x2efa51d2e67581aef4578e8cc647a1af2e3f40e9872deeda0919e5f77cb8b2d2
-node Simulating tx 19bfe4fb2569be2168f01eefe5e5a4284d6c1678f17ab5e94c6ba9c811bcb214
-node Simulated tx 19bfe4fb2569be2168f01eefe5e5a4284d6c1678f17ab5e94c6ba9c811bcb214 succeeds
-pxe_service Executed local simulation for 19bfe4fb2569be2168f01eefe5e5a4284d6c1678f17ab5e94c6ba9c811bcb214
-pxe_service Sending transaction 19bfe4fb2569be2168f01eefe5e5a4284d6c1678f17ab5e94c6ba9c811bcb214
-node Received tx 19bfe4fb2569be2168f01eefe5e5a4284d6c1678f17ab5e94c6ba9c811bcb214
+pxe_service Registered account 0x061c94e053745973521de1826db5a1ee24af60a3c203c294570a35bd5afa3286
+pxe_service Added contract SchnorrAccount at 0x061c94e053745973521de1826db5a1ee24af60a3c203c294570a35bd5afa3286
+node Simulating tx 09023befa12d01db063235ef6d611ed1c7ba4625dac9d14cc0f1ff4dd8a00264
+node Simulated tx 09023befa12d01db063235ef6d611ed1c7ba4625dac9d14cc0f1ff4dd8a00264 succeeds
+pxe_service Executed local simulation for 09023befa12d01db063235ef6d611ed1c7ba4625dac9d14cc0f1ff4dd8a00264
+pxe_service Sending transaction 09023befa12d01db063235ef6d611ed1c7ba4625dac9d14cc0f1ff4dd8a00264
+node Received tx 09023befa12d01db063235ef6d611ed1c7ba4625dac9d14cc0f1ff4dd8a00264
+sequencer Retrieved 1 txs from P2P pool
+sequencer Building block 1 with 1 transactions
+sequencer Submitted rollup block 1 with 1 transactions
+
+pxe_service Registered account 0x109e72d06371d98cef1a10ec137e01139edb64b3b399c1b761d12d06de15af3c
+pxe_service Added contract SchnorrAccount at 0x109e72d06371d98cef1a10ec137e01139edb64b3b399c1b761d12d06de15af3c
+node Simulating tx 179d347ff45fc8da90155c38c7fd4358737fc7447b1f2ea2b3ff1fbc9dfb3d47
+node Simulated tx 179d347ff45fc8da90155c38c7fd4358737fc7447b1f2ea2b3ff1fbc9dfb3d47 succeeds
+pxe_service Executed local simulation for 179d347ff45fc8da90155c38c7fd4358737fc7447b1f2ea2b3ff1fbc9dfb3d47
+pxe_service Sending transaction 179d347ff45fc8da90155c38c7fd4358737fc7447b1f2ea2b3ff1fbc9dfb3d47
+node Received tx 179d347ff45fc8da90155c38c7fd4358737fc7447b1f2ea2b3ff1fbc9dfb3d47
+sequencer Retrieved 1 txs from P2P pool
+sequencer Building block 2 with 1 transactions
 sequencer Submitted rollup block 2 with 1 transactions
 
-pxe_service Registered account 0x12ef7ceb5064da3a729f598a6a50585059794fdcf347a6fc9bb317002162e3db
-pxe_service Added contract SchnorrAccount at 0x12ef7ceb5064da3a729f598a6a50585059794fdcf347a6fc9bb317002162e3db
-node Simulating tx 0f195f8f6fb8fe29cf8159c5c664c1288788f1151a5413ec0e35cf378de74794
-node Simulated tx 0f195f8f6fb8fe29cf8159c5c664c1288788f1151a5413ec0e35cf378de74794 succeeds
-pxe_service Executed local simulation for 0f195f8f6fb8fe29cf8159c5c664c1288788f1151a5413ec0e35cf378de74794
-pxe_service Sending transaction 0f195f8f6fb8fe29cf8159c5c664c1288788f1151a5413ec0e35cf378de74794
-node Received tx 0f195f8f6fb8fe29cf8159c5c664c1288788f1151a5413ec0e35cf378de74794
+pxe_service Added contract Token at 0x1345499a3f8325d614fa1d49cc2a6f21211d608c74728439076943f92340b936
+node Simulating tx 0298295963669a4a1ccaddb40d78722c00136aad196b85306d63e4885799b1d8
+node Simulated tx 0298295963669a4a1ccaddb40d78722c00136aad196b85306d63e4885799b1d8 succeeds
+pxe_service Executed local simulation for 0298295963669a4a1ccaddb40d78722c00136aad196b85306d63e4885799b1d8
+pxe_service Sending transaction 0298295963669a4a1ccaddb40d78722c00136aad196b85306d63e4885799b1d8
+node Received tx 0298295963669a4a1ccaddb40d78722c00136aad196b85306d63e4885799b1d8
+sequencer Retrieved 1 txs from P2P pool
+sequencer Building block 3 with 1 transactions
 sequencer Submitted rollup block 3 with 1 transactions
 
-pxe_service Added contract PrivateToken at 0x24e691d8bde970ab9e84fe669ea5ac8019c32c199a55aaa8a3e704db763af88f
-node Simulating tx 0101e1a3d73c3a112a18b7e4954edfe611d74ae0dc59e1688221ecda982ba943
-node Simulated tx 0101e1a3d73c3a112a18b7e4954edfe611d74ae0dc59e1688221ecda982ba943 succeeds
-pxe_service Executed local simulation for 0101e1a3d73c3a112a18b7e4954edfe611d74ae0dc59e1688221ecda982ba943
-pxe_service Sending transaction 0101e1a3d73c3a112a18b7e4954edfe611d74ae0dc59e1688221ecda982ba943
-node Received tx 0101e1a3d73c3a112a18b7e4954edfe611d74ae0dc59e1688221ecda982ba943
+node Simulating tx 085665fbbad776a727cb92c4b62fbe2f57c83dfbccd191852e3c17efc12fdd4b
+node Simulated tx 085665fbbad776a727cb92c4b62fbe2f57c83dfbccd191852e3c17efc12fdd4b succeeds
+pxe_service Executed local simulation for 085665fbbad776a727cb92c4b62fbe2f57c83dfbccd191852e3c17efc12fdd4b
+pxe_service Sending transaction 085665fbbad776a727cb92c4b62fbe2f57c83dfbccd191852e3c17efc12fdd4b
+node Received tx 085665fbbad776a727cb92c4b62fbe2f57c83dfbccd191852e3c17efc12fdd4b
+sequencer Retrieved 1 txs from P2P pool
+sequencer Building block 4 with 1 transactions
 sequencer Submitted rollup block 4 with 1 transactions
 
-node Simulating tx 2132767911fbbe67e24a3e51bc769ba2ae874eb1ba56e69cef8fc9e2c5eba04c
-node Simulated tx 2132767911fbbe67e24a3e51bc769ba2ae874eb1ba56e69cef8fc9e2c5eba04c succeeds
-pxe_service Executed local simulation for 2132767911fbbe67e24a3e51bc769ba2ae874eb1ba56e69cef8fc9e2c5eba04c
-pxe_service Sending transaction 2132767911fbbe67e24a3e51bc769ba2ae874eb1ba56e69cef8fc9e2c5eba04c
-node Received tx 2132767911fbbe67e24a3e51bc769ba2ae874eb1ba56e69cef8fc9e2c5eba04c
+node Simulating tx 2755e9f5ad308fd135f606daf6208f5d711a3a6de6e4630d15d269af59f03e1c
+node Simulated tx 2755e9f5ad308fd135f606daf6208f5d711a3a6de6e4630d15d269af59f03e1c succeeds
+pxe_service Executed local simulation for 2755e9f5ad308fd135f606daf6208f5d711a3a6de6e4630d15d269af59f03e1c
+pxe_service Sending transaction 2755e9f5ad308fd135f606daf6208f5d711a3a6de6e4630d15d269af59f03e1c
+node Received tx 2755e9f5ad308fd135f606daf6208f5d711a3a6de6e4630d15d269af59f03e1c
+sequencer Retrieved 1 txs from P2P pool
+sequencer Building block 5 with 1 transactions
 sequencer Submitted rollup block 5 with 1 transactions
 ```
 

@@ -54,30 +54,33 @@ describe('e2e_sandbox_example', () => {
     // docs:start:Deployment
     ////////////// DEPLOY OUR TOKEN CONTRACT //////////////
 
-    // Deploy a token contract, create a contract abstraction object and link it to the owner's wallet
     const initialSupply = 1_000_000n;
+    logger(`Deploying token contract...`);
 
-    logger(`Deploying token contract minting an initial ${initialSupply} tokens to Alice...`);
+    // Deploy the contract and set Alice as the admin while doing so
     const contract = await TokenContract.deploy(pxe, alice).send().deployed();
-
-    // Create the contract abstraction and link to Alice's wallet for future signing
-    const tokenContractAlice = await TokenContract.at(contract.address, accounts[0]);
-
-    // add Bob as a minter
-    await tokenContractAlice.methods.set_minter(bob, true).send().wait();
-
     logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);
 
-    const secret = Fr.random();
-    const secretHash = await computeMessageSecretHash(secret);
+    // Create the contract abstraction and link it to Alice's wallet for future signing
+    const tokenContractAlice = await TokenContract.at(contract.address, accounts[0]);
 
-    const receipt = await tokenContractAlice.methods.mint_private(initialSupply, secretHash).send().wait();
+    // Create a secret and a corresponding hash that will be used to mint funds privately
+    const aliceSecret = Fr.random();
+    const aliceSecretHash = await computeMessageSecretHash(aliceSecret);
 
+    logger(`Minting tokens to Alice...`);
+    // Mint the initial supply privately "to secret hash"
+    const receipt = await tokenContractAlice.methods.mint_private(initialSupply, aliceSecretHash).send().wait();
+
+    // Add the newly created "pending shield" note to PXE
     const pendingShieldsStorageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-    const preimage = new NotePreimage([new Fr(initialSupply), secretHash]);
+    const preimage = new NotePreimage([new Fr(initialSupply), aliceSecretHash]);
     await pxe.addNote(alice, contract.address, pendingShieldsStorageSlot, preimage, receipt.txHash);
 
-    await tokenContractAlice.methods.redeem_shield(alice, initialSupply, secret).send().wait();
+    // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above
+    // to a "token note")
+    await tokenContractAlice.methods.redeem_shield(alice, initialSupply, aliceSecret).send().wait();
+    logger(`${initialSupply} tokens were successfully minted and redeemed by Alice`);
     // docs:end:Deployment
 
     // ensure that token contract is registered in PXE
@@ -125,14 +128,22 @@ describe('e2e_sandbox_example', () => {
     ////////////// MINT SOME MORE TOKENS TO BOB'S ACCOUNT //////////////
 
     // Now mint some further funds for Bob
+
+    // Alice is nice and she adds Bob as a minter
+    await tokenContractAlice.methods.set_minter(bob, true).send().wait();
+
+    const bobSecret = Fr.random();
+    const bobSecretHash = await computeMessageSecretHash(bobSecret);
+    // Bob now has a secret 🥷
+
     const mintQuantity = 10_000n;
     logger(`Minting ${mintQuantity} tokens to Bob...`);
-    const mintPrivateReceipt = await tokenContractBob.methods.mint_private(mintQuantity, secretHash).send().wait();
+    const mintPrivateReceipt = await tokenContractBob.methods.mint_private(mintQuantity, bobSecretHash).send().wait();
 
-    const bobPendingShield = new NotePreimage([new Fr(mintQuantity), secretHash]);
+    const bobPendingShield = new NotePreimage([new Fr(mintQuantity), bobSecretHash]);
     await pxe.addNote(bob, contract.address, pendingShieldsStorageSlot, bobPendingShield, mintPrivateReceipt.txHash);
 
-    await tokenContractBob.methods.redeem_shield(bob, mintQuantity, secret).send().wait();
+    await tokenContractBob.methods.redeem_shield(bob, mintQuantity, bobSecret).send().wait();
 
     // Check the new balances
     aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).view();

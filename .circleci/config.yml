@@ -631,18 +631,6 @@ jobs:
           command: cond_run_script end-to-end ./scripts/run_tests_local e2e_private_airdrop.test.ts
           environment: { DEBUG: "aztec:*" }
 
-  e2e-private-token-contract:
-    machine:
-      image: ubuntu-2204:2023.07.2
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_run_script end-to-end ./scripts/run_tests_local e2e_private_token_contract.test.ts
-          environment: { DEBUG: "aztec:*" }
-
   e2e-sandbox-example:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1355,7 +1343,6 @@ workflows:
       - e2e-lending-contract: *e2e_test
       - e2e-token-contract: *e2e_test
       - e2e-private-airdrop: *e2e_test
-      - e2e-private-token-contract: *e2e_test
       - e2e-sandbox-example: *e2e_test
       - e2e-multi-transfer-contract: *e2e_test
       - e2e-block-building: *e2e_test
@@ -1394,7 +1381,6 @@ workflows:
             - e2e-lending-contract
             - e2e-token-contract
             - e2e-private-airdrop
-            - e2e-private-token-contract
             - e2e-sandbox-example
             - e2e-multi-transfer-contract
             - e2e-block-building

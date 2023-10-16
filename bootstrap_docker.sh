@@ -36,5 +36,5 @@ build_local $PROJECT_NAME
 if [ -z "$PROJECT_NAME" ]; then
   echo
   echo "Success! You could now run e.g.:"
-  echo "  docker run -ti --rm aztecprotocol/end-to-end:latest e2e_private_token_contract.test"
+  echo "  docker run -ti --rm aztecprotocol/end-to-end:latest e2e_token_contract.test"
 fi
