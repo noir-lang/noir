@@ -170,7 +170,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
 
     // Hash final padded block
     c = h;
-    c = sha_c_dbg(msg_u8_to_u32(msg_block), c);
+    c = sha_c(msg_u8_to_u32(msg_block), c);
     for j in 0..8 {
         h[j] = crate::wrapping_add(h[j], c[j]);
     }
