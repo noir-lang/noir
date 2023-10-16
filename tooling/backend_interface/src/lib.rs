@@ -111,10 +111,10 @@ impl Backend {
     fn assert_correct_version(&self) {
         let binary_path = self.binary_path();
         if binary_path.to_string_lossy().contains(BACKEND_BARRETENBERG_SEARCH_STR) {
-            let version_result = VersionCommand {}.run(binary_path);
+            let version_result = VersionCommand.run(binary_path);
             if let Ok(version_string) = version_result {
                 if version_string.as_str() != BB_VERSION {
-                    println!("WARNING!: Configured backend version `{:}` is different from expected `{:}`", version_string, BB_VERSION);
+                    println!("WARNING!: Configured backend version `{version_string}` is different from expected `{BB_VERSION}`");
                 }
             }
         }
