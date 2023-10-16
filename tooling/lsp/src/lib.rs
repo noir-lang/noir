@@ -17,7 +17,6 @@ use async_lsp::{
     ResponseError,
 };
 use codespan_reporting::files;
-use fm::FILE_EXTENSION;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
@@ -122,15 +121,15 @@ fn get_package_tests_in_crate(
             let location = context.function_meta(&test_function.get_id()).name.location;
             let file_id = location.file;
 
-            let file_path = fm.path(file_id).with_extension(FILE_EXTENSION);
             let range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+            let file_uri = Url::from_file_path(fm.path(file_id))
+                .expect("Expected a valid file path that can be converted into a URI");
 
             NargoTest {
                 id: NargoTestId::new(crate_name.clone(), func_name.clone()),
                 label: func_name,
-                uri: Url::from_file_path(file_path)
-                    .expect("Expected a valid file path that can be converted into a URI"),
+                uri: file_uri,
                 range,
             }
         })
