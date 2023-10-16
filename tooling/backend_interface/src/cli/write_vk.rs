@@ -48,8 +48,7 @@ fn write_vk_command() -> Result<(), BackendError> {
 
     std::fs::File::create(&bytecode_path).expect("file should be created");
 
-    let write_vk_command =
-        WriteVkCommand { bytecode_path, crs_path, vk_path_output };
+    let write_vk_command = WriteVkCommand { bytecode_path, crs_path, vk_path_output };
 
     write_vk_command.run(backend.binary_path())?;
     drop(temp_directory);
