@@ -814,9 +814,13 @@ where
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
         .validate(|expressions, span, emit| {
-            let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
-            let mut message_str = None;
+            let mut condition =
+                expressions.get(0).cloned().unwrap_or_else(|| Expression::error(span));
+            // This is a bit of a hack but we want the span to cover the `assert` keyword as well.
+            // Perhaps `ConstrainStatement` should have it's own span rather than overloading the condition?
+            condition.span = span;
 
+            let mut message_str = None;
             if let Some(message) = expressions.get(1) {
                 if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
                     message_str = Some(message.clone());
