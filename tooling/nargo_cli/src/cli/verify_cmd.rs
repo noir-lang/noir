@@ -29,6 +29,9 @@ pub(crate) struct VerifyCommand {
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
+    #[clap(long, hide = true)]
+    recursive: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -54,7 +57,7 @@ pub(crate) fn run(
             &|opcode| opcode_support.is_opcode_supported(opcode),
         )?;
 
-        verify_package(backend, &workspace, package, program, &args.verifier_name)?;
+        verify_package(backend, &workspace, package, program, &args.verifier_name, args.recursive)?;
     }
 
     Ok(())
@@ -66,6 +69,7 @@ fn verify_package(
     package: &Package,
     compiled_program: CompiledProgram,
     verifier_name: &str,
+    recursive: bool,
 ) -> Result<(), CliError> {
     // Load public inputs (if any) from `verifier_name`.
     let public_abi = compiled_program.abi.public_abi();
@@ -79,7 +83,8 @@ fn verify_package(
 
     let proof = load_hex_data(&proof_path)?;
 
-    let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.circuit, false)?;
+    let valid_proof =
+        backend.verify(&proof, public_inputs, &compiled_program.circuit, recursive)?;
 
     if valid_proof {
         Ok(())

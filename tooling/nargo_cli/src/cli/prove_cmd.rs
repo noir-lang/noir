@@ -1,9 +1,14 @@
+use std::collections::BTreeMap;
+
+use acvm::acir::circuit::Circuit;
+use acvm::acir::native_types::WitnessMap;
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_abi::input_parser::Format;
+use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::{Abi, AbiParameter, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_frontend::graph::CrateName;
 
@@ -13,6 +18,7 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
+use crate::cli::fs::write_to_file;
 use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliError};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
@@ -25,6 +31,9 @@ pub(crate) struct ProveCommand {
     /// The name of the toml file which contains the inputs for the verifier
     #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
     verifier_name: String,
+
+    #[clap(long, hide = true)]
+    recursive: bool,
 
     /// Verify proof after proving
     #[arg(long)]
@@ -71,6 +80,7 @@ pub(crate) fn run(
             &args.prover_name,
             &args.verifier_name,
             args.verify,
+            args.recursive,
         )?;
     }
 
@@ -85,6 +95,7 @@ pub(crate) fn prove_package(
     prover_name: &str,
     verifier_name: &str,
     check_proof: bool,
+    recursive: bool,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
@@ -105,12 +116,23 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.circuit, solved_witness, false)?;
+    let proof = backend.prove(&compiled_program.circuit, solved_witness, recursive)?;
+
+    let public_inputs = public_abi.encode(&public_inputs, return_value)?;
+
+    if recursive {
+        generate_recursive_proof_input(
+            backend,
+            package,
+            &compiled_program.circuit,
+            &proof,
+            public_inputs.clone(),
+        )?;
+    }
 
     if check_proof {
-        let public_inputs = public_abi.encode(&public_inputs, return_value)?;
         let valid_proof =
-            backend.verify(&proof, public_inputs, &compiled_program.circuit, false)?;
+            backend.verify(&proof, public_inputs, &compiled_program.circuit, recursive)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));
@@ -118,6 +140,80 @@ pub(crate) fn prove_package(
     }
 
     save_proof_to_dir(&proof, &String::from(&package.name), workspace.proofs_directory_path())?;
+
+    Ok(())
+}
+
+fn generate_recursive_proof_input(
+    backend: &Backend,
+    package: &Package,
+    circuit: &Circuit,
+    proof: &[u8],
+    public_inputs: WitnessMap,
+) -> Result<(), CliError> {
+    let (proof_as_fields, vk_hash, vk_as_fields) =
+        backend.get_intermediate_proof_artifacts(circuit, proof, public_inputs.clone())?;
+
+    let num_public_inputs = public_inputs.clone().into_iter().fold(0u64, |acc, _| acc + 1);
+
+    let abi = Abi {
+        parameters: vec![
+            AbiParameter {
+                name: "proof".to_string(),
+                typ: noirc_abi::AbiType::Array {
+                    length: proof_as_fields.len() as u64,
+                    typ: Box::new(noirc_abi::AbiType::Field),
+                },
+                visibility: noirc_abi::AbiVisibility::Private,
+            },
+            AbiParameter {
+                name: "public_inputs".to_string(),
+                typ: noirc_abi::AbiType::Array {
+                    length: num_public_inputs,
+                    typ: Box::new(noirc_abi::AbiType::Field),
+                },
+                visibility: noirc_abi::AbiVisibility::Private,
+            },
+            AbiParameter {
+                name: "key_hash".to_string(),
+                typ: noirc_abi::AbiType::Field,
+                visibility: noirc_abi::AbiVisibility::Private,
+            },
+            AbiParameter {
+                name: "verification_key".to_string(),
+                typ: noirc_abi::AbiType::Array {
+                    length: vk_as_fields.len() as u64,
+                    typ: Box::new(noirc_abi::AbiType::Field),
+                },
+                visibility: noirc_abi::AbiVisibility::Private,
+            },
+        ],
+        param_witnesses: BTreeMap::new(),
+        return_type: None,
+        return_witnesses: Vec::new(),
+    };
+
+    let input_map = InputMap::from_iter([
+        (
+            "proof".to_string(),
+            InputValue::Vec(proof_as_fields.into_iter().map(InputValue::Field).collect()),
+        ),
+        (
+            "public_inputs".to_string(),
+            InputValue::Vec(
+                public_inputs.into_iter().map(|(_, el)| el).map(InputValue::Field).collect(),
+            ),
+        ),
+        ("key_hash".to_string(), InputValue::Field(vk_hash)),
+        (
+            "verification_key".to_string(),
+            InputValue::Vec(vk_as_fields.into_iter().map(InputValue::Field).collect()),
+        ),
+    ]);
+
+    let toml = Format::Toml.serialize(&input_map, &abi).unwrap();
+
+    write_to_file(toml.as_bytes(), &package.root_dir.join("recursive_prover.toml"));
 
     Ok(())
 }
