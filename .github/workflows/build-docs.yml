@@ -26,7 +26,7 @@ jobs:
       - name: Netlify deploy  
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
-          curl -X POST -d {} "https://api.netlify.com/build_hooks/${{ secrets.NETLIFY_BUILD_HOOK }}"?trigger_branch=$BRANCH_NAME"
+          curl -X POST -d {} "https://api.netlify.com/build_hooks/${{ secrets.NETLIFY_BUILD_HOOK }}?trigger_branch=$BRANCH_NAME"
 
       - name: Get deploy preview
         id: get_deploy_preview
