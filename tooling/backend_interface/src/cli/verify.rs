@@ -59,7 +59,6 @@ fn verify_command() -> Result<(), BackendError> {
     let write_vk_command = WriteVkCommand {
         bytecode_path: bytecode_path.clone(),
         crs_path: crs_path.clone(),
-        is_recursive: false,
         vk_path_output: vk_path_output.clone(),
     };
 
