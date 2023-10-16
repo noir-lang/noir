@@ -7,7 +7,9 @@
 		"jnoortheen.nix-ide",
 		"rust-lang.rust-analyzer",
 		"redhat.vscode-yaml",
-		"esbenp.prettier-vscode"
+		"esbenp.prettier-vscode",
+		// Spell checking
+    		"streetsidesoftware.code-spell-checker",
 	],
 	// List of extensions recommended by VS Code that should not be recommended for users of this workspace.
 	"unwantedRecommendations": []

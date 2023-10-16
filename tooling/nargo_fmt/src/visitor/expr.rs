@@ -1,6 +1,6 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
-    Literal, Statement,
+    hir::resolution::errors::Span, lexer::Lexer, token::Token, ArrayLiteral, BlockExpression,
+    Expression, ExpressionKind, Literal, Statement, UnaryOp,
 };
 
 use super::FmtVisitor;
@@ -10,23 +10,34 @@ impl FmtVisitor<'_> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
+        let rewrite = recover_comment_removed(slice!(self, span.start(), span.end()), rewrite);
         self.push_rewrite(rewrite, span);
 
         self.last_position = span.end();
     }
 
-    fn format_expr(&self, Expression { kind, span }: Expression) -> String {
+    fn format_expr(&self, Expression { kind, mut span }: Expression) -> String {
         match kind {
             ExpressionKind::Block(block) => {
-                let mut visitor = FmtVisitor::new(self.source, self.config);
-
-                visitor.block_indent = self.block_indent;
+                let mut visitor = self.fork();
                 visitor.visit_block(block, span, true);
-
                 visitor.buffer
             }
             ExpressionKind::Prefix(prefix) => {
-                format!("{}{}", prefix.operator, self.format_expr(prefix.rhs))
+                let op = match prefix.operator {
+                    UnaryOp::Minus => "-",
+                    UnaryOp::Not => "!",
+                    UnaryOp::MutableReference => "&mut ",
+                    UnaryOp::Dereference { implicitly_added } => {
+                        if implicitly_added {
+                            ""
+                        } else {
+                            "*"
+                        }
+                    }
+                };
+
+                format!("{op}{}", self.format_expr(prefix.rhs))
             }
             ExpressionKind::Cast(cast) => {
                 format!("{} as {}", self.format_expr(cast.lhs), cast.r#type)
@@ -38,6 +49,39 @@ impl FmtVisitor<'_> {
                     infix.operator.contents.as_string(),
                     self.format_expr(infix.rhs)
                 )
+            }
+            ExpressionKind::Call(call_expr) => {
+                let formatted_func = self.format_expr(*call_expr.func);
+                let formatted_args = call_expr
+                    .arguments
+                    .into_iter()
+                    .map(|arg| self.format_expr(arg))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({})", formatted_func, formatted_args)
+            }
+            ExpressionKind::MethodCall(method_call_expr) => {
+                let formatted_object = self.format_expr(method_call_expr.object).trim().to_string();
+                let formatted_args = method_call_expr
+                    .arguments
+                    .iter()
+                    .map(|arg| {
+                        let arg_str = self.format_expr(arg.clone()).trim().to_string();
+                        if arg_str.contains('(') {
+                            return arg_str
+                                .replace(" ,", ",")
+                                .replace("( ", "(")
+                                .replace(" )", ")");
+                        }
+                        arg_str
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}.{}({})", formatted_object, method_call_expr.method_name, formatted_args)
+            }
+            ExpressionKind::MemberAccess(member_access_expr) => {
+                let lhs_str = self.format_expr(member_access_expr.lhs);
+                format!("{}.{}", lhs_str, member_access_expr.rhs)
             }
             ExpressionKind::Index(index_expr) => {
                 let formatted_collection =
@@ -61,6 +105,64 @@ impl FmtVisitor<'_> {
                     literal.to_string()
                 }
             },
+            ExpressionKind::Parenthesized(mut sub_expr) => {
+                let remove_nested_parens = self.config.remove_nested_parens;
+
+                let mut leading;
+                let mut trailing;
+
+                loop {
+                    let leading_span = span.start() + 1..sub_expr.span.start();
+                    let trailing_span = sub_expr.span.end()..span.end() - 1;
+
+                    leading = self.format_comment(leading_span.into());
+                    trailing = self.format_comment(trailing_span.into());
+
+                    if let ExpressionKind::Parenthesized(ref sub_sub_expr) = sub_expr.kind {
+                        if remove_nested_parens && leading.is_empty() && trailing.is_empty() {
+                            span = sub_expr.span;
+                            sub_expr = sub_sub_expr.clone();
+                            continue;
+                        }
+                    }
+
+                    break;
+                }
+
+                if !leading.contains("//") && !trailing.contains("//") {
+                    let sub_expr = self.format_expr(*sub_expr);
+                    format!("({leading}{sub_expr}{trailing})")
+                } else {
+                    let mut visitor = self.fork();
+
+                    let indent = visitor.block_indent.to_string_with_newline();
+                    visitor.block_indent.block_indent(self.config);
+                    let nested_indent = visitor.block_indent.to_string_with_newline();
+
+                    let sub_expr = visitor.format_expr(*sub_expr);
+
+                    let mut result = String::new();
+                    result.push('(');
+
+                    if !leading.is_empty() {
+                        result.push_str(&nested_indent);
+                        result.push_str(&leading);
+                    }
+
+                    result.push_str(&nested_indent);
+                    result.push_str(&sub_expr);
+
+                    if !trailing.is_empty() {
+                        result.push_str(&nested_indent);
+                        result.push_str(&trailing);
+                    }
+
+                    result.push_str(&indent);
+                    result.push(')');
+
+                    result
+                }
+            }
             // TODO:
             _expr => slice!(self, span.start(), span.end()).to_string(),
         }
@@ -125,4 +227,31 @@ impl FmtVisitor<'_> {
         self.last_position = block_span.end();
         self.push_str(&block_str);
     }
+}
+
+fn recover_comment_removed(original: &str, new: String) -> String {
+    if changed_comment_content(original, &new) {
+        original.to_string()
+    } else {
+        new
+    }
+}
+
+fn changed_comment_content(original: &str, new: &str) -> bool {
+    comments(original) != comments(new)
+}
+
+fn comments(source: &str) -> Vec<String> {
+    Lexer::new(source)
+        .skip_comments(false)
+        .flatten()
+        .filter_map(|spanned| {
+            if let Token::LineComment(content) | Token::BlockComment(content) = spanned.into_token()
+            {
+                Some(content)
+            } else {
+                None
+            }
+        })
+        .collect()
 }

@@ -96,6 +96,8 @@ pub(crate) struct AcirContext {
     /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData>,
 
+    constant_witnesses: HashMap<FieldElement, Witness>,
+
     /// An in-memory representation of ACIR.
     ///
     /// This struct will progressively be populated
@@ -227,7 +229,16 @@ impl AcirContext {
     /// Converts an [`AcirVar`] to a [`Witness`]
     fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
-        Ok(self.acir_ir.get_or_create_witness(&expression))
+        let witness = if let Some(constant) = expression.to_const() {
+            // Check if a witness has been assigned this value already, if so reuse it.
+            *self
+                .constant_witnesses
+                .entry(constant)
+                .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
+        } else {
+            self.acir_ir.get_or_create_witness(&expression)
+        };
+        Ok(witness)
     }
 
     /// Converts an [`AcirVar`] to an [`Expression`]
@@ -281,7 +292,7 @@ impl AcirContext {
             let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
 
             // Check that the inverted var is valid.
-            // This check prevents invalid divisons by zero.
+            // This check prevents invalid divisions by zero.
             let should_be_one = self.mul_var(inverted_var, var)?;
             self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -300,7 +311,7 @@ impl AcirContext {
         let inverted_var = Self::expect_one_var(results);
 
         // Check that the inverted var is valid.
-        // This check prevents invalid divisons by zero.
+        // This check prevents invalid divisions by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -487,11 +498,11 @@ impl AcirContext {
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
                 expr.push_addition_term(constant, witness);
-                self.add_data(AcirVarData::Expr(expr))
+                self.add_data(AcirVarData::from(expr))
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::Expr(&expr * constant))
+                self.add_data(AcirVarData::from(&expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
@@ -560,7 +571,7 @@ impl AcirContext {
     /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
     /// and |remainder| < |rhs|
     /// and remainder has the same sign than lhs
-    /// Note that this is not the euclidian division, where we have instead remainder < |rhs|
+    /// Note that this is not the euclidean division, where we have instead remainder < |rhs|
     fn signed_division_var(
         &mut self,
         lhs: AcirVar,
@@ -616,7 +627,7 @@ impl AcirContext {
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
-    /// In order to do this, we 'simply' perform euclidian division of lhs by 2^{rhs}
+    /// In order to do this, we 'simply' perform euclidean division of lhs by 2^{rhs}
     /// The remainder of the division is then lhs mod 2^{rhs}
     pub(crate) fn truncate_var(
         &mut self,
@@ -878,7 +889,7 @@ impl AcirContext {
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
         if let Some(brillig_outputs) =
-            self.execute_brillig(generated_brillig.byte_code.clone(), &b_inputs, &outputs)
+            self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
         {
             return Ok(brillig_outputs);
         }
@@ -965,7 +976,7 @@ impl AcirContext {
 
     fn execute_brillig(
         &mut self,
-        code: Vec<BrilligOpcode>,
+        code: &[BrilligOpcode],
         inputs: &[BrilligInputs],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
@@ -1240,7 +1251,7 @@ pub(crate) struct AcirVar(usize);
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
 fn execute_brillig(
-    code: Vec<BrilligOpcode>,
+    code: &[BrilligOpcode],
     inputs: &[BrilligInputs],
 ) -> Option<(Registers, Vec<Value>)> {
     struct NullBbSolver;
@@ -1296,7 +1307,7 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(input_registers, input_memory, &code, Vec::new(), &NullBbSolver);
+    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

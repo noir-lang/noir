@@ -1,0 +1,96 @@
+name: Build docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+    types:
+      - opened
+      - synchronize
+      - labeled
+  push:
+    paths:
+      - 'docs/**'
+
+jobs:
+  
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    if: contains(github.event.pull_request.labels.*.name, 'documentation')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Netlify deploy  
+        run: |
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
+          curl -X POST -d {} "https://api.netlify.com/build_hooks/${{ secrets.NETLIFY_BUILD_HOOK }}?trigger_branch=$BRANCH_NAME"
+      - name: Get deploy preview
+        id: get_deploy_preview
+        run: |
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref }}" | sed -e "s#refs/[^/]*/##")
+          curl -X GET "https://api.netlify.com/api/v1/sites/${{ secrets.NETLIFY_SITE_ID }}/deploys?branch=$BRANCH_NAME" > deploy.json
+          echo "::set-output name=deploy_url::$(cat deploy.json | jq -r '.[0].deploy_ssl_url')"
+          
+      - name: Add PR Comment
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            Hey @${{ github.event.pull_request.user.login }}! 🙌
+
+            I'm the deployment bot for Noir Docs, and I've got some updates for you:
+
+            ## Deployment Status
+            Your latest changes are being deployed for preview! 🚀
+            
+            Click the badge to see logs 🧐
+            
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+            
+            If you have any questions about this process, refer to our contribution guide or feel free to ask around.
+
+            
+      - name: Check on deploy status
+        uses: ./.github/actions/docs/build-status
+        id: check_deploy_status
+        with:
+          branch-name: ${{ github.head_ref || github.ref }}
+          site-id: ${{ secrets.NETLIFY_SITE_ID }}
+        continue-on-error: true
+
+      - name: Debugging - print deploy_status
+        run: echo "${{ steps.check_deploy_status.outputs.deploy_status }}"
+
+      - name: Change PR Comment for Successful Deployment
+        if: steps.check_deploy_status.outputs.deploy_status == 'success'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-success: |
+            ![It's Alive!](https://i.imgflip.com/82hw5n.jpg)
+            
+            I'm a bot, beep boop 🤖
+
+            ## Deployment Status: Success!
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)
+            
+            ## Preview
+
+            🌐 [View Deployment Preview](${{ steps.get_deploy_preview.outputs.deploy_url }})
+            
+
+            
+      - name: Change PR Comment for Failed Deployment
+        if: steps.check_deploy_status.outputs.deploy_status == 'failure'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            ![docs CI troll](https://i.imgflip.com/82ht8f.jpg)
+            
+            I'm a bot, beep boop 🤖
+
+            ## Deployment Status: Failed ❌
+            Deployment didn't succeed. Please check logs below and resolve the issue 🧐
+            
+            [![Netlify Status](https://api.netlify.com/api/v1/badges/${{ secrets.NETLIFY_SITE_ID }}/deploy-status?branch=${{ github.head_ref || github.ref }})](https://app.netlify.com/sites/noir-docs-v2/deploys)

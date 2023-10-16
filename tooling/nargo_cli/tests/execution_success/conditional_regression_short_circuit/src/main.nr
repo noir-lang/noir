@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
+fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
     //regression for short-circuit2
     if 35 == a {
         assert(false);
@@ -14,8 +14,6 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     call_intrinsic(x, result);
 }
 
-
-
 fn foo() {
     let mut x = 1;
     x /= 0;
@@ -26,7 +24,6 @@ fn bar(x:Field) {
         foo();
     }
 }
-
 
 fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
     let mut digest = std::hash::sha256(x);

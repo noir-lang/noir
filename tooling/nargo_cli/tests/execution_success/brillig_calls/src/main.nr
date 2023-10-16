@@ -1,7 +1,7 @@
 // Tests a very simple program.
 // 
 // The features being tested is brillig calls
-fn main(x: u32)  {
+fn main(x: u32) {
     assert(entry_point(x) == 2);
     swap_entry_point(x, x + 1);
     assert(deep_entry_point(x) == 4);

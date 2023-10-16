@@ -12,8 +12,7 @@ fn main(x: Field) -> pub Field {
     x + safe_inverse(0)
 }
 
-fn safe_inverse(n: Field) -> Field
-{
+fn safe_inverse(n: Field) -> Field {
     if n == 0 {
         0
     }

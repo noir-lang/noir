@@ -22,7 +22,7 @@ fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: pub foo::foo
 
     assert(y.message == "hello");
     assert(a.bar_struct.message == struct_from_bar.message);
-    
+
     a.bar_struct.array[1]
 }
 
