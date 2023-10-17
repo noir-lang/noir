@@ -32,7 +32,7 @@ export {
   TxStatus,
   emptyFunctionCall,
 } from '@aztec/types';
-
+export { ContractArtifact } from '@aztec/foundation/abi';
 export { createDebugLogger, DebugLogger } from '@aztec/foundation/log';
 export { fileURLToPath } from '@aztec/foundation/url';
 export { sleep } from '@aztec/foundation/sleep';
