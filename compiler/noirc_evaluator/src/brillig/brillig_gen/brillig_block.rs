@@ -703,13 +703,8 @@ impl<'block> BrilligBlock<'block> {
             BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
         );
 
-        // TODO: This is ugly, change.
-        let function_ctx = &std::cell::RefCell::new(&mut self.function_context);
-        let variables = &std::cell::RefCell::new(&mut self.variables);
-
-        self.brillig_context.branch_instruction(
-            condition,
-            |ctx| {
+        self.brillig_context.branch_instruction(condition, |ctx, cond| {
+            if cond {
                 // Reference count is 1, we can mutate the array directly
                 Self::store_variable_in_array_with_ctx(
                     ctx,
@@ -717,10 +712,9 @@ impl<'block> BrilligBlock<'block> {
                     index_register,
                     value_variable,
                 );
-            },
-            |ctx| {
-                let destination_variable = variables.borrow_mut().define_variable(
-                    &mut function_ctx.borrow_mut(),
+            } else {
+                let destination_variable = self.variables.define_variable(
+                    self.function_context,
                     ctx,
                     destination_id,
                     dfg,
@@ -754,8 +748,8 @@ impl<'block> BrilligBlock<'block> {
                     index_register,
                     value_variable,
                 );
-            },
-        );
+            }
+        });
 
         self.brillig_context.deallocate_register(source_size_as_register);
     }

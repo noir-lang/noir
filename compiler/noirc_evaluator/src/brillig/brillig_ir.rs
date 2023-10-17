@@ -292,17 +292,14 @@ impl BrilligContext {
     }
 
     /// This instruction will issue an if-then branch that will check if the condition is true
-    /// and if so, perform the instructions given in the then function and otherwise perform the
-    /// instructions given in the otherwise function.
-    pub(crate) fn branch_instruction<F, G>(
+    /// and if so, perform the instructions given in `f(self, true)` and otherwise perform the
+    /// instructions given in `f(self, false)`. A boolean is passed instead of two separate
+    /// functions to allow the given function to mutably alias its environment.
+    pub(crate) fn branch_instruction(
         &mut self,
         condition: RegisterIndex,
-        then: F,
-        otherwise: G,
-    ) where
-        F: FnOnce(&mut BrilligContext),
-        G: FnOnce(&mut BrilligContext),
-    {
+        mut f: impl FnMut(&mut BrilligContext, bool),
+    ) {
         // Reserve 3 sections
         let (then_section, then_label) = self.reserve_next_section_label();
         let (otherwise_section, otherwise_label) = self.reserve_next_section_label();
@@ -312,11 +309,11 @@ impl BrilligContext {
         self.jump_instruction(otherwise_label.clone());
 
         self.enter_section(then_section);
-        then(self);
+        f(self, true);
         self.jump_instruction(end_label.clone());
 
         self.enter_section(otherwise_section);
-        otherwise(self);
+        f(self, false);
         self.jump_instruction(end_label.clone());
 
         self.enter_section(end_section);
@@ -409,10 +406,7 @@ impl BrilligContext {
     ) {
         self.debug_show.constrain_instruction(condition);
         let (next_section, next_label) = self.reserve_next_section_label();
-        self.add_unresolved_jump(
-            BrilligOpcode::JumpIf { condition, location: 0 },
-            next_label,
-        );
+        self.add_unresolved_jump(BrilligOpcode::JumpIf { condition, location: 0 }, next_label);
         self.push_opcode(BrilligOpcode::Trap);
         if let Some(assert_message) = assert_message {
             self.obj.add_assert_message_to_last_opcode(assert_message);
