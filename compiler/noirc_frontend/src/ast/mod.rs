@@ -44,7 +44,7 @@ pub enum UnresolvedTypeData {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
-    /// A Trait as return type or parameter of function, including it's generics
+    /// A Trait as return type or parameter of function, including its generics
     TraitAsType(Path, Vec<UnresolvedType>),
 
     /// &mut T

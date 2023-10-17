@@ -840,7 +840,12 @@ impl<'interner> TypeChecker<'interner> {
                 }
             }
             Type::TraitAsType(_trait) => {
-                unreachable!("unexpected lookup on trait as return type")
+                self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    span: self.interner.expr_span(expr_id),
+                });
+                None
             }
             Type::NamedGeneric(_, _) => {
                 let func_meta = self.interner.function_meta(

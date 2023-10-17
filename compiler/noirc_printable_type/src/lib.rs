@@ -26,9 +26,6 @@ pub enum PrintableType {
         name: String,
         fields: Vec<(String, PrintableType)>,
     },
-    Trait {
-        name: String,
-    },
     String {
         length: u64,
     },
@@ -47,7 +44,6 @@ impl PrintableType {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
             Self::String { length } => *length as u32,
-            Self::Trait { .. } => 0,
         }
     }
 }
@@ -319,7 +315,6 @@ fn decode_value(
 
             PrintableValue::Struct(struct_map)
         }
-        PrintableType::Trait { .. } => todo!(),
     }
 }
 

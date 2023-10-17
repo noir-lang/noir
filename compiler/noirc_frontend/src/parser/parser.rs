@@ -271,7 +271,6 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
 }
 
 fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
-    //tuka
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
         .then(optional_visibility())
