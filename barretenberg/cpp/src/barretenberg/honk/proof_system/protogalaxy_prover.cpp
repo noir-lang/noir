@@ -2,12 +2,6 @@
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 namespace proof_system::honk {
 
-/**
- * @brief Prior to folding we need to add all the public inputs to the transcript, labelled by their corresponding
- * instance index, compute all the instance's polynomials and record the relation parameters involved in computing these
- * polynomials in the transcript.
- *
- */
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepare_for_folding()
 {
     // this doesnt work in the current format
@@ -30,6 +24,8 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
             transcript.send_to_verifier(domain_separator + "_public_input_" + std::to_string(i), public_input_i);
         }
 
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/752): establish whether we can use the same grand
+        // product parameters for all instances securely
         auto [eta, beta, gamma] = transcript.get_challenges(
             domain_separator + "_eta", domain_separator + "_beta", domain_separator + "_gamma");
         instance->compute_sorted_accumulator_polynomials(eta);
@@ -37,11 +33,24 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
     }
 }
 
-// TODO(#689): implement this function
+// TODO(#https://github.com/AztecProtocol/barretenberg/issues/689): finalise implementation this function
 template <class ProverInstances>
 ProverFoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstances>::fold_instances()
 {
     prepare_for_folding();
+    // TODO(#https://github.com/AztecProtocol/barretenberg/issues/740): Handle the case where we are folding for the
+    // first time and accumulator is 0
+    auto [alpha, delta] = transcript.get_challenges("alpha", "delta");
+    auto accumulator = get_accumulator();
+    auto instance_size = accumulator->prover_polynomials[0].size();
+    auto log_instance_size = static_cast<size_t>(numeric::get_msb(instance_size));
+    auto deltas = compute_round_challenge_pows(log_instance_size, delta);
+    auto perturbator = compute_perturbator(accumulator, deltas, alpha);
+
+    for (size_t idx = 0; idx <= log_instance_size; idx++) {
+        transcript.send_to_verifier("perturbator_" + std::to_string(idx), perturbator[idx]);
+    }
+
     ProverFoldingResult<Flavor> res;
     res.folding_data = transcript.proof_data;
     return res;

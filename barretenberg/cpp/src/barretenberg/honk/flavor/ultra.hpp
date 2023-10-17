@@ -272,7 +272,8 @@ class Ultra {
     using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment, CommitmentHandle>>;
 
     /**
-     * @brief A field element for each entity of the flavor.
+     * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
+     * at one point.
      */
     class AllValues : public AllEntities<FF, FF> {
       public:
@@ -286,7 +287,7 @@ class Ultra {
      */
     class ProverPolynomials : public AllEntities<PolynomialHandle, PolynomialHandle> {
       public:
-        AllValues get_row(const size_t row_idx)
+        AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
             size_t column_idx = 0; // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
@@ -404,7 +405,7 @@ class Ultra {
 
     class FoldingParameters {
       public:
-        FF gate_separation_challenge;
+        std::vector<FF> gate_separation_challenges;
         FF target_sum;
     };
 };

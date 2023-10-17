@@ -200,28 +200,27 @@ TEST_F(UltraTranscriptTests, ChallengeGenerationTest)
 TEST_F(UltraTranscriptTests, FoldingManifestTest)
 {
     using Flavor = flavor::Ultra;
-    auto builder_one = proof_system::UltraCircuitBuilder();
-    auto a = 2;
-    auto b = 3;
-    builder_one.add_variable(a);
-    builder_one.add_public_variable(a);
-    builder_one.add_public_variable(b);
-
-    auto builder_two = proof_system::UltraCircuitBuilder();
-    a = 3;
-    b = 4;
-    builder_two.add_variable(a);
-    builder_two.add_variable(b);
-    builder_two.add_public_variable(a);
-    builder_two.add_public_variable(b);
-
     auto composer = UltraComposer();
-    auto instance_one = composer.create_instance(builder_one);
-    auto instance_two = composer.create_instance(builder_two);
 
-    std::vector<std::shared_ptr<ProverInstance_<Flavor>>> insts;
-    insts.emplace_back(instance_one);
-    insts.emplace_back(instance_two);
+    std::vector<std::shared_ptr<ProverInstance_<Flavor>>> insts(2);
+    std::generate(insts.begin(), insts.end(), [&]() {
+        auto builder = proof_system::UltraCircuitBuilder();
+        auto a = FF::random_element();
+        auto b = FF::random_element();
+        builder.add_variable(a);
+        builder.add_public_variable(a);
+        builder.add_public_variable(b);
+        return composer.create_instance(builder);
+    });
+
+    // artificially make first instance relaxed
+    auto log_instance_size = static_cast<size_t>(numeric::get_msb(insts[0]->proving_key->circuit_size));
+    std::vector<FF> betas(log_instance_size);
+    for (size_t idx = 0; idx < log_instance_size; idx++) {
+        betas[idx] = FF::random_element();
+    }
+    insts[0]->folding_parameters = { betas, FF(1) };
+
     auto prover = composer.create_folding_prover(insts);
     auto verifier = composer.create_folding_verifier(insts);
 

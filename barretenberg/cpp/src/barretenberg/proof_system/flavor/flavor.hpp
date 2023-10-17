@@ -252,8 +252,6 @@ template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto
 
 // Forward declare honk flavors
 namespace proof_system::honk::flavor {
-class Standard;
-class StandardGrumpkin;
 class Ultra;
 class ECCVM;
 class ECCVMGrumpkin;

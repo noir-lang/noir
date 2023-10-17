@@ -308,7 +308,8 @@ template <typename BuilderType> class UltraRecursive_ {
     };
 
     /**
-     * @brief A field element for each entity of the flavor.
+     * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
+     * at one point.
      */
     class AllValues : public AllEntities<FF, FF> {
       public:

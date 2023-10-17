@@ -12,7 +12,7 @@ template <class Flavor> class VerifierInstance_ {
     std::vector<FF> public_inputs;
     size_t pub_inputs_offset;
     size_t public_input_size;
-    size_t circuit_size;
+    size_t instance_size;
     RelationParameters<FF> relation_parameters;
     FoldingParameters folding_params;
 };

@@ -656,7 +656,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     using FoldedPolynomials = AllEntities<std::vector<FF>, PolynomialHandle>;
 
     /**
-     * @brief A field element for each entity of the flavor.
+     * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials evaluated
+     * at one point.
      */
     class AllValues : public AllEntities<FF, FF> {
       public:
@@ -678,7 +679,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
      */
     class AllPolynomials : public AllEntities<Polynomial, PolynomialHandle> {
       public:
-        AllValues get_row(const size_t row_idx)
+        AllValues get_row(const size_t row_idx) const
         {
             AllValues result;
             size_t column_idx = 0; // // TODO(https://github.com/AztecProtocol/barretenberg/issues/391) zip
@@ -720,10 +721,14 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                                       barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
 
     /**
-     * @brief A container for polynomials handles; only stores spans.
+     * @brief A container for the prover polynomials handles; only stores spans.
      */
     class ProverPolynomials : public AllEntities<PolynomialHandle, PolynomialHandle> {
       public:
+        /**
+         * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
+         * represents one row in the execution trace.
+         */
         AllValues get_row(const size_t row_idx)
         {
             AllValues result;

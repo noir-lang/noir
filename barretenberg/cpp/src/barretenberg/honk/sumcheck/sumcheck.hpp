@@ -150,6 +150,7 @@ template <typename Flavor> class SumcheckProver {
 template <typename Flavor> class SumcheckVerifier {
 
   public:
+    using Utils = barretenberg::RelationUtils<Flavor>;
     using FF = typename Flavor::FF;
     using ClaimedEvaluations = typename Flavor::AllValues;
 

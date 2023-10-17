@@ -75,6 +75,7 @@ TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
 TEST(SumcheckRound, TuplesOfEvaluationArrays)
 {
     using Flavor = proof_system::honk::flavor::Ultra;
+    using Utils = barretenberg::RelationUtils<Flavor>;
     using FF = typename Flavor::FF;
 
     // Define two arrays of arbitrary elements
@@ -88,7 +89,7 @@ TEST(SumcheckRound, TuplesOfEvaluationArrays)
     FF challenge = 5;
     FF running_challenge = 1;
     FF result = 0;
-    SumcheckVerifierRound<Flavor>::scale_and_batch_elements(tuple_of_arrays, challenge, running_challenge, result);
+    Utils::scale_and_batch_elements(tuple_of_arrays, challenge, running_challenge, result);
 
     // Repeat the batching process manually
     auto result_expected =
@@ -98,7 +99,7 @@ TEST(SumcheckRound, TuplesOfEvaluationArrays)
     EXPECT_EQ(result, result_expected);
 
     // Reinitialize univariate accumulators to zero
-    SumcheckVerifierRound<Flavor>::zero_elements(tuple_of_arrays);
+    Utils::zero_elements(tuple_of_arrays);
 
     EXPECT_EQ(std::get<0>(tuple_of_arrays)[0], 0);
     EXPECT_EQ(std::get<1>(tuple_of_arrays)[0], 0);

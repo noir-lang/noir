@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/proof_system/relations/relation_parameters.hpp"
 namespace proof_system::honk {
 template <class Flavor> struct ProverFoldingResult {
   public:
@@ -33,6 +34,6 @@ template <class Flavor> struct FoldingResult {
     ProverPolynomials folded_prover_polynomials;
     std::vector<FF> folded_public_inputs;
     std::shared_ptr<VerificationKey> verification_key;
-    FoldingParameters params;
+    FoldingParameters folding_parameters;
 };
 } // namespace proof_system::honk
