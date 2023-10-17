@@ -75,16 +75,18 @@ struct Context {
     ///
     /// This is necessary to keep track of an internal memory block's size.
     /// We do not need a separate map to keep track of `memory_blocks` as
-    /// the length is tracked as part of the `AcirValue` in the `ssa_values` map.
-    /// We do not want internal memory blocks to replace the `AcirValue` in the
-    /// `ssa_values` map so we tracked their lengths separately here.
+    /// the length is set when we construct a `AcirValue::DynamicArray` and is tracked
+    /// as part of the `AcirValue` in the `ssa_values` map.
+    /// The length of an internal memory block is determined before an array operation
+    /// takes place thus we track it separate here in this map.
     internal_mem_block_lengths: HashMap<BlockId, usize>,
 
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
     max_block_id: u32,
 
-    // Maps SSA array values to each nested slice size and the array id of its parent array
+    /// Maps SSA array values to their slice size and any nested slices internal to the parent slice.
+    /// This enables us to maintain the slice structure of a slice when performing an array get.
     slice_sizes: HashMap<Id<Value>, Vec<usize>>,
 }
 
@@ -690,9 +692,10 @@ impl Context {
                 }
             }
             Type::Slice(_) => {
-                // TODO: Need to be able to handle constant index for slices to seriously reduce
+                // TODO(#3188): Need to be able to handle constant index for slices to seriously reduce
                 // constraint sizes of nested slices
-                // This can only be done if we accurately flatten nested slices
+                // This can only be done if we accurately flatten nested slices as other we will reach
+                // index out of bounds errors.
 
                 // Do nothing we only want dynamic checks for slices
             }
@@ -734,12 +737,20 @@ impl Context {
 
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
-                let mut new_slice_sizes = if store_type.contains_slice_element() {
-                    dbg!("got here");
+                let mut slice_sizes = if store_type.contains_slice_element() {
                     let store_id = dfg.resolve(store);
 
                     self.compute_slice_sizes(store_id, None, dfg);
-                    self.slice_sizes.get(&store).expect("ICE: expected slice sizes").clone()
+                    if let Some(slice_sizes) = self.slice_sizes.get_mut(&store) {
+                        slice_sizes.clone()
+                    } else {
+                        return Err(InternalError::UnExpected {
+                            expected: "Store value should have slice sizes computed".to_owned(),
+                            found: "Missing key in slice sizes map".to_owned(),
+                            call_stack: self.acir_context.get_call_stack(),
+                        }
+                        .into());
+                    }
                 } else {
                     vec![]
                 };
@@ -747,7 +758,7 @@ impl Context {
                     &store_type,
                     block_id,
                     &mut dummy_predicate_index,
-                    &mut new_slice_sizes,
+                    &mut slice_sizes,
                 )?;
 
                 Some(self.convert_array_set_store_value(&store_value, &dummy)?)
@@ -853,14 +864,19 @@ impl Context {
             let mut slice_sizes = vec![];
             self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes)?
         } else {
-            let mut slice_sizes =
-                self.slice_sizes.get(&array_id).expect("ICE: should have slice sizes").clone();
+            let mut slice_sizes = self
+                .slice_sizes
+                .get(&array_id)
+                .expect("ICE: Array with slices should have associated slice sizes")
+                .clone();
             slice_sizes.drain(0..1);
-            // TODO: look into how we can avoid this clone here
+
             let result_slice_sizes = slice_sizes.clone();
+
             let value =
                 self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes)?;
 
+            // Insert the resulting slice sizes
             self.slice_sizes.insert(results[0], result_slice_sizes);
 
             value
@@ -905,10 +921,8 @@ impl Context {
                 Ok(AcirValue::Array(values))
             }
             Type::Slice(element_types) => {
-                // It is not enough to do this and simply pass the size from the definition,
-                // We need internal sizes of each type in case of a nested slice
-                // We should not use the type length for slices as we have a flattened structure
-                // from the SSA values.
+                // It is not enough to execute this loop and simply pass the size from the parent definition.
+                // We need the internal sizes of each type in case of a nested slice.
                 let mut values = Vector::new();
                 let current_size = slice_sizes[0];
                 slice_sizes.drain(0..1);
@@ -986,6 +1000,7 @@ impl Context {
 
         self.array_set_value(store_value, result_block_id, &mut var_index)?;
 
+        // Set new resulting array to have the same slice sizes as the instruction input
         if let Type::Slice(element_types) = &array_typ {
             let mut has_internal_slices = false;
             for typ in element_types.as_ref() {
@@ -995,25 +1010,23 @@ impl Context {
                 }
             }
             if has_internal_slices {
-                let slice_sizes =
-                    self.slice_sizes.get(&array_id).expect("ICE: expected new slice sizes").clone();
+                let slice_sizes = self
+                    .slice_sizes
+                    .get(&array_id)
+                    .expect(
+                        "ICE: Expected array with internal slices to have associated slice sizes",
+                    )
+                    .clone();
                 let results = dfg.instruction_results(instruction);
                 self.slice_sizes.insert(results[0], slice_sizes);
             }
         }
-        // Set new resulting array to have the same slice sizes as the instruction input
-        // if array_typ.contains_slice_element() {
-        //     let slice_sizes =
-        //         self.slice_sizes.get(&array_id).expect("ICE: expected new slice sizes").clone();
-        //     let results = dfg.instruction_results(instruction);
-        //     self.slice_sizes.insert(results[0], slice_sizes);
-        // }
 
-        let new_elem_type_sizes = self.init_element_type_sizes_array(&array_typ, array_id, dfg)?;
+        let element_type_sizes = self.init_element_type_sizes_array(&array_typ, array_id, dfg)?;
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: array_len,
-            element_type_sizes: new_elem_type_sizes,
+            element_type_sizes,
         });
         self.define_result(dfg, instruction, result_value);
         Ok(())
@@ -1227,7 +1240,7 @@ impl Context {
                         self.slice_sizes.get_mut(&parent_array).expect("ICE: expected size list");
                     sizes_list.push(true_len);
                 } else {
-                    // This means the current_array_id is the parent as well as the inner parent id
+                    // This means the current_array_id is the parent array
                     self.slice_sizes.insert(current_array_id, vec![true_len]);
                 }
                 for value in array {

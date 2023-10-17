@@ -87,7 +87,7 @@ impl Type {
             Type::Numeric(_) => false,
             // TODO: Look at if we need special handling for references
             _ => {
-                unreachable!("ICE: expected array or slice type");
+                unreachable!("ICE: expected array, slice, or numeric type but got {self:?}");
             }
         }
     }
