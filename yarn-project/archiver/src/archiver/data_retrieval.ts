@@ -136,6 +136,9 @@ export async function retrieveNewPendingL1ToL2Messages(
       searchStartBlock,
       searchEndBlock,
     );
+    if (newL1ToL2MessageLogs.length === 0) {
+      break;
+    }
     const newL1ToL2Messages = processPendingL1ToL2MessageAddedLogs(newL1ToL2MessageLogs);
     retrievedNewL1ToL2Messages.push(...newL1ToL2Messages);
     // handles the case when there are no new messages:
@@ -171,6 +174,9 @@ export async function retrieveNewCancelledL1ToL2Messages(
       searchStartBlock,
       searchEndBlock,
     );
+    if (newL1ToL2MessageCancelledLogs.length === 0) {
+      break;
+    }
     const newCancelledL1ToL2Messages = processCancelledL1ToL2MessagesLogs(newL1ToL2MessageCancelledLogs);
     retrievedNewCancelledL1ToL2Messages.push(...newCancelledL1ToL2Messages);
     // handles the case when there are no new messages:

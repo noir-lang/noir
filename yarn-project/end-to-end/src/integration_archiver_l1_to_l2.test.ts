@@ -34,6 +34,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     let deployL1ContractsValues: DeployL1Contracts | undefined;
     let accounts: CompleteAddress[];
     ({ teardown, wallet, deployL1ContractsValues, accounts, config, logger } = await setup(2));
+    config.archiverPollingIntervalMS = 100;
     archiver = await Archiver.createAndSync(config);
 
     const walletClient = deployL1ContractsValues.walletClient;
