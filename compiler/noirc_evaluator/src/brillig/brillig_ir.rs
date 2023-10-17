@@ -350,11 +350,7 @@ impl BrilligContext {
 
     /// Internal function used to compute the section labels
     fn compute_section_label(&self, section: usize) -> String {
-        let ret = format!("{}-{}", self.context_label, section);
-        if ret.contains("b42-1") {
-            panic!("Found {}", ret);
-        }
-        ret
+        format!("{}-{}", self.context_label, section)
     }
 
     /// Returns the current section label

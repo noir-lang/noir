@@ -571,6 +571,7 @@ impl<'a> FunctionContext<'a> {
 
         values = values.map(|value| {
             let value = value.eval(self);
+
             // Make sure to increment array reference counts on each let binding
             self.builder.increment_array_reference_count(value);
 
