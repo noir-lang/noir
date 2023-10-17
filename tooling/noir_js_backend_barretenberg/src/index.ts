@@ -3,10 +3,11 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
-
-// This is the number of bytes in a UltraPlonk proof
-// minus the public inputs.
-const numBytesInProofWithoutPublicInputs: number = 2144;
+import {
+  NUM_BYTES_IN_PROOF_WITHOUT_PUBLIC_INPUTS,
+  reconstructProofWithPublicInputs,
+  splitPublicInputsFromProof,
+} from './proofs.js';
 
 export class BarretenbergBackend implements Backend {
   // These type assertions are used so that we don't
@@ -77,21 +78,7 @@ export class BarretenbergBackend implements Backend {
       makeEasyToVerifyInCircuit,
     );
 
-    const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
-
-    const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
-
-    const publicInputSize = 32;
-    const publicInputs: Uint8Array[] = [];
-
-    for (let i = 0; i < publicInputsConcatenated.length; i += publicInputSize) {
-      const publicInput = publicInputsConcatenated.slice(i, i + publicInputSize);
-      publicInputs.push(publicInput);
-    }
-
-    const proof = proofWithPublicInputs.slice(splitIndex);
-
-    return { proof, publicInputs };
+    return splitPublicInputsFromProof(proofWithPublicInputs, NUM_BYTES_IN_PROOF_WITHOUT_PUBLIC_INPUTS);
   }
 
   // Generates artifacts that will be passed to a circuit that will verify this proof.
@@ -154,27 +141,4 @@ export class BarretenbergBackend implements Backend {
     }
     await this.api.destroy();
   }
-}
-
-function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
-  // Flatten publicInputs
-  const publicInputsConcatenated = flattenUint8Arrays(proofData.publicInputs);
-
-  // Concatenate publicInputs and proof
-  const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
-
-  return proofWithPublicInputs;
-}
-
-function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((acc, val) => acc + val.length, 0);
-  const result = new Uint8Array(totalLength);
-
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-
-  return result;
 }

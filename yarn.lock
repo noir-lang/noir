@@ -3436,12 +3436,17 @@ __metadata:
   dependencies:
     "@aztec/bb.js": 0.8.10
     "@noir-lang/types": "workspace:*"
+    "@types/chai": ^4
+    "@types/mocha": ^10.0.1
     "@types/node": ^20.6.2
     "@types/prettier": ^3
+    chai: ^4.3.8
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0
     fflate: ^0.8.0
+    mocha: ^10.2.0
     prettier: 3.0.3
+    ts-node: ^10.9.1
     typescript: 5.1.5
   languageName: unknown
   linkType: soft
