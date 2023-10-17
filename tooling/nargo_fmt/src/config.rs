@@ -44,7 +44,7 @@ macro_rules! config {
 config! {
     tab_spaces: usize, 4, "Number of spaces per tab";
     remove_nested_parens: bool, true, "Remove nested parens";
-    error_on_unformatted: bool, false, "Error if unable to get comments";
+    error_on_lost_comment: bool, true, "Error if unable to get comments";
 }
 
 impl Config {

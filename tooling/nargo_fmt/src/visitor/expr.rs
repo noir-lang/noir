@@ -13,7 +13,7 @@ impl FmtVisitor<'_> {
         let original = slice!(self, span.start(), span.end());
         let changed_comment_content = changed_comment_content(original, &rewrite);
 
-        if changed_comment_content && self.config.error_on_unformatted {
+        if changed_comment_content && self.config.error_on_lost_comment {
             panic!("not formatted because a comment would be lost: {rewrite:?}");
         }
 
