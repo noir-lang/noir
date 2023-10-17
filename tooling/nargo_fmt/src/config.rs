@@ -33,13 +33,17 @@ macro_rules! config {
 
         #[derive(serde::Deserialize, serde::Serialize, Clone)]
         pub struct TomlConfig {
-            $(pub $field_name: Option<$field_ty>),+
+            $(
+                #[doc = $description]
+                pub $field_name: Option<$field_ty>
+            ),+
         }
     )
 }
 
 config! {
     tab_spaces: usize, 4, "Number of spaces per tab";
+    remove_nested_parens: bool, true, "Remove nested parens";
 }
 
 impl Config {

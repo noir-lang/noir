@@ -12,7 +12,6 @@ license.workspace = true
 acvm.workspace = true
 codespan-lsp.workspace = true
 codespan-reporting.workspace = true
-fm.workspace = true
 lsp-types.workspace = true
 nargo.workspace = true
 nargo_toml.workspace = true
