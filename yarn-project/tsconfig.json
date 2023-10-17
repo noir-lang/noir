@@ -20,6 +20,7 @@
   "references": [
     { "path": "acir-simulator/tsconfig.json" },
     { "path": "archiver/tsconfig.json" },
+    { "path": "aztec-faucet/tsconfig.json" },
     { "path": "aztec.js/tsconfig.json" },
     { "path": "aztec-node/tsconfig.json" },
     { "path": "pxe/tsconfig.json" },

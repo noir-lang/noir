@@ -113,6 +113,12 @@ aztec-sandbox:
   dependencies:
     - yarn-project
 
+aztec-faucet:
+  buildDir: yarn-project
+  projectDir: yarn-project/aztec-faucet
+  dependencies:
+    - yarn-project
+
 pxe:
   buildDir: yarn-project
   projectDir: yarn-project/pxe

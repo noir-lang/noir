@@ -465,6 +465,17 @@ jobs:
           name: "Build and test"
           command: build aztec-node | add_timestamps
 
+  aztec-faucet:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build aztec-faucet | add_timestamps
+
   pxe-x86_64:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1259,6 +1270,11 @@ workflows:
           <<: *defaults
 
       - aztec-node:
+          requires:
+            - yarn-project
+          <<: *defaults
+
+      - aztec-faucet:
           requires:
             - yarn-project
           <<: *defaults

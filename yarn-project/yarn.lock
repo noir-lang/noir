@@ -118,6 +118,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/aztec-faucet@workspace:aztec-faucet":
+  version: 0.0.0-use.local
+  resolution: "@aztec/aztec-faucet@workspace:aztec-faucet"
+  dependencies:
+    "@aztec/ethereum": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@rushstack/eslint-patch": ^1.1.4
+    "@types/jest": ^29.5.0
+    "@types/node": ^18.7.23
+    jest: ^29.5.0
+    koa: ^2.14.2
+    koa-cors: ^0.0.16
+    koa-router: ^12.0.0
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    typescript: ^5.0.4
+    viem: ^1.2.5
+  bin:
+    aztec-faucet: ./dest/bin/index.js
+  languageName: unknown
+  linkType: soft
+
 "@aztec/aztec-node@workspace:^, @aztec/aztec-node@workspace:aztec-node":
   version: 0.0.0-use.local
   resolution: "@aztec/aztec-node@workspace:aztec-node"
@@ -13241,6 +13264,13 @@ __metadata:
     co: ^4.6.0
     koa-compose: ^4.1.0
   checksum: 7385b3391995f59c1312142e110d5dff677f9850dbfbcf387cd36a7b0af03b5d26e82b811eb9bb008b4f3e661cdab1f8817596e46b1929da2cf6e97a2f7456ed
+  languageName: node
+  linkType: hard
+
+"koa-cors@npm:^0.0.16":
+  version: 0.0.16
+  resolution: "koa-cors@npm:0.0.16"
+  checksum: 66d85b7a4834c436a6bfbe77248a19edebc2082c5e73d907c680a96f75ec1963146024b29cc3bb04c7790e52c6f0067f3dd71a0e341bdcc83dbc6971b86a3339
   languageName: node
   linkType: hard
 

@@ -21,3 +21,11 @@ variable "BOOTNODE_2_PRIVATE_KEY" {
 variable "ECR_URL" {
   type = string
 }
+
+variable "P2P_MIN_PEERS" {
+  type = string
+}
+
+variable "P2P_MAX_PEERS" {
+  type = string
+}

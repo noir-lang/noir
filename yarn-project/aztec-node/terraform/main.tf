@@ -137,11 +137,11 @@ resource "aws_ecs_task_definition" "aztec-node-1" {
       },
       {
         "name": "SEQ_MAX_TX_PER_BLOCK",
-        "value": "32"
+        "value": "${var.SEQ_MAX_TX_PER_BLOCK}"
       },
       {
         "name": "SEQ_MIN_TX_PER_BLOCK",
-        "value": "4"
+        "value": "${var.SEQ_MIN_TX_PER_BLOCK}"
       },
       {
         "name": "SEQ_PUBLISHER_PRIVATE_KEY",
@@ -202,6 +202,14 @@ resource "aws_ecs_task_definition" "aztec-node-1" {
       {
         "name": "PEER_ID_PRIVATE_KEY",
         "value": "${var.NODE_1_PRIVATE_KEY}"
+      },
+      {
+        "name": "P2P_MIN_PEERS",
+        "value": "${var.P2P_MIN_PEERS}"
+      },
+      {
+        "name": "P2P_MAX_PEERS",
+        "value": "${var.P2P_MAX_PEERS}"
       }
     ],
     "logConfiguration": {
@@ -430,11 +438,11 @@ resource "aws_ecs_task_definition" "aztec-node-2" {
       },
       {
         "name": "SEQ_MAX_TX_PER_BLOCK",
-        "value": "32"
+        "value": "${var.SEQ_MAX_TX_PER_BLOCK}"
       },
       {
         "name": "SEQ_MIN_TX_PER_BLOCK",
-        "value": "4"
+        "value": "${var.SEQ_MIN_TX_PER_BLOCK}"
       },
       {
         "name": "SEQ_PUBLISHER_PRIVATE_KEY",
@@ -495,6 +503,14 @@ resource "aws_ecs_task_definition" "aztec-node-2" {
       {
         "name": "PEER_ID_PRIVATE_KEY",
         "value": "${var.NODE_2_PRIVATE_KEY}"
+      },
+      {
+        "name": "P2P_MIN_PEERS",
+        "value": "${var.P2P_MIN_PEERS}"
+      },
+      {
+        "name": "P2P_MAX_PEERS",
+        "value": "${var.P2P_MAX_PEERS}"
       }
     ],
     "logConfiguration": {

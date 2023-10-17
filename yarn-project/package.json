@@ -18,6 +18,7 @@
   "workspaces": [
     "acir-simulator",
     "archiver",
+    "aztec-faucet",
     "aztec-node",
     "pxe",
     "aztec-sandbox",
