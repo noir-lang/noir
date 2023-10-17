@@ -8,6 +8,8 @@ COMMIT_HASH=${2:-${COMMIT_HASH:-$(git rev-parse HEAD)}}
 
 # Get list of rebuild patterns, concat them with regex 'or' (|), and double escape \ for awk -v.
 AWK_PATTERN=$(query_manifest rebuildPatterns $REPOSITORY | tr '\n' '|' | sed 's/\\/\\\\/g')
+# Remove the trailing '|'.
+AWK_PATTERN=${AWK_PATTERN%|}
 
 cd "$(git rev-parse --show-toplevel)"
 
