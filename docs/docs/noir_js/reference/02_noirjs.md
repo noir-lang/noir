@@ -54,6 +54,35 @@ This method takes no parameters
 await noirInstance.init();
 ```
 
+## `execute`
+
+This async method allows to execute a circuit to get its witness and return value. [`generateFinalProof`](#generatefinalproof) calls it for you, but you can call it directly (i.e. to feed directly to a backend, or to get the return value).
+
+### Syntax
+
+```js
+async execute(inputs)
+```
+
+### Parameters
+
+| Parameter | Type   | Description                                      |
+| --------- | ------ | ------------------------------------------------ |
+| `inputs`   | Object | An object containing the inputs to your circuit. |
+
+### Returns
+
+| Return value | Type                  | Description                                         |
+| ------------ | --------------------- | --------------------------------------------------- |
+| `witness`      | Promise <Uint8Array\> | The witness |
+| `returnValue`      | Promise <InputMap\> | The return value  |
+
+### Usage
+
+```js
+const { witness, returnValue } = await noir.execute(inputs)
+```
+
 ## `generateFinalProof`
 
 This async method generates a witness and a proof given an object as input.
