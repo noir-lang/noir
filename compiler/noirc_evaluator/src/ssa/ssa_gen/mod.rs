@@ -509,9 +509,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_extract_tuple_field(&mut self, tuple: &Expression, field_index: usize) -> Values {
-        // dbg!(tuple.clone());
         let tuple = self.codegen_expression(tuple);
-        // dbg!(tuple.clone());
         Self::get_field(tuple, field_index)
     }
 
