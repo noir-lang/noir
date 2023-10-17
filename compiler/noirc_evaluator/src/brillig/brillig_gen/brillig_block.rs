@@ -563,7 +563,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let operator = BrilligBinaryOp::Field { op: BinaryFieldOp::Add };
-                let one = self.brillig_context.make_constant(0_usize.into());
+                let one = self.brillig_context.make_constant(1_usize.into());
 
                 // TODO: Does this work for += 1?
                 self.brillig_context.binary_instruction(rc_register, one, rc_register, operator);
@@ -694,7 +694,7 @@ impl<'block> BrilligBlock<'block> {
             _ => unreachable!("ICE: array set on non-array"),
         };
 
-        let one = self.brillig_context.make_constant(0_usize.into());
+        let one = self.brillig_context.make_constant(1_usize.into());
         let condition = self.brillig_context.allocate_register();
         self.brillig_context.binary_instruction(
             reference_count,
