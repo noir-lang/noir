@@ -9,8 +9,12 @@ use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
     CompiledContract, CompiledProgram,
 };
-use noirc_frontend::{graph::CrateGraph, hir::Context};
-use std::path::Path;
+use noirc_frontend::{
+    graph::{CrateGraph, CrateId},
+    hir::Context,
+};
+use serde::Deserialize;
+use std::{collections::HashMap, path::Path};
 use wasm_bindgen::prelude::*;
 
 use crate::errors::JsCompileError;
@@ -24,13 +28,25 @@ extern "C" {
     pub type StringArray;
 }
 
+#[derive(Deserialize)]
+struct DependencyGraph {
+    root_dependencies: Vec<String>,
+    library_dependencies: HashMap<String, Vec<String>>,
+}
+
 #[wasm_bindgen]
 pub fn compile(
     entry_point: String,
     contracts: Option<bool>,
-    dependencies: Option<StringArray>,
+    dependency_graph: JsValue,
 ) -> Result<JsValue, JsCompileError> {
     console_error_panic_hook::set_once();
+
+    let dependency_graph: DependencyGraph =
+        <JsValue as JsValueSerdeExt>::into_serde(&dependency_graph).unwrap_or(DependencyGraph {
+            root_dependencies: vec![],
+            library_dependencies: HashMap::new(),
+        });
 
     let root = Path::new("/");
     let fm = FileManager::new(root, Box::new(get_non_stdlib_asset));
@@ -40,12 +56,7 @@ pub fn compile(
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);
 
-    let dependencies: Vec<String> = dependencies
-        .map(|array| array.iter().map(|element| element.as_string().unwrap()).collect())
-        .unwrap_or_default();
-    for dependency in dependencies {
-        add_noir_lib(&mut context, dependency.as_str());
-    }
+    process_dependency_graph(&mut context, dependency_graph);
 
     let compile_options = CompileOptions::default();
 
@@ -85,32 +96,44 @@ pub fn compile(
     }
 }
 
-fn add_noir_lib(context: &mut Context, library_name: &str) {
+fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
+    let mut crate_names: HashMap<String, CrateId> = HashMap::new();
+
+    // register libraries
+    for lib in &dependency_graph.root_dependencies {
+        let crate_id = add_noir_lib(context, &lib);
+        crate_names.insert(lib.to_string(), crate_id);
+    }
+
+    // make root crate as depending on it
+    for lib in &dependency_graph.root_dependencies {
+        let crate_id = crate_names.get(lib.as_str()).unwrap().clone();
+        let root_crate_id = context.root_crate_id().clone();
+        add_dep(context, root_crate_id, crate_id, lib.parse().unwrap());
+    }
+
+    for (lib_name, dependencies) in dependency_graph.library_dependencies {
+        let crate_id = crate_names.get(lib_name.as_str()).unwrap().clone();
+
+        for dependency_name in dependencies {
+            let lib_crate_id = match crate_names.entry(dependency_name.clone()) {
+                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    let crate_id = add_noir_lib(context, &dependency_name);
+                    entry.insert(crate_id)
+                }
+            };
+
+            add_dep(context, crate_id, lib_crate_id.clone(), dependency_name.parse().unwrap());
+        }
+    }
+}
+
+fn add_noir_lib(context: &mut Context, library_name: &str) -> CrateId {
     let path_to_lib = Path::new(&library_name).join("lib.nr");
     let library_crate_id = prepare_dependency(context, &path_to_lib);
 
-    add_dep(context, *context.root_crate_id(), library_crate_id, library_name.parse().unwrap());
-
-    // TODO: Remove this code that attaches every crate to every other crate as a dependency
-    let root_crate_id = context.root_crate_id();
-    let stdlib_crate_id = context.stdlib_crate_id();
-    let other_crate_ids: Vec<_> = context
-        .crate_graph
-        .iter_keys()
-        .filter(|crate_id| {
-            // We don't want to attach this crate to itself or stdlib, nor re-attach it to the root crate
-            crate_id != &library_crate_id
-                && crate_id != root_crate_id
-                && crate_id != stdlib_crate_id
-        })
-        .collect();
-
-    for crate_id in other_crate_ids {
-        context
-            .crate_graph
-            .add_dep(crate_id, library_name.parse().unwrap(), library_crate_id)
-            .unwrap_or_else(|_| panic!("ICE: Cyclic error triggered by {library_name} library"));
-    }
+    library_crate_id
 }
 
 fn preprocess_program(program: CompiledProgram) -> PreprocessedProgram {
