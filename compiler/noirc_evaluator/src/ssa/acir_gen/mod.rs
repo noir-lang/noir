@@ -735,6 +735,7 @@ impl Context {
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
                 let mut new_slice_sizes = if store_type.contains_slice_element() {
+                    dbg!("got here");
                     let store_id = dfg.resolve(store);
 
                     self.compute_slice_sizes(store_id, None, dfg);
@@ -1267,6 +1268,15 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let element_type_sizes = self.init_element_type_sizes_array(array_typ, array_id, dfg)?;
+
+        let true_pred =
+            self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+
+        let zero = self.acir_context.add_constant(FieldElement::zero());
+        let false_pred = self.acir_context.mul_var(not_pred, zero)?;
+        let var_index = self.acir_context.add_var(true_pred, false_pred)?;
 
         let flat_element_size_var =
             self.acir_context.read_from_memory(element_type_sizes, &var_index)?;
