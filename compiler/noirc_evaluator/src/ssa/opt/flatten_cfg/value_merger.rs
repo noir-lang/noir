@@ -240,7 +240,7 @@ impl<'a> ValueMerger<'a> {
             Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = &self.dfg[*instruction_id];
                 match instruction {
-                    // TODO: A slice can be the result of an ArrayGet when it is the
+                    // TODO(#3188): A slice can be the result of an ArrayGet when it is the
                     // fetched from a slice of slices or as a struct field.
                     // However, we need to incorporate nested slice support in flattening
                     // in order for this to be valid
@@ -329,7 +329,7 @@ impl<'a> ValueMerger<'a> {
                 self.dfg.make_array(array, typ.clone())
             }
             Type::Slice(_) => {
-                // TODO: Need to update flattening to use true user facing length of slices
+                // TODO(#3188): Need to update flattening to use true user facing length of slices
                 // to accurately construct dummy data
                 unreachable!("ICE: Cannot return a slice of slices from an if expression")
             }
