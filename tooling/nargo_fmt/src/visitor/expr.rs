@@ -260,16 +260,18 @@ fn format_exprs(trailing_comma: bool, exprs: Vec<Expr>, indent: Indent) -> (Stri
         let is_first = index == 0;
         let separate = exprs.peek().is_some() || trailing_comma;
 
-        if !is_first && force_one_line {
+        if !is_first {
             result.push(' ');
         }
 
         result.push_str(&expr.leading);
 
-        if expr.newlines {
+        if expr.different_line {
             force_one_line = false;
             result.push('\n');
             result.push_str(&indent_str);
+        } else if !expr.leading.is_empty() {
+            result.push(' ');
         }
 
         result.push_str(&expr.expr);

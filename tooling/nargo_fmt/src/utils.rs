@@ -31,7 +31,7 @@ pub(crate) struct Expr {
     pub(crate) leading: String,
     pub(crate) expr: String,
     pub(crate) trailing: String,
-    pub(crate) newlines: bool,
+    pub(crate) different_line: bool,
 }
 
 pub(crate) struct Exprs<'me> {
@@ -66,13 +66,14 @@ impl Iterator for Exprs<'_> {
         let start = self.last_position;
         let end = element_span.start();
 
+        let is_last = self.elements.peek().is_none();
         let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.span.start());
 
         let (leading, newlines) = self.leading(start, end);
         let expr = self.visitor.format_expr(element);
-        let trailing = self.trailing(element_span.end(), next_start);
+        let trailing = self.trailing(element_span.end(), next_start, is_last);
 
-        Expr { leading, expr, trailing, newlines }.into()
+        Expr { leading, expr, trailing, different_line: newlines }.into()
     }
 }
 
@@ -100,24 +101,18 @@ impl<'me> Exprs<'me> {
         (leading_trimmed.to_string(), newlines)
     }
 
-    pub(crate) fn trailing(&mut self, start: u32, end: u32) -> String {
-        let trailing = slice!(self.visitor, start, end);
-        let end = trailing
-            .rfind_token_with(|token| {
-                matches!(token, Token::LineComment(_) | Token::BlockComment(_))
-            })
-            .unwrap_or(trailing.len() as u32);
-
-        let trailing = &trailing[..end as usize].trim_matches(',').trim();
-        self.last_position = start + end;
-
+    pub(crate) fn trailing(&mut self, start: u32, end: u32, is_last: bool) -> String {
+        let slice = slice!(self.visitor, start, end);
+        let comment_end = find_comment_end(slice, is_last);
+        let trailing = slice[..comment_end].trim_matches(',').trim();
+        self.last_position = start + (comment_end as u32);
         trailing.to_string()
     }
 }
 
 pub(crate) trait FindToken {
     fn find_token(&self, token: Token) -> Option<u32>;
-    fn rfind_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
+    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32>;
 }
 
 impl FindToken for str {
@@ -125,10 +120,56 @@ impl FindToken for str {
         Lexer::new(self).flatten().find_map(|it| (it.token() == &token).then(|| it.to_span().end()))
     }
 
-    fn rfind_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
-        let mut tokens: Vec<_> = Lexer::new(self).flatten().collect();
-        tokens.reverse();
+    fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<u32> {
+        Lexer::new(self)
+            .skip_comments(false)
+            .flatten()
+            .into_iter()
+            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().end()))
+    }
+}
 
-        tokens.into_iter().find_map(|spanned| (f(spanned.token()).then(|| spanned.to_span().end())))
+pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
+    fn find_comment_end(slice: &str) -> usize {
+        slice
+            .find_token_with(|token| {
+                matches!(token, Token::LineComment(_) | Token::BlockComment(_))
+            })
+            .map(|index| index as usize)
+            .unwrap_or(slice.len())
+    }
+
+    if is_last {
+        return slice.len();
+    }
+
+    let mut block_open_index = slice.find("/*");
+    if let Some(index) = block_open_index {
+        match slice.find('/') {
+            Some(slash) if slash < index => block_open_index = None,
+            _ if slice[..index].ends_with('/') => block_open_index = None,
+            _ => (),
+        }
+    }
+
+    let newline_index = slice.find('\n');
+    if let Some(separator_index) = slice.find_token(Token::Comma).map(|index| index as usize - 1) {
+        match (block_open_index, newline_index) {
+            (Some(block), None) if block > separator_index => separator_index + 1,
+            (Some(block), None) => {
+                let slice = &slice[block..];
+                std::cmp::max(find_comment_end(slice) + block, separator_index + 1)
+            }
+            (Some(block), Some(newline)) if block < newline => {
+                let slice = &slice[block..];
+                std::cmp::max(find_comment_end(slice) + block, separator_index + 1)
+            }
+            (_, Some(newline)) if newline > separator_index => newline + 1,
+            _ => slice.len(),
+        }
+    } else if let Some(newline_index) = newline_index {
+        newline_index + 1
+    } else {
+        0
     }
 }
