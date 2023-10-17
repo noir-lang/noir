@@ -186,13 +186,12 @@ impl<'a> ValueMerger<'a> {
 
         let then_len = self.get_slice_length(then_value_id);
         self.slice_sizes.insert(then_value_id, then_len);
-        println!("value: {then_value_id}, len: {then_len}");
+
         let else_len = self.get_slice_length(else_value_id);
         self.slice_sizes.insert(else_value_id, else_len);
-        println!("value: {else_value_id}, len: {else_len}");
 
         let len = then_len.max(else_len);
-        dbg!(len);
+
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_usize = i * element_types.len() + element_index;
@@ -205,24 +204,7 @@ impl<'a> ValueMerger<'a> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if len <= index_usize {
-                        // println!("current array: {array}");
-                        // dbg!(&self.dfg[array]);
-                        // Do I need to check the dfg for the internal elements of the slice
-                        // to match which one we are on? 
-                        // Am I going to have to do something similar to get_slice_length or can I store it 
-                        // during get_slice_length?
-                        // match &self.dfg[array] {
-                        //     Value::Array { array, .. } => {
-                        //         dbg!(len);
-                        //         dbg!(index_usize);
-                        //         dbg!(array[index_usize - 1]);
-                        //     }
-                        //     _ => {
-                        //         panic!("ahhh got something other than array");
-                        //     }
-                        // }
-                        dbg!(index_usize);
-                        self.make_slice_dummy_data(element_type, len)
+                        self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
                         self.dfg
@@ -336,7 +318,7 @@ impl<'a> ValueMerger<'a> {
     /// We need to make sure we follow the internal element type structure of the slice type
     /// even for dummy data to ensure that we do not have errors later in the compiler,
     /// such as with dynamic indexing of non-homogenous slices.
-    fn make_slice_dummy_data(&mut self, typ: &Type, len: usize) -> ValueId {
+    fn make_slice_dummy_data(&mut self, typ: &Type) -> ValueId {
         match typ {
             Type::Numeric(_) => {
                 let zero = FieldElement::zero();
@@ -346,24 +328,15 @@ impl<'a> ValueMerger<'a> {
                 let mut array = im::Vector::new();
                 for _ in 0..*len {
                     for typ in element_types.iter() {
-                        array.push_back(self.make_slice_dummy_data(typ, *len));
+                        array.push_back(self.make_slice_dummy_data(typ));
                     }
                 }
                 self.dfg.make_array(array, typ.clone())
             }
-            Type::Slice(element_types) => {
-                // let mut array = im::Vector::new();
-                // // dbg!(len);
-                // for _ in 0..len {
-                //     for typ in element_types.iter() {
-                //         array.push_back(self.make_slice_dummy_data(typ, len));
-                //     }
-                // }
-                // self.dfg.make_array(array, typ.clone())
-                let zero = FieldElement::zero();
-                self.dfg.make_constant(zero, Type::field())
-                // dbg!(self.slice_sizes.clone());
-                // unreachable!("ICE: Slices of slice is unsupported")
+            Type::Slice(_) => {
+                // TODO: Need to update flattening to use true user facing length of slices
+                // to accurately construct dummy data
+                unreachable!("ICE: Cannot return a slice of slices from an if expression")
             }
             Type::Reference => {
                 unreachable!("ICE: Merging references is unsupported")
