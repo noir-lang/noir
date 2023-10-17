@@ -217,19 +217,39 @@ template <typename Tuple, std::size_t Index = 0> static constexpr size_t get_max
 }
 
 /**
- * @brief Recursive utility function to construct tuple of tuple of Univariates
- * @details This is the container for storing the univariate contributions from each identity in each relation. Each
- * Relation contributes a tuple with num-identities many Univariates and there are num-relations many tuples in the
- * outer tuple.
+ * @brief Recursive utility function to construct a container for the subrelation accumulators of Protogalaxy folding.
+ * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
+ * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
+ * tuple is determined by the corresponding subrelation length and the number of instances to be folded.
  */
-template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto create_relation_univariates_container()
+template <typename Tuple, size_t NUM_INSTANCES, size_t Index = 0>
+static constexpr auto create_protogalaxy_tuple_of_tuples_of_univariates()
 {
     if constexpr (Index >= std::tuple_size<Tuple>::value) {
         return std::tuple<>{}; // Return empty when reach end of the tuple
     } else {
-        using UnivariateTuple = typename std::tuple_element_t<Index, Tuple>::TupleOfUnivariatesOverSubrelations;
+        using UnivariateTuple =
+            typename std::tuple_element_t<Index,
+                                          Tuple>::template ProtogalaxyTupleOfUnivariatesOverSubrelations<NUM_INSTANCES>;
         return std::tuple_cat(std::tuple<UnivariateTuple>{},
-                              create_relation_univariates_container<FF, Tuple, Index + 1>());
+                              create_protogalaxy_tuple_of_tuples_of_univariates<Tuple, NUM_INSTANCES, Index + 1>());
+    }
+}
+
+/**
+ * @brief Recursive utility function to construct a container for the subrelation accumulators of sumcheck proving.
+ * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
+ * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
+ * tuple is determined by the corresponding subrelation length.
+ */
+template <typename Tuple, std::size_t Index = 0> static constexpr auto create_sumcheck_tuple_of_tuples_of_univariates()
+{
+    if constexpr (Index >= std::tuple_size<Tuple>::value) {
+        return std::tuple<>{}; // Return empty when reach end of the tuple
+    } else {
+        using UnivariateTuple = typename std::tuple_element_t<Index, Tuple>::SumcheckTupleOfUnivariatesOverSubrelations;
+        return std::tuple_cat(std::tuple<UnivariateTuple>{},
+                              create_sumcheck_tuple_of_tuples_of_univariates<Tuple, Index + 1>());
     }
 }
 
@@ -238,13 +258,13 @@ template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto
  * @details Container for storing value of each identity in each relation. Each Relation contributes an array of
  * length num-identities.
  */
-template <class FF, typename Tuple, std::size_t Index = 0> static constexpr auto create_relation_values_container()
+template <typename Tuple, std::size_t Index = 0> static constexpr auto create_sumcheck_tuple_of_arrays_of_values()
 {
     if constexpr (Index >= std::tuple_size<Tuple>::value) {
         return std::tuple<>{}; // Return empty when reach end of the tuple
     } else {
-        using Values = typename std::tuple_element_t<Index, Tuple>::ArrayOfValuesOverSubrelations;
-        return std::tuple_cat(std::tuple<Values>{}, create_relation_values_container<FF, Tuple, Index + 1>());
+        using Values = typename std::tuple_element_t<Index, Tuple>::SumcheckArrayOfValuesOverSubrelations;
+        return std::tuple_cat(std::tuple<Values>{}, create_sumcheck_tuple_of_arrays_of_values<Tuple, Index + 1>());
     }
 }
 

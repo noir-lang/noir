@@ -61,7 +61,8 @@ template <typename FF_> class ECCVMLookupRelationBase {
             return Accumulator0(View(in.precompute_select));
         }
         if constexpr (write_index == 1) {
-            return Accumulator0(View(in.precompute_select)); // WORKTODO is this a bug?
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/750) Is this a bug?
+            return Accumulator0(View(in.precompute_select));
         }
         return Accumulator0(1);
     }

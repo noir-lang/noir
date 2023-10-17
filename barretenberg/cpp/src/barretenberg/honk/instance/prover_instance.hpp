@@ -16,7 +16,7 @@ namespace proof_system::honk {
  *
  */
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/725): create an Instances class that manages several
-// Instance and passes them to ProtoGakaxy prover and verifier so that Instance objects don't need to mantain an index
+// Instance and passes them to ProtoGalaxy prover and verifier so that Instance objects don't need to mantain an index
 template <class Flavor> class ProverInstance_ {
     using Circuit = typename Flavor::CircuitBuilder;
     using ProvingKey = typename Flavor::ProvingKey;
@@ -59,6 +59,7 @@ template <class Flavor> class ProverInstance_ {
         , public_inputs(result.folded_public_inputs)
         , folding_parameters(result.folding_parameters){};
 
+    ProverInstance_() = default;
     ~ProverInstance_() = default;
 
     std::shared_ptr<VerificationKey> compute_verification_key();

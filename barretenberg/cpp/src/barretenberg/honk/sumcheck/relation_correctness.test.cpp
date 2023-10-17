@@ -42,9 +42,9 @@ template <typename Flavor, typename Relation> void check_relation(auto circuit_s
             ++poly_idx;
         }
 
-        // Define the appropriate ArrayOfValuesOverSubrelations type for this relation and initialize to zero
-        using ArrayOfValuesOverSubrelations = typename Relation::ArrayOfValuesOverSubrelations;
-        ArrayOfValuesOverSubrelations result;
+        // Define the appropriate SumcheckArrayOfValuesOverSubrelations type for this relation and initialize to zero
+        using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
+        SumcheckArrayOfValuesOverSubrelations result;
         for (auto& element : result) {
             element = 0;
         }

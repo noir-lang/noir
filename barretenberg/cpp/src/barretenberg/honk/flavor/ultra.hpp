@@ -60,9 +60,11 @@ class Ultra {
     static constexpr size_t MAX_RANDOM_RELATION_LENGTH = MAX_RELATION_LENGTH + 1;
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
-    // define the container for storing the univariate contribution from each relation in Sumcheck
-    using TupleOfTuplesOfUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
-    using TupleOfArraysOfValues = decltype(create_relation_values_container<FF, Relations>());
+    template <size_t NUM_INSTANCES>
+    using ProtogalaxyTupleOfTuplesOfUnivariates =
+        decltype(create_protogalaxy_tuple_of_tuples_of_univariates<Relations, NUM_INSTANCES>());
+    using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
+    using TupleOfArraysOfValues = decltype(create_sumcheck_tuple_of_arrays_of_values<Relations>());
 
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = true;
@@ -316,12 +318,16 @@ class Ultra {
     };
 
     /**
-     * @brief A container for univariates produced during the hot loop in sumcheck.
-     * @todo TODO(#390): Simplify this by moving MAX_RELATION_LENGTH?
+     * @brief A container for univariates used during Protogalaxy folding and sumcheck.
+     * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
      */
-    template <size_t MAX_RELATION_LENGTH>
-    using ExtendedEdges = AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>,
-                                      barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
+    template <size_t LENGTH>
+    using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>, barretenberg::Univariate<FF, LENGTH>>;
+
+    /**
+     * @brief A container for univariates produced during the hot loop in sumcheck.
+     */
+    using ExtendedEdges = ProverUnivariates<MAX_RELATION_LENGTH>;
 
     /**
      * @brief A container for commitment labels.

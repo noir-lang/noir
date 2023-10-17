@@ -2,7 +2,7 @@
 
 #include "barretenberg/proof_system/relations/relation_types.hpp"
 
-#define ExtendedEdge(Flavor) Flavor::ExtendedEdges<Flavor::MAX_RELATION_LENGTH>
+#define ExtendedEdge(Flavor) Flavor::ExtendedEdges
 #define EvaluationEdge(Flavor) Flavor::AllValues
 #define EntityEdge(Flavor) Flavor::AllEntities<Flavor::FF, Flavor::FF>
 
@@ -25,9 +25,9 @@
 
 #define SUMCHECK_RELATION_CLASS(...) _SUMCHECK_RELATION_CLASS(__VA_ARGS__)
 #define _SUMCHECK_RELATION_CLASS(Preface, RelationBase, Flavor)                                                        \
-    ACCUMULATE(Preface, RelationBase, Flavor, TupleOfUnivariatesOverSubrelations, ExtendedEdge)                        \
-    ACCUMULATE(Preface, RelationBase, Flavor, ArrayOfValuesOverSubrelations, EvaluationEdge)                           \
-    ACCUMULATE(Preface, RelationBase, Flavor, ArrayOfValuesOverSubrelations, EntityEdge)
+    ACCUMULATE(Preface, RelationBase, Flavor, SumcheckTupleOfUnivariatesOverSubrelations, ExtendedEdge)                \
+    ACCUMULATE(Preface, RelationBase, Flavor, SumcheckArrayOfValuesOverSubrelations, EvaluationEdge)                   \
+    ACCUMULATE(Preface, RelationBase, Flavor, SumcheckArrayOfValuesOverSubrelations, EntityEdge)
 
 #define DECLARE_SUMCHECK_RELATION_CLASS(RelationBase, Flavor) SUMCHECK_RELATION_CLASS(extern, RelationBase, Flavor)
 #define DEFINE_SUMCHECK_RELATION_CLASS(RelationBase, Flavor) SUMCHECK_RELATION_CLASS(, RelationBase, Flavor)

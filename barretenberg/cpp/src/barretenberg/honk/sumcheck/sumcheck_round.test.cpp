@@ -1,5 +1,6 @@
 #include "sumcheck_round.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/proof_system/relations/utils.hpp"
 
 #include <gtest/gtest.h>
 
@@ -12,6 +13,7 @@ using barretenberg::Univariate;
 
 using Flavor = flavor::Ultra;
 using FF = typename Flavor::FF;
+using Utils = barretenberg::RelationUtils<Flavor>;
 
 namespace test_sumcheck_round {
 
@@ -19,7 +21,7 @@ namespace test_sumcheck_round {
  * @brief Test SumcheckRound functions for operations on tuples (and tuples of tuples) of Univariates
  *
  */
-TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
+TEST(SumcheckRound, SumcheckTupleOfTuplesOfUnivariates)
 {
     using Flavor = proof_system::honk::flavor::Ultra;
     using FF = typename Flavor::FF;
@@ -30,34 +32,29 @@ TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
     Univariate<FF, 5> univariate_3({ 3, 4, 5, 6, 7 });
     const size_t MAX_LENGTH = 5;
 
-    // Instantiate some barycentric extension utility classes
-    auto barycentric_util_1 = BarycentricData<FF, 3, MAX_LENGTH>();
-    auto barycentric_util_2 = BarycentricData<FF, 2, MAX_LENGTH>();
-    auto barycentric_util_3 = BarycentricData<FF, 5, MAX_LENGTH>();
-
     // Construct a tuple of tuples of the form { {univariate_1}, {univariate_2, univariate_3} }
     auto tuple_of_tuples = std::make_tuple(std::make_tuple(univariate_1), std::make_tuple(univariate_2, univariate_3));
 
     // Use scale_univariate_accumulators to scale by challenge powers
     FF challenge = 5;
     FF running_challenge = 1;
-    SumcheckProverRound<Flavor>::scale_univariates(tuple_of_tuples, challenge, running_challenge);
+    Utils::scale_univariates(tuple_of_tuples, challenge, running_challenge);
 
     // Use extend_and_batch_univariates to extend to MAX_LENGTH then accumulate
     PowUnivariate<FF> pow_univariate(1);
     auto result = Univariate<FF, MAX_LENGTH>();
-    SumcheckProverRound<Flavor>::extend_and_batch_univariates(tuple_of_tuples, pow_univariate, result);
+    Utils::extend_and_batch_univariates(tuple_of_tuples, pow_univariate, result);
 
     // Repeat the batching process manually
-    auto result_expected = barycentric_util_1.extend(univariate_1) * 1 +
-                           barycentric_util_2.extend(univariate_2) * challenge +
-                           barycentric_util_3.extend(univariate_3) * challenge * challenge;
+    auto result_expected = univariate_1.template extend_to<MAX_LENGTH>() * 1 +
+                           univariate_2.template extend_to<MAX_LENGTH>() * challenge +
+                           univariate_3.template extend_to<MAX_LENGTH>() * challenge * challenge;
 
     // Compare final batched univarites
     EXPECT_EQ(result, result_expected);
 
     // Reinitialize univariate accumulators to zero
-    SumcheckProverRound<Flavor>::zero_univariates(tuple_of_tuples);
+    Utils::zero_univariates(tuple_of_tuples);
 
     // Check that reinitialization was successful
     Univariate<FF, 3> expected_1({ 0, 0, 0 });
@@ -134,7 +131,7 @@ TEST(SumcheckRound, AddTuplesOfTuplesOfUnivariates)
     auto tuple_of_tuples_2 =
         std::make_tuple(std::make_tuple(univariate_4), std::make_tuple(univariate_5, univariate_6));
 
-    SumcheckProverRound<Flavor>::add_nested_tuples(tuple_of_tuples_1, tuple_of_tuples_2);
+    Utils::add_nested_tuples(tuple_of_tuples_1, tuple_of_tuples_2);
 
     EXPECT_EQ(std::get<0>(std::get<0>(tuple_of_tuples_1)), expected_sum_1);
     EXPECT_EQ(std::get<0>(std::get<1>(tuple_of_tuples_1)), expected_sum_2);

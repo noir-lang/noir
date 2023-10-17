@@ -19,24 +19,15 @@ using FF = barretenberg::fr;
 
 template <typename Flavor, typename Relation> void execute_relation(::benchmark::State& state)
 {
-    // Generate beta and gamma
-    auto beta = FF::random_element();
-    auto gamma = FF::random_element();
-    auto public_input_delta = FF::random_element();
-
-    RelationParameters<FF> params{
-        .beta = beta,
-        .gamma = gamma,
-        .public_input_delta = public_input_delta,
-    };
-
     using AllValues = typename Flavor::AllValues;
-    using ArrayOfValuesOverSubrelations = typename Relation::ArrayOfValuesOverSubrelations;
+    using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
+
+    auto params = proof_system::RelationParameters<FF>::get_random();
 
     // Extract an array containing all the polynomial evaluations at a given row i
     AllValues new_value;
-    // Define the appropriate ArrayOfValuesOverSubrelations type for this relation and initialize to zero
-    ArrayOfValuesOverSubrelations accumulator;
+    // Define the appropriate SumcheckArrayOfValuesOverSubrelations type for this relation and initialize to zero
+    SumcheckArrayOfValuesOverSubrelations accumulator;
     // Evaluate each constraint in the relation and check that each is satisfied
 
     for (auto _ : state) {

@@ -14,6 +14,7 @@ template <typename Flavor> class SumcheckProver {
 
   public:
     using FF = typename Flavor::FF;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
     using PartiallyEvaluatedMultivariates = typename Flavor::PartiallyEvaluatedMultivariates;
     using ClaimedEvaluations = typename Flavor::AllValues;
 
@@ -70,7 +71,7 @@ template <typename Flavor> class SumcheckProver {
      * @details
      */
     SumcheckOutput<Flavor> prove(
-        auto full_polynomials,
+        ProverPolynomials full_polynomials,
         const proof_system::RelationParameters<FF>& relation_parameters) // pass by value, not by reference
     {
         auto [alpha, zeta] = transcript.get_challenges("Sumcheck:alpha", "Sumcheck:zeta");

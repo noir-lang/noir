@@ -1,5 +1,6 @@
 #pragma once
-#include "univariate.hpp"
+#include "barretenberg/ecc/fields/field.hpp"
+#include <array>
 
 // TODO(#674): We need the functionality of BarycentricData for both field (native) and field_t (stdlib). The former is
 // is compatible with constexpr operations, and the former is not. The functions for computing the
@@ -121,86 +122,6 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricDataC
     static constexpr auto precomputed_denominator_inverses =
         construct_denominator_inverses(big_domain, lagrange_denominators);
     static constexpr auto full_numerator_values = construct_full_numerator_values(big_domain);
-
-    /**
-     * @brief Given a univariate f represented by {f(0), ..., f(t-1)}, compute {f(t), ..., f(u-1)}
-     * and return the Univariate represented by {f(0), ..., f(u-1)}.
-     *
-     * @details Write v_i = f(x_i) on a the domain {x_0, ..., x_{t-1}}. To efficiently compute the needed values of f,
-     * we use the barycentric formula
-     *      - f(x) = B(x) Σ_{i=0}^{t-1} v_i / (d_i*(x-x_i))
-     * where
-     *      - B(x) = Π_{i=0}^{t-1} (x-x_i)
-     *      - d_i  = Π_{j ∈ {0, ..., t-1}, j≠i} (x_i-x_j) for i ∈ {0, ..., t-1}
-     *
-     * When the domain size is two, extending f = v0(1-X) + v1X to a new value involves just one addition and a
-     * subtraction: setting Δ = v1-v0, the values of f(X) are f(0)=v0, f(1)= v0 + Δ, v2 = f(1) + Δ, v3 = f(2) + Δ...
-     *
-     */
-    Univariate<Fr, num_evals> extend(const Univariate<Fr, domain_size>& f)
-    {
-        static_assert(num_evals >= domain_size);
-        Univariate<Fr, num_evals> result;
-
-        std::copy(f.evaluations.begin(), f.evaluations.end(), result.evaluations.begin());
-
-        if constexpr (domain_size == 2) {
-            Fr delta = f.value_at(1) - f.value_at(0);
-            for (size_t idx = 1; idx < num_evals - 1; idx++) {
-                result.value_at(idx + 1) = result.value_at(idx) + delta;
-            }
-            return result;
-        } else {
-            for (size_t k = domain_size; k != num_evals; ++k) {
-                result.value_at(k) = 0;
-                // compute each term v_j / (d_j*(x-x_j)) of the sum
-                for (size_t j = 0; j != domain_size; ++j) {
-                    Fr term = f.value_at(j);
-                    term *= precomputed_denominator_inverses[domain_size * k + j];
-                    result.value_at(k) += term;
-                }
-                // scale the sum by the the value of of B(x)
-                result.value_at(k) *= full_numerator_values[k];
-            }
-            return result;
-        }
-    }
-
-    /**
-     * @brief Evaluate a univariate at a point u not known at compile time
-     * and assumed not to be in the domain (else we divide by zero).
-     * @param f
-     * @return Fr
-     */
-    Fr evaluate(const Univariate<Fr, domain_size>& f, const Fr& u)
-    {
-
-        Fr full_numerator_value = 1;
-        for (size_t i = 0; i != domain_size; ++i) {
-            full_numerator_value *= u - i;
-        }
-
-        // build set of domain size-many denominator inverses 1/(d_i*(x_k - x_j)). will multiply against each of
-        // these (rather than to divide by something) for each barycentric evaluation
-        std::array<Fr, domain_size> denominator_inverses;
-        for (size_t i = 0; i != domain_size; ++i) {
-            Fr inv = lagrange_denominators[i];
-            inv *= u - big_domain[i]; // warning: need to avoid zero here
-            inv = Fr(1) / inv;
-            denominator_inverses[i] = inv;
-        }
-
-        Fr result = 0;
-        // compute each term v_j / (d_j*(x-x_j)) of the sum
-        for (size_t i = 0; i != domain_size; ++i) {
-            Fr term = f.value_at(i);
-            term *= denominator_inverses[i];
-            result += term;
-        }
-        // scale the sum by the the value of of B(x)
-        result *= full_numerator_value;
-        return result;
-    };
 };
 
 template <class Fr, size_t domain_size, size_t num_evals> class BarycentricDataRunTime {
@@ -302,90 +223,6 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricDataR
     inline static const auto precomputed_denominator_inverses =
         construct_denominator_inverses(big_domain, lagrange_denominators);
     inline static const auto full_numerator_values = construct_full_numerator_values(big_domain);
-
-    /**
-     * @brief Given a univariate f represented by {f(0), ..., f(t-1)}, compute {f(t), ..., f(u-1)}
-     * and return the Univariate represented by {f(0), ..., f(u-1)}.
-     *
-     * @details Write v_i = f(x_i) on a the domain {x_0, ..., x_{t-1}}. To efficiently compute the needed values of f,
-     * we use the barycentric formula
-     *      - f(x) = B(x) Σ_{i=0}^{t-1} v_i / (d_i*(x-x_i))
-     * where
-     *      - B(x) = Π_{i=0}^{t-1} (x-x_i)
-     *      - d_i  = Π_{j ∈ {0, ..., t-1}, j≠i} (x_i-x_j) for i ∈ {0, ..., t-1}
-     *
-     * When the domain size is two, extending f = v0(1-X) + v1X to a new value involves just one addition and a
-     * subtraction: setting Δ = v1-v0, the values of f(X) are f(0)=v0, f(1)= v0 + Δ, v2 = f(1) + Δ, v3 = f(2) + Δ...
-     *
-     */
-    Univariate<Fr, num_evals> extend(Univariate<Fr, domain_size> f)
-    {
-        static_assert(num_evals >= domain_size);
-        Univariate<Fr, num_evals> result;
-
-        std::copy(f.evaluations.begin(), f.evaluations.end(), result.evaluations.begin());
-
-        if constexpr (domain_size == 2) {
-            Fr delta = f.value_at(1) - f.value_at(0);
-            for (size_t idx = 1; idx < num_evals - 1; idx++) {
-                result.value_at(idx + 1) = result.value_at(idx) + delta;
-            }
-            return result;
-        } else {
-            for (size_t k = 0; k != domain_size; ++k) {
-                result.value_at(k) = f.value_at(k);
-            }
-
-            for (size_t k = domain_size; k != num_evals; ++k) {
-                result.value_at(k) = 0;
-                // compute each term v_j / (d_j*(x-x_j)) of the sum
-                for (size_t j = 0; j != domain_size; ++j) {
-                    Fr term = f.value_at(j);
-                    term *= precomputed_denominator_inverses[domain_size * k + j];
-                    result.value_at(k) += term;
-                }
-                // scale the sum by the the value of of B(x)
-                result.value_at(k) *= full_numerator_values[k];
-            }
-            return result;
-        }
-    }
-
-    /**
-     * @brief Evaluate a univariate at a point u not known at compile time
-     * and assumed not to be in the domain (else we divide by zero).
-     * @param f
-     * @return Fr
-     */
-    Fr evaluate(Univariate<Fr, domain_size>& f, const Fr& u)
-    {
-
-        Fr full_numerator_value = 1;
-        for (size_t i = 0; i != domain_size; ++i) {
-            full_numerator_value *= u - i;
-        }
-
-        // build set of domain size-many denominator inverses 1/(d_i*(x_k - x_j)). will multiply against each of
-        // these (rather than to divide by something) for each barycentric evaluation
-        std::array<Fr, domain_size> denominator_inverses;
-        for (size_t i = 0; i != domain_size; ++i) {
-            Fr inv = lagrange_denominators[i];
-            inv *= u - big_domain[i]; // warning: need to avoid zero here
-            inv = Fr(1) / inv;
-            denominator_inverses[i] = inv;
-        }
-
-        Fr result = 0;
-        // compute each term v_j / (d_j*(x-x_j)) of the sum
-        for (size_t i = 0; i != domain_size; ++i) {
-            Fr term = f.value_at(i);
-            term *= denominator_inverses[i];
-            result += term;
-        }
-        // scale the sum by the the value of of B(x)
-        result *= full_numerator_value;
-        return result;
-    };
 };
 
 /**

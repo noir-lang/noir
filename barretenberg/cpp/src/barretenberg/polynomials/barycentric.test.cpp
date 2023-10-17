@@ -1,5 +1,5 @@
-#include "barycentric.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "univariate.hpp"
 #include <gtest/gtest.h>
 
 namespace barretenberg::test_barycentric {
@@ -32,8 +32,7 @@ TYPED_TEST(BarycentricDataTests, Extend)
     const size_t num_evals(10);
     auto f = Univariate<FF, domain_size>({ 1, 2 });
     auto expected_result = Univariate<FF, num_evals>({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
-    BarycentricData<FF, domain_size, num_evals> barycentric_data;
-    auto result = barycentric_data.extend(f);
+    auto result = f.template extend_to<num_evals>();
     EXPECT_EQ(result, expected_result);
 }
 
@@ -41,12 +40,10 @@ TYPED_TEST(BarycentricDataTests, Evaluate)
 {
     BARYCENTIC_DATA_TESTS_TYPE_ALIASES
     const size_t domain_size(2);
-    const size_t num_evals(10);
     auto f = Univariate<FF, domain_size>({ 1, 2 });
     FF u = 5;
     FF expected_result = 6;
-    BarycentricData<FF, domain_size, num_evals> barycentric_data;
-    auto result = barycentric_data.evaluate(f, u);
+    auto result = f.evaluate(u);
     EXPECT_EQ(result, expected_result);
 }
 
@@ -67,10 +64,10 @@ TYPED_TEST(BarycentricDataTests, BarycentricData2to3)
     // e1(X) = 1*(1-X) + 2*X = 1 + X
     Univariate<FF, 2> e1{ { 1, 2 } };
     FF u = FF::random_element();
-    FF calculated_val_at_u = barycentric.evaluate(e1, u);
+    FF calculated_val_at_u = e1.evaluate(u);
     EXPECT_EQ(u + 1, calculated_val_at_u);
 
-    Univariate<FF, 3> ext1 = barycentric.extend(e1);
+    Univariate<FF, 3> ext1 = e1.template extend_to<num_evals>();
     Univariate<FF, 3> expected{ { 1, 2, 3 } };
     EXPECT_EQ(ext1, expected);
 }
@@ -81,16 +78,12 @@ TYPED_TEST(BarycentricDataTests, BarycentricData5to6)
 
     const size_t domain_size = 5;
     const size_t num_evals = 6;
-    auto barycentric = BarycentricData<FF, domain_size, num_evals>();
 
     // Note: we are able to represent a degree 4 polynomial with 5 points thus this
     // extension will succeed. It would fail for values on a polynomial of degree > 4.
     Univariate<FF, domain_size> e1{ { 1, 3, 25, 109, 321 } }; // X^4 + X^3 + 1
-
-    Univariate<FF, num_evals> ext1 = barycentric.extend(e1);
-
+    Univariate<FF, num_evals> ext1 = e1.template extend_to<num_evals>();
     Univariate<FF, num_evals> expected{ { 1, 3, 25, 109, 321, 751 } };
-
     EXPECT_EQ(ext1, expected);
 }
 

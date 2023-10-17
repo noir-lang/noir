@@ -52,7 +52,7 @@ void compute_grand_product(const size_t circuit_size,
 {
     using FF = typename Flavor::FF;
     using Polynomial = typename Flavor::Polynomial;
-    using Accumulator = std::tuple_element_t<0, typename GrandProdRelation::ArrayOfValuesOverSubrelations>;
+    using Accumulator = std::tuple_element_t<0, typename GrandProdRelation::SumcheckArrayOfValuesOverSubrelations>;
 
     // Allocate numerator/denominator polynomials that will serve as scratch space
     // TODO(zac) we can re-use the permutation polynomial as the numerator polynomial. Reduces readability

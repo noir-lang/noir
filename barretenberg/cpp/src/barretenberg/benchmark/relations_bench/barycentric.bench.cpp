@@ -1,5 +1,5 @@
-#include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/polynomials/univariate.hpp"
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
@@ -17,9 +17,8 @@ namespace proof_system::benchmark {
 void extend_2_to_6(State& state) noexcept
 {
     auto univariate = Univariate<FF, 2>::get_random();
-    BarycentricData<FF, 2, 6> barycentric_2_to_6;
     for (auto _ : state) {
-        DoNotOptimize(barycentric_2_to_6.extend(univariate));
+        DoNotOptimize(univariate.extend_to<6>());
     }
 }
 BENCHMARK(extend_2_to_6);

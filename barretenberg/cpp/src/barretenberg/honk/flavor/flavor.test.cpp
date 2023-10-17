@@ -33,7 +33,6 @@ TEST(Flavor, Getters)
 
     Flavor::VerificationKey verification_key;
     Flavor::ProverPolynomials prover_polynomials;
-    Flavor::ExtendedEdges<Flavor::NUM_ALL_ENTITIES> edges;
     Flavor::AllValues evals;
     Flavor::CommitmentLabels commitment_labels;
 

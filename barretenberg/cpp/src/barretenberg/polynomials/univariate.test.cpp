@@ -1,5 +1,5 @@
+#include "univariate.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barycentric.hpp"
 #include <gtest/gtest.h>
 
 namespace barretenberg::test_univariate {
@@ -48,9 +48,8 @@ TYPED_TEST(UnivariateTest, Multiplication)
 {
     UNIVARIATE_TESTS_ALIASES
 
-    auto barycentric = BarycentricData<FF, 2, 3>();
-    Univariate<FF, 3> f1 = barycentric.extend(Univariate<FF, 2>{ { 1, 2 } });
-    Univariate<FF, 3> f2 = barycentric.extend(Univariate<FF, 2>{ { 3, 4 } });
+    Univariate<FF, 3> f1 = Univariate<FF, 2>{ { 1, 2 } }.template extend_to<3>();
+    Univariate<FF, 3> f2 = Univariate<FF, 2>{ { 3, 4 } }.template extend_to<3>();
     // output should be {3, 8, 15}
     Univariate<FF, 3> expected_result{ { 3, 8, 15 } };
     Univariate<FF, 3> f1f2 = f1 * f2;

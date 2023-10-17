@@ -35,6 +35,28 @@ template <typename Relation, size_t subrelation_index> constexpr bool subrelatio
 }
 
 /**
+ * @brief Get the subrelation accumulators for the Protogalaxy combiner calculation.
+ * @details A subrelation of degree D, when evaluated on polynomials of degree N, gives a polynomial of degree D *
+ * N. In the context of Protogalaxy, N = NUM_INSTANCES-1. Hence, given a subrelation of length x, its evaluation on
+ * such polynomials will have degree (x-1) * (NUM_INSTANCES-1), and the length of this evaluation will be one
+ * greater than this.
+ * @tparam NUM_INSTANCES
+ * @tparam NUM_SUBRELATIONS
+ * @param subrelation_lengths The array of subrelation lengths supplied by a relation.
+ * @return The transformed subrelation lenths
+ */
+template <size_t NUM_INSTANCES, size_t NUM_SUBRELATIONS>
+consteval std::array<size_t, NUM_SUBRELATIONS> get_composed_subrelation_lengths(
+    std::array<size_t, NUM_SUBRELATIONS> subrelation_lengths)
+{
+    std::transform(subrelation_lengths.begin(),
+                   subrelation_lengths.end(),
+                   subrelation_lengths.begin(),
+                   [](const size_t x) { return (x - 1) * (NUM_INSTANCES - 1) + 1; });
+    return subrelation_lengths;
+};
+
+/**
  * @brief The templates defined herein facilitate sharing the relation arithmetic between the prover and the verifier.
  *
  * The sumcheck prover and verifier accumulate the contributions from each relation (really, each sub-relation) into,
@@ -66,12 +88,15 @@ template <typename RelationImpl> class Relation : public RelationImpl {
     static constexpr size_t RELATION_LENGTH =
         *std::max_element(RelationImpl::SUBRELATION_LENGTHS.begin(), RelationImpl::SUBRELATION_LENGTHS.end());
 
-    using TupleOfUnivariatesOverSubrelations = TupleOfUnivariates<FF, RelationImpl::SUBRELATION_LENGTHS>;
-    using ArrayOfValuesOverSubrelations = ArrayOfValues<FF, RelationImpl::SUBRELATION_LENGTHS>;
+    template <size_t NUM_INSTANCES>
+    using ProtogalaxyTupleOfUnivariatesOverSubrelations =
+        TupleOfUnivariates<FF, get_composed_subrelation_lengths<NUM_INSTANCES>(RelationImpl::SUBRELATION_LENGTHS)>;
+    using SumcheckTupleOfUnivariatesOverSubrelations = TupleOfUnivariates<FF, RelationImpl::SUBRELATION_LENGTHS>;
+    using SumcheckArrayOfValuesOverSubrelations = ArrayOfValues<FF, RelationImpl::SUBRELATION_LENGTHS>;
 
     // These are commonly needed, most importantly, for explicitly instantiating compute_foo_numerator/denomintor.
-    using UnivariateAccumulator0 = std::tuple_element_t<0, TupleOfUnivariatesOverSubrelations>;
-    using ValueAccumulator0 = std::tuple_element_t<0, ArrayOfValuesOverSubrelations>;
+    using UnivariateAccumulator0 = std::tuple_element_t<0, SumcheckTupleOfUnivariatesOverSubrelations>;
+    using ValueAccumulator0 = std::tuple_element_t<0, SumcheckArrayOfValuesOverSubrelations>;
 };
 
 } // namespace proof_system

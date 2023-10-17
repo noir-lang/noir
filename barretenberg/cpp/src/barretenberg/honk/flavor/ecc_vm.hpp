@@ -76,8 +76,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     // static_assert(instantiate_barycentric_utils<FF, MAX_RANDOM_RELATION_LENGTH>());
 
     // define the containers for storing the contributions from each relation in Sumcheck
-    using TupleOfTuplesOfUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
-    using TupleOfArraysOfValues = decltype(create_relation_values_container<FF, Relations>());
+    using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
+    using TupleOfArraysOfValues = decltype(create_sumcheck_tuple_of_arrays_of_values<Relations>());
 
   private:
     /**
@@ -713,12 +713,15 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     };
 
     /**
-     * @brief A container for univariates produced during the hot loop in sumcheck.
-     * @todo TODO(#390): Simplify this by moving MAX_RELATION_LENGTH?
+     * @brief A container for univariates used during sumcheck.
      */
-    template <size_t MAX_RELATION_LENGTH>
-    using ExtendedEdges = AllEntities<barretenberg::Univariate<FF, MAX_RELATION_LENGTH>,
-                                      barretenberg::Univariate<FF, MAX_RELATION_LENGTH>>;
+    template <size_t LENGTH>
+    using ProverUnivariates = AllEntities<barretenberg::Univariate<FF, LENGTH>, barretenberg::Univariate<FF, LENGTH>>;
+
+    /**
+     * @brief A container for univariates produced during the hot loop in sumcheck.
+     */
+    using ExtendedEdges = ProverUnivariates<MAX_RELATION_LENGTH>;
 
     /**
      * @brief A container for the prover polynomials handles; only stores spans.

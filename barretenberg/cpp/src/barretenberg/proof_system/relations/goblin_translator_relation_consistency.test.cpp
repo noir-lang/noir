@@ -239,7 +239,7 @@ class GoblinTranslatorRelationConsistency : public testing::Test {
                                             const InputElements& input_elements,
                                             const auto& parameters)
     {
-        typename Relation::ArrayOfValuesOverSubrelations accumulator;
+        typename Relation::SumcheckArrayOfValuesOverSubrelations accumulator;
         std::fill(accumulator.begin(), accumulator.end(), FF(0));
         Relation::accumulate(accumulator, input_elements, parameters, 1);
         EXPECT_EQ(accumulator, expected_values);
@@ -250,7 +250,7 @@ TEST_F(GoblinTranslatorRelationConsistency, PermutationRelation)
 {
     const auto run_test = [](bool random_inputs) {
         using Relation = GoblinTranslatorPermutationRelation<FF>;
-        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+        using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
         const auto& concatenated_range_constraints_0 = input_elements.concatenated_range_constraints_0;
@@ -298,7 +298,7 @@ TEST_F(GoblinTranslatorRelationConsistency, GenPermSortRelation)
 {
     const auto run_test = [](bool random_inputs) {
         using Relation = GoblinTranslatorGenPermSortRelation<FF>;
-        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+        using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
 
@@ -362,7 +362,7 @@ TEST_F(GoblinTranslatorRelationConsistency, DecompositionRelation)
 {
     const auto run_test = [](bool random_inputs) {
         using Relation = GoblinTranslatorDecompositionRelation<FF>;
-        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+        using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
 
@@ -911,7 +911,7 @@ TEST_F(GoblinTranslatorRelationConsistency, OpcodeConstraintRelation)
 {
     const auto run_test = [](bool random_inputs) {
         using Relation = GoblinTranslatorOpcodeConstraintRelation<FF>;
-        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+        using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
         const auto& op = input_elements.op;
@@ -934,7 +934,7 @@ TEST_F(GoblinTranslatorRelationConsistency, AccumulatorTransferRelation)
 {
     const auto run_test = [](bool random_inputs) {
         using Relation = GoblinTranslatorAccumulatorTransferRelation<FF>;
-        using RelationValues = typename Relation::ArrayOfValuesOverSubrelations;
+        using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
 
