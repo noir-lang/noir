@@ -272,10 +272,7 @@ fn compile_contract_inner(
         }
 
         let function = match compile_no_check(context, options, function_id, None, true) {
-            Ok((function, warnings)) => {
-                errors.extend(vecmap(warnings, FileDiagnostic::from));
-                function
-            }
+            Ok((function, _warnings)) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
                 continue;
