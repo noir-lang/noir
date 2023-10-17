@@ -44,7 +44,7 @@ jobs:
     permissions:
       pull-requests: write
     needs: add_label
-    if: contains(github.event.pull_request.labels.*.name, 'documentation')
+    if: needs.add_label.outputs.has_label == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
