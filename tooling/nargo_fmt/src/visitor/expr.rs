@@ -10,9 +10,17 @@ impl FmtVisitor<'_> {
         let span = expr.span;
 
         let rewrite = self.format_expr(expr);
-        let rewrite = recover_comment_removed(slice!(self, span.start(), span.end()), rewrite);
-        self.push_rewrite(rewrite, span);
+        let original = slice!(self, span.start(), span.end());
+        let changed_comment_content = changed_comment_content(original, &rewrite);
 
+        if changed_comment_content && self.config.error_on_unformatted {
+            panic!("{original:?} vs {rewrite:?}");
+        }
+
+        self.push_rewrite(
+            if changed_comment_content { original.to_string() } else { rewrite },
+            span,
+        );
         self.last_position = span.end();
     }
 
@@ -226,14 +234,6 @@ impl FmtVisitor<'_> {
         };
         self.last_position = block_span.end();
         self.push_str(&block_str);
-    }
-}
-
-fn recover_comment_removed(original: &str, new: String) -> String {
-    if changed_comment_content(original, &new) {
-        original.to_string()
-    } else {
-        new
     }
 }
 

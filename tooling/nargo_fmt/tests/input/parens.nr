@@ -1,3 +1,4 @@
+//@error_on_unformatted=true
 fn main(x : u64, y : pub u64) {
     (
 //

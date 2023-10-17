@@ -44,20 +44,25 @@ macro_rules! config {
 config! {
     tab_spaces: usize, 4, "Number of spaces per tab";
     remove_nested_parens: bool, true, "Remove nested parens";
+    error_on_unformatted: bool, false, "Error if unable to get comments";
 }
 
 impl Config {
     pub fn read(path: &Path) -> Result<Self, ConfigError> {
-        let mut config = Self::default();
         let config_path = path.join("noirfmt.toml");
 
-        let raw_toml = match std::fs::read_to_string(&config_path) {
-            Ok(t) => t,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+        let input = match std::fs::read_to_string(&config_path) {
+            Ok(input) => input,
+            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => String::new(),
             Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
         };
-        let toml = toml::from_str(&raw_toml).map_err(ConfigError::MalformedFile)?;
 
+        Self::from_str(&input)
+    }
+
+    pub fn from_str(s: &str) -> Result<Self, ConfigError> {
+        let mut config = Self::default();
+        let toml = toml::from_str(s).map_err(ConfigError::MalformedFile)?;
         config.fill_from_toml(toml);
         Ok(config)
     }
