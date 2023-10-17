@@ -849,20 +849,18 @@ impl Context {
         let res_typ = dfg.type_of_value(results[0]);
 
         let value = if !res_typ.contains_slice_element() {
-            let mut new_slice_sizes = vec![];
-            self.array_get_value(&res_typ, block_id, &mut var_index, &mut new_slice_sizes)?
+            let mut slice_sizes = vec![];
+            self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes)?
         } else {
-            let mut new_slice_sizes =
-                self.slice_sizes.get(&array_id).expect("ICE: should have new slice sizes").clone();
-            new_slice_sizes.drain(0..1);
-            let value =
-                self.array_get_value(&res_typ, block_id, &mut var_index, &mut new_slice_sizes)?;
-
-            let new_slice_sizes =
-                self.slice_sizes.get(&array_id).expect("ICE: should have new slice sizes").clone();
-            let (_, inner_slices) = new_slice_sizes.split_first().expect("ICE: expected slices");
+            let mut slice_sizes =
+                self.slice_sizes.get(&array_id).expect("ICE: should have slice sizes").clone();
+            slice_sizes.drain(0..1);
             // TODO: look into how we can avoid this clone here
-            self.slice_sizes.insert(results[0], inner_slices.to_vec());
+            let result_slice_sizes = slice_sizes.clone();
+            let value =
+                self.array_get_value(&res_typ, block_id, &mut var_index, &mut slice_sizes)?;
+
+            self.slice_sizes.insert(results[0], result_slice_sizes);
 
             value
         };
@@ -907,9 +905,9 @@ impl Context {
             }
             Type::Slice(element_types) => {
                 // It is not enough to do this and simply pass the size from the definition,
-                // I need the internal size in case of a nested slice
-                // We should not use the element types for slices as we already have a flattened structure
-                // in the values
+                // We need internal sizes of each type in case of a nested slice
+                // We should not use the type length for slices as we have a flattened structure
+                // from the SSA values.
                 let mut values = Vector::new();
                 let current_size = slice_sizes[0];
                 slice_sizes.drain(0..1);
@@ -987,13 +985,28 @@ impl Context {
 
         self.array_set_value(store_value, result_block_id, &mut var_index)?;
 
-        // Set new resulting array to have the same slice sizes as the instruction input
-        if array_typ.contains_slice_element() {
-            let new_slice_sizes =
-                self.slice_sizes.get(&array_id).expect("ICE: expected new slice sizes").clone();
-            let results = dfg.instruction_results(instruction);
-            self.slice_sizes.insert(results[0], new_slice_sizes);
+        if let Type::Slice(element_types) = &array_typ {
+            let mut has_internal_slices = false;
+            for typ in element_types.as_ref() {
+                if typ.contains_slice_element() {
+                    has_internal_slices = true;
+                    break;
+                }
+            }
+            if has_internal_slices {
+                let slice_sizes =
+                    self.slice_sizes.get(&array_id).expect("ICE: expected new slice sizes").clone();
+                let results = dfg.instruction_results(instruction);
+                self.slice_sizes.insert(results[0], slice_sizes);
+            }
         }
+        // Set new resulting array to have the same slice sizes as the instruction input
+        // if array_typ.contains_slice_element() {
+        //     let slice_sizes =
+        //         self.slice_sizes.get(&array_id).expect("ICE: expected new slice sizes").clone();
+        //     let results = dfg.instruction_results(instruction);
+        //     self.slice_sizes.insert(results[0], slice_sizes);
+        // }
 
         let new_elem_type_sizes = self.init_element_type_sizes_array(&array_typ, array_id, dfg)?;
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {

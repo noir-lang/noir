@@ -85,7 +85,7 @@ impl Type {
             }
             Type::Slice(_) => true,
             Type::Numeric(_) => false,
-            // TODO: look at if we need special handling for references
+            // TODO: Look at if we need special handling for references
             _ => {
                 unreachable!("ICE: expected array or slice type");
             }

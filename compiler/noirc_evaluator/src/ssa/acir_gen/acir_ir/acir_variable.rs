@@ -1109,9 +1109,7 @@ impl AcirContext {
         // Fetch the witness corresponding to the index
         //
         let index_witness = self.var_to_witness(*index)?;
-        // if block_id.0 == 6 {
-        //     dbg!(index_witness);
-        // }
+
         // Fetch the witness corresponding to the value to be written
         let value_write_witness = self.var_to_witness(*value)?;
 

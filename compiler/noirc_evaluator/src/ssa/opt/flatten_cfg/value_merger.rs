@@ -242,14 +242,14 @@ impl<'a> ValueMerger<'a> {
                 match instruction {
                     // An slice can be the result of an ArrayGet when it is the
                     // fetched from a slice of slices or as a struct field.
-                    Instruction::ArrayGet { array, .. } => {
-                        let array = *array;
-                        let len = self.get_slice_length(array);
-                        self.slice_sizes.insert(array, len);
-                        dbg!("GOT ARRAY GET");
-                        dbg!(len);
-                        len
-                    }
+                    // However, we need to incorporate nested slice support in flattening
+                    // in order for this to be valid
+                    // Instruction::ArrayGet { array, .. } => {
+                    //     let array = *array;
+                    //     let len = self.get_slice_length(array);
+                    //     self.slice_sizes.insert(array, len);
+                    //     len
+                    // }
                     Instruction::ArraySet { array, .. } => {
                         let array = *array;
                         let len = self.get_slice_length(array);
