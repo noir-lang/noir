@@ -89,17 +89,9 @@ impl Backend {
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
 
-        // Unlike when proving, we omit any unassigned witnesses.
-        // Witness values should be ordered by their index but we skip over any indices without an assignment.
-        let flattened_public_inputs: Vec<FieldElement> =
-            public_inputs.into_iter().map(|(_, el)| el).collect();
-
-        let proof_with_public_inputs = bb_abstraction_leaks::prepend_public_inputs(
-            proof.to_vec(),
-            flattened_public_inputs.to_vec(),
-        );
-
         // Create a temporary file for the proof
+        let proof_with_public_inputs =
+            bb_abstraction_leaks::prepend_public_inputs(proof.to_vec(), public_inputs);
         let proof_path = temp_directory.join("proof").with_extension("proof");
         write_to_file(&proof_with_public_inputs, &proof_path);
 
@@ -153,15 +145,8 @@ impl Backend {
 
         // Create a temporary file for the proof
 
-        // Unlike when proving, we omit any unassigned witnesses.
-        // Witness values should be ordered by their index but we skip over any indices without an assignment.
-        let flattened_public_inputs: Vec<FieldElement> =
-            public_inputs.into_iter().map(|(_, el)| el).collect();
-
-        let proof_with_public_inputs = bb_abstraction_leaks::prepend_public_inputs(
-            proof.to_vec(),
-            flattened_public_inputs.to_vec(),
-        );
+        let proof_with_public_inputs =
+            bb_abstraction_leaks::prepend_public_inputs(proof.to_vec(), public_inputs);
         let proof_path = temp_directory.join("proof").with_extension("proof");
         write_to_file(&proof_with_public_inputs, &proof_path);
 
