@@ -107,6 +107,7 @@ __metadata:
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
     lodash.omit: ^4.5.0
+    lodash.times: ^4.3.2
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tsc-watch: ^6.0.0

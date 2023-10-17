@@ -1,3 +1,4 @@
+import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -6,6 +7,7 @@ import { ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-art
 import { ExtendedContractData, L2Block, L2BlockL2Logs, LogType } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
+import times from 'lodash.times';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
 
 import { Archiver } from './archiver.js';
@@ -201,6 +203,60 @@ describe('Archiver', () => {
     const expectedPendingMessageKeys = additionalL1ToL2MessagesBlock102;
     const actualPendingMessageKeys = (await archiver.getPendingL1ToL2Messages(100)).map(key => key.toString(true));
     expect(actualPendingMessageKeys).toEqual(expectedPendingMessageKeys);
+
+    await archiver.stop();
+  }, 10_000);
+
+  it('pads L1 to L2 messages', async () => {
+    const NUM_RECEIVED_L1_MESSAGES = 2;
+
+    const archiver = new Archiver(
+      publicClient,
+      EthAddress.fromString(rollupAddress),
+      EthAddress.fromString(inboxAddress),
+      EthAddress.fromString(registryAddress),
+      EthAddress.fromString(contractDeploymentEmitterAddress),
+      0,
+      archiverStore,
+      1000,
+    );
+
+    let latestBlockNum = await archiver.getBlockNumber();
+    expect(latestBlockNum).toEqual(0);
+
+    const block = L2Block.random(1, 4, 1, 2, 4, 6);
+    block.newL1ToL2Messages = times(2, Fr.random);
+    const rollupTx = makeRollupTx(block);
+
+    publicClient.getBlockNumber.mockResolvedValueOnce(2500n);
+    // logs should be created in order of how archiver syncs.
+    publicClient.getLogs
+      .mockResolvedValueOnce(
+        makeL1ToL2MessageAddedEvents(
+          100n,
+          block.newL1ToL2Messages.map(x => x.toString(true)),
+        ),
+      )
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
+      .mockResolvedValue([]);
+    publicClient.getTransaction.mockResolvedValueOnce(rollupTx);
+
+    await archiver.start(false);
+
+    // Wait until block 1 is processed. If this won't happen the test will fail with timeout.
+    while ((await archiver.getBlockNumber()) !== 1) {
+      await sleep(100);
+    }
+
+    latestBlockNum = await archiver.getBlockNumber();
+    expect(latestBlockNum).toEqual(1);
+
+    const expectedL1Messages = block.newL1ToL2Messages
+      .concat(times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP - NUM_RECEIVED_L1_MESSAGES, () => Fr.ZERO))
+      .map(x => x.value);
+    const receivedBlock = await archiver.getBlock(1);
+    expect(receivedBlock?.newL1ToL2Messages.map(x => x.value)).toEqual(expectedL1Messages);
 
     await archiver.stop();
   }, 10_000);
