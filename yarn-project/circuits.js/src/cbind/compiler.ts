@@ -79,13 +79,6 @@ export interface TypeInfo {
    */
   variantSubtypes?: TypeInfo[];
   /**
-   * Was this used in a variant type?
-   * Typically a variant in C++ will have an easy to distinguish type as
-   * one of two structs e.g. [Error, T]. In that case, a isError method would be imported. Only if a third type was
-   * added would we need to distinguish T as well.
-   */
-  usedInDiscriminatedVariant?: boolean;
-  /**
    * Key-value pair of types that represent the keys and values in a map schema.
    */
   mapSubtypes?: [TypeInfo, TypeInfo];
@@ -136,14 +129,17 @@ function msgpackConverterExpr(typeInfo: TypeInfo, value: string): string {
     }
   } else if (typeInfo.variantSubtypes) {
     const { variantSubtypes } = typeInfo;
-    // Handle the last variant type: just assume it is this type...
-    let expr = msgpackConverterExpr(variantSubtypes[variantSubtypes.length - 1], 'v');
-    // ... because we check every other type:
+    // Handle the last variant type: we assume it is this type after checking everything else
+    let expr = msgpackConverterExpr(
+      variantSubtypes[variantSubtypes.length - 1],
+      'v[1] as ' + variantSubtypes[variantSubtypes.length - 1].msgpackTypeName,
+    );
     for (let i = 0; i < variantSubtypes.length - 1; i++) {
-      // mark this as needing an import
-      variantSubtypes[i].usedInDiscriminatedVariant = true;
       // make the expr a compound expression with a discriminator
-      expr = `(is${variantSubtypes[i].typeName}(v) ? ${msgpackConverterExpr(variantSubtypes[i], 'v')} : ${expr})`;
+      expr = `(v[0] == ${i} ? ${msgpackConverterExpr(
+        variantSubtypes[i],
+        'v[1] as ' + variantSubtypes[i].msgpackTypeName,
+      )} : ${expr})`;
     }
     return `((v: ${typeInfo.msgpackTypeName}) => ${expr})(${value})`;
   } else if (typeInfo.mapSubtypes) {
@@ -186,7 +182,7 @@ function classConverterExpr(typeInfo: TypeInfo, value: string): string {
       return `${value}.map(${convFn})`;
     }
   } else if (typeInfo.variantSubtypes) {
-    throw new Error('TODO - variant parameters to C++ not yet supported');
+    throw new Error('TODO(AD) - variant parameters to C++ not yet supported.');
   } else if (typeInfo.mapSubtypes) {
     const { typeName } = typeInfo.mapSubtypes[1];
     const convFn = `(v: ${typeName}) => ${classConverterExpr(typeInfo.mapSubtypes[1], 'v')}`;
@@ -239,8 +235,10 @@ export class CbindCompiler {
       } else if (type[0] === 'variant') {
         // fixed-size array case
         const [_array, variantSchemas] = type;
+        // TODO(AD): This could be a discriminated union if we also allow writing C++ variants.
         const typeName = variantSchemas.map(vs => this.getTypeName(vs)).join(' | ');
-        const msgpackTypeName = variantSchemas.map(vs => this.getMsgpackTypename(vs)).join(' | ');
+        const msgpackUnion = variantSchemas.map(vs => this.getMsgpackTypename(vs)).join(' | ');
+        const msgpackTypeName = `[number, ${msgpackUnion}]`;
         return {
           typeName,
           msgpackTypeName,
@@ -494,9 +492,6 @@ import { IWasmModule } from '@aztec/foundation/wasm';
     for (const typeInfo of Object.values(this.typeInfos)) {
       if (typeInfo.isImport) {
         imports.push(typeInfo.typeName);
-      }
-      if (typeInfo.usedInDiscriminatedVariant) {
-        imports.push(`is${typeInfo.typeName}`);
       }
       if (typeInfo.declaration) {
         outputs.push(typeInfo.declaration);

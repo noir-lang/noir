@@ -61,7 +61,6 @@ import {
   TxContext,
   TxRequest,
   VerificationKeyData,
-  isCircuitError,
   toBuffer,
 } from './types.js';
 
@@ -3236,8 +3235,10 @@ export function privateKernelSimInit(
   wasm: IWasmModule,
   arg0: PrivateKernelInputsInit,
 ): CircuitError | KernelCircuitPublicInputs {
-  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
-    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackKernelCircuitPublicInputs]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toKernelCircuitPublicInputs(v[1] as MsgpackKernelCircuitPublicInputs))(
     callCbind(wasm, 'private_kernel__sim_init', [fromPrivateKernelInputsInit(arg0)]),
   );
 }
@@ -3245,8 +3246,10 @@ export function privateKernelSimInner(
   wasm: IWasmModule,
   arg0: PrivateKernelInputsInner,
 ): CircuitError | KernelCircuitPublicInputs {
-  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
-    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackKernelCircuitPublicInputs]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toKernelCircuitPublicInputs(v[1] as MsgpackKernelCircuitPublicInputs))(
     callCbind(wasm, 'private_kernel__sim_inner', [fromPrivateKernelInputsInner(arg0)]),
   );
 }
@@ -3254,20 +3257,26 @@ export function privateKernelSimOrdering(
   wasm: IWasmModule,
   arg0: PrivateKernelInputsOrdering,
 ): CircuitError | KernelCircuitPublicInputsFinal {
-  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputsFinal) =>
-    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputsFinal(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackKernelCircuitPublicInputsFinal]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toKernelCircuitPublicInputsFinal(v[1] as MsgpackKernelCircuitPublicInputsFinal))(
     callCbind(wasm, 'private_kernel__sim_ordering', [fromPrivateKernelInputsOrdering(arg0)]),
   );
 }
 export function publicKernelSim(wasm: IWasmModule, arg0: PublicKernelInputs): CircuitError | KernelCircuitPublicInputs {
-  return ((v: MsgpackCircuitError | MsgpackKernelCircuitPublicInputs) =>
-    isCircuitError(v) ? toCircuitError(v) : toKernelCircuitPublicInputs(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackKernelCircuitPublicInputs]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toKernelCircuitPublicInputs(v[1] as MsgpackKernelCircuitPublicInputs))(
     callCbind(wasm, 'public_kernel__sim', [fromPublicKernelInputs(arg0)]),
   );
 }
 export function baseRollupSim(wasm: IWasmModule, arg0: BaseRollupInputs): CircuitError | BaseOrMergeRollupPublicInputs {
-  return ((v: MsgpackCircuitError | MsgpackBaseOrMergeRollupPublicInputs) =>
-    isCircuitError(v) ? toCircuitError(v) : toBaseOrMergeRollupPublicInputs(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackBaseOrMergeRollupPublicInputs]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toBaseOrMergeRollupPublicInputs(v[1] as MsgpackBaseOrMergeRollupPublicInputs))(
     callCbind(wasm, 'base_rollup__sim', [fromBaseRollupInputs(arg0)]),
   );
 }
@@ -3275,14 +3284,18 @@ export function mergeRollupSim(
   wasm: IWasmModule,
   arg0: MergeRollupInputs,
 ): CircuitError | BaseOrMergeRollupPublicInputs {
-  return ((v: MsgpackCircuitError | MsgpackBaseOrMergeRollupPublicInputs) =>
-    isCircuitError(v) ? toCircuitError(v) : toBaseOrMergeRollupPublicInputs(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackBaseOrMergeRollupPublicInputs]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toBaseOrMergeRollupPublicInputs(v[1] as MsgpackBaseOrMergeRollupPublicInputs))(
     callCbind(wasm, 'merge_rollup__sim', [fromMergeRollupInputs(arg0)]),
   );
 }
 export function rootRollupSim(wasm: IWasmModule, arg0: RootRollupInputs): CircuitError | RootRollupPublicInputs {
-  return ((v: MsgpackCircuitError | MsgpackRootRollupPublicInputs) =>
-    isCircuitError(v) ? toCircuitError(v) : toRootRollupPublicInputs(v))(
+  return ((v: [number, MsgpackCircuitError | MsgpackRootRollupPublicInputs]) =>
+    v[0] == 0
+      ? toCircuitError(v[1] as MsgpackCircuitError)
+      : toRootRollupPublicInputs(v[1] as MsgpackRootRollupPublicInputs))(
     callCbind(wasm, 'root_rollup__sim', [fromRootRollupInputs(arg0)]),
   );
 }

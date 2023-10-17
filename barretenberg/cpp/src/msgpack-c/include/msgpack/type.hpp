@@ -37,9 +37,7 @@
 #include "adaptor/cpp11/array_char.hpp"
 #include "adaptor/cpp11/array_unsigned_char.hpp"
 
-#if !defined(MSGPACK_NO_BOOST)
 #include "adaptor/cpp11/chrono.hpp"
-#endif // !defined(MSGPACK_NO_BOOST)
 
 #include "adaptor/cpp11/forward_list.hpp"
 #include "adaptor/cpp11/reference_wrapper.hpp"
@@ -62,6 +60,10 @@
 #include "adaptor/cpp17/byte.hpp"
 #include "adaptor/cpp17/carray_byte.hpp"
 #include "adaptor/cpp17/vector_byte.hpp"
+
+#if MSGPACK_HAS_INCLUDE(<variant>)
+#include "adaptor/cpp17/variant.hpp"
+#endif // MSGPACK_HAS_INCLUDE(<variant>)
 
 #if MSGPACK_HAS_INCLUDE(<span>)
 #include "adaptor/cpp20/span.hpp"

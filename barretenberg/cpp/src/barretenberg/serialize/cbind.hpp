@@ -13,7 +13,6 @@
 #include "msgpack_impl/schema_impl.hpp"
 #include "msgpack_impl/schema_name.hpp"
 #include "msgpack_impl/struct_map_impl.hpp"
-#include "msgpack_impl/variant_impl.hpp"
 
 #include <cstring>
 #include <type_traits>
