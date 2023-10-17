@@ -130,6 +130,7 @@ impl Backend {
         public_inputs: WitnessMap,
     ) -> Result<(Vec<FieldElement>, FieldElement, Vec<FieldElement>), BackendError> {
         let binary_path = self.assert_binary_exists()?;
+        self.assert_correct_version()?;
 
         let temp_directory = tempdir().expect("could not create a temporary directory");
         let temp_directory = temp_directory.path().to_path_buf();
