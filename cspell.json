@@ -173,5 +173,6 @@
     "git-subrepo/",
     "*.snap",
     "package.json"
-  ]
+  ],
+  "flagWords": ["anonymous"]
 }
